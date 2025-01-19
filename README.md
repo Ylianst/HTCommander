@@ -13,7 +13,7 @@ The following radios should work with this application:
 
 ### Installation
 
-There are no installers, just [download the zip file](releases/htcommander-0.1.zip), extract and run.
+There are no installers, just [download the zip file](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.1.zip), extract and run.
 
 ### Credits
 
