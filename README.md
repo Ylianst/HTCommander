@@ -25,4 +25,4 @@ There are no installer, just [download the zip file](https://github.com/Ylianst/
 
 ### Credits
 
-This tool is based on the decoding work done by [Kyle Husmann](https://github.com/khusmann) and his BenLink project which decoded the Bluetooth commands for these radios. Also [APRS-Parser](https://github.com/k0qed/aprs-parser) by Lee, K0QED.
+This tool is based on the decoding work done by Kyle Husmann, KC3SLD and this [BenLink](https://github.com/khusmann/benlink) project which decoded the Bluetooth commands for these radios. Also [APRS-Parser](https://github.com/k0qed/aprs-parser) by Lee, K0QED.
