@@ -21,7 +21,7 @@ This first version is focused on getting APRS working well along with control ov
 
 ### Installation
 
-There are no installer, just [download the zip file](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.1.zip), extract and run. Except for Open Street map data, this tool does not access the internet.
+There are no installer, just [download the zip file](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.1.zip), extract and run. Except for Open Street Map data, this tool does not access the internet.
 
 ### Credits
 
