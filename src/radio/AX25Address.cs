@@ -40,7 +40,7 @@ namespace HTCommander
 
         public static AX25Address GetAddress(string address)
         {
-            if ((address == null) || (address.Length > 8)) return null;
+            if ((address == null) || (address.Length > 9)) return null;
             int s = address.IndexOf('-');
             int ssid = 0;
             if (s == -1)
@@ -56,6 +56,7 @@ namespace HTCommander
                 if ((ssid > 15) || (ssid < 0)) return null;
                 address = address.Substring(0, s);
             }
+            if (address.Length == 0) return null;
             return AX25Address.GetAddress(address, ssid, false);
         }
 

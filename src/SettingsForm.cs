@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 using System;
+using System.Text;
 using System.Windows.Forms;
 
 namespace HTCommander
@@ -25,14 +26,42 @@ namespace HTCommander
         public string CallSign { get { return callsignTextBox.Text; } set { callsignTextBox.Text = value; } }
         public int StationId { get { return stationIdComboBox.SelectedIndex; } set { stationIdComboBox.SelectedIndex = value; } }
 
+        public string AprsRoutes { get { return GetAprsRoutes(); } set { SetAprsRoutes(value); } }
+
         public SettingsForm()
         {
             InitializeComponent();
         }
 
+        private void SettingsForm_Load(object sender, EventArgs e)
+        {
+            // If there are no ARPS routes, add the default one.
+            if (aprsRoutesListView.Items.Count == 0) { AddAprsRouteString("Standard|APN001,WIDE1-1,WIDE2-2"); }
+        }
+
+        private string GetAprsRoutes()
+        {
+            StringBuilder sb = new StringBuilder();
+            bool first = true;
+            foreach (ListViewItem l in aprsRoutesListView.Items)
+            {
+                sb.Append((first ? "" : "|") + (string)l.Tag);
+                first = false;
+            }
+            return sb.ToString();
+        }
+
+        private void SetAprsRoutes(string routesStr)
+        {
+            //aprsRoutesListView.Clear();
+            if (routesStr == null) return;
+            string[] routes = routesStr.Split('|');
+            foreach (string route in routes) { AddAprsRouteString(route); }
+        }
+
         private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            System.Diagnostics.Process.Start(linkLabel1.Text);
+            System.Diagnostics.Process.Start("https://" + linkLabel1.Text);
         }
 
         private void okButton_Click(object sender, EventArgs e)
@@ -50,5 +79,63 @@ namespace HTCommander
         {
             UpdateInfo();
         }
+
+        private void addAprsButton_Click(object sender, EventArgs e)
+        {
+            AddAprsRouteForm form = new AddAprsRouteForm();
+            if (form.ShowDialog(this) == DialogResult.OK) { AddAprsRouteString(form.AprsRouteStr); }
+        }
+
+        private void AddAprsRouteString(string routeStr)
+        {
+            string[] route = routeStr.Split(',');
+
+            ListViewItem delItem = null;
+            foreach (ListViewItem i in aprsRoutesListView.Items) { if (i.Text == route[0]) { delItem = i; } }
+            if (delItem != null) { aprsRoutesListView.Items.Remove(delItem); }
+
+            ListViewItem l = new ListViewItem();
+            l.Text = route[0];
+            string t = route[1];
+            if (route.Length > 2) { t += " thru " + route[2]; }
+            if (route.Length > 3) { t += "," + route[3]; }
+            if (route.Length > 4) { t += "," + route[4]; }
+            l.Tag = routeStr;
+            l.SubItems.Add(t);
+            aprsRoutesListView.Items.Add(l);
+        }
+
+        private void aprsRoutesListView_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            editButton.Enabled = deleteAprsButton.Enabled = (aprsRoutesListView.SelectedItems.Count == 1);
+        }
+
+        private void deleteAprsButton_Click(object sender, EventArgs e)
+        {
+            if (aprsRoutesListView.SelectedItems.Count == 1)
+            {
+                ListViewItem l = aprsRoutesListView.SelectedItems[0];
+                aprsRoutesListView.Items.Remove(l);
+                // If there are no ARPS routes, add the default one.
+                if (aprsRoutesListView.Items.Count == 0) { AddAprsRouteString("Standard,APN001,WIDE1-1,WIDE2-2"); }
+                UpdateInfo();
+            }
+        }
+
+        private void editButton_Click(object sender, EventArgs e)
+        {
+            if (aprsRoutesListView.SelectedItems.Count == 1)
+            {
+                ListViewItem l = aprsRoutesListView.SelectedItems[0];
+                AddAprsRouteForm form = new AddAprsRouteForm();
+                form.AprsRouteStr = (string)l.Tag;
+                if (form.ShowDialog(this) == DialogResult.OK) {
+                    aprsRoutesListView.Items.Remove(l);
+                    AddAprsRouteString(form.AprsRouteStr);
+                    UpdateInfo();
+                }
+            }
+        }
+
     }
 }

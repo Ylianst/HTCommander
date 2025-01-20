@@ -29,8 +29,6 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SettingsForm));
-            this.cancelButton = new System.Windows.Forms.Button();
-            this.okButton = new System.Windows.Forms.Button();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.licenseTabPage = new System.Windows.Forms.TabPage();
             this.linkLabel1 = new System.Windows.Forms.LinkLabel();
@@ -40,49 +38,28 @@
             this.label2 = new System.Windows.Forms.Label();
             this.stationIdComboBox = new System.Windows.Forms.ComboBox();
             this.callsignTextBox = new System.Windows.Forms.TextBox();
+            this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.label1 = new System.Windows.Forms.Label();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
+            this.pictureBox2 = new System.Windows.Forms.PictureBox();
             this.label4 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.editButton = new System.Windows.Forms.Button();
             this.aprsRoutesListView = new System.Windows.Forms.ListView();
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.addAprsButton = new System.Windows.Forms.Button();
             this.deleteAprsButton = new System.Windows.Forms.Button();
-            this.pictureBox1 = new System.Windows.Forms.PictureBox();
-            this.pictureBox2 = new System.Windows.Forms.PictureBox();
-            this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.okButton = new System.Windows.Forms.Button();
+            this.cancelButton = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.licenseTabPage.SuspendLayout();
             this.groupBox1.SuspendLayout();
-            this.aprsTabPage.SuspendLayout();
-            this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
+            this.aprsTabPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
+            this.groupBox2.SuspendLayout();
             this.SuspendLayout();
-            // 
-            // cancelButton
-            // 
-            this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancelButton.Location = new System.Drawing.Point(334, 398);
-            this.cancelButton.Margin = new System.Windows.Forms.Padding(2);
-            this.cancelButton.Name = "cancelButton";
-            this.cancelButton.Size = new System.Drawing.Size(56, 19);
-            this.cancelButton.TabIndex = 0;
-            this.cancelButton.Text = "Cancel";
-            this.cancelButton.UseVisualStyleBackColor = true;
-            // 
-            // okButton
-            // 
-            this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.okButton.Location = new System.Drawing.Point(273, 398);
-            this.okButton.Margin = new System.Windows.Forms.Padding(2);
-            this.okButton.Name = "okButton";
-            this.okButton.Size = new System.Drawing.Size(56, 19);
-            this.okButton.TabIndex = 1;
-            this.okButton.Text = "OK";
-            this.okButton.UseVisualStyleBackColor = true;
-            this.okButton.Click += new System.EventHandler(this.okButton_Click);
             // 
             // tabControl1
             // 
@@ -94,7 +71,7 @@
             this.tabControl1.Location = new System.Drawing.Point(12, 12);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(375, 381);
+            this.tabControl1.Size = new System.Drawing.Size(375, 373);
             this.tabControl1.TabIndex = 2;
             // 
             // licenseTabPage
@@ -106,7 +83,7 @@
             this.licenseTabPage.Location = new System.Drawing.Point(4, 22);
             this.licenseTabPage.Name = "licenseTabPage";
             this.licenseTabPage.Padding = new System.Windows.Forms.Padding(3);
-            this.licenseTabPage.Size = new System.Drawing.Size(367, 355);
+            this.licenseTabPage.Size = new System.Drawing.Size(367, 347);
             this.licenseTabPage.TabIndex = 0;
             this.licenseTabPage.Text = "License";
             this.licenseTabPage.UseVisualStyleBackColor = true;
@@ -116,10 +93,10 @@
             this.linkLabel1.AutoSize = true;
             this.linkLabel1.Location = new System.Drawing.Point(6, 85);
             this.linkLabel1.Name = "linkLabel1";
-            this.linkLabel1.Size = new System.Drawing.Size(181, 13);
+            this.linkLabel1.Size = new System.Drawing.Size(145, 13);
             this.linkLabel1.TabIndex = 3;
             this.linkLabel1.TabStop = true;
-            this.linkLabel1.Text = "https://www.arrl.org/getting-licensed";
+            this.linkLabel1.Text = "www.arrl.org/getting-licensed";
             this.linkLabel1.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkLabel1_LinkClicked);
             // 
             // groupBox1
@@ -208,6 +185,17 @@
             this.callsignTextBox.TabIndex = 0;
             this.callsignTextBox.TextChanged += new System.EventHandler(this.callsignTextBox_TextChanged);
             // 
+            // pictureBox1
+            // 
+            this.pictureBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.pictureBox1.Image = global::HTCommander.Properties.Resources.Certificate;
+            this.pictureBox1.Location = new System.Drawing.Point(298, 8);
+            this.pictureBox1.Name = "pictureBox1";
+            this.pictureBox1.Size = new System.Drawing.Size(69, 77);
+            this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox1.TabIndex = 1;
+            this.pictureBox1.TabStop = false;
+            // 
             // label1
             // 
             this.label1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
@@ -226,10 +214,21 @@
             this.aprsTabPage.Location = new System.Drawing.Point(4, 22);
             this.aprsTabPage.Name = "aprsTabPage";
             this.aprsTabPage.Padding = new System.Windows.Forms.Padding(3);
-            this.aprsTabPage.Size = new System.Drawing.Size(367, 355);
+            this.aprsTabPage.Size = new System.Drawing.Size(367, 347);
             this.aprsTabPage.TabIndex = 1;
             this.aprsTabPage.Text = "APRS";
             this.aprsTabPage.UseVisualStyleBackColor = true;
+            // 
+            // pictureBox2
+            // 
+            this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.pictureBox2.Image = global::HTCommander.Properties.Resources.MapPoint1;
+            this.pictureBox2.Location = new System.Drawing.Point(298, 8);
+            this.pictureBox2.Name = "pictureBox2";
+            this.pictureBox2.Size = new System.Drawing.Size(69, 77);
+            this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox2.TabIndex = 3;
+            this.pictureBox2.TabStop = false;
             // 
             // label4
             // 
@@ -243,6 +242,7 @@
             // 
             // groupBox2
             // 
+            this.groupBox2.Controls.Add(this.editButton);
             this.groupBox2.Controls.Add(this.aprsRoutesListView);
             this.groupBox2.Controls.Add(this.addAprsButton);
             this.groupBox2.Controls.Add(this.deleteAprsButton);
@@ -252,6 +252,18 @@
             this.groupBox2.TabIndex = 0;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Routes";
+            // 
+            // editButton
+            // 
+            this.editButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.editButton.Enabled = false;
+            this.editButton.Location = new System.Drawing.Point(193, 131);
+            this.editButton.Name = "editButton";
+            this.editButton.Size = new System.Drawing.Size(75, 23);
+            this.editButton.TabIndex = 4;
+            this.editButton.Text = "Edit...";
+            this.editButton.UseVisualStyleBackColor = true;
+            this.editButton.Click += new System.EventHandler(this.editButton_Click);
             // 
             // aprsRoutesListView
             // 
@@ -266,27 +278,35 @@
             this.aprsRoutesListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.aprsRoutesListView.HideSelection = false;
             this.aprsRoutesListView.Location = new System.Drawing.Point(6, 19);
+            this.aprsRoutesListView.MultiSelect = false;
             this.aprsRoutesListView.Name = "aprsRoutesListView";
             this.aprsRoutesListView.Size = new System.Drawing.Size(343, 106);
+            this.aprsRoutesListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.aprsRoutesListView.TabIndex = 2;
             this.aprsRoutesListView.UseCompatibleStateImageBehavior = false;
             this.aprsRoutesListView.View = System.Windows.Forms.View.Details;
+            this.aprsRoutesListView.SelectedIndexChanged += new System.EventHandler(this.aprsRoutesListView_SelectedIndexChanged);
+            this.aprsRoutesListView.DoubleClick += new System.EventHandler(this.editButton_Click);
             // 
             // columnHeader1
             // 
             this.columnHeader1.Text = "Route";
             this.columnHeader1.Width = 100;
             // 
+            // columnHeader2
+            // 
+            this.columnHeader2.Width = 220;
+            // 
             // addAprsButton
             // 
             this.addAprsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.addAprsButton.Enabled = false;
-            this.addAprsButton.Location = new System.Drawing.Point(193, 131);
+            this.addAprsButton.Location = new System.Drawing.Point(112, 131);
             this.addAprsButton.Name = "addAprsButton";
             this.addAprsButton.Size = new System.Drawing.Size(75, 23);
             this.addAprsButton.TabIndex = 1;
-            this.addAprsButton.Text = "Add";
+            this.addAprsButton.Text = "Add...";
             this.addAprsButton.UseVisualStyleBackColor = true;
+            this.addAprsButton.Click += new System.EventHandler(this.addAprsButton_Click);
             // 
             // deleteAprsButton
             // 
@@ -298,32 +318,29 @@
             this.deleteAprsButton.TabIndex = 0;
             this.deleteAprsButton.Text = "Delete";
             this.deleteAprsButton.UseVisualStyleBackColor = true;
+            this.deleteAprsButton.Click += new System.EventHandler(this.deleteAprsButton_Click);
             // 
-            // pictureBox1
+            // okButton
             // 
-            this.pictureBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.pictureBox1.Image = global::HTCommander.Properties.Resources.Certificate;
-            this.pictureBox1.Location = new System.Drawing.Point(298, 8);
-            this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(69, 77);
-            this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.pictureBox1.TabIndex = 1;
-            this.pictureBox1.TabStop = false;
+            this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.okButton.Location = new System.Drawing.Point(233, 391);
+            this.okButton.Name = "okButton";
+            this.okButton.Size = new System.Drawing.Size(75, 23);
+            this.okButton.TabIndex = 16;
+            this.okButton.Text = "OK";
+            this.okButton.UseVisualStyleBackColor = true;
+            this.okButton.Click += new System.EventHandler(this.okButton_Click);
             // 
-            // pictureBox2
+            // cancelButton
             // 
-            this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.pictureBox2.Image = global::HTCommander.Properties.Resources.MapPoint1;
-            this.pictureBox2.Location = new System.Drawing.Point(298, 8);
-            this.pictureBox2.Name = "pictureBox2";
-            this.pictureBox2.Size = new System.Drawing.Size(69, 77);
-            this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.pictureBox2.TabIndex = 3;
-            this.pictureBox2.TabStop = false;
-            // 
-            // columnHeader2
-            // 
-            this.columnHeader2.Width = 220;
+            this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
+            this.cancelButton.Location = new System.Drawing.Point(308, 391);
+            this.cancelButton.Name = "cancelButton";
+            this.cancelButton.Size = new System.Drawing.Size(75, 23);
+            this.cancelButton.TabIndex = 15;
+            this.cancelButton.Text = "Cancel";
+            this.cancelButton.UseVisualStyleBackColor = true;
             // 
             // SettingsForm
             // 
@@ -332,9 +349,9 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.cancelButton;
             this.ClientSize = new System.Drawing.Size(399, 426);
-            this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.okButton);
             this.Controls.Add(this.cancelButton);
+            this.Controls.Add(this.tabControl1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(2);
@@ -343,23 +360,21 @@
             this.Name = "SettingsForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Settings";
+            this.Load += new System.EventHandler(this.SettingsForm_Load);
             this.tabControl1.ResumeLayout(false);
             this.licenseTabPage.ResumeLayout(false);
             this.licenseTabPage.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
-            this.aprsTabPage.ResumeLayout(false);
-            this.groupBox2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
+            this.aprsTabPage.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).EndInit();
+            this.groupBox2.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
 
         #endregion
-
-        private System.Windows.Forms.Button cancelButton;
-        private System.Windows.Forms.Button okButton;
         private System.Windows.Forms.TabControl tabControl1;
         private System.Windows.Forms.TabPage licenseTabPage;
         private System.Windows.Forms.TabPage aprsTabPage;
@@ -380,5 +395,8 @@
         private System.Windows.Forms.ListView aprsRoutesListView;
         private System.Windows.Forms.ColumnHeader columnHeader1;
         private System.Windows.Forms.ColumnHeader columnHeader2;
+        private System.Windows.Forms.Button okButton;
+        private System.Windows.Forms.Button cancelButton;
+        private System.Windows.Forms.Button editButton;
     }
 }

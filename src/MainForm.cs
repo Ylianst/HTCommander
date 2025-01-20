@@ -51,6 +51,7 @@ namespace HTCommander
         public bool allowTransmit;
         public string appTitle;
         public Dictionary<string, List<AX25Address>> aprsRoutes;
+        public string aprsSelectedRoute;
         public ChatMessage selectedAprsMessage;
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
         public bool previewMode = false;
@@ -101,6 +102,8 @@ namespace HTCommander
             stationId = (int)registry.ReadInt("StationId", 0);
             if ((callsign != null) && ((callsign.Length > 6) || (callsign.Length < 3))) { callsign = null; }
             if ((stationId < 0) || (stationId > 15)) { stationId = 0; }
+            aprsRoutes = Utils.DecodeAprsRoutes(registry.ReadString("AprsRoutes", "Standard,APN001,WIDE1-1,WIDE2-2"));
+            aprsSelectedRoute = registry.ReadString("SelectedAprsRoute", "Standard");
             nextAprsMessageId = (int)registry.ReadInt("NextAprsMessageId", new Random().Next(1, 1000));
             radioPanel.Visible = radioToolStripMenuItem.Checked = registry.ReadInt("ViewRadio", 1) == 1;
             showBluetoothFramesToolStripMenuItem.Checked = (registry.ReadInt("PacketTrace", 0) == 1);
@@ -127,14 +130,6 @@ namespace HTCommander
             showPacketDecodeToolStripMenuItem.Checked = (registry.ReadInt("showPacketDecode", 0) == 1);
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
             UpdateTabs();
-
-            // Setup APRS Routes
-            aprsRoutes = new Dictionary<string, List<AX25Address>>();
-            List<AX25Address> aprsRoute = new List<AX25Address>();
-            aprsRoute.Add(AX25Address.GetAddress("APN001"));
-            aprsRoute.Add(AX25Address.GetAddress("WIDE1-1"));
-            aprsRoute.Add(AX25Address.GetAddress("WIDE2-2"));
-            aprsRoutes.Add("Standard", aprsRoute);
 
             string debugFileName = registry.ReadString("DebugFile", null);
             try {
@@ -599,11 +594,35 @@ namespace HTCommander
             registry.WriteInt("ViewRadio", radioPanel.Visible ? 1 : 0);
         }
 
+        private List<AX25Address> GetTransmitAprsRoute()
+        {
+            List<AX25Address> addresses = new List<AX25Address>(1);
+            if (aprsRoutes.Count == 0) {
+                addresses.Add(AX25Address.GetAddress("APN000", 0, false));
+                addresses.Add(AX25Address.GetAddress(callsign, stationId, false));
+                addresses.Add(AX25Address.GetAddress("WIDE1", 1, false));
+                addresses.Add(AX25Address.GetAddress("WIDE2", 2, false));
+                return addresses;
+            }
+
+            string routeKey = null;
+            routeKey = (string)aprsRouteComboBox.SelectedItem;
+            if ((routeKey == null) || (aprsRoutes[routeKey] == null)) { routeKey = null; }
+            if (routeKey == null) { routeKey = aprsRoutes.Keys.ElementAt(0); }
+            List<AX25Address> route = aprsRoutes[routeKey];
+
+            addresses.Add(route[0]);
+            addresses.Add(AX25Address.GetAddress(callsign, stationId, false));
+            if (route.Count > 1) { addresses.Add(route[1]); }
+            if (route.Count > 2) { addresses.Add(route[2]); }
+            if (route.Count > 3) { addresses.Add(route[3]); }
+            return addresses;
+        }
+
         private async void aprsSendButton_Click(object sender, EventArgs e)
         {
             if (aprsTextBox.Text.Length == 0) return;
             if (UTF8Encoding.Default.GetByteCount(aprsTextBox.Text) > 67) return;
-            List<AX25Address> addresses = new List<AX25Address>(1);
 
             // APRS format
             string aprsAddr = ":" + aprsDestinationComboBox.Text;
@@ -612,11 +631,8 @@ namespace HTCommander
             int msgId = nextAprsMessageId++;
             if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
             registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
-            addresses.Add(AX25Address.GetAddress("APN000", 0, false));
-            addresses.Add(AX25Address.GetAddress(callsign, stationId, false));
-            addresses.Add(AX25Address.GetAddress("WIDE1", 1, false));
-            addresses.Add(AX25Address.GetAddress("WIDE2", 2, false));
-            AX25Packet packet = new AX25Packet(0, addresses, 1008, 0, aprsAddr + aprsTextBox.Text + "{" + msgId, DateTime.Now);
+
+            AX25Packet packet = new AX25Packet(0, GetTransmitAprsRoute(), 1008, 0, aprsAddr + aprsTextBox.Text + "{" + msgId, DateTime.Now);
             packet.messageId = msgId;
             packet.time = DateTime.Now;
 
@@ -797,17 +813,11 @@ namespace HTCommander
             {
                 if (aprsSmsForm.ShowDialog(this) == DialogResult.OK)
                 {
-                    List<AX25Address> addresses = new List<AX25Address>(1);
-
                     // APRS format
                     int msgId = nextAprsMessageId++;
                     if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
                     registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
-                    addresses.Add(AX25Address.GetAddress("APN001", 0, false));
-                    addresses.Add(AX25Address.GetAddress(callsign, stationId, false));
-                    addresses.Add(AX25Address.GetAddress("WIDE1", 1, false));
-                    addresses.Add(AX25Address.GetAddress("WIDE2", 2, false));
-                    AX25Packet packet = new AX25Packet(0, addresses, 1008, 0,":SMS      :@" + aprsSmsForm.PhoneNumber + " " + aprsSmsForm.Message + "{" + msgId, DateTime.Now);
+                    AX25Packet packet = new AX25Packet(0, GetTransmitAprsRoute(), 1008, 0,":SMS      :@" + aprsSmsForm.PhoneNumber + " " + aprsSmsForm.Message + "{" + msgId, DateTime.Now);
                     packet.messageId = msgId;
                     packet.time = DateTime.Now;
                     
@@ -846,6 +856,17 @@ namespace HTCommander
             aprsBottomPanel.Visible = allowTransmit;
             terminalBottomPanel.Visible = allowTransmit;
 
+            // APRS Routes
+            string selectedAprsRoute = aprsSelectedRoute;
+            if ((aprsSelectedRoute == null) && (aprsRouteComboBox.SelectedItem != null)) { selectedAprsRoute = (string)aprsRouteComboBox.SelectedItem; }
+            aprsRouteComboBox.Visible = ((aprsRoutes != null) && (aprsRoutes.Count > 1));
+            aprsRouteComboBox.Items.Clear();
+            aprsRouteComboBox.Items.AddRange(aprsRoutes.Keys.ToArray());
+            aprsRouteComboBox.SelectedItem = selectedAprsRoute;
+            if (aprsRouteComboBox.SelectedIndex == -1) { aprsRouteComboBox.SelectedIndex = 0; }
+            aprsSelectedRoute = null;
+
+
             if ((callsign != null) && (callsign.Length >= 3))
             {
                 this.Text = appTitle + " - " + callsign + ((stationId != 0) ? ("-" + stationId) : "");
@@ -863,14 +884,22 @@ namespace HTCommander
                 if ((callsign != null) && (callsign.Length <= 6)) { settingsForm.CallSign = callsign; }
                 if ((stationId >= 0) && (stationId <= 15)) { settingsForm.StationId = stationId; }
                 settingsForm.AllowTransmit = allowTransmit;
+                settingsForm.AprsRoutes = Utils.EncodeAprsRoutes(aprsRoutes);
                 if (settingsForm.ShowDialog(this) == DialogResult.OK)
                 {
+                    // License Settings
                     callsign = settingsForm.CallSign;
                     stationId = settingsForm.StationId;
                     allowTransmit = settingsForm.AllowTransmit;
                     registry.WriteString("CallSign", callsign);
                     registry.WriteInt("StationId", stationId);
                     registry.WriteInt("AllowTransmit", allowTransmit ? 1 : 0);
+
+                    // APRS Settings
+                    string aprsRoutesStr = settingsForm.AprsRoutes;
+                    registry.WriteString("AprsRoutes", aprsRoutesStr);
+                    aprsRoutes = Utils.DecodeAprsRoutes(aprsRoutesStr);
+                    
                     UpdateInfo();
                 }
             }
@@ -1184,6 +1213,11 @@ namespace HTCommander
             {
                 DebugTrace("  " + deviceName);
             }
+        }
+
+        private void aprsRouteComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            registry.WriteString("SelectedAprsRoute", (string)aprsRouteComboBox.SelectedItem);
         }
     }
 }

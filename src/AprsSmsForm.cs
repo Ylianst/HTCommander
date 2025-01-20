@@ -33,7 +33,7 @@ namespace HTCommander
 
         private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            System.Diagnostics.Process.Start(linkLabel1.Text);
+            System.Diagnostics.Process.Start("https://" + linkLabel1.Text);
         }
 
         private void messageTextBox_KeyPress(object sender, KeyPressEventArgs e)
