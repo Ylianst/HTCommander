@@ -56,6 +56,7 @@ namespace HTCommander
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
         public bool previewMode = false;
         public CompatibleDevice[] devices = null;
+        public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
 
         public static System.Drawing.Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
 
@@ -233,7 +234,7 @@ namespace HTCommander
             {
                 AddAprsPacket(p, false);
                 aprsChatControl.UpdateMessages(false);
-                DebugTrace(frame.time.ToShortTimeString() + " CHANNEL: " + frame.channel_id + " APRS: " + p.ToString());
+                DebugTrace(frame.time.ToShortTimeString() + " CHANNEL: " + (frame.channel_id + 1) + " X25: " + p.ToString());
             }
             else
             {
@@ -759,6 +760,8 @@ namespace HTCommander
 
                 if ((c.ImageIndex == 3) && (aprsPacket != null))
                 {
+                    c.Latitude = aprsPacket.Position.CoordinateSet.Latitude.Value;
+                    c.Longitude = aprsPacket.Position.CoordinateSet.Longitude.Value;
                     AddMapMarker(packet.addresses[1].CallSignWithId, aprsPacket.Position.CoordinateSet.Latitude.Value, aprsPacket.Position.CoordinateSet.Longitude.Value);
                 }
             }
@@ -1218,6 +1221,22 @@ namespace HTCommander
         private void aprsRouteComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             registry.WriteString("SelectedAprsRoute", (string)aprsRouteComboBox.SelectedItem);
+        }
+
+        private void showLocationToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if ((selectedAprsMessage == null) || ((selectedAprsMessage.Latitude == 0) && (selectedAprsMessage.Longitude == 0))) return;
+            foreach (MapLocationForm form in mapLocationForms)
+            {
+                if (form.Callsign == selectedAprsMessage.CallSign) { form.Focus(); return; }
+            }
+            MapLocationForm mapForm = new MapLocationForm(this, selectedAprsMessage.CallSign);
+            mapForm.SetPosition(selectedAprsMessage.Latitude, selectedAprsMessage.Longitude);
+            List<GMarkerGoogle> markers = new List<GMarkerGoogle>();
+            foreach (GMarkerGoogle marker in mapMarkersOverlay.Markers) { markers.Add(marker); }
+            mapForm.SetMarkers(markers.ToArray());
+            mapLocationForms.Add(mapForm);
+            mapForm.Show();
         }
     }
 }

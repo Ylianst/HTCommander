@@ -76,6 +76,12 @@
     <Compile Include="aprs-parser\PacketDataType.cs" />
     <Compile Include="aprs-parser\ParseErrorEventArgs.cs" />
     <Compile Include="aprs-parser\Position.cs" />
+    <Compile Include="MapLocationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MapLocationForm.Designer.cs">
+      <DependentUpon>MapLocationForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="RadioSelectorForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -171,6 +177,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="AddAprsRouteForm.resx">
       <DependentUpon>AddAprsRouteForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MapLocationForm.resx">
+      <DependentUpon>MapLocationForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="RadioSelectorForm.resx">
       <DependentUpon>RadioSelectorForm.cs</DependentUpon>

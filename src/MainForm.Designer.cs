@@ -84,6 +84,7 @@
             this.aprsTextBox = new System.Windows.Forms.TextBox();
             this.aprsSendButton = new System.Windows.Forms.Button();
             this.aprsTopPanel = new System.Windows.Forms.Panel();
+            this.aprsRouteComboBox = new System.Windows.Forms.ComboBox();
             this.aprsMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.debugTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.debugSaveToFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -154,8 +155,8 @@
             this.copyCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.packetsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showPacketDecodeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.aprsRouteComboBox = new System.Windows.Forms.ComboBox();
             this.aprsChatControl = new HTCommander.ChatControl();
+            this.showLocationToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -742,6 +743,18 @@
             this.aprsTopPanel.Name = "aprsTopPanel";
             this.aprsTopPanel.Size = new System.Drawing.Size(508, 30);
             this.aprsTopPanel.TabIndex = 2;
+            // 
+            // aprsRouteComboBox
+            // 
+            this.aprsRouteComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.aprsRouteComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.aprsRouteComboBox.FormattingEnabled = true;
+            this.aprsRouteComboBox.Location = new System.Drawing.Point(384, 5);
+            this.aprsRouteComboBox.Name = "aprsRouteComboBox";
+            this.aprsRouteComboBox.Size = new System.Drawing.Size(94, 21);
+            this.aprsRouteComboBox.TabIndex = 3;
+            this.aprsRouteComboBox.Visible = false;
+            this.aprsRouteComboBox.SelectedIndexChanged += new System.EventHandler(this.aprsRouteComboBox_SelectedIndexChanged);
             // 
             // aprsMenuPictureBox
             // 
@@ -1417,30 +1430,31 @@
             this.aprsMsgContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.aprsMsgContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.detailsToolStripMenuItem,
+            this.showLocationToolStripMenuItem,
             this.copyMessageToolStripMenuItem,
             this.copyCallsignToolStripMenuItem});
             this.aprsMsgContextMenuStrip.Name = "aprsMsgContextMenuStrip";
-            this.aprsMsgContextMenuStrip.Size = new System.Drawing.Size(152, 70);
+            this.aprsMsgContextMenuStrip.Size = new System.Drawing.Size(181, 114);
             // 
             // detailsToolStripMenuItem
             // 
             this.detailsToolStripMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.detailsToolStripMenuItem.Name = "detailsToolStripMenuItem";
-            this.detailsToolStripMenuItem.Size = new System.Drawing.Size(151, 22);
+            this.detailsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.detailsToolStripMenuItem.Text = "&Details...";
             this.detailsToolStripMenuItem.Click += new System.EventHandler(this.detailsToolStripMenuItem_Click);
             // 
             // copyMessageToolStripMenuItem
             // 
             this.copyMessageToolStripMenuItem.Name = "copyMessageToolStripMenuItem";
-            this.copyMessageToolStripMenuItem.Size = new System.Drawing.Size(151, 22);
+            this.copyMessageToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.copyMessageToolStripMenuItem.Text = "Copy Message";
             this.copyMessageToolStripMenuItem.Click += new System.EventHandler(this.copyMessageToolStripMenuItem_Click);
             // 
             // copyCallsignToolStripMenuItem
             // 
             this.copyCallsignToolStripMenuItem.Name = "copyCallsignToolStripMenuItem";
-            this.copyCallsignToolStripMenuItem.Size = new System.Drawing.Size(151, 22);
+            this.copyCallsignToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.copyCallsignToolStripMenuItem.Text = "Copy Callsign";
             this.copyCallsignToolStripMenuItem.Click += new System.EventHandler(this.copyCallsignToolStripMenuItem_Click);
             // 
@@ -1459,18 +1473,6 @@
             this.showPacketDecodeToolStripMenuItem.Size = new System.Drawing.Size(184, 22);
             this.showPacketDecodeToolStripMenuItem.Text = "&Show Packet Decode";
             this.showPacketDecodeToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showPacketDecodeToolStripMenuItem_CheckStateChanged);
-            // 
-            // aprsRouteComboBox
-            // 
-            this.aprsRouteComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.aprsRouteComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.aprsRouteComboBox.FormattingEnabled = true;
-            this.aprsRouteComboBox.Location = new System.Drawing.Point(384, 5);
-            this.aprsRouteComboBox.Name = "aprsRouteComboBox";
-            this.aprsRouteComboBox.Size = new System.Drawing.Size(94, 21);
-            this.aprsRouteComboBox.TabIndex = 3;
-            this.aprsRouteComboBox.Visible = false;
-            this.aprsRouteComboBox.SelectedIndexChanged += new System.EventHandler(this.aprsRouteComboBox_SelectedIndexChanged);
             // 
             // aprsChatControl
             // 
@@ -1495,6 +1497,13 @@
             this.aprsChatControl.TextColor = System.Drawing.Color.Black;
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
             this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
+            // 
+            // showLocationToolStripMenuItem
+            // 
+            this.showLocationToolStripMenuItem.Name = "showLocationToolStripMenuItem";
+            this.showLocationToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.showLocationToolStripMenuItem.Text = "Show Location...";
+            this.showLocationToolStripMenuItem.Click += new System.EventHandler(this.showLocationToolStripMenuItem_Click);
             // 
             // MainForm
             // 
@@ -1693,6 +1702,7 @@
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem3;
         private System.Windows.Forms.ToolStripMenuItem queryDeviceNamesToolStripMenuItem;
         private System.Windows.Forms.ComboBox aprsRouteComboBox;
+        private System.Windows.Forms.ToolStripMenuItem showLocationToolStripMenuItem;
     }
 }
 

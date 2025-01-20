@@ -34,6 +34,8 @@ namespace HTCommander
         public Object Tag;
         public RectangleF DrawRect;
         public bool Visible = true;
+        public double Latitude = 0;
+        public double Longitude = 0;
 
         public ChatMessage(string CallSign, string Message, DateTime Time, bool Sender, int ImageIndex = -1)
         {
