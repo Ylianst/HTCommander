@@ -20,7 +20,7 @@ This first version is focused on getting APRS working well along with control ov
 
 ### Installation
 
-There are no installer, just [download the zip file](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.2.zip), extract and run. Except for Open Street Map data, this tool does not access the internet.
+There are no installer, just [download the zip file](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.2.zip), extract and run. Except for Open Street Map data, this tool does not access the internet. Pair your radio to your computer and run the application. If your computer does not have Bluetooth, you can get a inexpensive Bluetooth USB dongle. Make sure Bluetooth LE is supported.
 
 ### Credits
 
