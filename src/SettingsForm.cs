@@ -36,7 +36,7 @@ namespace HTCommander
         private void SettingsForm_Load(object sender, EventArgs e)
         {
             // If there are no ARPS routes, add the default one.
-            if (aprsRoutesListView.Items.Count == 0) { AddAprsRouteString("Standard|APN001,WIDE1-1,WIDE2-2"); }
+            if (aprsRoutesListView.Items.Count == 0) { AddAprsRouteString("Standard|APN000,WIDE1-1,WIDE2-2"); }
         }
 
         private string GetAprsRoutes()
@@ -117,7 +117,7 @@ namespace HTCommander
                 ListViewItem l = aprsRoutesListView.SelectedItems[0];
                 aprsRoutesListView.Items.Remove(l);
                 // If there are no ARPS routes, add the default one.
-                if (aprsRoutesListView.Items.Count == 0) { AddAprsRouteString("Standard,APN001,WIDE1-1,WIDE2-2"); }
+                if (aprsRoutesListView.Items.Count == 0) { AddAprsRouteString("Standard,APN000,WIDE1-1,WIDE2-2"); }
                 UpdateInfo();
             }
         }

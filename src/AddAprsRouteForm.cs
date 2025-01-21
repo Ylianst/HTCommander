@@ -14,9 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using Microsoft.Win32;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -33,7 +31,7 @@ namespace HTCommander
 
         private void AddAprsRouteForm_Load(object sender, System.EventArgs e)
         {
-            Utils.SetPlaceholderText(destTextBox, "APN001-0");
+            Utils.SetPlaceholderText(destTextBox, "APN000-0");
 
             if (AprsRouteStr != null)
             {
@@ -53,12 +51,12 @@ namespace HTCommander
             AprsRouteStr = routeNameTextBox.Text + ",";
             if (destTextBox.Text.Length == 0)
             {
-                AprsRouteStr += "APN001-0";
+                AprsRouteStr += "APN000-0";
             }
             else
             {
                 addr = AX25Address.GetAddress(destTextBox.Text);
-                if (addr != null) { AprsRouteStr += addr.CallSignWithId; } else { AprsRouteStr += "APN001-0"; }
+                if (addr != null) { AprsRouteStr += addr.CallSignWithId; } else { AprsRouteStr += "APN000-0"; }
             }
             addr = AX25Address.GetAddress(repeater1TextBox.Text);
             if (addr != null) {

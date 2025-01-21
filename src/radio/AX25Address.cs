@@ -22,19 +22,20 @@ namespace HTCommander
     {
         public string address;
         public int SSID;
-        public bool CRBit;
+        public bool CRBit1 = false;
+        public bool CRBit2 = false;
+        public bool CRBit3 = true;
         public string CallSignWithId { get { return address + "-" + SSID; } }
 
         private AX25Address() { }
 
-        public static AX25Address GetAddress(string address, int SSID, bool response = false)
+        public static AX25Address GetAddress(string address, int SSID)
         {
             if ((address == null) || (address.Length > 6)) return null;
             if ((SSID > 15) || (SSID < 0)) return null;
             AX25Address r = new AX25Address();
             r.address = address;
             r.SSID = SSID;
-            r.CRBit = response;
             return r;
         }
 
@@ -57,7 +58,7 @@ namespace HTCommander
                 address = address.Substring(0, s);
             }
             if (address.Length == 0) return null;
-            return AX25Address.GetAddress(address, ssid, false);
+            return AX25Address.GetAddress(address, ssid);
         }
 
         public static AX25Address DecodeAX25Address(byte[] data, int index, out bool last)
@@ -76,7 +77,12 @@ namespace HTCommander
             bool response = ((data[index + 6] & 0x80) != 0);
             int SSID = (data[index + 6] >> 1) & 0x0F;
             last = ((data[index + 6] & 0x01) != 0);
-            return AX25Address.GetAddress(address.ToString(), SSID, response);
+
+            AX25Address addr = AX25Address.GetAddress(address.ToString(), SSID);
+            addr.CRBit1 = ((data[index + 6] & 0x80) != 0);
+            addr.CRBit2 = ((data[index + 6] & 0x40) != 0);
+            addr.CRBit3 = ((data[index + 6] & 0x20) != 0);
+            return addr;
         }
 
         public byte[] ToByteArray(bool last)
@@ -88,7 +94,9 @@ namespace HTCommander
             while (addressPadded.Length < 6) { addressPadded += (char)0x20; }
             for (int i = 0; i < 6; i++) { rdata[i] = (byte)(addressPadded[i] << 1); }
             rdata[6] = (byte)(SSID << 1);
-            if (CRBit) { rdata[6] |= 0x80; }
+            if (CRBit1) { rdata[6] |= 0x80; }
+            if (CRBit2) { rdata[6] |= 0x40; }
+            if (CRBit3) { rdata[6] |= 0x20; }
             if (last) { rdata[6] |= 0x01; }
             return rdata;
         }

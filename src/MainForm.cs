@@ -103,7 +103,7 @@ namespace HTCommander
             stationId = (int)registry.ReadInt("StationId", 0);
             if ((callsign != null) && ((callsign.Length > 6) || (callsign.Length < 3))) { callsign = null; }
             if ((stationId < 0) || (stationId > 15)) { stationId = 0; }
-            aprsRoutes = Utils.DecodeAprsRoutes(registry.ReadString("AprsRoutes", "Standard,APN001,WIDE1-1,WIDE2-2"));
+            aprsRoutes = Utils.DecodeAprsRoutes(registry.ReadString("AprsRoutes", "Standard,APN000,WIDE1-1,WIDE2-2"));
             aprsSelectedRoute = registry.ReadString("SelectedAprsRoute", "Standard");
             nextAprsMessageId = (int)registry.ReadInt("NextAprsMessageId", new Random().Next(1, 1000));
             radioPanel.Visible = radioToolStripMenuItem.Checked = registry.ReadInt("ViewRadio", 1) == 1;
@@ -212,7 +212,7 @@ namespace HTCommander
             l.Tag = frame;
             packetsListView.Items.Add(l);
 
-            // Write APRS data to file
+            // Write frame data to file
             if (AprsFile != null)
             {
                 byte[] bytes = UTF8Encoding.Default.GetBytes(frame.time.Ticks + "," + (frame.incoming ? "1":"0") + "," + frame.ToString() + "\r\n");
@@ -581,9 +581,9 @@ namespace HTCommander
             terminalInputTextBox.Clear();
 
             List<AX25Address> addresses = new List<AX25Address>(1);
-            addresses.Add(AX25Address.GetAddress(destCallsign, destStationId, false));
-            addresses.Add(AX25Address.GetAddress(callsign, stationId, false));
-            AX25Packet packet = new AX25Packet(0, addresses, 1008, 0, terminalInputTextBox.Text, DateTime.Now);
+            addresses.Add(AX25Address.GetAddress(destCallsign, destStationId));
+            addresses.Add(AX25Address.GetAddress(callsign, stationId));
+            AX25Packet packet = new AX25Packet(addresses, terminalInputTextBox.Text, DateTime.Now);
             packet.time = DateTime.Now;
             await radio.TransmitTncData(packet);
             terminalInputTextBox.Text = "";
@@ -599,10 +599,10 @@ namespace HTCommander
         {
             List<AX25Address> addresses = new List<AX25Address>(1);
             if (aprsRoutes.Count == 0) {
-                addresses.Add(AX25Address.GetAddress("APN000", 0, false));
-                addresses.Add(AX25Address.GetAddress(callsign, stationId, false));
-                addresses.Add(AX25Address.GetAddress("WIDE1", 1, false));
-                addresses.Add(AX25Address.GetAddress("WIDE2", 2, false));
+                addresses.Add(AX25Address.GetAddress("APN000", 0));
+                addresses.Add(AX25Address.GetAddress(callsign, stationId));
+                addresses.Add(AX25Address.GetAddress("WIDE1", 1));
+                addresses.Add(AX25Address.GetAddress("WIDE2", 2));
                 return addresses;
             }
 
@@ -613,7 +613,7 @@ namespace HTCommander
             List<AX25Address> route = aprsRoutes[routeKey];
 
             addresses.Add(route[0]);
-            addresses.Add(AX25Address.GetAddress(callsign, stationId, false));
+            addresses.Add(AX25Address.GetAddress(callsign, stationId));
             if (route.Count > 1) { addresses.Add(route[1]); }
             if (route.Count > 2) { addresses.Add(route[2]); }
             if (route.Count > 3) { addresses.Add(route[3]); }
@@ -633,7 +633,7 @@ namespace HTCommander
             if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
             registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
 
-            AX25Packet packet = new AX25Packet(0, GetTransmitAprsRoute(), 1008, 0, aprsAddr + aprsTextBox.Text + "{" + msgId, DateTime.Now);
+            AX25Packet packet = new AX25Packet(GetTransmitAprsRoute(), aprsAddr + aprsTextBox.Text + "{" + msgId, DateTime.Now);
             packet.messageId = msgId;
             packet.time = DateTime.Now;
 
@@ -656,7 +656,7 @@ namespace HTCommander
             String xcallsign = null;
             int ImageIndex = -1;
             AprsPacket aprsPacket = null;
-            if ((packet.format == 0) && (packet.addresses != null) && (packet.addresses.Count >= 2))
+            if ((packet.addresses != null) && (packet.addresses.Count >= 2))
             {
                 aprsPacket = new AprsPacket();
                 if (aprsPacket.Parse(packet.payload, packet.addresses[0].CallSignWithId) == false) return;
@@ -740,7 +740,7 @@ namespace HTCommander
                     }
                 }
             }
-            if ((packet.format == 1) && (packet.addresses != null) && (packet.addresses.Count >= 1) && (sender == false))
+            if ((packet.addresses != null) && (packet.addresses.Count == 1))
             {
                 AX25Address addr = packet.addresses[0];
                 xcallsign = addr.address + ((addr.SSID == 0) ? "" : ("-" + addr.SSID));
@@ -820,7 +820,7 @@ namespace HTCommander
                     int msgId = nextAprsMessageId++;
                     if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
                     registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
-                    AX25Packet packet = new AX25Packet(0, GetTransmitAprsRoute(), 1008, 0,":SMS      :@" + aprsSmsForm.PhoneNumber + " " + aprsSmsForm.Message + "{" + msgId, DateTime.Now);
+                    AX25Packet packet = new AX25Packet(GetTransmitAprsRoute(), ":SMS      :@" + aprsSmsForm.PhoneNumber + " " + aprsSmsForm.Message + "{" + msgId, DateTime.Now);
                     packet.messageId = msgId;
                     packet.time = DateTime.Now;
                     
@@ -1175,10 +1175,19 @@ namespace HTCommander
                 for (int i = 0; i < packet.addresses.Count; i++)
                 {
                     AX25Address addr = packet.addresses[i];
-                    sb.Append("  " + addr.CallSignWithId);
-                    if (addr.CRBit) { sb.Append(" + CR Bit"); }
-                    sb.AppendLine();
+                    sb.Append("  " + addr.CallSignWithId + " [");
+                    sb.Append((addr.CRBit1) ? "X" : "-");
+                    sb.Append((addr.CRBit2) ? "X" : "-");
+                    sb.Append((addr.CRBit3) ? "X" : "-");
+                    sb.AppendLine("]");
                 }
+                sb.Append("Frame: " + packet.type.ToString());
+                if (packet.modulo128) { sb.Append(", Modulo128"); }
+                if (packet.pollFinal) { sb.Append(", PollFinal"); }
+                if (packet.ns > 0) { sb.Append(", NS:" + packet.ns); }
+                if (packet.nr > 0) { sb.Append(", NR:" + packet.nr); }
+                if (packet.pid > 0) { sb.Append(", PID:" + packet.pid); }
+                sb.AppendLine();
             }
 
             packetDecodeTextBox.Text = sb.ToString();
@@ -1237,6 +1246,12 @@ namespace HTCommander
             mapForm.SetMarkers(markers.ToArray());
             mapLocationForms.Add(mapForm);
             mapForm.Show();
+        }
+
+        private void aprsMsgContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (selectedAprsMessage == null) return;
+            showLocationToolStripMenuItem.Visible = ((selectedAprsMessage.Latitude != 0) && (selectedAprsMessage.Longitude != 0));
         }
     }
 }
