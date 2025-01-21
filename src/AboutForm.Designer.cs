@@ -77,7 +77,7 @@
             this.textBox1.ReadOnly = true;
             this.textBox1.Size = new System.Drawing.Size(283, 57);
             this.textBox1.TabIndex = 2;
-            this.textBox1.Text = "Version 0.1 - Preview\r\nYlian Saint-Hilaire, KK7VZT\r\nOpen Source, Apache 2.0 Licen" +
+            this.textBox1.Text = "Version 0.2 - Preview\r\nYlian Saint-Hilaire, KK7VZT\r\nOpen Source, Apache 2.0 Licen" +
     "se";
             // 
             // aboutPictureBox
