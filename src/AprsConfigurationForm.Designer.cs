@@ -31,16 +31,16 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AprsConfigurationForm));
             this.label4 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.label5 = new System.Windows.Forms.Label();
+            this.label1 = new System.Windows.Forms.Label();
+            this.label3 = new System.Windows.Forms.Label();
+            this.label2 = new System.Windows.Forms.Label();
+            this.channelsComboBox = new System.Windows.Forms.ComboBox();
+            this.freqTextBox = new System.Windows.Forms.TextBox();
             this.okButton = new System.Windows.Forms.Button();
             this.cancelButton = new System.Windows.Forms.Button();
             this.pictureBox2 = new System.Windows.Forms.PictureBox();
             this.linkLabel1 = new System.Windows.Forms.LinkLabel();
-            this.label2 = new System.Windows.Forms.Label();
-            this.channelsComboBox = new System.Windows.Forms.ComboBox();
-            this.freqTextBox = new System.Windows.Forms.TextBox();
-            this.label3 = new System.Windows.Forms.Label();
-            this.label1 = new System.Windows.Forms.Label();
-            this.label5 = new System.Windows.Forms.Label();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             this.SuspendLayout();
@@ -53,8 +53,8 @@
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(269, 74);
             this.label4.TabIndex = 16;
-            this.label4.Text = "APRS has a specific frequency depending on the region of the world you are in. Us" +
-    "e this site to find the frequency configure a APRS channel.\r\n";
+            this.label4.Text = "The APRS frequency changes depending on the region of the world. Use this site to" +
+    " find the right frequency to configure the APRS channel.";
             // 
             // groupBox2
             // 
@@ -73,6 +73,72 @@
             this.groupBox2.TabIndex = 15;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "APRS Configuration";
+            // 
+            // label5
+            // 
+            this.label5.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.label5.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
+            this.label5.Location = new System.Drawing.Point(120, 133);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(212, 27);
+            this.label5.TabIndex = 10;
+            this.label5.Text = "The selected channel will be overwritten";
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(6, 109);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(46, 13);
+            this.label1.TabIndex = 9;
+            this.label1.Text = "Channel";
+            // 
+            // label3
+            // 
+            this.label3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.label3.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
+            this.label3.Location = new System.Drawing.Point(120, 53);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(212, 27);
+            this.label3.TabIndex = 8;
+            this.label3.Text = "144.39 in North America\r\n144.80 in Europe";
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(6, 31);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(57, 13);
+            this.label2.TabIndex = 7;
+            this.label2.Text = "Frequency";
+            // 
+            // channelsComboBox
+            // 
+            this.channelsComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.channelsComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.channelsComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.channelsComboBox.FormattingEnabled = true;
+            this.channelsComboBox.Location = new System.Drawing.Point(123, 101);
+            this.channelsComboBox.Name = "channelsComboBox";
+            this.channelsComboBox.Size = new System.Drawing.Size(209, 28);
+            this.channelsComboBox.TabIndex = 6;
+            // 
+            // freqTextBox
+            // 
+            this.freqTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.freqTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.freqTextBox.Location = new System.Drawing.Point(123, 19);
+            this.freqTextBox.MaxLength = 6;
+            this.freqTextBox.Name = "freqTextBox";
+            this.freqTextBox.Size = new System.Drawing.Size(209, 31);
+            this.freqTextBox.TabIndex = 5;
+            this.freqTextBox.Text = "144.39";
+            this.freqTextBox.TextChanged += new System.EventHandler(this.freqTextBox_TextChanged);
+            this.freqTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.freqTextBox_KeyPress);
             // 
             // okButton
             // 
@@ -119,72 +185,6 @@
             this.linkLabel1.TabStop = true;
             this.linkLabel1.Text = "aprs.org";
             this.linkLabel1.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkLabel1_LinkClicked);
-            // 
-            // label2
-            // 
-            this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(6, 31);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(57, 13);
-            this.label2.TabIndex = 7;
-            this.label2.Text = "Frequency";
-            // 
-            // channelsComboBox
-            // 
-            this.channelsComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.channelsComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.channelsComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.channelsComboBox.FormattingEnabled = true;
-            this.channelsComboBox.Location = new System.Drawing.Point(123, 101);
-            this.channelsComboBox.Name = "channelsComboBox";
-            this.channelsComboBox.Size = new System.Drawing.Size(209, 28);
-            this.channelsComboBox.TabIndex = 6;
-            // 
-            // freqTextBox
-            // 
-            this.freqTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.freqTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.freqTextBox.Location = new System.Drawing.Point(123, 19);
-            this.freqTextBox.MaxLength = 6;
-            this.freqTextBox.Name = "freqTextBox";
-            this.freqTextBox.Size = new System.Drawing.Size(209, 31);
-            this.freqTextBox.TabIndex = 5;
-            this.freqTextBox.Text = "144.39";
-            this.freqTextBox.TextChanged += new System.EventHandler(this.freqTextBox_TextChanged);
-            this.freqTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.freqTextBox_KeyPress);
-            // 
-            // label3
-            // 
-            this.label3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.label3.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
-            this.label3.Location = new System.Drawing.Point(120, 53);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(212, 27);
-            this.label3.TabIndex = 8;
-            this.label3.Text = "144.39 in North America\r\n144.80 in Europe";
-            // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(6, 109);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(46, 13);
-            this.label1.TabIndex = 9;
-            this.label1.Text = "Channel";
-            // 
-            // label5
-            // 
-            this.label5.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.label5.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
-            this.label5.Location = new System.Drawing.Point(120, 133);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(212, 27);
-            this.label5.TabIndex = 10;
-            this.label5.Text = "The selected channel will be overwritten\r\nChannel 30 is typical";
             // 
             // AprsConfigurationForm
             // 
