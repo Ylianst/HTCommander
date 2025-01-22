@@ -28,6 +28,7 @@ using GMap.NET;
 using aprsparser;
 using static HTCommander.Radio;
 using Windows.AI.MachineLearning;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
 namespace HTCommander
 {
@@ -41,6 +42,8 @@ namespace HTCommander
         public RadioChannelForm radioChannelForm = null;
         public RadioVolumeForm radioVolumeForm = null;
         public AprsDetailsForm aprsDetailsForm = null;
+        public BTActivateForm bluetoothActivateForm = null;
+        public AprsConfigurationForm aprsConfigurationForm = null;
         public int vfo2LastChannelId = -1;
         public int nextAprsMessageId = 1;
         public RegistryHelper registry = new RegistryHelper("HTCommander");
@@ -57,6 +60,8 @@ namespace HTCommander
         public bool previewMode = false;
         public CompatibleDevice[] devices = null;
         public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
+        public bool bluetoothEnabled = false;
+        public int aprsChannel = -1;
 
         public static System.Drawing.Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
 
@@ -178,16 +183,44 @@ namespace HTCommander
             this.ResumeLayout();
             aprsChatControl.UpdateMessages(true);
 
+            CheckBluetooth();
+        }
+
+        private async void CheckBluetooth()
+        {
             DebugTrace("Looking for compatible radios...");
-            bool bluetoothOk = await Radio.CheckBluetooth();
-            if (bluetoothOk == false)
+            bluetoothEnabled = await Radio.CheckBluetooth();
+            if (bluetoothEnabled == false)
             {
-                MessageBox.Show("Bluetooth LE does not seem to be supported on this computer.", "Bluetooth Radio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                checkBluetoothButton.Visible = true;
                 DebugTrace("Bluetooth LE not found on this computer.");
+                if (bluetoothActivateForm == null)
+                {
+                    bluetoothActivateForm = new BTActivateForm(this);
+                    bluetoothActivateForm.StartPosition = FormStartPosition.Manual;
+
+                    // Calculate the center position relative to the parent
+                    int x = this.Left + (this.Width - bluetoothActivateForm.Width) / 2;
+                    int y = this.Top + (this.Height - bluetoothActivateForm.Height) / 2;
+
+                    // Set the dialog's location
+                    bluetoothActivateForm.Location = new Point(x, y);
+                    bluetoothActivateForm.Show(this);
+                }
+                else
+                {
+                    bluetoothActivateForm.Focus();
+                }
             }
             else
             {
+                if (bluetoothActivateForm != null) {
+                    bluetoothActivateForm.Close();
+                    bluetoothActivateForm = null;
+                }
+
                 // Search for compatible devices
+                checkBluetoothButton.Visible = false;
                 devices = await Radio.FindCompatibleDevices();
                 if (devices.Length == 0)
                 {
@@ -272,6 +305,7 @@ namespace HTCommander
                             if (radioSettingsForm != null) { radioSettingsForm.Close(); radioSettingsForm = null; }
                             if (radioChannelForm != null) { radioChannelForm.Close(); radioChannelForm = null; }
                             if (radioVolumeForm != null) { radioVolumeForm.Close(); radioVolumeForm = null; }
+                            if (aprsConfigurationForm != null) { aprsConfigurationForm.Close(); aprsConfigurationForm = null; }
                             break;
                         case Radio.RadioState.Connecting:
                             radioStateLabel.Text = "Connecting";
@@ -313,7 +347,9 @@ namespace HTCommander
                         }
                         channelsFlowLayoutPanel.Height = channelHeight * (visibleChannels / 3);
                         channelsFlowLayoutPanel.Visible = (visibleChannels > 0);
+                        CheckAprsChannel();
                         UpdateRadioDisplay();
+                        UpdateInfo();
                     }
                     break;
                 case Radio.RadioUpdateNotification.BatteryAsPercentage:
@@ -624,6 +660,7 @@ namespace HTCommander
         {
             if (aprsTextBox.Text.Length == 0) return;
             if (UTF8Encoding.Default.GetByteCount(aprsTextBox.Text) > 67) return;
+            if (aprsChannel < 0) return;
 
             // APRS format
             string aprsAddr = ":" + aprsDestinationComboBox.Text;
@@ -642,7 +679,7 @@ namespace HTCommander
             //AX25Packet packet = new AX25Packet(1, addresses, 0, aprsTextBox.Text);
             //packet.time = DateTime.Now;
 
-            await radio.TransmitTncData(packet);
+            await radio.TransmitTncData(packet, aprsChannel);
             AddAprsPacket(packet, true);
             aprsTextBox.Text = "";
         }
@@ -817,6 +854,7 @@ namespace HTCommander
                 if (aprsSmsForm.ShowDialog(this) == DialogResult.OK)
                 {
                     // APRS format
+                    if (aprsChannel < 0) return;
                     int msgId = nextAprsMessageId++;
                     if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
                     registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
@@ -824,7 +862,7 @@ namespace HTCommander
                     packet.messageId = msgId;
                     packet.time = DateTime.Now;
                     
-                    await radio.TransmitTncData(packet);
+                    await radio.TransmitTncData(packet, aprsChannel);
                     AddAprsPacket(packet, true);
                     aprsTextBox.Text = "";
                 }
@@ -855,8 +893,8 @@ namespace HTCommander
             radioStatusToolStripMenuItem.Enabled = ((radio.State == Radio.RadioState.Connected) && (radio.HtStatus != null));
             if (radio.State != Radio.RadioState.Connected) { connectedPanel.Visible = false; }
 
-            toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = allowTransmit;
-            aprsBottomPanel.Visible = allowTransmit;
+            toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
+            aprsBottomPanel.Visible = allowTransmit && (aprsChannel != -1);
             terminalBottomPanel.Visible = allowTransmit;
 
             // APRS Routes
@@ -902,7 +940,8 @@ namespace HTCommander
                     string aprsRoutesStr = settingsForm.AprsRoutes;
                     registry.WriteString("AprsRoutes", aprsRoutesStr);
                     aprsRoutes = Utils.DecodeAprsRoutes(aprsRoutesStr);
-                    
+
+                    CheckAprsChannel();
                     UpdateInfo();
                 }
             }
@@ -1252,6 +1291,49 @@ namespace HTCommander
         {
             if (selectedAprsMessage == null) return;
             showLocationToolStripMenuItem.Visible = ((selectedAprsMessage.Latitude != 0) && (selectedAprsMessage.Longitude != 0));
+        }
+
+        private void checkBluetoothButton_Click(object sender, EventArgs e)
+        {
+            CheckBluetooth();
+        }
+
+        private void CheckAprsChannel()
+        {
+            if ((allowTransmit == false) || (radio.State != RadioState.Connected) || (radio.Channels == null) || (radio.AllChannelsLoaded() == false))
+            {
+                aprsMissingChannelPanel.Visible = false;
+                aprsChannel = -1;
+                if (aprsConfigurationForm != null) { aprsConfigurationForm.Close(); aprsConfigurationForm = null; }
+                return;
+            }
+
+            // Check if we have a APRS channel
+            RadioChannelInfo channel = radio.GetChannelByName("APRS");
+            if (channel != null)
+            {
+                aprsMissingChannelPanel.Visible = false;
+                aprsChannel = channel.channel_id;
+                if (aprsConfigurationForm != null) { aprsConfigurationForm.Close(); aprsConfigurationForm = null; }
+            }
+            else
+            {
+                aprsMissingChannelPanel.Visible = true;
+                aprsChannel = -1;
+            }
+        }
+
+        private void aprsSetupButton_Click(object sender, EventArgs e)
+        {
+            if (aprsConfigurationForm != null)
+            {
+                aprsConfigurationForm.Focus();
+            }
+            else
+            {
+                aprsConfigurationForm = new AprsConfigurationForm(this);
+                aprsConfigurationForm.Show(this);
+            }
         }
     }
 }

@@ -17,13 +17,11 @@ limitations under the License.
 using System;
 using System.IO;
 using System.Net;
-using System.Collections;
-using System.Threading.Tasks;
-using InTheHand.Bluetooth;
-using Windows.Devices.Enumeration;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Security.Cryptography;
+using Windows.Devices.Enumeration;
+using InTheHand.Bluetooth;
 
 namespace HTCommander
 {
@@ -191,7 +189,8 @@ namespace HTCommander
             BatteryAsPercentage = 6,
             HtStatus = 7,
             Settings = 8,
-            Volume = 9
+            Volume = 9,
+            AllChannelsLoaded = 10
         }
         public enum RadioState : int
         {
@@ -214,6 +213,35 @@ namespace HTCommander
         public int RcBatteryLevel = -1;
         public int BatteryAsPercentage = -1;
         public int Volume = -1;
+
+        public RadioChannelInfo GetChannelByFrequency(float freq, RadioModulationType mod)
+        {
+            if (Channels == null) return null;
+            int xfreq = (int)(freq * 1000000);
+            for (int i = 0; i < Channels.Length; i++)
+            {
+                if ((Channels[i].rx_freq == xfreq) && (Channels[i].tx_freq == xfreq) && (Channels[i].rx_mod == mod) && (Channels[i].tx_mod == mod)) return Channels[i];
+            }
+            return null;
+        }
+
+        public RadioChannelInfo GetChannelByName(string name)
+        {
+            if (Channels == null) return null;
+            for (int i = 0; i < Channels.Length; i++)
+            {
+                if (Channels[i].name_str == name) return Channels[i];
+            }
+            return null;
+        }
+
+        public bool AllChannelsLoaded()
+        {
+            if (Channels == null) return false;
+            for (int i = 0; i < Channels.Length; i++) { if (Channels[i] == null) return false; }
+            return true;
+        }
+
 
         // Define the target device name and guids
         private static readonly string[] TargetDeviceNames = { "UV-PRO", "GA-5WB", "VR-N76", "VR-N7500" };
@@ -449,6 +477,7 @@ namespace HTCommander
                             if (Channels != null) { Channels[c.channel_id] = c; }
                             //if (c.name_str.Length > 0) { Debug($"Channel ({c.channel_id}): '{c.name_str}'"); }
                             Update(RadioUpdateNotification.ChannelInfo);
+                            if (AllChannelsLoaded()) { Update(RadioUpdateNotification.AllChannelsLoaded); }
                             break;
                         case RadioBasicCommand.WRITE_RF_CH:
                             if (e.Value[4] == 0)

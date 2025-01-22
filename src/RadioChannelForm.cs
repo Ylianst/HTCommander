@@ -280,5 +280,50 @@ namespace HTCommander
         {
             Close();
         }
+
+        private void freqTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // Allow control keys like backspace
+            if (char.IsControl(e.KeyChar)) return;
+
+            // Allow numeric digits
+            if (char.IsDigit(e.KeyChar)) return;
+
+            // Allow a single dot, ensuring only one is present
+            if (e.KeyChar == '.' && !freqTextBox.Text.Contains(".")) return;
+
+            // Disallow all other characters
+            e.Handled = true;
+        }
+
+        private void advReceiveFreqTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // Allow control keys like backspace
+            if (char.IsControl(e.KeyChar)) return;
+
+            // Allow numeric digits
+            if (char.IsDigit(e.KeyChar)) return;
+
+            // Allow a single dot, ensuring only one is present
+            if (e.KeyChar == '.' && !advReceiveFreqTextBox.Text.Contains(".")) return;
+
+            // Disallow all other characters
+            e.Handled = true;
+        }
+
+        private void advTransmitFreqTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // Allow control keys like backspace
+            if (char.IsControl(e.KeyChar)) return;
+
+            // Allow numeric digits
+            if (char.IsDigit(e.KeyChar)) return;
+
+            // Allow a single dot, ensuring only one is present
+            if (e.KeyChar == '.' && !advTransmitFreqTextBox.Text.Contains(".")) return;
+
+            // Disallow all other characters
+            e.Handled = true;
+        }
     }
 }

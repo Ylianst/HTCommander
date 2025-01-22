@@ -75,10 +75,8 @@
             this.channelsFlowLayoutPanel = new System.Windows.Forms.FlowLayoutPanel();
             this.radioStateLabel = new System.Windows.Forms.Label();
             this.connectButton = new System.Windows.Forms.Button();
-            this.radioPictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
-            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsBottomPanel = new System.Windows.Forms.Panel();
             this.aprsDestinationComboBox = new System.Windows.Forms.ComboBox();
@@ -86,7 +84,6 @@
             this.aprsSendButton = new System.Windows.Forms.Button();
             this.aprsTopPanel = new System.Windows.Forms.Panel();
             this.aprsRouteComboBox = new System.Windows.Forms.ComboBox();
-            this.aprsMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.debugTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.debugSaveToFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showBluetoothFramesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -136,12 +133,10 @@
             this.copyHEXValuesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.packetDecodeTextBox = new System.Windows.Forms.TextBox();
             this.panel3 = new System.Windows.Forms.Panel();
-            this.packetsMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.label5 = new System.Windows.Forms.Label();
             this.debugTabPage = new System.Windows.Forms.TabPage();
             this.debugTextBox = new System.Windows.Forms.TextBox();
             this.debugControlsPanel = new System.Windows.Forms.Panel();
-            this.debugMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.label2 = new System.Windows.Forms.Label();
             this.tabsImageList = new System.Windows.Forms.ImageList(this.components);
             this.batteryTimer = new System.Windows.Forms.Timer(this.components);
@@ -157,16 +152,23 @@
             this.copyCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.packetsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showPacketDecodeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.checkBluetoothButton = new System.Windows.Forms.Button();
+            this.aprsMissingChannelPanel = new System.Windows.Forms.Panel();
+            this.missingAprsChannelLabel = new System.Windows.Forms.Label();
+            this.aprsSetupButton = new System.Windows.Forms.Button();
+            this.aprsMenuPictureBox = new System.Windows.Forms.PictureBox();
+            this.packetsMenuPictureBox = new System.Windows.Forms.PictureBox();
+            this.debugMenuPictureBox = new System.Windows.Forms.PictureBox();
+            this.radioPictureBox = new System.Windows.Forms.PictureBox();
+            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
             this.connectedPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).BeginInit();
             this.mainTabControl.SuspendLayout();
             this.aprsTabPage.SuspendLayout();
             this.aprsBottomPanel.SuspendLayout();
             this.aprsTopPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).BeginInit();
             this.debugTabContextMenuStrip.SuspendLayout();
             this.mapTabPage.SuspendLayout();
             this.mapTopPanel.SuspendLayout();
@@ -184,13 +186,16 @@
             this.packetsSplitContainer.SuspendLayout();
             this.packetsListContextMenuStrip.SuspendLayout();
             this.panel3.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.packetsMenuPictureBox)).BeginInit();
             this.debugTabPage.SuspendLayout();
             this.debugControlsPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).BeginInit();
             this.aprsContextMenuStrip.SuspendLayout();
             this.aprsMsgContextMenuStrip.SuspendLayout();
             this.packetsContextMenuStrip.SuspendLayout();
+            this.aprsMissingChannelPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.packetsMenuPictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).BeginInit();
             this.SuspendLayout();
             // 
             // mainStatusStrip
@@ -465,9 +470,10 @@
             // radioPanel
             // 
             this.radioPanel.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
+            this.radioPanel.Controls.Add(this.channelsFlowLayoutPanel);
+            this.radioPanel.Controls.Add(this.checkBluetoothButton);
             this.radioPanel.Controls.Add(this.rssiProgressBar);
             this.radioPanel.Controls.Add(this.connectedPanel);
-            this.radioPanel.Controls.Add(this.channelsFlowLayoutPanel);
             this.radioPanel.Controls.Add(this.radioStateLabel);
             this.radioPanel.Controls.Add(this.connectButton);
             this.radioPanel.Controls.Add(this.radioPictureBox);
@@ -596,7 +602,7 @@
             // channelsFlowLayoutPanel
             // 
             this.channelsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 420);
+            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 386);
             this.channelsFlowLayoutPanel.Name = "channelsFlowLayoutPanel";
             this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(276, 68);
             this.channelsFlowLayoutPanel.TabIndex = 2;
@@ -627,15 +633,6 @@
             this.connectButton.UseVisualStyleBackColor = true;
             this.connectButton.Click += new System.EventHandler(this.connectToolStripMenuItem_Click);
             // 
-            // radioPictureBox
-            // 
-            this.radioPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("radioPictureBox.Image")));
-            this.radioPictureBox.Location = new System.Drawing.Point(8, -2);
-            this.radioPictureBox.Name = "radioPictureBox";
-            this.radioPictureBox.Size = new System.Drawing.Size(263, 554);
-            this.radioPictureBox.TabIndex = 0;
-            this.radioPictureBox.TabStop = false;
-            // 
             // mainTabControl
             // 
             this.mainTabControl.Alignment = System.Windows.Forms.TabAlignment.Right;
@@ -658,6 +655,7 @@
             // aprsTabPage
             // 
             this.aprsTabPage.Controls.Add(this.aprsChatControl);
+            this.aprsTabPage.Controls.Add(this.aprsMissingChannelPanel);
             this.aprsTabPage.Controls.Add(this.aprsBottomPanel);
             this.aprsTabPage.Controls.Add(this.aprsTopPanel);
             this.aprsTabPage.ImageIndex = 3;
@@ -666,30 +664,6 @@
             this.aprsTabPage.Size = new System.Drawing.Size(508, 518);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
-            // 
-            // aprsChatControl
-            // 
-            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
-            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
-            this.aprsChatControl.CornerRadius = 4;
-            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.aprsChatControl.Images = this.mainImageList;
-            this.aprsChatControl.InterMessageMargin = 12;
-            this.aprsChatControl.Location = new System.Drawing.Point(0, 30);
-            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
-            this.aprsChatControl.MaxWidth = 300;
-            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
-            this.aprsChatControl.MessageBoxMargin = 10;
-            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
-            this.aprsChatControl.MinWidth = 100;
-            this.aprsChatControl.Name = "aprsChatControl";
-            this.aprsChatControl.ShadowOffset = 2;
-            this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(508, 450);
-            this.aprsChatControl.TabIndex = 5;
-            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
-            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
-            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
             // mainImageList
             // 
@@ -780,19 +754,6 @@
             this.aprsRouteComboBox.Visible = false;
             this.aprsRouteComboBox.SelectedIndexChanged += new System.EventHandler(this.aprsRouteComboBox_SelectedIndexChanged);
             // 
-            // aprsMenuPictureBox
-            // 
-            this.aprsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.aprsMenuPictureBox.ContextMenuStrip = this.debugTabContextMenuStrip;
-            this.aprsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("aprsMenuPictureBox.Image")));
-            this.aprsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
-            this.aprsMenuPictureBox.Name = "aprsMenuPictureBox";
-            this.aprsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
-            this.aprsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.aprsMenuPictureBox.TabIndex = 2;
-            this.aprsMenuPictureBox.TabStop = false;
-            this.aprsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsMenuPictureBox_MouseClick);
-            // 
             // debugTabContextMenuStrip
             // 
             this.debugTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
@@ -853,9 +814,9 @@
             this.aprsTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.aprsTitleLabel.Location = new System.Drawing.Point(5, 5);
             this.aprsTitleLabel.Name = "aprsTitleLabel";
-            this.aprsTitleLabel.Size = new System.Drawing.Size(134, 20);
+            this.aprsTitleLabel.Size = new System.Drawing.Size(53, 20);
             this.aprsTitleLabel.TabIndex = 0;
-            this.aprsTitleLabel.Text = "APRS Messaging";
+            this.aprsTitleLabel.Text = "APRS";
             // 
             // mapTabPage
             // 
@@ -1311,18 +1272,6 @@
             this.panel3.Size = new System.Drawing.Size(508, 30);
             this.panel3.TabIndex = 3;
             // 
-            // packetsMenuPictureBox
-            // 
-            this.packetsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.packetsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("packetsMenuPictureBox.Image")));
-            this.packetsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
-            this.packetsMenuPictureBox.Name = "packetsMenuPictureBox";
-            this.packetsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
-            this.packetsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.packetsMenuPictureBox.TabIndex = 2;
-            this.packetsMenuPictureBox.TabStop = false;
-            this.packetsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.packetsMenuPictureBox_MouseClick);
-            // 
             // label5
             // 
             this.label5.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
@@ -1372,18 +1321,6 @@
             this.debugControlsPanel.Name = "debugControlsPanel";
             this.debugControlsPanel.Size = new System.Drawing.Size(508, 30);
             this.debugControlsPanel.TabIndex = 0;
-            // 
-            // debugMenuPictureBox
-            // 
-            this.debugMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.debugMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("debugMenuPictureBox.Image")));
-            this.debugMenuPictureBox.Location = new System.Drawing.Point(484, 5);
-            this.debugMenuPictureBox.Name = "debugMenuPictureBox";
-            this.debugMenuPictureBox.Size = new System.Drawing.Size(20, 20);
-            this.debugMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.debugMenuPictureBox.TabIndex = 3;
-            this.debugMenuPictureBox.TabStop = false;
-            this.debugMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.debugMenuPictureBox_MouseClick);
             // 
             // label2
             // 
@@ -1458,35 +1395,35 @@
             this.copyMessageToolStripMenuItem,
             this.copyCallsignToolStripMenuItem});
             this.aprsMsgContextMenuStrip.Name = "aprsMsgContextMenuStrip";
-            this.aprsMsgContextMenuStrip.Size = new System.Drawing.Size(181, 114);
+            this.aprsMsgContextMenuStrip.Size = new System.Drawing.Size(162, 92);
             this.aprsMsgContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.aprsMsgContextMenuStrip_Opening);
             // 
             // detailsToolStripMenuItem
             // 
             this.detailsToolStripMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.detailsToolStripMenuItem.Name = "detailsToolStripMenuItem";
-            this.detailsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.detailsToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.detailsToolStripMenuItem.Text = "&Details...";
             this.detailsToolStripMenuItem.Click += new System.EventHandler(this.detailsToolStripMenuItem_Click);
             // 
             // showLocationToolStripMenuItem
             // 
             this.showLocationToolStripMenuItem.Name = "showLocationToolStripMenuItem";
-            this.showLocationToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.showLocationToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.showLocationToolStripMenuItem.Text = "Show Location...";
             this.showLocationToolStripMenuItem.Click += new System.EventHandler(this.showLocationToolStripMenuItem_Click);
             // 
             // copyMessageToolStripMenuItem
             // 
             this.copyMessageToolStripMenuItem.Name = "copyMessageToolStripMenuItem";
-            this.copyMessageToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.copyMessageToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.copyMessageToolStripMenuItem.Text = "Copy Message";
             this.copyMessageToolStripMenuItem.Click += new System.EventHandler(this.copyMessageToolStripMenuItem_Click);
             // 
             // copyCallsignToolStripMenuItem
             // 
             this.copyCallsignToolStripMenuItem.Name = "copyCallsignToolStripMenuItem";
-            this.copyCallsignToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.copyCallsignToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.copyCallsignToolStripMenuItem.Text = "Copy Callsign";
             this.copyCallsignToolStripMenuItem.Click += new System.EventHandler(this.copyCallsignToolStripMenuItem_Click);
             // 
@@ -1505,6 +1442,123 @@
             this.showPacketDecodeToolStripMenuItem.Size = new System.Drawing.Size(184, 22);
             this.showPacketDecodeToolStripMenuItem.Text = "&Show Packet Decode";
             this.showPacketDecodeToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showPacketDecodeToolStripMenuItem_CheckStateChanged);
+            // 
+            // checkBluetoothButton
+            // 
+            this.checkBluetoothButton.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 454);
+            this.checkBluetoothButton.Name = "checkBluetoothButton";
+            this.checkBluetoothButton.Size = new System.Drawing.Size(276, 34);
+            this.checkBluetoothButton.TabIndex = 3;
+            this.checkBluetoothButton.Text = "Check Bluetooth";
+            this.checkBluetoothButton.UseVisualStyleBackColor = true;
+            this.checkBluetoothButton.Visible = false;
+            this.checkBluetoothButton.Click += new System.EventHandler(this.checkBluetoothButton_Click);
+            // 
+            // aprsMissingChannelPanel
+            // 
+            this.aprsMissingChannelPanel.BackColor = System.Drawing.Color.MistyRose;
+            this.aprsMissingChannelPanel.Controls.Add(this.aprsSetupButton);
+            this.aprsMissingChannelPanel.Controls.Add(this.missingAprsChannelLabel);
+            this.aprsMissingChannelPanel.Dock = System.Windows.Forms.DockStyle.Top;
+            this.aprsMissingChannelPanel.Location = new System.Drawing.Point(0, 30);
+            this.aprsMissingChannelPanel.Name = "aprsMissingChannelPanel";
+            this.aprsMissingChannelPanel.Size = new System.Drawing.Size(508, 30);
+            this.aprsMissingChannelPanel.TabIndex = 6;
+            this.aprsMissingChannelPanel.Visible = false;
+            // 
+            // missingAprsChannelLabel
+            // 
+            this.missingAprsChannelLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.missingAprsChannelLabel.AutoSize = true;
+            this.missingAprsChannelLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.missingAprsChannelLabel.Location = new System.Drawing.Point(5, 7);
+            this.missingAprsChannelLabel.Name = "missingAprsChannelLabel";
+            this.missingAprsChannelLabel.Size = new System.Drawing.Size(323, 16);
+            this.missingAprsChannelLabel.TabIndex = 7;
+            this.missingAprsChannelLabel.Text = "Configure a channel labeled APRS to use this feature.";
+            // 
+            // aprsSetupButton
+            // 
+            this.aprsSetupButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.aprsSetupButton.Location = new System.Drawing.Point(429, 4);
+            this.aprsSetupButton.Name = "aprsSetupButton";
+            this.aprsSetupButton.Size = new System.Drawing.Size(75, 23);
+            this.aprsSetupButton.TabIndex = 8;
+            this.aprsSetupButton.Text = "Setup";
+            this.aprsSetupButton.UseVisualStyleBackColor = true;
+            this.aprsSetupButton.Click += new System.EventHandler(this.aprsSetupButton_Click);
+            // 
+            // aprsMenuPictureBox
+            // 
+            this.aprsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.aprsMenuPictureBox.ContextMenuStrip = this.debugTabContextMenuStrip;
+            this.aprsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("aprsMenuPictureBox.Image")));
+            this.aprsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
+            this.aprsMenuPictureBox.Name = "aprsMenuPictureBox";
+            this.aprsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.aprsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.aprsMenuPictureBox.TabIndex = 2;
+            this.aprsMenuPictureBox.TabStop = false;
+            this.aprsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsMenuPictureBox_MouseClick);
+            // 
+            // packetsMenuPictureBox
+            // 
+            this.packetsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.packetsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("packetsMenuPictureBox.Image")));
+            this.packetsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
+            this.packetsMenuPictureBox.Name = "packetsMenuPictureBox";
+            this.packetsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.packetsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.packetsMenuPictureBox.TabIndex = 2;
+            this.packetsMenuPictureBox.TabStop = false;
+            this.packetsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.packetsMenuPictureBox_MouseClick);
+            // 
+            // debugMenuPictureBox
+            // 
+            this.debugMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.debugMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("debugMenuPictureBox.Image")));
+            this.debugMenuPictureBox.Location = new System.Drawing.Point(484, 5);
+            this.debugMenuPictureBox.Name = "debugMenuPictureBox";
+            this.debugMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.debugMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.debugMenuPictureBox.TabIndex = 3;
+            this.debugMenuPictureBox.TabStop = false;
+            this.debugMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.debugMenuPictureBox_MouseClick);
+            // 
+            // radioPictureBox
+            // 
+            this.radioPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("radioPictureBox.Image")));
+            this.radioPictureBox.Location = new System.Drawing.Point(8, -2);
+            this.radioPictureBox.Name = "radioPictureBox";
+            this.radioPictureBox.Size = new System.Drawing.Size(263, 554);
+            this.radioPictureBox.TabIndex = 0;
+            this.radioPictureBox.TabStop = false;
+            // 
+            // aprsChatControl
+            // 
+            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
+            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
+            this.aprsChatControl.CornerRadius = 4;
+            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.aprsChatControl.Images = this.mainImageList;
+            this.aprsChatControl.InterMessageMargin = 12;
+            this.aprsChatControl.Location = new System.Drawing.Point(0, 60);
+            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.aprsChatControl.MaxWidth = 300;
+            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
+            this.aprsChatControl.MessageBoxMargin = 10;
+            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
+            this.aprsChatControl.MinWidth = 100;
+            this.aprsChatControl.Name = "aprsChatControl";
+            this.aprsChatControl.ShadowOffset = 2;
+            this.aprsChatControl.SideMargins = 12;
+            this.aprsChatControl.Size = new System.Drawing.Size(508, 420);
+            this.aprsChatControl.TabIndex = 5;
+            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
+            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
+            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
             // MainForm
             // 
@@ -1527,14 +1581,12 @@
             this.mainMenuStrip.PerformLayout();
             this.radioPanel.ResumeLayout(false);
             this.connectedPanel.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).EndInit();
             this.mainTabControl.ResumeLayout(false);
             this.aprsTabPage.ResumeLayout(false);
             this.aprsBottomPanel.ResumeLayout(false);
             this.aprsBottomPanel.PerformLayout();
             this.aprsTopPanel.ResumeLayout(false);
             this.aprsTopPanel.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).EndInit();
             this.debugTabContextMenuStrip.ResumeLayout(false);
             this.mapTabPage.ResumeLayout(false);
             this.mapTopPanel.ResumeLayout(false);
@@ -1560,15 +1612,19 @@
             this.packetsListContextMenuStrip.ResumeLayout(false);
             this.panel3.ResumeLayout(false);
             this.panel3.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.packetsMenuPictureBox)).EndInit();
             this.debugTabPage.ResumeLayout(false);
             this.debugTabPage.PerformLayout();
             this.debugControlsPanel.ResumeLayout(false);
             this.debugControlsPanel.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).EndInit();
             this.aprsContextMenuStrip.ResumeLayout(false);
             this.aprsMsgContextMenuStrip.ResumeLayout(false);
             this.packetsContextMenuStrip.ResumeLayout(false);
+            this.aprsMissingChannelPanel.ResumeLayout(false);
+            this.aprsMissingChannelPanel.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.packetsMenuPictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -1704,6 +1760,10 @@
         private System.Windows.Forms.ToolStripMenuItem queryDeviceNamesToolStripMenuItem;
         private System.Windows.Forms.ComboBox aprsRouteComboBox;
         private System.Windows.Forms.ToolStripMenuItem showLocationToolStripMenuItem;
+        private System.Windows.Forms.Button checkBluetoothButton;
+        private System.Windows.Forms.Panel aprsMissingChannelPanel;
+        private System.Windows.Forms.Label missingAprsChannelLabel;
+        private System.Windows.Forms.Button aprsSetupButton;
     }
 }
 

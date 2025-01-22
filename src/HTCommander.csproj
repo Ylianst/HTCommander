@@ -99,6 +99,18 @@
     <Compile Include="aprs-parser\PacketDataType.cs" />
     <Compile Include="aprs-parser\ParseErrorEventArgs.cs" />
     <Compile Include="aprs-parser\Position.cs" />
+    <Compile Include="AprsConfigurationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AprsConfigurationForm.Designer.cs">
+      <DependentUpon>AprsConfigurationForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="BTActivateForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="BTActivateForm.Designer.cs">
+      <DependentUpon>BTActivateForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="MapLocationForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -200,6 +212,12 @@
     </EmbeddedResource>
     <EmbeddedResource Include="AddAprsRouteForm.resx">
       <DependentUpon>AddAprsRouteForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="AprsConfigurationForm.resx">
+      <DependentUpon>AprsConfigurationForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="BTActivateForm.resx">
+      <DependentUpon>BTActivateForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MapLocationForm.resx">
       <DependentUpon>MapLocationForm.cs</DependentUpon>

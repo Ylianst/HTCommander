@@ -242,6 +242,7 @@
             this.freqTextBox.Size = new System.Drawing.Size(138, 31);
             this.freqTextBox.TabIndex = 0;
             this.freqTextBox.TextChanged += new System.EventHandler(this.freqTextBox_TextChanged);
+            this.freqTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.freqTextBox_KeyPress);
             // 
             // pictureBox2
             // 
@@ -740,6 +741,7 @@
             this.advTransmitFreqTextBox.Size = new System.Drawing.Size(138, 31);
             this.advTransmitFreqTextBox.TabIndex = 10;
             this.advTransmitFreqTextBox.TextChanged += new System.EventHandler(this.advTransmitFreqTextBox_TextChanged);
+            this.advTransmitFreqTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.advTransmitFreqTextBox_KeyPress);
             // 
             // advMuteCheckBox
             // 
@@ -839,6 +841,7 @@
             this.advReceiveFreqTextBox.Size = new System.Drawing.Size(138, 31);
             this.advReceiveFreqTextBox.TabIndex = 0;
             this.advReceiveFreqTextBox.TextChanged += new System.EventHandler(this.advReceiveFreqTextBox_TextChanged);
+            this.advReceiveFreqTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.advReceiveFreqTextBox_KeyPress);
             // 
             // okButton
             // 
