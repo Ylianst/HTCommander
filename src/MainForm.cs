@@ -27,8 +27,6 @@ using GMap.NET.WindowsForms.Markers;
 using GMap.NET;
 using aprsparser;
 using static HTCommander.Radio;
-using Windows.AI.MachineLearning;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
 namespace HTCommander
 {
@@ -62,8 +60,9 @@ namespace HTCommander
         public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
         public bool bluetoothEnabled = false;
         public int aprsChannel = -1;
+        public bool showAllChannels = false;
 
-        public static System.Drawing.Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
+        public static Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
 
         public MainForm(string[] args)
         {
@@ -73,8 +72,10 @@ namespace HTCommander
             InitializeComponent();
         }
 
-        private async void MainForm_Load(object sender, EventArgs e)
+        private void MainForm_Load(object sender, EventArgs e)
         {
+            Program.BlockBoxEvent("MainForm_Load");
+
             appTitle = this.Text;
             this.SuspendLayout();
             radio.DebugMessage += Radio_DebugMessage;
@@ -90,12 +91,11 @@ namespace HTCommander
             mapControl.IgnoreMarkerOnMouseWheel = true; // Optional, depending on marker usage
             mapControl.DragButton = MouseButtons.Left; // Set the mouse button for dragging
 
-            double d1,d2;
-            if (double.TryParse(registry.ReadString("MapZoom", "3"), out d1) == false) { d1 = 3; }
+            if (double.TryParse(registry.ReadString("MapZoom", "3"), out double d1) == false) { d1 = 3; }
             mapControl.Zoom = d1;
 
             if (double.TryParse(registry.ReadString("MapLatitude", "0"), out d1) == false) { d1 = 0; }
-            if (double.TryParse(registry.ReadString("MapLongetude", "0"), out d2) == false) { d2 = 0; }
+            if (double.TryParse(registry.ReadString("MapLongetude", "0"), out double d2) == false) { d2 = 0; }
             mapControl.Position = new GMap.NET.PointLatLng(d1,d2);
 
             // Add the overlay to the map
@@ -113,6 +113,7 @@ namespace HTCommander
             nextAprsMessageId = (int)registry.ReadInt("NextAprsMessageId", new Random().Next(1, 1000));
             radioPanel.Visible = radioToolStripMenuItem.Checked = registry.ReadInt("ViewRadio", 1) == 1;
             showBluetoothFramesToolStripMenuItem.Checked = (registry.ReadInt("PacketTrace", 0) == 1);
+            showAllChannels = (registry.ReadInt("ShowAllChannels", 0) == 1);
             allowTransmit = (registry.ReadInt("AllowTransmit", 0) == 1);
             aprsDestinationComboBox.Text = registry.ReadString("AprsDestination", "ALL");
             terminalDestinationComboBox.Text = registry.ReadString("TerminalDestination", "ALL");
@@ -333,24 +334,7 @@ namespace HTCommander
                 case Radio.RadioUpdateNotification.ChannelInfo:
                     if (radio.Channels != null)
                     {
-                        int visibleChannels = 0;
-                        int channelHeight = 0;
-                        for (int i = 0; i < channelControls.Length; i++)
-                        {
-                            if ((radio.Channels[i] != null) && (radio.Channels[i].name_str.Length > 0))
-                            {
-                                if (channelControls[i] == null) {
-                                    channelControls[i] = new RadioChannelControl(this);
-                                    channelsFlowLayoutPanel.Controls.Add(channelControls[i]);
-                                }
-                                channelControls[i].ChannelName = radio.Channels[i].name_str;
-                                channelControls[i].Tag = i;
-                                visibleChannels++;
-                                channelHeight = channelControls[i].Height;
-                            }
-                        }
-                        channelsFlowLayoutPanel.Height = channelHeight * (visibleChannels / 3);
-                        channelsFlowLayoutPanel.Visible = (visibleChannels > 0);
+                        UpdateChannelsPanel();
                         CheckAprsChannel();
                         UpdateRadioDisplay();
                         UpdateInfo();
@@ -366,13 +350,15 @@ namespace HTCommander
                     if (radioHtStatusForm != null) { radioHtStatusForm.UpdateInfo(); }
                     radioStatusToolStripMenuItem.Enabled = true;
                     UpdateRadioDisplay();
+                    setupRegionMenu();
                     break;
                 case Radio.RadioUpdateNotification.Settings:
                     if (radioSettingsForm != null) { radioSettingsForm.UpdateInfo(); }
-                    UpdateRadioDisplay();
                     radioSettingsToolStripMenuItem.Enabled = true;
                     dualWatchToolStripMenuItem.Checked = (radio.Settings.double_channel == 1);
                     scanToolStripMenuItem.Checked = radio.Settings.scan;
+                    UpdateRadioDisplay();
+                    setupRegionMenu();
                     break;
                 case Radio.RadioUpdateNotification.Volume:
                     if (radioVolumeForm != null) {
@@ -382,6 +368,8 @@ namespace HTCommander
                         radioVolumeForm.Volume = radio.Volume;
                         radioVolumeForm.Show(this);
                     }
+                    break;
+                case Radio.RadioUpdateNotification.RegionChange:
                     break;
             }
         }
@@ -486,6 +474,7 @@ namespace HTCommander
 
         private void DebugTrace(string msg)
         {
+            Program.BlockBoxEvent(msg);
             debugTextBox.AppendText(msg + Environment.NewLine);
             if (debugFile != null)
             {
@@ -922,6 +911,47 @@ namespace HTCommander
             }
         }
 
+        public void UpdateChannelsPanel()
+        {
+            channelsFlowLayoutPanel.SuspendLayout();
+            int visibleChannels = 0;
+            int channelHeight = 0;
+            if (channelControls != null)
+            {
+                for (int i = 0; i < channelControls.Length; i++)
+                {
+                    if (radio.Channels[i] != null)
+                    {
+                        if (channelControls[i] == null)
+                        {
+                            channelControls[i] = new RadioChannelControl(this);
+                            channelsFlowLayoutPanel.Controls.Add(channelControls[i]);
+                        }
+                        channelControls[i].ChannelName = (radio.Channels[i].name_str.Length > 0) ? radio.Channels[i].name_str : (i + 1).ToString();
+                        channelControls[i].Tag = i;
+                        bool visible = showAllChannels || (radio.Channels[i].name_str.Length > 0); ;
+                        channelControls[i].Visible = visible;
+                        if (visible) { visibleChannels++; }
+                        channelHeight = channelControls[i].Height;
+                    }
+                }
+                int hBlockCount = ((visibleChannels / 3) + (((visibleChannels % 3) != 0) ? 1 : 0));
+                int blockHeight = 0;
+                if (hBlockCount > 0)
+                {
+                    blockHeight = (radioPanel.Height - 310) / hBlockCount;
+                    if (blockHeight > 50) { blockHeight = 50; }
+                    for (int i = 0; i < channelControls.Length; i++)
+                    {
+                        if (channelControls[i] != null) { channelControls[i].Height = blockHeight; }
+                    }
+                }
+                channelsFlowLayoutPanel.Height = blockHeight * hBlockCount;
+            }
+            channelsFlowLayoutPanel.Visible = (visibleChannels > 0);
+            channelsFlowLayoutPanel.ResumeLayout();
+        }
+
         private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             using (SettingsForm settingsForm = new SettingsForm())
@@ -1339,5 +1369,71 @@ namespace HTCommander
                 aprsConfigurationForm.Show(this);
             }
         }
+
+        private void channelsContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            showAllChannelsToolStripMenuItem.Checked = showAllChannels;
+        }
+
+        private void channelsContextMenuStrip_Click(object sender, EventArgs e)
+        {
+            showAllChannels = !showAllChannelsToolStripMenuItem.Checked;
+            registry.WriteInt("ShowAllChannels", showAllChannels ? 1 : 0);
+            UpdateChannelsPanel();
+        }
+
+        private void allChannelsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            showAllChannels = !allChannelsToolStripMenuItem.Checked;
+            registry.WriteInt("ShowAllChannels", showAllChannels ? 1 : 0);
+            UpdateChannelsPanel();
+        }
+
+        private void viewToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
+        {
+            allChannelsToolStripMenuItem.Checked = showAllChannels;
+        }
+
+        private void radioPanel_SizeChanged(object sender, EventArgs e)
+        {
+            UpdateChannelsPanel();
+        }
+
+        private void setupRegionMenu()
+        {
+            if ((radio.State != RadioState.Connected) || (radio.Settings == null) || (radio.HtStatus == null))
+            {
+                regionToolStripMenuItem.Enabled = false;
+                regionToolStripMenuItem.DropDownItems.Clear();
+            }
+            else
+            {
+                if (regionToolStripMenuItem.DropDownItems.Count == 0)
+                {
+                    for (int i = 0; i < radio.Info.region_count; i++)
+                    {
+                        ToolStripMenuItem item = new ToolStripMenuItem("Region " + (i + 1).ToString());
+                        item.Tag = i;
+                        item.Click += regionSelectToolStripMenuItem_Click;
+                        regionToolStripMenuItem.DropDownItems.Add(item);
+                    }
+                }
+                foreach (ToolStripMenuItem item in regionToolStripMenuItem.DropDownItems)
+                {
+                    item.Checked = ((int)item.Tag == radio.HtStatus.curr_region);
+                }
+                regionToolStripMenuItem.Enabled = true;
+            }
+        }
+
+        private void regionSelectToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (radio.HtStatus == null) return;
+            ToolStripMenuItem item = (ToolStripMenuItem)sender;
+            int region = (int)item.Tag;
+            if (region == radio.HtStatus.curr_region) return;
+            radio.SetRegion(region);
+        }
+
     }
 }

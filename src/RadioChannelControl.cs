@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+using Microsoft.Win32;
 using System;
 using System.Windows.Forms;
 
@@ -58,6 +59,18 @@ namespace HTCommander
         private void setChannelBToolStripMenuItem_Click(object sender, EventArgs e)
         {
             parent.ChangeChannelB((int)this.Tag);
+        }
+
+        private void showAllChannelsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            parent.showAllChannels = !showAllChannelsToolStripMenuItem.Checked;
+            parent.registry.WriteInt("ShowAllChannels", parent.showAllChannels ? 1 : 0);
+            parent.UpdateChannelsPanel();
+        }
+
+        private void contextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            showAllChannelsToolStripMenuItem.Checked = parent.showAllChannels;
         }
     }
 }

@@ -31,32 +31,31 @@ namespace HTCommander
         /// </summary>
         private void InitializeComponent()
         {
-            chatScrollBar = new VScrollBar();
-            SuspendLayout();
+            this.chatScrollBar = new System.Windows.Forms.VScrollBar();
+            this.SuspendLayout();
             // 
             // chatScrollBar
             // 
-            chatScrollBar.Dock = DockStyle.Right;
-            chatScrollBar.LargeChange = 1;
-            chatScrollBar.Location = new Point(634, 0);
-            chatScrollBar.Maximum = 0;
-            chatScrollBar.Name = "chatScrollBar";
-            chatScrollBar.Size = new Size(26, 563);
-            chatScrollBar.TabIndex = 0;
-            chatScrollBar.Scroll += chatScrollBar_Scroll;
+            this.chatScrollBar.Dock = System.Windows.Forms.DockStyle.Right;
+            this.chatScrollBar.LargeChange = 1;
+            this.chatScrollBar.Location = new System.Drawing.Point(469, 0);
+            this.chatScrollBar.Maximum = 0;
+            this.chatScrollBar.Name = "chatScrollBar";
+            this.chatScrollBar.Size = new System.Drawing.Size(26, 366);
+            this.chatScrollBar.TabIndex = 0;
             // 
             // ChatControl
             // 
-            AutoScaleDimensions = new SizeF(8F, 20F);
-            AutoScaleMode = AutoScaleMode.Font;
-            Controls.Add(chatScrollBar);
-            DoubleBuffered = true;
-            Name = "ChatControl";
-            Size = new Size(660, 563);
-            Paint += ChatControl_Paint;
-            MouseClick += ChatControl_MouseClick;
-            Resize += ChatControl_Resize;
-            ResumeLayout(false);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.Controls.Add(this.chatScrollBar);
+            this.DoubleBuffered = true;
+            this.Margin = new System.Windows.Forms.Padding(2);
+            this.Name = "ChatControl";
+            this.Size = new System.Drawing.Size(495, 366);
+            this.Paint += new System.Windows.Forms.PaintEventHandler(this.ChatControl_Paint);
+            this.ResumeLayout(false);
+
         }
 
         #endregion

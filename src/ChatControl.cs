@@ -326,8 +326,6 @@ namespace HTCommander
         private void ChatControl_MouseClick(object sender, MouseEventArgs e)
         {
             ChatMessage msg = GetChatMessageAtXY(e.X, e.Y);
-
-
         }
     }
 }

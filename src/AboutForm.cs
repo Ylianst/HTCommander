@@ -15,6 +15,8 @@ limitations under the License.
 */
 
 using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace HTCommander
@@ -44,6 +46,25 @@ namespace HTCommander
         private void linkLabel3_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             System.Diagnostics.Process.Start("https://" + linkLabel3.Text);
+        }
+
+        private void AboutForm_Load(object sender, EventArgs e)
+        {
+            string[] vers = GetFileVersion().Split('.');
+            string version = vers[0] + "." + vers[1];
+            mainTextBox.Text = mainTextBox.Text.Replace("{0}", version);
+        }
+
+        private string GetFileVersion()
+        {
+            // Get the path of the currently running executable
+            string exePath = Application.ExecutablePath;
+
+            // Get the FileVersionInfo for the executable
+            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(exePath);
+
+            // Return the FileVersion as a string
+            return versionInfo.FileVersion;
         }
     }
 }

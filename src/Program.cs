@@ -15,13 +15,19 @@ limitations under the License.
 */
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace HTCommander
 {
     internal static class Program
     {
+        private static List<string> BlackBoxEvents = new List<string>();
+
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
@@ -30,23 +36,63 @@ namespace HTCommander
         {
             Application.ThreadException += new System.Threading.ThreadExceptionEventHandler(ExceptionSink);
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(UnhandledExceptionEventSink);
+            TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException, true);
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm(args));
+            try
+            {
+                Application.Run(new MainForm(args));
+            }
+            catch (Exception ex)
+            {
+                Debug("--- HTCommander Exception ---\r\n" + DateTime.Now + ", Version: " + GetFileVersion() + "\r\nException:\r\n" + ex.ToString() + "\r\n\r\n\r\n");
+            }
+        }
+
+        public static void BlockBoxEvent(string ev)
+        {
+            BlackBoxEvents.Add(DateTime.Now.ToString() + " - " + ev);
+            while (BlackBoxEvents.Count > 50) { BlackBoxEvents.RemoveAt(0); }
         }
 
         public static void Debug(string msg) { try { File.AppendAllText("debug.log", msg + "\r\n"); } catch (Exception) { } }
 
         public static void ExceptionSink(object sender, System.Threading.ThreadExceptionEventArgs args)
         {
-            Debug("ExceptionSink: " + args.Exception.ToString());
+            Debug("--- HTCommander Exception Sink ---\r\n" + DateTime.Now + ", Version: " + GetFileVersion() + "\r\nException:\r\n" + args.Exception.ToString() + "\r\n\r\n" + GetBlackBoxEvents() + "\r\n\r\n\r\n");
         }
 
         public static void UnhandledExceptionEventSink(object sender, UnhandledExceptionEventArgs args)
         {
-            Debug("UnhandledExceptionEventSink: " + ((Exception)args.ExceptionObject).ToString());
+            Debug("--- HTCommander Unhandled Exception ---\r\n" + DateTime.Now + ", Version: " + GetFileVersion() + "\r\nException: " + ((Exception)args.ExceptionObject).ToString() + "\r\n\r\n" + GetBlackBoxEvents() + "\r\n\r\n\r\n");
+        }
+
+        static void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
+        {
+            Debug("--- HTCommander Unhandled Task Exception ---\r\n" + DateTime.Now + ", Version: " + GetFileVersion() + "\r\nException:\r\n" + e.Exception.ToString() + "\r\n\r\n" + GetBlackBoxEvents() + "\r\n\r\n\r\n");
+            e.SetObserved(); // Prevent the application from crashing
+        }
+
+        private static string GetBlackBoxEvents()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Last Events:");
+            foreach (string e in BlackBoxEvents) { sb.AppendLine(e); }
+            return sb.ToString();
+        }
+
+        private static string GetFileVersion()
+        {
+            // Get the path of the currently running executable
+            string exePath = Application.ExecutablePath;
+
+            // Get the FileVersionInfo for the executable
+            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(exePath);
+
+            // Return the FileVersion as a string
+            return versionInfo.FileVersion;
         }
     }
 }

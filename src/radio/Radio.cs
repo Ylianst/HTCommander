@@ -190,7 +190,8 @@ namespace HTCommander
             HtStatus = 7,
             Settings = 8,
             Volume = 9,
-            AllChannelsLoaded = 10
+            AllChannelsLoaded = 10,
+            RegionChange = 11
         }
         public enum RadioState : int
         {
@@ -427,12 +428,23 @@ namespace HTCommander
                 if (t != null) { try { await t.ConfigureAwait(false); } catch (Exception) { } }
             }
         }
+        public async void SetChannel(RadioChannelInfo channel)
+        {
+            Task t = SendCommandWithResponse(RadioCommandGroup.BASIC, RadioBasicCommand.WRITE_RF_CH, channel.ToByteArray());
+            if (t != null) { try { await t.ConfigureAwait(false); } catch (Exception) { } }
+        }
+
+        public async void SetRegion(int region)
+        {
+            await SendCommandWithResponse(RadioCommandGroup.BASIC, RadioBasicCommand.SET_REGION, (byte)region);
+            if (Channels != null) { for (int i = 0; i < Channels.Length; i++) { Channels[i] = null; } }
+            Update(RadioUpdateNotification.ChannelInfo);
+        }
 
         public Task WriteSettings(byte[] data)
         {
             return SendCommandWithResponse(RadioCommandGroup.BASIC, RadioBasicCommand.WRITE_SETTINGS, data);
         }
-
 
         public Task GetVolumeLevel()
         {
@@ -451,9 +463,6 @@ namespace HTCommander
         public async void GetBatteryVoltage() { await RequestPowerStatus(RadioPowerStatus.BATTERY_VOLTAGE); }
         public async void GetBatteryRcLevel() { await RequestPowerStatus(RadioPowerStatus.RC_BATTERY_LEVEL); }
         public async void GetBatteryLevelAtPercentage() { await RequestPowerStatus(RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE); }
-        public async void SetChannel(RadioChannelInfo channel) {
-            await SendCommandWithResponse(RadioCommandGroup.BASIC, RadioBasicCommand.WRITE_RF_CH, channel.ToByteArray());
-        }
 
         private Task RequestPowerStatus(RadioPowerStatus powerStatus)
         {
@@ -466,6 +475,7 @@ namespace HTCommander
         {
             if (e.Value == null) { Debug($"Notification: NULL"); return; }
             if (PacketTrace) { Debug($"Response: " + Utils.BytesToHex(e.Value)); }
+            Program.BlockBoxEvent("BTRECV: " + Utils.BytesToHex(e.Value));
 
             RadioCommandGroup group = (RadioCommandGroup)Utils.GetShort(e.Value, 0);
 
@@ -582,6 +592,10 @@ namespace HTCommander
                         case RadioBasicCommand.WRITE_SETTINGS:
                             if (e.Value[4] != 0) { Debug("WRITE_SETTINGS ERROR: " + Utils.BytesToHex(e.Value)); }
                             break;
+                        case RadioBasicCommand.SET_REGION:
+                            Update(RadioUpdateNotification.RegionChange);
+                            UpdateChannels();
+                            break;
                         default:
                             Debug("Unexpected Basic Command Status: " + cmd);
                             Debug(Utils.BytesToHex(e.Value));
@@ -614,6 +628,7 @@ namespace HTCommander
                 ms.WriteByte(data);
                 byte[] cmdData = ms.ToArray();
                 if (PacketTrace) { Debug($"Send: " + Utils.BytesToHex(cmdData)); }
+                Program.BlockBoxEvent("BTSEND: " + Utils.BytesToHex(cmdData));
                 return writeCharacteristic.WriteValueWithResponseAsync(cmdData);
             }
         }
@@ -628,6 +643,7 @@ namespace HTCommander
                 if (data != null) { ms.Write(data, 0, data.Length); }
                 byte[] cmdData = ms.ToArray();
                 if (PacketTrace) { Debug($"Send: " + Utils.BytesToHex(cmdData)); }
+                Program.BlockBoxEvent("BTSEND: " + Utils.BytesToHex(cmdData));
                 return writeCharacteristic.WriteValueWithResponseAsync(cmdData);
             }
         }

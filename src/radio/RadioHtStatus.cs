@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+using System;
 using static HTCommander.Radio;
 
 namespace HTCommander
@@ -65,6 +66,65 @@ namespace HTCommander
             }
 
             curr_ch_id = (curr_channel_id_upper << 4) + curr_ch_id_lower;
+        }
+
+        public RadioHtStatus(RadioHtStatus other)
+        {
+            if (other == null)
+                throw new ArgumentNullException(nameof(other));
+
+            // Two first bytes
+            is_power_on = other.is_power_on;
+            is_in_tx = other.is_in_tx;
+            is_sq = other.is_sq;
+            is_in_rx = other.is_in_rx;
+            double_channel = other.double_channel;
+            is_scan = other.is_scan;
+            is_radio = other.is_radio;
+            curr_ch_id_lower = other.curr_ch_id_lower;
+            is_gps_locked = other.is_gps_locked;
+            is_hfp_connected = other.is_hfp_connected;
+            is_aoc_connected = other.is_aoc_connected;
+            channel_id = other.channel_id;
+            name_str = other.name_str; // Strings are immutable, so direct assignment is fine
+            curr_ch_id = other.curr_ch_id;
+
+            // Next two bytes
+            rssi = other.rssi;
+            curr_region = other.curr_region;
+            curr_channel_id_upper = other.curr_channel_id_upper;
+        }
+
+        public byte[] ToByteArray()
+        {
+            byte[] msg = new byte[4];
+
+            // Serialize the first two bytes
+            msg[0] = 0;
+            msg[0] |= (byte)(is_power_on ? 0x80 : 0x00);
+            msg[0] |= (byte)(is_in_tx ? 0x40 : 0x00);
+            msg[0] |= (byte)(is_sq ? 0x20 : 0x00);
+            msg[0] |= (byte)(is_in_rx ? 0x10 : 0x00);
+            msg[0] |= (byte)((int)double_channel << 2);
+            msg[0] |= (byte)(is_scan ? 0x02 : 0x00);
+            msg[0] |= (byte)(is_radio ? 0x01 : 0x00);
+
+            msg[1] = 0;
+            msg[1] |= (byte)(curr_ch_id_lower << 4);
+            msg[1] |= (byte)(is_gps_locked ? 0x08 : 0x00);
+            msg[1] |= (byte)(is_hfp_connected ? 0x04 : 0x00);
+            msg[1] |= (byte)(is_aoc_connected ? 0x02 : 0x00);
+
+            // Serialize the next two bytes if values are present
+            msg[2] = 0;
+            msg[2] |= (byte)(rssi << 4);
+            msg[2] |= (byte)((curr_region >> 2) & 0x0F);
+
+            msg[3] = 0;
+            msg[3] |= (byte)((curr_region & 0x03) << 6);
+            msg[3] |= (byte)((curr_channel_id_upper << 2) & 0x3C);
+
+            return msg;
         }
     }
 }

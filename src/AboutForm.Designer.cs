@@ -31,7 +31,7 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AboutForm));
             this.closeButton = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
-            this.textBox1 = new System.Windows.Forms.TextBox();
+            this.mainTextBox = new System.Windows.Forms.TextBox();
             this.aboutPictureBox = new System.Windows.Forms.PictureBox();
             this.linkLabel1 = new System.Windows.Forms.LinkLabel();
             this.textBox2 = new System.Windows.Forms.TextBox();
@@ -63,21 +63,21 @@
             this.label1.TabIndex = 1;
             this.label1.Text = "Handi-Talkie Commander";
             // 
-            // textBox1
+            // mainTextBox
             // 
-            this.textBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            this.mainTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBox1.BackColor = System.Drawing.Color.LightGray;
-            this.textBox1.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBox1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox1.Location = new System.Drawing.Point(208, 40);
-            this.textBox1.Multiline = true;
-            this.textBox1.Name = "textBox1";
-            this.textBox1.ReadOnly = true;
-            this.textBox1.Size = new System.Drawing.Size(283, 57);
-            this.textBox1.TabIndex = 2;
-            this.textBox1.Text = "Version 0.3 - Preview\r\nYlian Saint-Hilaire, KK7VZT\r\nOpen Source, Apache 2.0 Licen" +
+            this.mainTextBox.BackColor = System.Drawing.Color.LightGray;
+            this.mainTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.mainTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.mainTextBox.Location = new System.Drawing.Point(208, 40);
+            this.mainTextBox.Multiline = true;
+            this.mainTextBox.Name = "mainTextBox";
+            this.mainTextBox.ReadOnly = true;
+            this.mainTextBox.Size = new System.Drawing.Size(283, 57);
+            this.mainTextBox.TabIndex = 2;
+            this.mainTextBox.Text = "Version {0} - Preview\r\nYlian Saint-Hilaire, KK7VZT\r\nOpen Source, Apache 2.0 Licen" +
     "se";
             // 
             // aboutPictureBox
@@ -171,7 +171,7 @@
             this.Controls.Add(this.textBox2);
             this.Controls.Add(this.linkLabel1);
             this.Controls.Add(this.aboutPictureBox);
-            this.Controls.Add(this.textBox1);
+            this.Controls.Add(this.mainTextBox);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.closeButton);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
@@ -181,6 +181,7 @@
             this.Name = "AboutForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "About Handi-Talkie Commander";
+            this.Load += new System.EventHandler(this.AboutForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.aboutPictureBox)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -191,7 +192,7 @@
 
         private System.Windows.Forms.Button closeButton;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.TextBox textBox1;
+        private System.Windows.Forms.TextBox mainTextBox;
         private System.Windows.Forms.PictureBox aboutPictureBox;
         private System.Windows.Forms.LinkLabel linkLabel1;
         private System.Windows.Forms.TextBox textBox2;

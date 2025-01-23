@@ -35,6 +35,8 @@
             this.setChannelAToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.setChannelBToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.channelNameLabel = new System.Windows.Forms.Label();
+            this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
+            this.showAllChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.contextMenuStrip.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -44,9 +46,12 @@
             this.showToolStripMenuItem,
             this.toolStripMenuItem1,
             this.setChannelAToolStripMenuItem,
-            this.setChannelBToolStripMenuItem});
+            this.setChannelBToolStripMenuItem,
+            this.toolStripMenuItem2,
+            this.showAllChannelsToolStripMenuItem});
             this.contextMenuStrip.Name = "contextMenuStrip";
-            this.contextMenuStrip.Size = new System.Drawing.Size(181, 98);
+            this.contextMenuStrip.Size = new System.Drawing.Size(181, 126);
+            this.contextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.contextMenuStrip_Opening);
             // 
             // showToolStripMenuItem
             // 
@@ -87,6 +92,18 @@
             this.channelNameLabel.Click += new System.EventHandler(this.channelNameLabel_Click);
             this.channelNameLabel.DoubleClick += new System.EventHandler(this.channelNameLabel_DoubleClick);
             // 
+            // toolStripMenuItem2
+            // 
+            this.toolStripMenuItem2.Name = "toolStripMenuItem2";
+            this.toolStripMenuItem2.Size = new System.Drawing.Size(177, 6);
+            // 
+            // showAllChannelsToolStripMenuItem
+            // 
+            this.showAllChannelsToolStripMenuItem.Name = "showAllChannelsToolStripMenuItem";
+            this.showAllChannelsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.showAllChannelsToolStripMenuItem.Text = "&Show All Channels";
+            this.showAllChannelsToolStripMenuItem.Click += new System.EventHandler(this.showAllChannelsToolStripMenuItem_Click);
+            // 
             // RadioChannelControl
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -111,5 +128,7 @@
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem setChannelAToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem setChannelBToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem2;
+        private System.Windows.Forms.ToolStripMenuItem showAllChannelsToolStripMenuItem;
     }
 }
