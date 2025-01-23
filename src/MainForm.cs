@@ -316,6 +316,10 @@ namespace HTCommander
                         case Radio.RadioState.UnableToConnect:
                             radioStateLabel.Text = "Can't connect";
                             break;
+                        case Radio.RadioState.AccessDenied:
+                            radioStateLabel.Text = "Access Denied";
+                            new BTAccessDeniedForm().ShowDialog(this);
+                            break;
                         case Radio.RadioState.BluetoothNotAvailable:
                             radioStateLabel.Text = "No Bluetooth";
                             break;

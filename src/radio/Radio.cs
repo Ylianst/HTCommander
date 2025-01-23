@@ -200,7 +200,8 @@ namespace HTCommander
             MultiRadioSelect = 4,
             UnableToConnect = 5,
             BluetoothNotAvailable = 6,
-            NotRadioFound = 7
+            NotRadioFound = 7,
+            AccessDenied = 8
         }
 
         public RadioDevInfo Info = null;
@@ -394,8 +395,19 @@ namespace HTCommander
             // Receive command responses
             Debug("Getting radio information...");
             indicateCharacteristic.CharacteristicValueChanged += Characteristic_CharacteristicValueChanged;
-            Task t = SendCommandWithResponse(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
-            if (t != null) { await t.ConfigureAwait(false); }
+            Task t = null;
+            int hResult = 0;
+            try {
+                t = SendCommandWithResponse(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
+                if (t != null) { await t.ConfigureAwait(false); }
+            } catch (Exception ex) { hResult = ex.HResult; }
+
+            // Check is access is denied. If so, we need to tell the user to enable re-pair the device
+            if (hResult == -2140864497)
+            {
+                Disconnect($"Access denied. Please re-pair the device.", RadioState.AccessDenied);
+                return;
+            }
 
             t = SendCommandWithResponse(RadioCommandGroup.BASIC, RadioBasicCommand.READ_SETTINGS, null);
             if (t != null) { await t.ConfigureAwait(false); }

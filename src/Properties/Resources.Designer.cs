@@ -113,6 +113,16 @@ namespace HTCommander.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap Paring {
+            get {
+                object obj = ResourceManager.GetObject("Paring", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap Radio {
             get {
                 object obj = ResourceManager.GetObject("Radio", resourceCulture);

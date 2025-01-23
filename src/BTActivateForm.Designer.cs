@@ -58,6 +58,7 @@
             this.label1.Text = "Bluetooth does not seem to be supported or enabled on your computer. An Bluetooth" +
     " LE USB dongle would work. If Bluetooth is disabled, follow the link below to en" +
     "able it.";
+            this.label1.Click += new System.EventHandler(this.label1_Click);
             // 
             // pictureBox1
             // 
@@ -69,6 +70,7 @@
             this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize;
             this.pictureBox1.TabIndex = 2;
             this.pictureBox1.TabStop = false;
+            this.pictureBox1.Click += new System.EventHandler(this.pictureBox1_Click);
             // 
             // bluetoothLinkLabel
             // 

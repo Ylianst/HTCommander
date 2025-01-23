@@ -105,6 +105,12 @@
     <Compile Include="AprsConfigurationForm.Designer.cs">
       <DependentUpon>AprsConfigurationForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="BTAccessDeniedForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="BTAccessDeniedForm.Designer.cs">
+      <DependentUpon>BTAccessDeniedForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="BTActivateForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -216,6 +222,9 @@
     <EmbeddedResource Include="AprsConfigurationForm.resx">
       <DependentUpon>AprsConfigurationForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="BTAccessDeniedForm.resx">
+      <DependentUpon>BTAccessDeniedForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="BTActivateForm.resx">
       <DependentUpon>BTActivateForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -287,6 +296,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="HTCommander.ico" />
+    <None Include="images\Paring.png" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
