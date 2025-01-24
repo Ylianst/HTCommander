@@ -1,0 +1,17 @@
+# Bluetooth Paring
+
+The UV-Pro, GA-5WB, VR-N76, VR-N7500 radios actualy show us as two Bluetooth devices. It's both an audio device and a control device for the radio. On Windows 10 and Windows 11, this application will need that your operating system be paired to the control device of the radio. However, this is a bit tricky because when you pair the radio to you computer, you will pair to the audio device first. If you stop there and only pair the audio device, you will see this error when trying to connect.
+
+To solve this, you need to put the radio in pairing mode again, hit "See more devices" in the Bluetooth pairing diablog box and select the control device with the same name.
+
+So far, I have the best success pairing both devices in quick succession. Follow these steps:
+
+ - In Windows Bluetooth dialog, remove the radio audio device.
+ - Put the radio in paring mode and keep the "Paring" option on screen.
+ - On Windows, hit "Add Device" and select the radio's audio device.
+ - Once connected, the paring option on the radio will disable.
+ - Re-enable paring on the radio.
+ - On Windows, select to "Add Device" again, then "Show all devices".
+ - Select and pair to the control device of the radio.
+
+Once done, you should be good to go.
