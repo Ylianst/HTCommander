@@ -45,10 +45,12 @@
             this.settingsToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.dualWatchToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.scanToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.regionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem5 = new System.Windows.Forms.ToolStripSeparator();
             this.volumeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.radioToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem6 = new System.Windows.Forms.ToolStripSeparator();
             this.mapToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.terminalToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -64,6 +66,8 @@
             this.aboutToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.radioPanel = new System.Windows.Forms.Panel();
             this.channelsFlowLayoutPanel = new System.Windows.Forms.FlowLayoutPanel();
+            this.channelsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.showAllChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.checkBluetoothButton = new System.Windows.Forms.Button();
             this.rssiProgressBar = new System.Windows.Forms.ProgressBar();
             this.connectedPanel = new System.Windows.Forms.Panel();
@@ -90,13 +94,10 @@
             this.aprsTopPanel = new System.Windows.Forms.Panel();
             this.aprsRouteComboBox = new System.Windows.Forms.ComboBox();
             this.aprsMenuPictureBox = new System.Windows.Forms.PictureBox();
-            this.debugTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.debugSaveToFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.showBluetoothFramesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem3 = new System.Windows.Forms.ToolStripSeparator();
-            this.queryDeviceNamesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem8 = new System.Windows.Forms.ToolStripSeparator();
-            this.clearToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.aprsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.showAllMessagesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem7 = new System.Windows.Forms.ToolStripSeparator();
+            this.smSMessageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsTitleLabel = new System.Windows.Forms.Label();
             this.mapTabPage = new System.Windows.Forms.TabPage();
             this.mapZoomOutButton = new System.Windows.Forms.Button();
@@ -147,12 +148,15 @@
             this.debugMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.label2 = new System.Windows.Forms.Label();
             this.tabsImageList = new System.Windows.Forms.ImageList(this.components);
+            this.debugTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.debugSaveToFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.showBluetoothFramesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem3 = new System.Windows.Forms.ToolStripSeparator();
+            this.queryDeviceNamesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem8 = new System.Windows.Forms.ToolStripSeparator();
+            this.clearToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.batteryTimer = new System.Windows.Forms.Timer(this.components);
             this.saveTraceFileDialog = new System.Windows.Forms.SaveFileDialog();
-            this.aprsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.showAllMessagesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem7 = new System.Windows.Forms.ToolStripSeparator();
-            this.smSMessageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsMsgContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.detailsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showLocationToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -160,14 +164,11 @@
             this.copyCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.packetsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showPacketDecodeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.channelsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.showAllChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.regionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsChatControl = new HTCommander.ChatControl();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
+            this.channelsContextMenuStrip.SuspendLayout();
             this.connectedPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).BeginInit();
             this.mainTabControl.SuspendLayout();
@@ -176,7 +177,7 @@
             this.aprsBottomPanel.SuspendLayout();
             this.aprsTopPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).BeginInit();
-            this.debugTabContextMenuStrip.SuspendLayout();
+            this.aprsContextMenuStrip.SuspendLayout();
             this.mapTabPage.SuspendLayout();
             this.mapTopPanel.SuspendLayout();
             this.terminalTabPage.SuspendLayout();
@@ -197,10 +198,9 @@
             this.debugTabPage.SuspendLayout();
             this.debugControlsPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).BeginInit();
-            this.aprsContextMenuStrip.SuspendLayout();
+            this.debugTabContextMenuStrip.SuspendLayout();
             this.aprsMsgContextMenuStrip.SuspendLayout();
             this.packetsContextMenuStrip.SuspendLayout();
-            this.channelsContextMenuStrip.SuspendLayout();
             this.SuspendLayout();
             // 
             // mainStatusStrip
@@ -322,7 +322,7 @@
             // 
             this.dualWatchToolStripMenuItem.Enabled = false;
             this.dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
-            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(137, 22);
             this.dualWatchToolStripMenuItem.Text = "&Dual-Watch";
             this.dualWatchToolStripMenuItem.Click += new System.EventHandler(this.dualWatchToolStripMenuItem_Click);
             // 
@@ -330,20 +330,27 @@
             // 
             this.scanToolStripMenuItem.Enabled = false;
             this.scanToolStripMenuItem.Name = "scanToolStripMenuItem";
-            this.scanToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.scanToolStripMenuItem.Size = new System.Drawing.Size(137, 22);
             this.scanToolStripMenuItem.Text = "&Scan";
             this.scanToolStripMenuItem.Click += new System.EventHandler(this.scanToolStripMenuItem_Click);
+            // 
+            // regionToolStripMenuItem
+            // 
+            this.regionToolStripMenuItem.Enabled = false;
+            this.regionToolStripMenuItem.Name = "regionToolStripMenuItem";
+            this.regionToolStripMenuItem.Size = new System.Drawing.Size(137, 22);
+            this.regionToolStripMenuItem.Text = "&Regions";
             // 
             // toolStripMenuItem5
             // 
             this.toolStripMenuItem5.Name = "toolStripMenuItem5";
-            this.toolStripMenuItem5.Size = new System.Drawing.Size(177, 6);
+            this.toolStripMenuItem5.Size = new System.Drawing.Size(134, 6);
             // 
             // volumeToolStripMenuItem
             // 
             this.volumeToolStripMenuItem.Enabled = false;
             this.volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(137, 22);
             this.volumeToolStripMenuItem.Text = "&Volume...";
             this.volumeToolStripMenuItem.Click += new System.EventHandler(this.volumeToolStripMenuItem_Click);
             // 
@@ -373,6 +380,13 @@
             this.radioToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.radioToolStripMenuItem.Text = "&Radio";
             this.radioToolStripMenuItem.Click += new System.EventHandler(this.radioToolStripMenuItem_Click);
+            // 
+            // allChannelsToolStripMenuItem
+            // 
+            this.allChannelsToolStripMenuItem.Name = "allChannelsToolStripMenuItem";
+            this.allChannelsToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
+            this.allChannelsToolStripMenuItem.Text = "All Channels";
+            this.allChannelsToolStripMenuItem.Click += new System.EventHandler(this.allChannelsToolStripMenuItem_Click);
             // 
             // toolStripMenuItem6
             // 
@@ -501,6 +515,21 @@
             this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(276, 68);
             this.channelsFlowLayoutPanel.TabIndex = 2;
             this.channelsFlowLayoutPanel.Visible = false;
+            // 
+            // channelsContextMenuStrip
+            // 
+            this.channelsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.showAllChannelsToolStripMenuItem});
+            this.channelsContextMenuStrip.Name = "channelsContextMenuStrip";
+            this.channelsContextMenuStrip.Size = new System.Drawing.Size(173, 26);
+            this.channelsContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.channelsContextMenuStrip_Opening);
+            this.channelsContextMenuStrip.Click += new System.EventHandler(this.channelsContextMenuStrip_Click);
+            // 
+            // showAllChannelsToolStripMenuItem
+            // 
+            this.showAllChannelsToolStripMenuItem.Name = "showAllChannelsToolStripMenuItem";
+            this.showAllChannelsToolStripMenuItem.Size = new System.Drawing.Size(172, 22);
+            this.showAllChannelsToolStripMenuItem.Text = "&Show All Channels";
             // 
             // checkBluetoothButton
             // 
@@ -833,57 +862,35 @@
             this.aprsMenuPictureBox.TabStop = false;
             this.aprsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsMenuPictureBox_MouseClick);
             // 
-            // debugTabContextMenuStrip
+            // aprsContextMenuStrip
             // 
-            this.debugTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.debugTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.debugSaveToFileToolStripMenuItem,
-            this.showBluetoothFramesToolStripMenuItem,
-            this.toolStripMenuItem3,
-            this.queryDeviceNamesToolStripMenuItem,
-            this.toolStripMenuItem8,
-            this.clearToolStripMenuItem});
-            this.debugTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.debugTabContextMenuStrip.Size = new System.Drawing.Size(200, 104);
+            this.aprsContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.aprsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.showAllMessagesToolStripMenuItem,
+            this.toolStripMenuItem7,
+            this.smSMessageToolStripMenuItem});
+            this.aprsContextMenuStrip.Name = "aprsContextMenuStrip";
+            this.aprsContextMenuStrip.Size = new System.Drawing.Size(159, 54);
             // 
-            // debugSaveToFileToolStripMenuItem
+            // showAllMessagesToolStripMenuItem
             // 
-            this.debugSaveToFileToolStripMenuItem.Name = "debugSaveToFileToolStripMenuItem";
-            this.debugSaveToFileToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
-            this.debugSaveToFileToolStripMenuItem.Text = "&Save To File...";
-            this.debugSaveToFileToolStripMenuItem.Click += new System.EventHandler(this.saveToFileToolStripMenuItem_Click);
+            this.showAllMessagesToolStripMenuItem.CheckOnClick = true;
+            this.showAllMessagesToolStripMenuItem.Name = "showAllMessagesToolStripMenuItem";
+            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
+            this.showAllMessagesToolStripMenuItem.Text = "Show Telemetry";
+            this.showAllMessagesToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showAllMessagesToolStripMenuItem_CheckStateChanged);
             // 
-            // showBluetoothFramesToolStripMenuItem
+            // toolStripMenuItem7
             // 
-            this.showBluetoothFramesToolStripMenuItem.CheckOnClick = true;
-            this.showBluetoothFramesToolStripMenuItem.Name = "showBluetoothFramesToolStripMenuItem";
-            this.showBluetoothFramesToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
-            this.showBluetoothFramesToolStripMenuItem.Text = "Show Bluetooth Frames";
-            this.showBluetoothFramesToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showBluetoothFramesToolStripMenuItem_CheckStateChanged);
+            this.toolStripMenuItem7.Name = "toolStripMenuItem7";
+            this.toolStripMenuItem7.Size = new System.Drawing.Size(155, 6);
             // 
-            // toolStripMenuItem3
+            // smSMessageToolStripMenuItem
             // 
-            this.toolStripMenuItem3.Name = "toolStripMenuItem3";
-            this.toolStripMenuItem3.Size = new System.Drawing.Size(196, 6);
-            // 
-            // queryDeviceNamesToolStripMenuItem
-            // 
-            this.queryDeviceNamesToolStripMenuItem.Name = "queryDeviceNamesToolStripMenuItem";
-            this.queryDeviceNamesToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
-            this.queryDeviceNamesToolStripMenuItem.Text = "Query Device Names";
-            this.queryDeviceNamesToolStripMenuItem.Click += new System.EventHandler(this.queryDeviceNamesToolStripMenuItem_Click);
-            // 
-            // toolStripMenuItem8
-            // 
-            this.toolStripMenuItem8.Name = "toolStripMenuItem8";
-            this.toolStripMenuItem8.Size = new System.Drawing.Size(196, 6);
-            // 
-            // clearToolStripMenuItem
-            // 
-            this.clearToolStripMenuItem.Name = "clearToolStripMenuItem";
-            this.clearToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
-            this.clearToolStripMenuItem.Text = "&Clear";
-            this.clearToolStripMenuItem.Click += new System.EventHandler(this.clearToolStripMenuItem_Click);
+            this.smSMessageToolStripMenuItem.Name = "smSMessageToolStripMenuItem";
+            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
+            this.smSMessageToolStripMenuItem.Text = "SMS Message...";
+            this.smSMessageToolStripMenuItem.Click += new System.EventHandler(this.aprsSmsButton_Click);
             // 
             // aprsTitleLabel
             // 
@@ -1449,6 +1456,58 @@
             this.tabsImageList.Images.SetKeyName(5, "Letter.png");
             this.tabsImageList.Images.SetKeyName(6, "search.ico");
             // 
+            // debugTabContextMenuStrip
+            // 
+            this.debugTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.debugTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.debugSaveToFileToolStripMenuItem,
+            this.showBluetoothFramesToolStripMenuItem,
+            this.toolStripMenuItem3,
+            this.queryDeviceNamesToolStripMenuItem,
+            this.toolStripMenuItem8,
+            this.clearToolStripMenuItem});
+            this.debugTabContextMenuStrip.Name = "debugTabContextMenuStrip";
+            this.debugTabContextMenuStrip.Size = new System.Drawing.Size(200, 104);
+            // 
+            // debugSaveToFileToolStripMenuItem
+            // 
+            this.debugSaveToFileToolStripMenuItem.Name = "debugSaveToFileToolStripMenuItem";
+            this.debugSaveToFileToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
+            this.debugSaveToFileToolStripMenuItem.Text = "&Save To File...";
+            this.debugSaveToFileToolStripMenuItem.Click += new System.EventHandler(this.saveToFileToolStripMenuItem_Click);
+            // 
+            // showBluetoothFramesToolStripMenuItem
+            // 
+            this.showBluetoothFramesToolStripMenuItem.CheckOnClick = true;
+            this.showBluetoothFramesToolStripMenuItem.Name = "showBluetoothFramesToolStripMenuItem";
+            this.showBluetoothFramesToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
+            this.showBluetoothFramesToolStripMenuItem.Text = "Show Bluetooth Frames";
+            this.showBluetoothFramesToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showBluetoothFramesToolStripMenuItem_CheckStateChanged);
+            // 
+            // toolStripMenuItem3
+            // 
+            this.toolStripMenuItem3.Name = "toolStripMenuItem3";
+            this.toolStripMenuItem3.Size = new System.Drawing.Size(196, 6);
+            // 
+            // queryDeviceNamesToolStripMenuItem
+            // 
+            this.queryDeviceNamesToolStripMenuItem.Name = "queryDeviceNamesToolStripMenuItem";
+            this.queryDeviceNamesToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
+            this.queryDeviceNamesToolStripMenuItem.Text = "Query Device Names";
+            this.queryDeviceNamesToolStripMenuItem.Click += new System.EventHandler(this.queryDeviceNamesToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItem8
+            // 
+            this.toolStripMenuItem8.Name = "toolStripMenuItem8";
+            this.toolStripMenuItem8.Size = new System.Drawing.Size(196, 6);
+            // 
+            // clearToolStripMenuItem
+            // 
+            this.clearToolStripMenuItem.Name = "clearToolStripMenuItem";
+            this.clearToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
+            this.clearToolStripMenuItem.Text = "&Clear";
+            this.clearToolStripMenuItem.Click += new System.EventHandler(this.clearToolStripMenuItem_Click);
+            // 
             // batteryTimer
             // 
             this.batteryTimer.Interval = 60000;
@@ -1458,36 +1517,6 @@
             // 
             this.saveTraceFileDialog.Filter = "Text files|*.txt";
             this.saveTraceFileDialog.Title = "Save Tracing File";
-            // 
-            // aprsContextMenuStrip
-            // 
-            this.aprsContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.aprsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.showAllMessagesToolStripMenuItem,
-            this.toolStripMenuItem7,
-            this.smSMessageToolStripMenuItem});
-            this.aprsContextMenuStrip.Name = "aprsContextMenuStrip";
-            this.aprsContextMenuStrip.Size = new System.Drawing.Size(159, 54);
-            // 
-            // showAllMessagesToolStripMenuItem
-            // 
-            this.showAllMessagesToolStripMenuItem.CheckOnClick = true;
-            this.showAllMessagesToolStripMenuItem.Name = "showAllMessagesToolStripMenuItem";
-            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
-            this.showAllMessagesToolStripMenuItem.Text = "Show Telemetry";
-            this.showAllMessagesToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showAllMessagesToolStripMenuItem_CheckStateChanged);
-            // 
-            // toolStripMenuItem7
-            // 
-            this.toolStripMenuItem7.Name = "toolStripMenuItem7";
-            this.toolStripMenuItem7.Size = new System.Drawing.Size(155, 6);
-            // 
-            // smSMessageToolStripMenuItem
-            // 
-            this.smSMessageToolStripMenuItem.Name = "smSMessageToolStripMenuItem";
-            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
-            this.smSMessageToolStripMenuItem.Text = "SMS Message...";
-            this.smSMessageToolStripMenuItem.Click += new System.EventHandler(this.aprsSmsButton_Click);
             // 
             // aprsMsgContextMenuStrip
             // 
@@ -1546,35 +1575,6 @@
             this.showPacketDecodeToolStripMenuItem.Text = "&Show Packet Decode";
             this.showPacketDecodeToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showPacketDecodeToolStripMenuItem_CheckStateChanged);
             // 
-            // channelsContextMenuStrip
-            // 
-            this.channelsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.showAllChannelsToolStripMenuItem});
-            this.channelsContextMenuStrip.Name = "channelsContextMenuStrip";
-            this.channelsContextMenuStrip.Size = new System.Drawing.Size(173, 26);
-            this.channelsContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.channelsContextMenuStrip_Opening);
-            this.channelsContextMenuStrip.Click += new System.EventHandler(this.channelsContextMenuStrip_Click);
-            // 
-            // showAllChannelsToolStripMenuItem
-            // 
-            this.showAllChannelsToolStripMenuItem.Name = "showAllChannelsToolStripMenuItem";
-            this.showAllChannelsToolStripMenuItem.Size = new System.Drawing.Size(172, 22);
-            this.showAllChannelsToolStripMenuItem.Text = "&Show All Channels";
-            // 
-            // allChannelsToolStripMenuItem
-            // 
-            this.allChannelsToolStripMenuItem.Name = "allChannelsToolStripMenuItem";
-            this.allChannelsToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
-            this.allChannelsToolStripMenuItem.Text = "All Channels";
-            this.allChannelsToolStripMenuItem.Click += new System.EventHandler(this.allChannelsToolStripMenuItem_Click);
-            // 
-            // regionToolStripMenuItem
-            // 
-            this.regionToolStripMenuItem.Enabled = false;
-            this.regionToolStripMenuItem.Name = "regionToolStripMenuItem";
-            this.regionToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            this.regionToolStripMenuItem.Text = "&Regions";
-            // 
             // aprsChatControl
             // 
             this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
@@ -1619,6 +1619,7 @@
             this.mainMenuStrip.ResumeLayout(false);
             this.mainMenuStrip.PerformLayout();
             this.radioPanel.ResumeLayout(false);
+            this.channelsContextMenuStrip.ResumeLayout(false);
             this.connectedPanel.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).EndInit();
             this.mainTabControl.ResumeLayout(false);
@@ -1630,7 +1631,7 @@
             this.aprsTopPanel.ResumeLayout(false);
             this.aprsTopPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).EndInit();
-            this.debugTabContextMenuStrip.ResumeLayout(false);
+            this.aprsContextMenuStrip.ResumeLayout(false);
             this.mapTabPage.ResumeLayout(false);
             this.mapTopPanel.ResumeLayout(false);
             this.mapTopPanel.PerformLayout();
@@ -1661,10 +1662,9 @@
             this.debugControlsPanel.ResumeLayout(false);
             this.debugControlsPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).EndInit();
-            this.aprsContextMenuStrip.ResumeLayout(false);
+            this.debugTabContextMenuStrip.ResumeLayout(false);
             this.aprsMsgContextMenuStrip.ResumeLayout(false);
             this.packetsContextMenuStrip.ResumeLayout(false);
-            this.channelsContextMenuStrip.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 

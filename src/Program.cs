@@ -75,6 +75,11 @@ namespace HTCommander
             e.SetObserved(); // Prevent the application from crashing
         }
 
+        public static void ExceptionSink(object sender, Exception ex)
+        {
+            Debug("--- HTCommander Exception Sink ---\r\n" + DateTime.Now + ", Version: " + GetFileVersion() + "\r\nException:\r\n" + ex.ToString() + "\r\n\r\n" + GetBlackBoxEvents() + "\r\n\r\n\r\n");
+        }
+
         private static string GetBlackBoxEvents()
         {
             StringBuilder sb = new StringBuilder();

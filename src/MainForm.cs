@@ -27,6 +27,7 @@ using GMap.NET.WindowsForms.Markers;
 using GMap.NET;
 using aprsparser;
 using static HTCommander.Radio;
+using Windows.Devices.Radios;
 
 namespace HTCommander
 {
@@ -184,15 +185,18 @@ namespace HTCommander
             this.ResumeLayout();
             aprsChatControl.UpdateMessages(true);
 
+            debugTextBox.Clear();
             CheckBluetooth();
         }
 
         private async void CheckBluetooth()
         {
+            radioStateLabel.Text = "Searching";
             DebugTrace("Looking for compatible radios...");
             bluetoothEnabled = await Radio.CheckBluetooth();
             if (bluetoothEnabled == false)
             {
+                radioStateLabel.Text = "Disconnected";
                 checkBluetoothButton.Visible = true;
                 DebugTrace("Bluetooth LE not found on this computer.");
                 if (bluetoothActivateForm == null)
@@ -233,6 +237,7 @@ namespace HTCommander
                     foreach (CompatibleDevice radio in devices) { DebugTrace("Found " + radio.name + " - " + radio.mac); }
                 }
                 UpdateInfo();
+                radioStateLabel.Text = "Disconnected";
             }
         }
 
@@ -279,98 +284,111 @@ namespace HTCommander
         private void Radio_InfoUpdate(Radio sender, Radio.RadioUpdateNotification msg)
         {
             if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_InfoUpdate(sender, msg); })); return; }
-            switch (msg)
+            try
             {
-                case Radio.RadioUpdateNotification.State:
-                    switch (radio.State)
-                    {
-                        case Radio.RadioState.Connected:
-                            connectToolStripMenuItem.Enabled = false;
-                            disconnectToolStripMenuItem.Enabled = true;
-                            radio.UpdateChannels();
-                            radioStateLabel.Text = "Connected";
-                            channelControls = new RadioChannelControl[radio.Info.channel_count];
-                            vfo2LastChannelId = -1;
-                            break;
-                        case Radio.RadioState.Disconnected:
-                            connectToolStripMenuItem.Enabled = true;
-                            disconnectToolStripMenuItem.Enabled = false;
-                            radioStateLabel.Text = "Disconnected";
-                            channelsFlowLayoutPanel.Controls.Clear();
-                            rssiProgressBar.Visible = false;
-                            if (channelControls != null)
-                            {
-                                for (int i = 0; i < channelControls.Length; i++) { if (channelControls[i] != null) { channelControls[i].Dispose(); } }
-                            }
-                            if (radioHtStatusForm != null) { radioHtStatusForm.Close(); radioHtStatusForm = null; }
-                            if (radioSettingsForm != null) { radioSettingsForm.Close(); radioSettingsForm = null; }
-                            if (radioChannelForm != null) { radioChannelForm.Close(); radioChannelForm = null; }
-                            if (radioVolumeForm != null) { radioVolumeForm.Close(); radioVolumeForm = null; }
-                            if (aprsConfigurationForm != null) { aprsConfigurationForm.Close(); aprsConfigurationForm = null; }
-                            break;
-                        case Radio.RadioState.Connecting:
-                            radioStateLabel.Text = "Connecting";
-                            break;
-                        case Radio.RadioState.MultiRadioSelect:
-                            radioStateLabel.Text = "Multiple Radios";
-                            break;
-                        case Radio.RadioState.UnableToConnect:
-                            radioStateLabel.Text = "Can't connect";
-                            break;
-                        case Radio.RadioState.AccessDenied:
-                            radioStateLabel.Text = "Access Denied";
-                            new BTAccessDeniedForm().ShowDialog(this);
-                            break;
-                        case Radio.RadioState.BluetoothNotAvailable:
-                            radioStateLabel.Text = "No Bluetooth";
-                            break;
-                        case Radio.RadioState.NotRadioFound:
-                            radioStateLabel.Text = "No Radio Found";
-                            break;
-                    }
+                switch (msg)
+                {
+                    case Radio.RadioUpdateNotification.State:
+                        switch (radio.State)
+                        {
+                            case Radio.RadioState.Connected:
+                                connectToolStripMenuItem.Enabled = false;
+                                disconnectToolStripMenuItem.Enabled = true;
+                                radioStateLabel.Text = "Connected";
+                                channelControls = new RadioChannelControl[radio.Info.channel_count];
+                                vfo2LastChannelId = -1;
+                                break;
+                            case Radio.RadioState.Disconnected:
+                                connectToolStripMenuItem.Enabled = true;
+                                disconnectToolStripMenuItem.Enabled = false;
+                                radioStateLabel.Text = "Disconnected";
+                                channelsFlowLayoutPanel.Controls.Clear();
+                                rssiProgressBar.Visible = false;
+                                if (channelControls != null)
+                                {
+                                    for (int i = 0; i < channelControls.Length; i++) { if (channelControls[i] != null) { channelControls[i].Dispose(); channelControls[i] = null; } }
+                                }
+                                if (radioHtStatusForm != null) { radioHtStatusForm.Close(); radioHtStatusForm = null; }
+                                if (radioSettingsForm != null) { radioSettingsForm.Close(); radioSettingsForm = null; }
+                                if (radioChannelForm != null) { radioChannelForm.Close(); radioChannelForm = null; }
+                                if (radioVolumeForm != null) { radioVolumeForm.Close(); radioVolumeForm = null; }
+                                if (aprsConfigurationForm != null) { aprsConfigurationForm.Close(); aprsConfigurationForm = null; }
+                                break;
+                            case Radio.RadioState.Connecting:
+                                radioStateLabel.Text = "Connecting";
+                                break;
+                            case Radio.RadioState.MultiRadioSelect:
+                                radioStateLabel.Text = "Multiple Radios";
+                                break;
+                            case Radio.RadioState.UnableToConnect:
+                                radioStateLabel.Text = "Can't connect";
+                                break;
+                            case Radio.RadioState.AccessDenied:
+                                radioStateLabel.Text = "Access Denied";
+                                new BTAccessDeniedForm().ShowDialog(this);
+                                break;
+                            case Radio.RadioState.BluetoothNotAvailable:
+                                radioStateLabel.Text = "No Bluetooth";
+                                break;
+                            case Radio.RadioState.NotRadioFound:
+                                radioStateLabel.Text = "No Radio Found";
+                                break;
+                        }
 
-                    UpdateInfo();
-                    break;
-                case Radio.RadioUpdateNotification.ChannelInfo:
-                    if (radio.Channels != null)
-                    {
-                        UpdateChannelsPanel();
-                        CheckAprsChannel();
-                        UpdateRadioDisplay();
                         UpdateInfo();
-                    }
-                    break;
-                case Radio.RadioUpdateNotification.BatteryAsPercentage:
-                    batteryToolStripStatusLabel.Text = "Battery " + radio.BatteryAsPercentage + "%";
-                    batteryToolStripStatusLabel.Visible = true;
-                    break;
-                case Radio.RadioUpdateNotification.HtStatus:
-                    rssiProgressBar.Visible = (radio.HtStatus.rssi > 0);
-                    rssiProgressBar.Value = radio.HtStatus.rssi;
-                    if (radioHtStatusForm != null) { radioHtStatusForm.UpdateInfo(); }
-                    radioStatusToolStripMenuItem.Enabled = true;
-                    UpdateRadioDisplay();
-                    setupRegionMenu();
-                    break;
-                case Radio.RadioUpdateNotification.Settings:
-                    if (radioSettingsForm != null) { radioSettingsForm.UpdateInfo(); }
-                    radioSettingsToolStripMenuItem.Enabled = true;
-                    dualWatchToolStripMenuItem.Checked = (radio.Settings.double_channel == 1);
-                    scanToolStripMenuItem.Checked = radio.Settings.scan;
-                    UpdateRadioDisplay();
-                    setupRegionMenu();
-                    break;
-                case Radio.RadioUpdateNotification.Volume:
-                    if (radioVolumeForm != null) {
-                        radioVolumeForm.Volume = radio.Volume;
-                    } else {
-                        radioVolumeForm = new RadioVolumeForm(this, radio);
-                        radioVolumeForm.Volume = radio.Volume;
-                        radioVolumeForm.Show(this);
-                    }
-                    break;
-                case Radio.RadioUpdateNotification.RegionChange:
-                    break;
+                        break;
+                    case Radio.RadioUpdateNotification.ChannelInfo:
+                        if (radio.Channels != null)
+                        {
+                            UpdateChannelsPanel();
+                            CheckAprsChannel();
+                            UpdateRadioDisplay();
+                            UpdateInfo();
+                        }
+                        break;
+                    case Radio.RadioUpdateNotification.BatteryAsPercentage:
+                        batteryToolStripStatusLabel.Text = "Battery " + radio.BatteryAsPercentage + "%";
+                        batteryToolStripStatusLabel.Visible = true;
+                        break;
+                    case Radio.RadioUpdateNotification.HtStatus:
+                        rssiProgressBar.Visible = (radio.HtStatus.rssi > 0);
+                        rssiProgressBar.Value = radio.HtStatus.rssi;
+                        if (radioHtStatusForm != null) { radioHtStatusForm.UpdateInfo(); }
+                        radioStatusToolStripMenuItem.Enabled = true;
+                        UpdateRadioDisplay();
+                        setupRegionMenu();
+                        break;
+                    case Radio.RadioUpdateNotification.Settings:
+                        if (radioSettingsForm != null) { radioSettingsForm.UpdateInfo(); }
+                        radioSettingsToolStripMenuItem.Enabled = true;
+                        dualWatchToolStripMenuItem.Checked = (radio.Settings.double_channel == 1);
+                        scanToolStripMenuItem.Checked = radio.Settings.scan;
+                        UpdateRadioDisplay();
+                        setupRegionMenu();
+                        break;
+                    case Radio.RadioUpdateNotification.Volume:
+                        if (radioVolumeForm != null)
+                        {
+                            radioVolumeForm.Volume = radio.Volume;
+                        }
+                        else
+                        {
+                            radioVolumeForm = new RadioVolumeForm(this, radio);
+                            radioVolumeForm.Volume = radio.Volume;
+                            radioVolumeForm.Show(this);
+                        }
+                        break;
+                    case Radio.RadioUpdateNotification.RegionChange:
+                        if (channelControls != null)
+                        {
+                            for (int i = 0; i < channelControls.Length; i++) { if (channelControls[i] != null) { channelControls[i].Dispose(); channelControls[i] = null; } }
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.ExceptionSink(this, ex);
             }
         }
 
@@ -379,8 +397,15 @@ namespace HTCommander
             if (radio.Settings == null) return;
             if (radio.Channels != null)
             {
-                RadioChannelInfo channelA = radio.Channels[radio.Settings.channel_a];
-                RadioChannelInfo channelB = radio.Channels[radio.Settings.channel_b];
+                RadioChannelInfo channelA = null;
+                RadioChannelInfo channelB = null;
+
+                if ((radio.Settings.channel_a >= 0) && (radio.Settings.channel_a < radio.Channels.Length)) {
+                    channelA = radio.Channels[radio.Settings.channel_a];
+                }
+                if ((radio.Settings.channel_b >= 0) && (radio.Settings.channel_b < radio.Channels.Length)) {
+                    channelB = radio.Channels[radio.Settings.channel_b];
+                }
 
                 foreach (RadioChannelControl c in channelControls)
                 {
@@ -599,7 +624,7 @@ namespace HTCommander
             return true;
         }
 
-        private async void terminalSendButton_Click(object sender, EventArgs e)
+        private void terminalSendButton_Click(object sender, EventArgs e)
         {
             if (terminalInputTextBox.Text.Length == 0) return;
 
@@ -614,7 +639,7 @@ namespace HTCommander
             addresses.Add(AX25Address.GetAddress(callsign, stationId));
             AX25Packet packet = new AX25Packet(addresses, terminalInputTextBox.Text, DateTime.Now);
             packet.time = DateTime.Now;
-            await radio.TransmitTncData(packet);
+            radio.TransmitTncData(packet);
             terminalInputTextBox.Text = "";
         }
 
@@ -649,7 +674,7 @@ namespace HTCommander
             return addresses;
         }
 
-        private async void aprsSendButton_Click(object sender, EventArgs e)
+        private void aprsSendButton_Click(object sender, EventArgs e)
         {
             if (aprsTextBox.Text.Length == 0) return;
             if (UTF8Encoding.Default.GetByteCount(aprsTextBox.Text) > 67) return;
@@ -672,7 +697,7 @@ namespace HTCommander
             //AX25Packet packet = new AX25Packet(1, addresses, 0, aprsTextBox.Text);
             //packet.time = DateTime.Now;
 
-            await radio.TransmitTncData(packet, aprsChannel);
+            radio.TransmitTncData(packet, aprsChannel);
             AddAprsPacket(packet, true);
             aprsTextBox.Text = "";
         }
@@ -840,7 +865,7 @@ namespace HTCommander
             }
         }
 
-        private async void aprsSmsButton_Click(object sender, EventArgs e)
+        private void aprsSmsButton_Click(object sender, EventArgs e)
         {
             using (AprsSmsForm aprsSmsForm = new AprsSmsForm())
             {
@@ -855,7 +880,7 @@ namespace HTCommander
                     packet.messageId = msgId;
                     packet.time = DateTime.Now;
                     
-                    await radio.TransmitTncData(packet, aprsChannel);
+                    radio.TransmitTncData(packet, aprsChannel);
                     AddAprsPacket(packet, true);
                     aprsTextBox.Text = "";
                 }
@@ -874,10 +899,10 @@ namespace HTCommander
             volumeToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             dualWatchToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             scanToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
-            aprsDestinationComboBox.Enabled = (radio.State == Radio.RadioState.Connected);
             terminalDestinationComboBox.Enabled = (radio.State == Radio.RadioState.Connected);
-            aprsTextBox.Enabled = (radio.State == Radio.RadioState.Connected);
-            aprsSendButton.Enabled = (radio.State == Radio.RadioState.Connected);
+            aprsDestinationComboBox.Enabled = (radio.State == Radio.RadioState.Connected) && (aprsChannel != -1);
+            aprsTextBox.Enabled = (radio.State == Radio.RadioState.Connected) && (aprsChannel != -1);
+            aprsSendButton.Enabled = (radio.State == Radio.RadioState.Connected) && (aprsChannel != -1);
             batteryTimer.Enabled = (radio.State == Radio.RadioState.Connected);
             terminalInputTextBox.Enabled = (radio.State == Radio.RadioState.Connected);
             terminalSendButton.Enabled = (radio.State == Radio.RadioState.Connected);
@@ -887,7 +912,7 @@ namespace HTCommander
             if (radio.State != Radio.RadioState.Connected) { connectedPanel.Visible = false; }
 
             toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
-            aprsBottomPanel.Visible = allowTransmit && (aprsChannel != -1);
+            aprsBottomPanel.Visible = allowTransmit;
             terminalBottomPanel.Visible = allowTransmit;
 
             // APRS Routes
@@ -1334,7 +1359,7 @@ namespace HTCommander
 
         private void CheckAprsChannel()
         {
-            if ((allowTransmit == false) || (radio.State != RadioState.Connected) || (radio.Channels == null) || (radio.AllChannelsLoaded() == false))
+            if ((allowTransmit == false) || (radio.State != Radio.RadioState.Connected) || (radio.Channels == null) || (radio.AllChannelsLoaded() == false))
             {
                 aprsMissingChannelPanel.Visible = false;
                 aprsChannel = -1;
@@ -1401,7 +1426,7 @@ namespace HTCommander
 
         private void setupRegionMenu()
         {
-            if ((radio.State != RadioState.Connected) || (radio.Settings == null) || (radio.HtStatus == null))
+            if ((radio.State != Radio.RadioState.Connected) || (radio.Settings == null) || (radio.HtStatus == null))
             {
                 regionToolStripMenuItem.Enabled = false;
                 regionToolStripMenuItem.DropDownItems.Clear();

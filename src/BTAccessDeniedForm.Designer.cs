@@ -58,9 +58,9 @@
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(321, 50);
             this.label1.TabIndex = 5;
-            this.label1.Text = "Access to the radio was denied. The radio can show up as two Bluetooth devices. P" +
-    "air both audio and control devices. Enabling paring mode on the radio twice may " +
-    "be needed.";
+            this.label1.Text = "Access to the radio was denied. The radio will show as two Bluetooth devices. Pai" +
+    "r both audio and control devices. Enabling paring mode on the radio twice will b" +
+    "e needed.";
             // 
             // closeButton
             // 
