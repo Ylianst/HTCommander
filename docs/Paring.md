@@ -25,3 +25,6 @@ So far, I have had the best success pairing both devices in quick succession. Fo
 ![image](https://github.com/user-attachments/assets/c3223543-6d2a-4ad7-936e-6494f56298ea)
 
 Once done, you should be good to go.
+
+![{E8BE4401-0D79-4B5D-A796-469595036D22}](https://github.com/user-attachments/assets/b6688be4-cfcf-4193-a892-b378b6b33677)
+
