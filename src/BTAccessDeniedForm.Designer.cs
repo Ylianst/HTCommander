@@ -34,6 +34,7 @@
             this.closeButton = new System.Windows.Forms.Button();
             this.pictureBox2 = new System.Windows.Forms.PictureBox();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.linkLabel1 = new System.Windows.Forms.LinkLabel();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
@@ -59,8 +60,8 @@
             this.label1.Size = new System.Drawing.Size(321, 50);
             this.label1.TabIndex = 5;
             this.label1.Text = "Access to the radio was denied. The radio will show as two Bluetooth devices. Pai" +
-    "r both audio and control devices. Enabling paring mode on the radio twice will b" +
-    "e needed.";
+    "r both audio and control devices. Enabling paring mode on the radio twice may be" +
+    " needed.";
             // 
             // closeButton
             // 
@@ -93,12 +94,25 @@
             this.panel1.Size = new System.Drawing.Size(318, 140);
             this.panel1.TabIndex = 9;
             // 
+            // linkLabel1
+            // 
+            this.linkLabel1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.linkLabel1.AutoSize = true;
+            this.linkLabel1.Location = new System.Drawing.Point(111, 222);
+            this.linkLabel1.Name = "linkLabel1";
+            this.linkLabel1.Size = new System.Drawing.Size(64, 13);
+            this.linkLabel1.TabIndex = 10;
+            this.linkLabel1.TabStop = true;
+            this.linkLabel1.Text = "Pairing Help";
+            this.linkLabel1.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkLabel1_LinkClicked);
+            // 
             // BTAccessDeniedForm
             // 
             this.AcceptButton = this.closeButton;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(345, 247);
+            this.Controls.Add(this.linkLabel1);
             this.Controls.Add(this.panel1);
             this.Controls.Add(this.bluetoothLinkLabel);
             this.Controls.Add(this.label1);
@@ -125,5 +139,6 @@
         private System.Windows.Forms.Button closeButton;
         private System.Windows.Forms.PictureBox pictureBox2;
         private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.LinkLabel linkLabel1;
     }
 }

@@ -24,5 +24,10 @@ namespace HTCommander
                 UseShellExecute = true
             });
         }
+
+        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://github.com/Ylianst/HTCommander/blob/main/docs/Paring.md");
+        }
     }
 }
