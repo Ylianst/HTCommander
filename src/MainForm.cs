@@ -149,7 +149,7 @@ namespace HTCommander
 
             // Read the packets file
             string[] lines = null;
-            try { lines = File.ReadAllLines("packets.txt"); } catch (Exception) { }
+            try { lines = File.ReadAllLines("packets.ptcap"); } catch (Exception) { }
             if (lines != null)
             {
                 // If the packet file is big, load only the first 200 packets
@@ -189,7 +189,7 @@ namespace HTCommander
             }
 
             // Open the packet write file
-            AprsFile = File.Open("packets.txt", FileMode.Append, FileAccess.Write);
+            AprsFile = File.Open("packets.ptcap", FileMode.Append, FileAccess.Write);
             UpdateInfo();
             this.ResumeLayout();
             aprsChatControl.UpdateMessages(true);
