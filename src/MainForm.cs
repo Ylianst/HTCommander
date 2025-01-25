@@ -1278,13 +1278,13 @@ namespace HTCommander
             packetDecodeListView.Items.Add(l);
         }
 
-        private string FragmentToShortString(TncDataFragment fragment)
+        public string FragmentToShortString(TncDataFragment fragment)
         {
             StringBuilder sb = new StringBuilder();
             AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment.data, fragment.time);
             if (packet == null)
             {
-                Utils.BytesToHex(fragment.data);
+                return Utils.BytesToHex(fragment.data);
             }
             else
             {
@@ -1347,7 +1347,7 @@ namespace HTCommander
                 if (packet.payloadStr != null) { addPacketDecodeLine(2, "Data", packet.payloadStr); }
                 if (packet.payload != null) { addPacketDecodeLine(2, "Data HEX", Utils.BytesToHex(packet.payload)); }
 
-                if (fragment.channel_name == "APRS")
+                if ((packet.type == AX25Packet.FrameType.U_FRAME) && (packet.pid == 240))
                 {
                     AprsPacket aprsPacket = new AprsPacket();
                     if (aprsPacket.Parse(packet.payloadStr, packet.addresses[0].CallSignWithId) == false)
@@ -1554,6 +1554,64 @@ namespace HTCommander
                 sb.AppendLine(Utils.BytesToHex(frame.data));
             }
             if (sb.Length > 0) { Clipboard.SetText(sb.ToString()); }
+        }
+
+        private void saveToFileToolStripMenuItem_Click_1(object sender, EventArgs e)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (ListViewItem l in packetsListView.SelectedItems)
+            {
+                TncDataFragment frame = (TncDataFragment)l.Tag;
+                sb.AppendLine(frame.time.Ticks + "," + (frame.incoming ? "1" : "0") + "," + frame.ToString());
+            }
+            if ((sb.Length > 0) && (savePacketsFileDialog.ShowDialog(this) == DialogResult.OK))
+            {
+                File.WriteAllText(savePacketsFileDialog.FileName, sb.ToString());
+            }
+        }
+
+        private void saveToFileToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (ListViewItem l in packetsListView.Items)
+            {
+                TncDataFragment frame = (TncDataFragment)l.Tag;
+                sb.AppendLine(frame.time.Ticks + "," + (frame.incoming ? "1" : "0") + "," + frame.ToString());
+            }
+            if ((sb.Length > 0) && (savePacketsFileDialog.ShowDialog(this) == DialogResult.OK))
+            {
+                File.WriteAllText(savePacketsFileDialog.FileName, sb.ToString());
+            }
+        }
+
+        private void packetsContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            saveToFileToolStripMenuItem1.Enabled = (packetsListView.Items.Count > 0);
+        }
+
+        private void openFileToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (openPacketsFileDialog.ShowDialog(this) == DialogResult.OK)
+            {
+                PacketCaptureViewerForm form = new PacketCaptureViewerForm(this, openPacketsFileDialog.FileName);
+                form.Show(this);
+            }
+        }
+
+        private void copyToClipboardToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (packetDecodeListView.SelectedItems.Count == 0) return;
+            StringBuilder sb = new StringBuilder();
+            foreach (ListViewItem l in packetDecodeListView.SelectedItems)
+            {
+                sb.AppendLine(l.Text + ", " + l.SubItems[1].Text);
+            }
+            Clipboard.SetText(sb.ToString());
+        }
+
+        private void packetDataContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            copyToClipboardToolStripMenuItem.Visible = (packetDecodeListView.SelectedItems.Count > 0);
         }
     }
 }

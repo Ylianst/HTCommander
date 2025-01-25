@@ -37,7 +37,7 @@ namespace HTCommander
             this.data = data;
             this.channel_id = channel_id;
             this.region_id = region_id;
-            channel_name = (channel_id == -1) ? "" : channel_id.ToString().Replace(",","");
+            channel_name = (channel_id == -1) ? "" : (channel_id + 1).ToString().Replace(",","");
         }
 
         public override string ToString()

@@ -530,7 +530,7 @@ namespace HTCommander
                                         if ((Channels != null) && (Channels[HtStatus.curr_ch_id] != null)) {
                                             fragment.channel_name = Channels[HtStatus.curr_ch_id].name_str.Replace(",","");
                                         } else {
-                                            fragment.channel_name = HtStatus.curr_ch_id.ToString();
+                                            fragment.channel_name = (HtStatus.curr_ch_id + 1).ToString();
                                         }
                                     }
 

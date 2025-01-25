@@ -123,6 +123,12 @@
     <Compile Include="MapLocationForm.Designer.cs">
       <DependentUpon>MapLocationForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="PacketCaptureViewerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PacketCaptureViewerForm.Designer.cs">
+      <DependentUpon>PacketCaptureViewerForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="RadioSelectorForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -230,6 +236,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="MapLocationForm.resx">
       <DependentUpon>MapLocationForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PacketCaptureViewerForm.resx">
+      <DependentUpon>PacketCaptureViewerForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="RadioSelectorForm.resx">
       <DependentUpon>RadioSelectorForm.cs</DependentUpon>

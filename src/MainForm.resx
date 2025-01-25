@@ -1573,7 +1573,7 @@
         AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAuMC4w
         LCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAAACZTeXN0
         ZW0uV2luZG93cy5Gb3Jtcy5JbWFnZUxpc3RTdHJlYW1lcgEAAAAERGF0YQcCAgAAAAkDAAAADwMAAAAG
-        JwAAAk1TRnQBSQFMAgEBBgEAAXABBwFwAQcBFAEAARQBAAT/ARkBAAj/AUIBTQE2BwABNgMAASgDAAFQ
+        JwAAAk1TRnQBSQFMAgEBBgEAAfgBBwH4AQcBFAEAARQBAAT/ARkBAAj/AUIBTQE2BwABNgMAASgDAAFQ
         AwABKAMAAQEBAAEYBQABgAEl/wAeAAHyAe0B7AG/AYsBdQG+AYsBdQHhAdAByioAA/8BlQHLAa4BdQG+
         AZcBgQHCAZ8B/QL+qAAB0gGyAacBmgEzAQYBmgEzAQUBmgEzAQYBmgEzAQUB/AL7JwABvgHcAcsBBgGa
         AU4BBgGaAU4BBgGaAU4BCAGZAVAB8AH0AfKiAAGsAWMBRQGaATMBBgGZATEBBAHRAWEBMQG2AU0BIgGa
@@ -2014,6 +2014,9 @@
   </data>
   <metadata name="packetsListContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>402, 54</value>
+  </metadata>
+  <metadata name="packetDataContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>190, 91</value>
   </metadata>
   <data name="packetsMenuPictureBox.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
@@ -2557,7 +2560,7 @@
         AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAuMC4w
         LCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAAACZTeXN0
         ZW0uV2luZG93cy5Gb3Jtcy5JbWFnZUxpc3RTdHJlYW1lcgEAAAAERGF0YQcCAgAAAAkDAAAADwMAAABE
-        cgAAAk1TRnQBSQFMAgEBBwEAAQgBCwEIAQsBIAEAASABAAT/ARkBAAj/AUIBTQE2BwABNgMAASgDAAGA
+        cgAAAk1TRnQBSQFMAgEBBwEAAZABCwGQAQsBIAEAASABAAT/ARkBAAj/AUIBTQE2BwABNgMAASgDAAGA
         AwABQAMAAQEBAAEYBgABYDkAA/4B+wL6AfcB9gH1AfQB8wHwAfIB8AHsAe8B7AHmAegB5AHYAd0B0wG9
         AdQBxQGiAc4BugGLAc8BuAGIAdgBzAGyA/EYAAH6AfkB+AHuAeQB3AHxAeoB5QH1AfIB8AH5AvgD/mYA
         A/4D+QPtBuAD3QO1A4wDtQP1A/2TAAP+AvkB+AHyAfAC6wHnAd0B5QHeAc8B4QHYAcQB2wHQAbcB2AHJ
@@ -3062,8 +3065,14 @@
   <metadata name="packetsContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>212, 54</value>
   </metadata>
+  <metadata name="savePacketsFileDialog.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>978, 17</value>
+  </metadata>
+  <metadata name="openPacketsFileDialog.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>17, 91</value>
+  </metadata>
   <metadata name="$this.TrayHeight" type="System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
-    <value>87</value>
+    <value>141</value>
   </metadata>
   <data name="$this.Icon" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>

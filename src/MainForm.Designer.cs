@@ -144,6 +144,7 @@
             this.columnHeader9 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.packetsListContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.copyHEXValuesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.saveToFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.packetDecodeListView = new System.Windows.Forms.ListView();
             this.packetDecodeColumnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.packetDecodeColumnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -172,6 +173,12 @@
             this.copyCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.packetsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showPacketDecodeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.saveToFileToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.openFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.savePacketsFileDialog = new System.Windows.Forms.SaveFileDialog();
+            this.openPacketsFileDialog = new System.Windows.Forms.OpenFileDialog();
+            this.packetDataContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.copyToClipboardToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -208,6 +215,7 @@
             this.debugTabContextMenuStrip.SuspendLayout();
             this.aprsMsgContextMenuStrip.SuspendLayout();
             this.packetsContextMenuStrip.SuspendLayout();
+            this.packetDataContextMenuStrip.SuspendLayout();
             this.SuspendLayout();
             // 
             // mainStatusStrip
@@ -1356,23 +1364,32 @@
             // 
             this.packetsListContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.packetsListContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.copyHEXValuesToolStripMenuItem});
+            this.copyHEXValuesToolStripMenuItem,
+            this.saveToFileToolStripMenuItem});
             this.packetsListContextMenuStrip.Name = "packetsListContextMenuStrip";
-            this.packetsListContextMenuStrip.Size = new System.Drawing.Size(181, 48);
+            this.packetsListContextMenuStrip.Size = new System.Drawing.Size(164, 48);
             this.packetsListContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.packetsListContextMenuStrip_Opening);
             // 
             // copyHEXValuesToolStripMenuItem
             // 
             this.copyHEXValuesToolStripMenuItem.Name = "copyHEXValuesToolStripMenuItem";
-            this.copyHEXValuesToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.copyHEXValuesToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
             this.copyHEXValuesToolStripMenuItem.Text = "Copy &HEX Values";
             this.copyHEXValuesToolStripMenuItem.Click += new System.EventHandler(this.copyHEXValuesToolStripMenuItem_Click);
+            // 
+            // saveToFileToolStripMenuItem
+            // 
+            this.saveToFileToolStripMenuItem.Name = "saveToFileToolStripMenuItem";
+            this.saveToFileToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+            this.saveToFileToolStripMenuItem.Text = "Save to &File..";
+            this.saveToFileToolStripMenuItem.Click += new System.EventHandler(this.saveToFileToolStripMenuItem_Click_1);
             // 
             // packetDecodeListView
             // 
             this.packetDecodeListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.packetDecodeColumnHeader1,
             this.packetDecodeColumnHeader2});
+            this.packetDecodeListView.ContextMenuStrip = this.packetDataContextMenuStrip;
             this.packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.packetDecodeListView.FullRowSelect = true;
             this.packetDecodeListView.GridLines = true;
@@ -1626,9 +1643,12 @@
             // 
             this.packetsContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.packetsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.showPacketDecodeToolStripMenuItem});
+            this.showPacketDecodeToolStripMenuItem,
+            this.saveToFileToolStripMenuItem1,
+            this.openFileToolStripMenuItem});
             this.packetsContextMenuStrip.Name = "packetsContextMenuStrip";
-            this.packetsContextMenuStrip.Size = new System.Drawing.Size(185, 26);
+            this.packetsContextMenuStrip.Size = new System.Drawing.Size(185, 70);
+            this.packetsContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.packetsContextMenuStrip_Opening);
             // 
             // showPacketDecodeToolStripMenuItem
             // 
@@ -1637,6 +1657,47 @@
             this.showPacketDecodeToolStripMenuItem.Size = new System.Drawing.Size(184, 22);
             this.showPacketDecodeToolStripMenuItem.Text = "&Show Packet Decode";
             this.showPacketDecodeToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showPacketDecodeToolStripMenuItem_CheckStateChanged);
+            // 
+            // saveToFileToolStripMenuItem1
+            // 
+            this.saveToFileToolStripMenuItem1.Name = "saveToFileToolStripMenuItem1";
+            this.saveToFileToolStripMenuItem1.Size = new System.Drawing.Size(184, 22);
+            this.saveToFileToolStripMenuItem1.Text = "Save to &File...";
+            this.saveToFileToolStripMenuItem1.Click += new System.EventHandler(this.saveToFileToolStripMenuItem1_Click);
+            // 
+            // openFileToolStripMenuItem
+            // 
+            this.openFileToolStripMenuItem.Name = "openFileToolStripMenuItem";
+            this.openFileToolStripMenuItem.Size = new System.Drawing.Size(184, 22);
+            this.openFileToolStripMenuItem.Text = "Open File...";
+            this.openFileToolStripMenuItem.Click += new System.EventHandler(this.openFileToolStripMenuItem_Click);
+            // 
+            // savePacketsFileDialog
+            // 
+            this.savePacketsFileDialog.DefaultExt = "ptcap";
+            this.savePacketsFileDialog.Filter = "Packet Capture|*.ptcap|All files|*.*";
+            this.savePacketsFileDialog.Title = "Save Packet Capture";
+            // 
+            // openPacketsFileDialog
+            // 
+            this.openPacketsFileDialog.FileName = "packets.ptcap";
+            this.openPacketsFileDialog.Filter = "Packet Capture|*.ptcap|All files|*.*";
+            this.openPacketsFileDialog.Title = "Open Packet Capture FIle";
+            // 
+            // packetDataContextMenuStrip
+            // 
+            this.packetDataContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.copyToClipboardToolStripMenuItem});
+            this.packetDataContextMenuStrip.Name = "packetDataContextMenuStrip";
+            this.packetDataContextMenuStrip.Size = new System.Drawing.Size(181, 48);
+            this.packetDataContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.packetDataContextMenuStrip_Opening);
+            // 
+            // copyToClipboardToolStripMenuItem
+            // 
+            this.copyToClipboardToolStripMenuItem.Name = "copyToClipboardToolStripMenuItem";
+            this.copyToClipboardToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.copyToClipboardToolStripMenuItem.Text = "Copy to Clipboard";
+            this.copyToClipboardToolStripMenuItem.Click += new System.EventHandler(this.copyToClipboardToolStripMenuItem_Click);
             // 
             // MainForm
             // 
@@ -1703,6 +1764,7 @@
             this.debugTabContextMenuStrip.ResumeLayout(false);
             this.aprsMsgContextMenuStrip.ResumeLayout(false);
             this.packetsContextMenuStrip.ResumeLayout(false);
+            this.packetDataContextMenuStrip.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -1848,6 +1910,13 @@
         private System.Windows.Forms.ListView packetDecodeListView;
         private System.Windows.Forms.ColumnHeader packetDecodeColumnHeader1;
         private System.Windows.Forms.ColumnHeader packetDecodeColumnHeader2;
+        private System.Windows.Forms.SaveFileDialog savePacketsFileDialog;
+        private System.Windows.Forms.ToolStripMenuItem saveToFileToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem saveToFileToolStripMenuItem1;
+        private System.Windows.Forms.OpenFileDialog openPacketsFileDialog;
+        private System.Windows.Forms.ToolStripMenuItem openFileToolStripMenuItem;
+        private System.Windows.Forms.ContextMenuStrip packetDataContextMenuStrip;
+        private System.Windows.Forms.ToolStripMenuItem copyToClipboardToolStripMenuItem;
     }
 }
 
