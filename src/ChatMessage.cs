@@ -22,7 +22,8 @@ namespace HTCommander
 {
     public class ChatMessage
     {
-        public string CallSign;
+        public string Route;
+        public string SenderCallSign;
         public string Message;
         public string MessageId;
         public PacketDataType MessageType;
@@ -37,9 +38,10 @@ namespace HTCommander
         public double Latitude = 0;
         public double Longitude = 0;
 
-        public ChatMessage(string CallSign, string Message, DateTime Time, bool Sender, int ImageIndex = -1)
+        public ChatMessage(string Route, string SenderCallSign, string Message, DateTime Time, bool Sender, int ImageIndex = -1)
         {
-            this.CallSign = CallSign;
+            this.Route = Route;
+            this.SenderCallSign = SenderCallSign;
             this.Message = Message;
             this.Time = Time;
             this.Sender = Sender;

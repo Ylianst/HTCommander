@@ -24,21 +24,25 @@ namespace HTCommander
         public bool final_fragment;
         public int fragment_id;
         public byte[] data;
+        public int region_id;
         public int channel_id;
+        public string channel_name;
         public bool incoming;
         public DateTime time;
 
-        public TncDataFragment(bool is_final_fragment, int fragment_id, byte[] data, int channel_id)
+        public TncDataFragment(bool is_final_fragment, int fragment_id, byte[] data, int channel_id, int region_id)
         {
             this.final_fragment = is_final_fragment;
             this.fragment_id = fragment_id;
             this.data = data;
             this.channel_id = channel_id;
+            this.region_id = region_id;
+            channel_name = (channel_id == -1) ? "" : channel_id.ToString().Replace(",","");
         }
 
         public override string ToString()
         {
-            return "TncFrag," + channel_id + "," + Utils.BytesToHex(data);
+            return "TncFrag2," + channel_id + "," + region_id + "," + channel_name + "," + Utils.BytesToHex(data);
         }
 
         public TncDataFragment(byte[] msg)

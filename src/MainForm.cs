@@ -27,7 +27,6 @@ using GMap.NET.WindowsForms.Markers;
 using GMap.NET;
 using aprsparser;
 using static HTCommander.Radio;
-using Windows.Devices.Radios;
 
 namespace HTCommander
 {
@@ -162,13 +161,23 @@ namespace HTCommander
                     string[] s = lines[i].Split(',');
                     DateTime t = new DateTime(long.Parse(s[0]));
                     bool incoming = (s[1] == "1");
-                    if (s[2] != "TncFrag") continue;
+                    if ((s[2] != "TncFrag") && (s[2] != "TncFrag2")) continue;
                     int cid = int.Parse(s[3]);
-                    byte[] f = Utils.HexStringToByteArray(s[4]);
+                    int rid = -1;
+                    string cn = cid.ToString();
+                    byte[] f;
+                    if (s[2] == "TncFrag") {
+                        f = Utils.HexStringToByteArray(s[4]);
+                    } else {
+                        rid = int.Parse(s[4]);
+                        cn = s[5];
+                        f = Utils.HexStringToByteArray(s[6]);
+                    }
 
                     // Process the packets
-                    TncDataFragment fragment = new TncDataFragment(true, 0, f, cid);
+                    TncDataFragment fragment = new TncDataFragment(true, 0, f, cid, rid);
                     fragment.time = t;
+                    fragment.channel_name = cn;
                     fragment.incoming = incoming;
                     Radio_OnDataFrame(radio, fragment);
                     if (incoming == false)
@@ -246,7 +255,7 @@ namespace HTCommander
             if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_OnDataFrame(sender, frame); })); return; }
 
             // Add to the packet capture tab
-            ListViewItem l = new ListViewItem(new string[] { frame.time.ToShortTimeString(), (frame.channel_id >= 0)?(frame.channel_id + 1).ToString():"", Utils.BytesToHex(frame.data) });
+            ListViewItem l = new ListViewItem(new string[] { frame.time.ToShortTimeString(), frame.channel_name, FragmentToShortString(frame) });
             l.ImageIndex = frame.incoming ? 5 : 4;
             l.Tag = frame;
             packetsListView.Items.Add(l);
@@ -257,7 +266,6 @@ namespace HTCommander
                 byte[] bytes = UTF8Encoding.Default.GetBytes(frame.time.Ticks + "," + (frame.incoming ? "1":"0") + "," + frame.ToString() + "\r\n");
                 AprsFile.Write(bytes, 0, bytes.Length);
             }
-
             if (frame.incoming == false) return;
 
             //DebugTrace("Packet: " + frame.ToHex());
@@ -697,7 +705,7 @@ namespace HTCommander
             //AX25Packet packet = new AX25Packet(1, addresses, 0, aprsTextBox.Text);
             //packet.time = DateTime.Now;
 
-            radio.TransmitTncData(packet, aprsChannel);
+            radio.TransmitTncData(packet, aprsChannel, radio.HtStatus.curr_region);
             AddAprsPacket(packet, true);
             aprsTextBox.Text = "";
         }
@@ -708,28 +716,27 @@ namespace HTCommander
             string MessageId = null;
             string MessageText = null;
             PacketDataType MessageType = PacketDataType.Message;
-            String xcallsign = null;
+            String RoutingString = null;
+            String SenderCallsign = null;
+            AX25Address SenderAddr = null;
             int ImageIndex = -1;
             AprsPacket aprsPacket = null;
             if ((packet.addresses != null) && (packet.addresses.Count >= 2))
             {
                 aprsPacket = new AprsPacket();
-                if (aprsPacket.Parse(packet.payload, packet.addresses[0].CallSignWithId) == false) return;
-                if (sender == false)
-                {
-                    AX25Address addr = packet.addresses[1];
-                    xcallsign = addr.address + ((addr.SSID == 0) ? "" : ("-" + addr.SSID));
-                }
+                if (aprsPacket.Parse(packet.payloadStr, packet.addresses[0].CallSignWithId) == false) return;
                 MessageType = aprsPacket.DataType;
 
                 if (sender == false)
                 {
+                    SenderAddr = packet.addresses[1];
+                    RoutingString = SenderAddr.ToString();
+                    SenderCallsign = SenderAddr.CallSignWithId;
                     if ((aprsPacket.Position != null) && (aprsPacket.Position.CoordinateSet.Latitude.Value != 0) && (aprsPacket.Position.CoordinateSet.Longitude.Value != 0))
                     {
                         ImageIndex = 3;
                     }
                 }
-
                 if (aprsPacket.DataType == PacketDataType.Message)
                 {
                     bool forSelf = ((aprsPacket.MessageData.Addressee == callsign) || (aprsPacket.MessageData.Addressee == callsign + "-" + stationId));
@@ -760,7 +767,23 @@ namespace HTCommander
                     }
 
                     // Normal message processing
-                    xcallsign = (sender ? "→ " : "") + aprsPacket.MessageData.Addressee;
+                    if (sender)
+                    {
+                        RoutingString = "→ " + aprsPacket.MessageData.Addressee;
+                    }
+                    else
+                    {
+                        if ((SenderAddr.address == aprsPacket.MessageData.Addressee) || (SenderAddr.CallSignWithId == aprsPacket.MessageData.Addressee))
+                        {
+                            // The sender and destination are the same, no need to show details.
+                            RoutingString = aprsPacket.MessageData.Addressee;
+                        }
+                        else
+                        {
+                            // Show both sender and destination
+                            RoutingString = SenderCallsign + " → " + aprsPacket.MessageData.Addressee;
+                        }
+                    }
                     MessageId = aprsPacket.MessageData.SeqId;
                     MessageText = aprsPacket.MessageData.MsgText;
 
@@ -770,7 +793,7 @@ namespace HTCommander
                         int i = aprsPacket.MessageData.MsgText.IndexOf(" ");
                         if (i >= 0)
                         {
-                            xcallsign = "→ SMS: " + aprsPacket.MessageData.MsgText.Substring(1, i);
+                            RoutingString = "→ SMS: " + aprsPacket.MessageData.MsgText.Substring(1, i);
                             MessageId = aprsPacket.MessageData.SeqId;
                             MessageText = aprsPacket.MessageData.MsgText.Substring(i + 1);
                         }
@@ -782,7 +805,7 @@ namespace HTCommander
                         foreach (ChatMessage n in aprsChatControl.Messages)
                         {
                             // If this is a duplicate, don't display it.
-                            if ((n.MessageId == MessageId) && (n.CallSign == xcallsign) && (n.Message == MessageText)) return;
+                            if ((n.MessageId == MessageId) && (n.Route == RoutingString) && (n.Message == MessageText)) return;
                         }
                     }
                 }
@@ -798,13 +821,13 @@ namespace HTCommander
             if ((packet.addresses != null) && (packet.addresses.Count == 1))
             {
                 AX25Address addr = packet.addresses[0];
-                xcallsign = addr.address + ((addr.SSID == 0) ? "" : ("-" + addr.SSID));
-                MessageText = packet.payload;
+                SenderCallsign = RoutingString = addr.ToString();
+                MessageText = packet.payloadStr;
             }
 
             if ((MessageText != null) && (MessageText.Length > 0))
             {
-                ChatMessage c = new ChatMessage(xcallsign, MessageText, packet.time, sender, -1);
+                ChatMessage c = new ChatMessage(RoutingString, SenderCallsign, MessageText, packet.time, sender, -1);
                 c.Tag = packet;
                 c.MessageId = MessageId;
                 c.MessageType = MessageType;
@@ -880,7 +903,7 @@ namespace HTCommander
                     packet.messageId = msgId;
                     packet.time = DateTime.Now;
                     
-                    radio.TransmitTncData(packet, aprsChannel);
+                    radio.TransmitTncData(packet, aprsChannel, radio.HtStatus.curr_region);
                     AddAprsPacket(packet, true);
                     aprsTextBox.Text = "";
                 }
@@ -1145,9 +1168,9 @@ namespace HTCommander
 
         private void copyCallsignToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if ((selectedAprsMessage != null) && (string.IsNullOrEmpty(selectedAprsMessage.CallSign) == false))
+            if ((selectedAprsMessage != null) && (string.IsNullOrEmpty(selectedAprsMessage.Route) == false))
             {
-                Clipboard.SetText(selectedAprsMessage.CallSign);
+                Clipboard.SetText(selectedAprsMessage.Route);
             }
         }
 
@@ -1248,55 +1271,113 @@ namespace HTCommander
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
         }
 
+        private void addPacketDecodeLine(int group, string title, string value)
+        {
+            ListViewItem l = new ListViewItem(new string[] { title, value });
+            l.Group = packetDecodeListView.Groups[group];
+            packetDecodeListView.Items.Add(l);
+        }
+
+        private string FragmentToShortString(TncDataFragment fragment)
+        {
+            StringBuilder sb = new StringBuilder();
+            AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment.data, fragment.time);
+            if (packet == null)
+            {
+                Utils.BytesToHex(fragment.data);
+            }
+            else
+            {
+                for (int i = 0; i < packet.addresses.Count; i++)
+                {
+                    AX25Address addr = packet.addresses[i];
+                    sb.Append(addr.CallSignWithId + " - ");
+                }
+                if (fragment.channel_name == "APRS")
+                {
+                    sb.Append(packet.payloadStr);
+                }
+                else
+                {
+                    sb.Append(Utils.BytesToHex(packet.payload));
+                }
+            }
+            return sb.ToString();
+        }
+
         private void packetsListView_SelectedIndexChanged(object sender, EventArgs e)
         {
-            packetDecodeTextBox.Clear();
+            packetDecodeListView.Items.Clear();
             if (packetsListView.SelectedItems.Count == 0) return;
             ListViewItem l = packetsListView.SelectedItems[0];
             if (l.Tag == null) return;
             TncDataFragment fragment = (TncDataFragment)l.Tag;
+            if (fragment.channel_id >= 0) { addPacketDecodeLine(0, "Channel", (fragment.incoming ? "Received" : "Sent") + " on " + (fragment.channel_id + 1)); }
+            addPacketDecodeLine(0, "Time", fragment.time.ToString());
+            addPacketDecodeLine(0, "Size", fragment.data.Length + " byte" + (fragment.data.Length > 1 ? "s" : ""));
+
             StringBuilder sb = new StringBuilder();
-            sb.Append("Packet " + (fragment.incoming ? "received" : "sent"));
-            sb.Append(" on " + fragment.time.ToString());
-            if (fragment.channel_id >= 0) { sb.Append(" on channel " + (fragment.channel_id + 1)); }
-            sb.AppendLine(", " + fragment.data.Length + " byte" + (fragment.data.Length > 1 ? "s" : ""));
-
-
             AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment.data, fragment.time);
             if (packet == null)
             {
-                sb.AppendLine("AX25 Decoder failed to decode packet.");
+                addPacketDecodeLine(1, "Decode", "AX25 Decoder failed to decode packet.");
             }
             else
             {
-                sb.AppendLine("AX25 Addresses");
                 for (int i = 0; i < packet.addresses.Count; i++)
                 {
+                    sb.Clear();
                     AX25Address addr = packet.addresses[i];
-                    sb.Append("  " + addr.CallSignWithId + " [");
+                    sb.Append(addr.CallSignWithId);
+                    sb.Append("  ");
                     sb.Append((addr.CRBit1) ? "X" : "-");
                     sb.Append((addr.CRBit2) ? "X" : "-");
                     sb.Append((addr.CRBit3) ? "X" : "-");
-                    sb.AppendLine("]");
+                    addPacketDecodeLine(1, "Address " + (i + 1), sb.ToString());
                 }
-                sb.Append("Frame: " + packet.type.ToString());
+                addPacketDecodeLine(1, "Type", packet.type.ToString());
+                sb.Clear();
                 if (packet.modulo128) { sb.Append(", Modulo128"); }
                 if (packet.pollFinal) { sb.Append(", PollFinal"); }
                 if (packet.ns > 0) { sb.Append(", NS:" + packet.ns); }
                 if (packet.nr > 0) { sb.Append(", NR:" + packet.nr); }
-                if (packet.pid > 0) { sb.Append(", PID:" + packet.pid); }
-                sb.AppendLine();
-            }
+                if (sb.Length > 2) { addPacketDecodeLine(1, "Control", sb.ToString().Substring(2)); }
+                if (packet.pid > 0) { addPacketDecodeLine(1, "Protocol ID", packet.pid.ToString()); }
 
-            packetDecodeTextBox.Text = sb.ToString();
+                if (packet.payloadStr != null) { addPacketDecodeLine(2, "Data", packet.payloadStr); }
+                if (packet.payload != null) { addPacketDecodeLine(2, "Data HEX", Utils.BytesToHex(packet.payload)); }
+
+                if (fragment.channel_name == "APRS")
+                {
+                    AprsPacket aprsPacket = new AprsPacket();
+                    if (aprsPacket.Parse(packet.payloadStr, packet.addresses[0].CallSignWithId) == false)
+                    {
+                        addPacketDecodeLine(3, "Decode", "APRS Decoder failed to decode packet.");
+                    }
+                    else
+                    {
+                        addPacketDecodeLine(3, "Type", aprsPacket.DataType.ToString());
+                        if (aprsPacket.TimeStamp != null) { addPacketDecodeLine(3, "Time Stamp", aprsPacket.TimeStamp.ToString()); }
+                        if (!string.IsNullOrEmpty(aprsPacket.DestCallsign.StationCallsign)) { addPacketDecodeLine(3, "Destination", aprsPacket.DestCallsign.StationCallsign.ToString()); }
+                        if (!string.IsNullOrEmpty(aprsPacket.InformationField)) { addPacketDecodeLine(3, "Information", aprsPacket.InformationField.ToString()); }
+                        if (!string.IsNullOrEmpty(aprsPacket.Comment)) { addPacketDecodeLine(3, "Comment", aprsPacket.Comment.ToString()); }
+                        if (aprsPacket.SymbolTableIdentifier != 0) { addPacketDecodeLine(3, "Symbol Code", aprsPacket.SymbolTableIdentifier.ToString()); }
+
+                        if (aprsPacket.Position.Speed != 0) { addPacketDecodeLine(4, "Speed", aprsPacket.Position.Speed.ToString()); }
+                        if (aprsPacket.Position.Altitude != 0) { addPacketDecodeLine(4, "Altitude", aprsPacket.Position.Altitude.ToString()); }
+                        if (aprsPacket.Position.Ambiguity != 0) { addPacketDecodeLine(4, "Ambiguity", aprsPacket.Position.Ambiguity.ToString()); }
+                        if (aprsPacket.Position.Course != 0) { addPacketDecodeLine(4, "Course", aprsPacket.Position.Course.ToString()); }
+                        if (!string.IsNullOrEmpty(aprsPacket.Position.Gridsquare)) { addPacketDecodeLine(4, "Gridsquare", aprsPacket.Position.Gridsquare.ToString()); }
+                        if (aprsPacket.Position.CoordinateSet.Latitude.Value != 0) { addPacketDecodeLine(4, "Latitude", aprsPacket.Position.CoordinateSet.Latitude.Value.ToString()); }
+                        if (aprsPacket.Position.CoordinateSet.Longitude.Value != 0) { addPacketDecodeLine(4, "Longitude", aprsPacket.Position.CoordinateSet.Longitude.Value.ToString()); }
+                    }
+                }
+            }
         }
 
         private void packetsListContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
             if (packetsListView.SelectedItems.Count == 0) { e.Cancel = true; return; }
-            StringBuilder sb = new StringBuilder();
-            foreach (ListViewItem l in packetsListView.SelectedItems) { sb.AppendLine(l.SubItems[2].Text); }
-            Clipboard.SetText(sb.ToString());
         }
 
         private void clearToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1335,9 +1416,9 @@ namespace HTCommander
             if ((selectedAprsMessage == null) || ((selectedAprsMessage.Latitude == 0) && (selectedAprsMessage.Longitude == 0))) return;
             foreach (MapLocationForm form in mapLocationForms)
             {
-                if (form.Callsign == selectedAprsMessage.CallSign) { form.Focus(); return; }
+                if (form.Callsign == selectedAprsMessage.SenderCallSign) { form.Focus(); return; }
             }
-            MapLocationForm mapForm = new MapLocationForm(this, selectedAprsMessage.CallSign);
+            MapLocationForm mapForm = new MapLocationForm(this, selectedAprsMessage.Route);
             mapForm.SetPosition(selectedAprsMessage.Latitude, selectedAprsMessage.Longitude);
             List<GMarkerGoogle> markers = new List<GMarkerGoogle>();
             foreach (GMarkerGoogle marker in mapMarkersOverlay.Markers) { markers.Add(marker); }
@@ -1460,5 +1541,19 @@ namespace HTCommander
             radio.SetRegion(region);
         }
 
+        private void packetDecodeListView_Resize(object sender, EventArgs e)
+        {
+            packetDecodeListView.Columns[1].Width = packetDecodeListView.Width - packetDecodeListView.Columns[0].Width - 28;
+        }
+
+        private void copyHEXValuesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (ListViewItem l in packetsListView.SelectedItems) {
+                TncDataFragment frame = (TncDataFragment)l.Tag;
+                sb.AppendLine(Utils.BytesToHex(frame.data));
+            }
+            if (sb.Length > 0) { Clipboard.SetText(sb.ToString()); }
+        }
     }
 }

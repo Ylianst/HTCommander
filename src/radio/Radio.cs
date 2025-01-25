@@ -525,7 +525,14 @@ namespace HTCommander
                                 case RadioNotification.DATA_RXD:
                                     //Debug("RawData: " + BytesToHex(e.Value));
                                     TncDataFragment fragment = new TncDataFragment(e.Value);
-                                    if ((fragment.channel_id == -1) && (HtStatus != null)) { fragment.channel_id = HtStatus.curr_ch_id; }
+                                    if ((fragment.channel_id == -1) && (HtStatus != null)) {
+                                        fragment.channel_id = HtStatus.curr_ch_id;
+                                        if ((Channels != null) && (Channels[HtStatus.curr_ch_id] != null)) {
+                                            fragment.channel_name = Channels[HtStatus.curr_ch_id].name_str.Replace(",","");
+                                        } else {
+                                            fragment.channel_name = HtStatus.curr_ch_id.ToString();
+                                        }
+                                    }
 
                                     //Debug($"DataFragment, FragId={fragment.fragment_id}, IsFinal={fragment.is_final_fragment}, ChannelId={fragment.channel_id}, DataLen={fragment.data.Length}");
                                     //Debug("Data: " + BytesToHex(fragment.data));
@@ -664,11 +671,15 @@ namespace HTCommander
             return ((int)group << 16) + (int)rcmd;
         }
 
-        public void TransmitTncData(AX25Packet packet, int channelId = -1)
+        public void TransmitTncData(AX25Packet packet, int channelId = -1, int regionId = -1)
         {
-            TncDataFragment fragment = new TncDataFragment(true, 0, packet.ToByteArray(), channelId);
+            TncDataFragment fragment = new TncDataFragment(true, 0, packet.ToByteArray(), channelId, regionId);
             fragment.incoming = false;
             fragment.time = DateTime.Now;
+            if ((Channels != null) && (channelId >= 0) && (channelId < Channels.Length) && (Channels[channelId] != null))
+            {
+                fragment.channel_name = Channels[channelId].name_str;
+            }
             if (OnDataFrame != null) { OnDataFrame(this, fragment); }
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, fragment.toByteArray());
         }

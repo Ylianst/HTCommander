@@ -30,6 +30,11 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("AX.25 Payload", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -83,6 +88,7 @@
             this.radioPictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
+            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsMissingChannelPanel = new System.Windows.Forms.Panel();
             this.aprsSetupButton = new System.Windows.Forms.Button();
@@ -138,7 +144,9 @@
             this.columnHeader9 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.packetsListContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.copyHEXValuesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.packetDecodeTextBox = new System.Windows.Forms.TextBox();
+            this.packetDecodeListView = new System.Windows.Forms.ListView();
+            this.packetDecodeColumnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.packetDecodeColumnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.panel3 = new System.Windows.Forms.Panel();
             this.packetsMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.label5 = new System.Windows.Forms.Label();
@@ -164,7 +172,6 @@
             this.copyCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.packetsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showPacketDecodeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -725,6 +732,30 @@
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
+            // aprsChatControl
+            // 
+            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
+            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
+            this.aprsChatControl.CornerRadius = 4;
+            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.aprsChatControl.Images = this.mainImageList;
+            this.aprsChatControl.InterMessageMargin = 12;
+            this.aprsChatControl.Location = new System.Drawing.Point(0, 60);
+            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(2);
+            this.aprsChatControl.MaxWidth = 300;
+            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
+            this.aprsChatControl.MessageBoxMargin = 10;
+            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
+            this.aprsChatControl.MinWidth = 100;
+            this.aprsChatControl.Name = "aprsChatControl";
+            this.aprsChatControl.ShadowOffset = 2;
+            this.aprsChatControl.SideMargins = 12;
+            this.aprsChatControl.Size = new System.Drawing.Size(508, 420);
+            this.aprsChatControl.TabIndex = 5;
+            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
+            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
+            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
+            // 
             // mainImageList
             // 
             this.mainImageList.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("mainImageList.ImageStream")));
@@ -1279,7 +1310,7 @@
             // 
             // packetsSplitContainer.Panel2
             // 
-            this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeTextBox);
+            this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
             this.packetsSplitContainer.Size = new System.Drawing.Size(508, 488);
             this.packetsSplitContainer.SplitterDistance = 242;
             this.packetsSplitContainer.TabIndex = 6;
@@ -1313,8 +1344,8 @@
             // 
             // columnHeader8
             // 
-            this.columnHeader8.Text = "Ch";
-            this.columnHeader8.Width = 36;
+            this.columnHeader8.Text = "Channel";
+            this.columnHeader8.Width = 70;
             // 
             // columnHeader9
             // 
@@ -1327,25 +1358,57 @@
             this.packetsListContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.copyHEXValuesToolStripMenuItem});
             this.packetsListContextMenuStrip.Name = "packetsListContextMenuStrip";
-            this.packetsListContextMenuStrip.Size = new System.Drawing.Size(164, 26);
+            this.packetsListContextMenuStrip.Size = new System.Drawing.Size(181, 48);
             this.packetsListContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.packetsListContextMenuStrip_Opening);
             // 
             // copyHEXValuesToolStripMenuItem
             // 
             this.copyHEXValuesToolStripMenuItem.Name = "copyHEXValuesToolStripMenuItem";
-            this.copyHEXValuesToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+            this.copyHEXValuesToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.copyHEXValuesToolStripMenuItem.Text = "Copy &HEX Values";
+            this.copyHEXValuesToolStripMenuItem.Click += new System.EventHandler(this.copyHEXValuesToolStripMenuItem_Click);
             // 
-            // packetDecodeTextBox
+            // packetDecodeListView
             // 
-            this.packetDecodeTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.packetDecodeTextBox.Location = new System.Drawing.Point(0, 0);
-            this.packetDecodeTextBox.Multiline = true;
-            this.packetDecodeTextBox.Name = "packetDecodeTextBox";
-            this.packetDecodeTextBox.ReadOnly = true;
-            this.packetDecodeTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.packetDecodeTextBox.Size = new System.Drawing.Size(508, 242);
-            this.packetDecodeTextBox.TabIndex = 0;
+            this.packetDecodeListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.packetDecodeColumnHeader1,
+            this.packetDecodeColumnHeader2});
+            this.packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.packetDecodeListView.FullRowSelect = true;
+            this.packetDecodeListView.GridLines = true;
+            listViewGroup1.Header = "Metadata";
+            listViewGroup1.Name = "packetDecodeMetadataListViewGroup";
+            listViewGroup2.Header = "AX.25 Header";
+            listViewGroup2.Name = "packetDecodeHeaderListViewGroup";
+            listViewGroup3.Header = "AX.25 Payload";
+            listViewGroup3.Name = "packetDecodePayloadListViewGroup";
+            listViewGroup4.Header = "APRS";
+            listViewGroup4.Name = "packetDecodeAprsListViewGroup";
+            listViewGroup5.Header = "Position";
+            listViewGroup5.Name = "packetDecodePositionListViewGroup";
+            this.packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
+            listViewGroup1,
+            listViewGroup2,
+            listViewGroup3,
+            listViewGroup4,
+            listViewGroup5});
+            this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
+            this.packetDecodeListView.HideSelection = false;
+            this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
+            this.packetDecodeListView.Name = "packetDecodeListView";
+            this.packetDecodeListView.Size = new System.Drawing.Size(508, 242);
+            this.packetDecodeListView.TabIndex = 1;
+            this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
+            this.packetDecodeListView.View = System.Windows.Forms.View.Details;
+            this.packetDecodeListView.Resize += new System.EventHandler(this.packetDecodeListView_Resize);
+            // 
+            // packetDecodeColumnHeader1
+            // 
+            this.packetDecodeColumnHeader1.Width = 100;
+            // 
+            // packetDecodeColumnHeader2
+            // 
+            this.packetDecodeColumnHeader2.Width = 300;
             // 
             // panel3
             // 
@@ -1575,30 +1638,6 @@
             this.showPacketDecodeToolStripMenuItem.Text = "&Show Packet Decode";
             this.showPacketDecodeToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showPacketDecodeToolStripMenuItem_CheckStateChanged);
             // 
-            // aprsChatControl
-            // 
-            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
-            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
-            this.aprsChatControl.CornerRadius = 4;
-            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.aprsChatControl.Images = this.mainImageList;
-            this.aprsChatControl.InterMessageMargin = 12;
-            this.aprsChatControl.Location = new System.Drawing.Point(0, 60);
-            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(2);
-            this.aprsChatControl.MaxWidth = 300;
-            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
-            this.aprsChatControl.MessageBoxMargin = 10;
-            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
-            this.aprsChatControl.MinWidth = 100;
-            this.aprsChatControl.Name = "aprsChatControl";
-            this.aprsChatControl.ShadowOffset = 2;
-            this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(508, 420);
-            this.aprsChatControl.TabIndex = 5;
-            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
-            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
-            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
-            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -1650,7 +1689,6 @@
             this.packetsTabPage.ResumeLayout(false);
             this.packetsSplitContainer.Panel1.ResumeLayout(false);
             this.packetsSplitContainer.Panel2.ResumeLayout(false);
-            this.packetsSplitContainer.Panel2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.packetsSplitContainer)).EndInit();
             this.packetsSplitContainer.ResumeLayout(false);
             this.packetsListContextMenuStrip.ResumeLayout(false);
@@ -1784,7 +1822,6 @@
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.ToolStripMenuItem packetsToolStripMenuItem;
         private System.Windows.Forms.SplitContainer packetsSplitContainer;
-        private System.Windows.Forms.TextBox packetDecodeTextBox;
         private System.Windows.Forms.ContextMenuStrip packetsContextMenuStrip;
         private System.Windows.Forms.ToolStripMenuItem showPacketDecodeToolStripMenuItem;
         private System.Windows.Forms.ContextMenuStrip packetsListContextMenuStrip;
@@ -1808,6 +1845,9 @@
         private System.Windows.Forms.ToolStripMenuItem showAllChannelsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem allChannelsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem regionToolStripMenuItem;
+        private System.Windows.Forms.ListView packetDecodeListView;
+        private System.Windows.Forms.ColumnHeader packetDecodeColumnHeader1;
+        private System.Windows.Forms.ColumnHeader packetDecodeColumnHeader2;
     }
 }
 

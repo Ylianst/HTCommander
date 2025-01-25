@@ -43,7 +43,7 @@ namespace HTCommander
             foreach (AX25Address addr in packet.addresses) { addItem("AX.25 Addr " + i, addr.CallSignWithId); i++; }
 
             AprsPacket aprsPacket = new AprsPacket();
-            if (aprsPacket.Parse(packet.payload, packet.addresses[0].CallSignWithId) == false)
+            if (aprsPacket.Parse(packet.payloadStr, packet.addresses[0].CallSignWithId) == false)
             {
                 addItem("Type", msg.MessageType.ToString());
                 if (msg.Message != null) { addItem("Message", msg.Message); }

@@ -153,9 +153,9 @@ namespace HTCommander
                 timeLineSize = g.MeasureString(chatMessage.Time.ToString(), CallsignFont);
             }
             SizeF callSignSize = SizeF.Empty;
-            if (!string.IsNullOrEmpty(chatMessage.CallSign) && ((previousChatMessage == null) || (previousChatMessage.CallSign != chatMessage.CallSign)))
+            if (!string.IsNullOrEmpty(chatMessage.Route) && ((previousChatMessage == null) || (previousChatMessage.Route != chatMessage.Route)))
             {
-                callSignSize = g.MeasureString(chatMessage.CallSign, CallsignFont);
+                callSignSize = g.MeasureString(chatMessage.Route, CallsignFont);
             }
             SizeF messageSize = SizeF.Empty;
             if (!string.IsNullOrEmpty(chatMessage.Message))
@@ -194,11 +194,11 @@ namespace HTCommander
             }
 
             SizeF callSignSize = SizeF.Empty;
-            if (!string.IsNullOrEmpty(chatMessage.CallSign) && ((previousChatMessage == null) || (previousChatMessage.CallSign != chatMessage.CallSign)))
+            if (!string.IsNullOrEmpty(chatMessage.Route) && ((previousChatMessage == null) || (previousChatMessage.Route != chatMessage.Route)))
             {
-                callSignSize = g.MeasureString(chatMessage.CallSign, CallsignFont);
+                callSignSize = g.MeasureString(chatMessage.Route, CallsignFont);
                 var textRect = new RectangleF(SideMargins, timeLineSize.Height + top, ClientRectangle.Width - chatScrollBar.Width - (SideMargins * 2), callSignSize.Height);
-                g.DrawString(chatMessage.CallSign, CallsignFont, callsignTextBrush, textRect, chatMessage.Sender ? farFormat : nearFormat);
+                g.DrawString(chatMessage.Route, CallsignFont, callsignTextBrush, textRect, chatMessage.Sender ? farFormat : nearFormat);
             }
 
             SizeF messageSize = SizeF.Empty;
