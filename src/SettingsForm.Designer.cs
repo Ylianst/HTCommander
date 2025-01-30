@@ -184,6 +184,7 @@
             this.callsignTextBox.Size = new System.Drawing.Size(244, 31);
             this.callsignTextBox.TabIndex = 0;
             this.callsignTextBox.TextChanged += new System.EventHandler(this.callsignTextBox_TextChanged);
+            this.callsignTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.callsignTextBox_KeyPress);
             // 
             // pictureBox1
             // 

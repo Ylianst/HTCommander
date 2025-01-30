@@ -29,6 +29,8 @@ namespace HTCommander
 {
     public class Radio : IDisposable
     {
+        private const int MAX_MTU = 50;
+
         public enum RadioAprsMessageTypes : byte
         {
             UNKNOWN = 0,
@@ -217,6 +219,7 @@ namespace HTCommander
         public int RcBatteryLevel = -1;
         public int BatteryAsPercentage = -1;
         public int Volume = -1;
+        public bool LoopbackMode = false;
 
         // Bluetooth Write Queue
         private class DeviceWriteData { public int expectResponse; public byte[] data; public DeviceWriteData(int expectResponse, byte[] data) { this.expectResponse = expectResponse; this.data = data; } }
@@ -527,9 +530,23 @@ namespace HTCommander
                                     TncDataFragment fragment = new TncDataFragment(e.Value);
                                     if ((fragment.channel_id == -1) && (HtStatus != null)) {
                                         fragment.channel_id = HtStatus.curr_ch_id;
-                                        if ((Channels != null) && (Channels[HtStatus.curr_ch_id] != null)) {
-                                            fragment.channel_name = Channels[HtStatus.curr_ch_id].name_str.Replace(",","");
-                                        } else {
+                                        if ((Channels != null) && (Channels[HtStatus.curr_ch_id] != null))
+                                        {
+                                            if (Channels[HtStatus.curr_ch_id].name_str.Length > 0)
+                                            {
+                                                fragment.channel_name = Channels[HtStatus.curr_ch_id].name_str.Replace(",", "");
+                                            }
+                                            else if (Channels[HtStatus.curr_ch_id].rx_freq != 0)
+                                            {
+                                                fragment.channel_name = (((double)Channels[HtStatus.curr_ch_id].rx_freq) / 1000000) + " Mhz";
+                                            }
+                                            else
+                                            {
+                                                fragment.channel_name = (HtStatus.curr_ch_id + 1).ToString();
+                                            }
+                                        }
+                                        else
+                                        {
                                             fragment.channel_name = (HtStatus.curr_ch_id + 1).ToString();
                                         }
                                     }
@@ -591,7 +608,6 @@ namespace HTCommander
                         case RadioBasicCommand.HT_SEND_DATA:
                             // Data sent, ready to send more
                             // 0002801F00
-                            // TODO
                             break;
                         case RadioBasicCommand.SET_VOLUME:
                             break;
@@ -673,15 +689,42 @@ namespace HTCommander
 
         public void TransmitTncData(AX25Packet packet, int channelId = -1, int regionId = -1)
         {
-            TncDataFragment fragment = new TncDataFragment(true, 0, packet.ToByteArray(), channelId, regionId);
-            fragment.incoming = false;
-            fragment.time = DateTime.Now;
+            // Get fragment data
+            DateTime t = DateTime.Now;
+            byte[] outboundData = packet.ToByteArray();
+            int i = 0;
+            string fragmentChannelName = null;
             if ((Channels != null) && (channelId >= 0) && (channelId < Channels.Length) && (Channels[channelId] != null))
             {
-                fragment.channel_name = Channels[channelId].name_str;
+                fragmentChannelName = Channels[channelId].name_str;
             }
+
+            // Create a fragment for eventing that we are sendign this
+            TncDataFragment fragment = new TncDataFragment(true, 0, outboundData, channelId, regionId);
+            fragment.incoming = false;
+            fragment.time = t;
+            if (fragmentChannelName != null) { fragment.channel_name = fragmentChannelName; }
             if (OnDataFrame != null) { OnDataFrame(this, fragment); }
-            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, fragment.toByteArray());
+
+            if (LoopbackMode == false)
+            {
+                // Break the packet into fragments and send
+                while (i < outboundData.Length)
+                {
+                    int fragmentSize = Math.Min(outboundData.Length - i, MAX_MTU);
+                    byte[] fragmentData = new byte[fragmentSize];
+                    Array.Copy(outboundData, i, fragmentData, 0, fragmentSize);
+                    fragment = new TncDataFragment(true, 0, packet.ToByteArray(), channelId, regionId);
+                    SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, fragment.toByteArray());
+                    i += fragmentSize;
+                }
+            }
+            else
+            {
+                // Simulate receiving the frame we just sent
+                fragment.incoming = true;
+                if (OnDataFrame != null) { OnDataFrame(this, fragment); }
+            }
         }
 
         // Method to queue a write operation

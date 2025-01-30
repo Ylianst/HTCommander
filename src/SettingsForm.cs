@@ -137,5 +137,13 @@ namespace HTCommander
             }
         }
 
+        private void callsignTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // Allow letters, numbers, and the dash (-)
+            if (!char.IsLetterOrDigit(e.KeyChar) && e.KeyChar != '-' && e.KeyChar != (char)Keys.Back)
+            {
+                e.Handled = true; // Block the input
+            }
+        }
     }
 }

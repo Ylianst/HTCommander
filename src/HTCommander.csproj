@@ -67,6 +67,9 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" />
+    <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Include="System.Text.Json, Version=8.0.0.5, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -84,11 +87,23 @@
     <Compile Include="AboutForm.Designer.cs">
       <DependentUpon>AboutForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="ActiveStationSelectorForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ActiveStationSelectorForm.Designer.cs">
+      <DependentUpon>ActiveStationSelectorForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="AddAprsRouteForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="AddAprsRouteForm.Designer.cs">
       <DependentUpon>AddAprsRouteForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="AddStationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AddStationForm.Designer.cs">
+      <DependentUpon>AddStationForm.cs</DependentUpon>
     </Compile>
     <Compile Include="aprs-parser\AprsPacket.cs" />
     <Compile Include="aprs-parser\AprsUtil.cs" />
@@ -122,6 +137,9 @@
     </Compile>
     <Compile Include="MapLocationForm.Designer.cs">
       <DependentUpon>MapLocationForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="NoTabsTabControl .cs">
+      <SubType>Component</SubType>
     </Compile>
     <Compile Include="PacketCaptureViewerForm.cs">
       <SubType>Form</SubType>
@@ -219,11 +237,18 @@
     <Compile Include="SettingsForm.Designer.cs">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="StationInfoClass.cs" />
     <EmbeddedResource Include="AboutForm.resx">
       <DependentUpon>AboutForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="ActiveStationSelectorForm.resx">
+      <DependentUpon>ActiveStationSelectorForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="AddAprsRouteForm.resx">
       <DependentUpon>AddAprsRouteForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="AddStationForm.resx">
+      <DependentUpon>AddStationForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="AprsConfigurationForm.resx">
       <DependentUpon>AprsConfigurationForm.cs</DependentUpon>
@@ -305,6 +330,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="HTCommander.ico" />
+    <None Include="images\Terminal.png" />
     <None Include="images\Paring.png" />
   </ItemGroup>
   <ItemGroup />

@@ -325,5 +325,12 @@ namespace HTCommander
             // Disallow all other characters
             e.Handled = true;
         }
+
+        private void clearButton_Click(object sender, EventArgs e)
+        {
+            advReceiveFreqTextBox.Text = "0";
+            advTransmitFreqTextBox.Text = "0";
+            okButton_Click(this, null);
+        }
     }
 }

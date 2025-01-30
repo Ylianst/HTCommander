@@ -31,20 +31,20 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AddAprsRouteForm));
             this.label4 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.label7 = new System.Windows.Forms.Label();
+            this.label6 = new System.Windows.Forms.Label();
+            this.repeater3TextBox = new System.Windows.Forms.TextBox();
+            this.label5 = new System.Windows.Forms.Label();
+            this.repeater2TextBox = new System.Windows.Forms.TextBox();
+            this.label3 = new System.Windows.Forms.Label();
+            this.repeater1TextBox = new System.Windows.Forms.TextBox();
+            this.label2 = new System.Windows.Forms.Label();
+            this.destTextBox = new System.Windows.Forms.TextBox();
+            this.label1 = new System.Windows.Forms.Label();
+            this.routeNameTextBox = new System.Windows.Forms.TextBox();
             this.pictureBox2 = new System.Windows.Forms.PictureBox();
             this.okButton = new System.Windows.Forms.Button();
             this.cancelButton = new System.Windows.Forms.Button();
-            this.routeNameTextBox = new System.Windows.Forms.TextBox();
-            this.label1 = new System.Windows.Forms.Label();
-            this.destTextBox = new System.Windows.Forms.TextBox();
-            this.label2 = new System.Windows.Forms.Label();
-            this.label3 = new System.Windows.Forms.Label();
-            this.repeater1TextBox = new System.Windows.Forms.TextBox();
-            this.label5 = new System.Windows.Forms.Label();
-            this.repeater2TextBox = new System.Windows.Forms.TextBox();
-            this.label6 = new System.Windows.Forms.Label();
-            this.repeater3TextBox = new System.Windows.Forms.TextBox();
-            this.label7 = new System.Windows.Forms.Label();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             this.SuspendLayout();
@@ -83,120 +83,15 @@
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "APRS Route";
             // 
-            // pictureBox2
+            // label7
             // 
-            this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.pictureBox2.Image = global::HTCommander.Properties.Resources.MapPoint2;
-            this.pictureBox2.Location = new System.Drawing.Point(257, 9);
-            this.pictureBox2.Name = "pictureBox2";
-            this.pictureBox2.Size = new System.Drawing.Size(69, 77);
-            this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.pictureBox2.TabIndex = 6;
-            this.pictureBox2.TabStop = false;
-            // 
-            // okButton
-            // 
-            this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.okButton.Enabled = false;
-            this.okButton.Location = new System.Drawing.Point(176, 244);
-            this.okButton.Name = "okButton";
-            this.okButton.Size = new System.Drawing.Size(75, 23);
-            this.okButton.TabIndex = 14;
-            this.okButton.Text = "OK";
-            this.okButton.UseVisualStyleBackColor = true;
-            this.okButton.Click += new System.EventHandler(this.okButton_Click);
-            // 
-            // cancelButton
-            // 
-            this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancelButton.Location = new System.Drawing.Point(251, 244);
-            this.cancelButton.Name = "cancelButton";
-            this.cancelButton.Size = new System.Drawing.Size(75, 23);
-            this.cancelButton.TabIndex = 13;
-            this.cancelButton.Text = "Cancel";
-            this.cancelButton.UseVisualStyleBackColor = true;
-            // 
-            // routeNameTextBox
-            // 
-            this.routeNameTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            this.label7.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.routeNameTextBox.Location = new System.Drawing.Point(134, 19);
-            this.routeNameTextBox.MaxLength = 16;
-            this.routeNameTextBox.Name = "routeNameTextBox";
-            this.routeNameTextBox.Size = new System.Drawing.Size(174, 20);
-            this.routeNameTextBox.TabIndex = 0;
-            this.routeNameTextBox.TextChanged += new System.EventHandler(this.routeNameTextBox_TextChanged);
-            // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(9, 22);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(67, 13);
-            this.label1.TabIndex = 1;
-            this.label1.Text = "Route Name";
-            // 
-            // destTextBox
-            // 
-            this.destTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.destTextBox.Location = new System.Drawing.Point(134, 45);
-            this.destTextBox.MaxLength = 9;
-            this.destTextBox.Name = "destTextBox";
-            this.destTextBox.Size = new System.Drawing.Size(174, 20);
-            this.destTextBox.TabIndex = 2;
-            this.destTextBox.TextChanged += new System.EventHandler(this.routeNameTextBox_TextChanged);
-            this.destTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.destTextBox_KeyPress);
-            // 
-            // label2
-            // 
-            this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(9, 48);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(60, 13);
-            this.label2.TabIndex = 3;
-            this.label2.Text = "Destination";
-            // 
-            // label3
-            // 
-            this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(9, 74);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(60, 13);
-            this.label3.TabIndex = 5;
-            this.label3.Text = "Repeater 1";
-            // 
-            // repeater1TextBox
-            // 
-            this.repeater1TextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.repeater1TextBox.Location = new System.Drawing.Point(134, 71);
-            this.repeater1TextBox.MaxLength = 9;
-            this.repeater1TextBox.Name = "repeater1TextBox";
-            this.repeater1TextBox.Size = new System.Drawing.Size(174, 20);
-            this.repeater1TextBox.TabIndex = 4;
-            this.repeater1TextBox.TextChanged += new System.EventHandler(this.routeNameTextBox_TextChanged);
-            // 
-            // label5
-            // 
-            this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(9, 100);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(60, 13);
-            this.label5.TabIndex = 7;
-            this.label5.Text = "Repeater 2";
-            // 
-            // repeater2TextBox
-            // 
-            this.repeater2TextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.repeater2TextBox.Location = new System.Drawing.Point(134, 97);
-            this.repeater2TextBox.MaxLength = 9;
-            this.repeater2TextBox.Name = "repeater2TextBox";
-            this.repeater2TextBox.Size = new System.Drawing.Size(174, 20);
-            this.repeater2TextBox.TabIndex = 6;
-            this.repeater2TextBox.TextChanged += new System.EventHandler(this.routeNameTextBox_TextChanged);
+            this.label7.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
+            this.label7.Location = new System.Drawing.Point(155, 146);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(153, 15);
+            this.label7.TabIndex = 10;
             // 
             // label6
             // 
@@ -218,15 +113,120 @@
             this.repeater3TextBox.TabIndex = 8;
             this.repeater3TextBox.TextChanged += new System.EventHandler(this.routeNameTextBox_TextChanged);
             // 
-            // label7
+            // label5
             // 
-            this.label7.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            this.label5.AutoSize = true;
+            this.label5.Location = new System.Drawing.Point(9, 100);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(60, 13);
+            this.label5.TabIndex = 7;
+            this.label5.Text = "Repeater 2";
+            // 
+            // repeater2TextBox
+            // 
+            this.repeater2TextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.label7.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
-            this.label7.Location = new System.Drawing.Point(155, 146);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(153, 15);
-            this.label7.TabIndex = 10;
+            this.repeater2TextBox.Location = new System.Drawing.Point(134, 97);
+            this.repeater2TextBox.MaxLength = 9;
+            this.repeater2TextBox.Name = "repeater2TextBox";
+            this.repeater2TextBox.Size = new System.Drawing.Size(174, 20);
+            this.repeater2TextBox.TabIndex = 6;
+            this.repeater2TextBox.TextChanged += new System.EventHandler(this.routeNameTextBox_TextChanged);
+            // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(9, 74);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(60, 13);
+            this.label3.TabIndex = 5;
+            this.label3.Text = "Repeater 1";
+            // 
+            // repeater1TextBox
+            // 
+            this.repeater1TextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.repeater1TextBox.Location = new System.Drawing.Point(134, 71);
+            this.repeater1TextBox.MaxLength = 9;
+            this.repeater1TextBox.Name = "repeater1TextBox";
+            this.repeater1TextBox.Size = new System.Drawing.Size(174, 20);
+            this.repeater1TextBox.TabIndex = 4;
+            this.repeater1TextBox.TextChanged += new System.EventHandler(this.routeNameTextBox_TextChanged);
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(9, 48);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(60, 13);
+            this.label2.TabIndex = 3;
+            this.label2.Text = "Destination";
+            // 
+            // destTextBox
+            // 
+            this.destTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.destTextBox.Location = new System.Drawing.Point(134, 45);
+            this.destTextBox.MaxLength = 9;
+            this.destTextBox.Name = "destTextBox";
+            this.destTextBox.Size = new System.Drawing.Size(174, 20);
+            this.destTextBox.TabIndex = 2;
+            this.destTextBox.TextChanged += new System.EventHandler(this.routeNameTextBox_TextChanged);
+            this.destTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.destTextBox_KeyPress);
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(9, 22);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(67, 13);
+            this.label1.TabIndex = 1;
+            this.label1.Text = "Route Name";
+            // 
+            // routeNameTextBox
+            // 
+            this.routeNameTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.routeNameTextBox.Location = new System.Drawing.Point(134, 19);
+            this.routeNameTextBox.MaxLength = 16;
+            this.routeNameTextBox.Name = "routeNameTextBox";
+            this.routeNameTextBox.Size = new System.Drawing.Size(174, 20);
+            this.routeNameTextBox.TabIndex = 0;
+            this.routeNameTextBox.TextChanged += new System.EventHandler(this.routeNameTextBox_TextChanged);
+            // 
+            // pictureBox2
+            // 
+            this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.pictureBox2.Image = global::HTCommander.Properties.Resources.MapPoint2;
+            this.pictureBox2.Location = new System.Drawing.Point(257, 9);
+            this.pictureBox2.Name = "pictureBox2";
+            this.pictureBox2.Size = new System.Drawing.Size(69, 77);
+            this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox2.TabIndex = 6;
+            this.pictureBox2.TabStop = false;
+            // 
+            // okButton
+            // 
+            this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.okButton.Enabled = false;
+            this.okButton.Location = new System.Drawing.Point(170, 244);
+            this.okButton.Name = "okButton";
+            this.okButton.Size = new System.Drawing.Size(75, 23);
+            this.okButton.TabIndex = 14;
+            this.okButton.Text = "OK";
+            this.okButton.UseVisualStyleBackColor = true;
+            this.okButton.Click += new System.EventHandler(this.okButton_Click);
+            // 
+            // cancelButton
+            // 
+            this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
+            this.cancelButton.Location = new System.Drawing.Point(251, 244);
+            this.cancelButton.Name = "cancelButton";
+            this.cancelButton.Size = new System.Drawing.Size(75, 23);
+            this.cancelButton.TabIndex = 13;
+            this.cancelButton.Text = "Cancel";
+            this.cancelButton.UseVisualStyleBackColor = true;
             // 
             // AddAprsRouteForm
             // 

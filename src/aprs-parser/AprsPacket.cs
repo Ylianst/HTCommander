@@ -95,7 +95,7 @@ namespace aprsparser
             {
                 //split packet into basic components of:
                 // packet type
-                // packet payload
+                // packet data
                 Position.Clear();
                 RawPacket = packet;
                 DestCallsign = Callsign.ParseCallsign(destination);

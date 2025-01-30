@@ -71,6 +71,8 @@ namespace HTCommander
         private void contextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
             showAllChannelsToolStripMenuItem.Checked = parent.showAllChannels;
+            setChannelAToolStripMenuItem.Enabled = (parent.activeStationLock == null);
+            setChannelBToolStripMenuItem.Visible = (parent.radio.Settings.double_channel == 1);
         }
     }
 }

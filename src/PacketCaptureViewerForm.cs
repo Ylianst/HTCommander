@@ -124,13 +124,13 @@ namespace HTCommander
                 if (sb.Length > 2) { addPacketDecodeLine(1, "Control", sb.ToString().Substring(2)); }
                 if (packet.pid > 0) { addPacketDecodeLine(1, "Protocol ID", packet.pid.ToString()); }
 
-                if (packet.payloadStr != null) { addPacketDecodeLine(2, "Data", packet.payloadStr); }
-                if (packet.payload != null) { addPacketDecodeLine(2, "Data HEX", Utils.BytesToHex(packet.payload)); }
+                if (packet.dataStr != null) { addPacketDecodeLine(2, "Data", packet.dataStr); }
+                if (packet.data != null) { addPacketDecodeLine(2, "Data HEX", Utils.BytesToHex(packet.data)); }
 
                 if ((packet.type == AX25Packet.FrameType.U_FRAME) && (packet.pid == 240))
                 {
                     AprsPacket aprsPacket = new AprsPacket();
-                    if (aprsPacket.Parse(packet.payloadStr, packet.addresses[0].CallSignWithId) == false)
+                    if (aprsPacket.Parse(packet.dataStr, packet.addresses[0].CallSignWithId) == false)
                     {
                         addPacketDecodeLine(3, "Decode", "APRS Decoder failed to decode packet.");
                     }

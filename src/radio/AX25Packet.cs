@@ -35,22 +35,22 @@ namespace HTCommander
         public byte ns;        // 0 to 7, or if modulo128 is true, 0 to 127
         public byte pid;       // Only used for I_FRAME and U_FRAME_UI
         public bool modulo128; // True if we need 2 control bytes for more inflight packets
-        public string payloadStr; // Only used for I_FRAME and U_FRAME_UI
-        public byte[] payload; // Only used for I_FRAME and U_FRAME_UI
+        public string dataStr; // Only used for I_FRAME and U_FRAME_UI
+        public byte[] data; // Only used for I_FRAME and U_FRAME_UI
 
-        public AX25Packet(List<AX25Address> addresses, string payloadStr, DateTime time)
+        public AX25Packet(List<AX25Address> addresses, string dataStr, DateTime time)
         {
             this.addresses = addresses;
-            this.payloadStr = payloadStr;
+            this.dataStr = dataStr;
             this.time = time;
             type = FrameType.U_FRAME_UI;  // Default value of information frame
             pid = 240;                    // Default value of no layer 3 protocol implemented
         }
 
-        public AX25Packet(List<AX25Address> addresses, byte[] payload, DateTime time)
+        public AX25Packet(List<AX25Address> addresses, byte[] data, DateTime time)
         {
             this.addresses = addresses;
-            this.payload = payload;
+            this.data = data;
             this.time = time;
             type = FrameType.U_FRAME_UI;  // Default value of information frame
             pid = 240;                    // Default value of no layer 3 protocol implemented
@@ -70,11 +70,11 @@ namespace HTCommander
                 int messageLen = data[3 + callsignLen + controlLen];
                 List<AX25Address> xaddresses = new List<AX25Address>();
                 xaddresses.Add(AX25Address.GetAddress(UTF8Encoding.Default.GetString(data, 3, callsignLen - 1), 0));
-                string xpayload = UTF8Encoding.Default.GetString(data, 5 + callsignLen + controlLen, messageLen - 1);
-                byte[] xpayload2 = new byte[messageLen - 1];
-                Array.Copy(data, 5 + callsignLen + controlLen, xpayload2, 0, messageLen - 1);
-                AX25Packet xpacket = new AX25Packet(xaddresses, xpayload, time);
-                xpacket.payload = xpayload2;
+                string xxdata = UTF8Encoding.Default.GetString(data, 5 + callsignLen + controlLen, messageLen - 1);
+                byte[] xxdata2 = new byte[messageLen - 1];
+                Array.Copy(data, 5 + callsignLen + controlLen, xxdata2, 0, messageLen - 1);
+                AX25Packet xpacket = new AX25Packet(xaddresses, xxdata, time);
+                xpacket.data = xxdata2;
                 return xpacket;
             }
 
@@ -156,15 +156,15 @@ namespace HTCommander
                 return null;
             }
 
-            string payloadStr = null;
-            byte[] payload = null;
+            string xdataStr = null;
+            byte[] xdata = null;
             if (data.Length > i) {
-                payloadStr = UTF8Encoding.UTF8.GetString(data, i, data.Length - i);
-                payload = new byte[data.Length - i];
-                Array.Copy(data, i, payload, 0, data.Length - i);
+                xdataStr = UTF8Encoding.UTF8.GetString(data, i, data.Length - i);
+                xdata = new byte[data.Length - i];
+                Array.Copy(data, i, xdata, 0, data.Length - i);
             }
-            AX25Packet packet = new AX25Packet(addresses, payloadStr, time);
-            packet.payload = payload;
+            AX25Packet packet = new AX25Packet(addresses, xdataStr, time);
+            packet.data = xdata;
             packet.command = command;
             packet.modulo128 = modulo128;
             packet.pollFinal = pollFinal;
@@ -187,21 +187,21 @@ namespace HTCommander
         public byte[] ToByteArray()
         {
             if ((addresses == null) || (addresses.Count < 2)) return null;
-            byte[] payloadBytes = null;
-            int payloadBytesLen = 0;
-            if (payload != null)
+            byte[] dataBytes = null;
+            int dataBytesLen = 0;
+            if (data != null)
             {
-                payloadBytes = payload;
-                payloadBytesLen = payload.Length;
+                dataBytes = data;
+                dataBytesLen = data.Length;
             }
-            else if ((payloadStr != null) && (payloadStr.Length > 0))
+            else if ((dataStr != null) && (dataStr.Length > 0))
             {
-                payloadBytes = UTF8Encoding.UTF8.GetBytes(payloadStr);
-                payloadBytesLen = payloadBytes.Length;
+                dataBytes = UTF8Encoding.UTF8.GetBytes(dataStr);
+                dataBytesLen = dataBytes.Length;
             }
 
             // Compute the packet size & control bits
-            int packetSize = (7 * addresses.Count) + (modulo128 ? 2 : 1) + payloadBytes.Length; // Addresses, controlf and payload
+            int packetSize = (7 * addresses.Count) + (modulo128 ? 2 : 1) + dataBytes.Length; // Addresses, control and data
             if ((type == FrameType.I_FRAME) || (type == FrameType.U_FRAME_UI)) { packetSize++; } // PID is present
             byte[] rdata = new byte[packetSize];
             int control = GetControl();
@@ -227,8 +227,8 @@ namespace HTCommander
             // Put the pid if needed
             if ((type == FrameType.I_FRAME) || (type == FrameType.U_FRAME_UI)) { rdata[i++] = pid; }
 
-            // Put the payload
-            if (payloadBytesLen > 0) { Array.Copy(payloadBytes, 0, rdata, i, payloadBytes.Length); }
+            // Put the data
+            if (dataBytesLen > 0) { Array.Copy(dataBytes, 0, rdata, i, dataBytes.Length); }
 
             return rdata;
         }
@@ -237,7 +237,7 @@ namespace HTCommander
         {
             string r = "";
             foreach (AX25Address a in addresses) { r += "[" + a.ToString() + "]"; }
-            r += ": " + payload;
+            r += ": " + data;
             return r;
         }
 

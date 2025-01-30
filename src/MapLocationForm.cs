@@ -66,14 +66,14 @@ namespace HTCommander
 
         private void mapZoomInbutton_Click(object sender, EventArgs e)
         {
-            mapControl.Zoom = mapControl.Zoom * 1.2;
+            mapControl.Zoom = Math.Max(mapControl.Zoom + 1, mapControl.MinZoom);
             mapControl.Update();
             mapControl.Refresh();
         }
 
         private void mapZoomOutButton_Click(object sender, EventArgs e)
         {
-            mapControl.Zoom = mapControl.Zoom * 0.8;
+            mapControl.Zoom = Math.Min(mapControl.Zoom - 1, mapControl.MaxZoom);
             mapControl.Update();
             mapControl.Refresh();
         }

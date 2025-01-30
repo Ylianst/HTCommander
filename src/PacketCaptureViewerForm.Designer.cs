@@ -31,7 +31,7 @@
             this.components = new System.ComponentModel.Container();
             System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("AX.25 Payload", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(PacketCaptureViewerForm));
@@ -128,8 +128,8 @@
             listViewGroup1.Name = "packetDecodeMetadataListViewGroup";
             listViewGroup2.Header = "AX.25 Header";
             listViewGroup2.Name = "packetDecodeHeaderListViewGroup";
-            listViewGroup3.Header = "AX.25 Payload";
-            listViewGroup3.Name = "packetDecodePayloadListViewGroup";
+            listViewGroup3.Header = "AX.25 Data";
+            listViewGroup3.Name = "packetDecodeDataListViewGroup";
             listViewGroup4.Header = "APRS";
             listViewGroup4.Name = "packetDecodeAprsListViewGroup";
             listViewGroup5.Header = "Position";
