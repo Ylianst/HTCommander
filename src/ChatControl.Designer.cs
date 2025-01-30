@@ -43,6 +43,7 @@ namespace HTCommander
             this.chatScrollBar.Name = "chatScrollBar";
             this.chatScrollBar.Size = new System.Drawing.Size(26, 366);
             this.chatScrollBar.TabIndex = 0;
+            this.chatScrollBar.Scroll += new System.Windows.Forms.ScrollEventHandler(this.chatScrollBar_Scroll);
             // 
             // ChatControl
             // 
