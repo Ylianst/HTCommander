@@ -332,7 +332,7 @@ namespace HTCommander
                         {
                             AprsPacket aprsPacket = new AprsPacket();
                             if (aprsPacket.Parse(p.dataStr, p.addresses[0].CallSignWithId) == false) return;
-                            if (aprsPacket.MessageData.Addressee == callsign + "-" + stationId) // Check if this packet is for us
+                            if ((aprsPacket.MessageData.Addressee == callsign + "-" + stationId) || (aprsPacket.MessageData.Addressee == callsign)) // Check if this packet is for us
                             {
                                 if (aprsPacket.DataType == PacketDataType.Message)
                                 {
@@ -754,11 +754,11 @@ namespace HTCommander
             terminalInputTextBox.Clear();
 
             if (ParseCallsignWithId(activeStationLock.Callsign, out destCallsign, out destStationId) == false) return;
-            terminalTextBox.AppendText(destCallsign + "-" + destStationId + "< " + sendText + Environment.NewLine);
 
             if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25)
             {
                 // Raw AX.25 format
+                terminalTextBox.AppendText(destCallsign + "-" + destStationId + "< " + sendText + Environment.NewLine);
                 List<AX25Address> addresses = new List<AX25Address>(1);
                 addresses.Add(AX25Address.GetAddress(destCallsign, destStationId));
                 addresses.Add(AX25Address.GetAddress(callsign, stationId));
@@ -769,11 +769,13 @@ namespace HTCommander
             {
                 // APRS format
                 string aprsAddr = ":" + activeStationLock.Callsign;
+                if (aprsAddr.EndsWith("-0")) { aprsAddr = aprsAddr.Substring(0, aprsAddr.Length - 2); }
                 while (aprsAddr.Length < 10) { aprsAddr += " "; }
                 aprsAddr += ":";
                 int msgId = nextAprsMessageId++;
                 if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
                 registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
+                terminalTextBox.AppendText(destCallsign + ((destStationId != 0) ? ("-" + destStationId) : "") + "< " + sendText + Environment.NewLine);
 
                 // Get the AX25 destivation address
                 AX25Address ax25dest = null;
@@ -1794,7 +1796,7 @@ namespace HTCommander
             mainAddressBookListView.Items.Clear();
             foreach (StationInfoClass station in stations)
             {
-                ListViewItem item = new ListViewItem(new string[] { station.Callsign, station.Name, station.Description });
+                ListViewItem item = new ListViewItem(new string[] { station.CallsignNoZero, station.Name, station.Description });
                 item.Group = mainAddressBookListView.Groups[(int)station.StationType];
                 if (station.StationType == StationInfoClass.StationTypes.Generic) { item.ImageIndex = 7; }
                 if (station.StationType == StationInfoClass.StationTypes.APRS) { item.ImageIndex = 3; }

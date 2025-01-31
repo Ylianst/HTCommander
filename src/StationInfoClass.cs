@@ -27,6 +27,14 @@ namespace HTCommander
         public string Channel { get; set; }
         public string AX25Destination { get; set; }
 
+        public string CallsignNoZero {
+            get
+            {
+                if (Callsign.EndsWith("-0")) { return Callsign.Substring(0, Callsign.Length - 2); }
+                return Callsign;
+            }
+        }
+
         // Serialize the list to JSON
         public static string Serialize(List<StationInfoClass> stations)
         {
