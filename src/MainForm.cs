@@ -27,6 +27,7 @@ using GMap.NET.WindowsForms.Markers;
 using GMap.NET;
 using aprsparser;
 using static HTCommander.Radio;
+using System.Globalization;
 
 namespace HTCommander
 {
@@ -99,7 +100,7 @@ namespace HTCommander
 
             if (double.TryParse(registry.ReadString("MapLatitude", "0"), out d1) == false) { d1 = 0; }
             if (double.TryParse(registry.ReadString("MapLongetude", "0"), out double d2) == false) { d2 = 0; }
-            mapControl.Position = new GMap.NET.PointLatLng(d1,d2);
+            mapControl.Position = new GMap.NET.PointLatLng(d1, d2);
 
             // Add the overlay to the map
             mapControl.Overlays.Add(mapMarkersOverlay);
@@ -272,7 +273,7 @@ namespace HTCommander
             // Write frame data to file
             if (AprsFile != null)
             {
-                byte[] bytes = UTF8Encoding.Default.GetBytes(frame.time.Ticks + "," + (frame.incoming ? "1":"0") + "," + frame.ToString() + "\r\n");
+                byte[] bytes = UTF8Encoding.Default.GetBytes(frame.time.Ticks + "," + (frame.incoming ? "1" : "0") + "," + frame.ToString() + "\r\n");
                 AprsFile.Write(bytes, 0, bytes.Length);
             }
             if (frame.incoming == false) return;
@@ -1042,7 +1043,7 @@ namespace HTCommander
                     AX25Packet packet = new AX25Packet(GetTransmitAprsRoute(), ":SMS      :@" + aprsSmsForm.PhoneNumber + " " + aprsSmsForm.Message + "{" + msgId, DateTime.Now);
                     packet.messageId = msgId;
                     packet.time = DateTime.Now;
-                    
+
                     radio.TransmitTncData(packet, aprsChannel, radio.HtStatus.curr_region);
                     AddAprsPacket(packet, true);
                     aprsTextBox.Text = "";
@@ -1063,6 +1064,8 @@ namespace HTCommander
             volumeToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             dualWatchToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             scanToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
+            exportChannelsToolStripMenuItem.Enabled = ((radio.State == Radio.RadioState.Connected) && (radio.Channels != null));
+            // importChannelsToolStripMenuItem.Enabled = 
             aprsDestinationComboBox.Enabled = (radio.State == Radio.RadioState.Connected) && (aprsChannel != -1);
             aprsTextBox.Enabled = (radio.State == Radio.RadioState.Connected) && (aprsChannel != -1);
             aprsSendButton.Enabled = (radio.State == Radio.RadioState.Connected) && (aprsChannel != -1);
@@ -1123,18 +1126,7 @@ namespace HTCommander
                             channelControls[i] = new RadioChannelControl(this);
                             channelsFlowLayoutPanel.Controls.Add(channelControls[i]);
                         }
-                        if (radio.Channels[i].name_str.Length > 0)
-                        {
-                            channelControls[i].ChannelName = radio.Channels[i].name_str;
-                        }
-                        else if (radio.Channels[i].rx_freq != 0)
-                        {
-                            channelControls[i].ChannelName = ((double)radio.Channels[i].rx_freq / 1000000).ToString() + " Mhz";
-                        }
-                        else
-                        {
-                            channelControls[i].ChannelName = (i + 1).ToString();
-                        }
+                        channelControls[i].Channel = radio.Channels[i];
                         channelControls[i].Tag = i;
                         bool visible = showAllChannels || (radio.Channels[i].name_str.Length > 0) || (radio.Channels[i].rx_freq != 0);
                         channelControls[i].Visible = visible;
@@ -2088,6 +2080,183 @@ namespace HTCommander
             {
                 e.Handled = true; // Block the input
             }
+        }
+
+        private void exportChannelsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if ((radio.State != RadioState.Connected) || (radio.Channels == null)) return;
+            if (exportChannelsFileDialog.ShowDialog(this) == DialogResult.OK)
+            {
+                if (exportChannelsFileDialog.FilterIndex == 1)
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("title,tx_freq,rx_freq,tx_sub_audio(CTCSS=freq/DCS=number),rx_sub_audio(CTCSS=freq/DCS=number),tx_power(H/M/L),bandwidth(12500/25000),scan(0=OFF/1=ON),talk around(0=OFF/1=ON),pre_de_emph_bypass(0=OFF/1=ON),sign(0=OFF/1=ON),tx_dis(0=OFF/1=ON),mute(0=OFF/1=ON),rx_modulation(0=FM/1=AM),tx_modulation(0=FM/1=AM)");
+                    foreach (RadioChannelInfo c in radio.Channels)
+                    {
+                        if ((c != null) && (c.tx_freq != 0) && (c.rx_freq != 0))
+                        {
+                            string power = "L";
+                            if (c.tx_at_max_power) { power = "H"; }
+                            if (c.tx_at_med_power) { power = "M"; }
+                            string[] values = new string[] { c.name_str, c.tx_freq.ToString(), c.rx_freq.ToString(), c.tx_sub_audio.ToString(), c.rx_sub_audio.ToString(), power, c.bandwidth == RadioBandwidthType.NARROW ? "12500" : "25000", c.scan ? "1" : "0", c.talk_around ? "1" : "0", c.pre_de_emph_bypass ? "1" : "0", c.sign ? "1" : "0", c.tx_disable ? "1" : "0", c.mute ? "1" : "0", ((int)c.rx_mod).ToString(), ((int)c.tx_mod).ToString() };
+                            sb.AppendLine(string.Join(",", values));
+                        }
+                    }
+                    File.WriteAllText(exportChannelsFileDialog.FileName, sb.ToString());
+                }
+                if (exportChannelsFileDialog.FilterIndex == 2)
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("Location,Name,Frequency,Duplex,Offset,Tone,rToneFreq,cToneFreq,DtcsCode,DtcsPolarity,Mode,TStep,Skip,Comment,URCALL,RPT1CALL,RPT2CALL");
+                    for (int i = 0; i < radio.Channels.Length; i++)
+                    {
+                        RadioChannelInfo c = radio.Channels[i];
+                        if ((c != null) && (c.tx_freq != 0) && (c.rx_freq != 0))
+                        {
+                            string duplex = "";
+                            if (c.tx_freq < c.rx_freq) { duplex = "-"; }
+                            if (c.tx_freq > c.rx_freq) { duplex = "+"; }
+
+                            double offset = ((double)Math.Abs(c.tx_freq - c.rx_freq)) / 1000000;
+
+                            // (None),Tone,TSQL,DTCS,DTCS-R,TSQL-R,Cross
+                            string tone = "";
+                            string rToneFreq = "";
+                            string cToneFreq = "";
+                            string DtcsCode = "";
+                            string DtcsPolarity = "";
+                            if ((c.tx_sub_audio >= 1000) && (c.rx_sub_audio >= 1000))
+                            {
+                                tone = "TSQL";
+                                rToneFreq = ((double)c.rx_sub_audio / 100).ToString();
+                                cToneFreq = ((double)c.tx_sub_audio / 100).ToString();
+                            }
+                            else if ((c.tx_sub_audio > 0) && (c.rx_sub_audio > 0) && (c.tx_sub_audio < 1000) && (c.rx_sub_audio < 1000) && (c.rx_sub_audio == c.tx_sub_audio))
+                            {
+                                tone = "DTCS";
+                                DtcsCode = c.rx_sub_audio.ToString();
+                                DtcsPolarity = "NN";
+                            }
+
+                            string Mode = c.rx_mod.ToString();
+                            if (c.rx_mod == RadioModulationType.FM)
+                            {
+                                if (c.bandwidth == RadioBandwidthType.WIDE) { Mode = "FM"; }
+                                if (c.bandwidth == RadioBandwidthType.NARROW) { Mode = "NFM"; }
+                            }
+
+                            string[] values = new string[] { i.ToString(), c.name_str, (((double)c.rx_freq) / 1000000).ToString("F6"), duplex, offset.ToString("F6"), tone, rToneFreq, cToneFreq, DtcsCode, DtcsPolarity, Mode, "", "", "", "", "", "" };
+                            sb.AppendLine(string.Join(",", values));
+                        }
+                    }
+                    File.WriteAllText(exportChannelsFileDialog.FileName, sb.ToString());
+                }
+            }
+        }
+
+        private void importChannelsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //if ((radio.State != RadioState.Connected) || (radio.Channels == null)) return;
+            if (importChannelFileDialog.ShowDialog(this) == DialogResult.OK)
+            {
+                List<RadioChannelInfo> importChannels = new List<RadioChannelInfo>();
+                string[] lines = File.ReadAllLines(importChannelFileDialog.FileName);
+                if (lines.Length < 2) return;
+                Dictionary<string, int> headers = lines[0].Split(',').Select((h, i) => new { h, i }).ToDictionary(x => x.h.Trim(), x => x.i);
+                if (headers.ContainsKey("Location") && headers.ContainsKey("Name") && headers.ContainsKey("Frequency") && headers.ContainsKey("Mode"))
+                {
+                    for (int i = 1; i < lines.Length; i++)
+                    {
+                        RadioChannelInfo c = null;
+                        try { c = ParseChannel1(lines[i].Split(','), headers); } catch (Exception) { }
+                        if (c != null) { importChannels.Add(c); }
+                    }
+                }
+
+                if (headers.ContainsKey("title") && headers.ContainsKey("tx_freq") && headers.ContainsKey("rx_freq"))
+                {
+                    for (int i = 1; i < lines.Length; i++)
+                    {
+                        RadioChannelInfo c = null;
+                        try { c = ParseChannel2(lines[i].Split(','), headers); } catch (Exception) { }
+                        if (c != null) { importChannels.Add(c); }
+                    }
+                }
+
+                // If there are decoded import channels, open a dialog box to merge them.
+                if (importChannels.Count == 0) return;
+                ImportChannelsForm f = new ImportChannelsForm(null, importChannels.ToArray());
+                f.Text = f.Text + " - " + new FileInfo(importChannelFileDialog.FileName).Name;
+                f.Show(this);
+            }
+        }
+
+        private static RadioChannelInfo ParseChannel2(string[] parts, Dictionary<string, int> headers)
+        {
+            RadioChannelInfo r = new RadioChannelInfo();
+            r.channel_id = 0;
+            r.name_str = parts[headers["title"]];
+            r.tx_freq = int.Parse(parts[headers["tx_freq"]]);
+            r.rx_freq = int.Parse(parts[headers["rx_freq"]]);
+            r.tx_sub_audio = int.Parse(parts[headers["tx_sub_audio(CTCSS=freq/DCS=number)"]]);
+            r.rx_sub_audio = int.Parse(parts[headers["rx_sub_audio(CTCSS=freq/DCS=number)"]]);
+            string power = parts[headers["tx_power(H/M/L)"]];
+            r.tx_at_max_power = (power == "H");
+            r.tx_at_med_power = (power == "M");
+            r.bandwidth = (parts[headers["bandwidth(12500/25000)"]] == "25000") ? RadioBandwidthType.WIDE : RadioBandwidthType.NARROW;
+            r.scan = (parts[headers["scan(0=OFF/1=ON)"]] == "1");
+            r.talk_around = (parts[headers["talk around(0=OFF/1=ON)"]] == "1");
+            r.pre_de_emph_bypass = (parts[headers["pre_de_emph_bypass(0=OFF/1=ON)"]] == "1");
+            r.sign = (parts[headers["sign(0=OFF/1=ON)"]] == "1");
+            r.tx_disable = (parts[headers["tx_dis(0=OFF/1=ON)"]] == "1");
+            r.mute = (parts[headers["mute(0=OFF/1=ON)"]] == "1");
+            string rx_mod = parts[headers["rx_modulation(0=FM/1=AM)"]];
+            if (rx_mod == "AM") { r.rx_mod = RadioModulationType.AM; }
+            if (rx_mod == "DMR") { r.rx_mod = RadioModulationType.DMR; }
+            if (rx_mod == "FO") { r.rx_mod = RadioModulationType.FM; }
+            string tx_mod = parts[headers["tx_modulation(0=FM/1=AM)"]];
+            if (tx_mod == "AM") { r.tx_mod = RadioModulationType.AM; }
+            if (tx_mod == "DMR") { r.tx_mod = RadioModulationType.DMR; }
+            if (tx_mod == "FO") { r.tx_mod = RadioModulationType.FM; }
+            return r;
+        }
+
+        private static RadioChannelInfo ParseChannel1(string[] parts, Dictionary<string, int> headers)
+        {
+            RadioChannelInfo r = new RadioChannelInfo();
+            r.channel_id = int.Parse(parts[headers["Location"]]);
+            r.name_str = parts[headers["Name"]];
+            r.rx_freq = (int)(double.Parse(parts[headers["Frequency"]], CultureInfo.InvariantCulture) * 1000000);
+
+            int duplex = 0;
+            if (headers.ContainsKey("Duplex")) {
+                if (parts[headers["Duplex"]] == "-") { duplex = -1; }
+                else if (parts[headers["Duplex"]] == "+") { duplex = 1; }
+            }
+            if (duplex == 0) { r.tx_freq = r.rx_freq; } else
+            {
+                int offset = (int)(double.Parse(parts[headers["Offset"]], CultureInfo.InvariantCulture) * 1000000);
+                r.tx_freq = r.rx_freq + (duplex * offset);
+            }
+
+            string tone = "";
+            if (headers.ContainsKey("Tone")) { tone = parts[headers["Tone"]]; }
+            if ((tone == "") || (tone == "TSQL"))
+            {
+                r.rx_sub_audio = headers.ContainsKey("rToneFreq") ? (int)(double.Parse(parts[headers["rToneFreq"]], CultureInfo.InvariantCulture) * 100) : 0;
+                r.tx_sub_audio = headers.ContainsKey("cToneFreq") ? (int)(double.Parse(parts[headers["cToneFreq"]], CultureInfo.InvariantCulture) * 100) : 0;
+            }
+            if (tone == "DTCS")
+            {
+                r.tx_sub_audio = r.rx_sub_audio = headers.ContainsKey("DtcsCode") ? (int)(double.Parse(parts[headers["DtcsCode"]], CultureInfo.InvariantCulture)) : 0;
+            }
+
+            if (parts[headers["Mode"]] == "FM") { r.rx_mod = r.tx_mod = RadioModulationType.FM; r.bandwidth = RadioBandwidthType.WIDE; }
+            if (parts[headers["Mode"]] == "NFM") { r.rx_mod = r.tx_mod = RadioModulationType.FM; r.bandwidth = RadioBandwidthType.NARROW; }
+            if (parts[headers["Mode"]] == "DMR") { r.rx_mod = r.tx_mod = RadioModulationType.DMR; r.bandwidth = RadioBandwidthType.WIDE; }
+            if (parts[headers["Mode"]] == "AM") { r.rx_mod = r.tx_mod = RadioModulationType.AM; r.bandwidth = RadioBandwidthType.WIDE; }
+
+            return r;
         }
     }
 }

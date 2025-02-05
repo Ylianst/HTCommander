@@ -43,6 +43,8 @@ namespace HTCommander
         public bool mute;
         public string name_str;
 
+        public RadioChannelInfo() { }
+
         public RadioChannelInfo(byte[] msg)
         {
             channel_id = msg[5];

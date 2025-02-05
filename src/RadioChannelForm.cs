@@ -23,12 +23,15 @@ namespace HTCommander
 {
     public partial class RadioChannelForm : Form
     {
+        public RadioChannelInfo channel;
         private Color normalBackColor;
         private string dialogTitle;
         private MainForm parent;
         private Radio radio;
-        private int channelId;
+        private int channelId = -1;
         private bool advancedMode = false;
+        private bool xreadonly = false;
+        public bool ReadOnly { get { return xreadonly; } set { xreadonly = value; UpdateInfo(); } }
         public int ChannelId { get { return channelId; } }
 
         public RadioChannelForm(MainForm parent, Radio radio, int channelId)
@@ -52,8 +55,16 @@ namespace HTCommander
 
         public void UpdateChannel()
         {
-            RadioChannelInfo c = radio.Channels[channelId];
-            this.Text = dialogTitle + " " + (channelId + 1).ToString();
+            RadioChannelInfo c = channel;
+            if (radio != null) { c = radio.Channels[channelId]; }
+            if (channelId >= 0)
+            {
+                this.Text = dialogTitle + " " + (channelId + 1).ToString();
+            }
+            else if (!string.IsNullOrEmpty(c.name_str))
+            {
+                this.Text = dialogTitle + " " + c.name_str;
+            }
             nameTextBox.Text = c.name_str;
             advNameTextBox.Text = c.name_str;
             advTransmitFreqTextBox.Text = freqTextBox.Text = (((float)c.tx_freq) / 1000000).ToString();
@@ -188,7 +199,7 @@ namespace HTCommander
 
         private void RadioChannelForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            parent.radioChannelForm = null;
+            if (parent != null) { parent.radioChannelForm = null; }
         }
 
         private void repeaterBookLinkLabel_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -232,6 +243,27 @@ namespace HTCommander
 
         private void UpdateInfo()
         {
+            if (xreadonly)
+            {
+                okButton.Visible = false;
+                cancelButton.Text = "Close";
+                clearButton.Visible = false;
+                nameTextBox.Enabled = freqTextBox.Enabled = modeComboBox.Enabled = false;
+                powerComboBox.Enabled = false;
+                disableTransmitCheckBox.Enabled = false;
+                muteCheckBox.Enabled = false;
+                moreSettingsButton.Visible = false;
+                advNameTextBox.Enabled = advReceiveFreqTextBox.Enabled = false;
+                advModeComboBox.Enabled = advTransmitFreqTextBox.Enabled = false;
+                transmitCtcssComboBox.Enabled = receiveCtcssComboBox.Enabled = false;
+                advBandwidthComboBox.Enabled = advPowerComboBox.Enabled = false;
+                advDisableTransmitCheckBox.Enabled = advMuteCheckBox.Enabled = false;
+                advScanCheckBox.Enabled = advTalkAroundCheckBox.Enabled = deemphasisCheckBox.Enabled = false;
+                freqTextBox.BackColor = normalBackColor;
+                advReceiveFreqTextBox.BackColor = normalBackColor;
+                advTransmitFreqTextBox.BackColor = normalBackColor;
+            }
+
             bool f1 = CheckFreqRange(freqTextBox.Text);
             bool f2 = CheckFreqRange(advReceiveFreqTextBox.Text);
             bool f3 = CheckFreqRange(advTransmitFreqTextBox.Text);
@@ -328,8 +360,16 @@ namespace HTCommander
 
         private void clearButton_Click(object sender, EventArgs e)
         {
+            nameTextBox.Text = "";
             advReceiveFreqTextBox.Text = "0";
             advTransmitFreqTextBox.Text = "0";
+            muteCheckBox.Checked = disableTransmitCheckBox.Checked = false;
+            advDisableTransmitCheckBox.Checked = advMuteCheckBox.Checked = false;
+            advScanCheckBox.Checked = advTalkAroundCheckBox.Checked = deemphasisCheckBox.Enabled = false;
+            transmitCtcssComboBox.SelectedIndex = receiveCtcssComboBox.SelectedIndex = 0;
+            advBandwidthComboBox.SelectedIndex = 0;
+            advPowerComboBox.SelectedIndex = 0;
+            advModeComboBox.SelectedIndex = 0;
             okButton_Click(this, null);
         }
     }

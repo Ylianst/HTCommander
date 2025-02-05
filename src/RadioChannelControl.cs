@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using Microsoft.Win32;
 using System;
 using System.Windows.Forms;
 
@@ -22,6 +21,7 @@ namespace HTCommander
 {
     public partial class RadioChannelControl : UserControl
     {
+        private RadioChannelInfo channel;
         private MainForm parent;
 
         public RadioChannelControl(MainForm parent)
@@ -30,49 +30,120 @@ namespace HTCommander
             this.parent = parent;
         }
 
-        public string ChannelName
+        public RadioChannelInfo Channel
         {
-            get { return channelNameLabel.Text; }
-            set { channelNameLabel.Text = value; }
+            get
+            {
+                return channel;
+            }
+            set
+            {
+                channel = value;
+                if (channel.name_str.Length > 0)
+                {
+                    channelNameLabel.Text = channel.name_str;
+                }
+                else if (channel.rx_freq != 0)
+                {
+                    channelNameLabel.Text = ((double)channel.rx_freq / 1000000).ToString() + " Mhz";
+                }
+                else
+                {
+                    channelNameLabel.Text = (channel.channel_id + 1).ToString();
+                }
+            }
         }
 
         private void showToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            parent.ShowChannelDialog((int)this.Tag);
+            if (parent != null) { parent.ShowChannelDialog((int)this.Tag); }
         }
 
         private void channelNameLabel_DoubleClick(object sender, EventArgs e)
         {
-            parent.ShowChannelDialog((int)this.Tag);
+            if (parent != null) { parent.ShowChannelDialog((int)this.Tag); } else
+            {
+                RadioChannelForm f = new RadioChannelForm(null, null, -1);
+                f.channel = channel;
+                f.ReadOnly = true;
+                f.ShowDialog();
+            }
         }
 
         private void channelNameLabel_Click(object sender, EventArgs e)
         {
-            parent.ChangeChannelA((int)this.Tag);
+            if (parent != null) { parent.ChangeChannelA((int)this.Tag); }
         }
 
         private void setChannelAToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            parent.ChangeChannelA((int)this.Tag);
+            if (parent != null) { parent.ChangeChannelA((int)this.Tag); }
         }
 
         private void setChannelBToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            parent.ChangeChannelB((int)this.Tag);
+            if (parent != null) { parent.ChangeChannelB((int)this.Tag); }
         }
 
         private void showAllChannelsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            parent.showAllChannels = !showAllChannelsToolStripMenuItem.Checked;
-            parent.registry.WriteInt("ShowAllChannels", parent.showAllChannels ? 1 : 0);
-            parent.UpdateChannelsPanel();
+            if (parent != null)
+            {
+                parent.showAllChannels = !showAllChannelsToolStripMenuItem.Checked;
+                parent.registry.WriteInt("ShowAllChannels", parent.showAllChannels ? 1 : 0);
+                parent.UpdateChannelsPanel();
+            }
         }
 
         private void contextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            showAllChannelsToolStripMenuItem.Checked = parent.showAllChannels;
-            setChannelAToolStripMenuItem.Enabled = (parent.activeStationLock == null);
-            setChannelBToolStripMenuItem.Visible = (parent.radio.Settings.double_channel == 1);
+            if (parent != null)
+            {
+                showAllChannelsToolStripMenuItem.Checked = parent.showAllChannels;
+                setChannelAToolStripMenuItem.Enabled = (parent.activeStationLock == null);
+                setChannelBToolStripMenuItem.Visible = (parent.radio.Settings.double_channel == 1);
+            }
         }
+
+        private void channelNameLabel_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                DoDragDrop((object)channel, DragDropEffects.Copy | DragDropEffects.Move);
+            }
+        }
+
+        private void RadioChannelControl_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(typeof(RadioChannelInfo)))
+            {
+                RadioChannelInfo c = (RadioChannelInfo)e.Data.GetData(typeof(RadioChannelInfo));
+                if (c.channel_id == channel.channel_id)
+                {
+                    e.Effect = DragDropEffects.None;
+                }
+                else
+                {
+                    e.Effect = DragDropEffects.Copy;
+                }
+            }
+            else
+            {
+                e.Effect = DragDropEffects.None;
+            }
+        }
+
+        private void RadioChannelControl_DragDrop(object sender, DragEventArgs e)
+        {
+            RadioChannelInfo c = (RadioChannelInfo)e.Data.GetData(typeof(RadioChannelInfo));
+            if (c.channel_id == channel.channel_id) return;
+            if (MessageBox.Show(parent, string.Format("Copy \"{0}\" to channel {1}?", c.name_str, channel.channel_id), "Channel", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
+            {
+                RadioChannelInfo c2 = new RadioChannelInfo(c);
+                c2.channel_id = channel.channel_id;
+                parent.radio.SetChannel(c2);
+            }
+        }
+
     }
 }

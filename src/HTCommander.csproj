@@ -132,6 +132,12 @@
     <Compile Include="BTActivateForm.Designer.cs">
       <DependentUpon>BTActivateForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="ImportChannelsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ImportChannelsForm.Designer.cs">
+      <DependentUpon>ImportChannelsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="MapLocationForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -258,6 +264,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="BTActivateForm.resx">
       <DependentUpon>BTActivateForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ImportChannelsForm.resx">
+      <DependentUpon>ImportChannelsForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MapLocationForm.resx">
       <DependentUpon>MapLocationForm.cs</DependentUpon>

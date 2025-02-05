@@ -69,15 +69,14 @@ namespace HTCommander
 
             // Check callsign
             AX25Address addr = AX25Address.GetAddress(callsignTextBox.Text);
-            int i = callsignTextBox.Text.IndexOf('-');
-            callsignTextBox.BackColor = ((addr == null) || (i == -1)) ? Color.MistyRose : SystemColors.Window;
-            if ((addr == null) || (i == -1)) { callsignOk = ok = false; }
+            callsignTextBox.BackColor = (addr == null) ? Color.MistyRose : SystemColors.Window;
+            if (addr == null) { callsignOk = ok = false; }
 
             // Check AX.25 address
             if (ax25DestTextBox.Text.Length > 0)
             {
                 addr = AX25Address.GetAddress(ax25DestTextBox.Text);
-                i = ax25DestTextBox.Text.IndexOf('-');
+                int i = ax25DestTextBox.Text.IndexOf('-');
                 ax25DestTextBox.BackColor = ((addr == null) || (i == -1)) ? Color.MistyRose : SystemColors.Window;
                 if ((addr == null) || (i == -1)) { ok = false; }
             }
