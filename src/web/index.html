@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Hex Dump</title>
+    <style>
+        body {
+            font-family: monospace;
+        }
+        #output {
+            white-space: pre-wrap; /* Allow text to wrap */
+            overflow-y: auto; /* Add a scrollbar if needed */
+            height: 400px; /* Set a maximum height */
+            border: 1px solid #ccc;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Handi-Talky Commander</h1>
+    <div id="output"></div>
+    <script>
+        const outputDiv = document.getElementById('output');
+        let websocket;
+
+        function hexEncode(array) {
+            let hex = '';
+            for (let i = 0; i < array.length; i++) {
+                let byte = array[i].toString(16).toUpperCase();
+                if (byte.length === 1) {
+                    byte = '0' + byte;
+                }
+                hex += byte + ' ';
+            }
+            return hex;
+        }
+
+        function connectWebSocket() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsURL = `${wsProtocol}//${window.location.host}`; // Connect to the same host and port
+
+            websocket = new WebSocket(wsURL);
+
+            websocket.onopen = () => {
+                outputDiv.innerHTML += "WebSocket connection opened.\n";
+                outputDiv.scrollTop = outputDiv.scrollHeight;
+            };
+
+            websocket.onmessage = (event) => {
+                let hexData;
+
+                if (typeof event.data === 'string') {
+                    hexData = "String: " + event.data + "\n"; // Display strings directly
+                } else if (event.data instanceof Blob) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const arrayBuffer = e.target.result;
+                        const uint8Array = new Uint8Array(arrayBuffer);
+                        hexData = "Blob (Binary): " + hexEncode(uint8Array) + "\n";
+                        outputDiv.innerHTML += hexData;
+                        outputDiv.scrollTop = outputDiv.scrollHeight;
+                    };
+                    reader.readAsArrayBuffer(event.data);
+                    return; // Important: Exit here to avoid the later handling of binary data
+                } else if (event.data instanceof ArrayBuffer) {
+                    const uint8Array = new Uint8Array(event.data);
+                    hexData = "ArrayBuffer (Binary): " + hexEncode(uint8Array) + "\n";
+                } else {
+                    hexData = "Unknown data type\n";
+                }
+
+                outputDiv.innerHTML += hexData;
+                outputDiv.scrollTop = outputDiv.scrollHeight;
+            };
+
+            websocket.onerror = (error) => {
+                outputDiv.innerHTML += "WebSocket error: " + error + "\n";
+                outputDiv.scrollTop = outputDiv.scrollHeight;
+            };
+
+            websocket.onclose = () => {
+                outputDiv.innerHTML += "WebSocket connection closed.\n";
+                outputDiv.scrollTop = outputDiv.scrollHeight;
+            };
+        }
+
+        connectWebSocket(); // Connect automatically when the page loads
+    </script>
+</body>
+</html>

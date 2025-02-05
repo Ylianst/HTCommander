@@ -38,10 +38,8 @@
             this.label2 = new System.Windows.Forms.Label();
             this.stationIdComboBox = new System.Windows.Forms.ComboBox();
             this.callsignTextBox = new System.Windows.Forms.TextBox();
-            this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.label1 = new System.Windows.Forms.Label();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
-            this.pictureBox2 = new System.Windows.Forms.PictureBox();
             this.label4 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.editButton = new System.Windows.Forms.Button();
@@ -50,15 +48,28 @@
             this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.addAprsButton = new System.Windows.Forms.Button();
             this.deleteAprsButton = new System.Windows.Forms.Button();
+            this.webServerTabPage = new System.Windows.Forms.TabPage();
+            this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.webPortNumericUpDown = new System.Windows.Forms.NumericUpDown();
+            this.label6 = new System.Windows.Forms.Label();
+            this.webServerEnabledCheckBox = new System.Windows.Forms.CheckBox();
+            this.label5 = new System.Windows.Forms.Label();
             this.okButton = new System.Windows.Forms.Button();
             this.cancelButton = new System.Windows.Forms.Button();
+            this.pictureBox1 = new System.Windows.Forms.PictureBox();
+            this.pictureBox2 = new System.Windows.Forms.PictureBox();
+            this.pictureBox3 = new System.Windows.Forms.PictureBox();
             this.tabControl1.SuspendLayout();
             this.licenseTabPage.SuspendLayout();
             this.groupBox1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.aprsTabPage.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             this.groupBox2.SuspendLayout();
+            this.webServerTabPage.SuspendLayout();
+            this.groupBox3.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.webPortNumericUpDown)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
             this.SuspendLayout();
             // 
             // tabControl1
@@ -68,6 +79,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl1.Controls.Add(this.licenseTabPage);
             this.tabControl1.Controls.Add(this.aprsTabPage);
+            this.tabControl1.Controls.Add(this.webServerTabPage);
             this.tabControl1.Location = new System.Drawing.Point(12, 12);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
@@ -186,17 +198,6 @@
             this.callsignTextBox.TextChanged += new System.EventHandler(this.callsignTextBox_TextChanged);
             this.callsignTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.callsignTextBox_KeyPress);
             // 
-            // pictureBox1
-            // 
-            this.pictureBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.pictureBox1.Image = global::HTCommander.Properties.Resources.Certificate;
-            this.pictureBox1.Location = new System.Drawing.Point(298, 8);
-            this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(69, 77);
-            this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.pictureBox1.TabIndex = 1;
-            this.pictureBox1.TabStop = false;
-            // 
             // label1
             // 
             this.label1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
@@ -219,17 +220,6 @@
             this.aprsTabPage.TabIndex = 1;
             this.aprsTabPage.Text = "APRS";
             this.aprsTabPage.UseVisualStyleBackColor = true;
-            // 
-            // pictureBox2
-            // 
-            this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.pictureBox2.Image = global::HTCommander.Properties.Resources.MapPoint1;
-            this.pictureBox2.Location = new System.Drawing.Point(298, 8);
-            this.pictureBox2.Name = "pictureBox2";
-            this.pictureBox2.Size = new System.Drawing.Size(69, 77);
-            this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.pictureBox2.TabIndex = 3;
-            this.pictureBox2.TabStop = false;
             // 
             // label4
             // 
@@ -321,6 +311,84 @@
             this.deleteAprsButton.UseVisualStyleBackColor = true;
             this.deleteAprsButton.Click += new System.EventHandler(this.deleteAprsButton_Click);
             // 
+            // webServerTabPage
+            // 
+            this.webServerTabPage.Controls.Add(this.groupBox3);
+            this.webServerTabPage.Controls.Add(this.pictureBox3);
+            this.webServerTabPage.Controls.Add(this.label5);
+            this.webServerTabPage.Location = new System.Drawing.Point(4, 22);
+            this.webServerTabPage.Name = "webServerTabPage";
+            this.webServerTabPage.Size = new System.Drawing.Size(367, 347);
+            this.webServerTabPage.TabIndex = 2;
+            this.webServerTabPage.Text = "Web Server";
+            this.webServerTabPage.UseVisualStyleBackColor = true;
+            // 
+            // groupBox3
+            // 
+            this.groupBox3.Controls.Add(this.webPortNumericUpDown);
+            this.groupBox3.Controls.Add(this.label6);
+            this.groupBox3.Controls.Add(this.webServerEnabledCheckBox);
+            this.groupBox3.Location = new System.Drawing.Point(6, 88);
+            this.groupBox3.Name = "groupBox3";
+            this.groupBox3.Size = new System.Drawing.Size(355, 83);
+            this.groupBox3.TabIndex = 6;
+            this.groupBox3.TabStop = false;
+            this.groupBox3.Text = "Server Settings";
+            // 
+            // webPortNumericUpDown
+            // 
+            this.webPortNumericUpDown.Location = new System.Drawing.Point(229, 54);
+            this.webPortNumericUpDown.Maximum = new decimal(new int[] {
+            65535,
+            0,
+            0,
+            0});
+            this.webPortNumericUpDown.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.webPortNumericUpDown.Name = "webPortNumericUpDown";
+            this.webPortNumericUpDown.Size = new System.Drawing.Size(120, 20);
+            this.webPortNumericUpDown.TabIndex = 2;
+            this.webPortNumericUpDown.Value = new decimal(new int[] {
+            8080,
+            0,
+            0,
+            0});
+            // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Location = new System.Drawing.Point(13, 56);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(86, 13);
+            this.label6.TabIndex = 1;
+            this.label6.Text = "Web Server Port";
+            // 
+            // webServerEnabledCheckBox
+            // 
+            this.webServerEnabledCheckBox.AutoSize = true;
+            this.webServerEnabledCheckBox.Location = new System.Drawing.Point(16, 28);
+            this.webServerEnabledCheckBox.Name = "webServerEnabledCheckBox";
+            this.webServerEnabledCheckBox.Size = new System.Drawing.Size(119, 17);
+            this.webServerEnabledCheckBox.TabIndex = 0;
+            this.webServerEnabledCheckBox.Text = "Enable Web Server";
+            this.webServerEnabledCheckBox.UseVisualStyleBackColor = true;
+            this.webServerEnabledCheckBox.CheckedChanged += new System.EventHandler(this.webServerEnabledCheckBox_CheckedChanged);
+            // 
+            // label5
+            // 
+            this.label5.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.label5.Location = new System.Drawing.Point(6, 11);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(286, 74);
+            this.label5.TabIndex = 4;
+            this.label5.Text = "Enable the built-in web server to order to share radio services with other applic" +
+    "ations including other instances of this application. Allows you to access this " +
+    "radio over the local network.";
+            // 
             // okButton
             // 
             this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
@@ -342,6 +410,39 @@
             this.cancelButton.TabIndex = 15;
             this.cancelButton.Text = "Cancel";
             this.cancelButton.UseVisualStyleBackColor = true;
+            // 
+            // pictureBox1
+            // 
+            this.pictureBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.pictureBox1.Image = global::HTCommander.Properties.Resources.Certificate;
+            this.pictureBox1.Location = new System.Drawing.Point(298, 8);
+            this.pictureBox1.Name = "pictureBox1";
+            this.pictureBox1.Size = new System.Drawing.Size(69, 77);
+            this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox1.TabIndex = 1;
+            this.pictureBox1.TabStop = false;
+            // 
+            // pictureBox2
+            // 
+            this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.pictureBox2.Image = global::HTCommander.Properties.Resources.MapPoint1;
+            this.pictureBox2.Location = new System.Drawing.Point(298, 8);
+            this.pictureBox2.Name = "pictureBox2";
+            this.pictureBox2.Size = new System.Drawing.Size(69, 77);
+            this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox2.TabIndex = 3;
+            this.pictureBox2.TabStop = false;
+            // 
+            // pictureBox3
+            // 
+            this.pictureBox3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.pictureBox3.Image = global::HTCommander.Properties.Resources.webserver;
+            this.pictureBox3.Location = new System.Drawing.Point(298, 8);
+            this.pictureBox3.Name = "pictureBox3";
+            this.pictureBox3.Size = new System.Drawing.Size(69, 77);
+            this.pictureBox3.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox3.TabIndex = 5;
+            this.pictureBox3.TabStop = false;
             // 
             // SettingsForm
             // 
@@ -367,10 +468,15 @@
             this.licenseTabPage.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.aprsTabPage.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).EndInit();
             this.groupBox2.ResumeLayout(false);
+            this.webServerTabPage.ResumeLayout(false);
+            this.groupBox3.ResumeLayout(false);
+            this.groupBox3.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.webPortNumericUpDown)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -399,5 +505,12 @@
         private System.Windows.Forms.Button okButton;
         private System.Windows.Forms.Button cancelButton;
         private System.Windows.Forms.Button editButton;
+        private System.Windows.Forms.TabPage webServerTabPage;
+        private System.Windows.Forms.PictureBox pictureBox3;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.GroupBox groupBox3;
+        private System.Windows.Forms.NumericUpDown webPortNumericUpDown;
+        private System.Windows.Forms.Label label6;
+        private System.Windows.Forms.CheckBox webServerEnabledCheckBox;
     }
 }

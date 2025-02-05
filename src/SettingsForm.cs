@@ -28,6 +28,9 @@ namespace HTCommander
 
         public string AprsRoutes { get { return GetAprsRoutes(); } set { SetAprsRoutes(value); } }
 
+        public bool WebServerEnabled { get { return webServerEnabledCheckBox.Checked; } set { webServerEnabledCheckBox.Checked = value; } }
+        public int WebServerPort { get { return (int)webPortNumericUpDown.Value; } set { if (value > 0) { webPortNumericUpDown.Value = value; } else { webPortNumericUpDown.Value = 8080; }; } }
+
         public SettingsForm()
         {
             InitializeComponent();
@@ -37,6 +40,7 @@ namespace HTCommander
         {
             // If there are no ARPS routes, add the default one.
             if (aprsRoutesListView.Items.Count == 0) { AddAprsRouteString("Standard|APN000,WIDE1-1,WIDE2-2"); }
+            UpdateInfo();
         }
 
         private string GetAprsRoutes()
@@ -73,6 +77,7 @@ namespace HTCommander
         {
             allowTransmitCheckBox.Enabled = (callsignTextBox.Text.Length >= 3);
             if (allowTransmitCheckBox.Enabled == false) { allowTransmitCheckBox.Checked = false; }
+            webPortNumericUpDown.Enabled = webServerEnabledCheckBox.Checked;
         }
 
         private void callsignTextBox_TextChanged(object sender, EventArgs e)
@@ -144,6 +149,11 @@ namespace HTCommander
             {
                 e.Handled = true; // Block the input
             }
+        }
+
+        private void webServerEnabledCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdateInfo();
         }
     }
 }

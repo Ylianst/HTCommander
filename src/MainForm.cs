@@ -28,6 +28,8 @@ using GMap.NET;
 using aprsparser;
 using static HTCommander.Radio;
 using System.Globalization;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace HTCommander
 {
@@ -65,6 +67,9 @@ namespace HTCommander
         public List<StationInfoClass> stations = new List<StationInfoClass>();
         public StationInfoClass activeStationLock = null;
         public int activeChannelIdLock = -1;
+        public HttpsWebSocketServer webserver;
+        public bool webServerEnabled = false;
+        public int webServerPort = 8080;
 
         public static Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
 
@@ -206,6 +211,15 @@ namespace HTCommander
 
             debugTextBox.Clear();
             CheckBluetooth();
+
+            // Setup the HTTP server if configured
+            webServerEnabled = (registry.ReadInt("webServerEnabled", 0) != 0);
+            webServerPort = (int)registry.ReadInt("webServerPort", 0);
+            if (webServerEnabled && (webServerPort > 0))
+            {
+                webserver = new HttpsWebSocketServer(this, webServerPort);
+                webserver.Start();
+            }
         }
 
         private async void CheckBluetooth()
@@ -614,7 +628,7 @@ namespace HTCommander
             }
         }
 
-        private void DebugTrace(string msg)
+        public void DebugTrace(string msg)
         {
             Program.BlockBoxEvent(msg);
             debugTextBox.AppendText(msg + Environment.NewLine);
@@ -623,11 +637,18 @@ namespace HTCommander
                 byte[] buf = UTF8Encoding.UTF8.GetBytes(DateTime.Now.ToString() + ": " + msg + Environment.NewLine);
                 try { debugFile.Write(buf, 0, buf.Length); } catch (Exception) { }
             }
+            if (webserver != null) { webserver.BroadcastString(msg); }
         }
 
         private void Radio_DebugMessage(Radio sender, string msg)
         {
             if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_DebugMessage(sender, msg); })); return; }
+            DebugTrace(msg);
+        }
+
+        public void Debug(string msg)
+        {
+            if (this.InvokeRequired) { this.Invoke(new Action(() => { Debug(msg); })); return; }
             DebugTrace(msg);
         }
 
@@ -1159,20 +1180,31 @@ namespace HTCommander
                 if ((stationId >= 0) && (stationId <= 15)) { settingsForm.StationId = stationId; }
                 settingsForm.AllowTransmit = allowTransmit;
                 settingsForm.AprsRoutes = Utils.EncodeAprsRoutes(aprsRoutes);
+                settingsForm.WebServerEnabled = webServerEnabled;
+                settingsForm.WebServerPort = webServerPort;
                 if (settingsForm.ShowDialog(this) == DialogResult.OK)
                 {
                     // License Settings
                     callsign = settingsForm.CallSign;
                     stationId = settingsForm.StationId;
                     allowTransmit = settingsForm.AllowTransmit;
+                    webServerEnabled = settingsForm.WebServerEnabled;
+                    webServerPort = settingsForm.WebServerPort;
                     registry.WriteString("CallSign", callsign);
                     registry.WriteInt("StationId", stationId);
                     registry.WriteInt("AllowTransmit", allowTransmit ? 1 : 0);
+                    registry.WriteInt("webServerEnabled", webServerEnabled ? 1 : 0);
+                    registry.WriteInt("webServerPort", webServerPort);
 
                     // APRS Settings
                     string aprsRoutesStr = settingsForm.AprsRoutes;
                     registry.WriteString("AprsRoutes", aprsRoutesStr);
                     aprsRoutes = Utils.DecodeAprsRoutes(aprsRoutesStr);
+
+                    // Web Server
+                    if ((webServerEnabled == false) && (webserver != null)) { webserver.Stop(); webserver = null; }
+                    if ((webserver != null) && (webserver.port != webServerPort)) { webserver.Stop(); webserver = null; }
+                    if ((webServerEnabled == true) && (webserver == null)) { webserver = new HttpsWebSocketServer(this, webServerPort); webserver.Start(); }
 
                     CheckAprsChannel();
                     UpdateInfo();

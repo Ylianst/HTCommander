@@ -244,6 +244,7 @@
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="StationInfoClass.cs" />
+    <Compile Include="WebServerClass.cs" />
     <EmbeddedResource Include="AboutForm.resx">
       <DependentUpon>AboutForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -339,6 +340,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="HTCommander.ico" />
+    <None Include="Resources\webserver.png" />
     <None Include="images\Terminal.png" />
     <None Include="images\Paring.png" />
   </ItemGroup>
