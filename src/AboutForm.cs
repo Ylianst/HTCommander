@@ -66,5 +66,10 @@ namespace HTCommander
             // Return the FileVersion as a string
             return versionInfo.FileVersion;
         }
+
+        private void linkLabel4_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://" + linkLabel4.Text);
+        }
     }
 }
