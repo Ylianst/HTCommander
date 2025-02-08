@@ -17,6 +17,7 @@ limitations under the License.
 using System;
 using System.Text;
 using System.Collections.Generic;
+using System.Drawing.Drawing2D;
 
 namespace HTCommander
 {
@@ -36,7 +37,21 @@ namespace HTCommander
         public byte pid;       // Only used for I_FRAME and U_FRAME_UI
         public bool modulo128; // True if we need 2 control bytes for more inflight packets
         public string dataStr; // Only used for I_FRAME and U_FRAME_UI
-        public byte[] data; // Only used for I_FRAME and U_FRAME_UI
+        public byte[] data;    // Only used for I_FRAME and U_FRAME_UI
+
+        public bool isSame(AX25Packet p)
+        {
+            if (p.dataStr != dataStr) return false;
+            if (p.addresses.Count != addresses.Count) return false;
+            for (int i = 0; i < addresses.Count; i++) { if (!p.addresses[i].isSame(addresses[i])) return false; }
+            if (p.pollFinal != pollFinal) return false;
+            if (p.command != command) return false;
+            if (p.nr != nr) return false;
+            if (p.ns != ns) return false;
+            if (p.pid != pid) return false;
+            if (p.modulo128 != modulo128) return false;
+            return true;
+        }
 
         public AX25Packet(List<AX25Address> addresses, string dataStr, DateTime time)
         {
@@ -58,7 +73,7 @@ namespace HTCommander
 
         public static AX25Packet DecodeAX25Packet(byte[] data, DateTime time)
         {
-            if (data.Length < 6) return null;
+            if ((data == null) || (data.Length < 6)) return null;
 
             // This is an odd packet, not sure if it's AX25 at all
             if (data[0] == 1)

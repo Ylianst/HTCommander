@@ -65,6 +65,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Adventurer">
+      <HintPath>adventurer\Adventurer.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" />
@@ -120,6 +123,7 @@
     <Compile Include="AprsConfigurationForm.Designer.cs">
       <DependentUpon>AprsConfigurationForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="BBS.cs" />
     <Compile Include="BTAccessDeniedForm.cs">
       <SubType>Form</SubType>
     </Compile>

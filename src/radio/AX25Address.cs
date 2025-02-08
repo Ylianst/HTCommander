@@ -29,6 +29,13 @@ namespace HTCommander
 
         private AX25Address() { }
 
+        public bool isSame(AX25Address a)
+        {
+            if (address != a.address) return false;
+            if (SSID != a.SSID) return false;
+            return true;
+        }
+
         public static AX25Address GetAddress(string address, int SSID)
         {
             if ((address == null) || (address.Length > 6)) return null;

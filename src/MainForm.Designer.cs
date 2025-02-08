@@ -30,14 +30,17 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -56,6 +59,9 @@
             this.regionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem5 = new System.Windows.Forms.ToolStripSeparator();
             this.volumeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem10 = new System.Windows.Forms.ToolStripSeparator();
+            this.exportChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.importChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.radioToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -64,6 +70,7 @@
             this.terminalToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.contactsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.bBSToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.packetsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.debugToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -100,10 +107,6 @@
             this.aprsTopPanel = new System.Windows.Forms.Panel();
             this.aprsRouteComboBox = new System.Windows.Forms.ComboBox();
             this.aprsMenuPictureBox = new System.Windows.Forms.PictureBox();
-            this.aprsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.showAllMessagesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem7 = new System.Windows.Forms.ToolStripSeparator();
-            this.smSMessageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsTitleLabel = new System.Windows.Forms.Label();
             this.mapTabPage = new System.Windows.Forms.TabPage();
             this.mapZoomOutButton = new System.Windows.Forms.Button();
@@ -112,15 +115,13 @@
             this.mapTopPanel = new System.Windows.Forms.Panel();
             this.mapTopLabel = new System.Windows.Forms.Label();
             this.terminalTabPage = new System.Windows.Forms.TabPage();
+            this.terminalTextBox = new System.Windows.Forms.RichTextBox();
             this.terminalBottomPanel = new System.Windows.Forms.Panel();
             this.terminalInputTextBox = new System.Windows.Forms.TextBox();
             this.terminalSendButton = new System.Windows.Forms.Button();
-            this.terminalTextBox = new System.Windows.Forms.TextBox();
             this.terminalTopPanel = new System.Windows.Forms.Panel();
             this.terminalConnectButton = new System.Windows.Forms.Button();
             this.terminalMenuPictureBox = new System.Windows.Forms.PictureBox();
-            this.terminalTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.toolStripMenuItem13 = new System.Windows.Forms.ToolStripMenuItem();
             this.terminalTitleLabel = new System.Windows.Forms.Label();
             this.mailTabPage = new System.Windows.Forms.TabPage();
             this.listView1 = new System.Windows.Forms.ListView();
@@ -146,6 +147,14 @@
             this.addStationButton = new System.Windows.Forms.Button();
             this.removeStationButton = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
+            this.bbsTabPage = new System.Windows.Forms.TabPage();
+            this.bbsListView = new System.Windows.Forms.ListView();
+            this.columnHeader10 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader11 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader12 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.panel4 = new System.Windows.Forms.Panel();
+            this.bbsConnectButton = new System.Windows.Forms.Button();
+            this.label3 = new System.Windows.Forms.Label();
             this.packetsTabPage = new System.Windows.Forms.TabPage();
             this.packetsSplitContainer = new System.Windows.Forms.SplitContainer();
             this.packetsListView = new System.Windows.Forms.ListView();
@@ -169,6 +178,14 @@
             this.debugMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.label2 = new System.Windows.Forms.Label();
             this.tabsImageList = new System.Windows.Forms.ImageList(this.components);
+            this.aprsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.showAllMessagesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem7 = new System.Windows.Forms.ToolStripSeparator();
+            this.smSMessageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.terminalTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.showCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem9 = new System.Windows.Forms.ToolStripSeparator();
+            this.toolStripMenuItem13 = new System.Windows.Forms.ToolStripMenuItem();
             this.debugTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.debugSaveToFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showBluetoothFramesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -192,11 +209,16 @@
             this.openPacketsFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.saveStationsFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.openStationsFileDialog = new System.Windows.Forms.OpenFileDialog();
-            this.exportChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exportChannelsFileDialog = new System.Windows.Forms.SaveFileDialog();
-            this.aprsChatControl = new HTCommander.ChatControl();
-            this.importChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.importChannelFileDialog = new System.Windows.Forms.OpenFileDialog();
+            this.bbsSplitContainer = new System.Windows.Forms.SplitContainer();
+            this.bbsMenuPictureBox = new System.Windows.Forms.PictureBox();
+            this.bbsTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.viewTrafficToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.clearStatsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem11 = new System.Windows.Forms.ToolStripSeparator();
+            this.bbsTextBox = new System.Windows.Forms.RichTextBox();
+            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -208,14 +230,12 @@
             this.aprsBottomPanel.SuspendLayout();
             this.aprsTopPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).BeginInit();
-            this.aprsContextMenuStrip.SuspendLayout();
             this.mapTabPage.SuspendLayout();
             this.mapTopPanel.SuspendLayout();
             this.terminalTabPage.SuspendLayout();
             this.terminalBottomPanel.SuspendLayout();
             this.terminalTopPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.terminalMenuPictureBox)).BeginInit();
-            this.terminalTabContextMenuStrip.SuspendLayout();
             this.mailTabPage.SuspendLayout();
             this.panel2.SuspendLayout();
             this.addressesTabPage.SuspendLayout();
@@ -223,6 +243,8 @@
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.stationsMenuPictureBox)).BeginInit();
             this.stationsTabContextMenuStrip.SuspendLayout();
+            this.bbsTabPage.SuspendLayout();
+            this.panel4.SuspendLayout();
             this.packetsTabPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.packetsSplitContainer)).BeginInit();
             this.packetsSplitContainer.Panel1.SuspendLayout();
@@ -235,9 +257,17 @@
             this.debugTabPage.SuspendLayout();
             this.debugControlsPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).BeginInit();
+            this.aprsContextMenuStrip.SuspendLayout();
+            this.terminalTabContextMenuStrip.SuspendLayout();
             this.debugTabContextMenuStrip.SuspendLayout();
             this.aprsMsgContextMenuStrip.SuspendLayout();
             this.packetsContextMenuStrip.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.bbsSplitContainer)).BeginInit();
+            this.bbsSplitContainer.Panel1.SuspendLayout();
+            this.bbsSplitContainer.Panel2.SuspendLayout();
+            this.bbsSplitContainer.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.bbsMenuPictureBox)).BeginInit();
+            this.bbsTabContextMenuStrip.SuspendLayout();
             this.SuspendLayout();
             // 
             // mainStatusStrip
@@ -351,6 +381,7 @@
             this.regionToolStripMenuItem,
             this.toolStripMenuItem5,
             this.volumeToolStripMenuItem,
+            this.toolStripMenuItem10,
             this.exportChannelsToolStripMenuItem,
             this.importChannelsToolStripMenuItem});
             this.settingsToolStripMenuItem1.Name = "settingsToolStripMenuItem1";
@@ -361,7 +392,7 @@
             // 
             this.dualWatchToolStripMenuItem.Enabled = false;
             this.dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
-            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.dualWatchToolStripMenuItem.Text = "&Dual-Watch";
             this.dualWatchToolStripMenuItem.Click += new System.EventHandler(this.dualWatchToolStripMenuItem_Click);
             // 
@@ -369,7 +400,7 @@
             // 
             this.scanToolStripMenuItem.Enabled = false;
             this.scanToolStripMenuItem.Name = "scanToolStripMenuItem";
-            this.scanToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.scanToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.scanToolStripMenuItem.Text = "&Scan";
             this.scanToolStripMenuItem.Click += new System.EventHandler(this.scanToolStripMenuItem_Click);
             // 
@@ -377,21 +408,41 @@
             // 
             this.regionToolStripMenuItem.Enabled = false;
             this.regionToolStripMenuItem.Name = "regionToolStripMenuItem";
-            this.regionToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.regionToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.regionToolStripMenuItem.Text = "&Regions";
             // 
             // toolStripMenuItem5
             // 
             this.toolStripMenuItem5.Name = "toolStripMenuItem5";
-            this.toolStripMenuItem5.Size = new System.Drawing.Size(177, 6);
+            this.toolStripMenuItem5.Size = new System.Drawing.Size(168, 6);
             // 
             // volumeToolStripMenuItem
             // 
             this.volumeToolStripMenuItem.Enabled = false;
             this.volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.volumeToolStripMenuItem.Text = "&Volume...";
             this.volumeToolStripMenuItem.Click += new System.EventHandler(this.volumeToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItem10
+            // 
+            this.toolStripMenuItem10.Name = "toolStripMenuItem10";
+            this.toolStripMenuItem10.Size = new System.Drawing.Size(168, 6);
+            // 
+            // exportChannelsToolStripMenuItem
+            // 
+            this.exportChannelsToolStripMenuItem.Enabled = false;
+            this.exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
+            this.exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
+            this.exportChannelsToolStripMenuItem.Text = "&Export Channels...";
+            this.exportChannelsToolStripMenuItem.Click += new System.EventHandler(this.exportChannelsToolStripMenuItem_Click);
+            // 
+            // importChannelsToolStripMenuItem
+            // 
+            this.importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
+            this.importChannelsToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
+            this.importChannelsToolStripMenuItem.Text = "&Import Channels...";
+            this.importChannelsToolStripMenuItem.Click += new System.EventHandler(this.importChannelsToolStripMenuItem_Click);
             // 
             // viewToolStripMenuItem
             // 
@@ -403,6 +454,7 @@
             this.terminalToolStripMenuItem,
             this.mailToolStripMenuItem,
             this.contactsToolStripMenuItem,
+            this.bBSToolStripMenuItem,
             this.packetsToolStripMenuItem,
             this.debugToolStripMenuItem});
             this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
@@ -463,6 +515,14 @@
             this.contactsToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.contactsToolStripMenuItem.Text = "&Stations";
             this.contactsToolStripMenuItem.Click += new System.EventHandler(this.contactsToolStripMenuItem_Click);
+            // 
+            // bBSToolStripMenuItem
+            // 
+            this.bBSToolStripMenuItem.CheckOnClick = true;
+            this.bBSToolStripMenuItem.Name = "bBSToolStripMenuItem";
+            this.bBSToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
+            this.bBSToolStripMenuItem.Text = "&BBS";
+            this.bBSToolStripMenuItem.Click += new System.EventHandler(this.bBSToolStripMenuItem_Click);
             // 
             // packetsToolStripMenuItem
             // 
@@ -724,6 +784,7 @@
             this.mainTabControl.Controls.Add(this.terminalTabPage);
             this.mainTabControl.Controls.Add(this.mailTabPage);
             this.mainTabControl.Controls.Add(this.addressesTabPage);
+            this.mainTabControl.Controls.Add(this.bbsTabPage);
             this.mainTabControl.Controls.Add(this.packetsTabPage);
             this.mainTabControl.Controls.Add(this.debugTabPage);
             this.mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -879,7 +940,6 @@
             // aprsMenuPictureBox
             // 
             this.aprsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.aprsMenuPictureBox.ContextMenuStrip = this.aprsContextMenuStrip;
             this.aprsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("aprsMenuPictureBox.Image")));
             this.aprsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
             this.aprsMenuPictureBox.Name = "aprsMenuPictureBox";
@@ -888,36 +948,6 @@
             this.aprsMenuPictureBox.TabIndex = 2;
             this.aprsMenuPictureBox.TabStop = false;
             this.aprsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsMenuPictureBox_MouseClick);
-            // 
-            // aprsContextMenuStrip
-            // 
-            this.aprsContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.aprsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.showAllMessagesToolStripMenuItem,
-            this.toolStripMenuItem7,
-            this.smSMessageToolStripMenuItem});
-            this.aprsContextMenuStrip.Name = "aprsContextMenuStrip";
-            this.aprsContextMenuStrip.Size = new System.Drawing.Size(159, 54);
-            // 
-            // showAllMessagesToolStripMenuItem
-            // 
-            this.showAllMessagesToolStripMenuItem.CheckOnClick = true;
-            this.showAllMessagesToolStripMenuItem.Name = "showAllMessagesToolStripMenuItem";
-            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
-            this.showAllMessagesToolStripMenuItem.Text = "Show Telemetry";
-            this.showAllMessagesToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showAllMessagesToolStripMenuItem_CheckStateChanged);
-            // 
-            // toolStripMenuItem7
-            // 
-            this.toolStripMenuItem7.Name = "toolStripMenuItem7";
-            this.toolStripMenuItem7.Size = new System.Drawing.Size(155, 6);
-            // 
-            // smSMessageToolStripMenuItem
-            // 
-            this.smSMessageToolStripMenuItem.Name = "smSMessageToolStripMenuItem";
-            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
-            this.smSMessageToolStripMenuItem.Text = "SMS Message...";
-            this.smSMessageToolStripMenuItem.Click += new System.EventHandler(this.aprsSmsButton_Click);
             // 
             // aprsTitleLabel
             // 
@@ -1021,8 +1051,8 @@
             // 
             // terminalTabPage
             // 
-            this.terminalTabPage.Controls.Add(this.terminalBottomPanel);
             this.terminalTabPage.Controls.Add(this.terminalTextBox);
+            this.terminalTabPage.Controls.Add(this.terminalBottomPanel);
             this.terminalTabPage.Controls.Add(this.terminalTopPanel);
             this.terminalTabPage.ImageKey = "terminal-32.png";
             this.terminalTabPage.Location = new System.Drawing.Point(4, 4);
@@ -1030,6 +1060,20 @@
             this.terminalTabPage.Size = new System.Drawing.Size(508, 518);
             this.terminalTabPage.TabIndex = 2;
             this.terminalTabPage.UseVisualStyleBackColor = true;
+            // 
+            // terminalTextBox
+            // 
+            this.terminalTextBox.BackColor = System.Drawing.Color.Black;
+            this.terminalTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.terminalTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.terminalTextBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold);
+            this.terminalTextBox.ForeColor = System.Drawing.Color.Gainsboro;
+            this.terminalTextBox.Location = new System.Drawing.Point(0, 30);
+            this.terminalTextBox.Name = "terminalTextBox";
+            this.terminalTextBox.ReadOnly = true;
+            this.terminalTextBox.Size = new System.Drawing.Size(508, 451);
+            this.terminalTextBox.TabIndex = 4;
+            this.terminalTextBox.Text = "";
             // 
             // terminalBottomPanel
             // 
@@ -1066,23 +1110,6 @@
             this.terminalSendButton.UseVisualStyleBackColor = true;
             this.terminalSendButton.Click += new System.EventHandler(this.terminalSendButton_Click);
             // 
-            // terminalTextBox
-            // 
-            this.terminalTextBox.BackColor = System.Drawing.Color.Black;
-            this.terminalTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.terminalTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.terminalTextBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.terminalTextBox.ForeColor = System.Drawing.Color.WhiteSmoke;
-            this.terminalTextBox.Location = new System.Drawing.Point(0, 30);
-            this.terminalTextBox.Margin = new System.Windows.Forms.Padding(0);
-            this.terminalTextBox.Multiline = true;
-            this.terminalTextBox.Name = "terminalTextBox";
-            this.terminalTextBox.ReadOnly = true;
-            this.terminalTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.terminalTextBox.Size = new System.Drawing.Size(508, 488);
-            this.terminalTextBox.TabIndex = 2;
-            this.terminalTextBox.WordWrap = false;
-            // 
             // terminalTopPanel
             // 
             this.terminalTopPanel.BackColor = System.Drawing.Color.Silver;
@@ -1110,7 +1137,6 @@
             // terminalMenuPictureBox
             // 
             this.terminalMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalMenuPictureBox.ContextMenuStrip = this.terminalTabContextMenuStrip;
             this.terminalMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("terminalMenuPictureBox.Image")));
             this.terminalMenuPictureBox.Location = new System.Drawing.Point(484, 5);
             this.terminalMenuPictureBox.Name = "terminalMenuPictureBox";
@@ -1119,21 +1145,6 @@
             this.terminalMenuPictureBox.TabIndex = 3;
             this.terminalMenuPictureBox.TabStop = false;
             this.terminalMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.terminalMenuPictureBox_MouseClick);
-            // 
-            // terminalTabContextMenuStrip
-            // 
-            this.terminalTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.terminalTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.toolStripMenuItem13});
-            this.terminalTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(102, 26);
-            // 
-            // toolStripMenuItem13
-            // 
-            this.toolStripMenuItem13.Name = "toolStripMenuItem13";
-            this.toolStripMenuItem13.Size = new System.Drawing.Size(101, 22);
-            this.toolStripMenuItem13.Text = "&Clear";
-            this.toolStripMenuItem13.Click += new System.EventHandler(this.toolStripMenuItem13_Click);
             // 
             // terminalTitleLabel
             // 
@@ -1232,16 +1243,16 @@
             this.mainAddressBookListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainAddressBookListView.FullRowSelect = true;
             this.mainAddressBookListView.GridLines = true;
-            listViewGroup9.Header = "Generic Stations";
-            listViewGroup9.Name = "Generic Stations";
-            listViewGroup10.Header = "APRS Stations";
-            listViewGroup10.Name = "APRS Stations";
-            listViewGroup11.Header = "Terminal Stations";
-            listViewGroup11.Name = "Terminal Stations";
+            listViewGroup1.Header = "Generic Stations";
+            listViewGroup1.Name = "Generic Stations";
+            listViewGroup2.Header = "APRS Stations";
+            listViewGroup2.Name = "APRS Stations";
+            listViewGroup3.Header = "Terminal Stations";
+            listViewGroup3.Name = "Terminal Stations";
             this.mainAddressBookListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup9,
-            listViewGroup10,
-            listViewGroup11});
+            listViewGroup1,
+            listViewGroup2,
+            listViewGroup3});
             this.mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.mainAddressBookListView.HideSelection = false;
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 30);
@@ -1272,6 +1283,7 @@
             // 
             // stationsContextMenuStrip
             // 
+            this.stationsContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.stationsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.editToolStripMenuItem,
             this.removeToolStripMenuItem,
@@ -1385,6 +1397,99 @@
             this.label1.TabIndex = 0;
             this.label1.Text = "Address Book";
             // 
+            // bbsTabPage
+            // 
+            this.bbsTabPage.Controls.Add(this.bbsSplitContainer);
+            this.bbsTabPage.Controls.Add(this.panel4);
+            this.bbsTabPage.ImageIndex = 7;
+            this.bbsTabPage.Location = new System.Drawing.Point(4, 4);
+            this.bbsTabPage.Name = "bbsTabPage";
+            this.bbsTabPage.Size = new System.Drawing.Size(508, 518);
+            this.bbsTabPage.TabIndex = 7;
+            this.bbsTabPage.UseVisualStyleBackColor = true;
+            // 
+            // bbsListView
+            // 
+            this.bbsListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.columnHeader10,
+            this.columnHeader11,
+            this.columnHeader12});
+            this.bbsListView.ContextMenuStrip = this.stationsContextMenuStrip;
+            this.bbsListView.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.bbsListView.FullRowSelect = true;
+            this.bbsListView.GridLines = true;
+            listViewGroup4.Header = "Generic Stations";
+            listViewGroup4.Name = "Generic Stations";
+            listViewGroup5.Header = "APRS Stations";
+            listViewGroup5.Name = "APRS Stations";
+            listViewGroup6.Header = "Terminal Stations";
+            listViewGroup6.Name = "Terminal Stations";
+            this.bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
+            listViewGroup4,
+            listViewGroup5,
+            listViewGroup6});
+            this.bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
+            this.bbsListView.HideSelection = false;
+            this.bbsListView.Location = new System.Drawing.Point(0, 0);
+            this.bbsListView.Name = "bbsListView";
+            this.bbsListView.Size = new System.Drawing.Size(508, 244);
+            this.bbsListView.SmallImageList = this.mainImageList;
+            this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
+            this.bbsListView.TabIndex = 6;
+            this.bbsListView.UseCompatibleStateImageBehavior = false;
+            this.bbsListView.View = System.Windows.Forms.View.Details;
+            this.bbsListView.Resize += new System.EventHandler(this.bbsListView_Resize);
+            // 
+            // columnHeader10
+            // 
+            this.columnHeader10.Text = "Call Sign";
+            this.columnHeader10.Width = 100;
+            // 
+            // columnHeader11
+            // 
+            this.columnHeader11.Text = "Last Seen";
+            this.columnHeader11.Width = 133;
+            // 
+            // columnHeader12
+            // 
+            this.columnHeader12.Text = "Stats";
+            this.columnHeader12.Width = 251;
+            // 
+            // panel4
+            // 
+            this.panel4.BackColor = System.Drawing.Color.Silver;
+            this.panel4.Controls.Add(this.bbsMenuPictureBox);
+            this.panel4.Controls.Add(this.bbsConnectButton);
+            this.panel4.Controls.Add(this.label3);
+            this.panel4.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panel4.Location = new System.Drawing.Point(0, 0);
+            this.panel4.Name = "panel4";
+            this.panel4.Size = new System.Drawing.Size(508, 30);
+            this.panel4.TabIndex = 5;
+            // 
+            // bbsConnectButton
+            // 
+            this.bbsConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.bbsConnectButton.Location = new System.Drawing.Point(402, 3);
+            this.bbsConnectButton.Name = "bbsConnectButton";
+            this.bbsConnectButton.Size = new System.Drawing.Size(75, 23);
+            this.bbsConnectButton.TabIndex = 2;
+            this.bbsConnectButton.Text = "&Activate";
+            this.bbsConnectButton.UseVisualStyleBackColor = true;
+            this.bbsConnectButton.Click += new System.EventHandler(this.bbsConnectButton_Click);
+            // 
+            // label3
+            // 
+            this.label3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.label3.AutoSize = true;
+            this.label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label3.Location = new System.Drawing.Point(5, 5);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(42, 20);
+            this.label3.TabIndex = 0;
+            this.label3.Text = "BBS";
+            // 
             // packetsTabPage
             // 
             this.packetsTabPage.Controls.Add(this.packetsSplitContainer);
@@ -1411,7 +1516,7 @@
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
             this.packetsSplitContainer.Size = new System.Drawing.Size(508, 488);
-            this.packetsSplitContainer.SplitterDistance = 242;
+            this.packetsSplitContainer.SplitterDistance = 241;
             this.packetsSplitContainer.TabIndex = 6;
             // 
             // packetsListView
@@ -1428,7 +1533,7 @@
             this.packetsListView.HideSelection = false;
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
             this.packetsListView.Name = "packetsListView";
-            this.packetsListView.Size = new System.Drawing.Size(508, 242);
+            this.packetsListView.Size = new System.Drawing.Size(508, 241);
             this.packetsListView.SmallImageList = this.mainImageList;
             this.packetsListView.TabIndex = 5;
             this.packetsListView.UseCompatibleStateImageBehavior = false;
@@ -1484,27 +1589,27 @@
             this.packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.packetDecodeListView.FullRowSelect = true;
             this.packetDecodeListView.GridLines = true;
-            listViewGroup1.Header = "Metadata";
-            listViewGroup1.Name = "packetDecodeMetadataListViewGroup";
-            listViewGroup2.Header = "AX.25 Header";
-            listViewGroup2.Name = "packetDecodeHeaderListViewGroup";
-            listViewGroup3.Header = "AX.25 Data";
-            listViewGroup3.Name = "packetDecodeDataListViewGroup";
-            listViewGroup12.Header = "APRS";
-            listViewGroup12.Name = "packetDecodeAprsListViewGroup";
-            listViewGroup13.Header = "Position";
-            listViewGroup13.Name = "packetDecodePositionListViewGroup";
+            listViewGroup7.Header = "Metadata";
+            listViewGroup7.Name = "packetDecodeMetadataListViewGroup";
+            listViewGroup8.Header = "AX.25 Header";
+            listViewGroup8.Name = "packetDecodeHeaderListViewGroup";
+            listViewGroup9.Header = "AX.25 Data";
+            listViewGroup9.Name = "packetDecodeDataListViewGroup";
+            listViewGroup10.Header = "APRS";
+            listViewGroup10.Name = "packetDecodeAprsListViewGroup";
+            listViewGroup11.Header = "Position";
+            listViewGroup11.Name = "packetDecodePositionListViewGroup";
             this.packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup1,
-            listViewGroup2,
-            listViewGroup3,
-            listViewGroup12,
-            listViewGroup13});
+            listViewGroup7,
+            listViewGroup8,
+            listViewGroup9,
+            listViewGroup10,
+            listViewGroup11});
             this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.packetDecodeListView.HideSelection = false;
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(508, 242);
+            this.packetDecodeListView.Size = new System.Drawing.Size(508, 243);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;
@@ -1520,6 +1625,7 @@
             // 
             // packetDataContextMenuStrip
             // 
+            this.packetDataContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.packetDataContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.copyToClipboardToolStripMenuItem});
             this.packetDataContextMenuStrip.Name = "packetDataContextMenuStrip";
@@ -1641,6 +1747,67 @@
             this.tabsImageList.Images.SetKeyName(4, "AddressBook.ico");
             this.tabsImageList.Images.SetKeyName(5, "Letter.png");
             this.tabsImageList.Images.SetKeyName(6, "search.ico");
+            this.tabsImageList.Images.SetKeyName(7, "transfer.ico");
+            // 
+            // aprsContextMenuStrip
+            // 
+            this.aprsContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.aprsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.showAllMessagesToolStripMenuItem,
+            this.toolStripMenuItem7,
+            this.smSMessageToolStripMenuItem});
+            this.aprsContextMenuStrip.Name = "aprsContextMenuStrip";
+            this.aprsContextMenuStrip.Size = new System.Drawing.Size(159, 54);
+            // 
+            // showAllMessagesToolStripMenuItem
+            // 
+            this.showAllMessagesToolStripMenuItem.CheckOnClick = true;
+            this.showAllMessagesToolStripMenuItem.Name = "showAllMessagesToolStripMenuItem";
+            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
+            this.showAllMessagesToolStripMenuItem.Text = "Show Telemetry";
+            this.showAllMessagesToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showAllMessagesToolStripMenuItem_CheckStateChanged);
+            // 
+            // toolStripMenuItem7
+            // 
+            this.toolStripMenuItem7.Name = "toolStripMenuItem7";
+            this.toolStripMenuItem7.Size = new System.Drawing.Size(155, 6);
+            // 
+            // smSMessageToolStripMenuItem
+            // 
+            this.smSMessageToolStripMenuItem.Name = "smSMessageToolStripMenuItem";
+            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
+            this.smSMessageToolStripMenuItem.Text = "SMS Message...";
+            this.smSMessageToolStripMenuItem.Click += new System.EventHandler(this.aprsSmsButton_Click);
+            // 
+            // terminalTabContextMenuStrip
+            // 
+            this.terminalTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.terminalTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.showCallsignToolStripMenuItem,
+            this.toolStripMenuItem9,
+            this.toolStripMenuItem13});
+            this.terminalTabContextMenuStrip.Name = "debugTabContextMenuStrip";
+            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(149, 54);
+            // 
+            // showCallsignToolStripMenuItem
+            // 
+            this.showCallsignToolStripMenuItem.CheckOnClick = true;
+            this.showCallsignToolStripMenuItem.Name = "showCallsignToolStripMenuItem";
+            this.showCallsignToolStripMenuItem.Size = new System.Drawing.Size(148, 22);
+            this.showCallsignToolStripMenuItem.Text = "&Show Callsign";
+            this.showCallsignToolStripMenuItem.Click += new System.EventHandler(this.showCallsignToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItem9
+            // 
+            this.toolStripMenuItem9.Name = "toolStripMenuItem9";
+            this.toolStripMenuItem9.Size = new System.Drawing.Size(145, 6);
+            // 
+            // toolStripMenuItem13
+            // 
+            this.toolStripMenuItem13.Name = "toolStripMenuItem13";
+            this.toolStripMenuItem13.Size = new System.Drawing.Size(148, 22);
+            this.toolStripMenuItem13.Text = "&Clear";
+            this.toolStripMenuItem13.Click += new System.EventHandler(this.toolStripMenuItem13_Click);
             // 
             // debugTabContextMenuStrip
             // 
@@ -1810,20 +1977,93 @@
             this.openStationsFileDialog.Filter = "JSON files|*.json";
             this.openStationsFileDialog.Title = "Import Stations";
             // 
-            // exportChannelsToolStripMenuItem
-            // 
-            this.exportChannelsToolStripMenuItem.Enabled = false;
-            this.exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
-            this.exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            this.exportChannelsToolStripMenuItem.Text = "&Export Channels...";
-            this.exportChannelsToolStripMenuItem.Click += new System.EventHandler(this.exportChannelsToolStripMenuItem_Click);
-            // 
             // exportChannelsFileDialog
             // 
             this.exportChannelsFileDialog.DefaultExt = "csv";
             this.exportChannelsFileDialog.FileName = "channels.csv";
             this.exportChannelsFileDialog.Filter = "Channels (*.csv)|*.csv|CHIRP (*.csv)|*.csv";
             this.exportChannelsFileDialog.Title = "Export Channels";
+            // 
+            // importChannelFileDialog
+            // 
+            this.importChannelFileDialog.Filter = "Channels (*.csv)|*.csv|CHIRP (*.csv)|*.csv";
+            this.importChannelFileDialog.Title = "Import Channels";
+            // 
+            // bbsSplitContainer
+            // 
+            this.bbsSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.bbsSplitContainer.Location = new System.Drawing.Point(0, 30);
+            this.bbsSplitContainer.Name = "bbsSplitContainer";
+            this.bbsSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
+            // 
+            // bbsSplitContainer.Panel1
+            // 
+            this.bbsSplitContainer.Panel1.Controls.Add(this.bbsListView);
+            // 
+            // bbsSplitContainer.Panel2
+            // 
+            this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
+            this.bbsSplitContainer.Size = new System.Drawing.Size(508, 488);
+            this.bbsSplitContainer.SplitterDistance = 244;
+            this.bbsSplitContainer.TabIndex = 7;
+            // 
+            // bbsMenuPictureBox
+            // 
+            this.bbsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.bbsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("bbsMenuPictureBox.Image")));
+            this.bbsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
+            this.bbsMenuPictureBox.Name = "bbsMenuPictureBox";
+            this.bbsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.bbsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.bbsMenuPictureBox.TabIndex = 4;
+            this.bbsMenuPictureBox.TabStop = false;
+            this.bbsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.pictureBox1_MouseClick);
+            // 
+            // bbsTabContextMenuStrip
+            // 
+            this.bbsTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.bbsTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.viewTrafficToolStripMenuItem,
+            this.toolStripMenuItem11,
+            this.clearStatsToolStripMenuItem});
+            this.bbsTabContextMenuStrip.Name = "debugTabContextMenuStrip";
+            this.bbsTabContextMenuStrip.Size = new System.Drawing.Size(181, 76);
+            // 
+            // viewTrafficToolStripMenuItem
+            // 
+            this.viewTrafficToolStripMenuItem.Checked = true;
+            this.viewTrafficToolStripMenuItem.CheckOnClick = true;
+            this.viewTrafficToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.viewTrafficToolStripMenuItem.Name = "viewTrafficToolStripMenuItem";
+            this.viewTrafficToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.viewTrafficToolStripMenuItem.Text = "&View Traffic";
+            this.viewTrafficToolStripMenuItem.Click += new System.EventHandler(this.viewTrafficToolStripMenuItem_Click);
+            // 
+            // clearStatsToolStripMenuItem
+            // 
+            this.clearStatsToolStripMenuItem.Name = "clearStatsToolStripMenuItem";
+            this.clearStatsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.clearStatsToolStripMenuItem.Text = "&Clear Stats";
+            this.clearStatsToolStripMenuItem.Click += new System.EventHandler(this.clearStatsToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItem11
+            // 
+            this.toolStripMenuItem11.Name = "toolStripMenuItem11";
+            this.toolStripMenuItem11.Size = new System.Drawing.Size(177, 6);
+            // 
+            // bbsTextBox
+            // 
+            this.bbsTextBox.BackColor = System.Drawing.Color.Black;
+            this.bbsTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.bbsTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.bbsTextBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold);
+            this.bbsTextBox.ForeColor = System.Drawing.Color.Gainsboro;
+            this.bbsTextBox.Location = new System.Drawing.Point(0, 0);
+            this.bbsTextBox.Name = "bbsTextBox";
+            this.bbsTextBox.ReadOnly = true;
+            this.bbsTextBox.Size = new System.Drawing.Size(508, 240);
+            this.bbsTextBox.TabIndex = 5;
+            this.bbsTextBox.Text = "";
             // 
             // aprsChatControl
             // 
@@ -1849,18 +2089,6 @@
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
             this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
-            // importChannelsToolStripMenuItem
-            // 
-            this.importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
-            this.importChannelsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            this.importChannelsToolStripMenuItem.Text = "&Import Channels...";
-            this.importChannelsToolStripMenuItem.Click += new System.EventHandler(this.importChannelsToolStripMenuItem_Click);
-            // 
-            // importChannelFileDialog
-            // 
-            this.importChannelFileDialog.Filter = "Channels (*.csv)|*.csv|CHIRP (*.csv)|*.csv";
-            this.importChannelFileDialog.Title = "Import Channels";
-            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -1872,7 +2100,7 @@
             this.Controls.Add(this.mainMenuStrip);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.mainMenuStrip;
-            this.MinimumSize = new System.Drawing.Size(800, 593);
+            this.MinimumSize = new System.Drawing.Size(800, 591);
             this.Name = "MainForm";
             this.Text = "Handi-Talkie Commander";
             this.Load += new System.EventHandler(this.MainForm_Load);
@@ -1892,18 +2120,15 @@
             this.aprsTopPanel.ResumeLayout(false);
             this.aprsTopPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).EndInit();
-            this.aprsContextMenuStrip.ResumeLayout(false);
             this.mapTabPage.ResumeLayout(false);
             this.mapTopPanel.ResumeLayout(false);
             this.mapTopPanel.PerformLayout();
             this.terminalTabPage.ResumeLayout(false);
-            this.terminalTabPage.PerformLayout();
             this.terminalBottomPanel.ResumeLayout(false);
             this.terminalBottomPanel.PerformLayout();
             this.terminalTopPanel.ResumeLayout(false);
             this.terminalTopPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.terminalMenuPictureBox)).EndInit();
-            this.terminalTabContextMenuStrip.ResumeLayout(false);
             this.mailTabPage.ResumeLayout(false);
             this.panel2.ResumeLayout(false);
             this.panel2.PerformLayout();
@@ -1913,6 +2138,9 @@
             this.panel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.stationsMenuPictureBox)).EndInit();
             this.stationsTabContextMenuStrip.ResumeLayout(false);
+            this.bbsTabPage.ResumeLayout(false);
+            this.panel4.ResumeLayout(false);
+            this.panel4.PerformLayout();
             this.packetsTabPage.ResumeLayout(false);
             this.packetsSplitContainer.Panel1.ResumeLayout(false);
             this.packetsSplitContainer.Panel2.ResumeLayout(false);
@@ -1928,9 +2156,17 @@
             this.debugControlsPanel.ResumeLayout(false);
             this.debugControlsPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).EndInit();
+            this.aprsContextMenuStrip.ResumeLayout(false);
+            this.terminalTabContextMenuStrip.ResumeLayout(false);
             this.debugTabContextMenuStrip.ResumeLayout(false);
             this.aprsMsgContextMenuStrip.ResumeLayout(false);
             this.packetsContextMenuStrip.ResumeLayout(false);
+            this.bbsSplitContainer.Panel1.ResumeLayout(false);
+            this.bbsSplitContainer.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.bbsSplitContainer)).EndInit();
+            this.bbsSplitContainer.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.bbsMenuPictureBox)).EndInit();
+            this.bbsTabContextMenuStrip.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -1975,7 +2211,6 @@
         private System.Windows.Forms.Label vfo2Label;
         private System.Windows.Forms.TabPage terminalTabPage;
         private System.Windows.Forms.Panel terminalTopPanel;
-        private System.Windows.Forms.TextBox terminalTextBox;
         private System.Windows.Forms.Panel terminalBottomPanel;
         private System.Windows.Forms.Button terminalSendButton;
         private System.Windows.Forms.TextBox terminalInputTextBox;
@@ -2098,6 +2333,26 @@
         private System.Windows.Forms.SaveFileDialog exportChannelsFileDialog;
         private System.Windows.Forms.ToolStripMenuItem importChannelsToolStripMenuItem;
         private System.Windows.Forms.OpenFileDialog importChannelFileDialog;
+        private System.Windows.Forms.RichTextBox terminalTextBox;
+        private System.Windows.Forms.ToolStripMenuItem showCallsignToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem9;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem10;
+        private System.Windows.Forms.TabPage bbsTabPage;
+        private System.Windows.Forms.ListView bbsListView;
+        private System.Windows.Forms.ColumnHeader columnHeader10;
+        private System.Windows.Forms.ColumnHeader columnHeader11;
+        private System.Windows.Forms.ColumnHeader columnHeader12;
+        private System.Windows.Forms.Panel panel4;
+        private System.Windows.Forms.Button bbsConnectButton;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.ToolStripMenuItem bBSToolStripMenuItem;
+        private System.Windows.Forms.SplitContainer bbsSplitContainer;
+        private System.Windows.Forms.PictureBox bbsMenuPictureBox;
+        private System.Windows.Forms.ContextMenuStrip bbsTabContextMenuStrip;
+        private System.Windows.Forms.ToolStripMenuItem viewTrafficToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem11;
+        private System.Windows.Forms.ToolStripMenuItem clearStatsToolStripMenuItem;
+        private System.Windows.Forms.RichTextBox bbsTextBox;
     }
 }
 

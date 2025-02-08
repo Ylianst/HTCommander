@@ -28,8 +28,7 @@ using GMap.NET;
 using aprsparser;
 using static HTCommander.Radio;
 using System.Globalization;
-using System.Threading.Tasks;
-using System.Threading;
+using static HTCommander.MainForm;
 
 namespace HTCommander
 {
@@ -70,6 +69,8 @@ namespace HTCommander
         public HttpsWebSocketServer webserver;
         public bool webServerEnabled = false;
         public int webServerPort = 8080;
+        public List<TerminalText> terminalTexts = new List<TerminalText>();
+        public BBS bbs;
 
         public static Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
 
@@ -79,6 +80,7 @@ namespace HTCommander
 
             g_MainForm = this;
             InitializeComponent();
+            bbs = new BBS(this);
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -127,6 +129,7 @@ namespace HTCommander
             aprsDestinationComboBox.Text = registry.ReadString("AprsDestination", "ALL");
             mapToolStripMenuItem.Checked = (registry.ReadInt("ViewMap", 0) == 1);
             contactsToolStripMenuItem.Checked = (registry.ReadInt("ViewContacts", 0) == 1);
+            bBSToolStripMenuItem.Checked = (registry.ReadInt("ViewBBS", 0) == 1);
             terminalToolStripMenuItem.Checked = (registry.ReadInt("ViewTerminal", 1) == 1);
             if (previewMode)
             {
@@ -141,11 +144,16 @@ namespace HTCommander
             debugToolStripMenuItem.Checked = (registry.ReadInt("ViewDebug", 0) == 1);
             showAllMessagesToolStripMenuItem.Checked = (registry.ReadInt("aprsViewAll", 1) == 1);
             showPacketDecodeToolStripMenuItem.Checked = (registry.ReadInt("showPacketDecode", 0) == 1);
+            showCallsignToolStripMenuItem.Checked = (registry.ReadInt("TerminalShowCallsign", 1) == 1);
+            viewTrafficToolStripMenuItem.Checked = (registry.ReadInt("ViewBbsTraffic", 1) == 1);
+            bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
+
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
             UpdateTabs();
 
             string debugFileName = registry.ReadString("DebugFile", null);
-            try {
+            try
+            {
                 saveTraceFileDialog.FileName = debugFileName;
                 debugFile = File.OpenWrite(debugFileName);
                 debugSaveToFileToolStripMenuItem.Checked = true;
@@ -155,7 +163,8 @@ namespace HTCommander
 
             // Read stations
             string stationJson = registry.ReadString("Stations", null);
-            if (stationJson != null) {
+            if (stationJson != null)
+            {
 
                 List<StationInfoClass> xstations = StationInfoClass.Deserialize(stationJson);
                 if (xstations != null) { stations = xstations; }
@@ -172,34 +181,44 @@ namespace HTCommander
                 if (lines.Length > 200) { i = lines.Length - 200; }
                 for (; i < lines.Length; i++)
                 {
-                    // Reac the packets
-                    string[] s = lines[i].Split(',');
-                    DateTime t = new DateTime(long.Parse(s[0]));
-                    bool incoming = (s[1] == "1");
-                    if ((s[2] != "TncFrag") && (s[2] != "TncFrag2")) continue;
-                    int cid = int.Parse(s[3]);
-                    int rid = -1;
-                    string cn = cid.ToString();
-                    byte[] f;
-                    if (s[2] == "TncFrag") {
-                        f = Utils.HexStringToByteArray(s[4]);
-                    } else {
-                        rid = int.Parse(s[4]);
-                        cn = s[5];
-                        f = Utils.HexStringToByteArray(s[6]);
-                    }
-
-                    // Process the packets
-                    TncDataFragment fragment = new TncDataFragment(true, 0, f, cid, rid);
-                    fragment.time = t;
-                    fragment.channel_name = cn;
-                    fragment.incoming = incoming;
-                    Radio_OnDataFrame(radio, fragment);
-                    if (incoming == false)
+                    try
                     {
-                        AX25Packet packet = AX25Packet.DecodeAX25Packet(f, t);
-                        if (packet != null) { AddAprsPacket(packet, true); }
+                        // Read the packets
+                        string[] s = lines[i].Split(',');
+                        if (s.Length < 3) continue;
+                        DateTime t = new DateTime(long.Parse(s[0]));
+                        bool incoming = (s[1] == "1");
+                        if ((s[2] != "TncFrag") && (s[2] != "TncFrag2")) continue;
+                        int cid = int.Parse(s[3]);
+                        int rid = -1;
+                        string cn = cid.ToString();
+                        byte[] f;
+                        if (s[2] == "TncFrag")
+                        {
+                            f = Utils.HexStringToByteArray(s[4]);
+                        }
+                        else
+                        {
+                            if (s.Length < 7) continue;
+                            rid = 0;
+                            int.TryParse(s[4], out rid);
+                            cn = s[5];
+                            f = Utils.HexStringToByteArray(s[6]);
+                        }
+
+                        // Process the packets
+                        TncDataFragment fragment = new TncDataFragment(true, 0, f, cid, rid);
+                        fragment.time = t;
+                        fragment.channel_name = cn;
+                        fragment.incoming = incoming;
+                        Radio_OnDataFrame(radio, fragment);
+                        if (incoming == false)
+                        {
+                            AX25Packet packet = AX25Packet.DecodeAX25Packet(f, t);
+                            if (packet != null) { AddAprsPacket(packet, true); }
+                        }
                     }
+                    catch (Exception) { }
                 }
             }
 
@@ -252,7 +271,8 @@ namespace HTCommander
             }
             else
             {
-                if (bluetoothActivateForm != null) {
+                if (bluetoothActivateForm != null)
+                {
                     bluetoothActivateForm.Close();
                     bluetoothActivateForm = null;
                 }
@@ -298,11 +318,14 @@ namespace HTCommander
             if (frame.channel_name == "APRS")
             {
                 AX25Packet p = AX25Packet.DecodeAX25Packet(frame.data, frame.time);
-                if (p != null) {
+                if (p != null)
+                {
                     AddAprsPacket(p, false);
                     aprsChatControl.UpdateMessages(false);
                     DebugTrace(frame.time.ToShortTimeString() + " CHANNEL: " + (frame.channel_id + 1) + " X25: " + Utils.BytesToHex(p.data));
-                } else {
+                }
+                else
+                {
                     DebugTrace("APRS decode failed: " + frame.ToHex());
                 }
                 return;
@@ -311,12 +334,18 @@ namespace HTCommander
             // If this frame comes from the locked channel, process it here.
             if ((frame.channel_id == activeChannelIdLock) && (activeStationLock != null))
             {
-                if (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)
+                if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
                 {
+                    // Have the BBS process this frame
+                    bbs.ProcessFrame(frame);
+                }
+                else if (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)
+                {
+                    // Have the terminal process this frame
                     if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25)
                     {
                         AX25Packet p = AX25Packet.DecodeAX25Packet(frame.data, frame.time);
-                        if (p.addresses[0].CallSignWithId == callsign + "-" + stationId)
+                        if ((p != null) && (p.addresses[0].CallSignWithId == callsign + "-" + stationId))
                         {
                             if (p == null)
                             {
@@ -328,12 +357,14 @@ namespace HTCommander
                             }
                             else
                             {
-                                terminalTextBox.AppendText(p.addresses[1].ToString() + "> " + p.dataStr + Environment.NewLine);
+                                //terminalTextBox.AppendText(p.addresses[1].ToString() + "> " + p.dataStr + Environment.NewLine);
+                                AppendTerminalString(false, p.addresses[1].ToString(), p.addresses[0].CallSignWithId, p.dataStr);
                             }
                         }
                     }
                     else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.APRS)
                     {
+                        // Have APRS process this frame
                         AX25Packet p = AX25Packet.DecodeAX25Packet(frame.data, frame.time);
                         if (p == null)
                         {
@@ -351,7 +382,8 @@ namespace HTCommander
                             {
                                 if (aprsPacket.DataType == PacketDataType.Message)
                                 {
-                                    terminalTextBox.AppendText(p.addresses[1].ToString() + "> " + aprsPacket.MessageData.MsgText + Environment.NewLine);
+                                    //terminalTextBox.AppendText(p.addresses[1].ToString() + "> " + aprsPacket.MessageData.MsgText + Environment.NewLine);
+                                    AppendTerminalString(false, p.addresses[1].ToString(), p.addresses[0].CallSignWithId, aprsPacket.MessageData.MsgText);
                                 }
                             }
                         }
@@ -631,7 +663,7 @@ namespace HTCommander
         public void DebugTrace(string msg)
         {
             Program.BlockBoxEvent(msg);
-            debugTextBox.AppendText(msg + Environment.NewLine);
+            try { debugTextBox.AppendText(msg + Environment.NewLine); } catch (Exception) { }
             if (debugFile != null)
             {
                 byte[] buf = UTF8Encoding.UTF8.GetBytes(DateTime.Now.ToString() + ": " + msg + Environment.NewLine);
@@ -733,8 +765,68 @@ namespace HTCommander
             }
         }
 
+        public class TerminalText
+        {
+            public bool outgoing;
+            public string from;
+            public string to;
+            public string message;
+
+            public TerminalText(bool outgoing, string from, string to, string message)
+            {
+                this.outgoing = outgoing;
+                this.from = from;
+                this.to = to;
+                this.message = message;
+            }
+        }
+
+        private void showCallsignToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            registry.WriteInt("TerminalShowCallsign", showCallsignToolStripMenuItem.Checked ? 1 : 0);
+            terminalTextBox.Clear();
+            foreach (TerminalText terminalText in terminalTexts) { AppendTerminalString(terminalText); }
+            terminalTextBox.SelectionStart = terminalTextBox.Text.Length;
+            terminalTextBox.ScrollToCaret();
+        }
+
+        public void AppendTerminalString(bool outgoing, string from, string to, string message)
+        {
+            TerminalText terminalText = new TerminalText(outgoing, from, to, message);
+            terminalTexts.Add(terminalText);
+            AppendTerminalString(terminalText);
+            terminalTextBox.SelectionStart = terminalTextBox.Text.Length;
+            terminalTextBox.ScrollToCaret();
+        }
+
+        public void AppendTerminalString(TerminalText terminalText)
+        {
+            if (terminalTextBox.Text.Length != 0) { terminalTextBox.AppendText(Environment.NewLine); }
+            if (showCallsignToolStripMenuItem.Checked)
+            {
+                if (terminalText.outgoing) { AppendTerminalText(terminalText.to + " < ", Color.Green); } else { AppendTerminalText(terminalText.from + " > ", Color.Green); }
+            }
+            AppendTerminalText(terminalText.message, terminalText.outgoing ? Color.CornflowerBlue : Color.Gainsboro);
+        }
+
+        public void AppendTerminalText(string text, Color color)
+        {
+            terminalTextBox.SelectionStart = terminalTextBox.TextLength;
+            terminalTextBox.SelectionLength = 0;
+            terminalTextBox.SelectionColor = color;
+            terminalTextBox.AppendText(text);
+            terminalTextBox.SelectionColor = terminalTextBox.ForeColor;
+        }
+
+        private void toolStripMenuItem13_Click(object sender, EventArgs e)
+        {
+            terminalTexts.Clear();
+            terminalTextBox.Clear();
+        }
+
         private void terminalClearButton_Click(object sender, EventArgs e)
         {
+            terminalTexts.Clear();
             terminalTextBox.Clear();
         }
 
@@ -780,7 +872,8 @@ namespace HTCommander
             if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25)
             {
                 // Raw AX.25 format
-                terminalTextBox.AppendText(destCallsign + "-" + destStationId + "< " + sendText + Environment.NewLine);
+                //terminalTextBox.AppendText(destCallsign + "-" + destStationId + "< " + sendText + Environment.NewLine);
+                AppendTerminalString(true, callsign + "-" + stationId, destCallsign + "-" + destStationId, sendText);
                 List<AX25Address> addresses = new List<AX25Address>(1);
                 addresses.Add(AX25Address.GetAddress(destCallsign, destStationId));
                 addresses.Add(AX25Address.GetAddress(callsign, stationId));
@@ -797,7 +890,8 @@ namespace HTCommander
                 int msgId = nextAprsMessageId++;
                 if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
                 registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
-                terminalTextBox.AppendText(destCallsign + ((destStationId != 0) ? ("-" + destStationId) : "") + "< " + sendText + Environment.NewLine);
+                //terminalTextBox.AppendText(destCallsign + ((destStationId != 0) ? ("-" + destStationId) : "") + "< " + sendText + Environment.NewLine);
+                AppendTerminalString(true, callsign + "-" + stationId, destCallsign + ((destStationId != 0) ? ("-" + destStationId) : ""), sendText);
 
                 // Get the AX25 destivation address
                 AX25Address ax25dest = null;
@@ -823,7 +917,8 @@ namespace HTCommander
         private List<AX25Address> GetTransmitAprsRoute()
         {
             List<AX25Address> addresses = new List<AX25Address>(1);
-            if (aprsRoutes.Count == 0) {
+            if (aprsRoutes.Count == 0)
+            {
                 addresses.Add(AX25Address.GetAddress("APN000", 0));
                 addresses.Add(AX25Address.GetAddress(callsign, stationId));
                 addresses.Add(AX25Address.GetAddress("WIDE1", 1));
@@ -995,6 +1090,14 @@ namespace HTCommander
                 c.MessageType = MessageType;
                 c.Visible = showAllMessagesToolStripMenuItem.Checked || (c.MessageType == PacketDataType.Message);
                 c.ImageIndex = ImageIndex;
+
+                // Check if we already got this packet in the last 5 minutes
+                foreach (ChatMessage chatMessage2 in aprsChatControl.Messages)
+                {
+                    AX25Packet packet2 = (AX25Packet)chatMessage2.Tag;
+                    if (packet2.isSame(packet) && (packet2.time.AddMinutes(5).CompareTo(packet.time) > 0)) { return; }
+                }
+
                 aprsChatControl.Messages.Add(c);
                 if (c.Visible) { aprsChatControl.UpdateMessages(true); }
 
@@ -1028,6 +1131,7 @@ namespace HTCommander
 
         private void showPacketTraceToolStripMenuItem_Click(object sender, EventArgs e)
         {
+
         }
 
         private void saveToFileToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1081,7 +1185,6 @@ namespace HTCommander
                 batteryToolStripStatusLabel.Visible = false;
             }
             smSMessageToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
-            terminalConnectButton.Enabled = (radio.State == Radio.RadioState.Connected);
             volumeToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             dualWatchToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             scanToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
@@ -1112,12 +1215,17 @@ namespace HTCommander
             aprsSelectedRoute = null;
 
             // Terminal
-            terminalInputTextBox.Enabled = ((radio.State == Radio.RadioState.Connected) && (activeStationLock != null));
-            terminalSendButton.Enabled = ((radio.State == Radio.RadioState.Connected) && (activeStationLock != null));
-            terminalConnectButton.Text = (activeStationLock == null) ? "Connect" : "Disconnect";
+            terminalInputTextBox.Enabled = ((radio.State == Radio.RadioState.Connected) && (activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal));
+            terminalSendButton.Enabled = ((radio.State == Radio.RadioState.Connected) && (activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal));
+            terminalConnectButton.Enabled = (radio.State == Radio.RadioState.Connected) && ((activeStationLock == null) || (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal));
+            terminalConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Terminal)) ? "Connect" : "Disconnect";
+
+            // BBS
+            bbsConnectButton.Enabled = (radio.State == Radio.RadioState.Connected) && ((activeStationLock == null) || (activeStationLock.StationType == StationInfoClass.StationTypes.BBS));
+            bbsConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.BBS)) ? "&Activate" : "&Deactivate";
 
             // ActiveLockToStation
-            if (activeStationLock == null) { terminalTitleLabel.Text = "Terminal"; }
+            if ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Terminal)) { terminalTitleLabel.Text = "Terminal"; }
             else { terminalTitleLabel.Text = "Terminal - " + activeStationLock.Name; }
 
             // Window title
@@ -1276,7 +1384,10 @@ namespace HTCommander
         {
             UpdateTabs();
         }
-
+        private void bBSToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            UpdateTabs();
+        }
         private void packetsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             UpdateTabs();
@@ -1294,12 +1405,14 @@ namespace HTCommander
             if (terminalToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(terminalTabPage); }
             if (mailToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(mailTabPage); }
             if (contactsToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(addressesTabPage); }
+            if (bBSToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(bbsTabPage); }
             if (packetsToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(packetsTabPage); }
             if (debugToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(debugTabPage); }
             registry.WriteInt("ViewMap", mapToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewTerminal", terminalToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewMail", mailToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewContacts", contactsToolStripMenuItem.Checked ? 1 : 0);
+            registry.WriteInt("ViewBBS", bBSToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewDebug", debugToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewPackets", packetsToolStripMenuItem.Checked ? 1 : 0);
         }
@@ -1363,7 +1476,8 @@ namespace HTCommander
         private void aprsChatControl_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             selectedAprsMessage = aprsChatControl.GetChatMessageAtXY(e.X, e.Y);
-            if (selectedAprsMessage != null) {
+            if (selectedAprsMessage != null)
+            {
                 if (aprsDetailsForm == null)
                 {
                     aprsDetailsForm = new AprsDetailsForm(this);
@@ -1458,11 +1572,22 @@ namespace HTCommander
             }
             else
             {
-                for (int i = 0; i < packet.addresses.Count; i++)
+                if (packet.addresses.Count > 1)
+                {
+                    AX25Address addr = packet.addresses[1];
+                    sb.Append(addr.ToString() + ">");
+                }
+                if (packet.addresses.Count > 0)
+                {
+                    AX25Address addr = packet.addresses[0];
+                    sb.Append(addr.ToString());
+                }
+                for (int i = 2; i < packet.addresses.Count; i++)
                 {
                     AX25Address addr = packet.addresses[i];
-                    sb.Append(addr.CallSignWithId + " - ");
+                    sb.Append("," + addr.ToString() + ((addr.CRBit1) ? "*" : ""));
                 }
+                if (sb.Length > 0) { sb.Append(":"); }
                 if (fragment.channel_name == "APRS")
                 {
                     sb.Append(packet.dataStr);
@@ -1484,9 +1609,12 @@ namespace HTCommander
             TncDataFragment fragment = (TncDataFragment)l.Tag;
             if (fragment.channel_id >= 0) { addPacketDecodeLine(0, "Channel", (fragment.incoming ? "Received" : "Sent") + " on " + (fragment.channel_id + 1)); }
             addPacketDecodeLine(0, "Time", fragment.time.ToString());
-            addPacketDecodeLine(0, "Size", fragment.data.Length + " byte" + (fragment.data.Length > 1 ? "s" : ""));
-            addPacketDecodeLine(0, "Data", ASCIIEncoding.ASCII.GetString(fragment.data));
-            addPacketDecodeLine(0, "Data HEX", Utils.BytesToHex(fragment.data));
+            if (fragment.data != null)
+            {
+                addPacketDecodeLine(0, "Size", fragment.data.Length + " byte" + (fragment.data.Length > 1 ? "s" : ""));
+                addPacketDecodeLine(0, "Data", ASCIIEncoding.ASCII.GetString(fragment.data));
+                addPacketDecodeLine(0, "Data HEX", Utils.BytesToHex(fragment.data));
+            }
 
             StringBuilder sb = new StringBuilder();
             AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment.data, fragment.time);
@@ -1565,7 +1693,7 @@ namespace HTCommander
 
         private void debugMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
         {
-            debugTabContextMenuStrip.Show(aprsMenuPictureBox, e.Location);
+            debugTabContextMenuStrip.Show(debugMenuPictureBox, e.Location);
         }
 
         private async void queryDeviceNamesToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1709,7 +1837,8 @@ namespace HTCommander
         private void copyHEXValuesToolStripMenuItem_Click(object sender, EventArgs e)
         {
             StringBuilder sb = new StringBuilder();
-            foreach (ListViewItem l in packetsListView.SelectedItems) {
+            foreach (ListViewItem l in packetsListView.SelectedItems)
+            {
                 TncDataFragment frame = (TncDataFragment)l.Tag;
                 sb.AppendLine(Utils.BytesToHex(frame.data));
             }
@@ -1777,11 +1906,6 @@ namespace HTCommander
         private void loopbackModeToolStripMenuItem_Click(object sender, EventArgs e)
         {
             radio.LoopbackMode = loopbackModeToolStripMenuItem.Checked;
-        }
-
-        private void toolStripMenuItem13_Click(object sender, EventArgs e)
-        {
-            terminalTextBox.Clear();
         }
 
         private void removeStationButton_Click(object sender, EventArgs e)
@@ -1856,7 +1980,8 @@ namespace HTCommander
                 foreach (ListViewItem l in mainAddressBookListView.Items)
                 {
                     StationInfoClass station2 = (StationInfoClass)l.Tag;
-                    if ((station2.Callsign == station.Callsign) && (station2.StationType == station.StationType)) {
+                    if ((station2.Callsign == station.Callsign) && (station2.StationType == station.StationType))
+                    {
                         stations.Remove(station2);
                     }
                 }
@@ -1939,7 +2064,8 @@ namespace HTCommander
                     {
                         MessageBox.Show(this, "Invalid address book", "Stations", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     }
-                } else
+                }
+                else
                 {
                     MessageBox.Show(this, "Unable to open address book", "Stations", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                 }
@@ -2065,7 +2191,7 @@ namespace HTCommander
 
         private void terminalMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
         {
-            terminalMenuPictureBox.ContextMenuStrip.Show(terminalMenuPictureBox, e.Location);
+            terminalTabContextMenuStrip.Show(terminalMenuPictureBox, e.Location);
         }
 
         private void setToolStripMenuItem_Click(object sender, EventArgs e)
@@ -2261,11 +2387,13 @@ namespace HTCommander
             r.rx_freq = (int)(double.Parse(parts[headers["Frequency"]], CultureInfo.InvariantCulture) * 1000000);
 
             int duplex = 0;
-            if (headers.ContainsKey("Duplex")) {
+            if (headers.ContainsKey("Duplex"))
+            {
                 if (parts[headers["Duplex"]] == "-") { duplex = -1; }
                 else if (parts[headers["Duplex"]] == "+") { duplex = 1; }
             }
-            if (duplex == 0) { r.tx_freq = r.rx_freq; } else
+            if (duplex == 0) { r.tx_freq = r.rx_freq; }
+            else
             {
                 int offset = (int)(double.Parse(parts[headers["Offset"]], CultureInfo.InvariantCulture) * 1000000);
                 r.tx_freq = r.rx_freq + (duplex * offset);
@@ -2289,6 +2417,90 @@ namespace HTCommander
             if (parts[headers["Mode"]] == "AM") { r.rx_mod = r.tx_mod = RadioModulationType.AM; r.bandwidth = RadioBandwidthType.WIDE; }
 
             return r;
+        }
+
+        private void enableBBSToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void bbsConnectButton_Click(object sender, EventArgs e)
+        {
+            if (activeStationLock != null)
+            {
+                if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
+                {
+                    activeStationLock = null;
+                    activeChannelIdLock = -1;
+                    UpdateInfo();
+                    UpdateRadioDisplay();
+                }
+            }
+            else
+            {
+                activeChannelIdLock = radio.Settings.channel_a;
+                activeStationLock = new StationInfoClass();
+                activeStationLock.StationType = StationInfoClass.StationTypes.BBS;
+                UpdateInfo();
+                UpdateRadioDisplay();
+            }
+        }
+
+        public void UpdateBbsStats(BBS.StationStats stats)
+        {
+            ListViewItem l;
+            if (stats.listViewItem == null)
+            {
+                l = new ListViewItem(new string[] { stats.callsign, "", "" });
+                l.ImageIndex = 7;
+                bbsListView.Items.Add(l);
+                stats.listViewItem = l;
+            }
+            else { l = stats.listViewItem; }
+            l.SubItems[1].Text = stats.lastseen.ToString();
+            StringBuilder sb = new StringBuilder();
+            sb.Append($"{stats.protocol}, {stats.packetsIn} in / {stats.packetsOut} out, {stats.bytesIn} in / {stats.bytesOut} out");
+            l.SubItems[2].Text = sb.ToString();
+        }
+
+        private void viewTrafficToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
+            registry.WriteInt("ViewBbsTraffic", viewTrafficToolStripMenuItem.Checked ? 1 : 0);
+        }
+
+        private void clearStatsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            bbsListView.Items.Clear();
+            bbs.ClearStats();
+        }
+
+        private void pictureBox1_MouseClick(object sender, MouseEventArgs e)
+        {
+            bbsTabContextMenuStrip.Show(bbsMenuPictureBox, e.Location);
+        }
+
+        public void addBbsTraffic(string callsign, bool outgoing, string text)
+        {
+            if (bbsTextBox.Text.Length != 0) { bbsTextBox.AppendText(Environment.NewLine); }
+            if (outgoing) { AppendBbsText(callsign + " < ", Color.Green); } else { AppendBbsText(callsign + " > ", Color.Green); }
+            AppendBbsText(text, outgoing ? Color.CornflowerBlue : Color.Gainsboro);
+            bbsTextBox.SelectionStart = bbsTextBox.Text.Length;
+            bbsTextBox.ScrollToCaret();
+        }
+
+        public void AppendBbsText(string text, Color color)
+        {
+            bbsTextBox.SelectionStart = bbsTextBox.TextLength;
+            bbsTextBox.SelectionLength = 0;
+            bbsTextBox.SelectionColor = color;
+            bbsTextBox.AppendText(text);
+            bbsTextBox.SelectionColor = bbsTextBox.ForeColor;
+        }
+
+        private void bbsListView_Resize(object sender, EventArgs e)
+        {
+            bbsListView.Columns[2].Width = bbsListView.Width - bbsListView.Columns[1].Width - bbsListView.Columns[0].Width - 28;
         }
     }
 }
