@@ -113,7 +113,7 @@ namespace HTCommander
             addPacketDecodeLine(0, "Size", fragment.data.Length + " byte" + (fragment.data.Length > 1 ? "s" : ""));
 
             StringBuilder sb = new StringBuilder();
-            AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment.data, fragment.time);
+            AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
             if (packet == null)
             {
                 addPacketDecodeLine(1, "Decode", "AX25 Decoder failed to decode packet.");
@@ -145,8 +145,8 @@ namespace HTCommander
 
                 if ((packet.type == AX25Packet.FrameType.U_FRAME) && (packet.pid == 240))
                 {
-                    AprsPacket aprsPacket = new AprsPacket();
-                    if (aprsPacket.Parse(packet.dataStr, packet.addresses[0].CallSignWithId) == false)
+                    AprsPacket aprsPacket = AprsPacket.Parse(packet);
+                    if (aprsPacket == null)
                     {
                         addPacketDecodeLine(3, "Decode", "APRS Decoder failed to decode packet.");
                     }

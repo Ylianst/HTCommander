@@ -1,4 +1,5 @@
-﻿using System;
+﻿using HTCommander;
+using System;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -23,6 +24,7 @@ namespace aprsparser
         public Char SymbolCode { get; private set; }
         public bool FromD7 { get; set; }
         public bool FromD700 { get; set; }
+        public AX25Packet Packet { get; private set; }
 
         public Position Position { get; private set; }
         public DateTime? TimeStamp { get; set; }
@@ -70,7 +72,7 @@ namespace aprsparser
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         //ctor
-        public AprsPacket()
+        private AprsPacket()
         {
             Position = new Position();
             Comment = string.Empty;
@@ -89,50 +91,52 @@ namespace aprsparser
         /// </summary>
         /// <param name="packet"></param>
         /// <returns>Returns true if successful, false otherwise</returns>
-        public bool Parse(string packet, string destination)
+        public static AprsPacket Parse(AX25Packet packet)
         {
+            AprsPacket r = new AprsPacket();
             try
             {
                 //split packet into basic components of:
                 // packet type
                 // packet data
-                Position.Clear();
-                RawPacket = packet;
-                DestCallsign = Callsign.ParseCallsign(destination);
-                DataType = PacketDataType.Unknown;
-                DataTypeCh = packet[0];
-                DataType = AprsDataType.GetDataType(DataTypeCh);
-                if (DataType == PacketDataType.Unknown) DataTypeCh = (char)0x00;
-                if (DataType != PacketDataType.Unknown)
+                r.Packet = packet;
+                r.Position.Clear();
+                r.RawPacket = packet.dataStr;
+                r.DestCallsign = Callsign.ParseCallsign(packet.addresses[0].CallSignWithId);
+                r.DataType = PacketDataType.Unknown;
+                r.DataTypeCh = packet.dataStr[0];
+                r.DataType = AprsDataType.GetDataType(r.DataTypeCh);
+                if (r.DataType == PacketDataType.Unknown) { r.DataTypeCh = (char)0x00; }
+                if (r.DataType != PacketDataType.Unknown)
                 {
-                    InformationField = packet.Substring(1);
+                    r.InformationField = packet.dataStr.Substring(1);
                 }
                 else
                 {
-                    InformationField = packet;
+                    r.InformationField = packet.dataStr;
                 }
 
                 //parse information field
-                if (InformationField.Length > 0)
-                    ParseInformationField();
+                if (r.InformationField.Length > 0)
+                    r.ParseInformationField();
                 else
-                    DataType = PacketDataType.Beacon;
+                    r.DataType = PacketDataType.Beacon;
 
                 //compute gridsquare if not given
-                if (Position.IsValid() && string.IsNullOrEmpty(Position.Gridsquare))
+                if (r.Position.IsValid() && string.IsNullOrEmpty(r.Position.Gridsquare))
                 {
-                    Position.Gridsquare = AprsUtil.LatLonToGridSquare(Position.CoordinateSet);
+                    r.Position.Gridsquare = AprsUtil.LatLonToGridSquare(r.Position.CoordinateSet);
                 }
 
                 //validate required elements
                 //todo: 
 
-                return true;
+                return r;
             }
             catch (Exception ex)
             {
-                RaiseParseErrorEvent(packet, ex.Message);
-                return false;
+                r.RaiseParseErrorEvent(packet.dataStr, ex.Message);
+                return null;
             }
         }
 

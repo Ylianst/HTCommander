@@ -71,6 +71,7 @@ namespace HTCommander
         public int webServerPort = 8080;
         public List<TerminalText> terminalTexts = new List<TerminalText>();
         public BBS bbs;
+        public AprsStack aprsStack;
 
         public static Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
 
@@ -81,6 +82,15 @@ namespace HTCommander
             g_MainForm = this;
             InitializeComponent();
             bbs = new BBS(this);
+            aprsStack = new AprsStack(this);
+        }
+
+        public int GetNextAprsMessageId()
+        {
+            int msgId = nextAprsMessageId++;
+            if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
+            registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
+            return msgId;
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -113,43 +123,6 @@ namespace HTCommander
             mapControl.Overlays.Add(mapMarkersOverlay);
             mapControl.Update();
             mapControl.Refresh();
-
-            // Read registry values
-            callsign = registry.ReadString("CallSign", null);
-            stationId = (int)registry.ReadInt("StationId", 0);
-            if ((callsign != null) && ((callsign.Length > 6) || (callsign.Length < 3))) { callsign = null; }
-            if ((stationId < 0) || (stationId > 15)) { stationId = 0; }
-            aprsRoutes = Utils.DecodeAprsRoutes(registry.ReadString("AprsRoutes", "Standard,APN000,WIDE1-1,WIDE2-2"));
-            aprsSelectedRoute = registry.ReadString("SelectedAprsRoute", "Standard");
-            nextAprsMessageId = (int)registry.ReadInt("NextAprsMessageId", new Random().Next(1, 1000));
-            radioPanel.Visible = radioToolStripMenuItem.Checked = registry.ReadInt("ViewRadio", 1) == 1;
-            showBluetoothFramesToolStripMenuItem.Checked = (registry.ReadInt("PacketTrace", 0) == 1);
-            showAllChannels = (registry.ReadInt("ShowAllChannels", 0) == 1);
-            allowTransmit = (registry.ReadInt("AllowTransmit", 0) == 1);
-            aprsDestinationComboBox.Text = registry.ReadString("AprsDestination", "ALL");
-            mapToolStripMenuItem.Checked = (registry.ReadInt("ViewMap", 0) == 1);
-            contactsToolStripMenuItem.Checked = (registry.ReadInt("ViewContacts", 0) == 1);
-            bBSToolStripMenuItem.Checked = (registry.ReadInt("ViewBBS", 0) == 1);
-            terminalToolStripMenuItem.Checked = (registry.ReadInt("ViewTerminal", 1) == 1);
-            if (previewMode)
-            {
-                mailToolStripMenuItem.Checked = (registry.ReadInt("ViewMail", 0) == 1);
-            }
-            else
-            {
-                mailToolStripMenuItem.Checked = mailToolStripMenuItem.Visible = false;
-            }
-
-            packetsToolStripMenuItem.Checked = (registry.ReadInt("ViewPackets", 0) == 1);
-            debugToolStripMenuItem.Checked = (registry.ReadInt("ViewDebug", 0) == 1);
-            showAllMessagesToolStripMenuItem.Checked = (registry.ReadInt("aprsViewAll", 1) == 1);
-            showPacketDecodeToolStripMenuItem.Checked = (registry.ReadInt("showPacketDecode", 0) == 1);
-            showCallsignToolStripMenuItem.Checked = (registry.ReadInt("TerminalShowCallsign", 1) == 1);
-            viewTrafficToolStripMenuItem.Checked = (registry.ReadInt("ViewBbsTraffic", 1) == 1);
-            bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
-
-            packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
-            UpdateTabs();
 
             string debugFileName = registry.ReadString("DebugFile", null);
             try
@@ -212,15 +185,52 @@ namespace HTCommander
                         fragment.channel_name = cn;
                         fragment.incoming = incoming;
                         Radio_OnDataFrame(radio, fragment);
-                        if (incoming == false)
+                        if ((incoming == false) && (cn == "APRS"))
                         {
-                            AX25Packet packet = AX25Packet.DecodeAX25Packet(f, t);
+                            AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
                             if (packet != null) { AddAprsPacket(packet, true); }
                         }
                     }
                     catch (Exception) { }
                 }
             }
+
+            // Read registry values
+            callsign = registry.ReadString("CallSign", null);
+            stationId = (int)registry.ReadInt("StationId", 0);
+            if ((callsign != null) && ((callsign.Length > 6) || (callsign.Length < 3))) { callsign = null; }
+            if ((stationId < 0) || (stationId > 15)) { stationId = 0; }
+            aprsRoutes = Utils.DecodeAprsRoutes(registry.ReadString("AprsRoutes", "Standard,APN000,WIDE1-1,WIDE2-2"));
+            aprsSelectedRoute = registry.ReadString("SelectedAprsRoute", "Standard");
+            nextAprsMessageId = (int)registry.ReadInt("NextAprsMessageId", new Random().Next(1, 1000));
+            radioPanel.Visible = radioToolStripMenuItem.Checked = registry.ReadInt("ViewRadio", 1) == 1;
+            showBluetoothFramesToolStripMenuItem.Checked = (registry.ReadInt("PacketTrace", 0) == 1);
+            showAllChannels = (registry.ReadInt("ShowAllChannels", 0) == 1);
+            allowTransmit = (registry.ReadInt("AllowTransmit", 0) == 1);
+            aprsDestinationComboBox.Text = registry.ReadString("AprsDestination", "ALL");
+            mapToolStripMenuItem.Checked = (registry.ReadInt("ViewMap", 0) == 1);
+            contactsToolStripMenuItem.Checked = (registry.ReadInt("ViewContacts", 0) == 1);
+            bBSToolStripMenuItem.Checked = (registry.ReadInt("ViewBBS", 0) == 1);
+            terminalToolStripMenuItem.Checked = (registry.ReadInt("ViewTerminal", 1) == 1);
+            if (previewMode)
+            {
+                mailToolStripMenuItem.Checked = (registry.ReadInt("ViewMail", 0) == 1);
+            }
+            else
+            {
+                mailToolStripMenuItem.Checked = mailToolStripMenuItem.Visible = false;
+            }
+
+            packetsToolStripMenuItem.Checked = (registry.ReadInt("ViewPackets", 0) == 1);
+            debugToolStripMenuItem.Checked = (registry.ReadInt("ViewDebug", 0) == 1);
+            showAllMessagesToolStripMenuItem.Checked = (registry.ReadInt("aprsViewAll", 1) == 1);
+            showPacketDecodeToolStripMenuItem.Checked = (registry.ReadInt("showPacketDecode", 0) == 1);
+            showCallsignToolStripMenuItem.Checked = (registry.ReadInt("TerminalShowCallsign", 1) == 1);
+            viewTrafficToolStripMenuItem.Checked = (registry.ReadInt("ViewBbsTraffic", 1) == 1);
+            bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
+
+            packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
+            UpdateTabs();
 
             // Open the packet write file
             AprsFile = File.Open("packets.ptcap", FileMode.Append, FileAccess.Write);
@@ -230,6 +240,9 @@ namespace HTCommander
 
             debugTextBox.Clear();
             CheckBluetooth();
+
+            // Setup all context menus
+            mainAddressBookListView_SelectedIndexChanged(this, null);
 
             // Setup the HTTP server if configured
             webServerEnabled = (registry.ReadInt("webServerEnabled", 0) != 0);
@@ -317,7 +330,7 @@ namespace HTCommander
             // If this frame comes from the APRS channel, process it as APRS
             if (frame.channel_name == "APRS")
             {
-                AX25Packet p = AX25Packet.DecodeAX25Packet(frame.data, frame.time);
+                AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
                 if (p != null)
                 {
                     AddAprsPacket(p, false);
@@ -327,8 +340,8 @@ namespace HTCommander
                 else
                 {
                     DebugTrace("APRS decode failed: " + frame.ToHex());
+                    return;
                 }
-                return;
             }
 
             // If this frame comes from the locked channel, process it here.
@@ -344,7 +357,7 @@ namespace HTCommander
                     // Have the terminal process this frame
                     if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25)
                     {
-                        AX25Packet p = AX25Packet.DecodeAX25Packet(frame.data, frame.time);
+                        AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
                         if ((p != null) && (p.addresses[0].CallSignWithId == callsign + "-" + stationId))
                         {
                             if (p == null)
@@ -365,7 +378,7 @@ namespace HTCommander
                     else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.APRS)
                     {
                         // Have APRS process this frame
-                        AX25Packet p = AX25Packet.DecodeAX25Packet(frame.data, frame.time);
+                        AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
                         if (p == null)
                         {
                             DebugTrace("Terminal Raw AX.25 decode failed: " + frame.ToHex());
@@ -376,13 +389,13 @@ namespace HTCommander
                         }
                         else
                         {
-                            AprsPacket aprsPacket = new AprsPacket();
-                            if (aprsPacket.Parse(p.dataStr, p.addresses[0].CallSignWithId) == false) return;
+                            AprsPacket aprsPacket = AprsPacket.Parse(p);
+                            if (aprsPacket == null) return;
+                            if (aprsStack.ProcessIncoming(aprsPacket) == false) return;
                             if ((aprsPacket.MessageData.Addressee == callsign + "-" + stationId) || (aprsPacket.MessageData.Addressee == callsign)) // Check if this packet is for us
                             {
-                                if (aprsPacket.DataType == PacketDataType.Message)
+                                if ((aprsPacket.DataType == PacketDataType.Message) && (aprsPacket.MessageData.MsgType == MessageType.mtGeneral) && (aprsPacket.MessageData.MsgText.Length > 0))
                                 {
-                                    //terminalTextBox.AppendText(p.addresses[1].ToString() + "> " + aprsPacket.MessageData.MsgText + Environment.NewLine);
                                     AppendTerminalString(false, p.addresses[1].ToString(), p.addresses[0].CallSignWithId, aprsPacket.MessageData.MsgText);
                                 }
                             }
@@ -674,14 +687,20 @@ namespace HTCommander
 
         private void Radio_DebugMessage(Radio sender, string msg)
         {
-            if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_DebugMessage(sender, msg); })); return; }
-            DebugTrace(msg);
+            try
+            {
+                if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_DebugMessage(sender, msg); })); return; }
+                DebugTrace(msg);
+            } catch (Exception) { }
         }
 
         public void Debug(string msg)
         {
-            if (this.InvokeRequired) { this.Invoke(new Action(() => { Debug(msg); })); return; }
-            DebugTrace(msg);
+            try
+            {
+                if (this.InvokeRequired) { this.Invoke(new Action(() => { Debug(msg); })); return; }
+                DebugTrace(msg);
+            } catch (Exception) { }
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
@@ -878,7 +897,8 @@ namespace HTCommander
                 addresses.Add(AX25Address.GetAddress(destCallsign, destStationId));
                 addresses.Add(AX25Address.GetAddress(callsign, stationId));
                 AX25Packet packet = new AX25Packet(addresses, sendText, DateTime.Now);
-                radio.TransmitTncData(packet, activeChannelIdLock);
+                //radio.TransmitTncData(packet, activeChannelIdLock);
+                aprsStack.ProcessOutgoing(packet, activeChannelIdLock);
             }
             else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.APRS)
             {
@@ -887,9 +907,6 @@ namespace HTCommander
                 if (aprsAddr.EndsWith("-0")) { aprsAddr = aprsAddr.Substring(0, aprsAddr.Length - 2); }
                 while (aprsAddr.Length < 10) { aprsAddr += " "; }
                 aprsAddr += ":";
-                int msgId = nextAprsMessageId++;
-                if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
-                registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
                 //terminalTextBox.AppendText(destCallsign + ((destStationId != 0) ? ("-" + destStationId) : "") + "< " + sendText + Environment.NewLine);
                 AppendTerminalString(true, callsign + "-" + stationId, destCallsign + ((destStationId != 0) ? ("-" + destStationId) : ""), sendText);
 
@@ -902,9 +919,11 @@ namespace HTCommander
                 List<AX25Address> addresses = new List<AX25Address>(1);
                 addresses.Add(ax25dest);
                 addresses.Add(AX25Address.GetAddress(callsign, stationId));
+                int msgId = GetNextAprsMessageId();
                 AX25Packet packet = new AX25Packet(addresses, aprsAddr + sendText + "{" + msgId, DateTime.Now);
                 packet.messageId = msgId;
-                radio.TransmitTncData(packet, activeChannelIdLock);
+                //radio.TransmitTncData(packet, activeChannelIdLock);
+                aprsStack.ProcessOutgoing(packet, activeChannelIdLock);
             }
         }
 
@@ -950,10 +969,8 @@ namespace HTCommander
             string aprsAddr = ":" + aprsDestinationComboBox.Text;
             while (aprsAddr.Length < 10) { aprsAddr += " "; }
             aprsAddr += ":";
-            int msgId = nextAprsMessageId++;
-            if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
-            registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
 
+            int msgId = GetNextAprsMessageId();
             AX25Packet packet = new AX25Packet(GetTransmitAprsRoute(), aprsAddr + aprsTextBox.Text + "{" + msgId, DateTime.Now);
             packet.messageId = msgId;
 
@@ -962,7 +979,8 @@ namespace HTCommander
             //AX25Packet packet = new AX25Packet(1, addresses, 0, aprsTextBox.Text);
             //packet.time = DateTime.Now;
 
-            radio.TransmitTncData(packet, aprsChannel, radio.HtStatus.curr_region);
+            //radio.TransmitTncData(packet, aprsChannel, radio.HtStatus.curr_region);
+            aprsStack.ProcessOutgoing(packet, aprsChannel, radio.HtStatus.curr_region);
             AddAprsPacket(packet, true);
             aprsTextBox.Text = "";
         }
@@ -980,8 +998,9 @@ namespace HTCommander
             AprsPacket aprsPacket = null;
             if ((packet.addresses != null) && (packet.addresses.Count >= 2))
             {
-                aprsPacket = new AprsPacket();
-                if (aprsPacket.Parse(packet.dataStr, packet.addresses[0].CallSignWithId) == false) return;
+                aprsPacket = AprsPacket.Parse(packet);
+                if (aprsPacket == null) return;
+                if ((sender == false) && (aprsStack.ProcessIncoming(aprsPacket) == false)) return;
                 MessageType = aprsPacket.DataType;
 
                 if (sender == false)
@@ -989,10 +1008,7 @@ namespace HTCommander
                     SenderAddr = packet.addresses[1];
                     RoutingString = SenderAddr.ToString();
                     SenderCallsign = SenderAddr.CallSignWithId;
-                    if ((aprsPacket.Position != null) && (aprsPacket.Position.CoordinateSet.Latitude.Value != 0) && (aprsPacket.Position.CoordinateSet.Longitude.Value != 0))
-                    {
-                        ImageIndex = 3;
-                    }
+                    if ((aprsPacket.Position != null) && (aprsPacket.Position.CoordinateSet.Latitude.Value != 0) && (aprsPacket.Position.CoordinateSet.Longitude.Value != 0)) { ImageIndex = 3; }
                 }
                 if (aprsPacket.DataType == PacketDataType.Message)
                 {
@@ -1084,7 +1100,7 @@ namespace HTCommander
 
             if ((MessageText != null) && (MessageText.Length > 0))
             {
-                ChatMessage c = new ChatMessage(RoutingString, SenderCallsign, MessageText, packet.time, sender, -1);
+                ChatMessage c = new ChatMessage(RoutingString, SenderCallsign, MessageText.Trim(), packet.time, sender, -1);
                 c.Tag = packet;
                 c.MessageId = MessageId;
                 c.MessageType = MessageType;
@@ -1162,14 +1178,13 @@ namespace HTCommander
                 {
                     // APRS format
                     if (aprsChannel < 0) return;
-                    int msgId = nextAprsMessageId++;
-                    if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
-                    registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
+                    int msgId = GetNextAprsMessageId();
                     AX25Packet packet = new AX25Packet(GetTransmitAprsRoute(), ":SMS      :@" + aprsSmsForm.PhoneNumber + " " + aprsSmsForm.Message + "{" + msgId, DateTime.Now);
                     packet.messageId = msgId;
                     packet.time = DateTime.Now;
 
-                    radio.TransmitTncData(packet, aprsChannel, radio.HtStatus.curr_region);
+                    //radio.TransmitTncData(packet, aprsChannel, radio.HtStatus.curr_region);
+                    aprsStack.ProcessOutgoing(packet, aprsChannel, radio.HtStatus.curr_region);
                     AddAprsPacket(packet, true);
                     aprsTextBox.Text = "";
                 }
@@ -1203,11 +1218,15 @@ namespace HTCommander
             toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
             aprsBottomPanel.Visible = allowTransmit;
             terminalBottomPanel.Visible = allowTransmit;
+            terminalConnectButton.Visible = allowTransmit;
+            bbsConnectButton.Visible = allowTransmit;
+            bBSToolStripMenuItem.Visible = allowTransmit;
+            terminalToolStripMenuItem.Visible = allowTransmit;
 
             // APRS Routes
             string selectedAprsRoute = aprsSelectedRoute;
             if ((aprsSelectedRoute == null) && (aprsRouteComboBox.SelectedItem != null)) { selectedAprsRoute = (string)aprsRouteComboBox.SelectedItem; }
-            aprsRouteComboBox.Visible = ((aprsRoutes != null) && (aprsRoutes.Count > 1));
+            aprsRouteComboBox.Visible = ((aprsRoutes != null) && (aprsRoutes.Count > 1) && (allowTransmit));
             aprsRouteComboBox.Items.Clear();
             aprsRouteComboBox.Items.AddRange(aprsRoutes.Keys.ToArray());
             aprsRouteComboBox.SelectedItem = selectedAprsRoute;
@@ -1315,6 +1334,7 @@ namespace HTCommander
                     if ((webServerEnabled == true) && (webserver == null)) { webserver = new HttpsWebSocketServer(this, webServerPort); webserver.Start(); }
 
                     CheckAprsChannel();
+                    UpdateTabs();
                     UpdateInfo();
                 }
             }
@@ -1402,10 +1422,10 @@ namespace HTCommander
             mainTabControl.TabPages.Clear();
             mainTabControl.TabPages.Add(aprsTabPage);
             if (mapToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(mapTabPage); }
-            if (terminalToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(terminalTabPage); }
+            if (terminalToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(terminalTabPage); }
             if (mailToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(mailTabPage); }
             if (contactsToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(addressesTabPage); }
-            if (bBSToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(bbsTabPage); }
+            if (bBSToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(bbsTabPage); }
             if (packetsToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(packetsTabPage); }
             if (debugToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(debugTabPage); }
             registry.WriteInt("ViewMap", mapToolStripMenuItem.Checked ? 1 : 0);
@@ -1565,7 +1585,7 @@ namespace HTCommander
         public string FragmentToShortString(TncDataFragment fragment)
         {
             StringBuilder sb = new StringBuilder();
-            AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment.data, fragment.time);
+            AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
             if (packet == null)
             {
                 return Utils.BytesToHex(fragment.data);
@@ -1617,7 +1637,7 @@ namespace HTCommander
             }
 
             StringBuilder sb = new StringBuilder();
-            AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment.data, fragment.time);
+            AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
             if (packet == null)
             {
                 addPacketDecodeLine(1, "Decode", "AX25 Decoder failed to decode packet.");
@@ -1649,8 +1669,8 @@ namespace HTCommander
 
                 if ((packet.type == AX25Packet.FrameType.U_FRAME) && (packet.pid == 240))
                 {
-                    AprsPacket aprsPacket = new AprsPacket();
-                    if (aprsPacket.Parse(packet.dataStr, packet.addresses[0].CallSignWithId) == false)
+                    AprsPacket aprsPacket = AprsPacket.Parse(packet);
+                    if (aprsPacket == null)
                     {
                         addPacketDecodeLine(3, "Decode", "APRS Decoder failed to decode packet.");
                     }
@@ -1998,7 +2018,7 @@ namespace HTCommander
 
         private void mainAddressBookListView_SelectedIndexChanged(object sender, EventArgs e)
         {
-            editToolStripMenuItem.Visible = removeToolStripMenuItem.Enabled = removeStationButton.Enabled = (mainAddressBookListView.SelectedItems.Count > 0);
+            editToolStripMenuItem.Visible = removeToolStripMenuItem.Visible = removeStationButton.Enabled = (mainAddressBookListView.SelectedItems.Count > 0);
             bool setMenuItemVisible = true;
             if (mainAddressBookListView.SelectedItems.Count != 1)
             {

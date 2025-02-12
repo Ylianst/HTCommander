@@ -665,13 +665,14 @@ namespace HTCommander
                                     {
                                         // If this is the first fragment, try again
                                         TncFragmentInFlight = true;
+                                        Debug("TNC Fragment failed, TRYING AGAIN.");
                                         SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
                                         break;
                                     }
                                     else
                                     {
                                         // Send failed, clear all fragements until the last of this packet.
-                                        Debug("TNC Fragment failed, check Bfluetooth connection.");
+                                        Debug("TNC Fragment failed, check Bluetooth connection.");
                                         while (TncFragmentQueue[0].isLast == false) { TncFragmentQueue.RemoveAt(0); }
                                         TncFragmentQueue.RemoveAt(0);
                                     }
@@ -790,7 +791,7 @@ namespace HTCommander
             TncDataFragment fragment = new TncDataFragment(true, 0, outboundData, channelId, regionId);
             fragment.incoming = false;
             fragment.time = t;
-            if (fragmentChannelName != null) { fragment.channel_name = fragmentChannelName; }
+            if (fragmentChannelName != null) { fragment.channel_name = fragmentChannelName; } else { fragment.channel_name = packet.channel_name; }
             if (OnDataFrame != null) { OnDataFrame(this, fragment); }
 
             if (LoopbackMode == false)
@@ -880,9 +881,17 @@ namespace HTCommander
                         {
                             if (ex.HResult == -2140864497)
                             {
-                                Disconnect($"Access denied. Please re-pair the device.", Radio.RadioState.AccessDenied);
+                                Disconnect("Access denied. Please re-pair the device.", Radio.RadioState.AccessDenied);
                             }
-                            _writeSemaphore.Release(); // Ensure semaphore is released on error
+                            else
+                            {
+                                Disconnect("Unable to send command to device.", Radio.RadioState.Disconnected);
+                            }
+                            try
+                            {
+                                _writeSemaphore.Release(); // Ensure semaphore is released on error
+                            }
+                            catch (Exception) { }
                         }
                     });
                 }

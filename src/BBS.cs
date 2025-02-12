@@ -50,13 +50,26 @@ namespace HTCommander
 
         public void ProcessFrame(TncDataFragment frame)
         {
-            AX25Packet p = AX25Packet.DecodeAX25Packet(frame.data, frame.time);
-            if (p == null) { return; }
+            AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
+            if (p == null) return;
 
             // TODO: Add support for the weird packet format
             // TODO: Add support for ignoring stations
-            if (p.addresses[0].CallSignWithId != parent.callsign + "-" + parent.stationId) return;
 
+            // If the packet is directly addressed to us in the AX.25 frame, process it as a raw frame.
+            if ((frame.channel_name != "APRS") && (p.addresses[0].CallSignWithId == parent.callsign + "-" + parent.stationId)) { ProcessRawFrame(p, frame.data.Length); return; }
+
+            // If the packet can be processed as a APRS message directed to use, process as APRS
+            AprsPacket aprsPacket = AprsPacket.Parse(p);
+            if ((aprsPacket == null) || (parent.aprsStack.ProcessIncoming(aprsPacket) == false)) return;
+            if ((aprsPacket.MessageData.Addressee == parent.callsign + "-" + parent.stationId) || (aprsPacket.MessageData.Addressee == parent.callsign)) // Check if this packet is for us
+            {
+                if (aprsPacket.DataType == PacketDataType.Message) { ProcessAprsPacket(p, aprsPacket, frame.data.Length, frame.channel_name == "APRS"); return; }
+            }
+        }
+
+        private void ProcessRawFrame(AX25Packet p, int frameLength)
+        {
             parent.addBbsTraffic(p.addresses[1].ToString(), false, p.dataStr);
             AdventurerDOS.GameRunner runner = new AdventurerDOS.GameRunner();
             string output = runner.RunTurn("adv01.dat", p.addresses[1].CallSignWithId + ".sav", p.dataStr).Replace("\r\n\r\n", "\r\n").Trim();
@@ -95,11 +108,81 @@ namespace HTCommander
                 for (int i = 0; i < stringList.Count; i++)
                 {
                     AX25Packet packet = new AX25Packet(addresses, stringList[i], DateTime.Now);
-                    bytesOut += parent.radio.TransmitTncData(packet, parent.activeChannelIdLock);
+                    packet.channel_id = p.channel_id;
+                    packet.channel_name = p.channel_name;
+                    bytesOut += parent.radio.TransmitTncData(packet, packet.channel_id);
                     packetsOut++;
                 }
 
-                UpdateStats(p.addresses[1].ToString(), "AX.25 RAW", 1, packetsOut, frame.data.Length, bytesOut);
+                UpdateStats(p.addresses[1].ToString(), "AX.25 RAW", 1, packetsOut, frameLength, bytesOut);
+            }
+        }
+
+        private void ProcessAprsPacket(AX25Packet p, AprsPacket aprsPacket, int frameLength, bool aprsChannel)
+        {
+            if (aprsPacket.DataType != PacketDataType.Message) return;
+            if (aprsPacket.MessageData.MsgType != MessageType.mtGeneral) return;
+
+            parent.addBbsTraffic(p.addresses[1].ToString(), false, aprsPacket.MessageData.MsgText);
+            AdventurerDOS.GameRunner runner = new AdventurerDOS.GameRunner();
+            string output = runner.RunTurn("adv01.dat", p.addresses[1].CallSignWithId + ".sav", aprsPacket.MessageData.MsgText).Replace("\r\n\r\n", "\r\n").Trim();
+            if ((output != null) && (output.Length > 0))
+            {
+                // Replace characters that are not allowed in APRS messages
+                output = output.Replace("\r\n", "\n").Replace("\n\n", "\n").Replace("~", "-").Replace("|", "!").Replace("{", "[").Replace("}", "]");
+                parent.addBbsTraffic(p.addresses[1].ToString(), true, output);
+
+                //if (output.Length > 310) { output = output.Substring(0, 310); }
+                List<string> stringList = new List<string>();
+                StringBuilder sb = new StringBuilder();
+                string[] outputSplit = output.Split('\n');
+
+                foreach (string s in outputSplit)
+                {
+                    if ((sb.Length + s.Length) < 200)
+                    {
+                        if (sb.Length > 0) { sb.Append("\n"); }
+                        sb.Append(s);
+                    }
+                    else
+                    {
+                        stringList.Add(sb.ToString());
+                        sb.Clear();
+                        sb.Append(s);
+                    }
+                }
+                if (sb.Length > 0) { stringList.Add(sb.ToString()); }
+
+                // APRS format
+                //terminalTextBox.AppendText(destCallsign + "-" + destStationId + "< " + sendText + Environment.NewLine);
+                //AppendTerminalString(true, callsign + "-" + stationId, destCallsign + "-" + destStationId, sendText);
+                List<AX25Address> addresses = new List<AX25Address>(2);
+                addresses.Add(p.addresses[0]);
+                addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
+
+                int bytesOut = 0;
+                int packetsOut = 0;
+                for (int i = 0; i < stringList.Count; i++)
+                {
+                    // APRS format
+                    string aprsAddr = ":" + p.addresses[1].address;
+                    if (p.addresses[1].SSID > 0) { aprsAddr += "-" + p.addresses[1].SSID; }
+                    while (aprsAddr.Length < 10) { aprsAddr += " "; }
+                    aprsAddr += ":";
+
+                    int msgId = parent.GetNextAprsMessageId();
+                    AX25Packet packet = new AX25Packet(addresses, aprsAddr + stringList[i] + "{" + msgId, DateTime.Now);
+                    packet.messageId = msgId;
+                    packet.channel_id = p.channel_id;
+                    packet.channel_name = p.channel_name;
+                    bytesOut += parent.aprsStack.ProcessOutgoing(packet);
+                    packetsOut++;
+
+                    // If the BBS channel is the APRS channel, add the packet to the APRS tab
+                    if (aprsChannel) { parent.AddAprsPacket(packet, true); }
+                }
+
+                UpdateStats(p.addresses[1].ToString(), "APRS", 1, packetsOut, frameLength, bytesOut);
             }
         }
     }

@@ -31,6 +31,7 @@ namespace HTCommander
 
         public bool isSame(AX25Address a)
         {
+            // Note that expcial bits are NOT compared.f
             if (address != a.address) return false;
             if (SSID != a.SSID) return false;
             return true;

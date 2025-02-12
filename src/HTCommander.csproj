@@ -123,6 +123,7 @@
     <Compile Include="AprsConfigurationForm.Designer.cs">
       <DependentUpon>AprsConfigurationForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="AprsStack.cs" />
     <Compile Include="BBS.cs" />
     <Compile Include="BTAccessDeniedForm.cs">
       <SubType>Form</SubType>

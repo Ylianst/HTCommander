@@ -17,7 +17,6 @@ limitations under the License.
 using System;
 using System.Text;
 using System.Collections.Generic;
-using System.Drawing.Drawing2D;
 
 namespace HTCommander
 {
@@ -26,6 +25,10 @@ namespace HTCommander
         public DateTime time;  // The date and time this message was sent or received
         public bool confirmed; // Indicates this APRS message was confirmed with an ACK
         public int messageId;  // This is the APRS MessageID
+        public int channel_id;
+        public string channel_name;
+        public int frame_size;
+        public bool incoming;
 
         // Content of the packet
         public List<AX25Address> addresses;
@@ -42,8 +45,7 @@ namespace HTCommander
         public bool isSame(AX25Packet p)
         {
             if (p.dataStr != dataStr) return false;
-            if (p.addresses.Count != addresses.Count) return false;
-            for (int i = 0; i < addresses.Count; i++) { if (!p.addresses[i].isSame(addresses[i])) return false; }
+            for (int i = 0; i < 2; i++) { if (!p.addresses[i].isSame(addresses[i])) return false; } // Only compare 2 first addresses
             if (p.pollFinal != pollFinal) return false;
             if (p.command != command) return false;
             if (p.nr != nr) return false;
@@ -71,11 +73,12 @@ namespace HTCommander
             pid = 240;                    // Default value of no layer 3 protocol implemented
         }
 
-        public static AX25Packet DecodeAX25Packet(byte[] data, DateTime time)
+        public static AX25Packet DecodeAX25Packet(TncDataFragment frame)
         {
+            byte[] data = frame.data;
             if ((data == null) || (data.Length < 6)) return null;
 
-            // This is an odd packet, not sure if it's AX25 at all
+            // This is an odd packet, not a AX.25 packet
             if (data[0] == 1)
             {
                 int callsignLen = data[1];
@@ -88,8 +91,12 @@ namespace HTCommander
                 string xxdata = UTF8Encoding.Default.GetString(data, 5 + callsignLen + controlLen, messageLen - 1);
                 byte[] xxdata2 = new byte[messageLen - 1];
                 Array.Copy(data, 5 + callsignLen + controlLen, xxdata2, 0, messageLen - 1);
-                AX25Packet xpacket = new AX25Packet(xaddresses, xxdata, time);
+                AX25Packet xpacket = new AX25Packet(xaddresses, xxdata, frame.time);
                 xpacket.data = xxdata2;
+                xpacket.channel_id = frame.channel_id;
+                xpacket.channel_name = frame.channel_name;
+                xpacket.incoming = frame.incoming;
+                xpacket.frame_size = data.Length;
                 return xpacket;
             }
 
@@ -178,7 +185,7 @@ namespace HTCommander
                 xdata = new byte[data.Length - i];
                 Array.Copy(data, i, xdata, 0, data.Length - i);
             }
-            AX25Packet packet = new AX25Packet(addresses, xdataStr, time);
+            AX25Packet packet = new AX25Packet(addresses, xdataStr, frame.time);
             packet.data = xdata;
             packet.command = command;
             packet.modulo128 = modulo128;
@@ -187,6 +194,10 @@ namespace HTCommander
             packet.pid = pid;
             packet.nr = nr;
             packet.ns = ns;
+            packet.channel_id = frame.channel_id;
+            packet.channel_name = frame.channel_name;
+            packet.incoming = frame.incoming;
+            packet.frame_size = data.Length;
             return packet;
         }
 
@@ -257,7 +268,6 @@ namespace HTCommander
         }
 
         // AX.25 & KISS protocol-related constants
-
         public enum FrameType : byte
         {
             //     Information frame
