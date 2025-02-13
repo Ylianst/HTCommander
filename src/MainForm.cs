@@ -897,8 +897,7 @@ namespace HTCommander
                 addresses.Add(AX25Address.GetAddress(destCallsign, destStationId));
                 addresses.Add(AX25Address.GetAddress(callsign, stationId));
                 AX25Packet packet = new AX25Packet(addresses, sendText, DateTime.Now);
-                //radio.TransmitTncData(packet, activeChannelIdLock);
-                aprsStack.ProcessOutgoing(packet, activeChannelIdLock);
+                radio.TransmitTncData(packet, activeChannelIdLock);
             }
             else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.APRS)
             {
