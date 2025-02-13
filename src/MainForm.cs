@@ -28,7 +28,6 @@ using GMap.NET;
 using aprsparser;
 using static HTCommander.Radio;
 using System.Globalization;
-using static HTCommander.MainForm;
 
 namespace HTCommander
 {
@@ -227,6 +226,7 @@ namespace HTCommander
             showPacketDecodeToolStripMenuItem.Checked = (registry.ReadInt("showPacketDecode", 0) == 1);
             showCallsignToolStripMenuItem.Checked = (registry.ReadInt("TerminalShowCallsign", 1) == 1);
             viewTrafficToolStripMenuItem.Checked = (registry.ReadInt("ViewBbsTraffic", 1) == 1);
+            systemTrayToolStripMenuItem.Checked = (registry.ReadInt("SystemTray", 1) == 1);
             bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
 
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
@@ -1114,9 +1114,25 @@ namespace HTCommander
                     if (packet2.isSame(packet) && (packet2.time.AddMinutes(5).CompareTo(packet.time) > 0)) { return; }
                 }
 
+                // Add the message
                 aprsChatControl.Messages.Add(c);
                 if (c.Visible) { aprsChatControl.UpdateMessages(true); }
 
+                // If this is a directed message to us, we need to notify
+                if ((aprsPacket.DataType == PacketDataType.Message) && ((aprsPacket.MessageData.MsgType == aprsparser.MessageType.mtGeneral) || (aprsPacket.MessageData.MsgType == aprsparser.MessageType.mtAnnouncement) || (aprsPacket.MessageData.MsgType == aprsparser.MessageType.mtBulletin)) && (aprsPacket.MessageData.MsgText.Length > 0))
+                {
+                    if ((aprsPacket.MessageData.Addressee == callsign) || (aprsPacket.MessageData.Addressee == callsign + "-" + stationId))
+                    {
+                        if ((notifyIcon.Visible == true) && ((this.WindowState == FormWindowState.Minimized) || (mainTabControl.SelectedIndex != 0)))
+                        {
+                            notifyIcon.BalloonTipText = aprsPacket.MessageData.MsgText;
+                            notifyIcon.BalloonTipTitle = packet.addresses[1].ToString();
+                            notifyIcon.ShowBalloonTip(10);
+                        }
+                    }
+                }
+
+                // Add or move the map marker
                 if ((c.ImageIndex == 3) && (aprsPacket != null))
                 {
                     c.Latitude = aprsPacket.Position.CoordinateSet.Latitude.Value;
@@ -1256,6 +1272,10 @@ namespace HTCommander
             {
                 this.Text = appTitle;
             }
+
+            // System Tray
+            notifyIcon.Visible = systemTrayToolStripMenuItem.Checked;
+            this.ShowInTaskbar = !systemTrayToolStripMenuItem.Checked;
         }
 
         public void UpdateChannelsPanel()
@@ -2521,6 +2541,31 @@ namespace HTCommander
         private void bbsListView_Resize(object sender, EventArgs e)
         {
             bbsListView.Columns[2].Width = bbsListView.Width - bbsListView.Columns[1].Width - bbsListView.Columns[0].Width - 28;
+        }
+
+        private void exitToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            Close();
+        }
+
+        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (this.WindowState == FormWindowState.Minimized) { this.WindowState = FormWindowState.Normal; }
+            else { this.WindowState = FormWindowState.Minimized; }
+            this.Focus();
+        }
+
+        private void systemTrayToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            registry.WriteInt("SystemTray", systemTrayToolStripMenuItem.Checked ? 1 : 0);
+            UpdateInfo();
+        }
+
+        private void notifyIcon_BalloonTipClicked(object sender, EventArgs e)
+        {
+            mainTabControl.SelectedIndex = 0;
+            if (this.WindowState == FormWindowState.Minimized) { this.WindowState = FormWindowState.Normal; }
+            this.Focus();
         }
     }
 }

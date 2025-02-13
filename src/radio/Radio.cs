@@ -418,7 +418,8 @@ namespace HTCommander
 
             // Regular expression to capture the 12-character MAC address
             var bluetoothDevice = await BluetoothDevice.FromIdAsync(macAddress);
-            if (bluetoothDevice == null) {
+            if (bluetoothDevice == null)
+            {
                 Disconnect($"Unable to connect.", RadioState.AccessDenied);
                 return;
             }
@@ -491,7 +492,7 @@ namespace HTCommander
         public void GetBatteryVoltage() { RequestPowerStatus(RadioPowerStatus.BATTERY_VOLTAGE); }
         public void GetBatteryRcLevel() { RequestPowerStatus(RadioPowerStatus.RC_BATTERY_LEVEL); }
         public void GetBatteryLevelAtPercentage() { RequestPowerStatus(RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE); }
-
+        private bool IsTncFree() { return ((HtStatus != null) && (HtStatus.is_in_tx == false)); }
         private void RequestPowerStatus(RadioPowerStatus powerStatus)
         {
             byte[] data = new byte[2];
@@ -561,6 +562,13 @@ namespace HTCommander
                                             Update(RadioUpdateNotification.ChannelInfo);
                                             UpdateChannels();
                                         }
+                                        Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}");
+                                        if (IsTncFree() && (TncFragmentInFlight == false) && (TncFragmentQueue.Count > 0)) // We are clear to send a packet
+                                        {
+                                            // Send more data
+                                            TncFragmentInFlight = true;
+                                            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
+                                        }
                                         break;
                                     //case RadioNotification.HT_CH_CHANGED:
                                     //Event: 00020009050508CCCEC008C3A70027102710940053796C76616E00000000
@@ -594,11 +602,15 @@ namespace HTCommander
 
                                         Debug($"DataFragment, FragId={fragment.fragment_id}, IsFinal={fragment.final_fragment}, ChannelId={fragment.channel_id}, DataLen={fragment.data.Length}");
                                         //Debug("Data: " + BytesToHex(fragment.data));
-                                        if (frameAccumulator == null) {
-                                            if (fragment.fragment_id == 0) {
-                                                frameAccumulator = fragment; 
+                                        if (frameAccumulator == null)
+                                        {
+                                            if (fragment.fragment_id == 0)
+                                            {
+                                                frameAccumulator = fragment;
                                             }
-                                        } else {
+                                        }
+                                        else
+                                        {
                                             frameAccumulator = frameAccumulator.Append(fragment);
                                         }
                                         if ((frameAccumulator != null) && (frameAccumulator.final_fragment))
@@ -663,10 +675,17 @@ namespace HTCommander
                                 {
                                     if (TncFragmentQueue[0].fragid == 0)
                                     {
-                                        // If this is the first fragment, try again
-                                        TncFragmentInFlight = true;
-                                        Debug("TNC Fragment failed, TRYING AGAIN.");
-                                        SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
+                                        if (IsTncFree())
+                                        {
+                                            // If this is the first fragment, try again
+                                            TncFragmentInFlight = true;
+                                            Debug("TNC Fragment failed, TRYING AGAIN.");
+                                            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
+                                        }
+                                        else
+                                        {
+                                            TncFragmentInFlight = false;
+                                        }
                                         break;
                                     }
                                     else
@@ -683,8 +702,8 @@ namespace HTCommander
                                     TncFragmentQueue.RemoveAt(0);
                                 }
 
-                                // Ready for more data
-                                if (TncFragmentQueue.Count > 0)
+                                // Ready for more data. If this is the start of a new fragment, wait with RSSI is zero.
+                                if ((TncFragmentQueue.Count > 0) && ((TncFragmentQueue[0].fragid != 0) || IsTncFree()))
                                 {
                                     // Send the next fragment
                                     TncFragmentInFlight = true;
@@ -809,7 +828,7 @@ namespace HTCommander
                     i += fragmentSize;
                     fragid++;
                 }
-                if ((TncFragmentInFlight == false) && (TncFragmentQueue.Count > 0))
+                if ((TncFragmentInFlight == false) && (TncFragmentQueue.Count > 0) && (HtStatus.rssi == 0) && (HtStatus.is_in_tx == false))
                 {
                     TncFragmentInFlight = true;
                     SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
