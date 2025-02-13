@@ -8,4 +8,4 @@ The BBS only supports RAW AX.25 and APRS packet format right now. This is the sa
 
 Right now, the BBS only supports a text adventure game called [The Adventurer](https://github.com/TheTextAdventurer/Adventurer). Any text send to the BBS will initiate the adventure and the adventure game is saved at each turn using the sender's callsign, so, many stations can play at the same time and each will see their own game. You can transmit "quit" at anytime to restart the game.
 
-THe BBS tab will show statistics on what stations are using the BBS and how many bytes and packets have been sent and received.
+The BBS tab will show statistics in real-time on what stations are using the BBS and how many bytes and packets have been sent and received.
