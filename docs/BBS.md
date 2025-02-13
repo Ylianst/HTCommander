@@ -1,5 +1,7 @@
 # Bulletin Board System (BBS)
 
+![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/ht-bbs.png?raw=true)
+
 Handi-Talky Commander has a built-in BBS, a bit like the old modem days. This option is only available if you have a HAM radio license and you enabled the application to transmit. It's super easy to activate, just select a channel on the main or top chaanel and hit "Activate" on the top right of the BBS tab.
 
 The BBS only supports RAW AX.25 and APRS packet format right now. An incoming packet needs to be directed at the station and the BBS will relay in the same packet format as it was received.
