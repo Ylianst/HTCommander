@@ -2,7 +2,7 @@
 
 ![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/ht-aprs.png?raw=true)
 
-The main tab in Handi-Talky Commander is the APRS tab. You can use this tab to see messages from others, send you own message and see a lot of telemetry messages. In general, if you set your radio right, the radio will always monitor the APRS channel even if you doing normal voice monitoring on a different non-APRS channel. So, don't be surprised if you set the radio to your favorite repeater and still see APRS messages coming in. When you send a APRS message out, we tell the radio this is a APRS packet and so, it should be transmitted on the correct frequency.
+The main tab in Handi-Talky Commander is the APRS tab. You can use this tab to see messages from others, send you own message and see a lot of telemetry messages. In general, if you set your radio right, the radio will always monitor the APRS channel even if you doing normal voice monitoring on a different non-APRS channel. So, don't be surprised if you set the radio to your favorite repeater and still see APRS messages coming in. When you send a APRS message out, we tell the radio this is a APRS packet and so, it should be transmitted on the correct frequency. To make this feature work, a channel called "APRS" will need to be setup. If you don't have such a channel, you will get a notice with a dialog box to help you create one.
 
 On the upper right, you can click on the 3 bars to opt to not see telemetry messages. You can also send SMS message to normal phones which is great if you need to send a text message and don't have cell phone access.
 
