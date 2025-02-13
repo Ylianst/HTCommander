@@ -16,7 +16,14 @@ The following radios should work with this application:
 
 ### Features
 
-This first version is focused on getting APRS working well along with control over the radio's channels. The APRS will show messages more as you would expect them from a typical messaging application. You can right click on a APRS message to get more details and filter APRS messaging to not display telemetry messages. Stations with location data will be shown on the map tab with data from Open Street Map. There is also another tab with all packets received and decoded making this tool also work like a packet capture tool.
+This is still an early version, but it's starting to have a lot of features.
+
+- [APRS support](https://github.com/Ylianst/HTCommander/blob/main/docs/APRS.md). You can receive and sent APRS messages, set APRS routes, send SMS message to normal phones, get details on each APRS message.
+- [APRS map](https://github.com/Ylianst/HTCommander/blob/main/docs/Map.md). With Open Street Map support, you can see all the APRS stations at a glance.
+- [Address book](https://github.com/Ylianst/HTCommander/blob/main/docs/AddressBook.md). Store your APRS contacts and Terminal profiles in the address book to quick access.
+- [Terminal support](https://github.com/Ylianst/HTCommander/blob/main/docs/Terminal.md). Use the terminal to communicate in packet modes with other stations, users or BBS'es.
+- [BBS support](https://github.com/Ylianst/HTCommander/blob/main/docs/BBS.md). Built-in support for a BBS, right now, it's only an text adventure game. Challenge your friends to get a high score over packet radio.
+- [Packet Capture](https://github.com/Ylianst/HTCommander/blob/main/docs/Capture.md). Use this application to capture and analyse packets with the built-in packet capture feature.
 
 ### Installation
 
