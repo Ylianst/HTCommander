@@ -1,6 +1,6 @@
 # Packet Capture
 
-![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/ht-capture.png?raw=true)
+![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/ht-packet-capture.png?raw=true)
 
 Handi-Talky Commander has a built-in packet capture feature which is great if you are a developer or want to simply have a tool to decode packet radio data and see every bit. The packet capture tab will automatically show all of the data sent and received and try to decode this data the best it can. Raw packets are decoded into AX.25 and is it works, APRS decoding may also be attempted.
 
