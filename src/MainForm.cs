@@ -71,6 +71,7 @@ namespace HTCommander
         public List<TerminalText> terminalTexts = new List<TerminalText>();
         public BBS bbs;
         public AprsStack aprsStack;
+        public bool Loading = true;
 
         public static Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
 
@@ -143,6 +144,40 @@ namespace HTCommander
             }
             UpdateStations();
 
+            // Read registry values
+            callsign = registry.ReadString("CallSign", null);
+            stationId = (int)registry.ReadInt("StationId", 0);
+            if ((callsign != null) && ((callsign.Length > 6) || (callsign.Length < 3))) { callsign = null; }
+            if ((stationId < 0) || (stationId > 15)) { stationId = 0; }
+            aprsRoutes = Utils.DecodeAprsRoutes(registry.ReadString("AprsRoutes", "Standard,APN000,WIDE1-1,WIDE2-2"));
+            aprsSelectedRoute = registry.ReadString("SelectedAprsRoute", "Standard");
+            nextAprsMessageId = (int)registry.ReadInt("NextAprsMessageId", new Random().Next(1, 1000));
+            radioPanel.Visible = radioToolStripMenuItem.Checked = registry.ReadInt("ViewRadio", 1) == 1;
+            showBluetoothFramesToolStripMenuItem.Checked = (registry.ReadInt("PacketTrace", 0) == 1);
+            showAllChannels = (registry.ReadInt("ShowAllChannels", 0) == 1);
+            aprsDestinationComboBox.Text = registry.ReadString("AprsDestination", "ALL");
+            mapToolStripMenuItem.Checked = (registry.ReadInt("ViewMap", 0) == 1);
+            contactsToolStripMenuItem.Checked = (registry.ReadInt("ViewContacts", 0) == 1);
+            bBSToolStripMenuItem.Checked = (registry.ReadInt("ViewBBS", 0) == 1);
+            terminalToolStripMenuItem.Checked = (registry.ReadInt("ViewTerminal", 1) == 1);
+            if (previewMode)
+            {
+                mailToolStripMenuItem.Checked = (registry.ReadInt("ViewMail", 0) == 1);
+            }
+            else
+            {
+                mailToolStripMenuItem.Checked = mailToolStripMenuItem.Visible = false;
+            }
+
+            packetsToolStripMenuItem.Checked = (registry.ReadInt("ViewPackets", 0) == 1);
+            debugToolStripMenuItem.Checked = (registry.ReadInt("ViewDebug", 0) == 1);
+            showAllMessagesToolStripMenuItem.Checked = (registry.ReadInt("aprsViewAll", 1) == 1);
+            showPacketDecodeToolStripMenuItem.Checked = (registry.ReadInt("showPacketDecode", 0) == 1);
+            showCallsignToolStripMenuItem.Checked = (registry.ReadInt("TerminalShowCallsign", 1) == 1);
+            viewTrafficToolStripMenuItem.Checked = (registry.ReadInt("ViewBbsTraffic", 1) == 1);
+            systemTrayToolStripMenuItem.Checked = (registry.ReadInt("SystemTray", 1) == 1);
+            bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
+
             // Read the packets file
             string[] lines = null;
             try { lines = File.ReadAllLines("packets.ptcap"); } catch (Exception) { }
@@ -194,41 +229,6 @@ namespace HTCommander
                 }
             }
 
-            // Read registry values
-            callsign = registry.ReadString("CallSign", null);
-            stationId = (int)registry.ReadInt("StationId", 0);
-            if ((callsign != null) && ((callsign.Length > 6) || (callsign.Length < 3))) { callsign = null; }
-            if ((stationId < 0) || (stationId > 15)) { stationId = 0; }
-            aprsRoutes = Utils.DecodeAprsRoutes(registry.ReadString("AprsRoutes", "Standard,APN000,WIDE1-1,WIDE2-2"));
-            aprsSelectedRoute = registry.ReadString("SelectedAprsRoute", "Standard");
-            nextAprsMessageId = (int)registry.ReadInt("NextAprsMessageId", new Random().Next(1, 1000));
-            radioPanel.Visible = radioToolStripMenuItem.Checked = registry.ReadInt("ViewRadio", 1) == 1;
-            showBluetoothFramesToolStripMenuItem.Checked = (registry.ReadInt("PacketTrace", 0) == 1);
-            showAllChannels = (registry.ReadInt("ShowAllChannels", 0) == 1);
-            allowTransmit = (registry.ReadInt("AllowTransmit", 0) == 1);
-            aprsDestinationComboBox.Text = registry.ReadString("AprsDestination", "ALL");
-            mapToolStripMenuItem.Checked = (registry.ReadInt("ViewMap", 0) == 1);
-            contactsToolStripMenuItem.Checked = (registry.ReadInt("ViewContacts", 0) == 1);
-            bBSToolStripMenuItem.Checked = (registry.ReadInt("ViewBBS", 0) == 1);
-            terminalToolStripMenuItem.Checked = (registry.ReadInt("ViewTerminal", 1) == 1);
-            if (previewMode)
-            {
-                mailToolStripMenuItem.Checked = (registry.ReadInt("ViewMail", 0) == 1);
-            }
-            else
-            {
-                mailToolStripMenuItem.Checked = mailToolStripMenuItem.Visible = false;
-            }
-
-            packetsToolStripMenuItem.Checked = (registry.ReadInt("ViewPackets", 0) == 1);
-            debugToolStripMenuItem.Checked = (registry.ReadInt("ViewDebug", 0) == 1);
-            showAllMessagesToolStripMenuItem.Checked = (registry.ReadInt("aprsViewAll", 1) == 1);
-            showPacketDecodeToolStripMenuItem.Checked = (registry.ReadInt("showPacketDecode", 0) == 1);
-            showCallsignToolStripMenuItem.Checked = (registry.ReadInt("TerminalShowCallsign", 1) == 1);
-            viewTrafficToolStripMenuItem.Checked = (registry.ReadInt("ViewBbsTraffic", 1) == 1);
-            systemTrayToolStripMenuItem.Checked = (registry.ReadInt("SystemTray", 1) == 1);
-            bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
-
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
             UpdateTabs();
 
@@ -252,6 +252,8 @@ namespace HTCommander
                 webserver = new HttpsWebSocketServer(this, webServerPort);
                 webserver.Start();
             }
+            allowTransmit = (registry.ReadInt("AllowTransmit", 0) == 1);
+            Loading = false;
         }
 
         private async void CheckBluetooth()
@@ -1698,6 +1700,7 @@ namespace HTCommander
                         addPacketDecodeLine(3, "Type", aprsPacket.DataType.ToString());
                         if (aprsPacket.TimeStamp != null) { addPacketDecodeLine(3, "Time Stamp", aprsPacket.TimeStamp.ToString()); }
                         if (!string.IsNullOrEmpty(aprsPacket.DestCallsign.StationCallsign)) { addPacketDecodeLine(3, "Destination", aprsPacket.DestCallsign.StationCallsign.ToString()); }
+                        if (!string.IsNullOrEmpty(aprsPacket.ThirdPartyHeader)) { addPacketDecodeLine(3, "ThirdParty Header", aprsPacket.ThirdPartyHeader); }
                         if (!string.IsNullOrEmpty(aprsPacket.InformationField)) { addPacketDecodeLine(3, "Information", aprsPacket.InformationField.ToString()); }
                         if (!string.IsNullOrEmpty(aprsPacket.Comment)) { addPacketDecodeLine(3, "Comment", aprsPacket.Comment.ToString()); }
                         if (aprsPacket.SymbolTableIdentifier != 0) { addPacketDecodeLine(3, "Symbol Code", aprsPacket.SymbolTableIdentifier.ToString()); }

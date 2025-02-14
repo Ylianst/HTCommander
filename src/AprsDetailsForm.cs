@@ -53,6 +53,7 @@ namespace HTCommander
                 addItem("Type", aprsPacket.DataType.ToString());
                 if (!string.IsNullOrEmpty(aprsPacket.Comment)) { addItem("Comment", aprsPacket.Comment); }
                 if (!string.IsNullOrEmpty(aprsPacket.DestCallsign.StationCallsign)) { addItem("DestCallsign", aprsPacket.DestCallsign.StationCallsign); }
+                if (!string.IsNullOrEmpty(aprsPacket.ThirdPartyHeader)) { addItem("ThirdParty Header", aprsPacket.ThirdPartyHeader); }
                 if (aprsPacket.MessageData != null) {
                     addItem("MsgType", aprsPacket.MessageData.MsgType.ToString());
                     if (aprsPacket.MessageData.Addressee != null) { addItem("Addressee", aprsPacket.MessageData.Addressee); }

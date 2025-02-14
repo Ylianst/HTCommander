@@ -20,6 +20,7 @@ namespace aprsparser
         public PacketDataType DataType { get; private set; }
         public string InformationField { get; private set; }
         public string Comment { get; private set; }
+        public string ThirdPartyHeader { get; private set; }
         public Char SymbolTableIdentifier { get; private set; }
         public Char SymbolCode { get; private set; }
         public bool FromD7 { get; set; }
@@ -96,24 +97,32 @@ namespace aprsparser
             AprsPacket r = new AprsPacket();
             try
             {
+                string dataStr = packet.dataStr;
+                if (dataStr[0] == '}')
+                {
+                    int i = dataStr.IndexOf("*:");
+                    r.ThirdPartyHeader = dataStr.Substring(1, i - 1);
+                    dataStr = dataStr.Substring(i + 2);
+                }
+
                 //split packet into basic components of:
                 // packet type
                 // packet data
                 r.Packet = packet;
                 r.Position.Clear();
-                r.RawPacket = packet.dataStr;
+                r.RawPacket = dataStr;
                 r.DestCallsign = Callsign.ParseCallsign(packet.addresses[0].CallSignWithId);
                 r.DataType = PacketDataType.Unknown;
-                r.DataTypeCh = packet.dataStr[0];
+                r.DataTypeCh = dataStr[0];
                 r.DataType = AprsDataType.GetDataType(r.DataTypeCh);
                 if (r.DataType == PacketDataType.Unknown) { r.DataTypeCh = (char)0x00; }
                 if (r.DataType != PacketDataType.Unknown)
                 {
-                    r.InformationField = packet.dataStr.Substring(1);
+                    r.InformationField = dataStr.Substring(1);
                 }
                 else
                 {
-                    r.InformationField = packet.dataStr;
+                    r.InformationField = dataStr;
                 }
 
                 //parse information field
@@ -282,14 +291,14 @@ namespace aprsparser
                 if (s.StartsWith("ACK", StringComparison.OrdinalIgnoreCase))
                 {
                     MessageData.MsgType = MessageType.mtAck;
-                    MessageData.SeqId = s.Substring(3);
+                    MessageData.SeqId = s.Substring(3).Trim();
                     MessageData.MsgText = string.Empty;
                     return;
                 }
                 if (s.StartsWith("REJ", StringComparison.OrdinalIgnoreCase))
                 {
                     MessageData.MsgType = MessageType.mtRej;
-                    MessageData.SeqId = s.Substring(3);
+                    MessageData.SeqId = s.Substring(3).Trim();
                     MessageData.MsgText = string.Empty;
                     return;
                 }
