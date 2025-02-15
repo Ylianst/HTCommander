@@ -38,6 +38,7 @@ namespace HTCommander
         public RadioChannelControl[] channelControls = null;
         public RadioHtStatusForm radioHtStatusForm = null;
         public RadioSettingsForm radioSettingsForm = null;
+        public RadioBssSettingsForm radioBssSettingsForm = null;
         public RadioChannelForm radioChannelForm = null;
         public RadioVolumeForm radioVolumeForm = null;
         public AprsDetailsForm aprsDetailsForm = null;
@@ -437,6 +438,7 @@ namespace HTCommander
                                 }
                                 if (radioHtStatusForm != null) { radioHtStatusForm.Close(); radioHtStatusForm = null; }
                                 if (radioSettingsForm != null) { radioSettingsForm.Close(); radioSettingsForm = null; }
+                                if (radioBssSettingsForm != null) { radioBssSettingsForm.Close(); radioBssSettingsForm = null; }
                                 if (radioChannelForm != null) { radioChannelForm.Close(); radioChannelForm = null; }
                                 if (radioVolumeForm != null) { radioVolumeForm.Close(); radioVolumeForm = null; }
                                 if (aprsConfigurationForm != null) { aprsConfigurationForm.Close(); aprsConfigurationForm = null; }
@@ -493,6 +495,10 @@ namespace HTCommander
                         if ((activeStationLock != null) && (activeChannelIdLock != radio.Settings.channel_a)) { ActiveLockToStation(null); } // Check lock/unlock
                         UpdateRadioDisplay();
                         setupRegionMenu();
+                        break;
+                    case Radio.RadioUpdateNotification.BssSettings:
+                        if (radioSettingsForm != null) { radioBssSettingsForm.UpdateInfo(); }
+                        radioBSSSettingsToolStripMenuItem.Enabled = true;
                         break;
                     case Radio.RadioUpdateNotification.Volume:
                         if (radioVolumeForm != null)
@@ -1108,11 +1114,11 @@ namespace HTCommander
                 c.Visible = showAllMessagesToolStripMenuItem.Checked || (c.MessageType == PacketDataType.Message);
                 c.ImageIndex = ImageIndex;
 
-                // Check if we already got this packet in the last 5 minutes
+                // Check if we already got this message in the last 5 minutes
                 foreach (ChatMessage chatMessage2 in aprsChatControl.Messages)
                 {
                     AX25Packet packet2 = (AX25Packet)chatMessage2.Tag;
-                    if (packet2.isSame(packet) && (packet2.time.AddMinutes(5).CompareTo(packet.time) > 0)) { return; }
+                    if ((c.Message == chatMessage2.Message) && (packet2.time.AddMinutes(5).CompareTo(packet.time) > 0)) { return; }
                 }
 
                 // Add the message
@@ -2568,6 +2574,20 @@ namespace HTCommander
             mainTabControl.SelectedIndex = 0;
             if (this.WindowState == FormWindowState.Minimized) { this.WindowState = FormWindowState.Normal; }
             this.Focus();
+        }
+
+        private void radioBSSSettingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (radioBssSettingsForm != null)
+            {
+                radioBssSettingsForm.UpdateInfo();
+                radioBssSettingsForm.Focus();
+            }
+            else
+            {
+                radioBssSettingsForm = new RadioBssSettingsForm(this, radio);
+                radioBssSettingsForm.Show(this);
+            }
         }
     }
 }

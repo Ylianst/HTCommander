@@ -71,7 +71,7 @@ namespace HTCommander
         private void ProcessRawFrame(AX25Packet p, int frameLength)
         {
             parent.addBbsTraffic(p.addresses[1].ToString(), false, p.dataStr);
-            AdventurerDOS.GameRunner runner = new AdventurerDOS.GameRunner();
+            Adventurer.GameRunner runner = new Adventurer.GameRunner();
             string output = runner.RunTurn("adv01.dat", p.addresses[1].CallSignWithId + ".sav", p.dataStr).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
             {
@@ -124,7 +124,7 @@ namespace HTCommander
             if (aprsPacket.MessageData.MsgType != MessageType.mtGeneral) return;
 
             parent.addBbsTraffic(p.addresses[1].ToString(), false, aprsPacket.MessageData.MsgText);
-            AdventurerDOS.GameRunner runner = new AdventurerDOS.GameRunner();
+            Adventurer.GameRunner runner = new Adventurer.GameRunner();
             string output = runner.RunTurn("adv01.dat", p.addresses[1].CallSignWithId + ".sav", aprsPacket.MessageData.MsgText).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
             {

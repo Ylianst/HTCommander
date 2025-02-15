@@ -38,7 +38,7 @@ namespace HTCommander
             addItem("GMRS Support", radio.Info.gmrs ? "Present" : "Not-Present");
             addItem("Hardware Speaker", radio.Info.have_hm_speaker ? "Present" : "Not-Present");
             addItem("Hardware Version", radio.Info.hw_ver.ToString());
-            addItem("Software Version", radio.Info.soft_ver.ToString());
+            addItem("Software Version", ((radio.Info.soft_ver >> 8) & 0xF) + "." + ((radio.Info.soft_ver >> 4) & 0xF) + "." + (radio.Info.soft_ver & 0xF));
             addItem("Region Count", radio.Info.region_count.ToString());
             addItem("Medium Power", radio.Info.support_medium_power ? "Supported" : "Not-Supported");
             addItem("Channel Count", radio.Info.channel_count.ToString());

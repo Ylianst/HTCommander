@@ -65,13 +65,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Adventurer">
-      <HintPath>adventurer\Adventurer.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" />
-    <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL" />
     <Reference Include="System.Text.Json, Version=8.0.0.5, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -108,6 +104,15 @@
     <Compile Include="AddStationForm.Designer.cs">
       <DependentUpon>AddStationForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="adventurer\Advent - Constants.cs" />
+    <Compile Include="adventurer\Advent - Events.cs" />
+    <Compile Include="adventurer\Advent - Game Variables.cs" />
+    <Compile Include="adventurer\Advent - Game.cs" />
+    <Compile Include="adventurer\Advent - IO.cs" />
+    <Compile Include="adventurer\Advent - Properties.cs" />
+    <Compile Include="adventurer\Adventurer.cs" />
+    <Compile Include="adventurer\DATToChunks.cs" />
+    <Compile Include="adventurer\GameData.cs" />
     <Compile Include="aprs-parser\AprsPacket.cs" />
     <Compile Include="aprs-parser\AprsUtil.cs" />
     <Compile Include="aprs-parser\Callsign.cs" />
@@ -202,6 +207,12 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RadioBssSettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="RadioBssSettingsForm.Designer.cs">
+      <DependentUpon>RadioBssSettingsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="radio\AX25Address.cs" />
     <Compile Include="radio\AX25Packet.cs" />
     <Compile Include="radio\Radio.cs" />
@@ -235,6 +246,7 @@
     <Compile Include="RadioVolumeForm.Designer.cs">
       <DependentUpon>RadioVolumeForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="radio\RadioBssSettings.cs" />
     <Compile Include="radio\RadioChannelInfo.cs" />
     <Compile Include="radio\RadioDevInfo.cs" />
     <Compile Include="radio\RadioHtStatus.cs" />
@@ -302,6 +314,9 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <SubType>Designer</SubType>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="RadioBssSettingsForm.resx">
+      <DependentUpon>RadioBssSettingsForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="RadioSettingsForm.resx">
       <DependentUpon>RadioSettingsForm.cs</DependentUpon>

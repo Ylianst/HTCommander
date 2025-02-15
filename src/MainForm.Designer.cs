@@ -29,7 +29,6 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
@@ -41,6 +40,7 @@
             System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -50,6 +50,7 @@
             this.disconnectToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
             this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.systemTrayToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.allowTransmitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem4 = new System.Windows.Forms.ToolStripSeparator();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -74,7 +75,6 @@
             this.packetsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.debugToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.radioInformationToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.radioStatusToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.radioSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
@@ -93,7 +93,6 @@
             this.vfo1Label = new System.Windows.Forms.Label();
             this.radioStateLabel = new System.Windows.Forms.Label();
             this.connectButton = new System.Windows.Forms.Button();
-            this.radioPictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
@@ -106,7 +105,6 @@
             this.aprsSendButton = new System.Windows.Forms.Button();
             this.aprsTopPanel = new System.Windows.Forms.Panel();
             this.aprsRouteComboBox = new System.Windows.Forms.ComboBox();
-            this.aprsMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.aprsTitleLabel = new System.Windows.Forms.Label();
             this.mapTabPage = new System.Windows.Forms.TabPage();
             this.mapZoomOutButton = new System.Windows.Forms.Button();
@@ -121,7 +119,6 @@
             this.terminalSendButton = new System.Windows.Forms.Button();
             this.terminalTopPanel = new System.Windows.Forms.Panel();
             this.terminalConnectButton = new System.Windows.Forms.Button();
-            this.terminalMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.terminalTitleLabel = new System.Windows.Forms.Label();
             this.mailTabPage = new System.Windows.Forms.TabPage();
             this.listView1 = new System.Windows.Forms.ListView();
@@ -140,7 +137,6 @@
             this.removeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.setToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.panel1 = new System.Windows.Forms.Panel();
-            this.stationsMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.stationsTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.exportStationsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.importStationsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -155,7 +151,6 @@
             this.columnHeader12 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.bbsTextBox = new System.Windows.Forms.RichTextBox();
             this.panel4 = new System.Windows.Forms.Panel();
-            this.bbsMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.bbsConnectButton = new System.Windows.Forms.Button();
             this.label3 = new System.Windows.Forms.Label();
             this.packetsTabPage = new System.Windows.Forms.TabPage();
@@ -173,12 +168,10 @@
             this.packetDataContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.copyToClipboardToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.panel3 = new System.Windows.Forms.Panel();
-            this.packetsMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.label5 = new System.Windows.Forms.Label();
             this.debugTabPage = new System.Windows.Forms.TabPage();
             this.debugTextBox = new System.Windows.Forms.TextBox();
             this.debugControlsPanel = new System.Windows.Forms.Panel();
-            this.debugMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.label2 = new System.Windows.Forms.Label();
             this.tabsImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
@@ -221,33 +214,37 @@
             this.notifyIcon = new System.Windows.Forms.NotifyIcon(this.components);
             this.notifyContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.exitToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem12 = new System.Windows.Forms.ToolStripSeparator();
-            this.systemTrayToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.exitToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsChatControl = new HTCommander.ChatControl();
+            this.terminalMenuPictureBox = new System.Windows.Forms.PictureBox();
+            this.stationsMenuPictureBox = new System.Windows.Forms.PictureBox();
+            this.bbsMenuPictureBox = new System.Windows.Forms.PictureBox();
+            this.packetsMenuPictureBox = new System.Windows.Forms.PictureBox();
+            this.debugMenuPictureBox = new System.Windows.Forms.PictureBox();
+            this.radioPictureBox = new System.Windows.Forms.PictureBox();
+            this.radioInformationToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.aprsMenuPictureBox = new System.Windows.Forms.PictureBox();
+            this.radioBSSSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
             this.connectedPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).BeginInit();
             this.mainTabControl.SuspendLayout();
             this.aprsTabPage.SuspendLayout();
             this.aprsMissingChannelPanel.SuspendLayout();
             this.aprsBottomPanel.SuspendLayout();
             this.aprsTopPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).BeginInit();
             this.mapTabPage.SuspendLayout();
             this.mapTopPanel.SuspendLayout();
             this.terminalTabPage.SuspendLayout();
             this.terminalBottomPanel.SuspendLayout();
             this.terminalTopPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.terminalMenuPictureBox)).BeginInit();
             this.mailTabPage.SuspendLayout();
             this.panel2.SuspendLayout();
             this.addressesTabPage.SuspendLayout();
             this.stationsContextMenuStrip.SuspendLayout();
             this.panel1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.stationsMenuPictureBox)).BeginInit();
             this.stationsTabContextMenuStrip.SuspendLayout();
             this.bbsTabPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.bbsSplitContainer)).BeginInit();
@@ -255,7 +252,6 @@
             this.bbsSplitContainer.Panel2.SuspendLayout();
             this.bbsSplitContainer.SuspendLayout();
             this.panel4.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.bbsMenuPictureBox)).BeginInit();
             this.packetsTabPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.packetsSplitContainer)).BeginInit();
             this.packetsSplitContainer.Panel1.SuspendLayout();
@@ -264,10 +260,8 @@
             this.packetsListContextMenuStrip.SuspendLayout();
             this.packetDataContextMenuStrip.SuspendLayout();
             this.panel3.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.packetsMenuPictureBox)).BeginInit();
             this.debugTabPage.SuspendLayout();
             this.debugControlsPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).BeginInit();
             this.aprsContextMenuStrip.SuspendLayout();
             this.terminalTabContextMenuStrip.SuspendLayout();
             this.debugTabContextMenuStrip.SuspendLayout();
@@ -275,6 +269,13 @@
             this.packetsContextMenuStrip.SuspendLayout();
             this.bbsTabContextMenuStrip.SuspendLayout();
             this.notifyContextMenuStrip.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.terminalMenuPictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.stationsMenuPictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.bbsMenuPictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.packetsMenuPictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).BeginInit();
             this.SuspendLayout();
             // 
             // mainStatusStrip
@@ -360,6 +361,14 @@
             this.settingsToolStripMenuItem.Size = new System.Drawing.Size(153, 22);
             this.settingsToolStripMenuItem.Text = "&Settings...";
             this.settingsToolStripMenuItem.Click += new System.EventHandler(this.settingsToolStripMenuItem_Click);
+            // 
+            // systemTrayToolStripMenuItem
+            // 
+            this.systemTrayToolStripMenuItem.CheckOnClick = true;
+            this.systemTrayToolStripMenuItem.Name = "systemTrayToolStripMenuItem";
+            this.systemTrayToolStripMenuItem.Size = new System.Drawing.Size(153, 22);
+            this.systemTrayToolStripMenuItem.Text = "System &Tray";
+            this.systemTrayToolStripMenuItem.Click += new System.EventHandler(this.systemTrayToolStripMenuItem_Click);
             // 
             // allowTransmitToolStripMenuItem
             // 
@@ -554,25 +563,18 @@
             this.radioInformationToolStripMenuItem,
             this.radioStatusToolStripMenuItem,
             this.radioSettingsToolStripMenuItem,
+            this.radioBSSSettingsToolStripMenuItem,
             this.toolStripMenuItem2,
             this.aboutToolStripMenuItem1});
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
             this.aboutToolStripMenuItem.Size = new System.Drawing.Size(52, 20);
             this.aboutToolStripMenuItem.Text = "&About";
             // 
-            // radioInformationToolStripMenuItem
-            // 
-            this.radioInformationToolStripMenuItem.Enabled = false;
-            this.radioInformationToolStripMenuItem.Name = "radioInformationToolStripMenuItem";
-            this.radioInformationToolStripMenuItem.Size = new System.Drawing.Size(179, 22);
-            this.radioInformationToolStripMenuItem.Text = "Radio Information...";
-            this.radioInformationToolStripMenuItem.Click += new System.EventHandler(this.radioInformationToolStripMenuItem_Click);
-            // 
             // radioStatusToolStripMenuItem
             // 
             this.radioStatusToolStripMenuItem.Enabled = false;
             this.radioStatusToolStripMenuItem.Name = "radioStatusToolStripMenuItem";
-            this.radioStatusToolStripMenuItem.Size = new System.Drawing.Size(179, 22);
+            this.radioStatusToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.radioStatusToolStripMenuItem.Text = "Radio &Status...";
             this.radioStatusToolStripMenuItem.Click += new System.EventHandler(this.radioStatusToolStripMenuItem_Click);
             // 
@@ -580,19 +582,19 @@
             // 
             this.radioSettingsToolStripMenuItem.Enabled = false;
             this.radioSettingsToolStripMenuItem.Name = "radioSettingsToolStripMenuItem";
-            this.radioSettingsToolStripMenuItem.Size = new System.Drawing.Size(179, 22);
+            this.radioSettingsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.radioSettingsToolStripMenuItem.Text = "Radio S&ettings...";
             this.radioSettingsToolStripMenuItem.Click += new System.EventHandler(this.radioSettingsToolStripMenuItem_Click);
             // 
             // toolStripMenuItem2
             // 
             this.toolStripMenuItem2.Name = "toolStripMenuItem2";
-            this.toolStripMenuItem2.Size = new System.Drawing.Size(176, 6);
+            this.toolStripMenuItem2.Size = new System.Drawing.Size(177, 6);
             // 
             // aboutToolStripMenuItem1
             // 
             this.aboutToolStripMenuItem1.Name = "aboutToolStripMenuItem1";
-            this.aboutToolStripMenuItem1.Size = new System.Drawing.Size(179, 22);
+            this.aboutToolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
             this.aboutToolStripMenuItem1.Text = "&About...";
             this.aboutToolStripMenuItem1.Click += new System.EventHandler(this.aboutToolStripMenuItem1_Click);
             // 
@@ -776,15 +778,6 @@
             this.connectButton.UseVisualStyleBackColor = true;
             this.connectButton.Click += new System.EventHandler(this.connectToolStripMenuItem_Click);
             // 
-            // radioPictureBox
-            // 
-            this.radioPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("radioPictureBox.Image")));
-            this.radioPictureBox.Location = new System.Drawing.Point(8, -2);
-            this.radioPictureBox.Name = "radioPictureBox";
-            this.radioPictureBox.Size = new System.Drawing.Size(263, 554);
-            this.radioPictureBox.TabIndex = 0;
-            this.radioPictureBox.TabStop = false;
-            // 
             // mainTabControl
             // 
             this.mainTabControl.Alignment = System.Windows.Forms.TabAlignment.Right;
@@ -822,14 +815,14 @@
             // 
             this.mainImageList.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("mainImageList.ImageStream")));
             this.mainImageList.TransparentColor = System.Drawing.Color.Transparent;
-            this.mainImageList.Images.SetKeyName(0, "GreenCheck.png");
-            this.mainImageList.Images.SetKeyName(1, "RedCheck.png");
-            this.mainImageList.Images.SetKeyName(2, "info.ico");
-            this.mainImageList.Images.SetKeyName(3, "LocationPin2.png");
-            this.mainImageList.Images.SetKeyName(4, "left-arrow.png");
-            this.mainImageList.Images.SetKeyName(5, "right-arrow.png");
-            this.mainImageList.Images.SetKeyName(6, "Terminal.png");
-            this.mainImageList.Images.SetKeyName(7, "Person.png");
+            this.mainImageList.Images.SetKeyName(0, "");
+            this.mainImageList.Images.SetKeyName(1, "");
+            this.mainImageList.Images.SetKeyName(2, "");
+            this.mainImageList.Images.SetKeyName(3, "");
+            this.mainImageList.Images.SetKeyName(4, "");
+            this.mainImageList.Images.SetKeyName(5, "");
+            this.mainImageList.Images.SetKeyName(6, "");
+            this.mainImageList.Images.SetKeyName(7, "");
             // 
             // aprsMissingChannelPanel
             // 
@@ -945,18 +938,6 @@
             this.aprsRouteComboBox.TabIndex = 3;
             this.aprsRouteComboBox.Visible = false;
             this.aprsRouteComboBox.SelectionChangeCommitted += new System.EventHandler(this.aprsRouteComboBox_SelectionChangeCommitted);
-            // 
-            // aprsMenuPictureBox
-            // 
-            this.aprsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.aprsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("aprsMenuPictureBox.Image")));
-            this.aprsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
-            this.aprsMenuPictureBox.Name = "aprsMenuPictureBox";
-            this.aprsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
-            this.aprsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.aprsMenuPictureBox.TabIndex = 2;
-            this.aprsMenuPictureBox.TabStop = false;
-            this.aprsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsMenuPictureBox_MouseClick);
             // 
             // aprsTitleLabel
             // 
@@ -1143,18 +1124,6 @@
             this.terminalConnectButton.UseVisualStyleBackColor = true;
             this.terminalConnectButton.Click += new System.EventHandler(this.terminalConnectButton_Click);
             // 
-            // terminalMenuPictureBox
-            // 
-            this.terminalMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("terminalMenuPictureBox.Image")));
-            this.terminalMenuPictureBox.Location = new System.Drawing.Point(484, 5);
-            this.terminalMenuPictureBox.Name = "terminalMenuPictureBox";
-            this.terminalMenuPictureBox.Size = new System.Drawing.Size(20, 20);
-            this.terminalMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.terminalMenuPictureBox.TabIndex = 3;
-            this.terminalMenuPictureBox.TabStop = false;
-            this.terminalMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.terminalMenuPictureBox_MouseClick);
-            // 
             // terminalTitleLabel
             // 
             this.terminalTitleLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
@@ -1335,19 +1304,6 @@
             this.panel1.Size = new System.Drawing.Size(508, 30);
             this.panel1.TabIndex = 3;
             // 
-            // stationsMenuPictureBox
-            // 
-            this.stationsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.stationsMenuPictureBox.ContextMenuStrip = this.stationsTabContextMenuStrip;
-            this.stationsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("stationsMenuPictureBox.Image")));
-            this.stationsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
-            this.stationsMenuPictureBox.Name = "stationsMenuPictureBox";
-            this.stationsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
-            this.stationsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.stationsMenuPictureBox.TabIndex = 3;
-            this.stationsMenuPictureBox.TabStop = false;
-            this.stationsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.stationsMenuPictureBox_MouseClick);
-            // 
             // stationsTabContextMenuStrip
             // 
             this.stationsTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
@@ -1508,18 +1464,6 @@
             this.panel4.Size = new System.Drawing.Size(508, 30);
             this.panel4.TabIndex = 5;
             // 
-            // bbsMenuPictureBox
-            // 
-            this.bbsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.bbsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("bbsMenuPictureBox.Image")));
-            this.bbsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
-            this.bbsMenuPictureBox.Name = "bbsMenuPictureBox";
-            this.bbsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
-            this.bbsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.bbsMenuPictureBox.TabIndex = 4;
-            this.bbsMenuPictureBox.TabStop = false;
-            this.bbsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.pictureBox1_MouseClick);
-            // 
             // bbsConnectButton
             // 
             this.bbsConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
@@ -1569,7 +1513,7 @@
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
             this.packetsSplitContainer.Size = new System.Drawing.Size(508, 488);
-            this.packetsSplitContainer.SplitterDistance = 240;
+            this.packetsSplitContainer.SplitterDistance = 239;
             this.packetsSplitContainer.TabIndex = 6;
             // 
             // packetsListView
@@ -1586,7 +1530,7 @@
             this.packetsListView.HideSelection = false;
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
             this.packetsListView.Name = "packetsListView";
-            this.packetsListView.Size = new System.Drawing.Size(508, 240);
+            this.packetsListView.Size = new System.Drawing.Size(508, 239);
             this.packetsListView.SmallImageList = this.mainImageList;
             this.packetsListView.TabIndex = 5;
             this.packetsListView.UseCompatibleStateImageBehavior = false;
@@ -1662,7 +1606,7 @@
             this.packetDecodeListView.HideSelection = false;
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(508, 244);
+            this.packetDecodeListView.Size = new System.Drawing.Size(508, 245);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;
@@ -1702,18 +1646,6 @@
             this.panel3.Name = "panel3";
             this.panel3.Size = new System.Drawing.Size(508, 30);
             this.panel3.TabIndex = 3;
-            // 
-            // packetsMenuPictureBox
-            // 
-            this.packetsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.packetsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("packetsMenuPictureBox.Image")));
-            this.packetsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
-            this.packetsMenuPictureBox.Name = "packetsMenuPictureBox";
-            this.packetsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
-            this.packetsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.packetsMenuPictureBox.TabIndex = 2;
-            this.packetsMenuPictureBox.TabStop = false;
-            this.packetsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.packetsMenuPictureBox_MouseClick);
             // 
             // label5
             // 
@@ -1764,18 +1696,6 @@
             this.debugControlsPanel.Name = "debugControlsPanel";
             this.debugControlsPanel.Size = new System.Drawing.Size(508, 30);
             this.debugControlsPanel.TabIndex = 0;
-            // 
-            // debugMenuPictureBox
-            // 
-            this.debugMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.debugMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("debugMenuPictureBox.Image")));
-            this.debugMenuPictureBox.Location = new System.Drawing.Point(484, 5);
-            this.debugMenuPictureBox.Name = "debugMenuPictureBox";
-            this.debugMenuPictureBox.Size = new System.Drawing.Size(20, 20);
-            this.debugMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.debugMenuPictureBox.TabIndex = 3;
-            this.debugMenuPictureBox.TabStop = false;
-            this.debugMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.debugMenuPictureBox_MouseClick);
             // 
             // label2
             // 
@@ -2084,6 +2004,7 @@
             // 
             // notifyContextMenuStrip
             // 
+            this.notifyContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.notifyContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.openToolStripMenuItem,
             this.toolStripMenuItem12,
@@ -2098,25 +2019,17 @@
             this.openToolStripMenuItem.Text = "&Open";
             this.openToolStripMenuItem.Click += new System.EventHandler(this.openToolStripMenuItem_Click);
             // 
+            // toolStripMenuItem12
+            // 
+            this.toolStripMenuItem12.Name = "toolStripMenuItem12";
+            this.toolStripMenuItem12.Size = new System.Drawing.Size(100, 6);
+            // 
             // exitToolStripMenuItem1
             // 
             this.exitToolStripMenuItem1.Name = "exitToolStripMenuItem1";
             this.exitToolStripMenuItem1.Size = new System.Drawing.Size(103, 22);
             this.exitToolStripMenuItem1.Text = "&Exit";
             this.exitToolStripMenuItem1.Click += new System.EventHandler(this.exitToolStripMenuItem1_Click);
-            // 
-            // toolStripMenuItem12
-            // 
-            this.toolStripMenuItem12.Name = "toolStripMenuItem12";
-            this.toolStripMenuItem12.Size = new System.Drawing.Size(100, 6);
-            // 
-            // systemTrayToolStripMenuItem
-            // 
-            this.systemTrayToolStripMenuItem.CheckOnClick = true;
-            this.systemTrayToolStripMenuItem.Name = "systemTrayToolStripMenuItem";
-            this.systemTrayToolStripMenuItem.Size = new System.Drawing.Size(153, 22);
-            this.systemTrayToolStripMenuItem.Text = "System &Tray";
-            this.systemTrayToolStripMenuItem.Click += new System.EventHandler(this.systemTrayToolStripMenuItem_Click);
             // 
             // aprsChatControl
             // 
@@ -2142,6 +2055,104 @@
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
             this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
+            // terminalMenuPictureBox
+            // 
+            this.terminalMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.terminalMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("terminalMenuPictureBox.Image")));
+            this.terminalMenuPictureBox.Location = new System.Drawing.Point(484, 5);
+            this.terminalMenuPictureBox.Name = "terminalMenuPictureBox";
+            this.terminalMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.terminalMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.terminalMenuPictureBox.TabIndex = 3;
+            this.terminalMenuPictureBox.TabStop = false;
+            this.terminalMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.terminalMenuPictureBox_MouseClick);
+            // 
+            // stationsMenuPictureBox
+            // 
+            this.stationsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.stationsMenuPictureBox.ContextMenuStrip = this.stationsTabContextMenuStrip;
+            this.stationsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("stationsMenuPictureBox.Image")));
+            this.stationsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
+            this.stationsMenuPictureBox.Name = "stationsMenuPictureBox";
+            this.stationsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.stationsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.stationsMenuPictureBox.TabIndex = 3;
+            this.stationsMenuPictureBox.TabStop = false;
+            this.stationsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.stationsMenuPictureBox_MouseClick);
+            // 
+            // bbsMenuPictureBox
+            // 
+            this.bbsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.bbsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("bbsMenuPictureBox.Image")));
+            this.bbsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
+            this.bbsMenuPictureBox.Name = "bbsMenuPictureBox";
+            this.bbsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.bbsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.bbsMenuPictureBox.TabIndex = 4;
+            this.bbsMenuPictureBox.TabStop = false;
+            this.bbsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.pictureBox1_MouseClick);
+            // 
+            // packetsMenuPictureBox
+            // 
+            this.packetsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.packetsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("packetsMenuPictureBox.Image")));
+            this.packetsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
+            this.packetsMenuPictureBox.Name = "packetsMenuPictureBox";
+            this.packetsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.packetsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.packetsMenuPictureBox.TabIndex = 2;
+            this.packetsMenuPictureBox.TabStop = false;
+            this.packetsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.packetsMenuPictureBox_MouseClick);
+            // 
+            // debugMenuPictureBox
+            // 
+            this.debugMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.debugMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("debugMenuPictureBox.Image")));
+            this.debugMenuPictureBox.Location = new System.Drawing.Point(484, 5);
+            this.debugMenuPictureBox.Name = "debugMenuPictureBox";
+            this.debugMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.debugMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.debugMenuPictureBox.TabIndex = 3;
+            this.debugMenuPictureBox.TabStop = false;
+            this.debugMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.debugMenuPictureBox_MouseClick);
+            // 
+            // radioPictureBox
+            // 
+            this.radioPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("radioPictureBox.Image")));
+            this.radioPictureBox.Location = new System.Drawing.Point(8, -2);
+            this.radioPictureBox.Name = "radioPictureBox";
+            this.radioPictureBox.Size = new System.Drawing.Size(263, 554);
+            this.radioPictureBox.TabIndex = 0;
+            this.radioPictureBox.TabStop = false;
+            // 
+            // radioInformationToolStripMenuItem
+            // 
+            this.radioInformationToolStripMenuItem.Enabled = false;
+            this.radioInformationToolStripMenuItem.Name = "radioInformationToolStripMenuItem";
+            this.radioInformationToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.radioInformationToolStripMenuItem.Text = "Radio Information...";
+            this.radioInformationToolStripMenuItem.Click += new System.EventHandler(this.radioInformationToolStripMenuItem_Click);
+            // 
+            // aprsMenuPictureBox
+            // 
+            this.aprsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.aprsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("aprsMenuPictureBox.Image")));
+            this.aprsMenuPictureBox.Location = new System.Drawing.Point(484, 5);
+            this.aprsMenuPictureBox.Name = "aprsMenuPictureBox";
+            this.aprsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.aprsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.aprsMenuPictureBox.TabIndex = 2;
+            this.aprsMenuPictureBox.TabStop = false;
+            this.aprsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsMenuPictureBox_MouseClick);
+            // 
+            // radioBSSSettingsToolStripMenuItem
+            // 
+            this.radioBSSSettingsToolStripMenuItem.Enabled = false;
+            this.radioBSSSettingsToolStripMenuItem.Name = "radioBSSSettingsToolStripMenuItem";
+            this.radioBSSSettingsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.radioBSSSettingsToolStripMenuItem.Text = "Radio BSS Settings...";
+            this.radioBSSSettingsToolStripMenuItem.Click += new System.EventHandler(this.radioBSSSettingsToolStripMenuItem_Click);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -2153,7 +2164,7 @@
             this.Controls.Add(this.mainMenuStrip);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.mainMenuStrip;
-            this.MinimumSize = new System.Drawing.Size(800, 590);
+            this.MinimumSize = new System.Drawing.Size(800, 588);
             this.Name = "MainForm";
             this.Text = "Handi-Talkie Commander";
             this.Load += new System.EventHandler(this.MainForm_Load);
@@ -2163,7 +2174,6 @@
             this.mainMenuStrip.PerformLayout();
             this.radioPanel.ResumeLayout(false);
             this.connectedPanel.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).EndInit();
             this.mainTabControl.ResumeLayout(false);
             this.aprsTabPage.ResumeLayout(false);
             this.aprsMissingChannelPanel.ResumeLayout(false);
@@ -2172,7 +2182,6 @@
             this.aprsBottomPanel.PerformLayout();
             this.aprsTopPanel.ResumeLayout(false);
             this.aprsTopPanel.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).EndInit();
             this.mapTabPage.ResumeLayout(false);
             this.mapTopPanel.ResumeLayout(false);
             this.mapTopPanel.PerformLayout();
@@ -2181,7 +2190,6 @@
             this.terminalBottomPanel.PerformLayout();
             this.terminalTopPanel.ResumeLayout(false);
             this.terminalTopPanel.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.terminalMenuPictureBox)).EndInit();
             this.mailTabPage.ResumeLayout(false);
             this.panel2.ResumeLayout(false);
             this.panel2.PerformLayout();
@@ -2189,7 +2197,6 @@
             this.stationsContextMenuStrip.ResumeLayout(false);
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.stationsMenuPictureBox)).EndInit();
             this.stationsTabContextMenuStrip.ResumeLayout(false);
             this.bbsTabPage.ResumeLayout(false);
             this.bbsSplitContainer.Panel1.ResumeLayout(false);
@@ -2198,7 +2205,6 @@
             this.bbsSplitContainer.ResumeLayout(false);
             this.panel4.ResumeLayout(false);
             this.panel4.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.bbsMenuPictureBox)).EndInit();
             this.packetsTabPage.ResumeLayout(false);
             this.packetsSplitContainer.Panel1.ResumeLayout(false);
             this.packetsSplitContainer.Panel2.ResumeLayout(false);
@@ -2208,12 +2214,10 @@
             this.packetDataContextMenuStrip.ResumeLayout(false);
             this.panel3.ResumeLayout(false);
             this.panel3.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.packetsMenuPictureBox)).EndInit();
             this.debugTabPage.ResumeLayout(false);
             this.debugTabPage.PerformLayout();
             this.debugControlsPanel.ResumeLayout(false);
             this.debugControlsPanel.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).EndInit();
             this.aprsContextMenuStrip.ResumeLayout(false);
             this.terminalTabContextMenuStrip.ResumeLayout(false);
             this.debugTabContextMenuStrip.ResumeLayout(false);
@@ -2221,6 +2225,13 @@
             this.packetsContextMenuStrip.ResumeLayout(false);
             this.bbsTabContextMenuStrip.ResumeLayout(false);
             this.notifyContextMenuStrip.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.terminalMenuPictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.stationsMenuPictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.bbsMenuPictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.packetsMenuPictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -2247,7 +2258,6 @@
         private System.Windows.Forms.Label radioStateLabel;
         private System.Windows.Forms.FlowLayoutPanel channelsFlowLayoutPanel;
         private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem radioInformationToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem2;
         private System.Windows.Forms.ToolStripStatusLabel mainToolStripStatusLabel;
         private System.Windows.Forms.ToolStripStatusLabel batteryToolStripStatusLabel;
@@ -2315,7 +2325,6 @@
         private System.Windows.Forms.ToolStripMenuItem mailToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem contactsToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem6;
-        private System.Windows.Forms.PictureBox aprsMenuPictureBox;
         private System.Windows.Forms.ContextMenuStrip aprsContextMenuStrip;
         private System.Windows.Forms.ToolStripMenuItem showAllMessagesToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem7;
@@ -2413,6 +2422,9 @@
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem12;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem systemTrayToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem radioInformationToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem radioBSSSettingsToolStripMenuItem;
+        private System.Windows.Forms.PictureBox aprsMenuPictureBox;
     }
 }
 

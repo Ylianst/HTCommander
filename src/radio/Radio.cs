@@ -195,7 +195,8 @@ namespace HTCommander
             Settings = 8,
             Volume = 9,
             AllChannelsLoaded = 10,
-            RegionChange = 11
+            RegionChange = 11,
+            BssSettings = 12
         }
         public enum RadioState : int
         {
@@ -225,6 +226,7 @@ namespace HTCommander
         public RadioChannelInfo[] Channels = null;
         public RadioHtStatus HtStatus = null;
         public RadioSettings Settings = null;
+        public RadioBssSettings BssSettings = null;
         public bool PacketTrace = false;
         public int BatteryLevel = -1;
         public float BatteryVoltage = -1;
@@ -449,6 +451,7 @@ namespace HTCommander
             indicateCharacteristic.CharacteristicValueChanged += Characteristic_CharacteristicValueChanged;
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_SETTINGS, null);
+            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_BSS_SETTINGS, null);
             RequestPowerStatus(RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE);
         }
 
@@ -486,6 +489,11 @@ namespace HTCommander
             byte[] buf = new byte[1];
             buf[0] = (byte)level;
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.SET_VOLUME, buf);
+        }
+
+        public void SetBssSettings(RadioBssSettings bss)
+        {
+            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.WRITE_BSS_SETTINGS, bss.ToByteArray());
         }
 
         public void GetBatteryLevel() { RequestPowerStatus(RadioPowerStatus.BATTERY_LEVEL); }
@@ -544,6 +552,10 @@ namespace HTCommander
                                 {
                                     SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_RF_CH, e.Value[5]);
                                 }
+                                break;
+                            case RadioBasicCommand.READ_BSS_SETTINGS:
+                                BssSettings = new RadioBssSettings(e.Value);
+                                Update(RadioUpdateNotification.BssSettings);
                                 break;
                             case RadioBasicCommand.EVENT_NOTIFICATION:
                                 RadioNotification notify = (RadioNotification)e.Value[4];

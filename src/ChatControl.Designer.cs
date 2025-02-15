@@ -55,6 +55,7 @@ namespace HTCommander
             this.Name = "ChatControl";
             this.Size = new System.Drawing.Size(495, 366);
             this.Paint += new System.Windows.Forms.PaintEventHandler(this.ChatControl_Paint);
+            this.Resize += new System.EventHandler(this.ChatControl_Resize);
             this.ResumeLayout(false);
 
         }
