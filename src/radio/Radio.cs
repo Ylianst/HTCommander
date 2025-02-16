@@ -17,19 +17,21 @@ limitations under the License.
 using System;
 using System.IO;
 using System.Net;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Collections.Generic;
-using Windows.Devices.Enumeration;
-using InTheHand.Bluetooth;
-using System.Collections.Concurrent;
-using System.Threading;
+
 
 namespace HTCommander
 {
     public class Radio : IDisposable
     {
         private const int MAX_MTU = 50;
+
+        public class CompatibleDevice
+        {
+            public string name;
+            public string mac;
+            public CompatibleDevice(string name, string mac) { this.name = name; this.mac = mac; }
+        }
 
         public enum RadioAprsMessageTypes : byte
         {
@@ -251,13 +253,6 @@ namespace HTCommander
             }
         }
 
-        // Bluetooth Write Queue
-        private class DeviceWriteData { public int expectResponse; public byte[] data; public DeviceWriteData(int expectResponse, byte[] data) { this.expectResponse = expectResponse; this.data = data; } }
-        private ConcurrentQueue<DeviceWriteData> _writeQueue = new ConcurrentQueue<DeviceWriteData>();
-        private SemaphoreSlim _writeSemaphore = new SemaphoreSlim(1, 1); // To ensure only one write is active
-        private bool _isProcessing = false;
-        private int _expectedResponse = 0;
-
         public RadioChannelInfo GetChannelByFrequency(float freq, RadioModulationType mod)
         {
             if (Channels == null) return null;
@@ -286,22 +281,11 @@ namespace HTCommander
             return true;
         }
 
-
-        // Define the target device name and guids
-        private static readonly string[] TargetDeviceNames = { "UV-PRO", "GA-5WB", "VR-N76", "VR-N7500" };
-        private readonly Guid RADIO_SERVICE_UUID = new Guid("00001100-d102-11e1-9b23-00025b00a5a5");
-        private readonly Guid RADIO_WRITE_UUID = new Guid("00001101-d102-11e1-9b23-00025b00a5a5");
-        private readonly Guid RADIO_INDICATE_UUID = new Guid("00001102-d102-11e1-9b23-00025b00a5a5");
-
-        private RemoteGattServer gatt = null;
-        private GattCharacteristic writeCharacteristic = null;
-        private GattCharacteristic indicateCharacteristic = null;
         private TncDataFragment frameAccumulator = null;
+        private RadioBluetooth radioTransport;
 
         public Radio() { }
-
-        private string selectedDevice = null;
-        public string SelectedDevice { get { return (state == RadioState.Connected) ? selectedDevice : null; } }
+        public string SelectedDevice { get { return ((radioTransport != null) && (state == RadioState.Connected)) ? radioTransport.selectedDevice : null; } }
 
 
         private RadioState state = RadioState.Disconnected;
@@ -315,7 +299,7 @@ namespace HTCommander
 
         public delegate void DebugMessageHandler(Radio sender, string msg);
         public event DebugMessageHandler DebugMessage;
-        private void Debug(string msg) { if (DebugMessage != null) { DebugMessage(this, msg); } }
+        public void Debug(string msg) { if (DebugMessage != null) { DebugMessage(this, msg); } }
 
         public delegate void InfoUpdateHandler(Radio sender, RadioUpdateNotification msg);
         public event InfoUpdateHandler OnInfoUpdate;
@@ -329,88 +313,21 @@ namespace HTCommander
             Disconnect(null, RadioState.Disconnected);
         }
 
-        private void Disconnect(string msg, RadioState newstate = RadioState.Disconnected)
+        public void Disconnect(string msg, RadioState newstate = RadioState.Disconnected)
         {
             if (msg != null) { Debug(msg); }
             UpdateState(newstate);
+            radioTransport.Disconnect();
             Info = null;
             Channels = null;
             HtStatus = null;
             Settings = null;
-            writeCharacteristic = null;
-            indicateCharacteristic = null;
             frameAccumulator = null;
             TncFragmentQueue.Clear();
             TncFragmentInFlight = false;
-            _writeQueue = new ConcurrentQueue<DeviceWriteData>();
-            _writeSemaphore = new SemaphoreSlim(1, 1);
-            _isProcessing = false;
-            _expectedResponse = 0;
-
-            if (gatt != null) { gatt.Disconnect(); gatt = null; }
         }
 
         public void Disconnect() { Disconnect(null, RadioState.Disconnected); }
-
-        public class CompatibleDevice
-        {
-            public string name;
-            public string mac;
-            public CompatibleDevice(string name, string mac) { this.name = name; this.mac = mac; }
-        }
-
-        public static async Task<bool> CheckBluetooth()
-        {
-            bool bluetoothAvailable = false;
-            try { bluetoothAvailable = await Bluetooth.GetAvailabilityAsync(); } catch (Exception) { }
-            return bluetoothAvailable;
-        }
-        public static async Task<string[]> GetDeviceNames()
-        {
-            // Find the devices by name
-            var devices = await DeviceInformation.FindAllAsync();
-            List<string> r = new List<string>();
-            foreach (var deviceInfo in devices) { if (!r.Contains(deviceInfo.Name)) { r.Add(deviceInfo.Name); } }
-            r.Sort();
-            return r.ToArray();
-        }
-
-        public static async Task<CompatibleDevice[]> FindCompatibleDevices()
-        {
-            // Find the devices by name
-            List<CompatibleDevice> compatibleDevices = new List<CompatibleDevice>();
-            var devices = await DeviceInformation.FindAllAsync();
-            List<string> macs = new List<string>();
-            foreach (var deviceInfo in devices)
-            {
-                if (TargetDeviceNames.Contains(deviceInfo.Name))
-                {
-                    if (deviceInfo.Id.StartsWith("\\\\?\\BTHLE#Dev_"))
-                    {
-                        string mac = deviceInfo.Id.Substring(14, 12).ToUpper();
-                        if (!macs.Contains(mac))
-                        {
-                            macs.Add(mac);
-                            compatibleDevices.Add(new CompatibleDevice(deviceInfo.Name, mac));
-                        }
-                    }
-                    else if (deviceInfo.Id.StartsWith("\\\\?\\BTHENUM#Dev_"))
-                    {
-                        int i = deviceInfo.Id.IndexOf("BluetoothDevice_");
-                        if (i > 0)
-                        {
-                            string mac = deviceInfo.Id.Substring(i + 16, 12).ToUpper();
-                            if (!macs.Contains(mac))
-                            {
-                                macs.Add(mac);
-                                compatibleDevices.Add(new CompatibleDevice(deviceInfo.Name, mac));
-                            }
-                        }
-                    }
-                }
-            }
-            return compatibleDevices.ToArray();
-        }
 
         public async void Connect(string macAddress)
         {
@@ -418,41 +335,16 @@ namespace HTCommander
             UpdateState(RadioState.Connecting);
             Debug("Attempting to connect to radio MAC: " + macAddress);
 
-            // Regular expression to capture the 12-character MAC address
-            var bluetoothDevice = await BluetoothDevice.FromIdAsync(macAddress);
-            if (bluetoothDevice == null)
+            radioTransport = new RadioBluetooth(this);
+            radioTransport.ReceivedData += RadioTransport_ReceivedData;
+            bool success = await radioTransport.Connect(macAddress);
+            if (success)
             {
-                Disconnect($"Unable to connect.", RadioState.AccessDenied);
-                return;
+                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
+                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_SETTINGS, null);
+                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_BSS_SETTINGS, null);
+                RequestPowerStatus(RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE);
             }
-            selectedDevice = $"{bluetoothDevice.Name} ({bluetoothDevice.Id})";
-            Debug($"Selected device: {bluetoothDevice.Name} - {bluetoothDevice.Id}");
-
-            // Connect to the device
-            gatt = bluetoothDevice.Gatt;
-            Debug("Connecting to radio...");
-            try { await gatt.ConnectAsync(); } catch (Exception) { Disconnect($"Unable to connect.", RadioState.UnableToConnect); return; }
-            //gatt.AutoConnect = true;
-            if (gatt.IsConnected == false) { Disconnect($"Gatt not connected.", RadioState.UnableToConnect); return; }
-
-            Debug("Getting radio service...");
-            var service = await gatt.GetPrimaryServiceAsync(RADIO_SERVICE_UUID);
-            if (service == null) { Disconnect($"Radio service not found.", RadioState.UnableToConnect); return; }
-
-            // Get characteristics
-            Debug("Getting radio characteristic...");
-            writeCharacteristic = await service.GetCharacteristicAsync(RADIO_WRITE_UUID);
-            if (writeCharacteristic == null) { Disconnect($"Unable to get write characteristic.", RadioState.UnableToConnect); return; }
-            indicateCharacteristic = await service.GetCharacteristicAsync(RADIO_INDICATE_UUID);
-            if (indicateCharacteristic == null) { Disconnect($"Unable to get read/notify characteristic.", RadioState.UnableToConnect); return; }
-
-            // Receive command responses
-            Debug("Getting radio information...");
-            indicateCharacteristic.CharacteristicValueChanged += Characteristic_CharacteristicValueChanged;
-            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
-            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_SETTINGS, null);
-            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_BSS_SETTINGS, null);
-            RequestPowerStatus(RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE);
         }
 
         private void UpdateChannels()
@@ -508,262 +400,254 @@ namespace HTCommander
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_STATUS, data);
         }
 
-        private void Characteristic_CharacteristicValueChanged(object sender, GattCharacteristicValueChangedEventArgs e)
+        private void RadioTransport_ReceivedData(RadioBluetooth sender, Exception error, byte[] value)
         {
-            Task.Run(() =>
-            {
-                if ((state != RadioState.Connected) && (state != RadioState.Connecting)) { return; }
-                if (e.Error != null) { Debug($"Notification ERROR SET"); }
-                if (e.Value == null) { Debug($"Notification: NULL"); return; }
-                if (PacketTrace) { Debug("-----> " + Utils.BytesToHex(e.Value)); }
-                else { Program.BlockBoxEvent("-----> " + Utils.BytesToHex(e.Value)); }
-                int r = Utils.GetInt(e.Value, 0);
-                RadioCommandGroup group = (RadioCommandGroup)Utils.GetShort(e.Value, 0);
-                if ((_expectedResponse == -1) || ((_expectedResponse | 0x8000) == Utils.GetInt(e.Value, 0)))
-                {
-                    _expectedResponse = 0;
-                    ResponseReceived();
-                }
+            if ((state != RadioState.Connected) && (state != RadioState.Connecting)) { return; }
+            if (error != null) { Debug($"Notification ERROR SET"); }
+            if (value == null) { Debug($"Notification: NULL"); return; }
+            if (PacketTrace) { Debug("-----> " + Utils.BytesToHex(value)); }
+            else { Program.BlockBoxEvent("-----> " + Utils.BytesToHex(value)); }
+            int r = Utils.GetInt(value, 0);
+            RadioCommandGroup group = (RadioCommandGroup)Utils.GetShort(value, 0);
 
-                switch (group)
-                {
-                    case RadioCommandGroup.BASIC:
-                        RadioBasicCommand cmd = (RadioBasicCommand)(Utils.GetShort(e.Value, 2) & 0x7FFF);
-                        if (PacketTrace && (cmd != RadioBasicCommand.EVENT_NOTIFICATION)) { Debug($"Response '{group}' / '{cmd}'"); }
-                        switch (cmd)
-                        {
-                            case RadioBasicCommand.GET_DEV_INFO:
-                                Info = new RadioDevInfo(e.Value);
-                                Channels = new RadioChannelInfo[Info.channel_count];
-                                UpdateState(RadioState.Connected);
-                                // Register for notifications
-                                // OK: 1, 8  - BAD:0,2,3,4,5,6,16,0x0F,0xFF
-                                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, 1);
-                                break;
-                            case RadioBasicCommand.READ_RF_CH:
-                                RadioChannelInfo c = new RadioChannelInfo(e.Value);
-                                if (Channels != null) { Channels[c.channel_id] = c; }
-                                //if (c.name_str.Length > 0) { Debug($"Channel ({c.channel_id}): '{c.name_str}'"); }
-                                Update(RadioUpdateNotification.ChannelInfo);
-                                if (AllChannelsLoaded()) { Update(RadioUpdateNotification.AllChannelsLoaded); }
-                                break;
-                            case RadioBasicCommand.WRITE_RF_CH:
-                                if (e.Value[4] == 0)
-                                {
-                                    SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_RF_CH, e.Value[5]);
-                                }
-                                break;
-                            case RadioBasicCommand.READ_BSS_SETTINGS:
-                                BssSettings = new RadioBssSettings(e.Value);
-                                Update(RadioUpdateNotification.BssSettings);
-                                break;
-                            case RadioBasicCommand.EVENT_NOTIFICATION:
-                                RadioNotification notify = (RadioNotification)e.Value[4];
-                                if (PacketTrace) { Debug($"Response '{group}' / '{cmd}' / '{notify}'"); }
-                                switch (notify)
-                                {
-                                    case RadioNotification.HT_STATUS_CHANGED:
-                                        int oldRegion = -1;
-                                        if (HtStatus != null) { oldRegion = HtStatus.curr_region; }
-                                        HtStatus = new RadioHtStatus(e.Value);
-                                        Update(RadioUpdateNotification.HtStatus);
-                                        if (oldRegion != HtStatus.curr_region)
+            switch (group)
+            {
+                case RadioCommandGroup.BASIC:
+                    RadioBasicCommand cmd = (RadioBasicCommand)(Utils.GetShort(value, 2) & 0x7FFF);
+                    if (PacketTrace && (cmd != RadioBasicCommand.EVENT_NOTIFICATION)) { Debug($"Response '{group}' / '{cmd}'"); }
+                    switch (cmd)
+                    {
+                        case RadioBasicCommand.GET_DEV_INFO:
+                            Info = new RadioDevInfo(value);
+                            Channels = new RadioChannelInfo[Info.channel_count];
+                            UpdateState(RadioState.Connected);
+                            // Register for notifications
+                            // OK: 1, 8  - BAD:0,2,3,4,5,6,16,0x0F,0xFF
+                            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, 1);
+                            break;
+                        case RadioBasicCommand.READ_RF_CH:
+                            RadioChannelInfo c = new RadioChannelInfo(value);
+                            if (Channels != null) { Channels[c.channel_id] = c; }
+                            //if (c.name_str.Length > 0) { Debug($"Channel ({c.channel_id}): '{c.name_str}'"); }
+                            Update(RadioUpdateNotification.ChannelInfo);
+                            if (AllChannelsLoaded()) { Update(RadioUpdateNotification.AllChannelsLoaded); }
+                            break;
+                        case RadioBasicCommand.WRITE_RF_CH:
+                            if (value[4] == 0)
+                            {
+                                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_RF_CH, value[5]);
+                            }
+                            break;
+                        case RadioBasicCommand.READ_BSS_SETTINGS:
+                            BssSettings = new RadioBssSettings(value);
+                            Update(RadioUpdateNotification.BssSettings);
+                            break;
+                        case RadioBasicCommand.EVENT_NOTIFICATION:
+                            RadioNotification notify = (RadioNotification)value[4];
+                            if (PacketTrace) { Debug($"Response '{group}' / '{cmd}' / '{notify}'"); }
+                            switch (notify)
+                            {
+                                case RadioNotification.HT_STATUS_CHANGED:
+                                    int oldRegion = -1;
+                                    if (HtStatus != null) { oldRegion = HtStatus.curr_region; }
+                                    HtStatus = new RadioHtStatus(value);
+                                    Update(RadioUpdateNotification.HtStatus);
+                                    if (oldRegion != HtStatus.curr_region)
+                                    {
+                                        Update(RadioUpdateNotification.RegionChange);
+                                        if (Channels != null) { for (int i = 0; i < Channels.Length; i++) { Channels[i] = null; } }
+                                        Update(RadioUpdateNotification.ChannelInfo);
+                                        UpdateChannels();
+                                    }
+                                    Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}");
+                                    if (IsTncFree() && (TncFragmentInFlight == false) && (TncFragmentQueue.Count > 0)) // We are clear to send a packet
+                                    {
+                                        // Send more data
+                                        TncFragmentInFlight = true;
+                                        SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
+                                    }
+                                    break;
+                                //case RadioNotification.HT_CH_CHANGED:
+                                //Event: 00020009050508CCCEC008C3A70027102710940053796C76616E00000000
+                                //break;
+                                case RadioNotification.DATA_RXD:
+                                    //Debug("RawData: " + BytesToHex(e.Value));
+                                    TncDataFragment fragment = new TncDataFragment(value);
+                                    if ((fragment.channel_id == -1) && (HtStatus != null))
+                                    {
+                                        fragment.channel_id = HtStatus.curr_ch_id;
+                                        if ((Channels != null) && (Channels[HtStatus.curr_ch_id] != null))
                                         {
-                                            Update(RadioUpdateNotification.RegionChange);
-                                            if (Channels != null) { for (int i = 0; i < Channels.Length; i++) { Channels[i] = null; } }
-                                            Update(RadioUpdateNotification.ChannelInfo);
-                                            UpdateChannels();
-                                        }
-                                        Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}");
-                                        if (IsTncFree() && (TncFragmentInFlight == false) && (TncFragmentQueue.Count > 0)) // We are clear to send a packet
-                                        {
-                                            // Send more data
-                                            TncFragmentInFlight = true;
-                                            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
-                                        }
-                                        break;
-                                    //case RadioNotification.HT_CH_CHANGED:
-                                    //Event: 00020009050508CCCEC008C3A70027102710940053796C76616E00000000
-                                    //break;
-                                    case RadioNotification.DATA_RXD:
-                                        //Debug("RawData: " + BytesToHex(e.Value));
-                                        TncDataFragment fragment = new TncDataFragment(e.Value);
-                                        if ((fragment.channel_id == -1) && (HtStatus != null))
-                                        {
-                                            fragment.channel_id = HtStatus.curr_ch_id;
-                                            if ((Channels != null) && (Channels[HtStatus.curr_ch_id] != null))
+                                            if (Channels[HtStatus.curr_ch_id].name_str.Length > 0)
                                             {
-                                                if (Channels[HtStatus.curr_ch_id].name_str.Length > 0)
-                                                {
-                                                    fragment.channel_name = Channels[HtStatus.curr_ch_id].name_str.Replace(",", "");
-                                                }
-                                                else if (Channels[HtStatus.curr_ch_id].rx_freq != 0)
-                                                {
-                                                    fragment.channel_name = (((double)Channels[HtStatus.curr_ch_id].rx_freq) / 1000000) + " Mhz";
-                                                }
-                                                else
-                                                {
-                                                    fragment.channel_name = (HtStatus.curr_ch_id + 1).ToString();
-                                                }
+                                                fragment.channel_name = Channels[HtStatus.curr_ch_id].name_str.Replace(",", "");
+                                            }
+                                            else if (Channels[HtStatus.curr_ch_id].rx_freq != 0)
+                                            {
+                                                fragment.channel_name = (((double)Channels[HtStatus.curr_ch_id].rx_freq) / 1000000) + " Mhz";
                                             }
                                             else
                                             {
                                                 fragment.channel_name = (HtStatus.curr_ch_id + 1).ToString();
                                             }
                                         }
-
-                                        Debug($"DataFragment, FragId={fragment.fragment_id}, IsFinal={fragment.final_fragment}, ChannelId={fragment.channel_id}, DataLen={fragment.data.Length}");
-                                        //Debug("Data: " + BytesToHex(fragment.data));
-                                        if (frameAccumulator == null)
-                                        {
-                                            if (fragment.fragment_id == 0)
-                                            {
-                                                frameAccumulator = fragment;
-                                            }
-                                        }
                                         else
                                         {
-                                            frameAccumulator = frameAccumulator.Append(fragment);
+                                            fragment.channel_name = (HtStatus.curr_ch_id + 1).ToString();
                                         }
-                                        if ((frameAccumulator != null) && (frameAccumulator.final_fragment))
-                                        {
-                                            TncDataFragment packet = frameAccumulator;
-                                            frameAccumulator = null;
-                                            packet.incoming = true;
-                                            packet.time = DateTime.Now;
-                                            if (OnDataFrame != null) { OnDataFrame(this, packet); }
-                                        }
-                                        break;
-                                    case RadioNotification.HT_SETTINGS_CHANGED:
-                                        Settings = new RadioSettings(e.Value);
-                                        Update(RadioUpdateNotification.Settings);
-                                        break;
-                                    default:
-                                        Debug($"Event: " + Utils.BytesToHex(e.Value));
-                                        break;
-                                }
-                                break;
-                            case RadioBasicCommand.READ_STATUS:
-                                RadioPowerStatus powerStatus = (RadioPowerStatus)Utils.GetShort(e.Value, 5);
-                                switch (powerStatus)
-                                {
-                                    case RadioPowerStatus.BATTERY_LEVEL:
-                                        BatteryLevel = e.Value[7];
-                                        Debug("BatteryLevel: " + BatteryLevel);
-                                        Update(RadioUpdateNotification.BatteryLevel);
-                                        break;
-                                    case RadioPowerStatus.BATTERY_VOLTAGE:
-                                        BatteryVoltage = Utils.GetShort(e.Value, 7) / 1000;
-                                        Debug("BatteryVoltage: " + BatteryVoltage);
-                                        Update(RadioUpdateNotification.BatteryVoltage);
-                                        break;
-                                    case RadioPowerStatus.RC_BATTERY_LEVEL:
-                                        RcBatteryLevel = e.Value[7];
-                                        Debug("RcBatteryLevel: " + RcBatteryLevel);
-                                        Update(RadioUpdateNotification.RcBatteryLevel);
-                                        break;
-                                    case RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE:
-                                        BatteryAsPercentage = e.Value[7];
-                                        //Debug("BatteryAsPercentage: " + BatteryAsPercentage);
-                                        Update(RadioUpdateNotification.BatteryAsPercentage);
-                                        break;
-                                    default:
-                                        Debug("Unexpected Power Status: " + powerStatus);
-                                        break;
-                                }
-                                break;
-                            case RadioBasicCommand.READ_SETTINGS:
-                                Settings = new RadioSettings(e.Value);
-                                Update(RadioUpdateNotification.Settings);
-                                break;
-                            case RadioBasicCommand.HT_SEND_DATA:
-                                // Data sent, ready to send more
-                                // 0002801F00 = OK READY FOR MORE.
-                                // 0002801F06 = NOT READY, TRY AGAIN.
-                                if (TncFragmentQueue.Count == 0) { TncFragmentInFlight = false; break; }
+                                    }
 
-                                RadioCommandState errorCode = (RadioCommandState)e.Value[4];
-                                if (errorCode == RadioCommandState.INCORRECT_STATE)
-                                {
-                                    if (TncFragmentQueue[0].fragid == 0)
+                                    Debug($"DataFragment, FragId={fragment.fragment_id}, IsFinal={fragment.final_fragment}, ChannelId={fragment.channel_id}, DataLen={fragment.data.Length}");
+                                    //Debug("Data: " + BytesToHex(fragment.data));
+                                    if (frameAccumulator == null)
                                     {
-                                        if (IsTncFree())
+                                        if (fragment.fragment_id == 0)
                                         {
-                                            // If this is the first fragment, try again
-                                            TncFragmentInFlight = true;
-                                            Debug("TNC Fragment failed, TRYING AGAIN.");
-                                            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
+                                            frameAccumulator = fragment;
                                         }
-                                        else
-                                        {
-                                            TncFragmentInFlight = false;
-                                        }
-                                        break;
                                     }
                                     else
                                     {
-                                        // Send failed, clear all fragements until the last of this packet.
-                                        Debug("TNC Fragment failed, check Bluetooth connection.");
-                                        while (TncFragmentQueue[0].isLast == false) { TncFragmentQueue.RemoveAt(0); }
-                                        TncFragmentQueue.RemoveAt(0);
+                                        frameAccumulator = frameAccumulator.Append(fragment);
                                     }
+                                    if ((frameAccumulator != null) && (frameAccumulator.final_fragment))
+                                    {
+                                        TncDataFragment packet = frameAccumulator;
+                                        frameAccumulator = null;
+                                        packet.incoming = true;
+                                        packet.time = DateTime.Now;
+                                        if (OnDataFrame != null) { OnDataFrame(this, packet); }
+                                    }
+                                    break;
+                                case RadioNotification.HT_SETTINGS_CHANGED:
+                                    Settings = new RadioSettings(value);
+                                    Update(RadioUpdateNotification.Settings);
+                                    break;
+                                default:
+                                    Debug($"Event: " + Utils.BytesToHex(value));
+                                    break;
+                            }
+                            break;
+                        case RadioBasicCommand.READ_STATUS:
+                            RadioPowerStatus powerStatus = (RadioPowerStatus)Utils.GetShort(value, 5);
+                            switch (powerStatus)
+                            {
+                                case RadioPowerStatus.BATTERY_LEVEL:
+                                    BatteryLevel = value[7];
+                                    Debug("BatteryLevel: " + BatteryLevel);
+                                    Update(RadioUpdateNotification.BatteryLevel);
+                                    break;
+                                case RadioPowerStatus.BATTERY_VOLTAGE:
+                                    BatteryVoltage = Utils.GetShort(value, 7) / 1000;
+                                    Debug("BatteryVoltage: " + BatteryVoltage);
+                                    Update(RadioUpdateNotification.BatteryVoltage);
+                                    break;
+                                case RadioPowerStatus.RC_BATTERY_LEVEL:
+                                    RcBatteryLevel = value[7];
+                                    Debug("RcBatteryLevel: " + RcBatteryLevel);
+                                    Update(RadioUpdateNotification.RcBatteryLevel);
+                                    break;
+                                case RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE:
+                                    BatteryAsPercentage = value[7];
+                                    //Debug("BatteryAsPercentage: " + BatteryAsPercentage);
+                                    Update(RadioUpdateNotification.BatteryAsPercentage);
+                                    break;
+                                default:
+                                    Debug("Unexpected Power Status: " + powerStatus);
+                                    break;
+                            }
+                            break;
+                        case RadioBasicCommand.READ_SETTINGS:
+                            Settings = new RadioSettings(value);
+                            Update(RadioUpdateNotification.Settings);
+                            break;
+                        case RadioBasicCommand.HT_SEND_DATA:
+                            // Data sent, ready to send more
+                            // 0002801F00 = OK READY FOR MORE.
+                            // 0002801F06 = NOT READY, TRY AGAIN.
+                            if (TncFragmentQueue.Count == 0) { TncFragmentInFlight = false; break; }
+
+                            RadioCommandState errorCode = (RadioCommandState)value[4];
+                            if (errorCode == RadioCommandState.INCORRECT_STATE)
+                            {
+                                if (TncFragmentQueue[0].fragid == 0)
+                                {
+                                    if (IsTncFree())
+                                    {
+                                        // If this is the first fragment, try again
+                                        TncFragmentInFlight = true;
+                                        Debug("TNC Fragment failed, TRYING AGAIN.");
+                                        SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
+                                    }
+                                    else
+                                    {
+                                        TncFragmentInFlight = false;
+                                    }
+                                    break;
                                 }
                                 else
                                 {
-                                    // Success
+                                    // Send failed, clear all fragements until the last of this packet.
+                                    Debug("TNC Fragment failed, check Bluetooth connection.");
+                                    while (TncFragmentQueue[0].isLast == false) { TncFragmentQueue.RemoveAt(0); }
                                     TncFragmentQueue.RemoveAt(0);
                                 }
+                            }
+                            else
+                            {
+                                // Success
+                                TncFragmentQueue.RemoveAt(0);
+                            }
 
-                                // Ready for more data. If this is the start of a new fragment, wait with RSSI is zero.
-                                if ((TncFragmentQueue.Count > 0) && ((TncFragmentQueue[0].fragid != 0) || IsTncFree()))
-                                {
-                                    // Send the next fragment
-                                    TncFragmentInFlight = true;
-                                    SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
-                                }
-                                else
-                                {
-                                    // Nothing more to send
-                                    TncFragmentInFlight = false;
-                                }
-                                break;
-                            case RadioBasicCommand.SET_VOLUME:
-                                break;
-                            case RadioBasicCommand.GET_VOLUME:
-                                Volume = e.Value[5];
-                                Update(RadioUpdateNotification.Volume);
-                                break;
-                            case RadioBasicCommand.WRITE_SETTINGS:
-                                if (e.Value[4] != 0) { Debug("WRITE_SETTINGS ERROR: " + Utils.BytesToHex(e.Value)); }
-                                break;
-                            case RadioBasicCommand.SET_REGION:
-                                break;
-                            default:
-                                Debug("Unexpected Basic Command Status: " + cmd);
-                                Debug(Utils.BytesToHex(e.Value));
-                                break;
-                        }
-                        break;
-                    case RadioCommandGroup.EXTENDED:
-                        RadioExtendedCommand xcmd = (RadioExtendedCommand)(Utils.GetShort(e.Value, 2) & 0x7FFF);
-                        if (PacketTrace) { Debug($"Response '{group}' / '{xcmd}'"); }
-                        switch (xcmd)
-                        {
-                            default:
-                                Debug("Unexpected Extended Command Status: " + xcmd);
-                                break;
-                        }
-                        break;
-                    default:
-                        Debug("Unexpected Command Group: " + group);
-                        break;
-                }
-            });
+                            // Ready for more data. If this is the start of a new fragment, wait with RSSI is zero.
+                            if ((TncFragmentQueue.Count > 0) && ((TncFragmentQueue[0].fragid != 0) || IsTncFree()))
+                            {
+                                // Send the next fragment
+                                TncFragmentInFlight = true;
+                                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
+                            }
+                            else
+                            {
+                                // Nothing more to send
+                                TncFragmentInFlight = false;
+                            }
+                            break;
+                        case RadioBasicCommand.SET_VOLUME:
+                            break;
+                        case RadioBasicCommand.GET_VOLUME:
+                            Volume = value[5];
+                            Update(RadioUpdateNotification.Volume);
+                            break;
+                        case RadioBasicCommand.WRITE_SETTINGS:
+                            if (value[4] != 0) { Debug("WRITE_SETTINGS ERROR: " + Utils.BytesToHex(value)); }
+                            break;
+                        case RadioBasicCommand.SET_REGION:
+                            break;
+                        default:
+                            Debug("Unexpected Basic Command Status: " + cmd);
+                            Debug(Utils.BytesToHex(value));
+                            break;
+                    }
+                    break;
+                case RadioCommandGroup.EXTENDED:
+                    RadioExtendedCommand xcmd = (RadioExtendedCommand)(Utils.GetShort(value, 2) & 0x7FFF);
+                    if (PacketTrace) { Debug($"Response '{group}' / '{xcmd}'"); }
+                    switch (xcmd)
+                    {
+                        default:
+                            Debug("Unexpected Extended Command Status: " + xcmd);
+                            break;
+                    }
+                    break;
+                default:
+                    Debug("Unexpected Command Group: " + group);
+                    break;
+            }
         }
 
         private void SendCommand(RadioCommandGroup group, RadioBasicCommand cmd, byte data)
         {
-            if (writeCharacteristic == null) return;
+            if (radioTransport == null) return;
             using (MemoryStream ms = new MemoryStream())
             {
                 ms.Write(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)group)), 0, 2);
@@ -772,13 +656,13 @@ namespace HTCommander
                 byte[] cmdData = ms.ToArray();
                 if (PacketTrace) { Debug($"Queue: " + group.ToString() + ", " + cmd.ToString() + ": " + Utils.BytesToHex(cmdData)); }
                 else { Program.BlockBoxEvent("BTQSEND: " + Utils.BytesToHex(cmdData)); }
-                EnqueueWrite(new DeviceWriteData(GetExpectedResponse(group, cmd), cmdData));
+                radioTransport.EnqueueWrite(GetExpectedResponse(group, cmd), cmdData);
             }
         }
 
         private void SendCommand(RadioCommandGroup group, RadioBasicCommand cmd, byte[] data)
         {
-            if (writeCharacteristic == null) return;
+            if (radioTransport == null) return;
             using (MemoryStream ms = new MemoryStream())
             {
                 ms.Write(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)group)), 0, 2);
@@ -787,7 +671,7 @@ namespace HTCommander
                 byte[] cmdData = ms.ToArray();
                 if (PacketTrace) { Debug($"Queue: " + group.ToString() + ", " + cmd.ToString() + ": " + Utils.BytesToHex(cmdData)); }
                 else { Program.BlockBoxEvent("BTQSEND: " + Utils.BytesToHex(cmdData)); }
-                EnqueueWrite(new DeviceWriteData(GetExpectedResponse(group, cmd), cmdData));
+                radioTransport.EnqueueWrite(GetExpectedResponse(group, cmd), cmdData);
             }
         }
 
@@ -854,83 +738,6 @@ namespace HTCommander
             }
 
             return outboundData.Length;
-        }
-
-        // Method to queue a write operation
-        private void EnqueueWrite(DeviceWriteData writeData)
-        {
-            _writeQueue.Enqueue(writeData);
-            ProcessQueue(); // Start processing the queue if it's not already running
-        }
-
-        // Method to indicate a response has been received
-        private void ResponseReceived()
-        {
-            // Release the semaphore to allow the next item in the queue to be processed
-            if (_writeSemaphore.CurrentCount == 0)
-            {
-                _writeSemaphore.Release();
-            }
-            else
-            {
-                _writeSemaphore.Release();
-            }
-        }
-
-        // Processes the queue
-        private async void ProcessQueue()
-        {
-            if (_isProcessing) return; // Avoid multiple threads starting processing
-            _isProcessing = true;
-
-            try
-            {
-                while (_writeQueue.TryDequeue(out DeviceWriteData cmdData))
-                {
-                    // Wait for the semaphore to ensure sequential writes
-                    await _writeSemaphore.WaitAsync();
-
-                    // Execute the write on a separate thread to avoid blocking
-                    await Task.Run(async () =>
-                    {
-                        try
-                        {
-                            if (writeCharacteristic != null)
-                            {
-                                if (PacketTrace) { Debug("<--" + _writeQueue.Count + "-- " + Utils.BytesToHex(cmdData.data)); }
-                                else { Program.BlockBoxEvent("<--" + _writeQueue.Count + "-- " + Utils.BytesToHex(cmdData.data)); }
-                                _expectedResponse = cmdData.expectResponse;
-                                await writeCharacteristic.WriteValueWithResponseAsync(cmdData.data);
-                                if (_expectedResponse == -2) { _expectedResponse = 0; _writeSemaphore.Release(); }
-                            }
-                            else
-                            {
-                                _writeSemaphore.Release();
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            if (ex.HResult == -2140864497)
-                            {
-                                Disconnect("Access denied. Please re-pair the device.", Radio.RadioState.AccessDenied);
-                            }
-                            else
-                            {
-                                Disconnect("Unable to send command to device.", Radio.RadioState.Disconnected);
-                            }
-                            try
-                            {
-                                _writeSemaphore.Release(); // Ensure semaphore is released on error
-                            }
-                            catch (Exception) { }
-                        }
-                    });
-                }
-            }
-            finally
-            {
-                _isProcessing = false; // Mark as not processing when the queue is empty
-            }
         }
 
     }

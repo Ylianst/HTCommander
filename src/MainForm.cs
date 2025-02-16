@@ -111,6 +111,34 @@ namespace HTCommander
             mainTabControl.SelectedTab = aprsTabPage;
 
 #if !__MonoCS__
+            // 
+            // mapControl
+            // 
+            this.mapControl = new GMap.NET.WindowsForms.GMapControl();
+            this.mapControl.Bearing = 0F;
+            this.mapControl.CanDragMap = true;
+            this.mapControl.EmptyTileColor = System.Drawing.Color.Navy;
+            this.mapControl.GrayScaleMode = false;
+            this.mapControl.HelperLineOption = GMap.NET.WindowsForms.HelperLineOptions.DontShow;
+            this.mapControl.LevelsKeepInMemory = 5;
+            this.mapControl.Location = new System.Drawing.Point(0, 0);
+            this.mapControl.MarkersEnabled = true;
+            this.mapControl.MaxZoom = 2;
+            this.mapControl.MinZoom = 2;
+            this.mapControl.MouseWheelZoomEnabled = true;
+            this.mapControl.MouseWheelZoomType = GMap.NET.MouseWheelZoomType.MousePositionAndCenter;
+            this.mapControl.Name = "mapControl";
+            this.mapControl.NegativeMode = false;
+            this.mapControl.PolygonsEnabled = true;
+            this.mapControl.RetryLoadTile = 0;
+            this.mapControl.RoutesEnabled = true;
+            this.mapControl.ScaleMode = GMap.NET.WindowsForms.ScaleModes.Integer;
+            this.mapControl.SelectedAreaFillColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(65)))), ((int)(((byte)(105)))), ((int)(((byte)(225)))));
+            this.mapControl.ShowTileGridLines = false;
+            this.mapControl.Size = new System.Drawing.Size(150, 150);
+            this.mapControl.TabIndex = 0;
+            this.mapControl.Zoom = 0D;
+
             mapControl.MapProvider = GMapProviders.OpenStreetMap;
             mapControl.ShowCenter = false;
             mapControl.MinZoom = 3;
@@ -292,7 +320,7 @@ namespace HTCommander
         {
             radioStateLabel.Text = "Searching";
             DebugTrace("Looking for compatible radios...");
-            bluetoothEnabled = await Radio.CheckBluetooth();
+            bluetoothEnabled = await RadioBluetooth.CheckBluetooth();
             if (bluetoothEnabled == false)
             {
                 radioStateLabel.Text = "Disconnected";
@@ -326,7 +354,7 @@ namespace HTCommander
 
                 // Search for compatible devices
                 checkBluetoothButton.Visible = false;
-                devices = await Radio.FindCompatibleDevices();
+                devices = await RadioBluetooth.FindCompatibleDevices();
                 if (devices.Length == 0)
                 {
                     MessageBox.Show("No compatible radios found. Please pair the radio using Bluetooth and restart this application.", "Bluetooth Radio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -1592,20 +1620,18 @@ namespace HTCommander
 #endif
         }
 
+#if !__MonoCS__
         private void mapControl_OnMapZoomChanged()
         {
-#if !__MonoCS__
             registry.WriteString("MapZoom", mapControl.Zoom.ToString());
-#endif
         }
 
         private void mapControl_OnPositionChanged(GMap.NET.PointLatLng point)
         {
-#if !__MonoCS__
             registry.WriteString("MapLatitude", mapControl.Position.Lat.ToString());
             registry.WriteString("MapLongetude", mapControl.Position.Lng.ToString());
-#endif
         }
+#endif
 
         private void AddMapMarker(string callsign, double lat, double lng)
         {
@@ -1691,7 +1717,7 @@ namespace HTCommander
                     sb.Append(Utils.BytesToHex(packet.data));
                 }
             }
-            return sb.ToString();
+            return sb.ToString().Replace("\r", "").Replace("\n", "");
         }
 
         private void packetsListView_SelectedIndexChanged(object sender, EventArgs e)
@@ -1793,7 +1819,7 @@ namespace HTCommander
 
         private async void queryDeviceNamesToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            string[] deviceNames = await Radio.GetDeviceNames();
+            string[] deviceNames = await RadioBluetooth.GetDeviceNames();
             DebugTrace("List of devices:");
             foreach (string deviceName in deviceNames)
             {

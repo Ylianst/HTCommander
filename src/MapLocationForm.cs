@@ -16,9 +16,11 @@ limitations under the License.
 
 using System;
 using System.Windows.Forms;
+#if !__MonoCS__
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
 using GMap.NET.WindowsForms.Markers;
+#endif
 
 namespace HTCommander
 {
@@ -40,12 +42,12 @@ namespace HTCommander
 #endif
         }
 
+#if !__MonoCS__
         public void SetMarkers(GMarkerGoogle[] markers)
         {
-#if !__MonoCS__
             foreach (GMarkerGoogle marker in markers) { mapMarkersOverlay.Markers.Add(marker); }
-#endif
         }
+#endif
 
         public MapLocationForm(MainForm parent, string callsign)
         {
@@ -54,6 +56,38 @@ namespace HTCommander
             this.callsign = callsign;
             InitializeComponent();
             this.Text += " - " + callsign;
+
+            // 
+            // mapControl
+            // 
+            this.mapControl = new GMap.NET.WindowsForms.GMapControl();
+            this.mapControl.Bearing = 0F;
+            this.mapControl.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
+            this.mapControl.CanDragMap = true;
+            this.mapControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.mapControl.EmptyTileColor = System.Drawing.Color.Navy;
+            this.mapControl.GrayScaleMode = false;
+            this.mapControl.HelperLineOption = GMap.NET.WindowsForms.HelperLineOptions.DontShow;
+            this.mapControl.LevelsKeepInMemory = 5;
+            this.mapControl.Location = new System.Drawing.Point(0, 0);
+            this.mapControl.Margin = new System.Windows.Forms.Padding(2);
+            this.mapControl.MarkersEnabled = true;
+            this.mapControl.MaxZoom = 2;
+            this.mapControl.MinZoom = 2;
+            this.mapControl.MouseWheelZoomEnabled = true;
+            this.mapControl.MouseWheelZoomType = GMap.NET.MouseWheelZoomType.MousePositionAndCenter;
+            this.mapControl.Name = "mapControl";
+            this.mapControl.NegativeMode = false;
+            this.mapControl.PolygonsEnabled = true;
+            this.mapControl.RetryLoadTile = 0;
+            this.mapControl.RoutesEnabled = true;
+            this.mapControl.ScaleMode = GMap.NET.WindowsForms.ScaleModes.Integer;
+            this.mapControl.SelectedAreaFillColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(65)))), ((int)(((byte)(105)))), ((int)(((byte)(225)))));
+            this.mapControl.ShowTileGridLines = false;
+            this.mapControl.Size = new System.Drawing.Size(383, 315);
+            this.mapControl.TabIndex = 0;
+            this.mapControl.Zoom = 0D;
+            this.Controls.Add(this.mapControl);
 
             mapControl.MapProvider = GMapProviders.OpenStreetMap;
             mapControl.ShowCenter = false;
