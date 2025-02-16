@@ -148,11 +148,11 @@ namespace HTCommander
             catch (Exception) { }
 
             // Read stations
-            string stationJson = registry.ReadString("Stations", null);
-            if (stationJson != null)
+            string stationsStr = registry.ReadString("Stations", null);
+            if (stationsStr != null)
             {
 
-                List<StationInfoClass> xstations = StationInfoClass.Deserialize(stationJson);
+                List<StationInfoClass> xstations = StationInfoClass.Deserialize(stationsStr);
                 if (xstations != null) { stations = xstations; }
             }
             UpdateStations();
@@ -2133,11 +2133,11 @@ namespace HTCommander
             if (openStationsFileDialog.ShowDialog(this) == DialogResult.OK)
             {
                 // Import stations
-                string stationsJson = null;
-                try { stationsJson = File.ReadAllText(openStationsFileDialog.FileName); } catch (Exception) { }
-                if (stationsJson != null)
+                string stationsStr = null;
+                try { stationsStr = File.ReadAllText(openStationsFileDialog.FileName); } catch (Exception) { }
+                if (stationsStr != null)
                 {
-                    List<StationInfoClass> stations2 = StationInfoClass.Deserialize(stationsJson);
+                    List<StationInfoClass> stations2 = StationInfoClass.Deserialize(stationsStr);
                     if (stations2 != null)
                     {
                         foreach (StationInfoClass station2 in stations2)

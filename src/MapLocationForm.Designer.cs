@@ -32,7 +32,6 @@
             this.mapControl = new GMap.NET.WindowsForms.GMapControl();
             this.mapZoomOutButton = new System.Windows.Forms.Button();
             this.mapZoomInbutton = new System.Windows.Forms.Button();
-            this.mapControl = new GMap.NET.WindowsForms.GMapControl();
             this.SuspendLayout();
             // 
             // mapControl
