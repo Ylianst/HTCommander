@@ -87,7 +87,7 @@ namespace HTCommander
             parent.Debug("Server stopped.");
         }
 
-        private async Task StartAsync(CancellationToken cancellationToken = default)
+        private async Task StartAsync(CancellationToken cancellationToken)
         {
             _listener.Start();
             parent.Debug("Server started on " + string.Join(", ", _listener.Prefixes));

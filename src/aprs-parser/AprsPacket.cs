@@ -350,17 +350,17 @@ namespace aprsparser
             MessageData.MsgText = s;
         }
 
+        private char ConvertDest(char ch)
+        {
+            int ci = ch - 0x30; //adjust all to be 0 based
+            if (ci == 0x1C) ci = 0x0A; //change L to be a space digit
+            if ((ci > 0x10) && (ci <= 0x1B)) ci = ci - 1; //A-K need to be decremented
+            if ((ci & 0x0F) == 0x0A) ci = ci & 0xF0; //space is converted to 0 - we don't support ambiguity
+            return (char)ci;
+        }
+
         private void ParseMicE()
         {
-            char ConvertDest(char ch)
-            {
-                int ci = ch - 0x30; //adjust all to be 0 based
-                if (ci == 0x1C) ci = 0x0A; //change L to be a space digit
-                if ((ci > 0x10) && (ci <= 0x1B)) ci = ci - 1; //A-K need to be decremented
-                if ((ci & 0x0F) == 0x0A) ci = ci & 0xF0; //space is converted to 0 - we don't support ambiguity
-                return (char)ci;
-            }
-
             if (DestCallsign == null) return;
             string dest = DestCallsign.StationCallsign;
             if (dest.Length < 6 || dest.Length == 7) return;
