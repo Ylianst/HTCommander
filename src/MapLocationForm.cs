@@ -26,23 +26,30 @@ namespace HTCommander
     {
         private MainForm parent = null;
         private string callsign = null;
-        public GMapOverlay mapMarkersOverlay = new GMapOverlay("Markers");
         public string Callsign { get { return callsign; } }
+#if !__MonoCS__
+        public GMapOverlay mapMarkersOverlay = new GMapOverlay("Markers");
+#endif
 
         public void SetPosition(double lat, double lng)
         {
+#if !__MonoCS__
             mapControl.Position = new GMap.NET.PointLatLng(lat, lng);
             mapControl.Update();
             mapControl.Refresh();
+#endif
         }
 
         public void SetMarkers(GMarkerGoogle[] markers)
         {
+#if !__MonoCS__
             foreach (GMarkerGoogle marker in markers) { mapMarkersOverlay.Markers.Add(marker); }
+#endif
         }
 
         public MapLocationForm(MainForm parent, string callsign)
         {
+#if !__MonoCS__
             this.parent = parent;
             this.callsign = callsign;
             InitializeComponent();
@@ -62,25 +69,32 @@ namespace HTCommander
             mapControl.Zoom = 10;
             mapControl.Update();
             mapControl.Refresh();
+#endif
         }
 
         private void mapZoomInbutton_Click(object sender, EventArgs e)
         {
+#if !__MonoCS__
             mapControl.Zoom = Math.Max(mapControl.Zoom + 1, mapControl.MinZoom);
             mapControl.Update();
             mapControl.Refresh();
+#endif
         }
 
         private void mapZoomOutButton_Click(object sender, EventArgs e)
         {
+#if !__MonoCS__
             mapControl.Zoom = Math.Min(mapControl.Zoom - 1, mapControl.MaxZoom);
             mapControl.Update();
             mapControl.Refresh();
+#endif
         }
 
         private void MapLocationForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+#if !__MonoCS__
             parent.mapLocationForms.Remove(this);
+#endif
         }
     }
 }

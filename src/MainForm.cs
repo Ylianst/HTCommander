@@ -20,14 +20,16 @@ using System.Linq;
 using System.Text;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Globalization;
 using System.Collections.Generic;
+using aprsparser;
+using static HTCommander.Radio;
+#if !__MonoCS__
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
 using GMap.NET.WindowsForms.Markers;
 using GMap.NET;
-using aprsparser;
-using static HTCommander.Radio;
-using System.Globalization;
+#endif
 
 namespace HTCommander
 {
@@ -56,10 +58,8 @@ namespace HTCommander
         public Dictionary<string, List<AX25Address>> aprsRoutes;
         public string aprsSelectedRoute;
         public ChatMessage selectedAprsMessage;
-        public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
         public bool previewMode = false;
         public CompatibleDevice[] devices = null;
-        public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
         public bool bluetoothEnabled = false;
         public int aprsChannel = -1;
         public bool showAllChannels = false;
@@ -73,7 +73,12 @@ namespace HTCommander
         public BBS bbs;
         public AprsStack aprsStack;
         public bool Loading = true;
+#if !__MonoCS__
+        public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
+        public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
+#endif
 
+        public static bool IsRunningOnMono() { return Type.GetType("Mono.Runtime") != null; }
         public static Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
 
         public MainForm(string[] args)
@@ -104,6 +109,8 @@ namespace HTCommander
             radio.OnInfoUpdate += Radio_InfoUpdate;
             radio.OnDataFrame += Radio_OnDataFrame;
             mainTabControl.SelectedTab = aprsTabPage;
+
+#if !__MonoCS__
             mapControl.MapProvider = GMapProviders.OpenStreetMap;
             mapControl.ShowCenter = false;
             mapControl.MinZoom = 3;
@@ -124,6 +131,11 @@ namespace HTCommander
             mapControl.Overlays.Add(mapMarkersOverlay);
             mapControl.Update();
             mapControl.Refresh();
+            mapToolStripMenuItem.Checked = (registry.ReadInt("ViewMap", 0) == 1);
+#else
+            mapToolStripMenuItem.Checked = false;
+            mapToolStripMenuItem.Visible = false;
+#endif
 
             string debugFileName = registry.ReadString("DebugFile", null);
             try
@@ -157,7 +169,6 @@ namespace HTCommander
             showBluetoothFramesToolStripMenuItem.Checked = (registry.ReadInt("PacketTrace", 0) == 1);
             showAllChannels = (registry.ReadInt("ShowAllChannels", 0) == 1);
             aprsDestinationComboBox.Text = registry.ReadString("AprsDestination", "ALL");
-            mapToolStripMenuItem.Checked = (registry.ReadInt("ViewMap", 0) == 1);
             contactsToolStripMenuItem.Checked = (registry.ReadInt("ViewContacts", 0) == 1);
             bBSToolStripMenuItem.Checked = (registry.ReadInt("ViewBBS", 0) == 1);
             terminalToolStripMenuItem.Checked = (registry.ReadInt("ViewTerminal", 1) == 1);
@@ -231,12 +242,9 @@ namespace HTCommander
             }
 
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
-            UpdateTabs();
 
             // Open the packet write file
             AprsFile = File.Open("packets.ptcap", FileMode.Append, FileAccess.Write);
-            UpdateInfo();
-            this.ResumeLayout();
             aprsChatControl.UpdateMessages(true);
 
             debugTextBox.Clear();
@@ -255,6 +263,29 @@ namespace HTCommander
             }
             allowTransmit = (registry.ReadInt("AllowTransmit", 0) == 1);
             Loading = false;
+
+#if __MonoCS__
+            mainTabControl.Alignment = TabAlignment.Top;
+            aprsTabPage.ImageIndex = -1;
+            aprsTabPage.Text = "APRS";
+            mapTabPage.ImageIndex = -1;
+            mapTabPage.Text = "Map";
+            terminalTabPage.ImageIndex = -1;
+            terminalTabPage.Text = "Terminal";
+            mailTabPage.ImageIndex = -1;
+            mailTabPage.Text = "Mail";
+            addressesTabPage.ImageIndex = -1;
+            addressesTabPage.Text = "Contacts";
+            bbsTabPage.ImageIndex = -1;
+            bbsTabPage.Text = "BBS";
+            packetsTabPage.ImageIndex = -1;
+            packetsTabPage.Text = "Packets";
+            debugTabPage.ImageIndex = -1;
+            debugTabPage.Text = "Debug";
+#endif
+            this.ResumeLayout();
+            UpdateInfo();
+            UpdateTabs();
         }
 
         private async void CheckBluetooth()
@@ -1139,6 +1170,7 @@ namespace HTCommander
                     }
                 }
 
+#if !__MonoCS__
                 // Add or move the map marker
                 if ((c.ImageIndex == 3) && (aprsPacket != null))
                 {
@@ -1146,6 +1178,7 @@ namespace HTCommander
                     c.Longitude = aprsPacket.Position.CoordinateSet.Longitude.Value;
                     AddMapMarker(packet.addresses[1].CallSignWithId, aprsPacket.Position.CoordinateSet.Latitude.Value, aprsPacket.Position.CoordinateSet.Longitude.Value);
                 }
+#endif
             }
         }
 
@@ -1448,14 +1481,16 @@ namespace HTCommander
         {
             mainTabControl.TabPages.Clear();
             mainTabControl.TabPages.Add(aprsTabPage);
+#if !__MonoCS__
             if (mapToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(mapTabPage); }
+            registry.WriteInt("ViewMap", mapToolStripMenuItem.Checked ? 1 : 0);
+#endif
             if (terminalToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(terminalTabPage); }
             if (mailToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(mailTabPage); }
             if (contactsToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(addressesTabPage); }
             if (bBSToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(bbsTabPage); }
             if (packetsToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(packetsTabPage); }
             if (debugToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(debugTabPage); }
-            registry.WriteInt("ViewMap", mapToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewTerminal", terminalToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewMail", mailToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewContacts", contactsToolStripMenuItem.Checked ? 1 : 0);
@@ -1541,31 +1576,40 @@ namespace HTCommander
 
         private void mapZoomInbutton_Click(object sender, EventArgs e)
         {
+#if !__MonoCS__
             mapControl.Zoom = Math.Max(mapControl.Zoom + 1, mapControl.MinZoom);
             mapControl.Update();
             mapControl.Refresh();
+#endif
         }
 
         private void mapZoomOutButton_Click(object sender, EventArgs e)
         {
+#if !__MonoCS__
             mapControl.Zoom = Math.Min(mapControl.Zoom - 1, mapControl.MaxZoom);
             mapControl.Update();
             mapControl.Refresh();
+#endif
         }
 
         private void mapControl_OnMapZoomChanged()
         {
+#if !__MonoCS__
             registry.WriteString("MapZoom", mapControl.Zoom.ToString());
+#endif
         }
 
         private void mapControl_OnPositionChanged(GMap.NET.PointLatLng point)
         {
+#if !__MonoCS__
             registry.WriteString("MapLatitude", mapControl.Position.Lat.ToString());
             registry.WriteString("MapLongetude", mapControl.Position.Lng.ToString());
+#endif
         }
 
         private void AddMapMarker(string callsign, double lat, double lng)
         {
+#if !__MonoCS__
             foreach (GMarkerGoogle m in mapMarkersOverlay.Markers)
             {
                 if (m.ToolTipText == callsign) { m.Position = new PointLatLng(lat, lng); return; }
@@ -1574,16 +1618,19 @@ namespace HTCommander
             marker.ToolTipText = callsign;
             marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
             mapMarkersOverlay.Markers.Add(marker);
+#endif
         }
 
         private void RemoveMapMarker(string callsign)
         {
+#if !__MonoCS__
             GMarkerGoogle marker = null;
             foreach (GMarkerGoogle m in mapMarkersOverlay.Markers)
             {
                 if (m.ToolTipText == callsign) { marker = m; break; }
             }
             mapMarkersOverlay.Markers.Remove(marker);
+#endif
         }
 
         private void packetsListView_Resize(object sender, EventArgs e)
@@ -1761,6 +1808,7 @@ namespace HTCommander
 
         private void showLocationToolStripMenuItem_Click(object sender, EventArgs e)
         {
+#if !__MonoCS__
             if ((selectedAprsMessage == null) || ((selectedAprsMessage.Latitude == 0) && (selectedAprsMessage.Longitude == 0))) return;
             foreach (MapLocationForm form in mapLocationForms)
             {
@@ -1773,6 +1821,7 @@ namespace HTCommander
             mapForm.SetMarkers(markers.ToArray());
             mapLocationForms.Add(mapForm);
             mapForm.Show();
+#endif
         }
 
         private void aprsMsgContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
