@@ -455,6 +455,22 @@ namespace aprsparser
             //record comment
             Comment = InformationField.Length > 8 ? InformationField.Substring(8) : string.Empty;
 
+            // ]"5-}
+            if ((Comment.Length >= 4) && (Comment[3] == '}')) { // "4T}
+                d = Comment[0] - 33;
+                m = Comment[1] - 33;
+                s = Comment[2] - 33;
+                if ((d >= 0) && (d <= 91) && (m >= 0) && (m <= 91) && (s >= 0) && (s <= 91)) { Position.Altitude = (d * 91 * 91) + (m * 91) + s; }
+                Comment = Comment.Substring(4);
+            } else if ((Comment.Length >= 5) && ((Comment[0] == '>') || (Comment[0] == ']')) && (Comment[4] == '}')) { // >"4T}
+                d = Comment[1] - 33;
+                m = Comment[2] - 33;
+                s = Comment[3] - 33;
+                if ((d >= 0) && (d <= 91) && (m >= 0) && (m <= 91) && (s >= 0) && (s <= 91)) { Position.Altitude = (d * 91 * 91) + (m * 91) + s; }
+                Comment = Comment.Substring(5);
+            }
+            Comment = Comment.Trim();
+
             if (InformationField.Length > 5)
             {
                 //parse the Speed/Course (s/d)
@@ -475,6 +491,8 @@ namespace aprsparser
                     Position.Speed = s;
                 }
             }
+
+
         }
 
         private void ParsePosition()
@@ -572,6 +590,21 @@ namespace aprsparser
 
                     //strip off position report and return remainder of string
                     ps = ps.Substring(19);
+
+                    //looks for course and speed
+                    if ((ps.Length >= 7) && (ps[3] == '/') && char.IsDigit(ps[0]) && char.IsDigit(ps[1]) && char.IsDigit(ps[2]) && char.IsDigit(ps[4]) && char.IsDigit(ps[5]) && char.IsDigit(ps[6]))
+                    {
+                        Position.Course = int.Parse(ps.Substring(0, 3)); //course
+                        Position.Speed = int.Parse(ps.Substring(4, 3)); //speed
+                        ps = ps.Substring(7);
+                    }
+
+                    //looks for altitude
+                    if ((ps.Length >= 9) && (ps[0] == '/') && (ps[1] == 'A') && (ps[2] == '=') && char.IsDigit(ps[3]) && char.IsDigit(ps[4]) && char.IsDigit(ps[5]) && char.IsDigit(ps[6]) && char.IsDigit(ps[7]) && char.IsDigit(ps[8]))
+                    {
+                        Position.Altitude = int.Parse(ps.Substring(0, 9).Substring(3)); //altitude
+                        ps = ps.Substring(9);
+                    }
                 }
                 return ps;
             }
