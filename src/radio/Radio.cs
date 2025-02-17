@@ -282,7 +282,7 @@ namespace HTCommander
         }
 
         private TncDataFragment frameAccumulator = null;
-        private RadioBluetooth radioTransport;
+        private RadioBluetoothWin radioTransport;
 
         public Radio() { }
         public string SelectedDevice { get { return ((radioTransport != null) && (state == RadioState.Connected)) ? radioTransport.selectedDevice : null; } }
@@ -335,7 +335,7 @@ namespace HTCommander
             UpdateState(RadioState.Connecting);
             Debug("Attempting to connect to radio MAC: " + macAddress);
 
-            radioTransport = new RadioBluetooth(this);
+            radioTransport = new RadioBluetoothWin(this);
             radioTransport.ReceivedData += RadioTransport_ReceivedData;
             bool success = await radioTransport.Connect(macAddress);
             if (success)
@@ -400,7 +400,7 @@ namespace HTCommander
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_STATUS, data);
         }
 
-        private void RadioTransport_ReceivedData(RadioBluetooth sender, Exception error, byte[] value)
+        private void RadioTransport_ReceivedData(RadioBluetoothWin sender, Exception error, byte[] value)
         {
             if ((state != RadioState.Connected) && (state != RadioState.Connecting)) { return; }
             if (error != null) { Debug($"Notification ERROR SET"); }

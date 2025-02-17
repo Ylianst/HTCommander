@@ -27,7 +27,7 @@ using InTheHand.Bluetooth;
 
 namespace HTCommander
 {
-    public class RadioBluetooth
+    public class RadioBluetoothWin
     {
         private Radio parent;
 
@@ -52,7 +52,7 @@ namespace HTCommander
 
         public string selectedDevice;
 
-        public RadioBluetooth(Radio parent)
+        public RadioBluetoothWin(Radio parent)
         {
             this.parent = parent;
         }
@@ -174,7 +174,7 @@ namespace HTCommander
 
         // private void ReceivedData(RadioBluetooth sender, Exception error, byte[] value)
 
-        public delegate void ReceivedDataHandler(RadioBluetooth sender, Exception error, byte[] value);
+        public delegate void ReceivedDataHandler(RadioBluetoothWin sender, Exception error, byte[] value);
         public event ReceivedDataHandler ReceivedData;
 
 #if !__MonoCS__

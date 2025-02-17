@@ -244,7 +244,8 @@
     <Compile Include="RadioVolumeForm.Designer.cs">
       <DependentUpon>RadioVolumeForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="radio\RadioBluetooth.cs" />
+    <Compile Include="radio\RadioBluetoothLinux.cs" />
+    <Compile Include="radio\RadioBluetoothWin.cs" />
     <Compile Include="radio\RadioBssSettings.cs" />
     <Compile Include="radio\RadioChannelInfo.cs" />
     <Compile Include="radio\RadioDevInfo.cs" />

@@ -320,7 +320,7 @@ namespace HTCommander
         {
             radioStateLabel.Text = "Searching";
             DebugTrace("Looking for compatible radios...");
-            bluetoothEnabled = await RadioBluetooth.CheckBluetooth();
+            bluetoothEnabled = await RadioBluetoothWin.CheckBluetooth();
             if (bluetoothEnabled == false)
             {
                 radioStateLabel.Text = "Disconnected";
@@ -354,7 +354,7 @@ namespace HTCommander
 
                 // Search for compatible devices
                 checkBluetoothButton.Visible = false;
-                devices = await RadioBluetooth.FindCompatibleDevices();
+                devices = await RadioBluetoothWin.FindCompatibleDevices();
                 if (devices.Length == 0)
                 {
                     MessageBox.Show("No compatible radios found. Please pair the radio using Bluetooth and restart this application.", "Bluetooth Radio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -1836,7 +1836,7 @@ namespace HTCommander
 
         private async void queryDeviceNamesToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            string[] deviceNames = await RadioBluetooth.GetDeviceNames();
+            string[] deviceNames = await RadioBluetoothWin.GetDeviceNames();
             DebugTrace("List of devices:");
             foreach (string deviceName in deviceNames)
             {
