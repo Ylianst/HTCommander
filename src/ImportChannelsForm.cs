@@ -46,6 +46,7 @@ namespace HTCommander
                         if (channelControls[i] == null)
                         {
                             channelControls[i] = new RadioChannelControl(parent);
+                            if (parent == null) { channelControls[i].AllowDrop = false; }
                             channelsFlowLayoutPanel.Controls.Add(channelControls[i]);
                         }
                         channelControls[i].Channel = Channels[i];

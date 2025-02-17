@@ -187,6 +187,7 @@
             this.showAllMessagesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem7 = new System.Windows.Forms.ToolStripSeparator();
             this.smSMessageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.weatherReportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.terminalTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem9 = new System.Windows.Forms.ToolStripSeparator();
@@ -1050,7 +1051,7 @@
             this.mapTabPage.Location = new System.Drawing.Point(4, 4);
             this.mapTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.mapTabPage.Name = "mapTabPage";
-            this.mapTabPage.Size = new System.Drawing.Size(693, 646);
+            this.mapTabPage.Size = new System.Drawing.Size(693, 644);
             this.mapTabPage.TabIndex = 0;
             this.mapTabPage.ToolTipText = "APRS";
             this.mapTabPage.UseVisualStyleBackColor = true;
@@ -1112,7 +1113,7 @@
             this.terminalTabPage.Location = new System.Drawing.Point(4, 4);
             this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTabPage.Name = "terminalTabPage";
-            this.terminalTabPage.Size = new System.Drawing.Size(693, 646);
+            this.terminalTabPage.Size = new System.Drawing.Size(693, 644);
             this.terminalTabPage.TabIndex = 2;
             this.terminalTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1127,7 +1128,7 @@
             this.terminalTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTextBox.Name = "terminalTextBox";
             this.terminalTextBox.ReadOnly = true;
-            this.terminalTextBox.Size = new System.Drawing.Size(693, 563);
+            this.terminalTextBox.Size = new System.Drawing.Size(693, 561);
             this.terminalTextBox.TabIndex = 4;
             this.terminalTextBox.Text = "";
             // 
@@ -1137,7 +1138,7 @@
             this.terminalBottomPanel.Controls.Add(this.terminalInputTextBox);
             this.terminalBottomPanel.Controls.Add(this.terminalSendButton);
             this.terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 600);
+            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 598);
             this.terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.terminalBottomPanel.Name = "terminalBottomPanel";
             this.terminalBottomPanel.Size = new System.Drawing.Size(693, 46);
@@ -1229,7 +1230,7 @@
             this.mailTabPage.Location = new System.Drawing.Point(4, 4);
             this.mailTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.mailTabPage.Name = "mailTabPage";
-            this.mailTabPage.Size = new System.Drawing.Size(693, 646);
+            this.mailTabPage.Size = new System.Drawing.Size(693, 644);
             this.mailTabPage.TabIndex = 5;
             this.mailTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1245,7 +1246,7 @@
             this.listView1.Location = new System.Drawing.Point(0, 37);
             this.listView1.Margin = new System.Windows.Forms.Padding(4);
             this.listView1.Name = "listView1";
-            this.listView1.Size = new System.Drawing.Size(693, 609);
+            this.listView1.Size = new System.Drawing.Size(693, 607);
             this.listView1.TabIndex = 5;
             this.listView1.UseCompatibleStateImageBehavior = false;
             this.listView1.View = System.Windows.Forms.View.Details;
@@ -1297,7 +1298,7 @@
             this.addressesTabPage.Location = new System.Drawing.Point(4, 4);
             this.addressesTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.addressesTabPage.Name = "addressesTabPage";
-            this.addressesTabPage.Size = new System.Drawing.Size(693, 646);
+            this.addressesTabPage.Size = new System.Drawing.Size(693, 644);
             this.addressesTabPage.TabIndex = 4;
             this.addressesTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1326,7 +1327,7 @@
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 37);
             this.mainAddressBookListView.Margin = new System.Windows.Forms.Padding(4);
             this.mainAddressBookListView.Name = "mainAddressBookListView";
-            this.mainAddressBookListView.Size = new System.Drawing.Size(693, 609);
+            this.mainAddressBookListView.Size = new System.Drawing.Size(693, 607);
             this.mainAddressBookListView.SmallImageList = this.mainImageList;
             this.mainAddressBookListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.mainAddressBookListView.TabIndex = 4;
@@ -1479,7 +1480,7 @@
             this.bbsTabPage.Location = new System.Drawing.Point(4, 4);
             this.bbsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTabPage.Name = "bbsTabPage";
-            this.bbsTabPage.Size = new System.Drawing.Size(693, 646);
+            this.bbsTabPage.Size = new System.Drawing.Size(693, 644);
             this.bbsTabPage.TabIndex = 7;
             this.bbsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1498,8 +1499,8 @@
             // bbsSplitContainer.Panel2
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
-            this.bbsSplitContainer.Size = new System.Drawing.Size(693, 609);
-            this.bbsSplitContainer.SplitterDistance = 303;
+            this.bbsSplitContainer.Size = new System.Drawing.Size(693, 607);
+            this.bbsSplitContainer.SplitterDistance = 302;
             this.bbsSplitContainer.SplitterWidth = 5;
             this.bbsSplitContainer.TabIndex = 7;
             // 
@@ -1528,7 +1529,7 @@
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
             this.bbsListView.Margin = new System.Windows.Forms.Padding(4);
             this.bbsListView.Name = "bbsListView";
-            this.bbsListView.Size = new System.Drawing.Size(693, 303);
+            this.bbsListView.Size = new System.Drawing.Size(693, 302);
             this.bbsListView.SmallImageList = this.mainImageList;
             this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.bbsListView.TabIndex = 6;
@@ -1562,7 +1563,7 @@
             this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(693, 301);
+            this.bbsTextBox.Size = new System.Drawing.Size(693, 300);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -1625,7 +1626,7 @@
             this.packetsTabPage.Location = new System.Drawing.Point(4, 4);
             this.packetsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.packetsTabPage.Name = "packetsTabPage";
-            this.packetsTabPage.Size = new System.Drawing.Size(693, 646);
+            this.packetsTabPage.Size = new System.Drawing.Size(693, 644);
             this.packetsTabPage.TabIndex = 6;
             this.packetsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1644,8 +1645,8 @@
             // packetsSplitContainer.Panel2
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
-            this.packetsSplitContainer.Size = new System.Drawing.Size(693, 609);
-            this.packetsSplitContainer.SplitterDistance = 296;
+            this.packetsSplitContainer.Size = new System.Drawing.Size(693, 607);
+            this.packetsSplitContainer.SplitterDistance = 294;
             this.packetsSplitContainer.SplitterWidth = 5;
             this.packetsSplitContainer.TabIndex = 6;
             // 
@@ -1664,7 +1665,7 @@
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
             this.packetsListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetsListView.Name = "packetsListView";
-            this.packetsListView.Size = new System.Drawing.Size(693, 296);
+            this.packetsListView.Size = new System.Drawing.Size(693, 294);
             this.packetsListView.SmallImageList = this.mainImageList;
             this.packetsListView.TabIndex = 5;
             this.packetsListView.UseCompatibleStateImageBehavior = false;
@@ -1817,7 +1818,7 @@
             this.debugTabPage.Location = new System.Drawing.Point(4, 4);
             this.debugTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.debugTabPage.Name = "debugTabPage";
-            this.debugTabPage.Size = new System.Drawing.Size(693, 646);
+            this.debugTabPage.Size = new System.Drawing.Size(693, 644);
             this.debugTabPage.TabIndex = 1;
             this.debugTabPage.ToolTipText = "Debug";
             this.debugTabPage.UseVisualStyleBackColor = true;
@@ -1833,7 +1834,7 @@
             this.debugTextBox.Name = "debugTextBox";
             this.debugTextBox.ReadOnly = true;
             this.debugTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.debugTextBox.Size = new System.Drawing.Size(693, 609);
+            this.debugTextBox.Size = new System.Drawing.Size(693, 607);
             this.debugTextBox.TabIndex = 1;
             this.debugTextBox.WordWrap = false;
             // 
@@ -1894,29 +1895,37 @@
             this.aprsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.showAllMessagesToolStripMenuItem,
             this.toolStripMenuItem7,
-            this.smSMessageToolStripMenuItem});
+            this.smSMessageToolStripMenuItem,
+            this.weatherReportToolStripMenuItem});
             this.aprsContextMenuStrip.Name = "aprsContextMenuStrip";
-            this.aprsContextMenuStrip.Size = new System.Drawing.Size(184, 58);
+            this.aprsContextMenuStrip.Size = new System.Drawing.Size(211, 110);
             // 
             // showAllMessagesToolStripMenuItem
             // 
             this.showAllMessagesToolStripMenuItem.CheckOnClick = true;
             this.showAllMessagesToolStripMenuItem.Name = "showAllMessagesToolStripMenuItem";
-            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(183, 24);
-            this.showAllMessagesToolStripMenuItem.Text = "Show Telemetry";
+            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.showAllMessagesToolStripMenuItem.Text = "Show &Telemetry";
             this.showAllMessagesToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showAllMessagesToolStripMenuItem_CheckStateChanged);
             // 
             // toolStripMenuItem7
             // 
             this.toolStripMenuItem7.Name = "toolStripMenuItem7";
-            this.toolStripMenuItem7.Size = new System.Drawing.Size(180, 6);
+            this.toolStripMenuItem7.Size = new System.Drawing.Size(207, 6);
             // 
             // smSMessageToolStripMenuItem
             // 
             this.smSMessageToolStripMenuItem.Name = "smSMessageToolStripMenuItem";
-            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(183, 24);
-            this.smSMessageToolStripMenuItem.Text = "SMS Message...";
+            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.smSMessageToolStripMenuItem.Text = "&SMS Message...";
             this.smSMessageToolStripMenuItem.Click += new System.EventHandler(this.aprsSmsButton_Click);
+            // 
+            // weatherReportToolStripMenuItem
+            // 
+            this.weatherReportToolStripMenuItem.Name = "weatherReportToolStripMenuItem";
+            this.weatherReportToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.weatherReportToolStripMenuItem.Text = "&Weather Report...";
+            this.weatherReportToolStripMenuItem.Click += new System.EventHandler(this.weatherReportToolStripMenuItem_Click);
             // 
             // terminalTabContextMenuStrip
             // 
@@ -2472,6 +2481,7 @@
         private System.Windows.Forms.ToolStripMenuItem radioInformationToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem radioBSSSettingsToolStripMenuItem;
         private System.Windows.Forms.PictureBox aprsMenuPictureBox;
+        private System.Windows.Forms.ToolStripMenuItem weatherReportToolStripMenuItem;
     }
 }
 

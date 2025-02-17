@@ -1267,10 +1267,26 @@ namespace HTCommander
                     packet.messageId = msgId;
                     packet.time = DateTime.Now;
 
-                    //radio.TransmitTncData(packet, aprsChannel, radio.HtStatus.curr_region);
                     aprsStack.ProcessOutgoing(packet, aprsChannel, radio.HtStatus.curr_region);
                     AddAprsPacket(packet, true);
-                    aprsTextBox.Text = "";
+                }
+            }
+        }
+        private void weatherReportToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (AprsWeatherForm aprsWeatherForm = new AprsWeatherForm())
+            {
+                if (aprsWeatherForm.ShowDialog(this) == DialogResult.OK)
+                {
+                    // APRS format
+                    if (aprsChannel < 0) return;
+                    int msgId = GetNextAprsMessageId();
+                    AX25Packet packet = new AX25Packet(GetTransmitAprsRoute(), ":WXBOT    :" + aprsWeatherForm.GetAprsMessage() + "{" + msgId, DateTime.Now);
+                    packet.messageId = msgId;
+                    packet.time = DateTime.Now;
+
+                    aprsStack.ProcessOutgoing(packet, aprsChannel, radio.HtStatus.curr_region);
+                    AddAprsPacket(packet, true);
                 }
             }
         }
@@ -1284,6 +1300,7 @@ namespace HTCommander
                 batteryToolStripStatusLabel.Visible = false;
             }
             smSMessageToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
+            weatherReportToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             volumeToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             dualWatchToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             scanToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
@@ -1299,7 +1316,7 @@ namespace HTCommander
             if (radio.State != Radio.RadioState.Connected) { connectedPanel.Visible = false; }
             exportStationsToolStripMenuItem.Enabled = (stations.Count > 0);
 
-            toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
+            toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = weatherReportToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
             aprsBottomPanel.Visible = allowTransmit;
             terminalBottomPanel.Visible = allowTransmit;
             terminalConnectButton.Visible = allowTransmit;
@@ -2508,6 +2525,8 @@ namespace HTCommander
             r.channel_id = int.Parse(parts[headers["Location"]]);
             r.name_str = parts[headers["Name"]];
             r.rx_freq = (int)(double.Parse(parts[headers["Frequency"]], CultureInfo.InvariantCulture) * 1000000);
+            r.tx_at_max_power = true;
+            r.tx_at_med_power = false;
 
             int duplex = 0;
             if (headers.ContainsKey("Duplex"))
@@ -2524,7 +2543,7 @@ namespace HTCommander
 
             string tone = "";
             if (headers.ContainsKey("Tone")) { tone = parts[headers["Tone"]]; }
-            if ((tone == "") || (tone == "TSQL"))
+            if ((tone == "Tone") || (tone == "TSQL"))
             {
                 r.rx_sub_audio = headers.ContainsKey("rToneFreq") ? (int)(double.Parse(parts[headers["rToneFreq"]], CultureInfo.InvariantCulture) * 100) : 0;
                 r.tx_sub_audio = headers.ContainsKey("cToneFreq") ? (int)(double.Parse(parts[headers["cToneFreq"]], CultureInfo.InvariantCulture) * 100) : 0;
@@ -2664,5 +2683,7 @@ namespace HTCommander
                 radioBssSettingsForm.Show(this);
             }
         }
+
+
     }
 }
