@@ -1898,32 +1898,32 @@
             this.smSMessageToolStripMenuItem,
             this.weatherReportToolStripMenuItem});
             this.aprsContextMenuStrip.Name = "aprsContextMenuStrip";
-            this.aprsContextMenuStrip.Size = new System.Drawing.Size(211, 110);
+            this.aprsContextMenuStrip.Size = new System.Drawing.Size(192, 82);
             // 
             // showAllMessagesToolStripMenuItem
             // 
             this.showAllMessagesToolStripMenuItem.CheckOnClick = true;
             this.showAllMessagesToolStripMenuItem.Name = "showAllMessagesToolStripMenuItem";
-            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(191, 24);
             this.showAllMessagesToolStripMenuItem.Text = "Show &Telemetry";
             this.showAllMessagesToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showAllMessagesToolStripMenuItem_CheckStateChanged);
             // 
             // toolStripMenuItem7
             // 
             this.toolStripMenuItem7.Name = "toolStripMenuItem7";
-            this.toolStripMenuItem7.Size = new System.Drawing.Size(207, 6);
+            this.toolStripMenuItem7.Size = new System.Drawing.Size(188, 6);
             // 
             // smSMessageToolStripMenuItem
             // 
             this.smSMessageToolStripMenuItem.Name = "smSMessageToolStripMenuItem";
-            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(191, 24);
             this.smSMessageToolStripMenuItem.Text = "&SMS Message...";
             this.smSMessageToolStripMenuItem.Click += new System.EventHandler(this.aprsSmsButton_Click);
             // 
             // weatherReportToolStripMenuItem
             // 
             this.weatherReportToolStripMenuItem.Name = "weatherReportToolStripMenuItem";
-            this.weatherReportToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.weatherReportToolStripMenuItem.Size = new System.Drawing.Size(191, 24);
             this.weatherReportToolStripMenuItem.Text = "&Weather Report...";
             this.weatherReportToolStripMenuItem.Click += new System.EventHandler(this.weatherReportToolStripMenuItem_Click);
             // 

@@ -138,7 +138,8 @@ namespace HTCommander
             this.mapControl.Size = new System.Drawing.Size(150, 150);
             this.mapControl.TabIndex = 0;
             this.mapControl.Zoom = 0D;
-
+            this.mapControl.Dock = DockStyle.Fill;
+            mapTabPage.Controls.Add(this.mapControl);
             mapControl.MapProvider = GMapProviders.OpenStreetMap;
             mapControl.ShowCenter = false;
             mapControl.MinZoom = 3;
