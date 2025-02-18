@@ -2406,7 +2406,7 @@ namespace HTCommander
                 if (exportChannelsFileDialog.FilterIndex == 2)
                 {
                     StringBuilder sb = new StringBuilder();
-                    sb.AppendLine("Location,Name,Frequency,Duplex,Offset,Tone,rToneFreq,cToneFreq,DtcsCode,DtcsPolarity,Mode,TStep,Skip,Comment,URCALL,RPT1CALL,RPT2CALL");
+                    sb.AppendLine("Location,Name,Frequency,Duplex,Offset,Tone,rToneFreq,cToneFreq,DtcsCode,DtcsPolarity,Mode,TStep,Skip,Power");
                     for (int i = 0; i < radio.Channels.Length; i++)
                     {
                         RadioChannelInfo c = radio.Channels[i];
@@ -2426,7 +2426,7 @@ namespace HTCommander
                             string DtcsPolarity = "";
                             if ((c.tx_sub_audio >= 1000) && (c.rx_sub_audio >= 1000))
                             {
-                                tone = "TSQL";
+                                tone = "TONE";
                                 rToneFreq = ((double)c.rx_sub_audio / 100).ToString();
                                 cToneFreq = ((double)c.tx_sub_audio / 100).ToString();
                             }
@@ -2444,7 +2444,12 @@ namespace HTCommander
                                 if (c.bandwidth == RadioBandwidthType.NARROW) { Mode = "NFM"; }
                             }
 
-                            string[] values = new string[] { i.ToString(), c.name_str, (((double)c.rx_freq) / 1000000).ToString("F6"), duplex, offset.ToString("F6"), tone, rToneFreq, cToneFreq, DtcsCode, DtcsPolarity, Mode, "", "", "", "", "", "" };
+                            string Power = "";
+                            if (c.tx_at_max_power) { Power = "5.0W"; }
+                            else if (c.tx_at_med_power) { Power = "3.0W"; }
+                            else { Power = "1.0W"; }
+
+                            string[] values = new string[] { i.ToString(), c.name_str, (((double)c.rx_freq) / 1000000).ToString("F6"), duplex, offset.ToString("F6"), tone, rToneFreq, cToneFreq, DtcsCode, DtcsPolarity, Mode, "", "", Power };
                             sb.AppendLine(string.Join(",", values));
                         }
                     }
@@ -2528,6 +2533,18 @@ namespace HTCommander
             r.rx_freq = (int)(double.Parse(parts[headers["Frequency"]], CultureInfo.InvariantCulture) * 1000000);
             r.tx_at_max_power = true;
             r.tx_at_med_power = false;
+
+            float powerWatts = -1;
+            if (headers.ContainsKey("Power"))
+            {
+                if (parts[headers["Power"]].EndsWith("W")) { float.TryParse(parts[headers["Power"]].Substring(0, parts[headers["Power"]].Length - 1), out powerWatts); }
+                if (powerWatts >= 0)
+                {
+                    if (powerWatts <= 1) { r.tx_at_max_power = false; r.tx_at_med_power = false; }
+                    else if (powerWatts <= 4) { r.tx_at_max_power = false; r.tx_at_med_power = true; }
+                    else { r.tx_at_max_power = true; r.tx_at_med_power = false; }
+                }
+            }
 
             int duplex = 0;
             if (headers.ContainsKey("Duplex"))
