@@ -33,7 +33,8 @@ namespace HTCommander
         public enum TerminalProtocols : int
         {
             RawX25 = 0,
-            APRS = 1
+            APRS = 1,
+            RawX25Deflate = 2
         }
 
         public string Callsign { get; set; }

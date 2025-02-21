@@ -41,6 +41,7 @@
             System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -1733,12 +1734,15 @@
             listViewGroup10.Name = "packetDecodeAprsListViewGroup";
             listViewGroup11.Header = "Position";
             listViewGroup11.Name = "packetDecodePositionListViewGroup";
+            listViewGroup12.Header = "Decompression";
+            listViewGroup12.Name = "packetDecodeDecompressionListViewGroup";
             this.packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
             listViewGroup7,
             listViewGroup8,
             listViewGroup9,
             listViewGroup10,
-            listViewGroup11});
+            listViewGroup11,
+            listViewGroup12});
             this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.packetDecodeListView.HideSelection = false;
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);

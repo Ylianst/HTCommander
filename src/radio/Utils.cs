@@ -16,6 +16,8 @@ limitations under the License.
 
 using System;
 using System.Collections.Generic;
+using System.IO.Compression;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
@@ -94,6 +96,29 @@ namespace HTCommander
                 }
             }
             return sb.ToString();
+        }
+
+        static public byte[] Compress(byte[] data)
+        {
+            using (var output = new MemoryStream())
+            {
+                using (var dstream = new DeflateStream(output, CompressionLevel.Optimal, leaveOpen: true))
+                {
+                    dstream.Write(data, 0, data.Length);
+                }
+                return output.ToArray();
+            }
+        }
+
+        static public byte[] Decompress(byte[] compressedData)
+        {
+            using (var input = new MemoryStream(compressedData))
+            using (var output = new MemoryStream())
+            using (var dstream = new DeflateStream(input, CompressionMode.Decompress))
+            {
+                dstream.CopyTo(output);
+                return output.ToArray();
+            }
         }
     }
 }

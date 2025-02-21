@@ -3,6 +3,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.Collections.Generic;
 using aprsparser;
+using System.Security.Cryptography;
 
 namespace HTCommander
 {
@@ -68,9 +69,36 @@ namespace HTCommander
             }
         }
 
+        private int GetCompressedLength(byte pid, string s)
+        {
+            byte[] r1 = UTF8Encoding.UTF8.GetBytes(s);
+            if ((pid == 241) || (pid == 242))
+            {
+                byte[] r2 = Utils.Compress(r1);
+                return Math.Min(r1.Length, r2.Length);
+            }
+            return r1.Length;
+        }
+
+        private byte[] GetCompressed(byte pid, string s, out byte outpid)
+        {
+            byte[] r1 = UTF8Encoding.UTF8.GetBytes(s);
+            if ((pid == 241) || (pid == 242))
+            {
+                byte[] r2 = Utils.Compress(r1);
+                if (r1.Length <= r2.Length) { outpid = 241; return r1; }
+                outpid = 242;
+                return r2;
+            }
+            outpid = 240;
+            return r1;
+        }
+
         private void ProcessRawFrame(AX25Packet p, int frameLength)
         {
-            parent.addBbsTraffic(p.addresses[1].ToString(), false, p.dataStr);
+            string dataStr = p.dataStr;
+            if (p.pid == 242) { try { dataStr = UTF8Encoding.Default.GetString(Utils.Decompress(p.data)); } catch (Exception) { } }
+            parent.addBbsTraffic(p.addresses[1].ToString(), false, dataStr);
             Adventurer.GameRunner runner = new Adventurer.GameRunner();
             string output = runner.RunTurn("adv01.dat", p.addresses[1].CallSignWithId + ".sav", p.dataStr).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
@@ -82,7 +110,7 @@ namespace HTCommander
                 string[] outputSplit = output.Replace("\r\n", "\n").Replace("\n\n", "\n").Split('\n');
                 foreach (string s in outputSplit)
                 {
-                    if ((sb.Length + s.Length) < 310)
+                    if (GetCompressedLength(p.pid, sb + s) < 310)
                     {
                         if (sb.Length > 0) { sb.Append("\n"); }
                         sb.Append(s);
@@ -105,16 +133,25 @@ namespace HTCommander
 
                 int bytesOut = 0;
                 int packetsOut = 0;
+                byte outPid = 0;
                 for (int i = 0; i < stringList.Count; i++)
                 {
-                    AX25Packet packet = new AX25Packet(addresses, stringList[i], DateTime.Now);
+                    AX25Packet packet = new AX25Packet(addresses, GetCompressed(p.pid, stringList[i], out outPid), DateTime.Now);
+                    packet.pid = outPid;
                     packet.channel_id = p.channel_id;
                     packet.channel_name = p.channel_name;
                     bytesOut += parent.radio.TransmitTncData(packet, packet.channel_id);
                     packetsOut++;
                 }
 
-                UpdateStats(p.addresses[1].ToString(), "AX.25 RAW", 1, packetsOut, frameLength, bytesOut);
+                if ((p.pid == 241) || (p.pid == 242))
+                {
+                    UpdateStats(p.addresses[1].ToString(), "AX.25 Deflate", 1, packetsOut, frameLength, bytesOut);
+                }
+                else
+                {
+                    UpdateStats(p.addresses[1].ToString(), "AX.25 RAW", 1, packetsOut, frameLength, bytesOut);
+                }
             }
         }
 

@@ -24,6 +24,10 @@ using System.Globalization;
 using System.Collections.Generic;
 using aprsparser;
 using static HTCommander.Radio;
+using static GMap.NET.Entity.OpenStreetMapGeocodeEntity;
+using Windows.Devices.Bluetooth.Advertisement;
+
+
 #if !__MonoCS__
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
@@ -418,7 +422,7 @@ namespace HTCommander
                 else if (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)
                 {
                     // Have the terminal process this frame
-                    if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25)
+                    if ((activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25) || (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25Deflate))
                     {
                         AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
                         if ((p != null) && (p.addresses[0].CallSignWithId == callsign + "-" + stationId))
@@ -433,8 +437,10 @@ namespace HTCommander
                             }
                             else
                             {
+                                string dataStr = p.dataStr;
+                                if (p.pid == 242) { try { dataStr = UTF8Encoding.Default.GetString(Utils.Decompress(p.data)); } catch (Exception) { } }
                                 //terminalTextBox.AppendText(p.addresses[1].ToString() + "> " + p.dataStr + Environment.NewLine);
-                                AppendTerminalString(false, p.addresses[1].ToString(), p.addresses[0].CallSignWithId, p.dataStr);
+                                AppendTerminalString(false, p.addresses[1].ToString(), p.addresses[0].CallSignWithId, dataStr);
                             }
                         }
                     }
@@ -967,6 +973,30 @@ namespace HTCommander
                 addresses.Add(AX25Address.GetAddress(callsign, stationId));
                 AX25Packet packet = new AX25Packet(addresses, sendText, DateTime.Now);
                 radio.TransmitTncData(packet, activeChannelIdLock);
+            }
+            else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25Deflate)
+            {
+                // Raw AX.25 format + Deflate
+                //terminalTextBox.AppendText(destCallsign + "-" + destStationId + "< " + sendText + Environment.NewLine);
+                AppendTerminalString(true, callsign + "-" + stationId, destCallsign + "-" + destStationId, sendText);
+                List<AX25Address> addresses = new List<AX25Address>(1);
+                addresses.Add(AX25Address.GetAddress(destCallsign, destStationId));
+                addresses.Add(AX25Address.GetAddress(callsign, stationId));
+
+                byte[] buffer1 = UTF8Encoding.Default.GetBytes(sendText);
+                byte[] buffer2 = Utils.Compress(buffer1);
+                if (buffer2.Length < buffer1.Length)
+                {
+                    AX25Packet packet = new AX25Packet(addresses, buffer2, DateTime.Now);
+                    packet.pid = 242; // Compression applied
+                    radio.TransmitTncData(packet, activeChannelIdLock);
+                }
+                else
+                {
+                    AX25Packet packet = new AX25Packet(addresses, buffer1, DateTime.Now);
+                    packet.pid = 241; // No compression, but compression is supported
+                    radio.TransmitTncData(packet, activeChannelIdLock);
+                }
             }
             else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.APRS)
             {
@@ -1797,6 +1827,18 @@ namespace HTCommander
 
                 if (packet.dataStr != null) { addPacketDecodeLine(2, "Data", packet.dataStr); }
                 if (packet.data != null) { addPacketDecodeLine(2, "Data HEX", Utils.BytesToHex(packet.data)); }
+
+                if (packet.pid == 242)
+                {
+                    byte[] decompressedData = null;
+                    try { decompressedData = Utils.Decompress(packet.data); } catch { }
+                    if (decompressedData != null)
+                    {
+                        addPacketDecodeLine(5, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
+                        addPacketDecodeLine(5, "Data HEX", Utils.BytesToHex(decompressedData));
+                        addPacketDecodeLine(5, "Stats", $"{decompressedData.Length} --> {packet.data.Length}");
+                    }
+                }
 
                 if ((packet.type == AX25Packet.FrameType.U_FRAME) && (packet.pid == 240))
                 {
