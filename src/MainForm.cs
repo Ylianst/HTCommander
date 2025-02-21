@@ -1568,6 +1568,10 @@ namespace HTCommander
 
         private void UpdateTabs()
         {
+            this.SuspendLayout();
+
+            TabPage selectedTab = mainTabControl.SelectedTab;
+
             mainTabControl.TabPages.Clear();
             mainTabControl.TabPages.Add(aprsTabPage);
 #if !__MonoCS__
@@ -1586,6 +1590,10 @@ namespace HTCommander
             registry.WriteInt("ViewBBS", bBSToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewDebug", debugToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewPackets", packetsToolStripMenuItem.Checked ? 1 : 0);
+
+            if (mainTabControl.TabPages.Contains(selectedTab)) { mainTabControl.SelectedTab = selectedTab; }
+
+            this.ResumeLayout();
         }
 
         private void aprsMenuPictureBox_MouseClick(object sender, MouseEventArgs e)

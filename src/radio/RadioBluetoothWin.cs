@@ -187,7 +187,6 @@ namespace HTCommander
                     if ((_expectedResponse == -1) || ((_expectedResponse | 0x8000) == Utils.GetInt(e.Value, 0)))
                     {
                         _expectedResponse = 0;
-                        ResponseReceived();
                     }
                 }
 
@@ -205,22 +204,6 @@ namespace HTCommander
 #endif
         }
 
-        // Method to indicate a response has been received
-        private void ResponseReceived()
-        {
-#if !__MonoCS__
-            // Release the semaphore to allow the next item in the queue to be processed
-            if (_writeSemaphore.CurrentCount == 0)
-            {
-                _writeSemaphore.Release();
-            }
-            else
-            {
-                _writeSemaphore.Release();
-            }
-#endif
-        }
-
         // Processes the queue
         private async void ProcessQueue()
         {
@@ -230,13 +213,10 @@ namespace HTCommander
 
             try
             {
-                while (_writeQueue.TryDequeue(out DeviceWriteData cmdData))
+                // Execute the write on a separate thread to avoid blocking
+                await Task.Run(async () =>
                 {
-                    // Wait for the semaphore to ensure sequential writes
-                    await _writeSemaphore.WaitAsync();
-
-                    // Execute the write on a separate thread to avoid blocking
-                    await Task.Run(async () =>
+                    while (_writeQueue.TryDequeue(out DeviceWriteData cmdData))
                     {
                         try
                         {
@@ -245,12 +225,8 @@ namespace HTCommander
                                 if (parent.PacketTrace) { parent.Debug("<--" + _writeQueue.Count + "-- " + Utils.BytesToHex(cmdData.data)); }
                                 else { Program.BlockBoxEvent("<--" + _writeQueue.Count + "-- " + Utils.BytesToHex(cmdData.data)); }
                                 _expectedResponse = cmdData.expectResponse;
-                                await writeCharacteristic.WriteValueWithResponseAsync(cmdData.data);
-                                if (_expectedResponse == -2) { _expectedResponse = 0; _writeSemaphore.Release(); }
-                            }
-                            else
-                            {
-                                _writeSemaphore.Release();
+                                await Task.Run(async () => { await writeCharacteristic.WriteValueWithResponseAsync(cmdData.data); });
+                                if (_expectedResponse == -2) { _expectedResponse = 0; }
                             }
                         }
                         catch (Exception ex)
@@ -263,14 +239,9 @@ namespace HTCommander
                             {
                                 parent.Disconnect("Unable to send command to device.", Radio.RadioState.Disconnected);
                             }
-                            try
-                            {
-                                _writeSemaphore.Release(); // Ensure semaphore is released on error
-                            }
-                            catch (Exception) { }
                         }
-                    });
-                }
+                    }
+                });
             }
             finally
             {
