@@ -1302,6 +1302,7 @@ namespace HTCommander
             }
             smSMessageToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             weatherReportToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
+            beaconSettingsToolStripMenuItem.Enabled = ((radio.State == Radio.RadioState.Connected) && (radio.BssSettings != null));
             volumeToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             dualWatchToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             scanToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
@@ -1318,12 +1319,23 @@ namespace HTCommander
             exportStationsToolStripMenuItem.Enabled = (stations.Count > 0);
 
             toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = weatherReportToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
+            beaconSettingsToolStripMenuItem.Visible = allowTransmit;
             aprsBottomPanel.Visible = allowTransmit;
             terminalBottomPanel.Visible = allowTransmit;
             terminalConnectButton.Visible = allowTransmit;
             bbsConnectButton.Visible = allowTransmit;
             bBSToolStripMenuItem.Visible = allowTransmit;
             terminalToolStripMenuItem.Visible = allowTransmit;
+
+            // APRS Beacon
+            if ((radio.State == Radio.RadioState.Connected) && (radio.BssSettings != null) && (radio.BssSettings.LocationShareInterval > 0) && (radio.BssSettings.PacketFormat == 1) && (radio.BssSettings.BeaconMessage.Trim().Length > 0))
+            {
+                aprsTitleLabel.Text = "APRS - " + radio.BssSettings.BeaconMessage.Trim();
+            }
+            else
+            {
+                aprsTitleLabel.Text = "APRS";
+            }
 
             // APRS Routes
             string selectedAprsRoute = aprsSelectedRoute;
@@ -2702,6 +2714,23 @@ namespace HTCommander
             }
         }
 
+        private void beaconSettingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (EditBeaconSettingsForm beaconSettingsForm = new EditBeaconSettingsForm(this, radio))
+            {
+                if (beaconSettingsForm.ShowDialog(this) == DialogResult.OK) { }
+            }
+        }
 
+        private void aprsTitleLabel_DoubleClick(object sender, EventArgs e)
+        {
+            if ((radio.State == RadioState.Connected) && (radio.BssSettings != null))
+            {
+                using (EditBeaconSettingsForm beaconSettingsForm = new EditBeaconSettingsForm(this, radio))
+                {
+                    if (beaconSettingsForm.ShowDialog(this) == DialogResult.OK) { }
+                }
+            }
+        }
     }
 }

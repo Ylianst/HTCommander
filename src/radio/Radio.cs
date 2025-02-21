@@ -442,6 +442,11 @@ namespace HTCommander
                             BssSettings = new RadioBssSettings(value);
                             Update(RadioUpdateNotification.BssSettings);
                             break;
+                        case RadioBasicCommand.WRITE_BSS_SETTINGS:
+                            int bssErrorCode = value[4];
+                            if (bssErrorCode != 0) { Debug($"WRITE_BSS_SETTINGS Error: '{bssErrorCode}'"); }
+                            else { SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_BSS_SETTINGS, null); }
+                            break;
                         case RadioBasicCommand.EVENT_NOTIFICATION:
                             RadioNotification notify = (RadioNotification)value[4];
                             if (PacketTrace) { Debug($"Response '{group}' / '{cmd}' / '{notify}'"); }

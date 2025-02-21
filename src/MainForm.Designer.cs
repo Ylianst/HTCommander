@@ -186,6 +186,7 @@
             this.aprsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showAllMessagesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem7 = new System.Windows.Forms.ToolStripSeparator();
+            this.beaconSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.smSMessageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.weatherReportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.terminalTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
@@ -1041,6 +1042,7 @@
             this.aprsTitleLabel.Size = new System.Drawing.Size(66, 25);
             this.aprsTitleLabel.TabIndex = 0;
             this.aprsTitleLabel.Text = "APRS";
+            this.aprsTitleLabel.DoubleClick += new System.EventHandler(this.aprsTitleLabel_DoubleClick);
             // 
             // mapTabPage
             // 
@@ -1895,35 +1897,43 @@
             this.aprsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.showAllMessagesToolStripMenuItem,
             this.toolStripMenuItem7,
+            this.beaconSettingsToolStripMenuItem,
             this.smSMessageToolStripMenuItem,
             this.weatherReportToolStripMenuItem});
             this.aprsContextMenuStrip.Name = "aprsContextMenuStrip";
-            this.aprsContextMenuStrip.Size = new System.Drawing.Size(192, 82);
+            this.aprsContextMenuStrip.Size = new System.Drawing.Size(194, 106);
             // 
             // showAllMessagesToolStripMenuItem
             // 
             this.showAllMessagesToolStripMenuItem.CheckOnClick = true;
             this.showAllMessagesToolStripMenuItem.Name = "showAllMessagesToolStripMenuItem";
-            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(191, 24);
+            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(193, 24);
             this.showAllMessagesToolStripMenuItem.Text = "Show &Telemetry";
             this.showAllMessagesToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showAllMessagesToolStripMenuItem_CheckStateChanged);
             // 
             // toolStripMenuItem7
             // 
             this.toolStripMenuItem7.Name = "toolStripMenuItem7";
-            this.toolStripMenuItem7.Size = new System.Drawing.Size(188, 6);
+            this.toolStripMenuItem7.Size = new System.Drawing.Size(190, 6);
+            // 
+            // beaconSettingsToolStripMenuItem
+            // 
+            this.beaconSettingsToolStripMenuItem.Name = "beaconSettingsToolStripMenuItem";
+            this.beaconSettingsToolStripMenuItem.Size = new System.Drawing.Size(193, 24);
+            this.beaconSettingsToolStripMenuItem.Text = "&Beacon Settings...";
+            this.beaconSettingsToolStripMenuItem.Click += new System.EventHandler(this.beaconSettingsToolStripMenuItem_Click);
             // 
             // smSMessageToolStripMenuItem
             // 
             this.smSMessageToolStripMenuItem.Name = "smSMessageToolStripMenuItem";
-            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(191, 24);
+            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(193, 24);
             this.smSMessageToolStripMenuItem.Text = "&SMS Message...";
             this.smSMessageToolStripMenuItem.Click += new System.EventHandler(this.aprsSmsButton_Click);
             // 
             // weatherReportToolStripMenuItem
             // 
             this.weatherReportToolStripMenuItem.Name = "weatherReportToolStripMenuItem";
-            this.weatherReportToolStripMenuItem.Size = new System.Drawing.Size(191, 24);
+            this.weatherReportToolStripMenuItem.Size = new System.Drawing.Size(193, 24);
             this.weatherReportToolStripMenuItem.Text = "&Weather Report...";
             this.weatherReportToolStripMenuItem.Click += new System.EventHandler(this.weatherReportToolStripMenuItem_Click);
             // 
@@ -2482,6 +2492,7 @@
         private System.Windows.Forms.ToolStripMenuItem radioBSSSettingsToolStripMenuItem;
         private System.Windows.Forms.PictureBox aprsMenuPictureBox;
         private System.Windows.Forms.ToolStripMenuItem weatherReportToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem beaconSettingsToolStripMenuItem;
     }
 }
 

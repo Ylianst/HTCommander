@@ -5,22 +5,22 @@ namespace HTCommander
 {
     public class RadioBssSettings
     {
-        public int MaxFwdTimes { get; private set; }
-        public int TimeToLive { get; private set; }
-        public bool PttReleaseSendLocation { get; private set; }
-        public bool PttReleaseSendIdInfo { get; private set; }
-        public bool PttReleaseSendBssUserId { get; private set; }
-        public bool ShouldShareLocation { get; private set; }
-        public bool SendPwrVoltage { get; private set; }
-        public int PacketFormat { get; private set; }
-        public bool AllowPositionCheck { get; private set; }
-        public int AprsSsid { get; private set; }
-        public int LocationShareInterval { get; private set; }
-        public int BssUserIdLower { get; private set; }
-        public string PttReleaseIdInfo { get; private set; }
-        public string BeaconMessage { get; private set; }
-        public string AprsSymbol { get; private set; }
-        public string AprsCallsign { get; private set; }
+        public int MaxFwdTimes { get; set; }
+        public int TimeToLive { get; set; }
+        public bool PttReleaseSendLocation { get; set; }
+        public bool PttReleaseSendIdInfo { get; set; }
+        public bool PttReleaseSendBssUserId { get; set; }
+        public bool ShouldShareLocation { get; set; }
+        public bool SendPwrVoltage { get; set; }
+        public int PacketFormat { get; set; }
+        public bool AllowPositionCheck { get; set; }
+        public int AprsSsid { get; set; }
+        public int LocationShareInterval { get; set; }
+        public int BssUserIdLower { get; set; }
+        public string PttReleaseIdInfo { get; set; }
+        public string BeaconMessage { get; set; }
+        public string AprsSymbol { get; set; }
+        public string AprsCallsign { get; set; }
 
         public RadioBssSettings(byte[] msg)
         {
@@ -47,7 +47,7 @@ namespace HTCommander
 
         public byte[] ToByteArray()
         {
-            byte[] msg = new byte[51]; // Ensure the correct length
+            byte[] msg = new byte[46]; // Ensure the correct length
 
             // Byte 0: MaxFwdTimes (high nibble) | TimeToLive (low nibble)
             msg[0] = (byte)((MaxFwdTimes << 4) | (TimeToLive & 0x0F));
