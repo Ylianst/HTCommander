@@ -559,6 +559,7 @@ namespace HTCommander
                     case Radio.RadioUpdateNotification.BssSettings:
                         if (radioSettingsForm != null) { radioBssSettingsForm.UpdateInfo(); }
                         radioBSSSettingsToolStripMenuItem.Enabled = true;
+                        UpdateInfo();
                         break;
                     case Radio.RadioUpdateNotification.Volume:
                         if (radioVolumeForm != null)
@@ -1319,7 +1320,7 @@ namespace HTCommander
             exportStationsToolStripMenuItem.Enabled = (stations.Count > 0);
 
             toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = weatherReportToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
-            beaconSettingsToolStripMenuItem.Visible = allowTransmit;
+            beaconSettingsToolStripMenuItem.Visible = (radio.State == Radio.RadioState.Connected) && allowTransmit;
             aprsBottomPanel.Visible = allowTransmit;
             terminalBottomPanel.Visible = allowTransmit;
             terminalConnectButton.Visible = allowTransmit;
@@ -2724,7 +2725,7 @@ namespace HTCommander
 
         private void aprsTitleLabel_DoubleClick(object sender, EventArgs e)
         {
-            if ((radio.State == RadioState.Connected) && (radio.BssSettings != null))
+            if ((radio.State == RadioState.Connected) && (radio.BssSettings != null) && allowTransmit)
             {
                 using (EditBeaconSettingsForm beaconSettingsForm = new EditBeaconSettingsForm(this, radio))
                 {
