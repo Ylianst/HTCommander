@@ -34,7 +34,7 @@ namespace HTCommander
         {
             RawX25 = 0,
             APRS = 1,
-            RawX25Deflate = 2
+            RawX25Compress = 2
         }
 
         public string Callsign { get; set; }

@@ -75,7 +75,7 @@
             this.nextButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.nextButton.Enabled = false;
             this.nextButton.Location = new System.Drawing.Point(311, 314);
-            this.nextButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nextButton.Margin = new System.Windows.Forms.Padding(4);
             this.nextButton.Name = "nextButton";
             this.nextButton.Size = new System.Drawing.Size(100, 28);
             this.nextButton.TabIndex = 101;
@@ -88,7 +88,7 @@
             this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
             this.cancelButton.Location = new System.Drawing.Point(419, 314);
-            this.cancelButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.cancelButton.Margin = new System.Windows.Forms.Padding(4);
             this.cancelButton.Name = "cancelButton";
             this.cancelButton.Size = new System.Drawing.Size(100, 28);
             this.cancelButton.TabIndex = 102;
@@ -101,7 +101,7 @@
             this.backButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.backButton.Enabled = false;
             this.backButton.Location = new System.Drawing.Point(203, 314);
-            this.backButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.backButton.Margin = new System.Windows.Forms.Padding(4);
             this.backButton.Name = "backButton";
             this.backButton.Size = new System.Drawing.Size(100, 28);
             this.backButton.TabIndex = 100;
@@ -115,7 +115,7 @@
             this.mainTabControl.Controls.Add(this.aprsTabPage);
             this.mainTabControl.Controls.Add(this.terminalTabPage);
             this.mainTabControl.Location = new System.Drawing.Point(16, 15);
-            this.mainTabControl.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mainTabControl.Margin = new System.Windows.Forms.Padding(4);
             this.mainTabControl.Name = "mainTabControl";
             this.mainTabControl.SelectedIndex = 0;
             this.mainTabControl.Size = new System.Drawing.Size(503, 292);
@@ -136,9 +136,9 @@
             this.stationTabPage.Controls.Add(this.nameTextBox);
             this.stationTabPage.Controls.Add(this.label2);
             this.stationTabPage.Location = new System.Drawing.Point(4, 25);
-            this.stationTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.stationTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.stationTabPage.Name = "stationTabPage";
-            this.stationTabPage.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.stationTabPage.Padding = new System.Windows.Forms.Padding(4);
             this.stationTabPage.Size = new System.Drawing.Size(495, 263);
             this.stationTabPage.TabIndex = 0;
             this.stationTabPage.Text = "Station";
@@ -200,7 +200,7 @@
             "APRS Station",
             "Terminal Station (BBS)"});
             this.stationTypeComboBox.Location = new System.Drawing.Point(168, 190);
-            this.stationTypeComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.stationTypeComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.stationTypeComboBox.Name = "stationTypeComboBox";
             this.stationTypeComboBox.Size = new System.Drawing.Size(301, 24);
             this.stationTypeComboBox.TabIndex = 13;
@@ -212,7 +212,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.callsignTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.callsignTextBox.Location = new System.Drawing.Point(168, 66);
-            this.callsignTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.callsignTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.callsignTextBox.MaxLength = 9;
             this.callsignTextBox.Name = "callsignTextBox";
             this.callsignTextBox.Size = new System.Drawing.Size(301, 26);
@@ -235,7 +235,7 @@
             this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox2.Image = global::HTCommander.Properties.Resources.Signal;
             this.pictureBox2.Location = new System.Drawing.Point(404, 7);
-            this.pictureBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox2.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox2.Name = "pictureBox2";
             this.pictureBox2.Size = new System.Drawing.Size(67, 42);
             this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -257,7 +257,7 @@
             this.desciptionTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.desciptionTextBox.Location = new System.Drawing.Point(168, 158);
-            this.desciptionTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.desciptionTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.desciptionTextBox.MaxLength = 256;
             this.desciptionTextBox.Name = "desciptionTextBox";
             this.desciptionTextBox.Size = new System.Drawing.Size(301, 22);
@@ -268,7 +268,7 @@
             this.nameTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.nameTextBox.Location = new System.Drawing.Point(168, 126);
-            this.nameTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nameTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.nameTextBox.MaxLength = 32;
             this.nameTextBox.Name = "nameTextBox";
             this.nameTextBox.Size = new System.Drawing.Size(301, 22);
@@ -291,9 +291,9 @@
             this.aprsTabPage.Controls.Add(this.aprsRouteComboBox);
             this.aprsTabPage.Controls.Add(this.pictureBox1);
             this.aprsTabPage.Location = new System.Drawing.Point(4, 25);
-            this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsTabPage.Padding = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Size = new System.Drawing.Size(495, 263);
             this.aprsTabPage.TabIndex = 1;
             this.aprsTabPage.Text = "APRS";
@@ -327,7 +327,7 @@
             this.aprsRouteComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.aprsRouteComboBox.FormattingEnabled = true;
             this.aprsRouteComboBox.Location = new System.Drawing.Point(172, 70);
-            this.aprsRouteComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsRouteComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.aprsRouteComboBox.Name = "aprsRouteComboBox";
             this.aprsRouteComboBox.Size = new System.Drawing.Size(297, 24);
             this.aprsRouteComboBox.TabIndex = 20;
@@ -337,7 +337,7 @@
             this.pictureBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox1.Image = global::HTCommander.Properties.Resources.MapPoint1;
             this.pictureBox1.Location = new System.Drawing.Point(404, 7);
-            this.pictureBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox1.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox1.Name = "pictureBox1";
             this.pictureBox1.Size = new System.Drawing.Size(67, 42);
             this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -356,7 +356,7 @@
             this.terminalTabPage.Controls.Add(this.label10);
             this.terminalTabPage.Controls.Add(this.pictureBox3);
             this.terminalTabPage.Location = new System.Drawing.Point(4, 25);
-            this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTabPage.Name = "terminalTabPage";
             this.terminalTabPage.Size = new System.Drawing.Size(495, 263);
             this.terminalTabPage.TabIndex = 2;
@@ -380,7 +380,7 @@
             this.ax25DestTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.ax25DestTextBox.Location = new System.Drawing.Point(172, 137);
-            this.ax25DestTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.ax25DestTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.ax25DestTextBox.MaxLength = 9;
             this.ax25DestTextBox.Name = "ax25DestTextBox";
             this.ax25DestTextBox.Size = new System.Drawing.Size(297, 22);
@@ -415,7 +415,7 @@
             this.channelsComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.channelsComboBox.FormattingEnabled = true;
             this.channelsComboBox.Location = new System.Drawing.Point(172, 103);
-            this.channelsComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.channelsComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.channelsComboBox.Name = "channelsComboBox";
             this.channelsComboBox.Size = new System.Drawing.Size(297, 24);
             this.channelsComboBox.TabIndex = 32;
@@ -441,9 +441,9 @@
             this.terminalProtocolComboBox.Items.AddRange(new object[] {
             "Raw AX.25 Frames",
             "APRS Packets",
-            "Raw AX.25 + Deflate"});
+            "Raw AX.25 + Compression"});
             this.terminalProtocolComboBox.Location = new System.Drawing.Point(172, 70);
-            this.terminalProtocolComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.terminalProtocolComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalProtocolComboBox.Name = "terminalProtocolComboBox";
             this.terminalProtocolComboBox.Size = new System.Drawing.Size(297, 24);
             this.terminalProtocolComboBox.TabIndex = 31;
@@ -465,7 +465,7 @@
             this.pictureBox3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox3.Image = global::HTCommander.Properties.Resources.Terminal;
             this.pictureBox3.Location = new System.Drawing.Point(404, 7);
-            this.pictureBox3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox3.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox3.Name = "pictureBox3";
             this.pictureBox3.Size = new System.Drawing.Size(67, 42);
             this.pictureBox3.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -485,7 +485,7 @@
             this.Controls.Add(this.cancelButton);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "AddStationForm";

@@ -422,7 +422,7 @@ namespace HTCommander
                 else if (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)
                 {
                     // Have the terminal process this frame
-                    if ((activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25) || (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25Deflate))
+                    if ((activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25) || (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25Compress))
                     {
                         AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
                         if ((p != null) && (p.addresses[0].CallSignWithId == callsign + "-" + stationId))
@@ -977,7 +977,7 @@ namespace HTCommander
                 AX25Packet packet = new AX25Packet(addresses, sendText, DateTime.Now);
                 radio.TransmitTncData(packet, activeChannelIdLock);
             }
-            else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25Deflate)
+            else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25Compress)
             {
                 // Raw AX.25 format + Deflate
                 //terminalTextBox.AppendText(destCallsign + "-" + destStationId + "< " + sendText + Environment.NewLine);
