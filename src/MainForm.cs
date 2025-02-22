@@ -438,7 +438,8 @@ namespace HTCommander
                             else
                             {
                                 string dataStr = p.dataStr;
-                                if (p.pid == 242) { try { dataStr = UTF8Encoding.Default.GetString(Utils.Decompress(p.data)); } catch (Exception) { } }
+                                if (p.pid == 242) { try { dataStr = UTF8Encoding.Default.GetString(Utils.DecompressBrotli(p.data)); } catch (Exception) { } }
+                                if (p.pid == 243) { try { dataStr = UTF8Encoding.Default.GetString(Utils.DecompressDeflate(p.data)); } catch (Exception) { } }
                                 //terminalTextBox.AppendText(p.addresses[1].ToString() + "> " + p.dataStr + Environment.NewLine);
                                 AppendTerminalString(false, p.addresses[1].ToString(), p.addresses[0].CallSignWithId, dataStr);
                             }
@@ -766,7 +767,8 @@ namespace HTCommander
             {
                 if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_DebugMessage(sender, msg); })); return; }
                 DebugTrace(msg);
-            } catch (Exception) { }
+            }
+            catch (Exception) { }
         }
 
         public void Debug(string msg)
@@ -775,7 +777,8 @@ namespace HTCommander
             {
                 if (this.InvokeRequired) { this.Invoke(new Action(() => { Debug(msg); })); return; }
                 DebugTrace(msg);
-            } catch (Exception) { }
+            }
+            catch (Exception) { }
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
@@ -984,17 +987,24 @@ namespace HTCommander
                 addresses.Add(AX25Address.GetAddress(callsign, stationId));
 
                 byte[] buffer1 = UTF8Encoding.Default.GetBytes(sendText);
-                byte[] buffer2 = Utils.Compress(buffer1);
-                if (buffer2.Length < buffer1.Length)
+                byte[] buffer2 = Utils.CompressBrotli(buffer1);
+                byte[] buffer3 = Utils.CompressDeflate(buffer1);
+                if ((buffer1.Length <= buffer2.Length) && (buffer1.Length <= buffer3.Length))
+                {
+                    AX25Packet packet = new AX25Packet(addresses, buffer1, DateTime.Now);
+                    packet.pid = 241; // No compression, but compression is supported
+                    radio.TransmitTncData(packet, activeChannelIdLock);
+                }
+                else if (buffer2.Length <= buffer3.Length) // Brotli is smaller
                 {
                     AX25Packet packet = new AX25Packet(addresses, buffer2, DateTime.Now);
                     packet.pid = 242; // Compression applied
                     radio.TransmitTncData(packet, activeChannelIdLock);
                 }
-                else
+                else // Deflate is smaller
                 {
-                    AX25Packet packet = new AX25Packet(addresses, buffer1, DateTime.Now);
-                    packet.pid = 241; // No compression, but compression is supported
+                    AX25Packet packet = new AX25Packet(addresses, buffer3, DateTime.Now);
+                    packet.pid = 243; // Compression applied
                     radio.TransmitTncData(packet, activeChannelIdLock);
                 }
             }
@@ -1839,12 +1849,26 @@ namespace HTCommander
                 if (packet.pid == 242)
                 {
                     byte[] decompressedData = null;
-                    try { decompressedData = Utils.Decompress(packet.data); } catch { }
+                    try { decompressedData = Utils.DecompressBrotli(packet.data); } catch { }
                     if (decompressedData != null)
                     {
                         addPacketDecodeLine(5, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
                         addPacketDecodeLine(5, "Data HEX", Utils.BytesToHex(decompressedData));
-                        addPacketDecodeLine(5, "Stats", $"{decompressedData.Length} --> {packet.data.Length}");
+                        byte[] deflateBuf = Utils.CompressDeflate(decompressedData);
+                        addPacketDecodeLine(5, "Stats", $"Brotli {decompressedData.Length} --> {packet.data.Length}, Deflate would have been {deflateBuf.Length}");
+                    }
+                }
+
+                if (packet.pid == 243)
+                {
+                    byte[] decompressedData = null;
+                    try { decompressedData = Utils.DecompressDeflate(packet.data); } catch { }
+                    if (decompressedData != null)
+                    {
+                        addPacketDecodeLine(5, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
+                        addPacketDecodeLine(5, "Data HEX", Utils.BytesToHex(decompressedData));
+                        byte[] brotliBuf = Utils.CompressBrotli(decompressedData);
+                        addPacketDecodeLine(5, "Stats", $"Deflate {decompressedData.Length} --> {packet.data.Length}, Brotli would have been {brotliBuf.Length}");
                     }
                 }
 

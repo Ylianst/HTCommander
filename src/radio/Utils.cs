@@ -15,12 +15,13 @@ limitations under the License.
 */
 
 using System;
-using System.Collections.Generic;
-using System.IO.Compression;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
+using System.IO.Compression;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using Brotli;
 
 namespace HTCommander
 {
@@ -34,7 +35,8 @@ namespace HTCommander
                 byte[] bytes = new byte[hex.Length / 2];
                 for (int i = 0; i < hex.Length; i += 2) { bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16); }
                 return bytes;
-            } catch (Exception) { return null; }
+            }
+            catch (Exception) { return null; }
         }
         public static string BytesToHex(byte[] ba) { try { return BitConverter.ToString(ba).Replace("-", ""); } catch (Exception) { return null; } }
         public static int GetShort(byte[] d, int p) { return ((int)d[p] << 8) + (int)d[p + 1]; }
@@ -98,7 +100,32 @@ namespace HTCommander
             return sb.ToString();
         }
 
-        static public byte[] Compress(byte[] data)
+        public static byte[] CompressBrotli(byte[] data)
+        {
+            using (var output = new MemoryStream())
+            {
+                using (var brotli = new BrotliStream(output, CompressionMode.Compress, leaveOpen: true))
+                {
+                    brotli.SetQuality(11); // 0 to 11, 11 is max
+                    brotli.SetWindow(22); // 11, 22, 24 - Default is 22
+                    brotli.Write(data, 0, data.Length);
+                }
+                return output.ToArray();
+            }
+        }
+
+        public static byte[] DecompressBrotli(byte[] compressedData)
+        {
+            using (var input = new MemoryStream(compressedData))
+            using (var brotli = new BrotliStream(input, CompressionMode.Decompress))
+            using (var output = new MemoryStream())
+            {
+                brotli.CopyTo(output);
+                return output.ToArray();
+            }
+        }
+
+        static public byte[] CompressDeflate(byte[] data)
         {
             using (var output = new MemoryStream())
             {
@@ -110,7 +137,7 @@ namespace HTCommander
             }
         }
 
-        static public byte[] Decompress(byte[] compressedData)
+        static public byte[] DecompressDeflate(byte[] compressedData)
         {
             using (var input = new MemoryStream(compressedData))
             using (var output = new MemoryStream())

@@ -69,6 +69,7 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.Compression" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
@@ -365,6 +366,7 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Brotli.NET" Version="2.1.1" />
     <PackageReference Include="GMap.NET.WinForms">
       <Version>2.1.7</Version>
     </PackageReference>

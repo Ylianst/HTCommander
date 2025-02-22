@@ -143,6 +143,32 @@ namespace HTCommander
                 if (packet.dataStr != null) { addPacketDecodeLine(2, "Data", packet.dataStr); }
                 if (packet.data != null) { addPacketDecodeLine(2, "Data HEX", Utils.BytesToHex(packet.data)); }
 
+                if (packet.pid == 242)
+                {
+                    byte[] decompressedData = null;
+                    try { decompressedData = Utils.DecompressBrotli(packet.data); } catch { }
+                    if (decompressedData != null)
+                    {
+                        addPacketDecodeLine(5, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
+                        addPacketDecodeLine(5, "Data HEX", Utils.BytesToHex(decompressedData));
+                        byte[] deflateBuf = Utils.CompressDeflate(decompressedData);
+                        addPacketDecodeLine(5, "Stats", $"Brotli {decompressedData.Length} --> {packet.data.Length}, Deflate would have been {deflateBuf.Length}");
+                    }
+                }
+
+                if (packet.pid == 243)
+                {
+                    byte[] decompressedData = null;
+                    try { decompressedData = Utils.DecompressDeflate(packet.data); } catch { }
+                    if (decompressedData != null)
+                    {
+                        addPacketDecodeLine(5, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
+                        addPacketDecodeLine(5, "Data HEX", Utils.BytesToHex(decompressedData));
+                        byte[] brotliBuf = Utils.CompressBrotli(decompressedData);
+                        addPacketDecodeLine(5, "Stats", $"Deflate {decompressedData.Length} --> {packet.data.Length}, Brotli would have been {brotliBuf.Length}");
+                    }
+                }
+
                 if ((packet.type == AX25Packet.FrameType.U_FRAME) && (packet.pid == 240))
                 {
                     AprsPacket aprsPacket = AprsPacket.Parse(packet);

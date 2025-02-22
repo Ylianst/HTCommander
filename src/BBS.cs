@@ -72,10 +72,11 @@ namespace HTCommander
         private int GetCompressedLength(byte pid, string s)
         {
             byte[] r1 = UTF8Encoding.UTF8.GetBytes(s);
-            if ((pid == 241) || (pid == 242))
+            if ((pid == 241) || (pid == 242) || (pid == 243))
             {
-                byte[] r2 = Utils.Compress(r1);
-                return Math.Min(r1.Length, r2.Length);
+                byte[] r2 = Utils.CompressBrotli(r1);
+                byte[] r3 = Utils.CompressDeflate(r1);
+                return Math.Min(r1.Length, Math.Min(r2.Length, r3.Length));
             }
             return r1.Length;
         }
@@ -83,21 +84,24 @@ namespace HTCommander
         private byte[] GetCompressed(byte pid, string s, out byte outpid)
         {
             byte[] r1 = UTF8Encoding.UTF8.GetBytes(s);
-            if ((pid == 241) || (pid == 242))
+            if ((pid == 241) || (pid == 242) || (pid == 243))
             {
-                byte[] r2 = Utils.Compress(r1);
-                if (r1.Length <= r2.Length) { outpid = 241; return r1; }
-                outpid = 242;
-                return r2;
+                byte[] r2 = Utils.CompressBrotli(r1);
+                byte[] r3 = Utils.CompressDeflate(r1);
+                if ((r1.Length <= r2.Length) && (r1.Length <= r3.Length)) { outpid = 241; return r1; } // No compression
+                if (r2.Length <= r3.Length) { outpid = 242; return r2; } // Brotli compression
+                outpid = 243; // Deflate compression
+                return r3;
             }
-            outpid = 240;
+            outpid = 240; // Compression not supported
             return r1;
         }
 
         private void ProcessRawFrame(AX25Packet p, int frameLength)
         {
             string dataStr = p.dataStr;
-            if (p.pid == 242) { try { dataStr = UTF8Encoding.Default.GetString(Utils.Decompress(p.data)); } catch (Exception) { } }
+            if (p.pid == 242) { try { dataStr = UTF8Encoding.Default.GetString(Utils.DecompressBrotli(p.data)); } catch (Exception) { } }
+            if (p.pid == 243) { try { dataStr = UTF8Encoding.Default.GetString(Utils.CompressDeflate(p.data)); } catch (Exception) { } }
             parent.addBbsTraffic(p.addresses[1].ToString(), false, dataStr);
             Adventurer.GameRunner runner = new Adventurer.GameRunner();
             string output = runner.RunTurn("adv01.dat", p.addresses[1].CallSignWithId + ".sav", p.dataStr).Replace("\r\n\r\n", "\r\n").Trim();
@@ -144,9 +148,9 @@ namespace HTCommander
                     packetsOut++;
                 }
 
-                if ((p.pid == 241) || (p.pid == 242))
+                if ((p.pid == 241) || (p.pid == 242) || (p.pid == 243))
                 {
-                    UpdateStats(p.addresses[1].ToString(), "AX.25 Deflate", 1, packetsOut, frameLength, bytesOut);
+                    UpdateStats(p.addresses[1].ToString(), "AX.25 Compress", 1, packetsOut, frameLength, bytesOut);
                 }
                 else
                 {
