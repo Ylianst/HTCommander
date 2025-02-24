@@ -222,6 +222,7 @@
     </Compile>
     <Compile Include="radio\AX25Address.cs" />
     <Compile Include="radio\AX25Packet.cs" />
+    <Compile Include="radio\AX25Session.cs" />
     <Compile Include="radio\Radio.cs" />
     <Compile Include="RadioSettingsForm.cs">
       <SubType>Form</SubType>

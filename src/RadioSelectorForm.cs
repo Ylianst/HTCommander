@@ -50,5 +50,10 @@ namespace HTCommander
         {
             DialogResult = DialogResult.OK;
         }
+
+        private void radiosListView_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            if (radiosListView.SelectedItems.Count == 1) { DialogResult = DialogResult.OK; }
+        }
     }
 }

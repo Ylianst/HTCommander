@@ -441,7 +441,8 @@
             this.terminalProtocolComboBox.Items.AddRange(new object[] {
             "Raw AX.25 Frames",
             "APRS Packets",
-            "Raw AX.25 + Compression"});
+            "Raw AX.25 + Compression",
+            "AX.25 Session"});
             this.terminalProtocolComboBox.Location = new System.Drawing.Point(172, 70);
             this.terminalProtocolComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalProtocolComboBox.Name = "terminalProtocolComboBox";

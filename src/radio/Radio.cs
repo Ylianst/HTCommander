@@ -464,7 +464,7 @@ namespace HTCommander
                                         Update(RadioUpdateNotification.ChannelInfo);
                                         UpdateChannels();
                                     }
-                                    Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}");
+                                    //Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}");
                                     if (IsTncFree() && (TncFragmentInFlight == false) && (TncFragmentQueue.Count > 0)) // We are clear to send a packet
                                     {
                                         // Send more data
@@ -700,6 +700,7 @@ namespace HTCommander
             // Get fragment data
             DateTime t = DateTime.Now;
             byte[] outboundData = packet.ToByteArray();
+            if (outboundData == null) return 0;
             int i = 0;
             string fragmentChannelName = null;
             if ((Channels != null) && (channelId >= 0) && (channelId < Channels.Length) && (Channels[channelId] != null))

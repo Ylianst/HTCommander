@@ -227,6 +227,7 @@
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem12 = new System.Windows.Forms.ToolStripSeparator();
             this.exitToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.waitForConnectionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsChatControl = new HTCommander.ChatControl();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
@@ -488,27 +489,27 @@
             this.radioToolStripMenuItem.CheckOnClick = true;
             this.radioToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             this.radioToolStripMenuItem.Name = "radioToolStripMenuItem";
-            this.radioToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.radioToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             this.radioToolStripMenuItem.Text = "&Radio";
             this.radioToolStripMenuItem.Click += new System.EventHandler(this.radioToolStripMenuItem_Click);
             // 
             // allChannelsToolStripMenuItem
             // 
             this.allChannelsToolStripMenuItem.Name = "allChannelsToolStripMenuItem";
-            this.allChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.allChannelsToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             this.allChannelsToolStripMenuItem.Text = "All Channels";
             this.allChannelsToolStripMenuItem.Click += new System.EventHandler(this.allChannelsToolStripMenuItem_Click);
             // 
             // toolStripMenuItem6
             // 
             this.toolStripMenuItem6.Name = "toolStripMenuItem6";
-            this.toolStripMenuItem6.Size = new System.Drawing.Size(221, 6);
+            this.toolStripMenuItem6.Size = new System.Drawing.Size(170, 6);
             // 
             // mapToolStripMenuItem
             // 
             this.mapToolStripMenuItem.CheckOnClick = true;
             this.mapToolStripMenuItem.Name = "mapToolStripMenuItem";
-            this.mapToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.mapToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             this.mapToolStripMenuItem.Text = "&Map";
             this.mapToolStripMenuItem.Click += new System.EventHandler(this.mapToolStripMenuItem_Click);
             // 
@@ -516,7 +517,7 @@
             // 
             this.terminalToolStripMenuItem.CheckOnClick = true;
             this.terminalToolStripMenuItem.Name = "terminalToolStripMenuItem";
-            this.terminalToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.terminalToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             this.terminalToolStripMenuItem.Text = "&Terminal";
             this.terminalToolStripMenuItem.Click += new System.EventHandler(this.terminalToolStripMenuItem_Click);
             // 
@@ -524,7 +525,7 @@
             // 
             this.mailToolStripMenuItem.CheckOnClick = true;
             this.mailToolStripMenuItem.Name = "mailToolStripMenuItem";
-            this.mailToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.mailToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             this.mailToolStripMenuItem.Text = "&Mail";
             this.mailToolStripMenuItem.Click += new System.EventHandler(this.mailToolStripMenuItem_Click);
             // 
@@ -532,7 +533,7 @@
             // 
             this.contactsToolStripMenuItem.CheckOnClick = true;
             this.contactsToolStripMenuItem.Name = "contactsToolStripMenuItem";
-            this.contactsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.contactsToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             this.contactsToolStripMenuItem.Text = "&Stations";
             this.contactsToolStripMenuItem.Click += new System.EventHandler(this.contactsToolStripMenuItem_Click);
             // 
@@ -540,7 +541,7 @@
             // 
             this.bBSToolStripMenuItem.CheckOnClick = true;
             this.bBSToolStripMenuItem.Name = "bBSToolStripMenuItem";
-            this.bBSToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.bBSToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             this.bBSToolStripMenuItem.Text = "&BBS";
             this.bBSToolStripMenuItem.Click += new System.EventHandler(this.bBSToolStripMenuItem_Click);
             // 
@@ -548,7 +549,7 @@
             // 
             this.packetsToolStripMenuItem.CheckOnClick = true;
             this.packetsToolStripMenuItem.Name = "packetsToolStripMenuItem";
-            this.packetsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.packetsToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             this.packetsToolStripMenuItem.Text = "&Packets";
             this.packetsToolStripMenuItem.Click += new System.EventHandler(this.packetsToolStripMenuItem_Click);
             // 
@@ -556,7 +557,7 @@
             // 
             this.debugToolStripMenuItem.CheckOnClick = true;
             this.debugToolStripMenuItem.Name = "debugToolStripMenuItem";
-            this.debugToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.debugToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             this.debugToolStripMenuItem.Text = "&Debug";
             this.debugToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.debugToolStripMenuItem_CheckStateChanged);
             // 
@@ -1092,7 +1093,7 @@
             this.terminalTabPage.Location = new System.Drawing.Point(4, 4);
             this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTabPage.Name = "terminalTabPage";
-            this.terminalTabPage.Size = new System.Drawing.Size(693, 644);
+            this.terminalTabPage.Size = new System.Drawing.Size(693, 646);
             this.terminalTabPage.TabIndex = 2;
             this.terminalTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1107,7 +1108,7 @@
             this.terminalTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTextBox.Name = "terminalTextBox";
             this.terminalTextBox.ReadOnly = true;
-            this.terminalTextBox.Size = new System.Drawing.Size(693, 561);
+            this.terminalTextBox.Size = new System.Drawing.Size(693, 563);
             this.terminalTextBox.TabIndex = 4;
             this.terminalTextBox.Text = "";
             // 
@@ -1117,7 +1118,7 @@
             this.terminalBottomPanel.Controls.Add(this.terminalInputTextBox);
             this.terminalBottomPanel.Controls.Add(this.terminalSendButton);
             this.terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 598);
+            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 600);
             this.terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.terminalBottomPanel.Name = "terminalBottomPanel";
             this.terminalBottomPanel.Size = new System.Drawing.Size(693, 46);
@@ -1479,7 +1480,7 @@
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
             this.bbsSplitContainer.Size = new System.Drawing.Size(693, 607);
-            this.bbsSplitContainer.SplitterDistance = 301;
+            this.bbsSplitContainer.SplitterDistance = 300;
             this.bbsSplitContainer.SplitterWidth = 5;
             this.bbsSplitContainer.TabIndex = 7;
             // 
@@ -1508,7 +1509,7 @@
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
             this.bbsListView.Margin = new System.Windows.Forms.Padding(4);
             this.bbsListView.Name = "bbsListView";
-            this.bbsListView.Size = new System.Drawing.Size(693, 301);
+            this.bbsListView.Size = new System.Drawing.Size(693, 300);
             this.bbsListView.SmallImageList = this.mainImageList;
             this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.bbsListView.TabIndex = 6;
@@ -1542,7 +1543,7 @@
             this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(693, 301);
+            this.bbsTextBox.Size = new System.Drawing.Size(693, 302);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -1605,7 +1606,7 @@
             this.packetsTabPage.Location = new System.Drawing.Point(4, 4);
             this.packetsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.packetsTabPage.Name = "packetsTabPage";
-            this.packetsTabPage.Size = new System.Drawing.Size(693, 646);
+            this.packetsTabPage.Size = new System.Drawing.Size(693, 644);
             this.packetsTabPage.TabIndex = 6;
             this.packetsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1624,8 +1625,8 @@
             // packetsSplitContainer.Panel2
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
-            this.packetsSplitContainer.Size = new System.Drawing.Size(693, 609);
-            this.packetsSplitContainer.SplitterDistance = 294;
+            this.packetsSplitContainer.Size = new System.Drawing.Size(693, 607);
+            this.packetsSplitContainer.SplitterDistance = 293;
             this.packetsSplitContainer.SplitterWidth = 5;
             this.packetsSplitContainer.TabIndex = 6;
             // 
@@ -1644,7 +1645,7 @@
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
             this.packetsListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetsListView.Name = "packetsListView";
-            this.packetsListView.Size = new System.Drawing.Size(693, 294);
+            this.packetsListView.Size = new System.Drawing.Size(693, 293);
             this.packetsListView.SmallImageList = this.mainImageList;
             this.packetsListView.TabIndex = 5;
             this.packetsListView.UseCompatibleStateImageBehavior = false;
@@ -1724,7 +1725,7 @@
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             this.packetDecodeListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(693, 310);
+            this.packetDecodeListView.Size = new System.Drawing.Size(693, 309);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;
@@ -1922,28 +1923,29 @@
             this.terminalTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.terminalTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.showCallsignToolStripMenuItem,
+            this.waitForConnectionToolStripMenuItem,
             this.toolStripMenuItem9,
             this.toolStripMenuItem13});
             this.terminalTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(171, 58);
+            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(211, 82);
             // 
             // showCallsignToolStripMenuItem
             // 
             this.showCallsignToolStripMenuItem.CheckOnClick = true;
             this.showCallsignToolStripMenuItem.Name = "showCallsignToolStripMenuItem";
-            this.showCallsignToolStripMenuItem.Size = new System.Drawing.Size(170, 24);
+            this.showCallsignToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
             this.showCallsignToolStripMenuItem.Text = "&Show Callsign";
             this.showCallsignToolStripMenuItem.Click += new System.EventHandler(this.showCallsignToolStripMenuItem_Click);
             // 
             // toolStripMenuItem9
             // 
             this.toolStripMenuItem9.Name = "toolStripMenuItem9";
-            this.toolStripMenuItem9.Size = new System.Drawing.Size(167, 6);
+            this.toolStripMenuItem9.Size = new System.Drawing.Size(207, 6);
             // 
             // toolStripMenuItem13
             // 
             this.toolStripMenuItem13.Name = "toolStripMenuItem13";
-            this.toolStripMenuItem13.Size = new System.Drawing.Size(170, 24);
+            this.toolStripMenuItem13.Size = new System.Drawing.Size(210, 24);
             this.toolStripMenuItem13.Text = "&Clear";
             this.toolStripMenuItem13.Click += new System.EventHandler(this.toolStripMenuItem13_Click);
             // 
@@ -2195,6 +2197,13 @@
             this.exitToolStripMenuItem1.Size = new System.Drawing.Size(114, 24);
             this.exitToolStripMenuItem1.Text = "&Exit";
             this.exitToolStripMenuItem1.Click += new System.EventHandler(this.exitToolStripMenuItem1_Click);
+            // 
+            // waitForConnectionToolStripMenuItem
+            // 
+            this.waitForConnectionToolStripMenuItem.Name = "waitForConnectionToolStripMenuItem";
+            this.waitForConnectionToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.waitForConnectionToolStripMenuItem.Text = "&Wait for Connection";
+            this.waitForConnectionToolStripMenuItem.Click += new System.EventHandler(this.waitForConnectionToolStripMenuItem_Click);
             // 
             // aprsChatControl
             // 
@@ -2497,6 +2506,7 @@
         private System.Windows.Forms.PictureBox aprsMenuPictureBox;
         private System.Windows.Forms.ToolStripMenuItem weatherReportToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem beaconSettingsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem waitForConnectionToolStripMenuItem;
     }
 }
 

@@ -174,7 +174,7 @@ namespace HTCommander
                 APRSRoute = aprsRouteComboBox.Text,
                 TerminalProtocol = (StationInfoClass.TerminalProtocols)terminalProtocolComboBox.SelectedIndex,
                 Channel = channelsComboBox.Text,
-                AX25Destination = ax25DestTextBox.Text
+                AX25Destination = ax25DestTextBox.Text,
             };
         }
 

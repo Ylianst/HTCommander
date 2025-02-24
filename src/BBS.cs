@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using aprsparser;
 using System.Security.Cryptography;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace HTCommander
 {
@@ -48,12 +49,38 @@ namespace HTCommander
         {
             stats.Clear();
         }
-
-        public void ProcessFrame(TncDataFragment frame)
+        public void ProcessStreamState(AX25Session session, AX25Session.ConnectionState state)
         {
-            AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
-            if (p == null) return;
+            if (state == AX25Session.ConnectionState.CONNECTED)
+            {
+                session.Send(UTF8Encoding.UTF8.GetBytes("Welcome to the Handy-Talky Commander BBS by " + parent.callsign + "."));
+                Adventurer.GameRunner runner = new Adventurer.GameRunner();
+                string output = runner.RunTurn("adv01.dat", session.Addresses[0].CallSignWithId + ".sav", "").Replace("\r\n\r\n", "\r\n").Trim();
+                if ((output != null) && (output.Length > 0))
+                {
+                    parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
+                    session.Send(UTF8Encoding.UTF8.GetBytes(output));
+                }
+            }
+        }
 
+        public void ProcessStream(AX25Session session, byte[] data)
+        {
+            string dataStr = UTF8Encoding.UTF8.GetString(data);
+            parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr);
+            Adventurer.GameRunner runner = new Adventurer.GameRunner();
+            string output = runner.RunTurn("adv01.dat", session.Addresses[0].CallSignWithId + ".sav", dataStr).Replace("\r\n\r\n", "\r\n").Trim();
+            if ((output != null) && (output.Length > 0))
+            {
+                parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
+                byte[] bytesOut = UTF8Encoding.UTF8.GetBytes(output);
+                session.Send(bytesOut);
+                UpdateStats(session.Addresses[0].ToString(), "Stream", 1, 1, data.Length, bytesOut.Length);
+            }
+        }
+
+        public void ProcessFrame(TncDataFragment frame, AX25Packet p)
+        {
             // TODO: Add support for the weird packet format
             // TODO: Add support for ignoring stations
 
@@ -102,12 +129,12 @@ namespace HTCommander
             string dataStr = p.dataStr;
             if (p.pid == 242) { try { dataStr = UTF8Encoding.Default.GetString(Utils.DecompressBrotli(p.data)); } catch (Exception) { } }
             if (p.pid == 243) { try { dataStr = UTF8Encoding.Default.GetString(Utils.CompressDeflate(p.data)); } catch (Exception) { } }
-            parent.addBbsTraffic(p.addresses[1].ToString(), false, dataStr);
+            parent.AddBbsTraffic(p.addresses[1].ToString(), false, dataStr);
             Adventurer.GameRunner runner = new Adventurer.GameRunner();
             string output = runner.RunTurn("adv01.dat", p.addresses[1].CallSignWithId + ".sav", p.dataStr).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
             {
-                parent.addBbsTraffic(p.addresses[1].ToString(), true, output);
+                parent.AddBbsTraffic(p.addresses[1].ToString(), true, output);
                 //if (output.Length > 310) { output = output.Substring(0, 310); }
                 List<string> stringList = new List<string>();
                 StringBuilder sb = new StringBuilder();
@@ -164,14 +191,14 @@ namespace HTCommander
             if (aprsPacket.DataType != PacketDataType.Message) return;
             if (aprsPacket.MessageData.MsgType != MessageType.mtGeneral) return;
 
-            parent.addBbsTraffic(p.addresses[1].ToString(), false, aprsPacket.MessageData.MsgText);
+            parent.AddBbsTraffic(p.addresses[1].ToString(), false, aprsPacket.MessageData.MsgText);
             Adventurer.GameRunner runner = new Adventurer.GameRunner();
             string output = runner.RunTurn("adv01.dat", p.addresses[1].CallSignWithId + ".sav", aprsPacket.MessageData.MsgText).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
             {
                 // Replace characters that are not allowed in APRS messages
                 output = output.Replace("\r\n", "\n").Replace("\n\n", "\n").Replace("~", "-").Replace("|", "!").Replace("{", "[").Replace("}", "]");
-                parent.addBbsTraffic(p.addresses[1].ToString(), true, output);
+                parent.AddBbsTraffic(p.addresses[1].ToString(), true, output);
 
                 //if (output.Length > 310) { output = output.Substring(0, 310); }
                 List<string> stringList = new List<string>();

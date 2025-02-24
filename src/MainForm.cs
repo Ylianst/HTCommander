@@ -24,8 +24,7 @@ using System.Globalization;
 using System.Collections.Generic;
 using aprsparser;
 using static HTCommander.Radio;
-using static GMap.NET.Entity.OpenStreetMapGeocodeEntity;
-using Windows.Devices.Bluetooth.Advertisement;
+using static HTCommander.AX25Packet;
 
 
 #if !__MonoCS__
@@ -69,6 +68,7 @@ namespace HTCommander
         public bool showAllChannels = false;
         public List<StationInfoClass> stations = new List<StationInfoClass>();
         public StationInfoClass activeStationLock = null;
+        public AX25Session session = null;
         public int activeChannelIdLock = -1;
         public HttpsWebSocketServer webserver;
         public bool webServerEnabled = false;
@@ -83,7 +83,7 @@ namespace HTCommander
 #endif
 
         public static bool IsRunningOnMono() { return Type.GetType("Mono.Runtime") != null; }
-        public static Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
+        public static System.Drawing.Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
 
         public MainForm(string[] args)
         {
@@ -319,6 +319,87 @@ namespace HTCommander
             this.ResumeLayout();
             UpdateInfo();
             UpdateTabs();
+
+            // Setup AX25 Session, only 1 session supported per radio
+            session = new AX25Session(this, radio);
+            session.StateChanged += Session_StateChanged;
+            session.DataReceivedEvent += Session_DataReceivedEvent;
+            session.UiDataReceivedEvent += Session_UiDataReceivedEvent;
+            session.ErrorEvent += Session_ErrorEvent;
+        }
+
+        private void Session_StateChanged(AX25Session sender, AX25Session.ConnectionState state)
+        {
+            if (this.InvokeRequired) { this.Invoke(new AX25Session.StateChangedHandler(Session_StateChanged),sender, state); return; }
+
+            DebugTrace("AX25 " + state.ToString());
+            if ((activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal))
+            {
+                switch (state)
+                {
+                    case AX25Session.ConnectionState.CONNECTING:
+                        AppendTerminalString(false, null, null, "Connecting...");
+                        break;
+                    case AX25Session.ConnectionState.CONNECTED:
+                        AppendTerminalString(false, null, null, "Connected");
+                        break;
+                    case AX25Session.ConnectionState.DISCONNECTING:
+                        AppendTerminalString(false, null, null, "Disconnecting...");
+                        break;
+                    case AX25Session.ConnectionState.DISCONNECTED:
+                        AppendTerminalString(false, null, null, "Disconnected");
+                        if ((activeStationLock != null) && (activeStationLock.WaitForConnection == false))
+                        {
+                            // If we are the connecting party and we got disconnected, drop the station lock.
+                            ActiveLockToStation(null);
+                        }
+                        else
+                        {
+                            // Wait for another connection
+                            AppendTerminalString(false, null, null, "Waiting for connection...");
+                        }
+                        break;
+                }
+            }
+            else if ((activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.BBS))
+            {
+                bbs.ProcessStreamState(session, state);
+            }
+        }
+        private void Session_DataReceivedEvent(AX25Session sender, byte[] data)
+        {
+            Debug("AX25 Stream Data: " + data.Length);
+            if (activeStationLock != null)
+            {
+                if (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)
+                {
+                    AppendTerminalString(false, session.Addresses[0].ToString(), callsign + "-" + stationId, UTF8Encoding.UTF8.GetString(data));
+                }
+                else if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
+                {
+                    bbs.ProcessStream(session, data);
+                }
+            }
+        }
+
+        private void Session_UiDataReceivedEvent(AX25Session sender, byte[] data)
+        {
+            Debug("AX25 UI Frame Data: " + data.Length);
+            if (activeStationLock != null)
+            {
+                if (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)
+                {
+                    AppendTerminalString(false, session.Addresses[0].ToString(), callsign + "-" + stationId, UTF8Encoding.UTF8.GetString(data));
+                }
+                else if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
+                {
+                    bbs.ProcessStream(session, data);
+                }
+            }
+        }
+        private void Session_ErrorEvent(AX25Session sender, string error)
+        {
+            Debug("AX25 Error: " + error);
         }
 
         private async void CheckBluetooth()
@@ -407,8 +488,10 @@ namespace HTCommander
                 else
                 {
                     DebugTrace("APRS decode failed: " + frame.ToHex());
-                    return;
                 }
+
+                // Exit here, can't do any other processing on the APRS channel
+                return;
             }
 
             // If this frame comes from the locked channel, process it here.
@@ -416,8 +499,19 @@ namespace HTCommander
             {
                 if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
                 {
-                    // Have the BBS process this frame
-                    bbs.ProcessFrame(frame);
+                    AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
+                    if (p == null) return;
+                    if (p.type == FrameType.U_FRAME_UI)
+                    {
+                        // Have the BBS process this frame and a un-numbered frame
+                        bbs.ProcessFrame(frame, p);
+                    }
+                    else
+                    {
+                        // Have the AX.25 session process this packet
+                        if (p.addresses[0].CallSignWithId == callsign + "-" + stationId) { session.Receive(p); }
+                    }
+                    return;
                 }
                 else if (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)
                 {
@@ -444,6 +538,7 @@ namespace HTCommander
                                 AppendTerminalString(false, p.addresses[1].ToString(), p.addresses[0].CallSignWithId, dataStr);
                             }
                         }
+                        return;
                     }
                     else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.APRS)
                     {
@@ -470,8 +565,24 @@ namespace HTCommander
                                 }
                             }
                         }
+                        return;
+                    }
+                    else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.X25Session)
+                    {
+                        AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
+                        if ((p != null) && (p.addresses[0].CallSignWithId == callsign + "-" + stationId)) { session.Receive(p); }
+                        return;
                     }
                 }
+            }
+
+            // If this is a AX.25 disconnection frame sent at us and we are already not connected, just ack
+            AX25Packet px = AX25Packet.DecodeAX25Packet(frame);
+            if ((px != null) && (px.addresses.Count >= 2) && (px.addresses[0].CallSignWithId == callsign + "-" + stationId) && (px.type == FrameType.U_FRAME_DISC)) {
+                List<AX25Address> addresses = new List<AX25Address>();
+                addresses.Add(AX25Address.GetAddress(px.addresses[1].ToString()));
+                addresses.Add(AX25Address.GetAddress(callsign, stationId));
+                AX25Packet response = new AX25Packet(addresses, 0, 0, true, true, FrameType.U_FRAME_UA, null);
             }
         }
 
@@ -611,20 +722,23 @@ namespace HTCommander
                     channelB = radio.Channels[radio.Settings.channel_b];
                 }
 
-                foreach (RadioChannelControl c in channelControls)
+                if (channelControls != null)
                 {
-                    if (c == null) continue;
-                    if ((channelA != null) && (((int)c.Tag) == channelA.channel_id))
+                    foreach (RadioChannelControl c in channelControls)
                     {
-                        c.BackColor = Color.PaleGoldenrod;
-                    }
-                    else if ((channelB != null) && (radio.Settings.double_channel == 1) && (((int)c.Tag) == channelB.channel_id))
-                    {
-                        c.BackColor = Color.PaleGoldenrod;
-                    }
-                    else
-                    {
-                        c.BackColor = Color.DarkKhaki;
+                        if (c == null) continue;
+                        if ((channelA != null) && (((int)c.Tag) == channelA.channel_id))
+                        {
+                            c.BackColor = Color.PaleGoldenrod;
+                        }
+                        else if ((channelB != null) && (radio.Settings.double_channel == 1) && (((int)c.Tag) == channelB.channel_id))
+                        {
+                            c.BackColor = Color.PaleGoldenrod;
+                        }
+                        else
+                        {
+                            c.BackColor = Color.DarkKhaki;
+                        }
                     }
                 }
 
@@ -887,8 +1001,11 @@ namespace HTCommander
             terminalTextBox.ScrollToCaret();
         }
 
+        public delegate void AppendTerminalStringHandler(bool outgoing, string from, string to, string message);
         public void AppendTerminalString(bool outgoing, string from, string to, string message)
         {
+            if (this.InvokeRequired) { this.Invoke(new AppendTerminalStringHandler(AppendTerminalString), outgoing, from, to, message); return; }
+
             TerminalText terminalText = new TerminalText(outgoing, from, to, message);
             terminalTexts.Add(terminalText);
             AppendTerminalString(terminalText);
@@ -899,6 +1016,11 @@ namespace HTCommander
         public void AppendTerminalString(TerminalText terminalText)
         {
             if (terminalTextBox.Text.Length != 0) { terminalTextBox.AppendText(Environment.NewLine); }
+            if ((terminalText.to == null) || (terminalText.from == null))
+            {
+                AppendTerminalText(terminalText.message, Color.Yellow);
+                return;
+            }
             if (showCallsignToolStripMenuItem.Checked)
             {
                 if (terminalText.outgoing) { AppendTerminalText(terminalText.to + " < ", Color.Green); } else { AppendTerminalText(terminalText.from + " > ", Color.Green); }
@@ -964,11 +1086,10 @@ namespace HTCommander
             string sendText = terminalInputTextBox.Text;
             terminalInputTextBox.Clear();
 
-            if (ParseCallsignWithId(activeStationLock.Callsign, out destCallsign, out destStationId) == false) return;
-
             if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25)
             {
                 // Raw AX.25 format
+                if (ParseCallsignWithId(activeStationLock.Callsign, out destCallsign, out destStationId) == false) return;
                 //terminalTextBox.AppendText(destCallsign + "-" + destStationId + "< " + sendText + Environment.NewLine);
                 AppendTerminalString(true, callsign + "-" + stationId, destCallsign + "-" + destStationId, sendText);
                 List<AX25Address> addresses = new List<AX25Address>(1);
@@ -980,6 +1101,7 @@ namespace HTCommander
             else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25Compress)
             {
                 // Raw AX.25 format + Deflate
+                if (ParseCallsignWithId(activeStationLock.Callsign, out destCallsign, out destStationId) == false) return;
                 //terminalTextBox.AppendText(destCallsign + "-" + destStationId + "< " + sendText + Environment.NewLine);
                 AppendTerminalString(true, callsign + "-" + stationId, destCallsign + "-" + destStationId, sendText);
                 List<AX25Address> addresses = new List<AX25Address>(1);
@@ -1011,6 +1133,7 @@ namespace HTCommander
             else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.APRS)
             {
                 // APRS format
+                if (ParseCallsignWithId(activeStationLock.Callsign, out destCallsign, out destStationId) == false) return;
                 string aprsAddr = ":" + activeStationLock.Callsign;
                 if (aprsAddr.EndsWith("-0")) { aprsAddr = aprsAddr.Substring(0, aprsAddr.Length - 2); }
                 while (aprsAddr.Length < 10) { aprsAddr += " "; }
@@ -1030,8 +1153,16 @@ namespace HTCommander
                 int msgId = GetNextAprsMessageId();
                 AX25Packet packet = new AX25Packet(addresses, aprsAddr + sendText + "{" + msgId, DateTime.Now);
                 packet.messageId = msgId;
-                //radio.TransmitTncData(packet, activeChannelIdLock);
                 aprsStack.ProcessOutgoing(packet, activeChannelIdLock);
+            }
+            else if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.X25Session)
+            {
+                // AX.25 Session
+                if (session.CurrentState == AX25Session.ConnectionState.CONNECTED)
+                {
+                    session.Send(UTF8Encoding.UTF8.GetBytes(sendText));
+                    AppendTerminalString(true, callsign + "-" + stationId, session.Addresses[0].ToString(), sendText);
+                }
             }
         }
 
@@ -1358,6 +1489,8 @@ namespace HTCommander
             radioStatusToolStripMenuItem.Enabled = ((radio.State == Radio.RadioState.Connected) && (radio.HtStatus != null));
             if (radio.State != Radio.RadioState.Connected) { connectedPanel.Visible = false; }
             exportStationsToolStripMenuItem.Enabled = (stations.Count > 0);
+            waitForConnectionToolStripMenuItem.Visible = allowTransmit;
+            waitForConnectionToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected) && allowTransmit && (activeStationLock == null);
 
             toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = weatherReportToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
             beaconSettingsToolStripMenuItem.Visible = (radio.State == Radio.RadioState.Connected) && allowTransmit;
@@ -1399,7 +1532,7 @@ namespace HTCommander
             bbsConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.BBS)) ? "&Activate" : "&Deactivate";
 
             // ActiveLockToStation
-            if ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Terminal)) { terminalTitleLabel.Text = "Terminal"; }
+            if ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Terminal) || (string.IsNullOrEmpty(activeStationLock.Name))) {terminalTitleLabel.Text = "Terminal"; }
             else { terminalTitleLabel.Text = "Terminal - " + activeStationLock.Name; }
 
             // Window title
@@ -2329,8 +2462,14 @@ namespace HTCommander
         {
             if (station == null)
             {
+                if (session.CurrentState != AX25Session.ConnectionState.DISCONNECTED) { session.Disconnect(); }
+                if ((activeStationLock != null) && activeStationLock.WaitForConnection && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal))
+                {
+                    AppendTerminalString(false, null, null, "Stopped.");
+                }
                 activeStationLock = null;
                 activeChannelIdLock = -1;
+                session.Disconnect();
                 UpdateInfo();
                 UpdateRadioDisplay();
                 return true;
@@ -2358,7 +2497,32 @@ namespace HTCommander
             UpdateInfo();
             UpdateRadioDisplay();
 
+            if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.X25Session)
+            {
+                List<AX25Address> addresses = new List<AX25Address>();
+                addresses.Add(AX25Address.GetAddress(station.Callsign));
+                addresses.Add(AX25Address.GetAddress(callsign, stationId));
+                session.Connect(addresses);
+            }
+
             return true;
+        }
+
+        private void waitForConnectionToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (activeStationLock == null)
+            {
+                activeChannelIdLock = radio.Settings.channel_a;
+                StationInfoClass station = new StationInfoClass();
+                station.WaitForConnection = true;
+                station.StationType = StationInfoClass.StationTypes.Terminal;
+                station.TerminalProtocol = StationInfoClass.TerminalProtocols.X25Session;
+                activeStationLock = station;
+                UpdateInfo();
+                UpdateRadioDisplay();
+                terminalInputTextBox.Focus();
+                AppendTerminalString(false, null, null, "Waiting for connection...");
+            }
         }
 
         private void terminalConnectButton_Click(object sender, EventArgs e)
@@ -2413,7 +2577,15 @@ namespace HTCommander
             }
             else
             {
-                ActiveLockToStation(null);
+                if (session.CurrentState != AX25Session.ConnectionState.DISCONNECTED)
+                {
+                    // Do a soft-disconnect
+                    session.Disconnect();
+                }
+                else
+                {
+                    ActiveLockToStation(null);
+                }
             }
         }
 
@@ -2693,8 +2865,12 @@ namespace HTCommander
             }
         }
 
+        public delegate void UpdateBbsStatsHandler(BBS.StationStats stats);
+
         public void UpdateBbsStats(BBS.StationStats stats)
         {
+            if (this.InvokeRequired) { this.Invoke(new UpdateBbsStatsHandler(UpdateBbsStats), stats); return; }
+
             ListViewItem l;
             if (stats.listViewItem == null)
             {
@@ -2727,8 +2903,11 @@ namespace HTCommander
             bbsTabContextMenuStrip.Show(bbsMenuPictureBox, e.Location);
         }
 
-        public void addBbsTraffic(string callsign, bool outgoing, string text)
+        public delegate void AddBbsTrafficHandler(string callsign, bool outgoing, string text);
+        public void AddBbsTraffic(string callsign, bool outgoing, string text)
         {
+            if (this.InvokeRequired) { this.Invoke(new AddBbsTrafficHandler(AddBbsTraffic), callsign, outgoing, text); return; }
+
             if (bbsTextBox.Text.Length != 0) { bbsTextBox.AppendText(Environment.NewLine); }
             if (outgoing) { AppendBbsText(callsign + " < ", Color.Green); } else { AppendBbsText(callsign + " > ", Color.Green); }
             AppendBbsText(text, outgoing ? Color.CornflowerBlue : Color.Gainsboro);
@@ -2807,5 +2986,6 @@ namespace HTCommander
                 }
             }
         }
+
     }
 }

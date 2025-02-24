@@ -34,7 +34,8 @@ namespace HTCommander
         {
             RawX25 = 0,
             APRS = 1,
-            RawX25Compress = 2
+            RawX25Compress = 2,
+            X25Session = 3
         }
 
         public string Callsign { get; set; }
@@ -45,6 +46,7 @@ namespace HTCommander
         public TerminalProtocols TerminalProtocol { get; set; }
         public string Channel { get; set; }
         public string AX25Destination { get; set; }
+        public bool WaitForConnection { get; set; }
 
         public string CallsignNoZero
         {

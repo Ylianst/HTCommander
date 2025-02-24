@@ -45,9 +45,10 @@
             // 
             this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancelButton.Location = new System.Drawing.Point(300, 196);
+            this.cancelButton.Location = new System.Drawing.Point(400, 241);
+            this.cancelButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.cancelButton.Name = "cancelButton";
-            this.cancelButton.Size = new System.Drawing.Size(75, 23);
+            this.cancelButton.Size = new System.Drawing.Size(100, 28);
             this.cancelButton.TabIndex = 0;
             this.cancelButton.Text = "Cancel";
             this.cancelButton.UseVisualStyleBackColor = true;
@@ -58,9 +59,11 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.groupBox2.Controls.Add(this.radiosListView);
-            this.groupBox2.Location = new System.Drawing.Point(15, 49);
+            this.groupBox2.Location = new System.Drawing.Point(20, 60);
+            this.groupBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(360, 141);
+            this.groupBox2.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox2.Size = new System.Drawing.Size(480, 174);
             this.groupBox2.TabIndex = 4;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Radios";
@@ -77,13 +80,15 @@
             this.radiosListView.GridLines = true;
             this.radiosListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.radiosListView.HideSelection = false;
-            this.radiosListView.Location = new System.Drawing.Point(6, 19);
+            this.radiosListView.Location = new System.Drawing.Point(8, 23);
+            this.radiosListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.radiosListView.Name = "radiosListView";
-            this.radiosListView.Size = new System.Drawing.Size(348, 111);
+            this.radiosListView.Size = new System.Drawing.Size(463, 136);
             this.radiosListView.TabIndex = 2;
             this.radiosListView.UseCompatibleStateImageBehavior = false;
             this.radiosListView.View = System.Windows.Forms.View.Details;
             this.radiosListView.SelectedIndexChanged += new System.EventHandler(this.radiosListView_SelectedIndexChanged);
+            this.radiosListView.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.radiosListView_MouseDoubleClick);
             // 
             // columnHeader1
             // 
@@ -99,9 +104,10 @@
             // 
             this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox2.Image = global::HTCommander.Properties.Resources.Radio;
-            this.pictureBox2.Location = new System.Drawing.Point(341, 9);
+            this.pictureBox2.Location = new System.Drawing.Point(455, 11);
+            this.pictureBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.pictureBox2.Name = "pictureBox2";
-            this.pictureBox2.Size = new System.Drawing.Size(34, 34);
+            this.pictureBox2.Size = new System.Drawing.Size(45, 42);
             this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox2.TabIndex = 6;
             this.pictureBox2.TabStop = false;
@@ -110,9 +116,10 @@
             // 
             this.label4.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.label4.Location = new System.Drawing.Point(12, 9);
+            this.label4.Location = new System.Drawing.Point(16, 11);
+            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(323, 34);
+            this.label4.Size = new System.Drawing.Size(431, 42);
             this.label4.TabIndex = 5;
             this.label4.Text = "Multiple radios have been found. Select the one to connect with.";
             // 
@@ -120,9 +127,10 @@
             // 
             this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.okButton.Enabled = false;
-            this.okButton.Location = new System.Drawing.Point(219, 196);
+            this.okButton.Location = new System.Drawing.Point(292, 241);
+            this.okButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.okButton.Name = "okButton";
-            this.okButton.Size = new System.Drawing.Size(75, 23);
+            this.okButton.Size = new System.Drawing.Size(100, 28);
             this.okButton.TabIndex = 7;
             this.okButton.Text = "OK";
             this.okButton.UseVisualStyleBackColor = true;
@@ -131,10 +139,10 @@
             // RadioSelectorForm
             // 
             this.AcceptButton = this.okButton;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.cancelButton;
-            this.ClientSize = new System.Drawing.Size(387, 231);
+            this.ClientSize = new System.Drawing.Size(516, 284);
             this.Controls.Add(this.okButton);
             this.Controls.Add(this.groupBox2);
             this.Controls.Add(this.pictureBox2);
@@ -142,6 +150,7 @@
             this.Controls.Add(this.cancelButton);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "RadioSelectorForm";

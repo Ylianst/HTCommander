@@ -29,6 +29,7 @@ namespace HTCommander
         public string channel_name;
         public int frame_size;
         public bool incoming;
+        public bool sent;
 
         // Content of the packet
         public List<AX25Address> addresses;
@@ -53,6 +54,19 @@ namespace HTCommander
             if (p.pid != pid) return false;
             if (p.modulo128 != modulo128) return false;
             return true;
+        }
+
+        public AX25Packet(List<AX25Address> addresses, byte nr, byte ns, bool pollFinal, bool command, FrameType type, byte[] data = null)
+        {
+            this.addresses = addresses;
+            this.nr = nr;
+            this.ns = ns;
+            this.pollFinal = pollFinal;
+            this.command = command;
+            this.type = type;             // Default value of information frame
+            this.time = DateTime.Now;
+            this.data = data;
+            pid = 240;                    // Default value of no layer 3 protocol implemented
         }
 
         public AX25Packet(List<AX25Address> addresses, string dataStr, DateTime time)
@@ -227,7 +241,7 @@ namespace HTCommander
             }
 
             // Compute the packet size & control bits
-            int packetSize = (7 * addresses.Count) + (modulo128 ? 2 : 1) + dataBytes.Length; // Addresses, control and data
+            int packetSize = (7 * addresses.Count) + (modulo128 ? 2 : 1) + dataBytesLen; // Addresses, control and data
             if ((type == FrameType.I_FRAME) || (type == FrameType.U_FRAME_UI)) { packetSize++; } // PID is present
             byte[] rdata = new byte[packetSize];
             int control = GetControl();
@@ -292,9 +306,10 @@ namespace HTCommander
             U_FRAME_XID = 3 | (1 << 2) | (1 << 3) | (1 << 5) | (1 << 7),       // Exchange Identification
             U_FRAME_TEST = 3 | (1 << 5) | (1 << 6) | (1 << 7),                 // Test
             U_FRAME_MASK = 3 | (1 << 2) | (1 << 3) | (1 << 5) | (1 << 6) | (1 << 7),
-        }
+            A_CRH = 0x80                                                       // C/R Bit Hardened (Control/Repeated bit in Repeater Path SSID) -  Value 128 (0x80) is a common assumption for this bit.
+    }
 
-        public enum Defs : int
+    public enum Defs : int
         {
             FLAG            = (1<<1)|(1<<2)|(1<<3)|(1<<4)|(1<<5)|(1<<6),       // Unused, but included for non-KISS implementations.
 
