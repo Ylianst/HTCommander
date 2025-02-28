@@ -170,7 +170,7 @@ namespace HTCommander
             }
 
             timer.Interval = GetTimerTimeout(timerName); // Get timeout based on timerName
-            Trace("SetTimer " + timerName + ", interval: " + timer.Interval);
+            Trace("SetTimer " + timerName.ToString() + " to " + timer.Interval + "ms");
             timer.Enabled = true;
             timer.Start();
         }
@@ -196,7 +196,7 @@ namespace HTCommander
 
         private void ClearTimer(TimerNames timerName)
         {
-            Trace("ClearTimer " + timerName);
+            Trace("ClearTimer " + timerName.ToString());
             Timer timer = null;
             switch (timerName)
             {
@@ -220,20 +220,22 @@ namespace HTCommander
             }
         }
 
-        // first, scan the sent packets. If it's a packet we've already
-        // sent and it's earlier than the incoming packet's NR count,
-        // it was received and we can discard it.
         private void ReceiveAcknowledgement(AX25Packet packet)
         {
+            // first, scan the sent packets. If it's a packet we've already
+            // sent and it's earlier than the incoming packet's NR count,
+            // it was received and we can discard it.
             Trace("ReceiveAcknowledgement");
             for (int p = 0; p < _state.SendBuffer.Count; p++)
             {
                 if (_state.SendBuffer[p].sent
-                    && _state.SendBuffer[p].ns != packet.nr
-                    && DistanceBetween(packet.nr, _state.SendBuffer[p].ns, (byte)(Modulo128 ? 128 : 8)) <= MaxFrames
+                    && (_state.SendBuffer[p].ns != packet.nr)
+                    && (DistanceBetween(packet.nr, _state.SendBuffer[p].ns, (byte)(Modulo128 ? 128 : 8)) <= MaxFrames)
                 )
                 { _state.SendBuffer.RemoveAt(p); p--; }
             }
+
+            // set the current receive to the received packet's NR count
             _state.RemoteReceiveSequence = packet.nr;
         }
 
@@ -315,7 +317,7 @@ namespace HTCommander
 
         private void ConnectTimerCallback(Object sender, ElapsedEventArgs e)
         {
-            Trace("ConnectTimerCallback");
+            Trace("Timer - Connect");
             if (_timers.ConnectAttempts >= (Retries - 1))
             {
                 ClearTimer(TimerNames.Connect);
@@ -327,7 +329,7 @@ namespace HTCommander
 
         private void DisconnectTimerCallback(Object sender, ElapsedEventArgs e)
         {
-            Trace("DisconnectTimerCallback");
+            Trace("Timer - Disconnect");
             if (_timers.DisconnectAttempts >= (Retries - 1))
             {
                 ClearTimer(TimerNames.Disconnect);
@@ -349,11 +351,11 @@ namespace HTCommander
 
         private void T1TimerCallback(Object sender, ElapsedEventArgs e)
         {
-            Trace("T1TimerCallback");
+            Trace("Timer - T1");
             if (_timers.T1Attempts >= Retries)
             {
                 ClearTimer(TimerNames.T1);
-                ConnectEx();
+                Disconnect(); // ConnectEx();
                 return;
             }
             _timers.T1Attempts++;
@@ -362,14 +364,14 @@ namespace HTCommander
 
         private void T2TimerCallback(Object sender, ElapsedEventArgs e)
         {
-            Trace("T2TimerCallback");
+            Trace("Timer - T2");
             ClearTimer(TimerNames.T2);
             Drain();
         }
 
         private void T3TimerCallback(Object sender, ElapsedEventArgs e)
         {
-            Trace("T3TimerCallback");
+            Trace("Timer - T3");
             if (_timers.T1.Enabled) return; // Check if T1 is running using Timer.Enabled property
             if (_timers.T3Attempts >= Retries)
             {

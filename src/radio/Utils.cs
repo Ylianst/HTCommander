@@ -27,18 +27,30 @@ namespace HTCommander
 {
     public class Utils
     {
-        public static byte[] HexStringToByteArray(string hex)
+        public static string BytesToHex(byte[] Bytes)
         {
-            try
+            if (Bytes == null) return "";
+            StringBuilder Result = new StringBuilder(Bytes.Length * 2);
+            string HexAlphabet = "0123456789ABCDEF";
+            foreach (byte B in Bytes)
             {
-                if (hex.Length % 2 != 0) throw new ArgumentException("Hex string must have an even length.");
-                byte[] bytes = new byte[hex.Length / 2];
-                for (int i = 0; i < hex.Length; i += 2) { bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16); }
-                return bytes;
+                Result.Append(HexAlphabet[(int)(B >> 4)]);
+                Result.Append(HexAlphabet[(int)(B & 0xF)]);
             }
-            catch (Exception) { return null; }
+            return Result.ToString();
         }
-        public static string BytesToHex(byte[] ba) { try { return BitConverter.ToString(ba).Replace("-", ""); } catch (Exception) { return null; } }
+
+        public static byte[] HexStringToByteArray(string Hex)
+        {
+            byte[] Bytes = new byte[Hex.Length / 2];
+            int[] HexValue = new int[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F };
+            for (int x = 0, i = 0; i < Hex.Length; i += 2, x += 1)
+            {
+                Bytes[x] = (byte)(HexValue[Char.ToUpper(Hex[i + 0]) - '0'] << 4 | HexValue[Char.ToUpper(Hex[i + 1]) - '0']);
+            }
+            return Bytes;
+        }
+
         public static int GetShort(byte[] d, int p) { return ((int)d[p] << 8) + (int)d[p + 1]; }
         public static int GetInt(byte[] d, int p) { return ((int)d[p] << 24) + (int)(d[p + 1] << 16) + (int)(d[p + 2] << 8) + (int)d[p + 3]; }
         public static void SetShort(byte[] d, int p, int v) { d[p] = (byte)((v >> 8) & 0xFF); d[p + 1] = (byte)(v & 0xFF); }

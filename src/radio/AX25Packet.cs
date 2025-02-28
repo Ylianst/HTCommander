@@ -36,8 +36,8 @@ namespace HTCommander
         public bool pollFinal;
         public bool command;   // Command or Response depending on the packet usage
         public FrameType type; // Type of frame this is
-        public byte nr;        // 0 to 7, or if modulo128 is true, 0 to 127
-        public byte ns;        // 0 to 7, or if modulo128 is true, 0 to 127
+        public byte nr;        // 0 to 7, or if modulo128 is true, 0 to 127. Gives the sequence number of the next expected frame.
+        public byte ns;        // 0 to 7, or if modulo128 is true, 0 to 127. Goes up by one each frame sent.
         public byte pid;       // Only used for I_FRAME and U_FRAME_UI
         public bool modulo128; // True if we need 2 control bytes for more inflight packets
         public string dataStr; // Only used for I_FRAME and U_FRAME_UI

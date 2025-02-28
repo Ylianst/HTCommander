@@ -464,7 +464,8 @@ namespace HTCommander
                                         Update(RadioUpdateNotification.ChannelInfo);
                                         UpdateChannels();
                                     }
-                                    //Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}");
+                                    
+                                    Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}, RSSI={HtStatus.rssi}");
                                     if (IsTncFree() && (TncFragmentInFlight == false) && (TncFragmentQueue.Count > 0)) // We are clear to send a packet
                                     {
                                         // Send more data
