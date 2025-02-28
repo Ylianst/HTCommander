@@ -35,8 +35,6 @@ namespace HTCommander
         [STAThread]
         static void Main(string[] args)
         {
-            WinlinkCompression.Test();
-
             Application.ThreadException += new System.Threading.ThreadExceptionEventHandler(ExceptionSink);
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(UnhandledExceptionEventSink);
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;

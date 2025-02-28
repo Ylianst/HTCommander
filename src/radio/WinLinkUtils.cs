@@ -16,6 +16,7 @@ limitations under the License.
 
 using System;
 using System.Text;
+using System.Security.Cryptography;
 
 // Usefu Github stuff for WinLink
 // https://github.com/la5nta/wl2k-go
@@ -24,9 +25,50 @@ using System.Text;
 // https://raw.githubusercontent.com/ham-radio-software/lzhuf/refs/heads/main/lzhuf.c
 // https://raw.githubusercontent.com/ARSFI/Winlink-Compression/refs/heads/master/WinlinkSupport.vb
 // https://raw.githubusercontent.com/nwdigitalradio/paclink-unix/cc7b2f9474959a70856cabaf812bfce53d2da145/lzhuf_1.c
+// https://kg4nxo.com/wp-content/uploads/2021/04/WINLINK-COMMAND-CODES.pdf
 
 namespace HTCommander.radio
 {
+    public static class WinlinkSecurity
+    {
+        private static readonly byte[] WinlinkSecureSalt = new byte[]
+        {
+            77, 197, 101, 206, 190, 249, 93, 200, 51, 243, 93, 237, 71, 94, 239, 138, 68, 108,
+            70, 185, 225, 137, 217, 16, 51, 122, 193, 48, 194, 195, 198, 175, 172, 169, 70, 84, 61, 62, 104, 186, 114, 52,
+            61, 168, 66, 129, 192, 208, 187, 249, 232, 193, 41, 113, 41, 45, 240, 16, 29, 228, 208, 228, 61, 20
+        };
+
+        public static bool Test()
+        {
+            if (WinlinkSecurity.SecureLoginResponse("23753528", "FOOBAR") != "72768415") return false;
+            if (WinlinkSecurity.SecureLoginResponse("23753528", "FooBar") != "95074758") return false;
+            return true;
+        }
+
+        // Used for WinLink login
+        public static string SecureLoginResponse(string challenge, string password)
+        {
+            // MD5(challenge + password + WinlinkSecureSalt)
+            byte[] a1 = Encoding.ASCII.GetBytes(challenge);
+            byte[] a2 = Encoding.ASCII.GetBytes(password);
+            byte[] a3 = WinlinkSecureSalt;
+
+            byte[] rv = new byte[a1.Length + a2.Length + a3.Length];
+            Buffer.BlockCopy(a1, 0, rv, 0, a1.Length);
+            Buffer.BlockCopy(a2, 0, rv, a1.Length, a2.Length);
+            Buffer.BlockCopy(a3, 0, rv, a1.Length + a2.Length, a3.Length);
+
+            using (MD5 md5 = MD5.Create())
+            {
+                byte[] hashBytes = md5.ComputeHash(rv);
+                int pr = hashBytes[3] & 0x3f;
+                for (int i = 2; i >= 0; i--) { pr = (pr << 8) | hashBytes[i]; }
+                string str = pr.ToString("D8"); // "D8" formats as decimal with 8 digits, padding with leading zeros
+                return str.Substring(str.Length - 8);
+            }
+        }
+    }
+
     public class WinlinkCompression
     {
         private static readonly object LZSync = new object();
