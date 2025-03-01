@@ -156,6 +156,12 @@
     <Compile Include="ImportChannelsForm.Designer.cs">
       <DependentUpon>ImportChannelsForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="MailViewerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MailViewerForm.Designer.cs">
+      <DependentUpon>MailViewerForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="MailComposeForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -310,6 +316,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="ImportChannelsForm.resx">
       <DependentUpon>ImportChannelsForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MailViewerForm.resx">
+      <DependentUpon>MailViewerForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MailComposeForm.resx">
       <DependentUpon>MailComposeForm.cs</DependentUpon>

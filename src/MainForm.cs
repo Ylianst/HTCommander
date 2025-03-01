@@ -27,7 +27,6 @@ using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
 using HTCommander.radio;
 
-
 #if !__MonoCS__
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
@@ -240,9 +239,9 @@ namespace HTCommander
             for (int i = 0; i < MailBoxesNames.Length; i++)
             {
                 MailBoxTreeNodes[i] = mailBoxesTreeView.Nodes.Add(MailBoxesNames[i]);
-                MailBoxTreeNodes[i].SelectedImageIndex = MailBoxTreeNodes[i].ImageIndex = i;
+                MailBoxTreeNodes[i].Tag = MailBoxTreeNodes[i].SelectedImageIndex = MailBoxTreeNodes[i].ImageIndex = i;
             }
-            Mails = WinLinkMailSerializer.DeserializeStringToList(registry.ReadString("Mails", ""));
+            Mails = WinLinkMail.Deserialize(registry.ReadString("Mails", ""));
             UpdateMail();
 
             // Read the packets file
@@ -1536,7 +1535,7 @@ namespace HTCommander
 
         public void SaveMails()
         {
-            registry.WriteString("Mails", WinLinkMailSerializer.SerializeListToString(Mails));
+            registry.WriteString("Mails", WinLinkMail.Serialize(Mails));
         }
 
         public void UpdateInfo()
@@ -3128,10 +3127,27 @@ namespace HTCommander
                     mailComposeForm.Show(this);
                 }
             }
+            else
+            {
+                new MailViewerForm(m).Show(this);
+            }
         }
 
         private void mailboxListView_SelectedIndexChanged(object sender, EventArgs e)
         {
+            // Adjust menus
+            viewMailToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == 0) || (SelectedMailbox == 3) || (SelectedMailbox == 4) || (SelectedMailbox == 5));
+            editMailToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == 1) || (SelectedMailbox == 2));
+            toolStripMenuItem14.Visible = (mailboxListView.SelectedItems.Count > 0);
+            moveToDraftToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && (SelectedMailbox == 1);
+            moveToOutboxToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && (SelectedMailbox == 2);
+            moveToInboxToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == 4) || (SelectedMailbox == 5));
+            moveToArchiveToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == 0) || (SelectedMailbox == 5));
+            moveToTrashToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == 0) || (SelectedMailbox == 4));
+            toolStripMenuItem15.Visible = (mailboxListView.SelectedItems.Count > 0);
+            deleteMailToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0);
+
+            // Adjust mail preview
             mailPreviewTextBox.Clear();
             if (mailboxListView.SelectedItems.Count == 0) return;
             WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
@@ -3146,5 +3162,197 @@ namespace HTCommander
             mailPreviewTextBox.Rtf = rtfBuilder.ToRtf();
         }
 
+        private void mailContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+        }
+
+        private void moveToDraftToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            foreach (ListViewItem l in mailboxListView.SelectedItems)
+            {
+                WinLinkMail m = (WinLinkMail)l.Tag;
+                m.Mailbox = 2;
+            }
+            UpdateMail();
+            SaveMails();
+        }
+
+        private void moveToOutboxToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            foreach (ListViewItem l in mailboxListView.SelectedItems)
+            {
+                WinLinkMail m = (WinLinkMail)l.Tag;
+                m.Mailbox = 1;
+            }
+            UpdateMail();
+            SaveMails();
+        }
+
+        private void moveToInboxToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            foreach (ListViewItem l in mailboxListView.SelectedItems)
+            {
+                WinLinkMail m = (WinLinkMail)l.Tag;
+                m.Mailbox = 0;
+            }
+            UpdateMail();
+            SaveMails();
+        }
+
+        private void moveToArchiveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            foreach (ListViewItem l in mailboxListView.SelectedItems)
+            {
+                WinLinkMail m = (WinLinkMail)l.Tag;
+                m.Mailbox = 4;
+            }
+            UpdateMail();
+            SaveMails();
+        }
+
+        private void moveToTrashToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            foreach (ListViewItem l in mailboxListView.SelectedItems)
+            {
+                WinLinkMail m = (WinLinkMail)l.Tag;
+                m.Mailbox = 5;
+            }
+            UpdateMail();
+            SaveMails();
+        }
+
+        private void deleteMailToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (mailboxListView.SelectedItems.Count == 0) return;
+            if (MessageBox.Show(this, "Permanently delete selected mails?", "Mail", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.OK)
+            {
+                foreach (ListViewItem l in mailboxListView.SelectedItems)
+                {
+                    WinLinkMail m = (WinLinkMail)l.Tag;
+                    Mails.Remove(m);
+                }
+                UpdateMail();
+                SaveMails();
+            }
+        }
+
+        private void mailboxListView_MouseMove(object sender, MouseEventArgs e)
+        {
+            if ((e.Button == MouseButtons.Left) && (mailboxListView.SelectedItems.Count > 0))
+            {
+                List<WinLinkMail> mails = new List<WinLinkMail>();
+                foreach (ListViewItem l in mailboxListView.SelectedItems)
+                {
+                    WinLinkMail m = (WinLinkMail)l.Tag;
+                    mails.Add(m);
+                }
+                DoDragDrop((object)mails.ToArray(), DragDropEffects.Copy | DragDropEffects.Move);
+            }
+        }
+
+        private void mailBoxesTreeView_DragEnter(object sender, DragEventArgs e)
+        {
+            // Convert screen coordinates to client coordinates
+            Point clientPoint = mailBoxesTreeView.PointToClient(new Point(e.X, e.Y));
+
+            // Get the TreeNode at the client point
+            TreeNode n = mailBoxesTreeView.GetNodeAt(clientPoint);
+
+            if (n == null) { e.Effect = DragDropEffects.None; return; }
+            if (e.Data.GetDataPresent(typeof(WinLinkMail[])))
+            {
+                WinLinkMail[] mails = (WinLinkMail[])e.Data.GetData(typeof(WinLinkMail[]));
+                if ((mails.Length > 0))
+                {
+                    int sourceMailBox = mails[0].Mailbox;
+                    int destMailBox = (int)n.Tag;
+
+                    bool allowedMove = false;
+                    if (((sourceMailBox == 1) || (sourceMailBox == 2)) && ((destMailBox == 1) || (destMailBox == 2))) { allowedMove = true; }
+                    if (((sourceMailBox == 0) || (sourceMailBox == 4) || (sourceMailBox == 5)) && ((destMailBox == 0) || (destMailBox == 4) || (destMailBox == 5))) { allowedMove = true; }
+
+                    if ((sourceMailBox != destMailBox) && allowedMove)
+                    {
+                        e.Effect = DragDropEffects.Move;
+                    }
+                    else
+                    {
+                        e.Effect = DragDropEffects.None;
+                    }
+                }
+                else
+                {
+                    e.Effect = DragDropEffects.None;
+                }
+            }
+            else
+            {
+                e.Effect = DragDropEffects.None;
+            }
+        }
+
+        private void mailBoxesTreeView_DragDrop(object sender, DragEventArgs e)
+        {
+            // Convert screen coordinates to client coordinates
+            Point clientPoint = mailBoxesTreeView.PointToClient(new Point(e.X, e.Y));
+
+            // Get the TreeNode at the client point
+            TreeNode n = mailBoxesTreeView.GetNodeAt(clientPoint);
+
+            if (n == null) { e.Effect = DragDropEffects.None; return; }
+            if (e.Data.GetDataPresent(typeof(WinLinkMail[])))
+            {
+                WinLinkMail[] mails = (WinLinkMail[])e.Data.GetData(typeof(WinLinkMail[]));
+                if ((mails.Length > 0))
+                {
+                    int sourceMailBox = mails[0].Mailbox;
+                    int destMailBox = (int)n.Tag;
+
+                    bool allowedMove = false;
+                    if (((sourceMailBox == 1) || (sourceMailBox == 2)) && ((destMailBox == 1) || (destMailBox == 2))) { allowedMove = true; }
+                    if (((sourceMailBox == 0) || (sourceMailBox == 4) || (sourceMailBox == 5)) && ((destMailBox == 0) || (destMailBox == 4) || (destMailBox == 5))) { allowedMove = true; }
+
+                    if ((sourceMailBox != destMailBox) && allowedMove)
+                    {
+                        foreach (WinLinkMail mail in mails) { mail.Mailbox = destMailBox; }
+                        UpdateMail();
+                        SaveMails();
+                    }
+                }
+            }
+        }
+
+        private void backupMailToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (backupMailSaveFileDialog.ShowDialog(this) == DialogResult.OK)
+            {
+                File.WriteAllText(backupMailSaveFileDialog.FileName, WinLinkMail.Serialize(Mails));
+            }
+        }
+
+        private void restoreMailToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (restoreMailOpenFileDialog.ShowDialog(this) == DialogResult.OK)
+            {
+                string data = File.ReadAllText(restoreMailOpenFileDialog.FileName);
+                List<WinLinkMail> restoreMails = WinLinkMail.Deserialize(data);
+                bool change = false;
+                foreach (WinLinkMail mail in restoreMails)
+                {
+                    if (IsMailMidPresent(mail.MID) == false) { Mails.Add(mail); change = true; }
+                }
+                if (change)
+                {
+                    UpdateMail();
+                    SaveMails();
+                }
+            }
+        }
+
+        private bool IsMailMidPresent(string MID)
+        {
+            foreach (WinLinkMail m in Mails) { if (m.MID == MID) return true; }
+            return false;
+        }
     }
 }

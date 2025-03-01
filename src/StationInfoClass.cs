@@ -89,10 +89,7 @@ namespace HTCommander
                 string trimmedLine = line.Trim();
                 if (trimmedLine == "Station:")
                 {
-                    if (currentStation != null)
-                    {
-                        stations.Add(currentStation);
-                    }
+                    if (currentStation != null) { stations.Add(currentStation); }
                     currentStation = new StationInfoClass();
                 }
                 else if (currentStation != null)
@@ -118,10 +115,7 @@ namespace HTCommander
                 }
             }
 
-            if (currentStation != null)
-            {
-                stations.Add(currentStation);
-            }
+            if (currentStation != null) { stations.Add(currentStation); }
 
             return stations;
         }

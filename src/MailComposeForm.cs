@@ -1,14 +1,6 @@
 ﻿using HTCommander.radio;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using Windows.System.Update;
 
 namespace HTCommander
 {
@@ -99,6 +91,7 @@ namespace HTCommander
         {
             bool addMail = false;
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
+            mail.MID = WinLinkMail.GenerateMID();
             mail.To = toComboBox.Text;
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
@@ -115,6 +108,7 @@ namespace HTCommander
         {
             bool addMail = false;
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
+            mail.MID = WinLinkMail.GenerateMID();
             mail.To = toComboBox.Text;
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;

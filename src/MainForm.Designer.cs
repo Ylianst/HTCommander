@@ -125,6 +125,7 @@
             this.columnHeader4 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader5 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader6 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.mailPreviewTextBox = new System.Windows.Forms.RichTextBox();
             this.panel2 = new System.Windows.Forms.Panel();
             this.newMailButton = new System.Windows.Forms.Button();
             this.mailConnectButton = new System.Windows.Forms.Button();
@@ -238,7 +239,22 @@
             this.mailTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showPreviewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsChatControl = new HTCommander.ChatControl();
-            this.mailPreviewTextBox = new System.Windows.Forms.RichTextBox();
+            this.mailContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.moveToOutboxToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.moveToDraftToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.moveToInboxToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.moveToArchiveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.moveToTrashToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.editMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem14 = new System.Windows.Forms.ToolStripSeparator();
+            this.toolStripMenuItem15 = new System.Windows.Forms.ToolStripSeparator();
+            this.deleteMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem16 = new System.Windows.Forms.ToolStripSeparator();
+            this.backupMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.restoreMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.backupMailSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
+            this.restoreMailOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -299,6 +315,7 @@
             this.bbsTabContextMenuStrip.SuspendLayout();
             this.notifyContextMenuStrip.SuspendLayout();
             this.mailTabContextMenuStrip.SuspendLayout();
+            this.mailContextMenuStrip.SuspendLayout();
             this.SuspendLayout();
             // 
             // mainStatusStrip
@@ -339,7 +356,7 @@
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             this.mainMenuStrip.Name = "mainMenuStrip";
             this.mainMenuStrip.Padding = new System.Windows.Forms.Padding(5, 2, 0, 2);
-            this.mainMenuStrip.Size = new System.Drawing.Size(1108, 30);
+            this.mainMenuStrip.Size = new System.Drawing.Size(1108, 28);
             this.mainMenuStrip.TabIndex = 1;
             this.mainMenuStrip.Text = "menuStrip1";
             this.mainMenuStrip.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.mainMenuStrip_ItemClicked);
@@ -356,7 +373,7 @@
             this.toolStripMenuItem4,
             this.exitToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 26);
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
             this.fileToolStripMenuItem.Text = "&File";
             // 
             // connectToolStripMenuItem
@@ -426,7 +443,7 @@
             this.exportChannelsToolStripMenuItem,
             this.importChannelsToolStripMenuItem});
             this.settingsToolStripMenuItem1.Name = "settingsToolStripMenuItem1";
-            this.settingsToolStripMenuItem1.Size = new System.Drawing.Size(76, 26);
+            this.settingsToolStripMenuItem1.Size = new System.Drawing.Size(76, 24);
             this.settingsToolStripMenuItem1.Text = "&Settings";
             // 
             // dualWatchToolStripMenuItem
@@ -499,7 +516,7 @@
             this.packetsToolStripMenuItem,
             this.debugToolStripMenuItem});
             this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
-            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 26);
+            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
             this.viewToolStripMenuItem.Text = "&View";
             this.viewToolStripMenuItem.DropDownOpening += new System.EventHandler(this.viewToolStripMenuItem_DropDownOpening);
             // 
@@ -591,7 +608,7 @@
             this.toolStripMenuItem2,
             this.aboutToolStripMenuItem1});
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 26);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
             this.aboutToolStripMenuItem.Text = "&About";
             // 
             // radioInformationToolStripMenuItem
@@ -649,10 +666,10 @@
             this.radioPanel.Controls.Add(this.connectButton);
             this.radioPanel.Controls.Add(this.radioPictureBox);
             this.radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
-            this.radioPanel.Location = new System.Drawing.Point(0, 30);
+            this.radioPanel.Location = new System.Drawing.Point(0, 28);
             this.radioPanel.Margin = new System.Windows.Forms.Padding(4);
             this.radioPanel.Name = "radioPanel";
-            this.radioPanel.Size = new System.Drawing.Size(372, 652);
+            this.radioPanel.Size = new System.Drawing.Size(372, 654);
             this.radioPanel.TabIndex = 2;
             this.radioPanel.SizeChanged += new System.EventHandler(this.radioPanel_SizeChanged);
             // 
@@ -660,7 +677,7 @@
             // 
             this.channelsFlowLayoutPanel.BackColor = System.Drawing.Color.DarkKhaki;
             this.channelsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 480);
+            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 482);
             this.channelsFlowLayoutPanel.Margin = new System.Windows.Forms.Padding(4);
             this.channelsFlowLayoutPanel.Name = "channelsFlowLayoutPanel";
             this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(368, 84);
@@ -670,7 +687,7 @@
             // checkBluetoothButton
             // 
             this.checkBluetoothButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 564);
+            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 566);
             this.checkBluetoothButton.Margin = new System.Windows.Forms.Padding(4);
             this.checkBluetoothButton.Name = "checkBluetoothButton";
             this.checkBluetoothButton.Size = new System.Drawing.Size(368, 42);
@@ -823,7 +840,7 @@
             // connectButton
             // 
             this.connectButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.connectButton.Location = new System.Drawing.Point(0, 606);
+            this.connectButton.Location = new System.Drawing.Point(0, 608);
             this.connectButton.Margin = new System.Windows.Forms.Padding(4);
             this.connectButton.Name = "connectButton";
             this.connectButton.Size = new System.Drawing.Size(368, 42);
@@ -856,12 +873,12 @@
             this.mainTabControl.Controls.Add(this.debugTabPage);
             this.mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTabControl.ImageList = this.tabsImageList;
-            this.mainTabControl.Location = new System.Drawing.Point(372, 30);
+            this.mainTabControl.Location = new System.Drawing.Point(372, 28);
             this.mainTabControl.Margin = new System.Windows.Forms.Padding(4);
             this.mainTabControl.Multiline = true;
             this.mainTabControl.Name = "mainTabControl";
             this.mainTabControl.SelectedIndex = 0;
-            this.mainTabControl.Size = new System.Drawing.Size(736, 652);
+            this.mainTabControl.Size = new System.Drawing.Size(736, 654);
             this.mainTabControl.TabIndex = 3;
             // 
             // aprsTabPage
@@ -1113,7 +1130,7 @@
             this.mailTabPage.Location = new System.Drawing.Point(4, 4);
             this.mailTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.mailTabPage.Name = "mailTabPage";
-            this.mailTabPage.Size = new System.Drawing.Size(693, 644);
+            this.mailTabPage.Size = new System.Drawing.Size(693, 646);
             this.mailTabPage.TabIndex = 5;
             this.mailTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1131,7 +1148,7 @@
             // mailboxHorizontalSplitContainer.Panel2
             // 
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailPreviewTextBox);
-            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(693, 607);
+            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(693, 609);
             this.mailboxHorizontalSplitContainer.SplitterDistance = 297;
             this.mailboxHorizontalSplitContainer.TabIndex = 7;
             // 
@@ -1155,6 +1172,7 @@
             // 
             // mailBoxesTreeView
             // 
+            this.mailBoxesTreeView.AllowDrop = true;
             this.mailBoxesTreeView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mailBoxesTreeView.ImageIndex = 0;
             this.mailBoxesTreeView.ImageList = this.mailBoxImageList;
@@ -1165,6 +1183,9 @@
             this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 297);
             this.mailBoxesTreeView.TabIndex = 0;
             this.mailBoxesTreeView.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.mailBoxesTreeView_NodeMouseClick);
+            this.mailBoxesTreeView.DragDrop += new System.Windows.Forms.DragEventHandler(this.mailBoxesTreeView_DragDrop);
+            this.mailBoxesTreeView.DragEnter += new System.Windows.Forms.DragEventHandler(this.mailBoxesTreeView_DragEnter);
+            this.mailBoxesTreeView.DragOver += new System.Windows.Forms.DragEventHandler(this.mailBoxesTreeView_DragEnter);
             // 
             // mailBoxImageList
             // 
@@ -1186,6 +1207,7 @@
             this.columnHeader4,
             this.columnHeader5,
             this.columnHeader6});
+            this.mailboxListView.ContextMenuStrip = this.mailContextMenuStrip;
             this.mailboxListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mailboxListView.FullRowSelect = true;
             this.mailboxListView.GridLines = true;
@@ -1200,6 +1222,7 @@
             this.mailboxListView.View = System.Windows.Forms.View.Details;
             this.mailboxListView.SelectedIndexChanged += new System.EventHandler(this.mailboxListView_SelectedIndexChanged);
             this.mailboxListView.DoubleClick += new System.EventHandler(this.mailboxListView_DoubleClick);
+            this.mailboxListView.MouseMove += new System.Windows.Forms.MouseEventHandler(this.mailboxListView_MouseMove);
             // 
             // columnHeader4
             // 
@@ -1215,6 +1238,17 @@
             // 
             this.columnHeader6.Text = "Subject";
             this.columnHeader6.Width = 290;
+            // 
+            // mailPreviewTextBox
+            // 
+            this.mailPreviewTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.mailPreviewTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.mailPreviewTextBox.Location = new System.Drawing.Point(0, 0);
+            this.mailPreviewTextBox.Name = "mailPreviewTextBox";
+            this.mailPreviewTextBox.ReadOnly = true;
+            this.mailPreviewTextBox.Size = new System.Drawing.Size(693, 308);
+            this.mailPreviewTextBox.TabIndex = 0;
+            this.mailPreviewTextBox.Text = "";
             // 
             // panel2
             // 
@@ -2338,15 +2372,18 @@
             // 
             this.mailTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.mailTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.showPreviewToolStripMenuItem});
+            this.showPreviewToolStripMenuItem,
+            this.toolStripMenuItem16,
+            this.backupMailToolStripMenuItem,
+            this.restoreMailToolStripMenuItem});
             this.mailTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.mailTabContextMenuStrip.Size = new System.Drawing.Size(170, 28);
+            this.mailTabContextMenuStrip.Size = new System.Drawing.Size(171, 82);
             // 
             // showPreviewToolStripMenuItem
             // 
             this.showPreviewToolStripMenuItem.CheckOnClick = true;
             this.showPreviewToolStripMenuItem.Name = "showPreviewToolStripMenuItem";
-            this.showPreviewToolStripMenuItem.Size = new System.Drawing.Size(169, 24);
+            this.showPreviewToolStripMenuItem.Size = new System.Drawing.Size(170, 24);
             this.showPreviewToolStripMenuItem.Text = "&Show Preview";
             this.showPreviewToolStripMenuItem.Click += new System.EventHandler(this.showPreviewToolStripMenuItem_Click);
             // 
@@ -2374,16 +2411,124 @@
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
             this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
-            // mailPreviewTextBox
+            // mailContextMenuStrip
             // 
-            this.mailPreviewTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.mailPreviewTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.mailPreviewTextBox.Location = new System.Drawing.Point(0, 0);
-            this.mailPreviewTextBox.Name = "mailPreviewTextBox";
-            this.mailPreviewTextBox.ReadOnly = true;
-            this.mailPreviewTextBox.Size = new System.Drawing.Size(693, 306);
-            this.mailPreviewTextBox.TabIndex = 0;
-            this.mailPreviewTextBox.Text = "";
+            this.mailContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.mailContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.viewMailToolStripMenuItem,
+            this.editMailToolStripMenuItem,
+            this.toolStripMenuItem14,
+            this.moveToDraftToolStripMenuItem,
+            this.moveToOutboxToolStripMenuItem,
+            this.moveToInboxToolStripMenuItem,
+            this.moveToArchiveToolStripMenuItem,
+            this.moveToTrashToolStripMenuItem,
+            this.toolStripMenuItem15,
+            this.deleteMailToolStripMenuItem});
+            this.mailContextMenuStrip.Name = "mailContextMenuStrip";
+            this.mailContextMenuStrip.Size = new System.Drawing.Size(187, 208);
+            this.mailContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.mailContextMenuStrip_Opening);
+            // 
+            // moveToOutboxToolStripMenuItem
+            // 
+            this.moveToOutboxToolStripMenuItem.Name = "moveToOutboxToolStripMenuItem";
+            this.moveToOutboxToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.moveToOutboxToolStripMenuItem.Text = "Move to &Outbox";
+            this.moveToOutboxToolStripMenuItem.Click += new System.EventHandler(this.moveToOutboxToolStripMenuItem_Click);
+            // 
+            // moveToDraftToolStripMenuItem
+            // 
+            this.moveToDraftToolStripMenuItem.Name = "moveToDraftToolStripMenuItem";
+            this.moveToDraftToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.moveToDraftToolStripMenuItem.Text = "Move to D&raft";
+            this.moveToDraftToolStripMenuItem.Click += new System.EventHandler(this.moveToDraftToolStripMenuItem_Click);
+            // 
+            // moveToInboxToolStripMenuItem
+            // 
+            this.moveToInboxToolStripMenuItem.Name = "moveToInboxToolStripMenuItem";
+            this.moveToInboxToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.moveToInboxToolStripMenuItem.Text = "Move to &Inbox";
+            this.moveToInboxToolStripMenuItem.Click += new System.EventHandler(this.moveToInboxToolStripMenuItem_Click);
+            // 
+            // moveToArchiveToolStripMenuItem
+            // 
+            this.moveToArchiveToolStripMenuItem.Name = "moveToArchiveToolStripMenuItem";
+            this.moveToArchiveToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.moveToArchiveToolStripMenuItem.Text = "Move to &Archive";
+            this.moveToArchiveToolStripMenuItem.Click += new System.EventHandler(this.moveToArchiveToolStripMenuItem_Click);
+            // 
+            // moveToTrashToolStripMenuItem
+            // 
+            this.moveToTrashToolStripMenuItem.Name = "moveToTrashToolStripMenuItem";
+            this.moveToTrashToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.moveToTrashToolStripMenuItem.Text = "Move to &Trash";
+            this.moveToTrashToolStripMenuItem.Click += new System.EventHandler(this.moveToTrashToolStripMenuItem_Click);
+            // 
+            // viewMailToolStripMenuItem
+            // 
+            this.viewMailToolStripMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.viewMailToolStripMenuItem.Name = "viewMailToolStripMenuItem";
+            this.viewMailToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.viewMailToolStripMenuItem.Text = "&View...";
+            this.viewMailToolStripMenuItem.Click += new System.EventHandler(this.mailboxListView_DoubleClick);
+            // 
+            // editMailToolStripMenuItem
+            // 
+            this.editMailToolStripMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.editMailToolStripMenuItem.Name = "editMailToolStripMenuItem";
+            this.editMailToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.editMailToolStripMenuItem.Text = "&Edit...";
+            this.editMailToolStripMenuItem.Click += new System.EventHandler(this.mailboxListView_DoubleClick);
+            // 
+            // toolStripMenuItem14
+            // 
+            this.toolStripMenuItem14.Name = "toolStripMenuItem14";
+            this.toolStripMenuItem14.Size = new System.Drawing.Size(183, 6);
+            // 
+            // toolStripMenuItem15
+            // 
+            this.toolStripMenuItem15.Name = "toolStripMenuItem15";
+            this.toolStripMenuItem15.Size = new System.Drawing.Size(183, 6);
+            // 
+            // deleteMailToolStripMenuItem
+            // 
+            this.deleteMailToolStripMenuItem.Name = "deleteMailToolStripMenuItem";
+            this.deleteMailToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.deleteMailToolStripMenuItem.Text = "&Delete";
+            this.deleteMailToolStripMenuItem.Click += new System.EventHandler(this.deleteMailToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItem16
+            // 
+            this.toolStripMenuItem16.Name = "toolStripMenuItem16";
+            this.toolStripMenuItem16.Size = new System.Drawing.Size(167, 6);
+            // 
+            // backupMailToolStripMenuItem
+            // 
+            this.backupMailToolStripMenuItem.Name = "backupMailToolStripMenuItem";
+            this.backupMailToolStripMenuItem.Size = new System.Drawing.Size(170, 24);
+            this.backupMailToolStripMenuItem.Text = "&Backup Mail...";
+            this.backupMailToolStripMenuItem.Click += new System.EventHandler(this.backupMailToolStripMenuItem_Click);
+            // 
+            // restoreMailToolStripMenuItem
+            // 
+            this.restoreMailToolStripMenuItem.Name = "restoreMailToolStripMenuItem";
+            this.restoreMailToolStripMenuItem.Size = new System.Drawing.Size(170, 24);
+            this.restoreMailToolStripMenuItem.Text = "&Restore Mail...";
+            this.restoreMailToolStripMenuItem.Click += new System.EventHandler(this.restoreMailToolStripMenuItem_Click);
+            // 
+            // backupMailSaveFileDialog
+            // 
+            this.backupMailSaveFileDialog.DefaultExt = "htmails";
+            this.backupMailSaveFileDialog.FileName = "Backup";
+            this.backupMailSaveFileDialog.Filter = "Mails (*.htmails)|*.htmails";
+            this.backupMailSaveFileDialog.Title = "Backup Mail";
+            // 
+            // restoreMailOpenFileDialog
+            // 
+            this.restoreMailOpenFileDialog.DefaultExt = "htmails";
+            this.restoreMailOpenFileDialog.FileName = "mails";
+            this.restoreMailOpenFileDialog.Filter = "Mails (*.htmails)|*.htmails";
+            this.restoreMailOpenFileDialog.Title = "Restore Mail";
             // 
             // MainForm
             // 
@@ -2475,6 +2620,7 @@
             this.bbsTabContextMenuStrip.ResumeLayout(false);
             this.notifyContextMenuStrip.ResumeLayout(false);
             this.mailTabContextMenuStrip.ResumeLayout(false);
+            this.mailContextMenuStrip.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -2683,6 +2829,22 @@
         private System.Windows.Forms.Button mailConnectButton;
         private System.Windows.Forms.ImageList mailBoxImageList;
         private System.Windows.Forms.RichTextBox mailPreviewTextBox;
+        private System.Windows.Forms.ContextMenuStrip mailContextMenuStrip;
+        private System.Windows.Forms.ToolStripMenuItem moveToOutboxToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem moveToDraftToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem moveToInboxToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem moveToArchiveToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem moveToTrashToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem viewMailToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem editMailToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem14;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem15;
+        private System.Windows.Forms.ToolStripMenuItem deleteMailToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem16;
+        private System.Windows.Forms.ToolStripMenuItem backupMailToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem restoreMailToolStripMenuItem;
+        private System.Windows.Forms.SaveFileDialog backupMailSaveFileDialog;
+        private System.Windows.Forms.OpenFileDialog restoreMailOpenFileDialog;
     }
 }
 
