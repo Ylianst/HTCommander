@@ -131,15 +131,13 @@ namespace HTCommander
                     sb.Append((addr.CRBit3) ? "X" : "-");
                     addPacketDecodeLine(1, "Address " + (i + 1), sb.ToString());
                 }
-                addPacketDecodeLine(1, "Type", packet.type.ToString());
+                addPacketDecodeLine(1, "Type", packet.type.ToString().Replace("_", "-"));
                 sb.Clear();
-                if (packet.modulo128) { sb.Append(", Modulo128"); }
+                sb.Append("NS:" + packet.ns + ", NR:" + packet.nr);
                 if (packet.pollFinal) { sb.Append(", PollFinal"); }
-                if (packet.ns > 0) { sb.Append(", NS:" + packet.ns); }
-                if (packet.nr > 0) { sb.Append(", NR:" + packet.nr); }
-                if (sb.Length > 2) { addPacketDecodeLine(1, "Control", sb.ToString().Substring(2)); }
+                if (packet.modulo128) { sb.Append(", Modulo128"); }
+                if (sb.Length > 2) { addPacketDecodeLine(1, "Control", sb.ToString()); }
                 if (packet.pid > 0) { addPacketDecodeLine(1, "Protocol ID", packet.pid.ToString()); }
-
                 if (packet.dataStr != null) { addPacketDecodeLine(2, "Data", packet.dataStr); }
                 if (packet.data != null) { addPacketDecodeLine(2, "Data HEX", Utils.BytesToHex(packet.data)); }
 

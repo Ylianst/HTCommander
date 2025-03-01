@@ -71,6 +71,7 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.Web" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
   </ItemGroup>
@@ -155,6 +156,12 @@
     <Compile Include="ImportChannelsForm.Designer.cs">
       <DependentUpon>ImportChannelsForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="MailComposeForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MailComposeForm.Designer.cs">
+      <DependentUpon>MailComposeForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="MapLocationForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -223,6 +230,7 @@
     <Compile Include="radio\AX25Address.cs" />
     <Compile Include="radio\AX25Packet.cs" />
     <Compile Include="radio\AX25Session.cs" />
+    <Compile Include="radio\WinLinkMail.cs" />
     <Compile Include="radio\WinLinkUtils.cs" />
     <Compile Include="radio\Radio.cs" />
     <Compile Include="RadioSettingsForm.cs">
@@ -303,6 +311,9 @@
     <EmbeddedResource Include="ImportChannelsForm.resx">
       <DependentUpon>ImportChannelsForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="MailComposeForm.resx">
+      <DependentUpon>MailComposeForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="MapLocationForm.resx">
       <DependentUpon>MapLocationForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -378,6 +389,8 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="HTCommander.ico" />
+    <None Include="Resources\Letter.png" />
+    <None Include="images\Mail.png" />
     <None Include="images\Weather.png" />
     <None Include="Resources\webserver.png" />
     <None Include="images\Terminal.png" />

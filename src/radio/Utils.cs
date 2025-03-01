@@ -160,4 +160,40 @@ namespace HTCommander
             }
         }
     }
+
+    public class RtfBuilder
+    {
+        StringBuilder _builder = new StringBuilder();
+
+        // Helper method to escape RTF special characters
+        private string EscapeRtfText(string text)
+        {
+            return text.Replace(@"\", @"\\")
+                       .Replace(@"{", @"\{")
+                       .Replace(@"}", @"\}");
+        }
+
+        public void AppendBold(string text)
+        {
+            _builder.Append(@"\b ");
+            _builder.Append(EscapeRtfText(text));
+            _builder.Append(@"\b0 ");
+        }
+
+        public void Append(string text)
+        {
+            _builder.Append(EscapeRtfText(text));
+        }
+
+        public void AppendLine(string text)
+        {
+            _builder.Append(EscapeRtfText(text));
+            _builder.Append(@"\line "); // Added space after \line for better readability in RTF (optional)
+        }
+
+        public string ToRtf()
+        {
+            return @"{\rtf1\ansi " + _builder.ToString() + @" }";
+        }
+    }
 }

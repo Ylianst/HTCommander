@@ -25,9 +25,8 @@ namespace HTCommander
         public bool AllowTransmit { get { return allowTransmitCheckBox.Checked; } set { allowTransmitCheckBox.Checked = value; } }
         public string CallSign { get { return callsignTextBox.Text; } set { callsignTextBox.Text = value; } }
         public int StationId { get { return stationIdComboBox.SelectedIndex; } set { stationIdComboBox.SelectedIndex = value; } }
-
         public string AprsRoutes { get { return GetAprsRoutes(); } set { SetAprsRoutes(value); } }
-
+        public string WinlinkPassword { get { return winlinkPasswordTextBox.Text; } set { winlinkPasswordTextBox.Text = value; } }
         public bool WebServerEnabled { get { return webServerEnabledCheckBox.Checked; } set { webServerEnabledCheckBox.Checked = value; } }
         public int WebServerPort { get { return (int)webPortNumericUpDown.Value; } set { if (value > 0) { webPortNumericUpDown.Value = value; } else { webPortNumericUpDown.Value = 8080; }; } }
 
@@ -78,6 +77,17 @@ namespace HTCommander
             allowTransmitCheckBox.Enabled = (callsignTextBox.Text.Length >= 3);
             if (allowTransmitCheckBox.Enabled == false) { allowTransmitCheckBox.Checked = false; }
             webPortNumericUpDown.Enabled = webServerEnabledCheckBox.Checked;
+
+            if (callsignTextBox.Text.Length > 0)
+            {
+                winlinkAccountTextBox.Text = callsignTextBox.Text + "@winlink.org";
+                winlinkPasswordTextBox.Enabled = true;
+            }
+            else
+            {
+                winlinkAccountTextBox.Text = "None";
+                winlinkPasswordTextBox.Enabled = false;
+            }
         }
 
         private void callsignTextBox_TextChanged(object sender, EventArgs e)
@@ -154,6 +164,11 @@ namespace HTCommander
         private void webServerEnabledCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             UpdateInfo();
+        }
+
+        private void linkLabel2_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://" + linkLabel2.Text);
         }
     }
 }

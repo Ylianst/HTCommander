@@ -25,6 +25,7 @@ using System.Collections.Generic;
 using aprsparser;
 using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
+using HTCommander.radio;
 
 
 #if !__MonoCS__
@@ -49,6 +50,7 @@ namespace HTCommander
         public AprsDetailsForm aprsDetailsForm = null;
         public BTActivateForm bluetoothActivateForm = null;
         public AprsConfigurationForm aprsConfigurationForm = null;
+        public MailComposeForm mailComposeForm = null;
         public int vfo2LastChannelId = -1;
         public int nextAprsMessageId = 1;
         public RegistryHelper registry = new RegistryHelper("HTCommander");
@@ -70,6 +72,7 @@ namespace HTCommander
         public StationInfoClass activeStationLock = null;
         public AX25Session session = null;
         public int activeChannelIdLock = -1;
+        public string winlinkPassword = null;
         public HttpsWebSocketServer webserver;
         public bool webServerEnabled = false;
         public int webServerPort = 8080;
@@ -81,6 +84,12 @@ namespace HTCommander
         public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
 #endif
+
+        // Mailboxes
+        public int SelectedMailbox = 0;
+        public string[] MailBoxesNames = { "Inbox", "Outbox", "Draft", "Sent", "Archive", "Trash" };
+        public TreeNode[] MailBoxTreeNodes = null;
+        public List<WinLinkMail> Mails = new List<WinLinkMail>();
 
         public static bool IsRunningOnMono() { return Type.GetType("Mono.Runtime") != null; }
         public static System.Drawing.Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
@@ -205,6 +214,7 @@ namespace HTCommander
             contactsToolStripMenuItem.Checked = (registry.ReadInt("ViewContacts", 0) == 1);
             bBSToolStripMenuItem.Checked = (registry.ReadInt("ViewBBS", 0) == 1);
             terminalToolStripMenuItem.Checked = (registry.ReadInt("ViewTerminal", 1) == 1);
+            winlinkPassword = registry.ReadString("WinlinkPassword", "");
             if (previewMode)
             {
                 mailToolStripMenuItem.Checked = (registry.ReadInt("ViewMail", 0) == 1);
@@ -213,7 +223,6 @@ namespace HTCommander
             {
                 mailToolStripMenuItem.Checked = mailToolStripMenuItem.Visible = false;
             }
-
             packetsToolStripMenuItem.Checked = (registry.ReadInt("ViewPackets", 0) == 1);
             debugToolStripMenuItem.Checked = (registry.ReadInt("ViewDebug", 0) == 1);
             showAllMessagesToolStripMenuItem.Checked = (registry.ReadInt("aprsViewAll", 1) == 1);
@@ -222,6 +231,19 @@ namespace HTCommander
             viewTrafficToolStripMenuItem.Checked = (registry.ReadInt("ViewBbsTraffic", 1) == 1);
             systemTrayToolStripMenuItem.Checked = (registry.ReadInt("SystemTray", 1) == 1);
             bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
+
+            showPreviewToolStripMenuItem.Checked = (registry.ReadInt("MailViewPreview", 1) == 1);
+            mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
+
+            // Setup mailboxes
+            MailBoxTreeNodes = new TreeNode[MailBoxesNames.Length];
+            for (int i = 0; i < MailBoxesNames.Length; i++)
+            {
+                MailBoxTreeNodes[i] = mailBoxesTreeView.Nodes.Add(MailBoxesNames[i]);
+                MailBoxTreeNodes[i].SelectedImageIndex = MailBoxTreeNodes[i].ImageIndex = i;
+            }
+            Mails = WinLinkMailSerializer.DeserializeStringToList(registry.ReadString("Mails", ""));
+            UpdateMail();
 
             // Read the packets file
             string[] lines = null;
@@ -1464,6 +1486,59 @@ namespace HTCommander
             }
         }
 
+        public void UpdateMail()
+        {
+            mailTitleLabel.Text = "Mail - " + MailBoxesNames[SelectedMailbox];
+
+            int[] MailBoxCount = new int[MailBoxesNames.Length];
+            for (int i = 0; i < Mails.Count; i++) { MailBoxCount[Mails[i].Mailbox]++; }
+
+            for (int i = 0; i < mailBoxesTreeView.Nodes.Count; i++)
+            {
+                MailBoxTreeNodes[i].Text = MailBoxesNames[i] + " (" + MailBoxCount[i] + ")";
+            }
+
+            if ((SelectedMailbox == 1) || (SelectedMailbox == 2) || (SelectedMailbox == 3))
+            {
+                mailboxListView.Columns[1].Text = "To";
+            }
+            else
+            {
+                mailboxListView.Columns[1].Text = "From";
+            }
+            UpdateMailBox();
+        }
+
+        public void UpdateMailBox()
+        {
+            List<WinLinkMail> selectedMails = new List<WinLinkMail>();
+            foreach (ListViewItem l in mailboxListView.SelectedItems) { selectedMails.Add((WinLinkMail)l.Tag); }
+
+            List<ListViewItem> r = new List<ListViewItem>();
+            for (int i = 0; i < Mails.Count; i++) {
+                if (Mails[i].Mailbox == SelectedMailbox)
+                {
+                    WinLinkMail m = Mails[i];
+                    string secondFeild = m.From;
+                    if ((SelectedMailbox == 1) || (SelectedMailbox == 2) || (SelectedMailbox == 3)) { secondFeild = m.To; }
+                    ListViewItem item = new ListViewItem(new String[] { m.DateTime.ToShortDateString(), m.To, m.Subject });
+                    item.ImageIndex = 8;
+                    item.Tag = m;
+                    item.Selected = selectedMails.Contains(m);
+                    r.Add(item);
+                }
+            }
+
+            mailboxListView.Items.Clear();
+            mailboxListView.Items.AddRange(r.ToArray());
+            mailboxListView_SelectedIndexChanged(this, null);
+        }
+
+        public void SaveMails()
+        {
+            registry.WriteString("Mails", WinLinkMailSerializer.SerializeListToString(Mails));
+        }
+
         public void UpdateInfo()
         {
             radioStateLabel.Visible = (radio.State != Radio.RadioState.Connected);
@@ -1495,6 +1570,7 @@ namespace HTCommander
             toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = weatherReportToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
             beaconSettingsToolStripMenuItem.Visible = (radio.State == Radio.RadioState.Connected) && allowTransmit;
             aprsBottomPanel.Visible = allowTransmit;
+            newMailButton.Visible = mailConnectButton.Visible = allowTransmit;
             terminalBottomPanel.Visible = allowTransmit;
             terminalConnectButton.Visible = allowTransmit;
             bbsConnectButton.Visible = allowTransmit;
@@ -1599,6 +1675,7 @@ namespace HTCommander
                 if ((stationId >= 0) && (stationId <= 15)) { settingsForm.StationId = stationId; }
                 settingsForm.AllowTransmit = allowTransmit;
                 settingsForm.AprsRoutes = Utils.EncodeAprsRoutes(aprsRoutes);
+                settingsForm.WinlinkPassword = winlinkPassword;
                 settingsForm.WebServerEnabled = webServerEnabled;
                 settingsForm.WebServerPort = webServerPort;
                 if (settingsForm.ShowDialog(this) == DialogResult.OK)
@@ -1607,6 +1684,7 @@ namespace HTCommander
                     callsign = settingsForm.CallSign;
                     stationId = settingsForm.StationId;
                     allowTransmit = settingsForm.AllowTransmit;
+                    winlinkPassword = settingsForm.WinlinkPassword;
                     webServerEnabled = settingsForm.WebServerEnabled;
                     webServerPort = settingsForm.WebServerPort;
                     registry.WriteString("CallSign", callsign);
@@ -1619,6 +1697,9 @@ namespace HTCommander
                     string aprsRoutesStr = settingsForm.AprsRoutes;
                     registry.WriteString("AprsRoutes", aprsRoutesStr);
                     aprsRoutes = Utils.DecodeAprsRoutes(aprsRoutesStr);
+
+                    // Winlink Settings
+                    registry.WriteString("WinlinkPassword", winlinkPassword);
 
                     // Web Server
                     if ((webServerEnabled == false) && (webserver != null)) { webserver.Stop(); webserver = null; }
@@ -1721,8 +1802,8 @@ namespace HTCommander
             if (mapToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(mapTabPage); }
             registry.WriteInt("ViewMap", mapToolStripMenuItem.Checked ? 1 : 0);
 #endif
+            if (mailToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(mailTabPage); }
             if (terminalToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(terminalTabPage); }
-            if (mailToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(mailTabPage); }
             if (contactsToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(addressesTabPage); }
             if (bBSToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(bbsTabPage); }
             if (packetsToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(packetsTabPage); }
@@ -1919,14 +2000,27 @@ namespace HTCommander
                     AX25Address addr = packet.addresses[i];
                     sb.Append("," + addr.ToString() + ((addr.CRBit1) ? "*" : ""));
                 }
-                if (sb.Length > 0) { sb.Append(":"); }
-                if (fragment.channel_name == "APRS")
+
+                if (sb.Length > 0) { sb.Append(": "); }
+
+                if ((fragment.channel_name == "APRS") && (packet.type == FrameType.U_FRAME))
                 {
                     sb.Append(packet.dataStr);
                 }
                 else
                 {
-                    sb.Append(Utils.BytesToHex(packet.data));
+                    if (packet.type == FrameType.U_FRAME)
+                    {
+                        sb.Append(packet.type.ToString().Replace("_", "-"));
+                        string hex = Utils.BytesToHex(packet.data);
+                        if (hex.Length > 0) { sb.Append(": " + hex); }
+                    }
+                    else
+                    {
+                        sb.Append(packet.type.ToString().Replace("_","-") + ", NR:" + packet.nr + ", NS:" + packet.ns);
+                        string hex = Utils.BytesToHex(packet.data);
+                        if (hex.Length > 0) { sb.Append(": " + hex); }
+                    }
                 }
             }
             return sb.ToString().Replace("\r", "").Replace("\n", "");
@@ -1967,15 +2061,13 @@ namespace HTCommander
                     sb.Append((addr.CRBit3) ? "X" : "-");
                     addPacketDecodeLine(1, "Address " + (i + 1), sb.ToString());
                 }
-                addPacketDecodeLine(1, "Type", packet.type.ToString());
+                addPacketDecodeLine(1, "Type", packet.type.ToString().Replace("_", "-"));
                 sb.Clear();
-                if (packet.modulo128) { sb.Append(", Modulo128"); }
+                sb.Append("NS:" + packet.ns + ", NR:" + packet.nr);
                 if (packet.pollFinal) { sb.Append(", PollFinal"); }
-                if (packet.ns > 0) { sb.Append(", NS:" + packet.ns); }
-                if (packet.nr > 0) { sb.Append(", NR:" + packet.nr); }
-                if (sb.Length > 2) { addPacketDecodeLine(1, "Control", sb.ToString().Substring(2)); }
+                if (packet.modulo128) { sb.Append(", Modulo128"); }
+                if (sb.Length > 2) { addPacketDecodeLine(1, "Control", sb.ToString()); }
                 if (packet.pid > 0) { addPacketDecodeLine(1, "Protocol ID", packet.pid.ToString()); }
-
                 if (packet.dataStr != null) { addPacketDecodeLine(2, "Data", packet.dataStr); }
                 if (packet.data != null) { addPacketDecodeLine(2, "Data HEX", Utils.BytesToHex(packet.data)); }
 
@@ -2838,11 +2930,6 @@ namespace HTCommander
             return r;
         }
 
-        private void enableBBSToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-
-        }
-
         private void bbsConnectButton_Click(object sender, EventArgs e)
         {
             if (activeStationLock != null)
@@ -2985,6 +3072,78 @@ namespace HTCommander
                     if (beaconSettingsForm.ShowDialog(this) == DialogResult.OK) { }
                 }
             }
+        }
+
+        private void mailMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
+        {
+            mailTabContextMenuStrip.Show(mailMenuPictureBox, e.Location);
+        }
+
+        private void showPreviewToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
+            registry.WriteInt("MailViewPreview", showPreviewToolStripMenuItem.Checked ? 1 : 0);
+        }
+
+        private void mailBoxesTreeView_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            if (e.Node == null) return;
+            for (int i = 0; i < mailBoxesTreeView.Nodes.Count; i++)
+            {
+                if (e.Node == MailBoxTreeNodes[i])
+                {
+                    SelectedMailbox = i;
+                }
+            }
+            UpdateMail();
+        }
+
+        private void newMailButton_Click(object sender, EventArgs e)
+        {
+            if (mailComposeForm != null)
+            {
+                mailComposeForm.Focus();
+            }
+            else
+            {
+                mailComposeForm = new MailComposeForm(this, null);
+                mailComposeForm.Show(this);
+            }
+        }
+
+        private void mailboxListView_DoubleClick(object sender, EventArgs e)
+        {
+            if (mailboxListView.SelectedItems.Count != 1) return;
+            WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
+
+            if ((SelectedMailbox == 1) || (SelectedMailbox == 2))
+            {
+                if (mailComposeForm != null)
+                {
+                    mailComposeForm.Focus();
+                }
+                else
+                {
+                    mailComposeForm = new MailComposeForm(this, m);
+                    mailComposeForm.Show(this);
+                }
+            }
+        }
+
+        private void mailboxListView_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            mailPreviewTextBox.Clear();
+            if (mailboxListView.SelectedItems.Count == 0) return;
+            WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
+            RtfBuilder rtfBuilder = new RtfBuilder();
+            if (!string.IsNullOrEmpty(m.To)) { rtfBuilder.AppendBold("To: "); rtfBuilder.AppendLine(m.To); }
+            if (!string.IsNullOrEmpty(m.From)) { rtfBuilder.AppendBold("From: "); rtfBuilder.AppendLine(m.From); }
+            rtfBuilder.AppendBold("Time: ");
+            rtfBuilder.AppendLine(m.DateTime.ToString());
+            if (!string.IsNullOrEmpty(m.Subject)) { rtfBuilder.AppendBold("Subject: "); rtfBuilder.AppendLine(m.Subject); }
+            rtfBuilder.AppendLine("");
+            if (!string.IsNullOrEmpty(m.Body)) { rtfBuilder.AppendLine(m.Body); }
+            mailPreviewTextBox.Rtf = rtfBuilder.ToRtf();
         }
 
     }
