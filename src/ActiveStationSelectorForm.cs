@@ -16,6 +16,7 @@ limitations under the License.
 
 using System;
 using System.Windows.Forms;
+using static HTCommander.StationInfoClass;
 
 namespace HTCommander
 {
@@ -23,15 +24,19 @@ namespace HTCommander
     {
         private MainForm parent;
         public StationInfoClass selectedStation = null;
+        private StationInfoClass.StationTypes stationType;
 
-        public ActiveStationSelectorForm(MainForm parent)
+        public ActiveStationSelectorForm(MainForm parent, StationInfoClass.StationTypes stationType)
         {
             this.parent = parent;
+            this.stationType = stationType;
             InitializeComponent();
         }
 
         private void ActiveStationSelectorForm_Load(object sender, EventArgs e)
         {
+            terminalPictureBox.Visible = (stationType == StationTypes.Terminal);
+            mailPictureBox.Visible = (stationType == StationTypes.Winlink);
             UpdateStations();
         }
 
@@ -40,12 +45,13 @@ namespace HTCommander
             mainListView.Items.Clear();
             foreach (StationInfoClass station in parent.stations)
             {
-                if (station.StationType == StationInfoClass.StationTypes.Terminal)
+                if (station.StationType == stationType)
                 {
                     string stationName = station.Callsign;
                     if (!string.IsNullOrEmpty(station.Name)) { stationName += ", " + station.Name; }
                     ListViewItem l = new ListViewItem(new string[] { stationName });
-                    l.ImageIndex = 0;
+                    if (stationType == StationInfoClass.StationTypes.Terminal) { l.ImageIndex = 0; }
+                    if (stationType == StationInfoClass.StationTypes.Winlink) { l.ImageIndex = 1; }
                     l.Tag = station;
                     mainListView.Items.Add(l);
                 }

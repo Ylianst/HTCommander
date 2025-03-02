@@ -36,18 +36,22 @@ namespace HTCommander
             if (parent.radio.Channels != null)
             {
                 channelsComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+                channelsComboBox2.DropDownStyle = ComboBoxStyle.DropDownList;
                 for (int i = 0; i < parent.radio.Channels.Length; i++)
                 {
                     if ((parent.radio.Channels[i] != null) && (!string.IsNullOrEmpty(parent.radio.Channels[i].name_str)))
                     {
                         channelsComboBox.Items.Add(parent.radio.Channels[i].name_str);
+                        channelsComboBox2.Items.Add(parent.radio.Channels[i].name_str);
                     }
                 }
                 channelsComboBox.SelectedIndex = 0;
+                channelsComboBox2.SelectedIndex = 0;
             }
             else
             {
                 channelsComboBox.DropDownStyle = ComboBoxStyle.DropDown;
+                channelsComboBox2.DropDownStyle = ComboBoxStyle.DropDown;
             }
 
             // Setup APRS routes
@@ -103,6 +107,7 @@ namespace HTCommander
             if ((stationTypeComboBox.SelectedIndex == 2) && (terminalProtocolComboBox.SelectedIndex == 1) && (channelsComboBox.Text.Length == 0)) { ok = false; }
 
             channelsComboBox.BackColor = (channelsComboBox.Text.Length == 0) ? Color.MistyRose : SystemColors.Window;
+            channelsComboBox2.BackColor = (channelsComboBox2.Text.Length == 0) ? Color.MistyRose : SystemColors.Window;
             backButton.Enabled = (mainTabControl.SelectedIndex > 0);
             nextButton.Enabled = ((mainTabControl.SelectedIndex < (mainTabControl.TabPages.Count - 1)) && callsignOk) || ok;
             nextButton.Text = (mainTabControl.SelectedIndex < (mainTabControl.TabPages.Count - 1)) ? "Next" : "OK";
@@ -125,6 +130,7 @@ namespace HTCommander
             mainTabControl.TabPages.Add(stationTabPage);
             if (stationTypeComboBox.SelectedIndex == 1) { mainTabControl.TabPages.Add(aprsTabPage); }
             if (stationTypeComboBox.SelectedIndex == 2) { mainTabControl.TabPages.Add(terminalTabPage); }
+            if (stationTypeComboBox.SelectedIndex == 3) { mainTabControl.TabPages.Add(winLinkTabPage); }
             UpdateInfo();
         }
 
@@ -165,6 +171,21 @@ namespace HTCommander
         // Method to serialize the values into a DialogData object.
         public StationInfoClass SerializeToObject()
         {
+            if (stationTypeComboBox.SelectedIndex == 3)
+            {
+                // Winlink
+                return new StationInfoClass
+                {
+                    Callsign = callsignTextBox.Text,
+                    Name = nameTextBox.Text,
+                    Description = desciptionTextBox.Text,
+                    StationType = StationInfoClass.StationTypes.Winlink,
+                    TerminalProtocol = StationInfoClass.TerminalProtocols.X25Session,
+                    Channel = channelsComboBox2.Text
+                };
+            }
+
+            // APRS and Terminal
             return new StationInfoClass
             {
                 Callsign = callsignTextBox.Text,
@@ -180,10 +201,18 @@ namespace HTCommander
 
         public void FixStationType(StationInfoClass.StationTypes stationType)
         {
-            stationTypeComboBox.SelectedIndex = (int)stationType;
+            if (stationType == StationInfoClass.StationTypes.Winlink)
+            {
+                stationTypeComboBox.SelectedIndex = 3;
+            }
+            else
+            {
+                stationTypeComboBox.SelectedIndex = (int)stationType;
+            }
             if (stationType == StationInfoClass.StationTypes.Generic) { Text = "Voice Station"; }
             if (stationType == StationInfoClass.StationTypes.APRS) { Text = "APRS Station"; }
             if (stationType == StationInfoClass.StationTypes.Terminal) { Text = "Terminal Station"; }
+            if (stationType == StationInfoClass.StationTypes.Winlink) { Text = "Winlink Gateway"; }
             stationTypeComboBox.Visible = false;
             typeOfStationLabel.Visible = false;
             stationTypeLabel.Visible = false;
@@ -197,10 +226,18 @@ namespace HTCommander
             this.Text = (this.Text + " - " + callsignTextBox.Text);
             nameTextBox.Text = data.Name;
             desciptionTextBox.Text = data.Description;
-            stationTypeComboBox.SelectedIndex = (int)data.StationType;
+            if (data.StationType == StationInfoClass.StationTypes.Winlink)
+            {
+                stationTypeComboBox.SelectedIndex = 3;
+            }
+            else
+            {
+                stationTypeComboBox.SelectedIndex = (int)data.StationType;
+            }
             aprsRouteComboBox.Text = data.APRSRoute;
             terminalProtocolComboBox.SelectedIndex = (int)data.TerminalProtocol;
             channelsComboBox.Text = data.Channel;
+            channelsComboBox2.Text = data.Channel;
             ax25DestTextBox.Text = data.AX25Destination;
             callsignTextBox.Enabled = false;
             stationTypeComboBox.Visible = false;
@@ -209,6 +246,7 @@ namespace HTCommander
             if (data.StationType == StationInfoClass.StationTypes.Generic) { Text = "Voice Station - " + data.Callsign; }
             if (data.StationType == StationInfoClass.StationTypes.APRS) { Text = "APRS Station - " + data.Callsign; }
             if (data.StationType == StationInfoClass.StationTypes.Terminal) { Text = "Terminal Station - " + data.Callsign; }
+            if (data.StationType == StationInfoClass.StationTypes.Winlink) { Text = "Winlink Gateway - " + data.Callsign; }
         }
 
         private void ax25DestTextBox_TextChanged(object sender, EventArgs e)
@@ -241,6 +279,11 @@ namespace HTCommander
         private void channelsComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             UpdateInfo();
+        }
+
+        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://" + linkLabel1.Text);
         }
     }
 }

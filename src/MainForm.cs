@@ -386,6 +386,13 @@ namespace HTCommander
             {
                 bbs.ProcessStreamState(session, state);
             }
+            else if ((activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink))
+            {
+                if (state == AX25Session.ConnectionState.DISCONNECTED)
+                {
+                    ActiveLockToStation(null);
+                }
+            }
         }
         private void Session_DataReceivedEvent(AX25Session sender, byte[] data)
         {
@@ -1600,11 +1607,15 @@ namespace HTCommander
             terminalInputTextBox.Enabled = ((radio.State == Radio.RadioState.Connected) && (activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal));
             terminalSendButton.Enabled = ((radio.State == Radio.RadioState.Connected) && (activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal));
             terminalConnectButton.Enabled = (radio.State == Radio.RadioState.Connected) && ((activeStationLock == null) || (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal));
-            terminalConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Terminal)) ? "Connect" : "Disconnect";
+            terminalConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Terminal)) ? "&Connect" : "&Disconnect";
 
             // BBS
             bbsConnectButton.Enabled = (radio.State == Radio.RadioState.Connected) && ((activeStationLock == null) || (activeStationLock.StationType == StationInfoClass.StationTypes.BBS));
             bbsConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.BBS)) ? "&Activate" : "&Deactivate";
+
+            // Mail
+            mailConnectButton.Enabled = (radio.State == Radio.RadioState.Connected) && ((activeStationLock == null) || (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink));
+            mailConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Winlink)) ? "&Connect" : "&Disconnect";
 
             // ActiveLockToStation
             if ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Terminal) || (string.IsNullOrEmpty(activeStationLock.Name))) {terminalTitleLabel.Text = "Terminal"; }
@@ -2401,6 +2412,7 @@ namespace HTCommander
                 if (station.StationType == StationInfoClass.StationTypes.Generic) { item.ImageIndex = 7; }
                 if (station.StationType == StationInfoClass.StationTypes.APRS) { item.ImageIndex = 3; }
                 if (station.StationType == StationInfoClass.StationTypes.Terminal) { item.ImageIndex = 6; }
+                if (station.StationType == StationInfoClass.StationTypes.Winlink) { item.ImageIndex = 8; }
                 item.Tag = station;
                 mainAddressBookListView.Items.Add(item);
             }
@@ -2566,7 +2578,7 @@ namespace HTCommander
                 return true;
             }
 
-            if (station.StationType != StationInfoClass.StationTypes.Terminal) return false;
+            if ((station.StationType != StationInfoClass.StationTypes.Terminal) && (station.StationType != StationInfoClass.StationTypes.Winlink)) return false;
             if (station.Channel == null) return false;
             if (radio.Channels == null) return false;
 
@@ -2641,7 +2653,7 @@ namespace HTCommander
                 }
                 else
                 {
-                    ActiveStationSelectorForm form = new ActiveStationSelectorForm(this);
+                    ActiveStationSelectorForm form = new ActiveStationSelectorForm(this, StationInfoClass.StationTypes.Terminal);
                     DialogResult r = form.ShowDialog(this);
                     if (r == DialogResult.OK)
                     {
@@ -3353,6 +3365,67 @@ namespace HTCommander
         {
             foreach (WinLinkMail m in Mails) { if (m.MID == MID) return true; }
             return false;
+        }
+
+        private void mailConnectButton_Click(object sender, EventArgs e)
+        {
+            if (activeStationLock == null)
+            {
+                int terminalStationCount = 0;
+                foreach (StationInfoClass station in stations)
+                {
+                    if (station.StationType == StationInfoClass.StationTypes.Winlink) { terminalStationCount++; }
+                }
+
+                if (terminalStationCount == 0)
+                {
+                    AddStationForm form = new AddStationForm(this);
+                    form.FixStationType(StationInfoClass.StationTypes.Winlink);
+                    if (form.ShowDialog(this) == DialogResult.OK)
+                    {
+                        StationInfoClass station = form.SerializeToObject();
+                        stations.Add(station);
+                        UpdateStations();
+                        ActiveLockToStation(station);
+                    }
+                }
+                else
+                {
+                    ActiveStationSelectorForm form = new ActiveStationSelectorForm(this, StationInfoClass.StationTypes.Winlink);
+                    DialogResult r = form.ShowDialog(this);
+                    if (r == DialogResult.OK)
+                    {
+                        if (form.selectedStation != null)
+                        {
+                            ActiveLockToStation(form.selectedStation);
+                        }
+                    }
+                    else if (r == DialogResult.Yes)
+                    {
+                        AddStationForm aform = new AddStationForm(this);
+                        aform.FixStationType(StationInfoClass.StationTypes.Winlink);
+                        if (aform.ShowDialog(this) == DialogResult.OK)
+                        {
+                            StationInfoClass station = aform.SerializeToObject();
+                            stations.Add(station);
+                            UpdateStations();
+                            ActiveLockToStation(station);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (session.CurrentState != AX25Session.ConnectionState.DISCONNECTED)
+                {
+                    // Do a soft-disconnect
+                    session.Disconnect();
+                }
+                else
+                {
+                    ActiveLockToStation(null);
+                }
+            }
         }
     }
 }
