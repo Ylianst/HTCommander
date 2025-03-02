@@ -996,8 +996,12 @@ namespace HTCommander.radio
     {
         public static byte ComputeChecksum(byte[] data)
         {
+            return ComputeChecksum(data, 0, data.Length);
+        }
+        public static byte ComputeChecksum(byte[] data, int off, int len)
+        {
             int crc = 0;
-            for (int i = 0; i < data.Length; i++) { crc += data[i]; }
+            for (int i = off; i < len; i++) { crc += data[i]; }
             return (byte)((~(crc % 256) + 1) % 256);
         }
         public static bool CheckChecksum(byte[] data, byte checksum)

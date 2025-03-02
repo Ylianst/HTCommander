@@ -34,8 +34,8 @@ namespace HTCommander
         public void UpdateInfo()
         {
             if (radio.Settings == null) return;
-            addItem("Channel A", radio.Settings.channel_a.ToString());
-            addItem("Channel B", radio.Settings.channel_b.ToString());
+            addItem("VFO A", "Channel " + (radio.Settings.channel_a + 1));
+            addItem("VFO B", "Channel " + (radio.Settings.channel_b + 1));
 
             addItem("Scan", radio.Settings.scan.ToString());
             addItem("AGHFP Call Mode", radio.Settings.aghfp_call_mode.ToString());
@@ -57,7 +57,10 @@ namespace HTCommander
             addItem("Power saving mode", radio.Settings.power_saving_mode.ToString());
 
             addItem("Auto power off", radio.Settings.auto_power_off.ToString());
-            addItem("Auto share loc ch", radio.Settings.auto_share_loc_ch.ToString());
+
+            string auto_share_loc_ch;
+            if (radio.Settings.auto_share_loc_ch == 0) { auto_share_loc_ch = "Current"; } else { auto_share_loc_ch = "Channel " + radio.Settings.auto_share_loc_ch; }
+            addItem("Auto share location ch", auto_share_loc_ch);
 
             addItem("HW speaker", radio.Settings.hm_speaker.ToString());
             addItem("Positioning system", radio.Settings.positioning_system.ToString());
