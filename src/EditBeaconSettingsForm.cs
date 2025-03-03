@@ -76,6 +76,8 @@ namespace HTCommander
 
         private void aprsCallsignTextBox_KeyPress(object sender, KeyPressEventArgs e)
         {
+            if ((Control.ModifierKeys & Keys.Control) == Keys.Control) return;
+
             // Allow letters, numbers, and the dash (-)
             if (!char.IsLetterOrDigit(e.KeyChar) && e.KeyChar != '-' && e.KeyChar != (char)Keys.Back)
             {

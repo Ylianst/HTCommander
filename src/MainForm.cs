@@ -507,7 +507,7 @@ namespace HTCommander
             if (frame.channel_name == "APRS")
             {
                 AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
-                if (p != null)
+                if ((p != null) && (p.type == FrameType.U_FRAME))
                 {
                     AddAprsPacket(p, false);
                     aprsChatControl.UpdateMessages(false);
@@ -636,6 +636,7 @@ namespace HTCommander
                                 disconnectToolStripMenuItem.Enabled = false;
                                 radioStateLabel.Text = "Disconnected";
                                 channelsFlowLayoutPanel.Controls.Clear();
+                                transmitBarPanel.Visible = false;
                                 rssiProgressBar.Visible = false;
                                 ActiveLockToStation(null);
                                 if (channelControls != null)
@@ -686,8 +687,9 @@ namespace HTCommander
                         batteryToolStripStatusLabel.Visible = true;
                         break;
                     case Radio.RadioUpdateNotification.HtStatus:
-                        rssiProgressBar.Visible = (radio.HtStatus.rssi > 0);
+                        rssiProgressBar.Visible = radio.HtStatus.is_in_rx;
                         rssiProgressBar.Value = radio.HtStatus.rssi;
+                        transmitBarPanel.Visible = radio.HtStatus.is_in_tx;
                         if (radioHtStatusForm != null) { radioHtStatusForm.UpdateInfo(); }
                         radioStatusToolStripMenuItem.Enabled = true;
                         UpdateRadioDisplay();
@@ -2074,6 +2076,7 @@ namespace HTCommander
                 addPacketDecodeLine(1, "Type", packet.type.ToString().Replace("_", "-"));
                 sb.Clear();
                 sb.Append("NS:" + packet.ns + ", NR:" + packet.nr);
+                if (packet.command) { sb.Append(", Command"); }
                 if (packet.pollFinal) { sb.Append(", PollFinal"); }
                 if (packet.modulo128) { sb.Append(", Modulo128"); }
                 if (sb.Length > 2) { addPacketDecodeLine(1, "Control", sb.ToString()); }
@@ -3426,6 +3429,11 @@ namespace HTCommander
                     ActiveLockToStation(null);
                 }
             }
+        }
+
+        private void clearPacketsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            packetsListView.Items.Clear();
         }
     }
 }

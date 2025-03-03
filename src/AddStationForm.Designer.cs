@@ -62,13 +62,13 @@
             this.label10 = new System.Windows.Forms.Label();
             this.pictureBox3 = new System.Windows.Forms.PictureBox();
             this.winLinkTabPage = new System.Windows.Forms.TabPage();
+            this.label16 = new System.Windows.Forms.Label();
             this.label15 = new System.Windows.Forms.Label();
             this.linkLabel1 = new System.Windows.Forms.LinkLabel();
             this.label5 = new System.Windows.Forms.Label();
             this.channelsComboBox2 = new System.Windows.Forms.ComboBox();
             this.label8 = new System.Windows.Forms.Label();
             this.pictureBox4 = new System.Windows.Forms.PictureBox();
-            this.label16 = new System.Windows.Forms.Label();
             this.mainTabControl.SuspendLayout();
             this.stationTabPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
@@ -501,6 +501,16 @@
             this.winLinkTabPage.Text = "Winlink";
             this.winLinkTabPage.UseVisualStyleBackColor = true;
             // 
+            // label16
+            // 
+            this.label16.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.label16.AutoSize = true;
+            this.label16.Location = new System.Drawing.Point(11, 230);
+            this.label16.Name = "label16";
+            this.label16.Size = new System.Drawing.Size(216, 16);
+            this.label16.TabIndex = 39;
+            this.label16.Text = "Click \"Packet\" at the top of the map.";
+            // 
             // label15
             // 
             this.label15.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
@@ -568,16 +578,6 @@
             this.pictureBox4.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox4.TabIndex = 34;
             this.pictureBox4.TabStop = false;
-            // 
-            // label16
-            // 
-            this.label16.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.label16.AutoSize = true;
-            this.label16.Location = new System.Drawing.Point(11, 230);
-            this.label16.Name = "label16";
-            this.label16.Size = new System.Drawing.Size(216, 16);
-            this.label16.TabIndex = 39;
-            this.label16.Text = "Click \"Packet\" at the top of the map.";
             // 
             // AddStationForm
             // 

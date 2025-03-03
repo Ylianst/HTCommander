@@ -3,8 +3,6 @@ using System.Text;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Globalization;
-using Windows.Devices.Geolocation;
-using Windows.UI.Xaml.Media.Animation;
 
 namespace HTCommander.radio
 {

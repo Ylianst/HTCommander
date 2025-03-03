@@ -253,8 +253,10 @@ namespace HTCommander
                 AX25Address a = addresses[j];
                 a.CRBit1 = false;
                 a.CRBit2 = a.CRBit3 = true;
-                if (j == 0) { a.CRBit1 = ((control & 1) != 0); }
-                if (j == 1) { a.CRBit1 = (((control ^ 1) & 1) != 0); a.CRBit2 = (modulo128 ? false : true); }
+                //if (j == 0) { a.CRBit1 = ((control & 1) != 0); }
+                //if (j == 1) { a.CRBit1 = (((control ^ 1) & 1) != 0); a.CRBit2 = (modulo128 ? false : true); }
+                if (j == 0) { a.CRBit1 = command; }
+                if (j == 1) { a.CRBit1 = !command; a.CRBit2 = (modulo128 ? false : true); }
                 byte[] ab = a.ToByteArray(j == (addresses.Count - 1));
                 Array.Copy(ab, 0, rdata, i, 7);
                 i += 7;

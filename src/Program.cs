@@ -21,6 +21,7 @@ using System.Diagnostics;
 using System.Windows.Forms;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using HTCommander.radio;
 
 namespace HTCommander
 {
@@ -34,6 +35,8 @@ namespace HTCommander
         [STAThread]
         static void Main(string[] args)
         {
+            string x = WinlinkSecurity.GenerateChallenge();
+
             Application.ThreadException += new System.Threading.ThreadExceptionEventHandler(ExceptionSink);
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(UnhandledExceptionEventSink);
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;

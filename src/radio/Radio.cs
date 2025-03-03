@@ -392,7 +392,7 @@ namespace HTCommander
         public void GetBatteryVoltage() { RequestPowerStatus(RadioPowerStatus.BATTERY_VOLTAGE); }
         public void GetBatteryRcLevel() { RequestPowerStatus(RadioPowerStatus.RC_BATTERY_LEVEL); }
         public void GetBatteryLevelAtPercentage() { RequestPowerStatus(RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE); }
-        private bool IsTncFree() { return ((HtStatus != null) && (HtStatus.is_in_tx == false)); }
+        private bool IsTncFree() { return ((HtStatus != null) && (HtStatus.is_in_tx == false) && (HtStatus.is_in_rx == false)); }
         private void RequestPowerStatus(RadioPowerStatus powerStatus)
         {
             byte[] data = new byte[2];
@@ -593,7 +593,7 @@ namespace HTCommander
                                 }
                                 else
                                 {
-                                    // Send failed, clear all fragements until the last of this packet.
+                                    // Send failed, clear all fragments until the last of this packet.
                                     Debug("TNC Fragment failed, check Bluetooth connection.");
                                     while (TncFragmentQueue[0].isLast == false) { TncFragmentQueue.RemoveAt(0); }
                                     TncFragmentQueue.RemoveAt(0);

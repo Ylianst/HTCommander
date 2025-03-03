@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using aprsparser;
 using System.Security.Cryptography;
 using static System.Net.Mime.MediaTypeNames;
+using HTCommander.radio;
+using static System.Collections.Specialized.BitVector32;
 
 namespace HTCommander
 {
@@ -49,23 +51,60 @@ namespace HTCommander
         {
             stats.Clear();
         }
+
+        private void SessionSend(AX25Session session, string output)
+        {
+            if (!string.IsNullOrEmpty(output))
+            {
+                parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
+                session.Send(output);
+            }
+        }
+
         public void ProcessStreamState(AX25Session session, AX25Session.ConnectionState state)
         {
             if (state == AX25Session.ConnectionState.CONNECTED)
             {
-                session.Send(UTF8Encoding.UTF8.GetBytes("Welcome to the Handy-Talky Commander BBS by " + parent.callsign + "."));
+                session.sessionState["wlChallenge"] = WinlinkSecurity.GenerateChallenge();
+                SessionSend(session, "Welcome to the Handy-Talky Commander BBS by " + parent.callsign + ".");
+                SessionSend(session, "[WL2K-5.0-B2FWIHJM$]");
+                if (!string.IsNullOrEmpty(parent.winlinkPassword)) { SessionSend(session, ";PQ: " + session.sessionState["wlChallenge"]); }
+                SessionSend(session, "CMS via " + parent.callsign + " >");
+
+                /*
                 Adventurer.GameRunner runner = new Adventurer.GameRunner();
                 string output = runner.RunTurn("adv01.dat", session.Addresses[0].CallSignWithId + ".sav", "").Replace("\r\n\r\n", "\r\n").Trim();
-                if ((output != null) && (output.Length > 0))
-                {
-                    parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
-                    session.Send(UTF8Encoding.UTF8.GetBytes(output));
-                }
+                SessionSend(session, output);
+                */
             }
         }
 
         public void ProcessStream(AX25Session session, byte[] data)
         {
+            string dataStr = UTF8Encoding.UTF8.GetString(data);
+            parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr);
+
+            int i = dataStr.IndexOf(' ');
+            if (i > 0)
+            {
+                string key = dataStr.Substring(0, i).ToUpper();
+                string value = dataStr.Substring(i + 1);
+                if ((key == ";PR:") && (!string.IsNullOrEmpty(parent.winlinkPassword)))
+                {
+                    if (WinlinkSecurity.SecureLoginResponse(session.sessionState["wlChallenge"], parent.winlinkPassword) == value)
+                    {
+                        session.sessionState["wlAuth"] = "OK";
+                        parent.DebugTrace("Winlink Auth Success");
+                    }
+                    else
+                    {
+                        parent.DebugTrace("Winlink Auth Failed");
+                    }
+                }
+            }
+
+
+            /*
             string dataStr = UTF8Encoding.UTF8.GetString(data);
             parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr);
             Adventurer.GameRunner runner = new Adventurer.GameRunner();
@@ -77,6 +116,7 @@ namespace HTCommander
                 session.Send(bytesOut);
                 UpdateStats(session.Addresses[0].ToString(), "Stream", 1, 1, data.Length, bytesOut.Length);
             }
+            */
         }
 
         public void ProcessFrame(TncDataFragment frame, AX25Packet p)

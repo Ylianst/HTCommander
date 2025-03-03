@@ -60,6 +60,8 @@ namespace HTCommander
 
         private void phoneNumberTextBox_KeyPress(object sender, KeyPressEventArgs e)
         {
+            if ((Control.ModifierKeys & Keys.Control) == Keys.Control) return;
+
             // Check if the key pressed is not a digit or control key (like Backspace)
             if (!char.IsDigit(e.KeyChar) && !char.IsControl(e.KeyChar))
             {

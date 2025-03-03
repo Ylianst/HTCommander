@@ -18,6 +18,7 @@ using System;
 using System.Timers;
 using System.Collections.Generic;
 using static HTCommander.AX25Packet;
+using System.Text;
 
 namespace HTCommander
 {
@@ -25,6 +26,7 @@ namespace HTCommander
     {
         private Radio radio = null;
         private MainForm parent = null;
+        public Dictionary<string, string> sessionState = new Dictionary<string, string>();
 
         public delegate void StateChangedHandler(AX25Session sender, ConnectionState state);
         public event StateChangedHandler StateChanged;
@@ -54,18 +56,19 @@ namespace HTCommander
         public int MaxFrames = 4;
         public int PacketLength = 256;
         public int Retries = 3;
-        public int HBaud = 1200;
+        public int HBaud = 600; // 1200
         public bool Modulo128 = false;
         public bool Traceing = true;
 
-        private void Trace(string msg) { if (Traceing) { parent.Debug( "X25: " + msg); } }
+        private void Trace(string msg) { if (Traceing) { parent.Debug("X25: " + msg); } }
 
-        private void SetConnectionState(ConnectionState state) {
+        private void SetConnectionState(ConnectionState state)
+        {
             if (state != _state.Connection)
             {
                 _state.Connection = state;
                 OnStateChangedEvent(state);
-                if (state == ConnectionState.DISCONNECTED) { _state.SendBuffer.Clear(); Addresses = null; }
+                if (state == ConnectionState.DISCONNECTED) { _state.SendBuffer.Clear(); Addresses = null; sessionState.Clear(); }
             }
         }
 
@@ -113,8 +116,8 @@ namespace HTCommander
             _timers.Connect.Elapsed += ConnectTimerCallback;
             _timers.Disconnect.Elapsed += DisconnectTimerCallback;
 
-            // Sent I-frame Acknowlegement Timer (6.7.1.3 and 4.4.5.1). This is started when a single
-            // I frame is sent, or when the last I-frame in a sequence of I-frames is sent. This is
+            // Sent I-frame Acknowledgement Timer (6.7.1.3 and 4.4.5.1). This is started when a single
+            // I-frame is sent, or when the last I-frame in a sequence of I-frames is sent. This is
             // cleared by the reception of an acknowledgement for the I-frame (or by the link being
             // reset). If this timer expires, we follow 6.4.11 - we're supposed to send an RR/RNR with
             // the P-bit set and then restart the timer. After N attempts, we reset the link.
@@ -142,10 +145,15 @@ namespace HTCommander
         // Milliseconds required to transmit the largest possible packet
         private int GetMaxPacketTime()
         {
-            //return (int)Math.Floor((double)((600 + (PacketLength * 8)) / HBaud) * 1000);
-            return (int)Math.Floor((double)((1600 + (PacketLength * 8)) / HBaud) * 1000); // DEBUG, Slow down by 1 second
+            return (int)Math.Floor((double)((600 + (PacketLength * 8)) / HBaud) * 1000);
         }
 
+        // This isn't great, but we need to give the TNC time to
+        // finish transmitting any packets we've sent to it before we
+        // can reasonably start expecting a response from the remote
+        // side. A large settings.maxFrames value coupled with a
+        // large number of sent but unacknowledged frames could lead
+        // to a very long interval.
         private int GetTimeout()
         {
             int multiplier = 0;
@@ -175,12 +183,6 @@ namespace HTCommander
             timer.Start();
         }
 
-        // This isn't great, but we need to give the TNC time to
-        // finish transmitting any packets we've sent to it before we
-        // can reasonably start expecting a response from the remote
-        // side. A large settings.maxFrames value coupled with a
-        // large number of sent but unacknowledged frames could lead
-        // to a very long interval.
         private double GetTimerTimeout(TimerNames timerName)
         {
             switch (timerName)
@@ -267,9 +269,9 @@ namespace HTCommander
         // packets and any new packets (up to maxFrames)
         //
         // Otherwise, we just send new packets (up to maxFrames)
-        private void Drain()
+        private void Drain(bool resent = true)
         {
-            Trace("Drain");
+            Trace("Drain, Packets in Queue: " + _state.SendBuffer.Count + ", Resend: " + resent);
             if (_state.RemoteBusy) { ClearTimer(TimerNames.T1); return; }
 
             byte sequenceNum = _state.SendSequence;
@@ -278,11 +280,7 @@ namespace HTCommander
             bool startTimer = false;
             for (int packetIndex = 0; packetIndex < _state.SendBuffer.Count; packetIndex++)
             {
-                if (DistanceBetween(
-                    sequenceNum,
-                    _state.RemoteReceiveSequence,
-                    (byte)(Modulo128 ? 128 : 8)
-                ) < MaxFrames)
+                if (DistanceBetween(sequenceNum, _state.RemoteReceiveSequence, (byte)(Modulo128 ? 128 : 8)) < MaxFrames)
                 {
                     _state.SendBuffer[packetIndex].nr = _state.ReceiveSequence;
                     if (!_state.SendBuffer[packetIndex].sent)
@@ -291,6 +289,7 @@ namespace HTCommander
                         _state.SendBuffer[packetIndex].sent = true;
                         _state.SendSequence = (byte)((_state.SendSequence + 1) % (Modulo128 ? 128 : 8));
                     }
+                    else if (!resent) { continue; } // If this packet was sent already, ignore and continue
                     startTimer = true;
                     EmitPacket(_state.SendBuffer[packetIndex]);
 
@@ -298,10 +297,14 @@ namespace HTCommander
                 }
             }
 
-            if (_state.GotREJSequenceNum < 0 && !startTimer) { SendRR(false); startTimer = true; }
+            if ((_state.GotREJSequenceNum < 0) && !startTimer)
+            {
+                SendRR(false);
+                //startTimer = true; // Not sure why we would take to enable T1 here?
+            }
 
             _state.GotREJSequenceNum = -1;
-            if (startTimer) { SetTimer(TimerNames.T1); }
+            if (startTimer) { SetTimer(TimerNames.T1); } else { ClearTimer(TimerNames.T1); }
         }
 
         private void Renumber()
@@ -349,9 +352,14 @@ namespace HTCommander
             Disconnect();
         }
 
+        // Sent I-frame Acknowledgement Timer (6.7.1.3 and 4.4.5.1). This is started when a single
+        // I frame is sent, or when the last I-frame in a sequence of I-frames is sent. This is
+        // cleared by the reception of an acknowledgement for the I-frame (or by the link being
+        // reset). If this timer expires, we follow 6.4.11 - we're supposed to send an RR/RNR with
+        // the P-bit set and then restart the timer. After N attempts, we reset the link.
         private void T1TimerCallback(Object sender, ElapsedEventArgs e)
         {
-            Trace("Timer - T1");
+            Trace("** Timer - T1 expired");
             if (_timers.T1Attempts >= Retries)
             {
                 ClearTimer(TimerNames.T1);
@@ -362,24 +370,33 @@ namespace HTCommander
             SendRR(true);
         }
 
+        // Response Delay Timer (6.7.1.2). This is started when an I-frame is received. If
+        // subsequent I-frames are received, the timer should be restarted. When it expires
+        // an RR for the received data can be sent or an I-frame if there are any new packets
+        // to send.
         private void T2TimerCallback(Object sender, ElapsedEventArgs e)
         {
-            Trace("Timer - T2");
+            Trace("** Timer - T2 expired");
             ClearTimer(TimerNames.T2);
-            Drain();
+            Drain(true);
         }
 
+        // Poll Timer (6.7.1.3 and 4.4.5.2). This is started when T1 is not running (there are
+        // no outstanding I-frames). When it times out an RR or RNR should be transmitted
+        // and T1 started.
         private void T3TimerCallback(Object sender, ElapsedEventArgs e)
         {
-            Trace("Timer - T3");
-            if (_timers.T1.Enabled) return; // Check if T1 is running using Timer.Enabled property
-            if (_timers.T3Attempts >= Retries)
+            Trace("** Timer - T3 expired");
+            if (_timers.T1.Enabled) return; // Don't interfere if T1 is active
+            if (_timers.T3Attempts >= Retries) // Use T3 specific retry count if you separate them
             {
                 ClearTimer(TimerNames.T3);
-                Disconnect();
+                Disconnect(); // Or just set state to DISCONNECTED as per recommendation 4
                 return;
             }
             _timers.T3Attempts++;
+            //SendRR(true); // Send RR with Poll bit set to solicit response (or RNR if remote busy logic applied here)
+            //SetTimer(TimerNames.T1); // Start T1 to wait for acknowledgement of this RR/RNR
         }
 
         public bool Connect(List<AX25Address> addresses)
@@ -476,6 +493,11 @@ namespace HTCommander
             if (!_timers.Disconnect.Enabled) { SetTimer(TimerNames.Disconnect); }
         }
 
+        public void Send(string info)
+        {
+            Send(UTF8Encoding.UTF8.GetBytes(info));
+        }
+
         // Add a new packet to our send queue.
         // If the t2 timer is not running, we can just send all the packets.
         // If the t2 timer is running, we need to wait for it to expire, then
@@ -492,20 +514,12 @@ namespace HTCommander
                 Array.Copy(info, i, packetInfo, 0, length);
 
                 _state.SendBuffer.Add(
-                    new AX25Packet(
-                        Addresses,
-                        0,
-                        0,
-                        false,
-                        true,
-                        FrameType.I_FRAME,
-                        packetInfo
-                    )
+                    new AX25Packet(Addresses, 0, 0, false, true, FrameType.I_FRAME, packetInfo)
                 );
             }
 
             // Check if timer is not enabled using Timer.Enabled property
-            if (!_timers.T2.Enabled)  { Drain(); }
+            if (!_timers.T2.Enabled) { Drain(false); }
         }
 
         public bool Receive(AX25Packet packet)
@@ -831,6 +845,7 @@ namespace HTCommander
                             _state.SentREJ = false;
                             _state.ReceiveSequence = (byte)((_state.ReceiveSequence + 1) % (Modulo128 ? 128 : 8));
                             if ((packet.data != null) && (packet.data.Length != 0)) { OnDataReceivedEvent(packet.data); }
+                            response = null;
                         }
                         else if (_state.SentREJ)
                         {
@@ -861,8 +876,8 @@ namespace HTCommander
                     break;
             }
 
-            // if (response instanceof ax25.Packet)
-            if (response != null) {
+            if (response != null)
+            {
                 if (response.addresses == null)
                 {
                     response.addresses = new List<AX25Address>();

@@ -134,6 +134,7 @@ namespace HTCommander
                 addPacketDecodeLine(1, "Type", packet.type.ToString().Replace("_", "-"));
                 sb.Clear();
                 sb.Append("NS:" + packet.ns + ", NR:" + packet.nr);
+                if (packet.command) { sb.Append(", Command"); }
                 if (packet.pollFinal) { sb.Append(", PollFinal"); }
                 if (packet.modulo128) { sb.Append(", Modulo128"); }
                 if (sb.Length > 2) { addPacketDecodeLine(1, "Control", sb.ToString()); }

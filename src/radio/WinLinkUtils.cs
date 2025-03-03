@@ -67,6 +67,17 @@ namespace HTCommander.radio
                 return str.Substring(str.Length - 8);
             }
         }
+
+        public static string GenerateChallenge()
+        {
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                var bytes = new byte[8];
+                rng.GetBytes(bytes);
+                string rndStr = BitConverter.ToUInt64(bytes, 0).ToString($"D{9}");
+                return rndStr.Substring(rndStr.Length - 8);
+            }
+        }
     }
 
     public class WinlinkCompression
