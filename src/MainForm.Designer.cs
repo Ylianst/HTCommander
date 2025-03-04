@@ -85,6 +85,7 @@
             this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
             this.aboutToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.radioPanel = new System.Windows.Forms.Panel();
+            this.transmitBarPanel = new System.Windows.Forms.Panel();
             this.channelsFlowLayoutPanel = new System.Windows.Forms.FlowLayoutPanel();
             this.checkBluetoothButton = new System.Windows.Forms.Button();
             this.rssiProgressBar = new System.Windows.Forms.ProgressBar();
@@ -101,6 +102,7 @@
             this.radioPictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
+            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsMissingChannelPanel = new System.Windows.Forms.Panel();
             this.aprsSetupButton = new System.Windows.Forms.Button();
@@ -232,6 +234,7 @@
             this.copyCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.packetsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showPacketDecodeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.clearPacketsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.saveToFileToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.openFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.savePacketsFileDialog = new System.Windows.Forms.SaveFileDialog();
@@ -256,9 +259,8 @@
             this.restoreMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.backupMailSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.restoreMailOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
-            this.transmitBarPanel = new System.Windows.Forms.Panel();
-            this.aprsChatControl = new HTCommander.ChatControl();
-            this.clearPacketsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem17 = new System.Windows.Forms.ToolStripSeparator();
+            this.toolStripMenuItem18 = new System.Windows.Forms.ToolStripSeparator();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -678,6 +680,15 @@
             this.radioPanel.TabIndex = 2;
             this.radioPanel.SizeChanged += new System.EventHandler(this.radioPanel_SizeChanged);
             // 
+            // transmitBarPanel
+            // 
+            this.transmitBarPanel.BackColor = System.Drawing.Color.Red;
+            this.transmitBarPanel.Location = new System.Drawing.Point(84, 326);
+            this.transmitBarPanel.Name = "transmitBarPanel";
+            this.transmitBarPanel.Size = new System.Drawing.Size(205, 7);
+            this.transmitBarPanel.TabIndex = 7;
+            this.transmitBarPanel.Visible = false;
+            // 
             // channelsFlowLayoutPanel
             // 
             this.channelsFlowLayoutPanel.BackColor = System.Drawing.Color.DarkKhaki;
@@ -899,6 +910,30 @@
             this.aprsTabPage.Size = new System.Drawing.Size(693, 646);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
+            // 
+            // aprsChatControl
+            // 
+            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
+            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
+            this.aprsChatControl.CornerRadius = 4;
+            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.aprsChatControl.Images = this.mainImageList;
+            this.aprsChatControl.InterMessageMargin = 12;
+            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
+            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.aprsChatControl.MaxWidth = 300;
+            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
+            this.aprsChatControl.MessageBoxMargin = 10;
+            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
+            this.aprsChatControl.MinWidth = 100;
+            this.aprsChatControl.Name = "aprsChatControl";
+            this.aprsChatControl.ShadowOffset = 2;
+            this.aprsChatControl.SideMargins = 12;
+            this.aprsChatControl.Size = new System.Drawing.Size(693, 525);
+            this.aprsChatControl.TabIndex = 5;
+            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
+            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
+            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
             // mainImageList
             // 
@@ -2334,11 +2369,13 @@
             this.packetsContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.packetsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.showPacketDecodeToolStripMenuItem,
-            this.clearPacketsToolStripMenuItem,
+            this.toolStripMenuItem18,
             this.saveToFileToolStripMenuItem1,
-            this.openFileToolStripMenuItem});
+            this.openFileToolStripMenuItem,
+            this.toolStripMenuItem17,
+            this.clearPacketsToolStripMenuItem});
             this.packetsContextMenuStrip.Name = "packetsContextMenuStrip";
-            this.packetsContextMenuStrip.Size = new System.Drawing.Size(217, 128);
+            this.packetsContextMenuStrip.Size = new System.Drawing.Size(217, 140);
             this.packetsContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.packetsContextMenuStrip_Opening);
             // 
             // showPacketDecodeToolStripMenuItem
@@ -2348,6 +2385,13 @@
             this.showPacketDecodeToolStripMenuItem.Size = new System.Drawing.Size(216, 24);
             this.showPacketDecodeToolStripMenuItem.Text = "&Show Packet Decode";
             this.showPacketDecodeToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showPacketDecodeToolStripMenuItem_CheckStateChanged);
+            // 
+            // clearPacketsToolStripMenuItem
+            // 
+            this.clearPacketsToolStripMenuItem.Name = "clearPacketsToolStripMenuItem";
+            this.clearPacketsToolStripMenuItem.Size = new System.Drawing.Size(216, 24);
+            this.clearPacketsToolStripMenuItem.Text = "&Clear Packets";
+            this.clearPacketsToolStripMenuItem.Click += new System.EventHandler(this.clearPacketsToolStripMenuItem_Click);
             // 
             // saveToFileToolStripMenuItem1
             // 
@@ -2519,45 +2563,15 @@
             this.restoreMailOpenFileDialog.Filter = "Mails (*.htmails)|*.htmails";
             this.restoreMailOpenFileDialog.Title = "Restore Mail";
             // 
-            // transmitBarPanel
+            // toolStripMenuItem17
             // 
-            this.transmitBarPanel.BackColor = System.Drawing.Color.Red;
-            this.transmitBarPanel.Location = new System.Drawing.Point(84, 326);
-            this.transmitBarPanel.Name = "transmitBarPanel";
-            this.transmitBarPanel.Size = new System.Drawing.Size(205, 7);
-            this.transmitBarPanel.TabIndex = 7;
-            this.transmitBarPanel.Visible = false;
+            this.toolStripMenuItem17.Name = "toolStripMenuItem17";
+            this.toolStripMenuItem17.Size = new System.Drawing.Size(213, 6);
             // 
-            // aprsChatControl
+            // toolStripMenuItem18
             // 
-            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
-            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
-            this.aprsChatControl.CornerRadius = 4;
-            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.aprsChatControl.Images = this.mainImageList;
-            this.aprsChatControl.InterMessageMargin = 12;
-            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
-            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.aprsChatControl.MaxWidth = 300;
-            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
-            this.aprsChatControl.MessageBoxMargin = 10;
-            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
-            this.aprsChatControl.MinWidth = 100;
-            this.aprsChatControl.Name = "aprsChatControl";
-            this.aprsChatControl.ShadowOffset = 2;
-            this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(693, 525);
-            this.aprsChatControl.TabIndex = 5;
-            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
-            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
-            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
-            // 
-            // clearPacketsToolStripMenuItem
-            // 
-            this.clearPacketsToolStripMenuItem.Name = "clearPacketsToolStripMenuItem";
-            this.clearPacketsToolStripMenuItem.Size = new System.Drawing.Size(216, 24);
-            this.clearPacketsToolStripMenuItem.Text = "&Clear Packets";
-            this.clearPacketsToolStripMenuItem.Click += new System.EventHandler(this.clearPacketsToolStripMenuItem_Click);
+            this.toolStripMenuItem18.Name = "toolStripMenuItem18";
+            this.toolStripMenuItem18.Size = new System.Drawing.Size(213, 6);
             // 
             // MainForm
             // 
@@ -2876,6 +2890,8 @@
         private System.Windows.Forms.OpenFileDialog restoreMailOpenFileDialog;
         private System.Windows.Forms.Panel transmitBarPanel;
         private System.Windows.Forms.ToolStripMenuItem clearPacketsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem18;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem17;
     }
 }
 

@@ -3016,6 +3016,16 @@ namespace HTCommander
             bbsTextBox.ScrollToCaret();
         }
 
+        public delegate void AddBbsControlMessageHandler(string text);
+        public void AddBbsControlMessage(string text)
+        {
+            if (this.InvokeRequired) { this.Invoke(new AddBbsControlMessageHandler(AddBbsControlMessage), text); return; }
+            if (bbsTextBox.Text.Length != 0) { bbsTextBox.AppendText(Environment.NewLine); }
+            AppendBbsText(text, Color.Yellow);
+            bbsTextBox.SelectionStart = bbsTextBox.Text.Length;
+            bbsTextBox.ScrollToCaret();
+        }
+
         public void AppendBbsText(string text, Color color)
         {
             bbsTextBox.SelectionStart = bbsTextBox.TextLength;
@@ -3433,7 +3443,11 @@ namespace HTCommander
 
         private void clearPacketsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            packetsListView.Items.Clear();
+            if (MessageBox.Show(this, "Clear packets?", "Packet Capture", MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.OK)
+            {
+                packetsListView.Items.Clear();
+                packetDecodeListView.Clear();
+            }
         }
     }
 }

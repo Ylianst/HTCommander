@@ -26,7 +26,7 @@ namespace HTCommander
     {
         private Radio radio = null;
         private MainForm parent = null;
-        public Dictionary<string, string> sessionState = new Dictionary<string, string>();
+        public Dictionary<string, object> sessionState = new Dictionary<string, object>();
 
         public delegate void StateChangedHandler(AX25Session sender, ConnectionState state);
         public event StateChangedHandler StateChanged;

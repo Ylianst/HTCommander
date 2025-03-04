@@ -3,10 +3,8 @@ using System.Text;
 using System.Windows.Forms;
 using System.Collections.Generic;
 using aprsparser;
-using System.Security.Cryptography;
-using static System.Net.Mime.MediaTypeNames;
 using HTCommander.radio;
-using static System.Collections.Specialized.BitVector32;
+using System.Diagnostics;
 
 namespace HTCommander
 {
@@ -56,49 +54,188 @@ namespace HTCommander
         {
             if (!string.IsNullOrEmpty(output))
             {
-                parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
+                string[] dataStrs = output.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
+                foreach (string str in dataStrs)
+                {
+                    if (str.Length == 0) continue;
+                    parent.AddBbsTraffic(session.Addresses[0].ToString(), true, str.Trim());
+                }
+                UpdateStats(session.Addresses[0].ToString(), "Stream", 0, 1, 0, output.Length);
                 session.Send(output);
             }
         }
 
+        private string GetVersion()
+        {
+            // Get the path of the currently running executable
+            string exePath = System.Windows.Forms.Application.ExecutablePath;
+
+            // Get the FileVersionInfo for the executable
+            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(exePath);
+
+            // Return the FileVersion as a string
+            string[] vers = versionInfo.FileVersion.Split('.');
+            return vers[0] + "." + vers[1];
+        }
+
         public void ProcessStreamState(AX25Session session, AX25Session.ConnectionState state)
         {
-            if (state == AX25Session.ConnectionState.CONNECTED)
+            switch (state)
             {
-                session.sessionState["wlChallenge"] = WinlinkSecurity.GenerateChallenge();
-                SessionSend(session, "Welcome to the Handy-Talky Commander BBS by " + parent.callsign + ".");
-                SessionSend(session, "[WL2K-5.0-B2FWIHJM$]");
-                if (!string.IsNullOrEmpty(parent.winlinkPassword)) { SessionSend(session, ";PQ: " + session.sessionState["wlChallenge"]); }
-                SessionSend(session, "CMS via " + parent.callsign + " >");
+                case AX25Session.ConnectionState.CONNECTED:
+                    parent.AddBbsControlMessage("Connected to " + session.Addresses[0].ToString());
+                    session.sessionState["wlChallenge"] = WinlinkSecurity.GenerateChallenge();
 
-                /*
-                Adventurer.GameRunner runner = new Adventurer.GameRunner();
-                string output = runner.RunTurn("adv01.dat", session.Addresses[0].CallSignWithId + ".sav", "").Replace("\r\n\r\n", "\r\n").Trim();
-                SessionSend(session, output);
-                */
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("Handy-Talky Commander BBS\r");
+                    sb.Append("[HTCmd-" + GetVersion() + "-B2FWIHJM$]\r");
+                    if (!string.IsNullOrEmpty(parent.winlinkPassword)) { sb.Append(";PQ: " + session.sessionState["wlChallenge"] + "\r"); }
+                    //sb.Append("CMS via " + parent.callsign + " >\r");
+                    sb.Append(">\r");
+                    SessionSend(session, sb.ToString());
+                    break;
+                case AX25Session.ConnectionState.DISCONNECTED:
+                    parent.AddBbsControlMessage("Disconnected");
+                    break;
+                case AX25Session.ConnectionState.CONNECTING:
+                    parent.AddBbsControlMessage("Connecting...");
+                    break;
+                case AX25Session.ConnectionState.DISCONNECTING:
+                    parent.AddBbsControlMessage("Disconnecting...");
+                    break;
             }
+
+            /*
+            Adventurer.GameRunner runner = new Adventurer.GameRunner();
+            string output = runner.RunTurn("adv01.dat", session.Addresses[0].CallSignWithId + ".sav", "").Replace("\r\n\r\n", "\r\n").Trim();
+            SessionSend(session, output);
+            */
+        }
+
+        private bool ExtractMail(AX25Session session)
+        {
+            if (session.sessionState.ContainsKey("wlMailProp") == false) return false;
+            if (session.sessionState.ContainsKey("wlMailBlocks") == false) return false;
+            List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
+            List<byte[]> blocks = (List<byte[]>)session.sessionState["wlMailBlocks"];
+            if ((proposals == null) || (blocks == null)) return false;
+            if ((proposals.Count == 0) || (blocks.Count == 0)) return false;
+
+            // Decode the proposal
+            string[] proposalSplit = proposals[0].Split(' ');
+            string MID = proposalSplit[1];
+            int mFullLen, mCompLen, mUnknown;
+            int.TryParse(proposalSplit[2], out mFullLen);
+            int.TryParse(proposalSplit[3], out mCompLen);
+            int.TryParse(proposalSplit[4], out mUnknown);
+
+            // See what we got
+            WinLinkMail mail = WinLinkMail.DecodeBlocksToEmail(blocks);
+            if (mail == null) return false;
+            proposals.RemoveAt(0);
+
+            // Process the mail
+            parent.Mails.Add(mail);
+            parent.SaveMails();
+            parent.UpdateMail();
+            parent.AddBbsControlMessage("Got mail for " + mail.To + ".");
+
+            return (proposals.Count == 0);
         }
 
         public void ProcessStream(AX25Session session, byte[] data)
         {
-            string dataStr = UTF8Encoding.UTF8.GetString(data);
-            parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr);
+            if ((data == null) || (data.Length == 0)) return;
+            UpdateStats(session.Addresses[0].ToString(), "Stream", 1, 0, data.Length, 0);
 
-            int i = dataStr.IndexOf(' ');
-            if (i > 0)
+            // This is embedded mail sent in compressed format
+            if (session.sessionState.ContainsKey("wlMailBinary"))
             {
-                string key = dataStr.Substring(0, i).ToUpper();
-                string value = dataStr.Substring(i + 1);
-                if ((key == ";PR:") && (!string.IsNullOrEmpty(parent.winlinkPassword)))
+                parent.AddBbsControlMessage("Receiving binary traffic.");
+                List<byte[]> blocks;
+                if (session.sessionState.ContainsKey("wlMailBlocks")) { blocks = (List<byte[]>)session.sessionState["wlMailBlocks"]; } else { blocks = new List<byte[]>(); }
+                blocks.Add(data);
+                session.sessionState["wlMailBlocks"] = blocks;
+                if (ExtractMail(session) == true)
                 {
-                    if (WinlinkSecurity.SecureLoginResponse(session.sessionState["wlChallenge"], parent.winlinkPassword) == value)
-                    {
-                        session.sessionState["wlAuth"] = "OK";
-                        parent.DebugTrace("Winlink Auth Success");
+                    // We are done with the mail reception
+                    session.sessionState.Remove("wlMailBinary");
+                    session.sessionState.Remove("wlMailBlocks");
+                    session.sessionState.Remove("wlMailProp");
+                    SessionSend(session, "FF\r");
+                }
+                return;
+            }
+
+            string dataStr = UTF8Encoding.UTF8.GetString(data);
+            parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr.Trim());
+
+            string[] dataStrs = dataStr.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
+            foreach (string str in dataStrs)
+            {
+                int i = str.IndexOf(' ');
+                if (i > 0)
+                {
+                    string key = str.Substring(0, i).ToUpper();
+                    string value = str.Substring(i + 1);
+
+                    if ((key == ";PR:") && (!string.IsNullOrEmpty(parent.winlinkPassword)))
+                    {   // Winlink Authentication Response
+                        if (WinlinkSecurity.SecureLoginResponse((string)(session.sessionState["wlChallenge"]), parent.winlinkPassword) == value)
+                        {
+                            session.sessionState["wlAuth"] = "OK";
+                            parent.DebugTrace("Winlink Auth Success");
+                        }
+                        else
+                        {
+                            parent.DebugTrace("Winlink Auth Failed");
+                        }
                     }
-                    else
+                    else if (key == "FC")
+                    {   // Winlink Mail Proposal
+                        List<string> proposals;
+                        if (session.sessionState.ContainsKey("wlMailProp")) { proposals = (List<string>)session.sessionState["wlMailProp"]; } else { proposals = new List<string>(); }
+                        proposals.Add(value);
+                        session.sessionState["wlMailProp"] = proposals;
+                    }
+                    else if (key == "F>")
                     {
-                        parent.DebugTrace("Winlink Auth Failed");
+                        // Winlink Mail Proposals completed, we need to respond
+                        if ((session.sessionState.ContainsKey("wlMailProp")) && (!session.sessionState.ContainsKey("wlMailBinary")))
+                        {
+                            List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
+                            List<string> proposals2 = new List<string>();
+                            if ((proposals != null) && (proposals.Count > 0))
+                            {
+                                string response = "";
+                                foreach (string proposal in proposals)
+                                {
+                                    string[] proposalSplit = proposal.Split(' ');
+                                    if ((proposalSplit.Length >= 5) && (proposalSplit[0] == "EM") && (proposalSplit[1].Length == 12))
+                                    {
+                                        int mFullLen, mCompLen, mUnknown;
+                                        if (
+                                            int.TryParse(proposalSplit[2], out mFullLen) &&
+                                            int.TryParse(proposalSplit[3], out mCompLen) &&
+                                            int.TryParse(proposalSplit[4], out mUnknown)
+                                        ) { response += "Y"; proposals2.Add(proposal); }
+                                        else { response += "N"; }
+                                    }
+                                    else { response += "N"; }
+                                }
+                                session.sessionState["wlMailBinary"] = 1;
+                                SessionSend(session, "FS " + response + "\r");
+                                session.sessionState["wlMailProp"] = proposals2;
+                            }
+                        }
+                    }
+                    else if (key == "FQ")
+                    {   // Winlink Session Close
+                        session.Disconnect();
+                    }
+                    else if (key == "ECHO")
+                    {   // Test Echo command
+                        SessionSend(session, value + "\r");
                     }
                 }
             }
