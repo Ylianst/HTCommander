@@ -261,6 +261,8 @@
             this.restoreMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.backupMailSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.restoreMailOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
+            this.mailTransferStatusPanel = new System.Windows.Forms.Panel();
+            this.mailTransferStatusLabel = new System.Windows.Forms.Label();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -322,6 +324,7 @@
             this.bbsTabContextMenuStrip.SuspendLayout();
             this.notifyContextMenuStrip.SuspendLayout();
             this.mailTabContextMenuStrip.SuspendLayout();
+            this.mailTransferStatusPanel.SuspendLayout();
             this.SuspendLayout();
             // 
             // mainStatusStrip
@@ -1165,6 +1168,7 @@
             // mailTabPage
             // 
             this.mailTabPage.Controls.Add(this.mailboxHorizontalSplitContainer);
+            this.mailTabPage.Controls.Add(this.mailTransferStatusPanel);
             this.mailTabPage.Controls.Add(this.panel2);
             this.mailTabPage.ImageIndex = 5;
             this.mailTabPage.Location = new System.Drawing.Point(4, 4);
@@ -1188,8 +1192,8 @@
             // mailboxHorizontalSplitContainer.Panel2
             // 
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailPreviewTextBox);
-            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(693, 609);
-            this.mailboxHorizontalSplitContainer.SplitterDistance = 296;
+            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(693, 572);
+            this.mailboxHorizontalSplitContainer.SplitterDistance = 278;
             this.mailboxHorizontalSplitContainer.TabIndex = 7;
             // 
             // mailboxVerticalSplitContainer
@@ -1206,7 +1210,7 @@
             // mailboxVerticalSplitContainer.Panel2
             // 
             this.mailboxVerticalSplitContainer.Panel2.Controls.Add(this.mailboxListView);
-            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(693, 296);
+            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(693, 278);
             this.mailboxVerticalSplitContainer.SplitterDistance = 151;
             this.mailboxVerticalSplitContainer.TabIndex = 6;
             // 
@@ -1220,7 +1224,7 @@
             this.mailBoxesTreeView.Name = "mailBoxesTreeView";
             this.mailBoxesTreeView.SelectedImageIndex = 0;
             this.mailBoxesTreeView.ShowRootLines = false;
-            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 296);
+            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 278);
             this.mailBoxesTreeView.TabIndex = 0;
             this.mailBoxesTreeView.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.mailBoxesTreeView_NodeMouseClick);
             this.mailBoxesTreeView.DragDrop += new System.Windows.Forms.DragEventHandler(this.mailBoxesTreeView_DragDrop);
@@ -1255,7 +1259,7 @@
             this.mailboxListView.Location = new System.Drawing.Point(0, 0);
             this.mailboxListView.Margin = new System.Windows.Forms.Padding(4);
             this.mailboxListView.Name = "mailboxListView";
-            this.mailboxListView.Size = new System.Drawing.Size(538, 296);
+            this.mailboxListView.Size = new System.Drawing.Size(538, 278);
             this.mailboxListView.SmallImageList = this.mainImageList;
             this.mailboxListView.TabIndex = 5;
             this.mailboxListView.UseCompatibleStateImageBehavior = false;
@@ -1372,7 +1376,7 @@
             this.mailPreviewTextBox.Location = new System.Drawing.Point(0, 0);
             this.mailPreviewTextBox.Name = "mailPreviewTextBox";
             this.mailPreviewTextBox.ReadOnly = true;
-            this.mailPreviewTextBox.Size = new System.Drawing.Size(693, 309);
+            this.mailPreviewTextBox.Size = new System.Drawing.Size(693, 290);
             this.mailPreviewTextBox.TabIndex = 0;
             this.mailPreviewTextBox.Text = "";
             // 
@@ -2574,6 +2578,30 @@
             this.restoreMailOpenFileDialog.Filter = "Mails (*.htmails)|*.htmails";
             this.restoreMailOpenFileDialog.Title = "Restore Mail";
             // 
+            // mailTransferStatusPanel
+            // 
+            this.mailTransferStatusPanel.BackColor = System.Drawing.Color.Silver;
+            this.mailTransferStatusPanel.Controls.Add(this.mailTransferStatusLabel);
+            this.mailTransferStatusPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 609);
+            this.mailTransferStatusPanel.Margin = new System.Windows.Forms.Padding(4);
+            this.mailTransferStatusPanel.Name = "mailTransferStatusPanel";
+            this.mailTransferStatusPanel.Size = new System.Drawing.Size(693, 37);
+            this.mailTransferStatusPanel.TabIndex = 8;
+            this.mailTransferStatusPanel.Visible = false;
+            // 
+            // mailTransferStatusLabel
+            // 
+            this.mailTransferStatusLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.mailTransferStatusLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.mailTransferStatusLabel.Location = new System.Drawing.Point(4, 6);
+            this.mailTransferStatusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.mailTransferStatusLabel.Name = "mailTransferStatusLabel";
+            this.mailTransferStatusLabel.Size = new System.Drawing.Size(684, 25);
+            this.mailTransferStatusLabel.TabIndex = 1;
+            this.mailTransferStatusLabel.Text = "Disconnected";
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -2665,6 +2693,7 @@
             this.bbsTabContextMenuStrip.ResumeLayout(false);
             this.notifyContextMenuStrip.ResumeLayout(false);
             this.mailTabContextMenuStrip.ResumeLayout(false);
+            this.mailTransferStatusPanel.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -2893,6 +2922,8 @@
         private System.Windows.Forms.ToolStripMenuItem clearPacketsToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem18;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem17;
+        private System.Windows.Forms.Panel mailTransferStatusPanel;
+        private System.Windows.Forms.Label mailTransferStatusLabel;
     }
 }
 

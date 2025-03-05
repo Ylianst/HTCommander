@@ -84,7 +84,7 @@ namespace HTCommander
         private string GetVersion()
         {
             // Get the path of the currently running executable
-            string exePath = System.Windows.Forms.Application.ExecutablePath;
+            string exePath = Application.ExecutablePath;
 
             // Get the FileVersionInfo for the executable
             FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(exePath);
@@ -185,11 +185,11 @@ namespace HTCommander
             }
 
             string dataStr = UTF8Encoding.UTF8.GetString(data);
-            parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr.Trim());
-
             string[] dataStrs = dataStr.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
             foreach (string str in dataStrs)
             {
+                if (str.Length == 0) continue;
+                parent.AddBbsTraffic(session.Addresses[0].ToString(), false, str.Trim());
                 int i = str.IndexOf(' ');
                 if (i > 0)
                 {

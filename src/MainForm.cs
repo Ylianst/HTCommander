@@ -77,6 +77,7 @@ namespace HTCommander
         public int webServerPort = 8080;
         public List<TerminalText> terminalTexts = new List<TerminalText>();
         public BBS bbs;
+        public WinlinkClient winlinkClient;
         public AprsStack aprsStack;
         public bool Loading = true;
 #if !__MonoCS__
@@ -101,6 +102,7 @@ namespace HTCommander
             InitializeComponent();
             bbs = new BBS(this);
             aprsStack = new AprsStack(this);
+            winlinkClient = new WinlinkClient(this);
         }
 
         public int GetNextAprsMessageId()
@@ -388,10 +390,8 @@ namespace HTCommander
             }
             else if ((activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink))
             {
-                if (state == AX25Session.ConnectionState.DISCONNECTED)
-                {
-                    ActiveLockToStation(null);
-                }
+                winlinkClient.ProcessStreamState(session, state);
+                if (state == AX25Session.ConnectionState.DISCONNECTED) { ActiveLockToStation(null); }
             }
         }
         private void Session_DataReceivedEvent(AX25Session sender, byte[] data)
@@ -406,6 +406,10 @@ namespace HTCommander
                 else if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
                 {
                     bbs.ProcessStream(session, data);
+                }
+                else if (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink)
+                {
+                    winlinkClient.ProcessStream(session, data);
                 }
             }
         }
@@ -422,6 +426,10 @@ namespace HTCommander
                 else if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
                 {
                     bbs.ProcessStream(session, data);
+                }
+                else if (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink)
+                {
+                    winlinkClient.ProcessStream(session, data);
                 }
             }
         }
@@ -525,7 +533,23 @@ namespace HTCommander
             // If this frame comes from the locked channel, process it here.
             if ((frame.channel_id == activeChannelIdLock) && (activeStationLock != null))
             {
-                if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
+                if (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink)
+                {
+                    AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
+                    if (p == null) return;
+                    if (p.type == FrameType.U_FRAME_UI)
+                    {
+                        // Have the BBS process this frame and a un-numbered frame
+                        winlinkClient.ProcessFrame(frame, p);
+                    }
+                    else
+                    {
+                        // Have the AX.25 session process this packet
+                        if (p.addresses[0].CallSignWithId == callsign + "-" + stationId) { session.Receive(p); }
+                    }
+                    return;
+                }
+                else if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
                 {
                     AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
                     if (p == null) return;
@@ -3038,6 +3062,14 @@ namespace HTCommander
         private void bbsListView_Resize(object sender, EventArgs e)
         {
             bbsListView.Columns[2].Width = bbsListView.Width - bbsListView.Columns[1].Width - bbsListView.Columns[0].Width - 28;
+        }
+
+        public delegate void MailStateMessageHandler(string msg);
+        public void MailStateMessage(string msg)
+        {
+            if (this.InvokeRequired) { this.Invoke(new MailStateMessageHandler(MailStateMessage), msg); return; }
+            mailTransferStatusPanel.Visible = (msg != null);
+            if (msg != null) { mailTransferStatusLabel.Text = msg; } else { mailTransferStatusLabel.Text = ""; };
         }
 
         private void exitToolStripMenuItem1_Click(object sender, EventArgs e)
