@@ -3449,5 +3449,10 @@ namespace HTCommander
                 packetDecodeListView.Clear();
             }
         }
+
+        private void bbsSplitContainer_SplitterMoved(object sender, SplitterEventArgs e)
+        {
+
+        }
     }
 }

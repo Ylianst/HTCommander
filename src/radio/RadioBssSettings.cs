@@ -1,4 +1,20 @@
-﻿using System;
+﻿/*
+Copyright 2025 Ylian Saint-Hilaire
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+using System;
 using System.Text;
 
 namespace HTCommander
@@ -89,28 +105,3 @@ namespace HTCommander
 
     }
 }
-
-
-/*
-
-class BSSSettings(Bitfield):
-    max_fwd_times: int = bf_int(4)
-    time_to_live: int = bf_int(4)
-    ptt_release_send_location: bool
-    ptt_release_send_id_info: bool
-    ptt_release_send_bss_user_id: bool  # (Applies when BSS is turned on)
-    should_share_location: bool
-    send_pwr_voltage: bool
-    packet_format: PacketFormat = bf_int_enum(PacketFormat, 1)
-    allow_position_check: bool
-    _pad: t.Literal[0] = bf_lit_int(1, default=0)
-    aprs_ssid: int = bf_int(4)
-    _pad2: t.Literal[0] = bf_lit_int(4, default=0)
-    location_share_interval: int = bf_map(bf_int(8), IntScale(10))
-    bss_user_id_lower: int = bf_int(32)
-    ptt_release_id_info: str = bf_str(12)
-    beacon_message: str = bf_str(18)
-    aprs_symbol: str = bf_str(2)
-    aprs_callsign: str = bf_str(6)
-
-*/

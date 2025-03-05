@@ -56,11 +56,11 @@ namespace HTCommander
         public int MaxFrames = 4;
         public int PacketLength = 256;
         public int Retries = 3;
-        public int HBaud = 600; // 1200
+        public int HBaud = 900; // 1200
         public bool Modulo128 = false;
-        public bool Traceing = true;
+        public bool Tracing = true;
 
-        private void Trace(string msg) { if (Traceing) { parent.Debug("X25: " + msg); } }
+        private void Trace(string msg) { if (Tracing) { parent.Debug("X25: " + msg); } }
 
         private void SetConnectionState(ConnectionState state)
         {
@@ -548,20 +548,24 @@ namespace HTCommander
                 response.addresses.Add(AX25Address.GetAddress(packet.addresses[1].ToString()));
                 response.addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
                 response.type = FrameType.U_FRAME_DISC;
-                response.command = true;
+                response.command = false;
                 response.pollFinal = true;
+                EmitPacket(response);
                 return false;
             }
 
-            // If this is not a connection frame and we are not connected, respond with a disconnect
+            // If we are not connected and this is not a connection request, respond with a disconnect
             if ((Addresses == null) && (packet.type != FrameType.U_FRAME_SABM) && (packet.type != FrameType.U_FRAME_SABME))
             {
                 response.addresses = new List<AX25Address>();
                 response.addresses.Add(AX25Address.GetAddress(packet.addresses[1].ToString()));
                 response.addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
-                response.type = FrameType.U_FRAME_DISC;
-                response.command = true;
+                response.command = false;
                 response.pollFinal = true;
+
+                // If this is a disconnect frame and we are not connected, respond with a confirmation
+                if (packet.type == FrameType.U_FRAME_DISC) { response.type = FrameType.U_FRAME_UA; } else { response.type = FrameType.U_FRAME_DISC; }
+                EmitPacket(response);
                 return false;
             }
 
@@ -612,6 +616,7 @@ namespace HTCommander
                         ClearTimer(TimerNames.T2);
                         ClearTimer(TimerNames.T3);
                         response.type = FrameType.U_FRAME_UA;
+                        response.pollFinal = true; // Look like this need to be here.
                         EmitPacket(response);
                         SetConnectionState(ConnectionState.DISCONNECTED);
                     }

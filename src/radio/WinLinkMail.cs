@@ -1,4 +1,20 @@
-﻿using System;
+﻿/*
+Copyright 2025 Ylian Saint-Hilaire
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+using System;
 using System.Text;
 using System.Collections.Generic;
 using System.Security.Cryptography;
@@ -21,7 +37,7 @@ namespace HTCommander.radio
         public int Flags { get; set; } // 1 = Unread
         public int Mailbox { get; set; }
 
-        public enum MailFlags: int
+        public enum MailFlags : int
         {
             Unread = 1,
             Private = 2,
@@ -76,28 +92,43 @@ namespace HTCommander.radio
                 switch (cmd)
                 {
                     case 1:
+                        if (block.Length < ptr) return null;
                         cmdlen = block[ptr + 1];
                         ptr += (2 + cmdlen);
                         break;
                     case 2:
+                        if (block.Length < ptr) return null;
                         cmdlen = block[ptr + 1];
+                        while (block.Length < (ptr + 2 + cmdlen))
+                        {
+                            // Merge the next block
+                            if (blocks.Count < 2) return null;
+                            byte[] block2 = new byte[blocks[0].Length + blocks[1].Length];
+                            Array.Copy(blocks[0], 0, block2, 0, blocks[0].Length);
+                            Array.Copy(blocks[1], 0, block2, blocks[0].Length, blocks[1].Length);
+                            blocks[0] = block2;
+                            blocks.RemoveAt(1);
+                            block = block2;
+                        }
                         payload = new byte[cmdlen];
                         Array.Copy(block, ptr + 2, payload, 0, cmdlen);
                         ptr += (2 + cmdlen);
                         break;
                     case 4:
+                        if (block.Length < ptr) return null;
                         cmdlen = block[ptr + 1];
                         if (WinLinkChecksum.ComputeChecksum(payload) != cmdlen) return null;
                         ptr += 2;
                         break;
                 }
-                
+
             }
 
             // Decompress the mail
             byte[] obuf = null;
             int expectedLength = (payload[2] + (payload[3] << 8) + (payload[4] << 16) + (payload[5] << 24));
-            int obuflen = WinlinkCompression.Decode(payload, ref obuf, true, expectedLength);
+            int obuflen = -1;
+            try { obuflen = WinlinkCompression.Decode(payload, ref obuf, true, expectedLength); } catch (Exception) { }
             if (obuflen != expectedLength) return null;
 
             // Decode the mail
@@ -156,7 +187,7 @@ namespace HTCommander.radio
 
             bool done = false;
             int i, bodyLength = -1;
-            string[] lines = data.Replace("\r\n","\n").Split(new[] { '\n', '\r' });
+            string[] lines = data.Replace("\r\n", "\n").Split(new[] { '\n', '\r' });
             foreach (string line in lines)
             {
                 if (done) continue;
@@ -165,7 +196,7 @@ namespace HTCommander.radio
                 {
                     string key = line.Substring(0, i).ToLower().Trim();
                     string value = line.Substring(i + 1).Trim();
-            
+
                     switch (key)
                     {
                         case "": done = true; break;
@@ -223,7 +254,8 @@ namespace HTCommander.radio
                 string trimmedLine = line.Trim();
                 if (trimmedLine == "Mail:")
                 {
-                    if (currentMail != null) {
+                    if (currentMail != null)
+                    {
                         if (string.IsNullOrEmpty(currentMail.MID)) { currentMail.MID = WinLinkMail.GenerateMID(); }
                         mails.Add(currentMail);
                     }

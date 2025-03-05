@@ -234,9 +234,11 @@
             this.copyCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.packetsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showPacketDecodeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.clearPacketsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem18 = new System.Windows.Forms.ToolStripSeparator();
             this.saveToFileToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.openFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem17 = new System.Windows.Forms.ToolStripSeparator();
+            this.clearPacketsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.savePacketsFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.openPacketsFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.saveStationsFileDialog = new System.Windows.Forms.SaveFileDialog();
@@ -259,8 +261,6 @@
             this.restoreMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.backupMailSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.restoreMailOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
-            this.toolStripMenuItem17 = new System.Windows.Forms.ToolStripSeparator();
-            this.toolStripMenuItem18 = new System.Windows.Forms.ToolStripSeparator();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -1776,9 +1776,10 @@
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
             this.bbsSplitContainer.Size = new System.Drawing.Size(693, 609);
-            this.bbsSplitContainer.SplitterDistance = 296;
+            this.bbsSplitContainer.SplitterDistance = 148;
             this.bbsSplitContainer.SplitterWidth = 5;
             this.bbsSplitContainer.TabIndex = 7;
+            this.bbsSplitContainer.SplitterMoved += new System.Windows.Forms.SplitterEventHandler(this.bbsSplitContainer_SplitterMoved);
             // 
             // bbsListView
             // 
@@ -1805,7 +1806,7 @@
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
             this.bbsListView.Margin = new System.Windows.Forms.Padding(4);
             this.bbsListView.Name = "bbsListView";
-            this.bbsListView.Size = new System.Drawing.Size(693, 296);
+            this.bbsListView.Size = new System.Drawing.Size(693, 148);
             this.bbsListView.SmallImageList = this.mainImageList;
             this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.bbsListView.TabIndex = 6;
@@ -1839,7 +1840,7 @@
             this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(693, 308);
+            this.bbsTextBox.Size = new System.Drawing.Size(693, 456);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -2375,7 +2376,7 @@
             this.toolStripMenuItem17,
             this.clearPacketsToolStripMenuItem});
             this.packetsContextMenuStrip.Name = "packetsContextMenuStrip";
-            this.packetsContextMenuStrip.Size = new System.Drawing.Size(217, 140);
+            this.packetsContextMenuStrip.Size = new System.Drawing.Size(217, 112);
             this.packetsContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.packetsContextMenuStrip_Opening);
             // 
             // showPacketDecodeToolStripMenuItem
@@ -2386,12 +2387,10 @@
             this.showPacketDecodeToolStripMenuItem.Text = "&Show Packet Decode";
             this.showPacketDecodeToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showPacketDecodeToolStripMenuItem_CheckStateChanged);
             // 
-            // clearPacketsToolStripMenuItem
+            // toolStripMenuItem18
             // 
-            this.clearPacketsToolStripMenuItem.Name = "clearPacketsToolStripMenuItem";
-            this.clearPacketsToolStripMenuItem.Size = new System.Drawing.Size(216, 24);
-            this.clearPacketsToolStripMenuItem.Text = "&Clear Packets";
-            this.clearPacketsToolStripMenuItem.Click += new System.EventHandler(this.clearPacketsToolStripMenuItem_Click);
+            this.toolStripMenuItem18.Name = "toolStripMenuItem18";
+            this.toolStripMenuItem18.Size = new System.Drawing.Size(213, 6);
             // 
             // saveToFileToolStripMenuItem1
             // 
@@ -2406,6 +2405,18 @@
             this.openFileToolStripMenuItem.Size = new System.Drawing.Size(216, 24);
             this.openFileToolStripMenuItem.Text = "Open File...";
             this.openFileToolStripMenuItem.Click += new System.EventHandler(this.openFileToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItem17
+            // 
+            this.toolStripMenuItem17.Name = "toolStripMenuItem17";
+            this.toolStripMenuItem17.Size = new System.Drawing.Size(213, 6);
+            // 
+            // clearPacketsToolStripMenuItem
+            // 
+            this.clearPacketsToolStripMenuItem.Name = "clearPacketsToolStripMenuItem";
+            this.clearPacketsToolStripMenuItem.Size = new System.Drawing.Size(216, 24);
+            this.clearPacketsToolStripMenuItem.Text = "&Clear Packets";
+            this.clearPacketsToolStripMenuItem.Click += new System.EventHandler(this.clearPacketsToolStripMenuItem_Click);
             // 
             // savePacketsFileDialog
             // 
@@ -2562,16 +2573,6 @@
             this.restoreMailOpenFileDialog.FileName = "mails";
             this.restoreMailOpenFileDialog.Filter = "Mails (*.htmails)|*.htmails";
             this.restoreMailOpenFileDialog.Title = "Restore Mail";
-            // 
-            // toolStripMenuItem17
-            // 
-            this.toolStripMenuItem17.Name = "toolStripMenuItem17";
-            this.toolStripMenuItem17.Size = new System.Drawing.Size(213, 6);
-            // 
-            // toolStripMenuItem18
-            // 
-            this.toolStripMenuItem18.Name = "toolStripMenuItem18";
-            this.toolStripMenuItem18.Size = new System.Drawing.Size(213, 6);
             // 
             // MainForm
             // 
