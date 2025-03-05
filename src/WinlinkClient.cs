@@ -37,11 +37,20 @@ namespace HTCommander
         {
             if (!string.IsNullOrEmpty(output))
             {
+                string[] dataStrs = output.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
+                foreach (string str in dataStrs)
+                {
+                    if (str.Length == 0) continue;
+                    parent.mailClientDebugForm.AddBbsTraffic(session.Addresses[0].ToString(), true, str.Trim());
+                }
                 session.Send(output);
             }
         }
 
-        private void StateMessage(string msg) { parent.MailStateMessage(msg); }
+        private void StateMessage(string msg) {
+            parent.MailStateMessage(msg);
+            parent.mailClientDebugForm.AddBbsControlMessage(msg);
+        }
 
         // Process connection state change
         public void ProcessStreamState(AX25Session session, AX25Session.ConnectionState state)
@@ -52,9 +61,11 @@ namespace HTCommander
                     StateMessage("Connected to " + session.Addresses[0].ToString());
                     break;
                 case AX25Session.ConnectionState.DISCONNECTED:
+                    StateMessage("Disconnected");
                     StateMessage(null);
                     break;
                 case AX25Session.ConnectionState.CONNECTING:
+                    parent.mailClientDebugForm.Clear();
                     StateMessage("Connecting...");
                     break;
                 case AX25Session.ConnectionState.DISCONNECTING:
@@ -105,6 +116,9 @@ namespace HTCommander
             string[] dataStrs = dataStr.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
             foreach (string str in dataStrs)
             {
+                if (str.Length == 0) continue;
+                parent.mailClientDebugForm.AddBbsTraffic(session.Addresses[0].ToString(), false, str);
+
                 if (str.EndsWith(">"))
                 {
                     StringBuilder sb = new StringBuilder();

@@ -201,10 +201,12 @@ namespace HTCommander
                         if (WinlinkSecurity.SecureLoginResponse((string)(session.sessionState["wlChallenge"]), parent.winlinkPassword) == value)
                         {
                             session.sessionState["wlAuth"] = "OK";
+                            parent.AddBbsControlMessage("Authentication Success");
                             parent.DebugTrace("Winlink Auth Success");
                         }
                         else
                         {
+                            parent.AddBbsControlMessage("Authentication Failed");
                             parent.DebugTrace("Winlink Auth Failed");
                         }
                     }

@@ -102,7 +102,6 @@
             this.radioPictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
-            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsMissingChannelPanel = new System.Windows.Forms.Panel();
             this.aprsSetupButton = new System.Windows.Forms.Button();
@@ -141,6 +140,8 @@
             this.toolStripMenuItem15 = new System.Windows.Forms.ToolStripSeparator();
             this.deleteMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mailPreviewTextBox = new System.Windows.Forms.RichTextBox();
+            this.mailTransferStatusPanel = new System.Windows.Forms.Panel();
+            this.mailTransferStatusLabel = new System.Windows.Forms.Label();
             this.panel2 = new System.Windows.Forms.Panel();
             this.newMailButton = new System.Windows.Forms.Button();
             this.mailConnectButton = new System.Windows.Forms.Button();
@@ -261,8 +262,8 @@
             this.restoreMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.backupMailSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.restoreMailOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
-            this.mailTransferStatusPanel = new System.Windows.Forms.Panel();
-            this.mailTransferStatusLabel = new System.Windows.Forms.Label();
+            this.showTrafficToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -286,6 +287,7 @@
             this.mailboxVerticalSplitContainer.Panel2.SuspendLayout();
             this.mailboxVerticalSplitContainer.SuspendLayout();
             this.mailContextMenuStrip.SuspendLayout();
+            this.mailTransferStatusPanel.SuspendLayout();
             this.panel2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.mailMenuPictureBox)).BeginInit();
             this.stationsTabContextMenuStrip.SuspendLayout();
@@ -324,7 +326,6 @@
             this.bbsTabContextMenuStrip.SuspendLayout();
             this.notifyContextMenuStrip.SuspendLayout();
             this.mailTabContextMenuStrip.SuspendLayout();
-            this.mailTransferStatusPanel.SuspendLayout();
             this.SuspendLayout();
             // 
             // mainStatusStrip
@@ -914,30 +915,6 @@
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
-            // aprsChatControl
-            // 
-            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
-            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
-            this.aprsChatControl.CornerRadius = 4;
-            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.aprsChatControl.Images = this.mainImageList;
-            this.aprsChatControl.InterMessageMargin = 12;
-            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
-            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.aprsChatControl.MaxWidth = 300;
-            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
-            this.aprsChatControl.MessageBoxMargin = 10;
-            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
-            this.aprsChatControl.MinWidth = 100;
-            this.aprsChatControl.Name = "aprsChatControl";
-            this.aprsChatControl.ShadowOffset = 2;
-            this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(693, 525);
-            this.aprsChatControl.TabIndex = 5;
-            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
-            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
-            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
-            // 
             // mainImageList
             // 
             this.mainImageList.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("mainImageList.ImageStream")));
@@ -1379,6 +1356,30 @@
             this.mailPreviewTextBox.Size = new System.Drawing.Size(693, 290);
             this.mailPreviewTextBox.TabIndex = 0;
             this.mailPreviewTextBox.Text = "";
+            // 
+            // mailTransferStatusPanel
+            // 
+            this.mailTransferStatusPanel.BackColor = System.Drawing.Color.Silver;
+            this.mailTransferStatusPanel.Controls.Add(this.mailTransferStatusLabel);
+            this.mailTransferStatusPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 609);
+            this.mailTransferStatusPanel.Margin = new System.Windows.Forms.Padding(4);
+            this.mailTransferStatusPanel.Name = "mailTransferStatusPanel";
+            this.mailTransferStatusPanel.Size = new System.Drawing.Size(693, 37);
+            this.mailTransferStatusPanel.TabIndex = 8;
+            this.mailTransferStatusPanel.Visible = false;
+            // 
+            // mailTransferStatusLabel
+            // 
+            this.mailTransferStatusLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.mailTransferStatusLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.mailTransferStatusLabel.Location = new System.Drawing.Point(4, 6);
+            this.mailTransferStatusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.mailTransferStatusLabel.Name = "mailTransferStatusLabel";
+            this.mailTransferStatusLabel.Size = new System.Drawing.Size(684, 25);
+            this.mailTransferStatusLabel.TabIndex = 1;
+            this.mailTransferStatusLabel.Text = "Disconnected";
             // 
             // panel2
             // 
@@ -2531,11 +2532,12 @@
             this.mailTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.mailTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.showPreviewToolStripMenuItem,
+            this.showTrafficToolStripMenuItem,
             this.toolStripMenuItem16,
             this.backupMailToolStripMenuItem,
             this.restoreMailToolStripMenuItem});
             this.mailTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.mailTabContextMenuStrip.Size = new System.Drawing.Size(171, 82);
+            this.mailTabContextMenuStrip.Size = new System.Drawing.Size(171, 106);
             // 
             // showPreviewToolStripMenuItem
             // 
@@ -2578,29 +2580,36 @@
             this.restoreMailOpenFileDialog.Filter = "Mails (*.htmails)|*.htmails";
             this.restoreMailOpenFileDialog.Title = "Restore Mail";
             // 
-            // mailTransferStatusPanel
+            // showTrafficToolStripMenuItem
             // 
-            this.mailTransferStatusPanel.BackColor = System.Drawing.Color.Silver;
-            this.mailTransferStatusPanel.Controls.Add(this.mailTransferStatusLabel);
-            this.mailTransferStatusPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 609);
-            this.mailTransferStatusPanel.Margin = new System.Windows.Forms.Padding(4);
-            this.mailTransferStatusPanel.Name = "mailTransferStatusPanel";
-            this.mailTransferStatusPanel.Size = new System.Drawing.Size(693, 37);
-            this.mailTransferStatusPanel.TabIndex = 8;
-            this.mailTransferStatusPanel.Visible = false;
+            this.showTrafficToolStripMenuItem.Name = "showTrafficToolStripMenuItem";
+            this.showTrafficToolStripMenuItem.Size = new System.Drawing.Size(170, 24);
+            this.showTrafficToolStripMenuItem.Text = "Show Traffic...";
+            this.showTrafficToolStripMenuItem.Click += new System.EventHandler(this.showTrafficToolStripMenuItem_Click);
             // 
-            // mailTransferStatusLabel
+            // aprsChatControl
             // 
-            this.mailTransferStatusLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.mailTransferStatusLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.mailTransferStatusLabel.Location = new System.Drawing.Point(4, 6);
-            this.mailTransferStatusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.mailTransferStatusLabel.Name = "mailTransferStatusLabel";
-            this.mailTransferStatusLabel.Size = new System.Drawing.Size(684, 25);
-            this.mailTransferStatusLabel.TabIndex = 1;
-            this.mailTransferStatusLabel.Text = "Disconnected";
+            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
+            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
+            this.aprsChatControl.CornerRadius = 4;
+            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.aprsChatControl.Images = this.mainImageList;
+            this.aprsChatControl.InterMessageMargin = 12;
+            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
+            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.aprsChatControl.MaxWidth = 300;
+            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
+            this.aprsChatControl.MessageBoxMargin = 10;
+            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
+            this.aprsChatControl.MinWidth = 100;
+            this.aprsChatControl.Name = "aprsChatControl";
+            this.aprsChatControl.ShadowOffset = 2;
+            this.aprsChatControl.SideMargins = 12;
+            this.aprsChatControl.Size = new System.Drawing.Size(693, 525);
+            this.aprsChatControl.TabIndex = 5;
+            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
+            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
+            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
             // MainForm
             // 
@@ -2647,6 +2656,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.mailboxVerticalSplitContainer)).EndInit();
             this.mailboxVerticalSplitContainer.ResumeLayout(false);
             this.mailContextMenuStrip.ResumeLayout(false);
+            this.mailTransferStatusPanel.ResumeLayout(false);
             this.panel2.ResumeLayout(false);
             this.panel2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.mailMenuPictureBox)).EndInit();
@@ -2693,7 +2703,6 @@
             this.bbsTabContextMenuStrip.ResumeLayout(false);
             this.notifyContextMenuStrip.ResumeLayout(false);
             this.mailTabContextMenuStrip.ResumeLayout(false);
-            this.mailTransferStatusPanel.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -2924,6 +2933,7 @@
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem17;
         private System.Windows.Forms.Panel mailTransferStatusPanel;
         private System.Windows.Forms.Label mailTransferStatusLabel;
+        private System.Windows.Forms.ToolStripMenuItem showTrafficToolStripMenuItem;
     }
 }
 

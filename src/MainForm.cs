@@ -80,6 +80,7 @@ namespace HTCommander
         public WinlinkClient winlinkClient;
         public AprsStack aprsStack;
         public bool Loading = true;
+        public MailClientDebugForm mailClientDebugForm = new MailClientDebugForm();
 #if !__MonoCS__
         public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
@@ -3485,6 +3486,18 @@ namespace HTCommander
         private void bbsSplitContainer_SplitterMoved(object sender, SplitterEventArgs e)
         {
 
+        }
+
+        private void showTrafficToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (mailClientDebugForm.Visible)
+            {
+                mailClientDebugForm.Focus();
+            }
+            else
+            {
+                mailClientDebugForm.Show(this);
+            }
         }
     }
 }
