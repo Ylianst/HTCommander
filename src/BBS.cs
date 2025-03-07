@@ -1,20 +1,4 @@
-﻿/*
-Copyright 2025 Ylian Saint-Hilaire
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-using System;
+﻿using System;
 using System.Text;
 using System.Windows.Forms;
 using System.Collections.Generic;
@@ -84,7 +68,7 @@ namespace HTCommander
         private string GetVersion()
         {
             // Get the path of the currently running executable
-            string exePath = Application.ExecutablePath;
+            string exePath = System.Windows.Forms.Application.ExecutablePath;
 
             // Get the FileVersionInfo for the executable
             FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(exePath);
@@ -149,7 +133,6 @@ namespace HTCommander
             WinLinkMail mail = WinLinkMail.DecodeBlocksToEmail(blocks);
             if (mail == null) return false;
             proposals.RemoveAt(0);
-            mail.Flags |= (int)WinLinkMail.MailFlags.Unread;
 
             // Process the mail
             parent.Mails.Add(mail);
@@ -158,6 +141,11 @@ namespace HTCommander
             parent.AddBbsControlMessage("Got mail for " + mail.To + ".");
 
             return (proposals.Count == 0);
+        }
+        private bool WeHaveEmail(string mid)
+        {
+            foreach (WinLinkMail mail in parent.Mails) { if (mail.MID == mid) return true; }
+            return false;
         }
 
         public void ProcessStream(AX25Session session, byte[] data)
@@ -190,43 +178,53 @@ namespace HTCommander
             {
                 if (str.Length == 0) continue;
                 parent.AddBbsTraffic(session.Addresses[0].ToString(), false, str.Trim());
+                string key = str, value = "";
                 int i = str.IndexOf(' ');
-                if (i > 0)
-                {
-                    string key = str.Substring(0, i).ToUpper();
-                    string value = str.Substring(i + 1);
+                if (i > 0) { key = str.Substring(0, i).ToUpper(); value = str.Substring(i + 1); }
 
-                    if ((key == ";PR:") && (!string.IsNullOrEmpty(parent.winlinkPassword)))
-                    {   // Winlink Authentication Response
-                        if (WinlinkSecurity.SecureLoginResponse((string)(session.sessionState["wlChallenge"]), parent.winlinkPassword) == value)
-                        {
-                            session.sessionState["wlAuth"] = "OK";
-                            parent.AddBbsControlMessage("Authentication Success");
-                            parent.DebugTrace("Winlink Auth Success");
-                        }
-                        else
-                        {
-                            parent.AddBbsControlMessage("Authentication Failed");
-                            parent.DebugTrace("Winlink Auth Failed");
-                        }
-                    }
-                    else if (key == "FC")
-                    {   // Winlink Mail Proposal
-                        List<string> proposals;
-                        if (session.sessionState.ContainsKey("wlMailProp")) { proposals = (List<string>)session.sessionState["wlMailProp"]; } else { proposals = new List<string>(); }
-                        proposals.Add(value);
-                        session.sessionState["wlMailProp"] = proposals;
-                    }
-                    else if (key == "F>")
+                if ((key == ";PR:") && (!string.IsNullOrEmpty(parent.winlinkPassword)))
+                {   // Winlink Authentication Response
+                    if (WinlinkSecurity.SecureLoginResponse((string)(session.sessionState["wlChallenge"]), parent.winlinkPassword) == value)
                     {
-                        // Winlink Mail Proposals completed, we need to respond
-                        if ((session.sessionState.ContainsKey("wlMailProp")) && (!session.sessionState.ContainsKey("wlMailBinary")))
+                        session.sessionState["wlAuth"] = "OK";
+                        parent.AddBbsControlMessage("Authentication Success");
+                        parent.DebugTrace("Winlink Auth Success");
+                    }
+                    else
+                    {
+                        parent.AddBbsControlMessage("Authentication Failed");
+                        parent.DebugTrace("Winlink Auth Failed");
+                    }
+                }
+                else if (key == "FC")
+                {   // Winlink Mail Proposal
+                    List<string> proposals;
+                    if (session.sessionState.ContainsKey("wlMailProp")) { proposals = (List<string>)session.sessionState["wlMailProp"]; } else { proposals = new List<string>(); }
+                    proposals.Add(value);
+                    session.sessionState["wlMailProp"] = proposals;
+                }
+                else if (key == "F>")
+                {
+                    // Winlink Mail Proposals completed, we need to respond
+                    if ((session.sessionState.ContainsKey("wlMailProp")) && (!session.sessionState.ContainsKey("wlMailBinary")))
+                    {
+                        List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
+                        List<string> proposals2 = new List<string>();
+                        if ((proposals != null) && (proposals.Count > 0))
                         {
-                            List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
-                            List<string> proposals2 = new List<string>();
-                            if ((proposals != null) && (proposals.Count > 0))
+                            // Compute the proposal checksum
+                            int checksum = 0;
+                            foreach (string proposal in proposals)
                             {
+                                byte[] proposalBin = ASCIIEncoding.ASCII.GetBytes("FC " + proposal + "\r");
+                                for (int j = 0; j < proposalBin.Length; j++) { checksum += proposalBin[j]; }
+                            }
+                            checksum = (-checksum) & 0xFF;
+                            if (checksum.ToString("X2") == value)
+                            {
+                                // Build a response
                                 string response = "";
+                                int acceptedProposalCount = 0;
                                 foreach (string proposal in proposals)
                                 {
                                     string[] proposalSplit = proposal.Split(' ');
@@ -237,25 +235,47 @@ namespace HTCommander
                                             int.TryParse(proposalSplit[2], out mFullLen) &&
                                             int.TryParse(proposalSplit[3], out mCompLen) &&
                                             int.TryParse(proposalSplit[4], out mUnknown)
-                                        ) { response += "Y"; proposals2.Add(proposal); }
-                                        else { response += "N"; }
+                                        )
+                                        {
+                                            // Check if we already have this email
+                                            if (WeHaveEmail(proposalSplit[1]))
+                                            {
+                                                response += "N";
+                                            }
+                                            else
+                                            {
+                                                response += "Y";
+                                                proposals2.Add(proposal);
+                                                acceptedProposalCount++;
+                                            }
+                                        }
+                                        else { response += "H"; }
                                     }
-                                    else { response += "N"; }
+                                    else { response += "H"; }
                                 }
-                                session.sessionState["wlMailBinary"] = 1;
                                 SessionSend(session, "FS " + response + "\r");
-                                session.sessionState["wlMailProp"] = proposals2;
+                                if (acceptedProposalCount > 0)
+                                {
+                                    session.sessionState["wlMailBinary"] = 1;
+                                    session.sessionState["wlMailProp"] = proposals2;
+                                }
+                            }
+                            else
+                            {
+                                // Checksum failed
+                                parent.AddBbsControlMessage("Checksum Failed");
+                                session.Disconnect();
                             }
                         }
                     }
-                    else if (key == "FQ")
-                    {   // Winlink Session Close
-                        session.Disconnect();
-                    }
-                    else if (key == "ECHO")
-                    {   // Test Echo command
-                        SessionSend(session, value + "\r");
-                    }
+                }
+                else if (key == "FQ")
+                {   // Winlink Session Close
+                    session.Disconnect();
+                }
+                else if (key == "ECHO")
+                {   // Test Echo command
+                    SessionSend(session, value + "\r");
                 }
             }
 

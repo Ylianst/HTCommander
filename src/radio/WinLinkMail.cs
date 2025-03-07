@@ -135,10 +135,14 @@ namespace HTCommander.radio
             return WinLinkMail.DeserializeMail(UTF8Encoding.UTF8.GetString(obuf));
         }
 
-        public static List<byte[]> EncodeMailToBlocks(WinLinkMail mail)
+        public static List<byte[]> EncodeMailToBlocks(WinLinkMail mail, out int uncompressedSize, out int compressedSize)
         {
+            uncompressedSize = 0;
+            compressedSize = 0;
             byte[] payloadBuf = null;
-            WinlinkCompression.Encode(UTF8Encoding.UTF8.GetBytes(WinLinkMail.SerializeMail(mail)), ref payloadBuf, true);
+            byte[] uncompressedMail = UTF8Encoding.UTF8.GetBytes(WinLinkMail.SerializeMail(mail));
+            uncompressedSize = uncompressedMail.Length;
+            WinlinkCompression.Encode(uncompressedMail, ref payloadBuf, true);
             if (payloadBuf == null) return null;
             byte[] subjectBuf = UTF8Encoding.UTF8.GetBytes(mail.Subject);
             List<byte[]> blocks = new List<byte[]>();
@@ -159,6 +163,7 @@ namespace HTCommander.radio
             ptr += payloadBuf.Length;
             output[ptr++] = 4;
             output[ptr++] = WinLinkChecksum.ComputeChecksum(payloadBuf);
+            compressedSize = output.Length;
 
             blocks.Add(output);
             return blocks;

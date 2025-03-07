@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 using HTCommander.radio;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -22,6 +23,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Windows.UI.Xaml.Documents;
+using static System.Collections.Specialized.BitVector32;
 
 namespace HTCommander
 {
@@ -86,6 +89,58 @@ namespace HTCommander
             return vers[0] + "." + vers[1];
         }
 
+        private string[] ParseProposalResponses(string value)
+        {
+            value = value.ToUpper().Replace("+", "Y").Replace("R", "N").Replace("-", "N").Replace("=", "L").Replace("H", "L").Replace("!", "A");
+            List<string> responses = new List<string>();
+            string r = "";
+            for (int i = 0; i < value.Length; i++)
+            {
+                if ((value[i] >= '0') && (value[i] <= '9'))
+                {
+                    if (!string.IsNullOrEmpty(r)) { r += value[i]; }
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(r)) { responses.Add(r); r = ""; }
+                    r += value[i];
+                }
+            }
+            if (!string.IsNullOrEmpty(r)) { responses.Add(r); }
+            return responses.ToArray();
+        }
+
+        private void UpdateEmails(AX25Session session)
+        {
+            // All good, save the new state of the mails
+            if (session.sessionState.ContainsKey("OutMails") && session.sessionState.ContainsKey("OutMailBlocks") && session.sessionState.ContainsKey("MailProposals"))
+            {
+                List<WinLinkMail> proposedMails = (List<WinLinkMail>)session.sessionState["OutMails"];
+                List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)session.sessionState["OutMailBlocks"];
+                string[] proposalResponses = ParseProposalResponses((string)session.sessionState["MailProposals"]);
+
+                // Look at proposal responses
+                int mailsChanges = 0;
+                if (proposalResponses.Length == proposedMails.Count)
+                {
+                    for (int j = 0; j < proposalResponses.Length; j++)
+                    {
+                        if ((proposalResponses[j] == "Y") || (proposalResponses[j] == "N"))
+                        {
+                            proposedMails[j].Mailbox = 3; // Sent
+                            mailsChanges++;
+                        }
+                    }
+                }
+
+                if (mailsChanges > 0)
+                {
+                    parent.SaveMails();
+                    parent.UpdateMail();
+                }
+            }
+        }
+
         // Process stream data
         public void ProcessStream(AX25Session session, byte[] data)
         {
@@ -121,36 +176,118 @@ namespace HTCommander
 
                 if (str.EndsWith(">"))
                 {
+                    // Build the big response (Info + Auth + Proposals)
                     StringBuilder sb = new StringBuilder();
+
+                    // Send Information
                     sb.Append("[HTCmd-" + GetVersion() + "-B2FHM$]\r");
+
+                    // Send Authentication
                     if (session.sessionState.ContainsKey("WinlinkAUth"))
                     {
                         string authResponse = WinlinkSecurity.SecureLoginResponse((string)session.sessionState["WinlinkAUth"], parent.winlinkPassword);
                         if (!string.IsNullOrEmpty(parent.winlinkPassword)) { sb.Append(";PR: " + authResponse + "\r"); }
                         StateMessage("Authenticating...");
                     }
-                    SessionSend(session, sb.ToString());
+
+                    // Send proposals with checksum
+                    List<WinLinkMail> proposedMails = new List<WinLinkMail>();
+                    List<List<Byte[]>> proposedMailsBinary = new List<List<Byte[]>>();
+                    int checksum = 0, mailSendCount = 0;
+                    foreach (WinLinkMail mail in parent.Mails)
+                    {
+                        if ((mail.Mailbox != 1) || string.IsNullOrEmpty(mail.MID) || (mail.MID.Length != 12)) continue;
+
+                        int uncompressedSize;
+                        int compressedSize;
+                        List<Byte[]> blocks = WinLinkMail.EncodeMailToBlocks(mail, out uncompressedSize, out compressedSize);
+                        if (blocks != null)
+                        {
+                            proposedMails.Add(mail);
+                            proposedMailsBinary.Add(blocks);
+                            string proposal = "FC EM " + mail.MID + " " + uncompressedSize + " " + compressedSize + " 0\r";
+                            sb.Append(proposal);
+                            byte[] proposalBin = ASCIIEncoding.ASCII.GetBytes(proposal);
+                            for (int i = 0; i < proposalBin.Length; i++) { checksum += proposalBin[i]; }
+                            mailSendCount++;
+                        }
+                    }
+                    if (mailSendCount > 0)
+                    {
+                        // Send proposal checksum
+                        checksum = (-checksum) & 0xFF;
+                        sb.Append("F> " + checksum.ToString("X2"));
+                        SessionSend(session, sb.ToString());
+                        session.sessionState["OutMails"] = proposedMails;
+                        session.sessionState["OutMailBlocks"] = proposedMailsBinary;
+                    }
+                    else
+                    {
+                        // No mail proposals sent, close.
+                        sb.Append("FQ");
+                        SessionSend(session, sb.ToString());
+                    }
                 }
                 else
                 {
+                    string key = str, value = "";
                     int i = str.IndexOf(' ');
-                    if (i > 0)
-                    {
-                        string key = str.Substring(0, i).ToUpper();
-                        string value = str.Substring(i + 1);
+                    if (i > 0) { key = str.Substring(0, i).ToUpper(); value = str.Substring(i + 1); }
 
-                        if ((key == ";PQ:") && (!string.IsNullOrEmpty(parent.winlinkPassword)))
-                        {   // Winlink Authentication Request
-                            session.sessionState["WinlinkAUth"] = value;
-                        }
-                        else if (key == "FS") // "FS YY"
-                        {   // Winlink Mail Transfer Approvals
+                    if ((key == ";PQ:") && (!string.IsNullOrEmpty(parent.winlinkPassword)))
+                    {   // Winlink Authentication Request
+                        session.sessionState["WinlinkAUth"] = value;
+                    }
+                    else if (key == "FS") // "FS YY"
+                    {   // Winlink Mail Transfer Approvals
+                        if (session.sessionState.ContainsKey("OutMails") && session.sessionState.ContainsKey("OutMailBlocks"))
+                        {
+                            List<WinLinkMail> proposedMails = (List<WinLinkMail>)session.sessionState["OutMails"];
+                            List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)session.sessionState["OutMailBlocks"];
+                            session.sessionState["MailProposals"] = value;
 
+                            // Look at proposal responses
+                            int sentMails = 0;
+                            string[] proposalResponses = ParseProposalResponses(value);
+                            if (proposalResponses.Length == proposedMails.Count)
+                            {
+                                for (int j = 0; j < proposalResponses.Length; j++)
+                                {
+                                    if (proposalResponses[j] == "Y")
+                                    {
+                                        sentMails++;
+                                        foreach (byte[] block in proposedMailsBinary[j]) { session.Send(block); }
+                                    }
+                                }
+                                if (sentMails == 1) { StateMessage("Sending mail..."); }
+                                else if (sentMails > 0) { StateMessage("Sending " + sentMails + " mails..."); }
+                                else
+                                {
+                                    // Winlink Session Close
+                                    UpdateEmails(session);
+                                    StateMessage("No emails to transfer.");
+                                    SessionSend(session, "FQ");
+                                }
+                            }
+                            else
+                            {
+                                // Winlink Session Close
+                                StateMessage("Incorrect proposal response.");
+                                SessionSend(session, "FQ");
+                            }
                         }
-                        else if (key == "FF")
-                        {   // Winlink Session Close
+                        else
+                        {
+                            // Winlink Session Close
+                            StateMessage("Unexpected proposal response.");
                             SessionSend(session, "FQ");
                         }
+                    }
+                    else if (key == "FF")
+                    {
+                        // Winlink Session Close
+                        UpdateEmails(session);
+                        SessionSend(session, "FQ");
                     }
                 }
             }
