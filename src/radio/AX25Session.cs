@@ -892,7 +892,11 @@ namespace HTCommander
                 EmitPacket(response);
             }
 
-            if (newState != this.CurrentState) { SetConnectionState(newState); }
+            if (newState != this.CurrentState)
+            {
+                if ((this.CurrentState == ConnectionState.DISCONNECTING) && (newState == ConnectionState.CONNECTED)) { return true; }
+                SetConnectionState(newState);
+            }
 
             return true;
         }

@@ -3075,7 +3075,7 @@ namespace HTCommander
 
         private void exitToolStripMenuItem1_Click(object sender, EventArgs e)
         {
-            Close();
+            Application.Exit();
         }
 
         private void openToolStripMenuItem_Click(object sender, EventArgs e)
@@ -3497,6 +3497,19 @@ namespace HTCommander
             else
             {
                 mailClientDebugForm.Show(this);
+            }
+        }
+
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (systemTrayToolStripMenuItem.Checked)
+            {
+                e.Cancel = true;
+                this.WindowState = FormWindowState.Minimized;
+            }
+            else
+            {
+                e.Cancel = false;
             }
         }
     }
