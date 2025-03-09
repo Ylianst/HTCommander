@@ -1,10 +1,27 @@
-﻿using System;
+﻿/*
+Copyright 2025 Ylian Saint-Hilaire
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+using System;
+using System.IO;
 using System.Text;
+using System.Diagnostics;
 using System.Windows.Forms;
 using System.Collections.Generic;
 using aprsparser;
 using HTCommander.radio;
-using System.Diagnostics;
 
 namespace HTCommander
 {
@@ -112,26 +129,40 @@ namespace HTCommander
             */
         }
 
-        private bool ExtractMail(AX25Session session)
+        private bool ExtractMail(AX25Session session, MemoryStream blocks)
         {
             if (session.sessionState.ContainsKey("wlMailProp") == false) return false;
-            if (session.sessionState.ContainsKey("wlMailBlocks") == false) return false;
             List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
-            List<byte[]> blocks = (List<byte[]>)session.sessionState["wlMailBlocks"];
             if ((proposals == null) || (blocks == null)) return false;
-            if ((proposals.Count == 0) || (blocks.Count == 0)) return false;
+            if ((proposals.Count == 0) || (blocks.Length == 0)) return true;
 
             // Decode the proposal
             string[] proposalSplit = proposals[0].Split(' ');
             string MID = proposalSplit[1];
-            int mFullLen, mCompLen, mUnknown;
+            int mFullLen, mCompLen;
             int.TryParse(proposalSplit[2], out mFullLen);
             int.TryParse(proposalSplit[3], out mCompLen);
-            int.TryParse(proposalSplit[4], out mUnknown);
 
             // See what we got
-            WinLinkMail mail = WinLinkMail.DecodeBlocksToEmail(blocks);
+            bool fail;
+            int dataConsumed = 0;
+            WinLinkMail mail = WinLinkMail.DecodeBlocksToEmail(blocks.ToArray(), out fail, out dataConsumed);
+            if (fail) { parent.AddBbsControlMessage("Failed to decode mail."); return true; }
             if (mail == null) return false;
+            if (dataConsumed > 0)
+            {
+                if (dataConsumed >= blocks.Length)
+                {
+                    blocks.SetLength(0);
+                }
+                else
+                {
+                    byte[] newBlocks = new byte[blocks.Length - dataConsumed];
+                    Array.Copy(blocks.ToArray(), dataConsumed, newBlocks, 0, newBlocks.Length);
+                    blocks.SetLength(0);
+                    blocks.Write(newBlocks, 0, newBlocks.Length);
+                }
+            }
             proposals.RemoveAt(0);
 
             // Process the mail
@@ -156,12 +187,21 @@ namespace HTCommander
             // This is embedded mail sent in compressed format
             if (session.sessionState.ContainsKey("wlMailBinary"))
             {
-                parent.AddBbsControlMessage("Receiving binary traffic.");
-                List<byte[]> blocks;
-                if (session.sessionState.ContainsKey("wlMailBlocks")) { blocks = (List<byte[]>)session.sessionState["wlMailBlocks"]; } else { blocks = new List<byte[]>(); }
-                blocks.Add(data);
-                session.sessionState["wlMailBlocks"] = blocks;
-                if (ExtractMail(session) == true)
+                if (data.Length < 2)
+                {
+                    parent.AddBbsControlMessage("Received binary traffic, " + data.Length + " byte");
+                }
+                else
+                {
+                    parent.AddBbsControlMessage("Received binary traffic, " + data.Length + " bytes");
+                }
+                MemoryStream blocks = (MemoryStream)session.sessionState["wlMailBinary"];
+                blocks.Write(data, 0, data.Length);
+                //List<byte[]> blocks;
+                //if (session.sessionState.ContainsKey("wlMailBlocks")) { blocks = (List<byte[]>)session.sessionState["wlMailBlocks"]; } else { blocks = new List<byte[]>(); }
+                //blocks.Add(data);
+                //session.sessionState["wlMailBlocks"] = blocks;
+                if (ExtractMail(session, blocks) == true)
                 {
                     // We are done with the mail reception
                     session.sessionState.Remove("wlMailBinary");
@@ -256,7 +296,7 @@ namespace HTCommander
                                 SessionSend(session, "FS " + response + "\r");
                                 if (acceptedProposalCount > 0)
                                 {
-                                    session.sessionState["wlMailBinary"] = 1;
+                                    session.sessionState["wlMailBinary"] = new MemoryStream();
                                     session.sessionState["wlMailProp"] = proposals2;
                                 }
                             }

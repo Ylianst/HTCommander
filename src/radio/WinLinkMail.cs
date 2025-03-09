@@ -15,13 +15,20 @@ limitations under the License.
 */
 
 using System;
+using System.IO;
 using System.Text;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Globalization;
 
 namespace HTCommander.radio
 {
+    public class WinLinkMailAttachement
+    {
+        public string Name { get; set; }
+        public byte[] Data { get; set; }
+    }
+
     public class WinLinkMail
     {
         public string MID { get; set; }
@@ -33,7 +40,7 @@ namespace HTCommander.radio
         public string Body { get; set; }
         public string Tag { get; set; }
         public string Location { get; set; }
-        public string Attachements { get; set; }
+        public List<WinLinkMailAttachement> Attachements { get; set; }
         public int Flags { get; set; } // 1 = Unread
         public int Mailbox { get; set; }
 
@@ -76,52 +83,63 @@ namespace HTCommander.radio
         }
         */
 
-        public static WinLinkMail DecodeBlocksToEmail(List<byte[]> blocks)
+        public static WinLinkMail DecodeBlocksToEmail(byte[] block, out bool fail, out int dataConsumed)
         {
-            // TODO: Add support for multiple blocks
-            if (blocks == null) return null;
-            if (blocks.Count == 0) return null;
+            fail = false;
+            dataConsumed = 0;
+            if (block == null) return null;
+            if (block.Length == 0) return null;
 
-            byte[] block = blocks[0];
-
-            int cmdlen, ptr = 0;
-            byte[] payload = null;
-            while (ptr < block.Length)
+            // Figure out if we have a full mail and the size of the mail
+            int cmdlen, payloadLen = 0, ptr = 0;
+            bool completeMail = false;
+            while ((completeMail == false) && ((ptr + 1) < block.Length))
             {
                 int cmd = block[ptr];
                 switch (cmd)
                 {
                     case 1:
-                        if (block.Length < ptr) return null;
                         cmdlen = block[ptr + 1];
                         ptr += (2 + cmdlen);
                         break;
                     case 2:
-                        if (block.Length < ptr) return null;
                         cmdlen = block[ptr + 1];
-                        while (block.Length < (ptr + 2 + cmdlen))
-                        {
-                            // Merge the next block
-                            if (blocks.Count < 2) return null;
-                            byte[] block2 = new byte[blocks[0].Length + blocks[1].Length];
-                            Array.Copy(blocks[0], 0, block2, 0, blocks[0].Length);
-                            Array.Copy(blocks[1], 0, block2, blocks[0].Length, blocks[1].Length);
-                            blocks[0] = block2;
-                            blocks.RemoveAt(1);
-                            block = block2;
-                        }
-                        payload = new byte[cmdlen];
-                        Array.Copy(block, ptr + 2, payload, 0, cmdlen);
+                        payloadLen += cmdlen;
                         ptr += (2 + cmdlen);
                         break;
                     case 4:
-                        if (block.Length < ptr) return null;
+                        ptr += 2;
+                        completeMail = true;
+                        break;
+                }
+            }
+            if (completeMail == false) return null;
+
+            ptr = 0;
+            byte[] payload = new byte[payloadLen];
+            int payloadPtr = 0;
+            completeMail = false;
+            while ((completeMail == false) && ((ptr + 1) < block.Length))
+            {
+                int cmd = block[ptr];
+                switch (cmd)
+                {
+                    case 1:
                         cmdlen = block[ptr + 1];
-                        if (WinLinkChecksum.ComputeChecksum(payload) != cmdlen) return null;
+                        ptr += (2 + cmdlen);
+                        break;
+                    case 2:
+                        cmdlen = block[ptr + 1];
+                        Array.Copy(block, ptr + 2, payload, payloadPtr, cmdlen);
+                        payloadPtr += cmdlen;
+                        ptr += (2 + cmdlen);
+                        break;
+                    case 4:
+                        cmdlen = block[ptr + 1];
+                        if (WinLinkChecksum.ComputeChecksum(payload) != cmdlen) { fail = true; return null; }
                         ptr += 2;
                         break;
                 }
-
             }
 
             // Decompress the mail
@@ -129,10 +147,13 @@ namespace HTCommander.radio
             int expectedLength = (payload[2] + (payload[3] << 8) + (payload[4] << 16) + (payload[5] << 24));
             int obuflen = -1;
             try { obuflen = WinlinkCompression.Decode(payload, ref obuf, true, expectedLength); } catch (Exception) { }
-            if (obuflen != expectedLength) return null;
+            if (obuflen != expectedLength) { fail = true; return null; }
 
             // Decode the mail
-            return WinLinkMail.DeserializeMail(UTF8Encoding.UTF8.GetString(obuf));
+            WinLinkMail mail = WinLinkMail.DeserializeMail(obuf);
+            if (mail == null) { fail = true; return null; }
+            dataConsumed = ptr;
+            return mail;
         }
 
         public static List<byte[]> EncodeMailToBlocks(WinLinkMail mail, out int uncompressedSize, out int compressedSize)
@@ -140,37 +161,59 @@ namespace HTCommander.radio
             uncompressedSize = 0;
             compressedSize = 0;
             byte[] payloadBuf = null;
-            byte[] uncompressedMail = UTF8Encoding.UTF8.GetBytes(WinLinkMail.SerializeMail(mail));
+            byte[] uncompressedMail = WinLinkMail.SerializeMail(mail);
             uncompressedSize = uncompressedMail.Length;
             WinlinkCompression.Encode(uncompressedMail, ref payloadBuf, true);
             if (payloadBuf == null) return null;
             byte[] subjectBuf = UTF8Encoding.UTF8.GetBytes(mail.Subject);
             List<byte[]> blocks = new List<byte[]>();
 
-            // TODO: This assumes the message fits in one block, add support for multi-blocks.
-            int ptr = 0;
-            byte[] output = new byte[2 + subjectBuf.Length + 5 + payloadBuf.Length + 2];
-            output[ptr++] = 1;
-            output[ptr++] = (byte)(subjectBuf.Length + 3);
-            Array.Copy(subjectBuf, 0, output, ptr, subjectBuf.Length);
-            ptr += subjectBuf.Length;
-            output[ptr++] = 0;
-            output[ptr++] = 0x30; // ASCII '0' in HEX.
-            output[ptr++] = 0;
-            output[ptr++] = 2;
-            output[ptr++] = (byte)payloadBuf.Length;
-            Array.Copy(payloadBuf, 0, output, ptr, payloadBuf.Length);
-            ptr += payloadBuf.Length;
-            output[ptr++] = 4;
-            output[ptr++] = WinLinkChecksum.ComputeChecksum(payloadBuf);
+            // Encode the binary header
+            MemoryStream memoryStream = new MemoryStream();
+            memoryStream.WriteByte(0x01);
+            memoryStream.WriteByte((byte)(subjectBuf.Length + 3));
+            memoryStream.Write(subjectBuf, 0, subjectBuf.Length);
+            memoryStream.WriteByte(0x00);
+            memoryStream.WriteByte(0x30); // ASCII '0' in HEX.
+            memoryStream.WriteByte(0x00);
+
+            int payloadPtr = 0;
+            while (payloadPtr < payloadBuf.Length)
+            {
+                int blockSize = Math.Min(250, payloadBuf.Length - payloadPtr);
+                memoryStream.WriteByte(0x02);
+                memoryStream.WriteByte((byte)blockSize);
+                memoryStream.Write(payloadBuf, payloadPtr, blockSize);
+                payloadPtr += blockSize;
+            }
+
+            memoryStream.WriteByte(0x04);
+            memoryStream.WriteByte(WinLinkChecksum.ComputeChecksum(payloadBuf));
+
+            byte[] output = memoryStream.ToArray();
             compressedSize = output.Length;
 
-            blocks.Add(output);
+            // Break the output into 128 byte blocks
+            int outputPtr = 0;
+            while (outputPtr < output.Length)
+            {
+                int blockSize = Math.Min(128, output.Length - outputPtr);
+                byte[] bytes = new byte[blockSize];
+                Array.Copy(output, outputPtr, bytes, 0, blockSize);
+                blocks.Add(bytes);
+                outputPtr += blockSize;
+            }
+
             return blocks;
         }
 
-        public static string SerializeMail(WinLinkMail mail)
+        public static byte[] SerializeMail(WinLinkMail mail)
         {
+            MemoryStream memoryStream = new MemoryStream();
+            byte[] bodyData = UTF8Encoding.UTF8.GetBytes(mail.Body);
+            byte[] Between = { 0x0D, 0x0A };
+            byte[] End = { 0x00 };
+
             StringBuilder sb = new StringBuilder();
             sb.AppendLine($"MID: {mail.MID}");
             sb.AppendLine($"Date: {mail.DateTime.ToString("yyyy/MM/dd HH:mm")}");
@@ -181,18 +224,59 @@ namespace HTCommander.radio
             if (!string.IsNullOrEmpty(mail.Mbo)) { sb.AppendLine($"Mbo: {mail.Mbo}"); }
             if ((mail.Flags & (int)MailFlags.P2P) != 0) { sb.AppendLine($"X-P2P: True"); }
             if (!string.IsNullOrEmpty(mail.Location)) { sb.AppendLine($"X-Location: {mail.Location}"); }
-            if (!string.IsNullOrEmpty(mail.Body)) { sb.AppendLine($"Body: " + mail.Body.Length); sb.AppendLine(); sb.Append(mail.Body); }
-            return sb.ToString();
+            if (!string.IsNullOrEmpty(mail.Body)) { sb.AppendLine($"Body: " + bodyData.Length); }
+            if (mail.Attachements != null)
+            {
+                foreach (WinLinkMailAttachement attachement in mail.Attachements)
+                {
+                    sb.AppendLine("File: " + attachement.Data.Length + " " + attachement.Name);
+                }
+            }
+            sb.AppendLine();
+
+            // Assemble the binary email
+            byte[] headerData = UTF8Encoding.UTF8.GetBytes(sb.ToString());
+            memoryStream.Write(headerData, 0, headerData.Length);
+            memoryStream.Write(bodyData, 0, bodyData.Length);
+            memoryStream.Write(Between, 0, Between.Length);
+            if (mail.Attachements != null)
+            {
+                foreach (WinLinkMailAttachement attachement in mail.Attachements)
+                {
+                    memoryStream.Write(attachement.Data, 0, attachement.Data.Length);
+                    memoryStream.Write(Between, 0, Between.Length);
+                }
+            }
+            memoryStream.Write(End, 0, End.Length);
+            return memoryStream.ToArray();
+        }
+
+        public static int FindFirstDoubleNewline(byte[] data)
+        {
+            // Not enough data to contain \r\n\r\n
+            if (data == null || data.Length < 4) { return -1; }
+            for (int i = 0; i <= data.Length - 4; i++)
+            {
+                // Found \r\n\r\n at index i
+                if (data[i] == (byte)'\r' && data[i + 1] == (byte)'\n' && data[i + 2] == (byte)'\r' && data[i + 3] == (byte)'\n') { return i; }
+            }
+            return -1; // \r\n\r\n not found
         }
 
         // https://winlink.org/sites/default/files/downloads/winlink_data_flow_and_data_packaging.pdf
-        public static WinLinkMail DeserializeMail(string data)
+        public static WinLinkMail DeserializeMail(byte[] databuf)
         {
             WinLinkMail currentMail = new WinLinkMail();
 
+            // Pull the header out of the data
+            int headerLimit = FindFirstDoubleNewline(databuf);
+            if (headerLimit < 0) { return null; }
+            string header = UTF8Encoding.UTF8.GetString(databuf, 0, headerLimit);
+
+            // Decode the header
             bool done = false;
-            int i, bodyLength = -1;
-            string[] lines = data.Replace("\r\n", "\n").Split(new[] { '\n', '\r' });
+            int i, bodyLength = -1, ptr = (headerLimit + 4);
+            string[] lines = header.Replace("\r\n", "\n").Split(new[] { '\n', '\r' });
             foreach (string line in lines)
             {
                 if (done) continue;
@@ -213,14 +297,40 @@ namespace HTCommander.radio
                         case "subject": currentMail.Subject = value; break;
                         case "mbo": currentMail.Mbo = value; break;
                         case "body": bodyLength = int.Parse(value); break;
+                        case "file":
+                            int j = value.IndexOf(' ');
+                            if (j > 0)
+                            {
+                                WinLinkMailAttachement attachement = new WinLinkMailAttachement();
+                                attachement.Data = new byte[int.Parse(value.Substring(0, j).ToLower().Trim())];
+                                attachement.Name = value.Substring(j + 1).Trim();
+                                if (currentMail.Attachements == null) { currentMail.Attachements = new List<WinLinkMailAttachement>(); }
+                                currentMail.Attachements.Add(attachement);
+                            }
+                            break;
                         case "x-location": currentMail.Location = value; break;
                         case "x-p2p": { if (value.ToLower() == "true") { currentMail.Flags |= (int)MailFlags.P2P; }; } break;
                     }
                 }
             }
 
-            i = data.IndexOf("\r\n\r\n");
-            if (i > 0) { currentMail.Body = data.Substring(i + 4, bodyLength); }
+            // Pull the body out of the data
+            if (bodyLength > 0)
+            {
+                currentMail.Body = UTF8Encoding.UTF8.GetString(databuf, ptr, bodyLength);
+                ptr += (bodyLength + 2);
+            }
+
+            // Pull the attachments out of the data
+            if (currentMail.Attachements != null)
+            {
+                foreach (WinLinkMailAttachement attachment in currentMail.Attachements)
+                {
+                    Array.Copy(databuf, ptr, attachment.Data, 0, attachment.Data.Length);
+                    ptr += (attachment.Data.Length + 2);
+                }
+            }
+
             return currentMail;
         }
 
@@ -242,6 +352,14 @@ namespace HTCommander.radio
                 if (!string.IsNullOrEmpty(mail.Location)) { sb.AppendLine($"Tag={mail.Location}"); }
                 if (mail.Flags != 0) { sb.AppendLine($"Flags={(int)mail.Flags}"); }
                 sb.AppendLine($"Mailbox={(int)mail.Mailbox}");
+                if (mail.Attachements != null)
+                {
+                    foreach (WinLinkMailAttachement attachement in mail.Attachements)
+                    {
+                        sb.AppendLine($"File={attachement.Name}");
+                        sb.AppendLine($"FileData=" + Convert.ToBase64String(attachement.Data));
+                    }
+                }
                 sb.AppendLine(); // Separate entries with a blank line
             }
             return sb.ToString();
@@ -253,6 +371,7 @@ namespace HTCommander.radio
             List<WinLinkMail> mails = new List<WinLinkMail>();
             WinLinkMail currentMail = null;
 
+            string FileName = null;
             string[] lines = data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (string line in lines)
             {
@@ -277,7 +396,7 @@ namespace HTCommander.radio
                         switch (key)
                         {
                             case "MID": currentMail.MID = value; break;
-                            case "Time": currentMail.DateTime = DateTime.ParseExact(value, "o", System.Globalization.CultureInfo.InvariantCulture); break;
+                            case "Time": currentMail.DateTime = DateTime.ParseExact(value, "o", CultureInfo.InvariantCulture); break;
                             case "From": currentMail.From = value; break;
                             case "To": currentMail.To = value; break;
                             case "Subject": currentMail.Subject = value; break;
@@ -287,6 +406,18 @@ namespace HTCommander.radio
                             case "Location": currentMail.Location = value; break;
                             case "Flags": currentMail.Flags = int.Parse(value); break;
                             case "Mailbox": currentMail.Mailbox = int.Parse(value); break;
+                            case "File": FileName = value; break;
+                            case "FileData":
+                                if (!string.IsNullOrEmpty(FileName))
+                                {
+                                    if (currentMail.Attachements == null) { currentMail.Attachements = new List<WinLinkMailAttachement>(); }
+                                    WinLinkMailAttachement attachement = new WinLinkMailAttachement();
+                                    attachement.Name = FileName;
+                                    attachement.Data = Convert.FromBase64String(value);
+                                    currentMail.Attachements.Add(attachement);
+                                    FileName = null;
+                                }
+                                break;
                         }
                     }
                 }
@@ -301,7 +432,6 @@ namespace HTCommander.radio
             return mails;
         }
 
-
         private const char FieldSeparator = ';';
         private const char RecordSeparator = '\n';
         private const char EscapeCharacter = '\\';
@@ -312,14 +442,7 @@ namespace HTCommander.radio
             StringBuilder sb = new StringBuilder();
             foreach (char c in data)
             {
-                if (c == FieldSeparator || c == RecordSeparator || c == EscapeCharacter)
-                {
-                    sb.Append(EscapeCharacter).Append(c);
-                }
-                else
-                {
-                    sb.Append(c);
-                }
+                if (c == FieldSeparator || c == RecordSeparator || c == EscapeCharacter) { sb.Append(EscapeCharacter).Append(c); } else { sb.Append(c); }
             }
             return sb.ToString();
         }

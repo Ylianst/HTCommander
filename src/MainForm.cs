@@ -3215,6 +3215,19 @@ namespace HTCommander
             rtfBuilder.AppendBold("Time: ");
             rtfBuilder.AppendLine(m.DateTime.ToString());
             if (!string.IsNullOrEmpty(m.Subject)) { rtfBuilder.AppendBold("Subject: "); rtfBuilder.AppendLine(m.Subject); }
+            if (m.Attachements != null)
+            {
+                if (m.Attachements.Count < 2) { rtfBuilder.AppendBold("Attachment: "); } else { rtfBuilder.AppendBold("Attachments:"); }
+                bool first = true;
+                foreach (WinLinkMailAttachement attachment in m.Attachements)
+                {
+                    if (!first) { rtfBuilder.Append(", "); }
+                    rtfBuilder.Append("\"" + attachment.Name + "\"");
+                    first = false;
+                }
+                rtfBuilder.AppendLine("");
+            }
+
             rtfBuilder.AppendLine("");
             if (!string.IsNullOrEmpty(m.Body)) { rtfBuilder.AppendLine(m.Body); }
             mailPreviewTextBox.Rtf = rtfBuilder.ToRtf();
