@@ -35,6 +35,7 @@ namespace HTCommander.radio
         public DateTime DateTime { get; set; }
         public string From { get; set; }
         public string To { get; set; }
+        public string Cc { get; set; }
         public string Subject { get; set; }
         public string Mbo { get; set; }
         public string Body { get; set; }
@@ -220,6 +221,7 @@ namespace HTCommander.radio
             if ((mail.Flags & (int)MailFlags.Private) != 0) { sb.AppendLine($"Type: Private"); }
             if (!string.IsNullOrEmpty(mail.From)) { sb.AppendLine($"From: {mail.From}"); }
             if (!string.IsNullOrEmpty(mail.To)) { sb.AppendLine($"To: {mail.To}"); }
+            if (!string.IsNullOrEmpty(mail.Cc)) { sb.AppendLine($"Cc: {mail.Cc}"); }
             if (!string.IsNullOrEmpty(mail.Subject)) { sb.AppendLine($"Subject: {mail.Subject}"); }
             if (!string.IsNullOrEmpty(mail.Mbo)) { sb.AppendLine($"Mbo: {mail.Mbo}"); }
             if ((mail.Flags & (int)MailFlags.P2P) != 0) { sb.AppendLine($"X-P2P: True"); }
@@ -293,6 +295,7 @@ namespace HTCommander.radio
                         case "date": currentMail.DateTime = DateTime.ParseExact(value, "yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture); break;
                         case "type": { if (value.ToLower() == "private") { currentMail.Flags |= (int)MailFlags.Private; }; } break;
                         case "to": currentMail.To = value; break;
+                        case "cc": currentMail.Cc = value; break;
                         case "from": currentMail.From = value; break;
                         case "subject": currentMail.Subject = value; break;
                         case "mbo": currentMail.Mbo = value; break;
@@ -345,6 +348,7 @@ namespace HTCommander.radio
                 sb.AppendLine($"Time={mail.DateTime.ToString("o")}");
                 if (!string.IsNullOrEmpty(mail.From)) { sb.AppendLine($"From={mail.From}"); }
                 if (!string.IsNullOrEmpty(mail.To)) { sb.AppendLine($"To={mail.To}"); }
+                if (!string.IsNullOrEmpty(mail.Cc)) { sb.AppendLine($"Cc={mail.Cc}"); }
                 sb.AppendLine($"Subject={mail.Subject}");
                 if (!string.IsNullOrEmpty(mail.Mbo)) { sb.AppendLine($"Mbo={mail.Mbo}"); }
                 sb.AppendLine($"Body={EscapeString(mail.Body)}");
@@ -399,6 +403,7 @@ namespace HTCommander.radio
                             case "Time": currentMail.DateTime = DateTime.ParseExact(value, "o", CultureInfo.InvariantCulture); break;
                             case "From": currentMail.From = value; break;
                             case "To": currentMail.To = value; break;
+                            case "Cc": currentMail.Cc = value; break;
                             case "Subject": currentMail.Subject = value; break;
                             case "Mbo": currentMail.Mbo = value; break;
                             case "Body": currentMail.Body = UnescapeString(value); break;

@@ -40,6 +40,8 @@
             this.draftButton = new System.Windows.Forms.Button();
             this.sendButton = new System.Windows.Forms.Button();
             this.cancelButton = new System.Windows.Forms.Button();
+            this.ccComboBox = new System.Windows.Forms.ComboBox();
+            this.label3 = new System.Windows.Forms.Label();
             this.panel2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.mailPictureBox)).BeginInit();
             this.panel1.SuspendLayout();
@@ -48,6 +50,8 @@
             // panel2
             // 
             this.panel2.BackColor = System.Drawing.Color.Silver;
+            this.panel2.Controls.Add(this.ccComboBox);
+            this.panel2.Controls.Add(this.label3);
             this.panel2.Controls.Add(this.mailPictureBox);
             this.panel2.Controls.Add(this.toComboBox);
             this.panel2.Controls.Add(this.label2);
@@ -57,7 +61,7 @@
             this.panel2.Location = new System.Drawing.Point(0, 0);
             this.panel2.Margin = new System.Windows.Forms.Padding(4);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(536, 67);
+            this.panel2.Size = new System.Drawing.Size(536, 100);
             this.panel2.TabIndex = 3;
             // 
             // mailPictureBox
@@ -86,7 +90,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(12, 40);
+            this.label2.Location = new System.Drawing.Point(13, 73);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(52, 16);
             this.label2.TabIndex = 9;
@@ -105,7 +109,7 @@
             // 
             this.subjectTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.subjectTextBox.Location = new System.Drawing.Point(95, 37);
+            this.subjectTextBox.Location = new System.Drawing.Point(95, 70);
             this.subjectTextBox.Name = "subjectTextBox";
             this.subjectTextBox.Size = new System.Drawing.Size(370, 22);
             this.subjectTextBox.TabIndex = 11;
@@ -114,10 +118,10 @@
             // mainTextBox
             // 
             this.mainTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.mainTextBox.Location = new System.Drawing.Point(0, 67);
+            this.mainTextBox.Location = new System.Drawing.Point(0, 100);
             this.mainTextBox.Multiline = true;
             this.mainTextBox.Name = "mainTextBox";
-            this.mainTextBox.Size = new System.Drawing.Size(536, 367);
+            this.mainTextBox.Size = new System.Drawing.Size(536, 334);
             this.mainTextBox.TabIndex = 19;
             this.mainTextBox.TextChanged += new System.EventHandler(this.mainTextBox_TextChanged);
             // 
@@ -173,6 +177,26 @@
             this.cancelButton.UseVisualStyleBackColor = true;
             this.cancelButton.Click += new System.EventHandler(this.cancelButton_Click);
             // 
+            // ccComboBox
+            // 
+            this.ccComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.ccComboBox.FormattingEnabled = true;
+            this.ccComboBox.Location = new System.Drawing.Point(95, 39);
+            this.ccComboBox.MaxLength = 80;
+            this.ccComboBox.Name = "ccComboBox";
+            this.ccComboBox.Size = new System.Drawing.Size(370, 24);
+            this.ccComboBox.TabIndex = 13;
+            // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(13, 42);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(25, 16);
+            this.label3.TabIndex = 12;
+            this.label3.Text = "CC";
+            // 
             // MailComposeForm
             // 
             this.AcceptButton = this.sendButton;
@@ -212,5 +236,7 @@
         private System.Windows.Forms.Button cancelButton;
         private System.Windows.Forms.PictureBox mailPictureBox;
         private System.Windows.Forms.Button draftButton;
+        private System.Windows.Forms.ComboBox ccComboBox;
+        private System.Windows.Forms.Label label3;
     }
 }

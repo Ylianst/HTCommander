@@ -3208,18 +3208,19 @@ namespace HTCommander
             // Adjust mail preview
             mailPreviewTextBox.Clear();
             if (mailboxListView.SelectedItems.Count == 0) return;
-            WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
+            WinLinkMail mail = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
             RtfBuilder rtfBuilder = new RtfBuilder();
-            if (!string.IsNullOrEmpty(m.To)) { rtfBuilder.AppendBold("To: "); rtfBuilder.AppendLine(m.To); }
-            if (!string.IsNullOrEmpty(m.From)) { rtfBuilder.AppendBold("From: "); rtfBuilder.AppendLine(m.From); }
+            if (!string.IsNullOrEmpty(mail.From)) { rtfBuilder.AppendBold("From: "); rtfBuilder.AppendLine(mail.From); }
+            if (!string.IsNullOrEmpty(mail.To)) { rtfBuilder.AppendBold("To: "); rtfBuilder.AppendLine(mail.To); }
+            if (!string.IsNullOrEmpty(mail.Cc)) { rtfBuilder.AppendBold("Cc: "); rtfBuilder.AppendLine(mail.Cc); }
             rtfBuilder.AppendBold("Time: ");
-            rtfBuilder.AppendLine(m.DateTime.ToString());
-            if (!string.IsNullOrEmpty(m.Subject)) { rtfBuilder.AppendBold("Subject: "); rtfBuilder.AppendLine(m.Subject); }
-            if (m.Attachements != null)
+            rtfBuilder.AppendLine(mail.DateTime.ToString());
+            if (!string.IsNullOrEmpty(mail.Subject)) { rtfBuilder.AppendBold("Subject: "); rtfBuilder.AppendLine(mail.Subject); }
+            if (mail.Attachements != null)
             {
-                if (m.Attachements.Count < 2) { rtfBuilder.AppendBold("Attachment: "); } else { rtfBuilder.AppendBold("Attachments:"); }
+                if (mail.Attachements.Count < 2) { rtfBuilder.AppendBold("Attachment: "); } else { rtfBuilder.AppendBold("Attachments:"); }
                 bool first = true;
-                foreach (WinLinkMailAttachement attachment in m.Attachements)
+                foreach (WinLinkMailAttachement attachment in mail.Attachements)
                 {
                     if (!first) { rtfBuilder.Append(", "); }
                     rtfBuilder.Append("\"" + attachment.Name + "\"");
@@ -3227,9 +3228,8 @@ namespace HTCommander
                 }
                 rtfBuilder.AppendLine("");
             }
-
             rtfBuilder.AppendLine("");
-            if (!string.IsNullOrEmpty(m.Body)) { rtfBuilder.AppendLine(m.Body); }
+            if (!string.IsNullOrEmpty(mail.Body)) { rtfBuilder.Append(mail.Body); }
             mailPreviewTextBox.Rtf = rtfBuilder.ToRtf();
         }
 

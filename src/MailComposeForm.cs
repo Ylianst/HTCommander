@@ -23,6 +23,7 @@ namespace HTCommander
             if (mail != null)
             {
                 toComboBox.Text = mail.To;
+                ccComboBox.Text = mail.Cc;
                 subjectTextBox.Text = mail.Subject;
                 mainTextBox.Text = mail.Body;
             }
@@ -93,6 +94,7 @@ namespace HTCommander
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
             mail.MID = WinLinkMail.GenerateMID();
             mail.To = toComboBox.Text;
+            if (ccComboBox.Text.Length > 0) { mail.Cc = ccComboBox.Text; } else { mail.Cc = null; }
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
             mail.DateTime = DateTime.Now;
@@ -110,6 +112,7 @@ namespace HTCommander
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
             mail.MID = WinLinkMail.GenerateMID();
             mail.To = toComboBox.Text;
+            if (ccComboBox.Text.Length > 0) { mail.Cc = ccComboBox.Text; } else { mail.Cc = null; }
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
             mail.DateTime = DateTime.Now;
