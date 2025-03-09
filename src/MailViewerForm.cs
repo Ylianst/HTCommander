@@ -22,7 +22,10 @@ namespace HTCommander
             if (!string.IsNullOrEmpty(mail.Cc)) { rtfBuilder.AppendBold("Cc: "); rtfBuilder.AppendLine(mail.Cc); }
             rtfBuilder.AppendBold("Time: ");
             rtfBuilder.AppendLine(mail.DateTime.ToString());
-            if (!string.IsNullOrEmpty(mail.Subject)) { rtfBuilder.AppendBold("Subject: "); rtfBuilder.AppendLine(mail.Subject); }
+            if (!string.IsNullOrEmpty(mail.Subject)) {
+                rtfBuilder.AppendBold("Subject: "); rtfBuilder.AppendLine(mail.Subject);
+                this.Text += " - " + mail.Subject;
+            }
             if (mail.Attachements != null)
             {
                 if (mail.Attachements.Count < 2) { rtfBuilder.AppendBold("Attachment: "); } else { rtfBuilder.AppendBold("Attachments:"); }
@@ -38,6 +41,18 @@ namespace HTCommander
             rtfBuilder.AppendLine("");
             if (!string.IsNullOrEmpty(mail.Body)) { rtfBuilder.Append(mail.Body); }
             mainTextBox.Rtf = rtfBuilder.ToRtf();
+
+            if (mail.Attachements != null)
+            {
+                foreach (WinLinkMailAttachement a in mail.Attachements)
+                {
+                    MailAttachmentControl mailAttachmentControl = new MailAttachmentControl();
+                    mailAttachmentControl.AllowRemove = false;
+                    mailAttachmentControl.Filename = a.Name;
+                    mailAttachmentControl.FileData = a.Data;
+                    attachmentsFlowLayoutPanel.Controls.Add(mailAttachmentControl);
+                }
+            }
         }
 
         private void closeToolStripMenuItem_Click(object sender, EventArgs e)

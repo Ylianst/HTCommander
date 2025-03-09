@@ -83,6 +83,16 @@ namespace HTCommander.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap DownArrow64 {
+            get {
+                object obj = ResourceManager.GetObject("DownArrow64", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap Letter {
             get {
                 object obj = ResourceManager.GetObject("Letter", resourceCulture);
@@ -196,6 +206,16 @@ namespace HTCommander.Properties {
         internal static System.Drawing.Bitmap webserver {
             get {
                 object obj = ResourceManager.GetObject("webserver", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap xicon64 {
+            get {
+                object obj = ResourceManager.GetObject("xicon64", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

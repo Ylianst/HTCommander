@@ -30,12 +30,14 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MailViewerForm));
             this.panel1 = new System.Windows.Forms.Panel();
+            this.statusLabel = new System.Windows.Forms.Label();
             this.closeButton = new System.Windows.Forms.Button();
             this.mainTextBox = new System.Windows.Forms.RichTextBox();
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.closeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.panel2 = new System.Windows.Forms.Panel();
+            this.attachmentsFlowLayoutPanel = new System.Windows.Forms.FlowLayoutPanel();
             this.panel1.SuspendLayout();
             this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
@@ -43,6 +45,7 @@
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.Color.Silver;
+            this.panel1.Controls.Add(this.statusLabel);
             this.panel1.Controls.Add(this.closeButton);
             this.panel1.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.panel1.Location = new System.Drawing.Point(0, 397);
@@ -50,6 +53,15 @@
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(536, 37);
             this.panel1.TabIndex = 7;
+            // 
+            // statusLabel
+            // 
+            this.statusLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.statusLabel.Location = new System.Drawing.Point(11, 11);
+            this.statusLabel.Name = "statusLabel";
+            this.statusLabel.Size = new System.Drawing.Size(404, 16);
+            this.statusLabel.TabIndex = 24;
             // 
             // closeButton
             // 
@@ -70,7 +82,7 @@
             this.mainTextBox.Location = new System.Drawing.Point(0, 38);
             this.mainTextBox.Name = "mainTextBox";
             this.mainTextBox.ReadOnly = true;
-            this.mainTextBox.Size = new System.Drawing.Size(536, 359);
+            this.mainTextBox.Size = new System.Drawing.Size(536, 353);
             this.mainTextBox.TabIndex = 8;
             this.mainTextBox.Text = "";
             // 
@@ -96,7 +108,7 @@
             // closeToolStripMenuItem
             // 
             this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
-            this.closeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.closeToolStripMenuItem.Size = new System.Drawing.Size(128, 26);
             this.closeToolStripMenuItem.Text = "&Close";
             this.closeToolStripMenuItem.Click += new System.EventHandler(this.closeToolStripMenuItem_Click);
             // 
@@ -109,6 +121,16 @@
             this.panel2.Size = new System.Drawing.Size(536, 10);
             this.panel2.TabIndex = 10;
             // 
+            // attachmentsFlowLayoutPanel
+            // 
+            this.attachmentsFlowLayoutPanel.AutoSize = true;
+            this.attachmentsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.attachmentsFlowLayoutPanel.Location = new System.Drawing.Point(0, 391);
+            this.attachmentsFlowLayoutPanel.Name = "attachmentsFlowLayoutPanel";
+            this.attachmentsFlowLayoutPanel.Padding = new System.Windows.Forms.Padding(3);
+            this.attachmentsFlowLayoutPanel.Size = new System.Drawing.Size(536, 6);
+            this.attachmentsFlowLayoutPanel.TabIndex = 22;
+            // 
             // MailViewerForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -116,6 +138,7 @@
             this.CancelButton = this.closeButton;
             this.ClientSize = new System.Drawing.Size(536, 434);
             this.Controls.Add(this.mainTextBox);
+            this.Controls.Add(this.attachmentsFlowLayoutPanel);
             this.Controls.Add(this.panel2);
             this.Controls.Add(this.panel1);
             this.Controls.Add(this.menuStrip1);
@@ -141,5 +164,7 @@
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItem;
         private System.Windows.Forms.Panel panel2;
+        private System.Windows.Forms.Label statusLabel;
+        private System.Windows.Forms.FlowLayoutPanel attachmentsFlowLayoutPanel;
     }
 }

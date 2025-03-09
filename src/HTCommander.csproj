@@ -156,6 +156,12 @@
     <Compile Include="ImportChannelsForm.Designer.cs">
       <DependentUpon>ImportChannelsForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="MailAttachmentControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="MailAttachmentControl.Designer.cs">
+      <DependentUpon>MailAttachmentControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="MailClientDebugForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -324,6 +330,9 @@
     <EmbeddedResource Include="ImportChannelsForm.resx">
       <DependentUpon>ImportChannelsForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="MailAttachmentControl.resx">
+      <DependentUpon>MailAttachmentControl.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="MailClientDebugForm.resx">
       <DependentUpon>MailClientDebugForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -408,6 +417,8 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="HTCommander.ico" />
+    <None Include="Resources\DownArrow64.png" />
+    <None Include="Resources\xicon64.png" />
     <None Include="Resources\Letter.png" />
     <None Include="images\Mail.png" />
     <None Include="images\Weather.png" />

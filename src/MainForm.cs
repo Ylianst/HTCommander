@@ -91,6 +91,8 @@ namespace HTCommander
         public string[] MailBoxesNames = { "Inbox", "Outbox", "Draft", "Sent", "Archive", "Trash" };
         public TreeNode[] MailBoxTreeNodes = null;
         public List<WinLinkMail> Mails = new List<WinLinkMail>();
+        private Point _mailMouseDownLocation;
+        private bool _mailIsDragging;
 
         public static bool IsRunningOnMono() { return Type.GetType("Mono.Runtime") != null; }
         public static System.Drawing.Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
@@ -3307,20 +3309,6 @@ namespace HTCommander
             }
         }
 
-        private void mailboxListView_MouseMove(object sender, MouseEventArgs e)
-        {
-            if ((e.Button == MouseButtons.Left) && (mailboxListView.SelectedItems.Count > 0))
-            {
-                List<WinLinkMail> mails = new List<WinLinkMail>();
-                foreach (ListViewItem l in mailboxListView.SelectedItems)
-                {
-                    WinLinkMail m = (WinLinkMail)l.Tag;
-                    mails.Add(m);
-                }
-                DoDragDrop((object)mails.ToArray(), DragDropEffects.Copy | DragDropEffects.Move);
-            }
-        }
-
         private void mailBoxesTreeView_DragEnter(object sender, DragEventArgs e)
         {
             // Convert screen coordinates to client coordinates
@@ -3523,6 +3511,39 @@ namespace HTCommander
             else
             {
                 e.Cancel = false;
+            }
+        }
+
+        private void mailboxListView_MouseDown(object sender, MouseEventArgs e)
+        {
+            _mailIsDragging = false;
+            _mailMouseDownLocation = e.Location;
+        }
+
+        private void mailboxListView_MouseUp(object sender, MouseEventArgs e)
+        {
+            _mailIsDragging = false;
+        }
+        private void mailboxListView_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left && !_mailIsDragging)
+            {
+                int deltaX = Math.Abs(e.X - _mailMouseDownLocation.X);
+                int deltaY = Math.Abs(e.Y - _mailMouseDownLocation.Y);
+
+                // Adjust the threshold as needed. A larger value requires more movement.
+                if (deltaX > SystemInformation.DragSize.Width || deltaY > SystemInformation.DragSize.Height)
+                {
+                    _mailIsDragging = true;
+
+                    List<WinLinkMail> mails = new List<WinLinkMail>();
+                    foreach (ListViewItem l in mailboxListView.SelectedItems)
+                    {
+                        WinLinkMail m = (WinLinkMail)l.Tag;
+                        mails.Add(m);
+                    }
+                    DoDragDrop((object)mails.ToArray(), DragDropEffects.Copy | DragDropEffects.Move);
+                }
             }
         }
     }

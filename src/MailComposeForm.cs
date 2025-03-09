@@ -1,6 +1,7 @@
-﻿using HTCommander.radio;
-using System;
+﻿using System;
+using System.IO;
 using System.Windows.Forms;
+using HTCommander.radio;
 
 namespace HTCommander
 {
@@ -22,10 +23,21 @@ namespace HTCommander
         {
             if (mail != null)
             {
-                toComboBox.Text = mail.To;
-                ccComboBox.Text = mail.Cc;
+                toTextBox.Text = mail.To;
+                ccTextBox.Text = mail.Cc;
                 subjectTextBox.Text = mail.Subject;
                 mainTextBox.Text = mail.Body;
+                if (mail.Attachements != null)
+                {
+                    foreach (WinLinkMailAttachement a in  mail.Attachements)
+                    {
+                        MailAttachmentControl mailAttachmentControl = new MailAttachmentControl();
+                        mailAttachmentControl.AllowRemove = true;
+                        mailAttachmentControl.Filename = a.Name;
+                        mailAttachmentControl.FileData = a.Data;
+                        attachmentsFlowLayoutPanel.Controls.Add(mailAttachmentControl);
+                    }
+                }
             }
             MessageChanged = false;
         }
@@ -34,7 +46,7 @@ namespace HTCommander
         {
             if (MessageSaved == false)
             {
-                if ((toComboBox.Text.Length == 0) && (subjectTextBox.Text.Length == 0) && (mainTextBox.Text.Length == 0))
+                if ((toTextBox.Text.Length == 0) && (subjectTextBox.Text.Length == 0) && (mainTextBox.Text.Length == 0))
                 {
                     parent.mailComposeForm = null;
                 }
@@ -61,8 +73,8 @@ namespace HTCommander
 
         private void UpdateInfo()
         {
-            draftButton.Enabled = (toComboBox.Text.Length > 0) || (subjectTextBox.Text.Length > 0) || (mainTextBox.Text.Length > 0);
-            sendButton.Enabled = (toComboBox.Text.Length > 0) && (subjectTextBox.Text.Length > 0) && (mainTextBox.Text.Length > 0);
+            draftButton.Enabled = (toTextBox.Text.Length > 0) || (subjectTextBox.Text.Length > 0) || (mainTextBox.Text.Length > 0);
+            sendButton.Enabled = (toTextBox.Text.Length > 0) && (subjectTextBox.Text.Length > 0) && (mainTextBox.Text.Length > 0);
         }
 
         private void mainTextBox_TextChanged(object sender, EventArgs e)
@@ -88,17 +100,43 @@ namespace HTCommander
             Close();
         }
 
-        private void okButton_Click(object sender, EventArgs e)
+        private void MailComposeForm_Shown(object sender, EventArgs e)
+        {
+            if (mail != null)
+            {
+                mainTextBox.Focus();
+                mainTextBox.SelectionStart = mainTextBox.Text.Length;
+            }
+            else
+            {
+                toTextBox.Focus();
+            }
+        }
+
+        private void sendButton_Click(object sender, EventArgs e)
         {
             bool addMail = false;
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
             mail.MID = WinLinkMail.GenerateMID();
-            mail.To = toComboBox.Text;
-            if (ccComboBox.Text.Length > 0) { mail.Cc = ccComboBox.Text; } else { mail.Cc = null; }
+            mail.To = toTextBox.Text;
+            if (ccTextBox.Text.Length > 0) { mail.Cc = ccTextBox.Text; } else { mail.Cc = null; }
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
             mail.DateTime = DateTime.Now;
             mail.Mailbox = 1; // Outbox
+
+            if (attachmentsFlowLayoutPanel.Controls.Count > 0)
+            {
+                mail.Attachements = new System.Collections.Generic.List<WinLinkMailAttachement>();
+                foreach (MailAttachmentControl a in attachmentsFlowLayoutPanel.Controls)
+                {
+                    WinLinkMailAttachement at = new WinLinkMailAttachement();
+                    at.Name = a.Filename;
+                    at.Data = a.FileData;
+                    mail.Attachements.Add(at);
+                }
+            }
+
             if (addMail) { parent.Mails.Add(mail); }
             parent.SaveMails();
             parent.UpdateMail();
@@ -111,12 +149,25 @@ namespace HTCommander
             bool addMail = false;
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
             mail.MID = WinLinkMail.GenerateMID();
-            mail.To = toComboBox.Text;
-            if (ccComboBox.Text.Length > 0) { mail.Cc = ccComboBox.Text; } else { mail.Cc = null; }
+            mail.To = toTextBox.Text;
+            if (ccTextBox.Text.Length > 0) { mail.Cc = ccTextBox.Text; } else { mail.Cc = null; }
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
             mail.DateTime = DateTime.Now;
             mail.Mailbox = 2; // Draft
+
+            if (attachmentsFlowLayoutPanel.Controls.Count > 0)
+            {
+                mail.Attachements = new System.Collections.Generic.List<WinLinkMailAttachement>();
+                foreach (MailAttachmentControl a in attachmentsFlowLayoutPanel.Controls)
+                {
+                    WinLinkMailAttachement at = new WinLinkMailAttachement();
+                    at.Name = a.Filename;
+                    at.Data = a.FileData;
+                    mail.Attachements.Add(at);
+                }
+            }
+
             if (addMail) { parent.Mails.Add(mail); }
             parent.SaveMails();
             parent.UpdateMail();
@@ -124,16 +175,47 @@ namespace HTCommander
             Close();
         }
 
-        private void MailComposeForm_Shown(object sender, EventArgs e)
+        private void addToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (mail != null)
+            if (addAttachementPpenFileDialog.ShowDialog(this) == DialogResult.OK)
             {
-                mainTextBox.Focus();
-                mainTextBox.SelectionStart = mainTextBox.Text.Length;
+                byte[] filedata = File.ReadAllBytes(addAttachementPpenFileDialog.FileName);
+                FileInfo file = new FileInfo(addAttachementPpenFileDialog.FileName);
+                MailAttachmentControl mailAttachmentControl = new MailAttachmentControl();
+                mailAttachmentControl.AllowRemove = true;
+                mailAttachmentControl.Filename = file.Name;
+                mailAttachmentControl.FileData = filedata;
+                attachmentsFlowLayoutPanel.Controls.Add(mailAttachmentControl);
+            }
+        }
+
+        private void mainTextBox_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
             }
             else
             {
-                toComboBox.Focus();
+                e.Effect = DragDropEffects.None;
+            }
+        }
+
+        private void mainTextBox_DragDrop(object sender, DragEventArgs e)
+        {
+            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            if (files != null && files.Length > 0)
+            {
+                foreach (string xfile in files)
+                {
+                    byte[] filedata = File.ReadAllBytes(xfile);
+                    FileInfo file = new FileInfo(xfile);
+                    MailAttachmentControl mailAttachmentControl = new MailAttachmentControl();
+                    mailAttachmentControl.AllowRemove = true;
+                    mailAttachmentControl.Filename = file.Name;
+                    mailAttachmentControl.FileData = filedata;
+                    attachmentsFlowLayoutPanel.Controls.Add(mailAttachmentControl);
+                }
             }
         }
     }
