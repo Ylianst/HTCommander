@@ -136,6 +136,10 @@ namespace HTCommander
                     mail.Attachements.Add(at);
                 }
             }
+            else
+            {
+                mail.Attachements = null;
+            }
 
             if (addMail) { parent.Mails.Add(mail); }
             parent.SaveMails();
@@ -166,6 +170,10 @@ namespace HTCommander
                     at.Data = a.FileData;
                     mail.Attachements.Add(at);
                 }
+            }
+            else
+            {
+                mail.Attachements = null;
             }
 
             if (addMail) { parent.Mails.Add(mail); }

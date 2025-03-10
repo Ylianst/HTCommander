@@ -643,7 +643,11 @@ namespace HTCommander
 
         private void Radio_InfoUpdate(Radio sender, Radio.RadioUpdateNotification msg)
         {
-            if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_InfoUpdate(sender, msg); })); return; }
+            if (this.InvokeRequired)
+            {
+                try { this.Invoke(new Action(() => { Radio_InfoUpdate(sender, msg); })); } catch (Exception) { }
+                return;
+            }
             try
             {
                 switch (msg)
@@ -3043,10 +3047,17 @@ namespace HTCommander
             bbsTextBox.ScrollToCaret();
         }
 
-        public delegate void AddBbsControlMessageHandler(string text);
-        public void AddBbsControlMessage(string text)
+        private int BbsControlMessageId = -1;
+        private int BbsControlMessagePtr = -1;
+
+        public delegate void AddBbsControlMessageHandler(string text, int id);
+        public void AddBbsControlMessage(string text, int id = -1)
         {
-            if (this.InvokeRequired) { this.Invoke(new AddBbsControlMessageHandler(AddBbsControlMessage), text); return; }
+            if (this.InvokeRequired) { this.Invoke(new AddBbsControlMessageHandler(AddBbsControlMessage), text, id); return; }
+
+            if ((id >= 0) && (id == BbsControlMessageId)) { bbsTextBox.Text = bbsTextBox.Text.Substring(0, BbsControlMessagePtr); }
+            BbsControlMessageId = id;
+            BbsControlMessagePtr = bbsTextBox.Text.Length;
             if (bbsTextBox.Text.Length != 0) { bbsTextBox.AppendText(Environment.NewLine); }
             AppendBbsText(text, Color.Yellow);
             bbsTextBox.SelectionStart = bbsTextBox.Text.Length;
@@ -3220,7 +3231,7 @@ namespace HTCommander
             if (!string.IsNullOrEmpty(mail.Subject)) { rtfBuilder.AppendBold("Subject: "); rtfBuilder.AppendLine(mail.Subject); }
             if (mail.Attachements != null)
             {
-                if (mail.Attachements.Count < 2) { rtfBuilder.AppendBold("Attachment: "); } else { rtfBuilder.AppendBold("Attachments:"); }
+                if (mail.Attachements.Count < 2) { rtfBuilder.AppendBold("Attachment: "); } else { rtfBuilder.AppendBold("Attachments: "); }
                 bool first = true;
                 foreach (WinLinkMailAttachement attachment in mail.Attachements)
                 {
@@ -3484,11 +3495,6 @@ namespace HTCommander
             }
         }
 
-        private void bbsSplitContainer_SplitterMoved(object sender, SplitterEventArgs e)
-        {
-
-        }
-
         private void showTrafficToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (mailClientDebugForm.Visible)
@@ -3545,6 +3551,28 @@ namespace HTCommander
                     DoDragDrop((object)mails.ToArray(), DragDropEffects.Copy | DragDropEffects.Move);
                 }
             }
+        }
+
+        private void mailboxListView_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Delete)
+            {
+                deleteMailToolStripMenuItem_Click(this, null);
+                e.Handled = true;
+                return;
+            }
+            if ((e.KeyCode == Keys.A) && e.Control)
+            {
+                foreach (ListViewItem item in mailboxListView.Items) { item.Selected = true; }
+            }
+            e.Handled = false;
+        }
+
+
+        int xc = 1;
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            AddBbsControlMessage("ABC: " + (xc++), 55);
         }
     }
 }

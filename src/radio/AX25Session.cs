@@ -280,7 +280,8 @@ namespace HTCommander
             bool startTimer = false;
             for (int packetIndex = 0; packetIndex < _state.SendBuffer.Count; packetIndex++)
             {
-                if (DistanceBetween(sequenceNum, _state.RemoteReceiveSequence, (byte)(Modulo128 ? 128 : 8)) < MaxFrames)
+                int dst = DistanceBetween(sequenceNum, _state.RemoteReceiveSequence, (byte)(Modulo128 ? 128 : 8));
+                if (_state.SendBuffer[packetIndex].sent || (dst < MaxFrames))
                 {
                     _state.SendBuffer[packetIndex].nr = _state.ReceiveSequence;
                     if (!_state.SendBuffer[packetIndex].sent)
@@ -288,12 +289,11 @@ namespace HTCommander
                         _state.SendBuffer[packetIndex].ns = _state.SendSequence;
                         _state.SendBuffer[packetIndex].sent = true;
                         _state.SendSequence = (byte)((_state.SendSequence + 1) % (Modulo128 ? 128 : 8));
+                        sequenceNum = (byte)((sequenceNum + 1) % (Modulo128 ? 128 : 8));
                     }
                     else if (!resent) { continue; } // If this packet was sent already, ignore and continue
                     startTimer = true;
                     EmitPacket(_state.SendBuffer[packetIndex]);
-
-                    sequenceNum = (byte)((sequenceNum + 1) % (Modulo128 ? 128 : 8));
                 }
             }
 

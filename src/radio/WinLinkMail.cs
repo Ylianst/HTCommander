@@ -164,6 +164,7 @@ namespace HTCommander.radio
             byte[] payloadBuf = null;
             byte[] uncompressedMail = WinLinkMail.SerializeMail(mail);
             uncompressedSize = uncompressedMail.Length;
+            //try { WinlinkCompression.Encode(uncompressedMail, ref payloadBuf, true); } catch (Exception) { return null; }
             WinlinkCompression.Encode(uncompressedMail, ref payloadBuf, true);
             if (payloadBuf == null) return null;
             byte[] subjectBuf = UTF8Encoding.UTF8.GetBytes(mail.Subject);

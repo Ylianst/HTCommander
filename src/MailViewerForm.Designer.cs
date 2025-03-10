@@ -74,6 +74,7 @@
             this.closeButton.TabIndex = 33;
             this.closeButton.Text = "&Close";
             this.closeButton.UseVisualStyleBackColor = true;
+            this.closeButton.Click += new System.EventHandler(this.closeButton_Click);
             // 
             // mainTextBox
             // 
@@ -108,7 +109,7 @@
             // closeToolStripMenuItem
             // 
             this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
-            this.closeToolStripMenuItem.Size = new System.Drawing.Size(128, 26);
+            this.closeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.closeToolStripMenuItem.Text = "&Close";
             this.closeToolStripMenuItem.Click += new System.EventHandler(this.closeToolStripMenuItem_Click);
             // 

@@ -45,9 +45,9 @@ namespace HTCommander
             }
         }
 
-        private void StateMessage(string msg) {
+        private void StateMessage(string msg, int id = -1) {
             parent.MailStateMessage(msg);
-            parent.mailClientDebugForm.AddBbsControlMessage(msg);
+            parent.mailClientDebugForm.AddBbsControlMessage(msg, id);
         }
 
         // Process connection state change
@@ -246,16 +246,17 @@ namespace HTCommander
                             string[] proposalResponses = ParseProposalResponses(value);
                             if (proposalResponses.Length == proposedMails.Count)
                             {
+                                int totalSize = 0;
                                 for (int j = 0; j < proposalResponses.Length; j++)
                                 {
                                     if (proposalResponses[j] == "Y")
                                     {
                                         sentMails++;
-                                        foreach (byte[] block in proposedMailsBinary[j]) { session.Send(block); }
+                                        foreach (byte[] block in proposedMailsBinary[j]) { session.Send(block); totalSize += block.Length; }
                                     }
                                 }
-                                if (sentMails == 1) { StateMessage("Sending mail..."); }
-                                else if (sentMails > 0) { StateMessage("Sending " + sentMails + " mails..."); }
+                                if (sentMails == 1) { StateMessage("Sending mail, " + totalSize + " bytes..."); }
+                                else if (sentMails > 1) { StateMessage("Sending " + sentMails + " mails, " + totalSize + " bytes..."); }
                                 else
                                 {
                                     // Winlink Session Close

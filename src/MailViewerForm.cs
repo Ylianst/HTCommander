@@ -28,7 +28,7 @@ namespace HTCommander
             }
             if (mail.Attachements != null)
             {
-                if (mail.Attachements.Count < 2) { rtfBuilder.AppendBold("Attachment: "); } else { rtfBuilder.AppendBold("Attachments:"); }
+                if (mail.Attachements.Count < 2) { rtfBuilder.AppendBold("Attachment: "); } else { rtfBuilder.AppendBold("Attachments: "); }
                 bool first = true;
                 foreach (WinLinkMailAttachement attachment in mail.Attachements)
                 {
@@ -56,6 +56,11 @@ namespace HTCommander
         }
 
         private void closeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Close();
+        }
+
+        private void closeButton_Click(object sender, EventArgs e)
         {
             Close();
         }
