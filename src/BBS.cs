@@ -189,7 +189,7 @@ namespace HTCommander
             {
                 MemoryStream blocks = (MemoryStream)session.sessionState["wlMailBinary"];
                 blocks.Write(data, 0, data.Length);
-                parent.AddBbsControlMessage("Received binary traffic, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes"), 1);
+                parent.AddBbsControlMessage("Received binary traffic, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes"));
                 //List<byte[]> blocks;
                 //if (session.sessionState.ContainsKey("wlMailBlocks")) { blocks = (List<byte[]>)session.sessionState["wlMailBlocks"]; } else { blocks = new List<byte[]>(); }
                 //blocks.Add(data);

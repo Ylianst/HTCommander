@@ -45,9 +45,9 @@ namespace HTCommander
             }
         }
 
-        private void StateMessage(string msg, int id = -1) {
+        private void StateMessage(string msg) {
             parent.MailStateMessage(msg);
-            parent.mailClientDebugForm.AddBbsControlMessage(msg, id);
+            parent.mailClientDebugForm.AddBbsControlMessage(msg);
         }
 
         // Process connection state change

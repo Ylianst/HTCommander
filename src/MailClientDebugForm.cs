@@ -36,17 +36,11 @@ namespace HTCommander
             mainTextBox.ScrollToCaret();
         }
 
-        private int BbsControlMessageId = -1;
-        private string BbsControlMessageRtf;
-
-        private delegate void AddBbsControlMessageHandler(string text, int id);
-        public void AddBbsControlMessage(string text, int id = -1)
+        private delegate void AddBbsControlMessageHandler(string text);
+        public void AddBbsControlMessage(string text)
         {
             if (text == null) return;
-            if (this.InvokeRequired) { this.Invoke(new AddBbsControlMessageHandler(AddBbsControlMessage), text, id); return; }
-            if ((id >= 0) && (id == BbsControlMessageId)) { mainTextBox.Rtf = BbsControlMessageRtf; }
-            BbsControlMessageId = id;
-            BbsControlMessageRtf = mainTextBox.Rtf;
+            if (this.InvokeRequired) { this.Invoke(new AddBbsControlMessageHandler(AddBbsControlMessage), text); return; }
             if (mainTextBox.Text.Length != 0) { mainTextBox.AppendText(Environment.NewLine); }
             AppendBbsText(text, Color.Yellow);
             mainTextBox.SelectionStart = mainTextBox.Text.Length;
