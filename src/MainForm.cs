@@ -3567,12 +3567,5 @@ namespace HTCommander
             }
             e.Handled = false;
         }
-
-
-        int xc = 1;
-        private void timer1_Tick(object sender, EventArgs e)
-        {
-            AddBbsControlMessage("ABC: " + (xc++), 55);
-        }
     }
 }
