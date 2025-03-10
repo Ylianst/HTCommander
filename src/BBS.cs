@@ -187,9 +187,9 @@ namespace HTCommander
             // This is embedded mail sent in compressed format
             if (session.sessionState.ContainsKey("wlMailBinary"))
             {
-                parent.AddBbsControlMessage("Received binary traffic, " + data.Length + ((data.Length < 2) ? " byte" : " bytes"), 1);
                 MemoryStream blocks = (MemoryStream)session.sessionState["wlMailBinary"];
                 blocks.Write(data, 0, data.Length);
+                parent.AddBbsControlMessage("Received binary traffic, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes"), 1);
                 //List<byte[]> blocks;
                 //if (session.sessionState.ContainsKey("wlMailBlocks")) { blocks = (List<byte[]>)session.sessionState["wlMailBlocks"]; } else { blocks = new List<byte[]>(); }
                 //blocks.Add(data);
