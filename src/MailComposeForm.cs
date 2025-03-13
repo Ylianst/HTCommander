@@ -119,6 +119,7 @@ namespace HTCommander
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
             mail.MID = WinLinkMail.GenerateMID();
             mail.To = toTextBox.Text;
+            mail.From = parent.callsign;
             if (ccTextBox.Text.Length > 0) { mail.Cc = ccTextBox.Text; } else { mail.Cc = null; }
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
@@ -154,6 +155,7 @@ namespace HTCommander
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
             mail.MID = WinLinkMail.GenerateMID();
             mail.To = toTextBox.Text;
+            mail.From = parent.callsign;
             if (ccTextBox.Text.Length > 0) { mail.Cc = ccTextBox.Text; } else { mail.Cc = null; }
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;

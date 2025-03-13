@@ -1293,7 +1293,6 @@
             this.deleteMailToolStripMenuItem});
             this.mailContextMenuStrip.Name = "mailContextMenuStrip";
             this.mailContextMenuStrip.Size = new System.Drawing.Size(187, 208);
-            this.mailContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.mailContextMenuStrip_Opening);
             // 
             // viewMailToolStripMenuItem
             // 

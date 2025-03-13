@@ -22,6 +22,7 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using aprsparser;
 using HTCommander.radio;
+using static System.Collections.Specialized.BitVector32;
 
 namespace HTCommander
 {
@@ -200,7 +201,7 @@ namespace HTCommander
                     session.sessionState.Remove("wlMailBinary");
                     session.sessionState.Remove("wlMailBlocks");
                     session.sessionState.Remove("wlMailProp");
-                    SessionSend(session, "FF\r");
+                    SendProposals(session, false);
                 }
                 return;
             }
@@ -302,9 +303,60 @@ namespace HTCommander
                         }
                     }
                 }
+                else if (key == "FF")
+                {   // Winlink send messages back to connected station
+                    UpdateEmails(session);
+                    SendProposals(session, true);
+                }
                 else if (key == "FQ")
                 {   // Winlink Session Close
                     session.Disconnect();
+                }
+                else if (key == "FS")
+                {   // Winlink Send Mails
+                    if (session.sessionState.ContainsKey("OutMails") && session.sessionState.ContainsKey("OutMailBlocks"))
+                    {
+                        List<WinLinkMail> proposedMails = (List<WinLinkMail>)session.sessionState["OutMails"];
+                        List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)session.sessionState["OutMailBlocks"];
+                        session.sessionState["MailProposals"] = value;
+
+                        // Look at proposal responses
+                        int sentMails = 0;
+                        string[] proposalResponses = ParseProposalResponses(value);
+                        if (proposalResponses.Length == proposedMails.Count)
+                        {
+                            int totalSize = 0;
+                            for (int j = 0; j < proposalResponses.Length; j++)
+                            {
+                                if (proposalResponses[j] == "Y")
+                                {
+                                    sentMails++;
+                                    foreach (byte[] block in proposedMailsBinary[j]) { session.Send(block); totalSize += block.Length; }
+                                }
+                            }
+                            if (sentMails == 1) { parent.AddBbsControlMessage("Sending mail, " + totalSize + " bytes..."); }
+                            else if (sentMails > 1) { parent.AddBbsControlMessage("Sending " + sentMails + " mails, " + totalSize + " bytes..."); }
+                            else
+                            {
+                                // Winlink Session Close
+                                UpdateEmails(session);
+                                parent.AddBbsControlMessage("No emails to transfer.");
+                                SessionSend(session, "FQ");
+                            }
+                        }
+                        else
+                        {
+                            // Winlink Session Close
+                            parent.AddBbsControlMessage("Incorrect proposal response.");
+                            SessionSend(session, "FQ");
+                        }
+                    }
+                    else
+                    {
+                        // Winlink Session Close
+                        parent.AddBbsControlMessage("Unexpected proposal response.");
+                        SessionSend(session, "FQ");
+                    }
                 }
                 else if (key == "ECHO")
                 {   // Test Echo command
@@ -328,6 +380,72 @@ namespace HTCommander
             */
         }
 
+        private void SendProposals(AX25Session session, bool lastExchange)
+        {
+            // Look to see if we have any mail in the outbox for this connected station
+            // TODO
+
+            // Send proposals with checksum
+            StringBuilder sb = new StringBuilder();
+            List<WinLinkMail> proposedMails = new List<WinLinkMail>();
+            List<List<Byte[]>> proposedMailsBinary = new List<List<Byte[]>>();
+            int checksum = 0, mailSendCount = 0;
+            foreach (WinLinkMail mail in parent.Mails)
+            {
+                if ((mail.Mailbox != 1) || string.IsNullOrEmpty(mail.MID) || (mail.MID.Length != 12)) continue;
+
+                int uncompressedSize;
+                int compressedSize;
+                List<Byte[]> blocks = WinLinkMail.EncodeMailToBlocks(mail, out uncompressedSize, out compressedSize);
+                if (blocks != null)
+                {
+                    proposedMails.Add(mail);
+                    proposedMailsBinary.Add(blocks);
+                    string proposal = "FC EM " + mail.MID + " " + uncompressedSize + " " + compressedSize + " 0\r";
+                    sb.Append(proposal);
+                    byte[] proposalBin = ASCIIEncoding.ASCII.GetBytes(proposal);
+                    for (int i = 0; i < proposalBin.Length; i++) { checksum += proposalBin[i]; }
+                    mailSendCount++;
+                }
+            }
+            if (mailSendCount > 0)
+            {
+                // Send proposal checksum
+                checksum = (-checksum) & 0xFF;
+                sb.Append("F> " + checksum.ToString("X2"));
+                SessionSend(session, sb.ToString());
+                session.sessionState["OutMails"] = proposedMails;
+                session.sessionState["OutMailBlocks"] = proposedMailsBinary;
+            }
+            else
+            {
+                // No mail proposals sent, close.
+                if (lastExchange) { sb.Append("FQ"); } else { sb.Append("FF"); }
+            }
+            SessionSend(session, sb.ToString());
+        }
+
+        private string[] ParseProposalResponses(string value)
+        {
+            value = value.ToUpper().Replace("+", "Y").Replace("R", "N").Replace("-", "N").Replace("=", "L").Replace("H", "L").Replace("!", "A");
+            List<string> responses = new List<string>();
+            string r = "";
+            for (int i = 0; i < value.Length; i++)
+            {
+                if ((value[i] >= '0') && (value[i] <= '9'))
+                {
+                    if (!string.IsNullOrEmpty(r)) { r += value[i]; }
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(r)) { responses.Add(r); r = ""; }
+                    r += value[i];
+                }
+            }
+            if (!string.IsNullOrEmpty(r)) { responses.Add(r); }
+            return responses.ToArray();
+        }
+
         public void ProcessFrame(TncDataFragment frame, AX25Packet p)
         {
             // TODO: Add support for the weird packet format
@@ -342,6 +460,37 @@ namespace HTCommander
             if ((aprsPacket.MessageData.Addressee == parent.callsign + "-" + parent.stationId) || (aprsPacket.MessageData.Addressee == parent.callsign)) // Check if this packet is for us
             {
                 if (aprsPacket.DataType == PacketDataType.Message) { ProcessAprsPacket(p, aprsPacket, frame.data.Length, frame.channel_name == "APRS"); return; }
+            }
+        }
+
+        private void UpdateEmails(AX25Session session)
+        {
+            // All good, save the new state of the mails
+            if (session.sessionState.ContainsKey("OutMails") && session.sessionState.ContainsKey("OutMailBlocks") && session.sessionState.ContainsKey("MailProposals"))
+            {
+                List<WinLinkMail> proposedMails = (List<WinLinkMail>)session.sessionState["OutMails"];
+                List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)session.sessionState["OutMailBlocks"];
+                string[] proposalResponses = ParseProposalResponses((string)session.sessionState["MailProposals"]);
+
+                // Look at proposal responses
+                int mailsChanges = 0;
+                if (proposalResponses.Length == proposedMails.Count)
+                {
+                    for (int j = 0; j < proposalResponses.Length; j++)
+                    {
+                        if ((proposalResponses[j] == "Y") || (proposalResponses[j] == "N"))
+                        {
+                            proposedMails[j].Mailbox = 3; // Sent
+                            mailsChanges++;
+                        }
+                    }
+                }
+
+                if (mailsChanges > 0)
+                {
+                    parent.SaveMails();
+                    parent.UpdateMail();
+                }
             }
         }
 

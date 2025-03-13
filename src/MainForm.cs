@@ -3239,10 +3239,6 @@ namespace HTCommander
             mailPreviewTextBox.Rtf = rtfBuilder.ToRtf();
         }
 
-        private void mailContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-        }
-
         private void moveToDraftToolStripMenuItem_Click(object sender, EventArgs e)
         {
             foreach (ListViewItem l in mailboxListView.SelectedItems)
