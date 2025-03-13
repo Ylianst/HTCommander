@@ -189,7 +189,7 @@ namespace HTCommander
             {
                 MemoryStream blocks = (MemoryStream)session.sessionState["wlMailBinary"];
                 blocks.Write(data, 0, data.Length);
-                parent.AddBbsControlMessage("Received binary traffic, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes"));
+                parent.AddBbsControlMessage("Receiving mail, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes"));
                 if (ExtractMail(session, blocks) == true)
                 {
                     // We are done with the mail reception
@@ -408,7 +408,6 @@ namespace HTCommander
                 // Send proposal checksum
                 checksum = (-checksum) & 0xFF;
                 sb.Append("F> " + checksum.ToString("X2"));
-                SessionSend(session, sb.ToString());
                 session.sessionState["OutMails"] = proposedMails;
                 session.sessionState["OutMailBlocks"] = proposedMailsBinary;
             }

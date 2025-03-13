@@ -112,6 +112,8 @@ namespace HTCommander.radio
                         ptr += 2;
                         completeMail = true;
                         break;
+                    default:
+                        return null;
                 }
             }
             if (completeMail == false) return null;

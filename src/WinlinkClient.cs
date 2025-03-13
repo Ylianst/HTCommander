@@ -20,6 +20,7 @@ using System.Diagnostics;
 using System.Windows.Forms;
 using System.Collections.Generic;
 using HTCommander.radio;
+using System.IO;
 
 namespace HTCommander
 {
@@ -31,6 +32,7 @@ namespace HTCommander
         {
             this.parent = parent;
         }
+
         private void SessionSend(AX25Session session, string output)
         {
             if (!string.IsNullOrEmpty(output))
@@ -141,26 +143,22 @@ namespace HTCommander
         {
             if ((data == null) || (data.Length == 0)) return;
 
-            /*
             // This is embedded mail sent in compressed format
             if (session.sessionState.ContainsKey("wlMailBinary"))
             {
-                parent.AddBbsControlMessage("Receiving binary traffic.");
-                List<byte[]> blocks;
-                if (session.sessionState.ContainsKey("wlMailBlocks")) { blocks = (List<byte[]>)session.sessionState["wlMailBlocks"]; } else { blocks = new List<byte[]>(); }
-                blocks.Add(data);
-                session.sessionState["wlMailBlocks"] = blocks;
-                if (ExtractMail(session) == true)
+                MemoryStream blocks = (MemoryStream)session.sessionState["wlMailBinary"];
+                blocks.Write(data, 0, data.Length);
+                StateMessage("Receiving mail, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes"));
+                if (ExtractMail(session, blocks) == true)
                 {
                     // We are done with the mail reception
                     session.sessionState.Remove("wlMailBinary");
                     session.sessionState.Remove("wlMailBlocks");
                     session.sessionState.Remove("wlMailProp");
-                    SessionSend(session, "FF\r");
+                    SessionSend(session, "FF");
                 }
                 return;
             }
-            */
 
             string dataStr = UTF8Encoding.UTF8.GetString(data);
             string[] dataStrs = dataStr.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
@@ -169,8 +167,11 @@ namespace HTCommander
                 if (str.Length == 0) continue;
                 parent.mailClientDebugForm.AddBbsTraffic(session.Addresses[0].ToString(), false, str);
 
-                if (str.EndsWith(">"))
+                if (str.EndsWith(">") && !session.sessionState.ContainsKey("SessionStart"))
                 {
+                    // Only do this once at the start of the session
+                    session.sessionState["SessionStart"] = 1;
+
                     // Build the big response (Info + Auth + Proposals)
                     StringBuilder sb = new StringBuilder();
 
@@ -193,8 +194,7 @@ namespace HTCommander
                     {
                         if ((mail.Mailbox != 1) || string.IsNullOrEmpty(mail.MID) || (mail.MID.Length != 12)) continue;
 
-                        int uncompressedSize;
-                        int compressedSize;
+                        int uncompressedSize, compressedSize;
                         List<Byte[]> blocks = WinLinkMail.EncodeMailToBlocks(mail, out uncompressedSize, out compressedSize);
                         if (blocks != null)
                         {
@@ -218,8 +218,8 @@ namespace HTCommander
                     }
                     else
                     {
-                        // No mail proposals sent, close.
-                        sb.Append("FQ");
+                        // No mail proposals sent, give a change to the server to send us mails.
+                        sb.Append("FF");
                         SessionSend(session, sb.ToString());
                     }
                 }
@@ -262,7 +262,7 @@ namespace HTCommander
                                     // Winlink Session Close
                                     UpdateEmails(session);
                                     StateMessage("No emails to transfer.");
-                                    SessionSend(session, "FQ");
+                                    SessionSend(session, "FF");
                                 }
                             }
                             else
@@ -285,6 +285,85 @@ namespace HTCommander
                         UpdateEmails(session);
                         SessionSend(session, "FQ");
                     }
+                    else if (key == "FC")
+                    {
+                        // Winlink Mail Proposal
+                        List<string> proposals;
+                        if (session.sessionState.ContainsKey("wlMailProp")) { proposals = (List<string>)session.sessionState["wlMailProp"]; } else { proposals = new List<string>(); }
+                        proposals.Add(value);
+                        session.sessionState["wlMailProp"] = proposals;
+                    }
+                    else if (key == "F>")
+                    {
+                        // Winlink Mail Proposals completed, we need to respond
+                        if ((session.sessionState.ContainsKey("wlMailProp")) && (!session.sessionState.ContainsKey("wlMailBinary")))
+                        {
+                            List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
+                            List<string> proposals2 = new List<string>();
+                            if ((proposals != null) && (proposals.Count > 0))
+                            {
+                                // Compute the proposal checksum
+                                int checksum = 0;
+                                foreach (string proposal in proposals)
+                                {
+                                    byte[] proposalBin = ASCIIEncoding.ASCII.GetBytes("FC " + proposal + "\r");
+                                    for (int j = 0; j < proposalBin.Length; j++) { checksum += proposalBin[j]; }
+                                }
+                                checksum = (-checksum) & 0xFF;
+                                if (checksum.ToString("X2") == value)
+                                {
+                                    // Build a response
+                                    string response = "";
+                                    int acceptedProposalCount = 0;
+                                    foreach (string proposal in proposals)
+                                    {
+                                        string[] proposalSplit = proposal.Split(' ');
+                                        if ((proposalSplit.Length >= 5) && (proposalSplit[0] == "EM") && (proposalSplit[1].Length == 12))
+                                        {
+                                            int mFullLen, mCompLen, mUnknown;
+                                            if (
+                                                int.TryParse(proposalSplit[2], out mFullLen) &&
+                                                int.TryParse(proposalSplit[3], out mCompLen) &&
+                                                int.TryParse(proposalSplit[4], out mUnknown)
+                                            )
+                                            {
+                                                // Check if we already have this email
+                                                if (WeHaveEmail(proposalSplit[1]))
+                                                {
+                                                    response += "N";
+                                                }
+                                                else
+                                                {
+                                                    response += "Y";
+                                                    proposals2.Add(proposal);
+                                                    acceptedProposalCount++;
+                                                }
+                                            }
+                                            else { response += "H"; }
+                                        }
+                                        else { response += "H"; }
+                                    }
+                                    SessionSend(session, "FS " + response + "\r");
+                                    if (acceptedProposalCount > 0)
+                                    {
+                                        session.sessionState["wlMailBinary"] = new MemoryStream();
+                                        session.sessionState["wlMailProp"] = proposals2;
+                                    }
+                                }
+                                else
+                                {
+                                    // Checksum failed
+                                    StateMessage("Checksum Failed");
+                                    session.Disconnect();
+                                }
+                            }
+                        }
+                    }
+                    else if (key == "FQ")
+                    {   // Winlink Session Close
+                        UpdateEmails(session);
+                        session.Disconnect();
+                    }
                 }
             }
         }
@@ -293,6 +372,57 @@ namespace HTCommander
         public void ProcessFrame(TncDataFragment frame, AX25Packet p)
         {
             // Do nothing
+        }
+
+        private bool ExtractMail(AX25Session session, MemoryStream blocks)
+        {
+            if (session.sessionState.ContainsKey("wlMailProp") == false) return false;
+            List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
+            if ((proposals == null) || (blocks == null)) return false;
+            if ((proposals.Count == 0) || (blocks.Length == 0)) return true;
+
+            // Decode the proposal
+            string[] proposalSplit = proposals[0].Split(' ');
+            string MID = proposalSplit[1];
+            int mFullLen, mCompLen;
+            int.TryParse(proposalSplit[2], out mFullLen);
+            int.TryParse(proposalSplit[3], out mCompLen);
+
+            // See what we got
+            bool fail;
+            int dataConsumed = 0;
+            WinLinkMail mail = WinLinkMail.DecodeBlocksToEmail(blocks.ToArray(), out fail, out dataConsumed);
+            if (fail) { StateMessage("Failed to decode mail."); return true; }
+            if (mail == null) return false;
+            if (dataConsumed > 0)
+            {
+                if (dataConsumed >= blocks.Length)
+                {
+                    blocks.SetLength(0);
+                }
+                else
+                {
+                    byte[] newBlocks = new byte[blocks.Length - dataConsumed];
+                    Array.Copy(blocks.ToArray(), dataConsumed, newBlocks, 0, newBlocks.Length);
+                    blocks.SetLength(0);
+                    blocks.Write(newBlocks, 0, newBlocks.Length);
+                }
+            }
+            proposals.RemoveAt(0);
+
+            // Process the mail
+            parent.Mails.Add(mail);
+            parent.SaveMails();
+            parent.UpdateMail();
+            StateMessage("Got mail for " + mail.To + ".");
+
+            return (proposals.Count == 0);
+        }
+
+        private bool WeHaveEmail(string mid)
+        {
+            foreach (WinLinkMail mail in parent.Mails) { if (mail.MID == mid) return true; }
+            return false;
         }
 
     }
