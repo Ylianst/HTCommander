@@ -22,7 +22,6 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using aprsparser;
 using HTCommander.radio;
-using static System.Collections.Specialized.BitVector32;
 
 namespace HTCommander
 {
@@ -86,7 +85,7 @@ namespace HTCommander
         private string GetVersion()
         {
             // Get the path of the currently running executable
-            string exePath = System.Windows.Forms.Application.ExecutablePath;
+            string exePath = Application.ExecutablePath;
 
             // Get the FileVersionInfo for the executable
             FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(exePath);
@@ -191,10 +190,6 @@ namespace HTCommander
                 MemoryStream blocks = (MemoryStream)session.sessionState["wlMailBinary"];
                 blocks.Write(data, 0, data.Length);
                 parent.AddBbsControlMessage("Received binary traffic, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes"));
-                //List<byte[]> blocks;
-                //if (session.sessionState.ContainsKey("wlMailBlocks")) { blocks = (List<byte[]>)session.sessionState["wlMailBlocks"]; } else { blocks = new List<byte[]>(); }
-                //blocks.Add(data);
-                //session.sessionState["wlMailBlocks"] = blocks;
                 if (ExtractMail(session, blocks) == true)
                 {
                     // We are done with the mail reception
