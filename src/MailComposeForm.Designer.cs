@@ -70,7 +70,7 @@
             this.panel2.Controls.Add(this.label1);
             this.panel2.Controls.Add(this.subjectTextBox);
             this.panel2.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panel2.Location = new System.Drawing.Point(0, 28);
+            this.panel2.Location = new System.Drawing.Point(0, 30);
             this.panel2.Margin = new System.Windows.Forms.Padding(4);
             this.panel2.Name = "panel2";
             this.panel2.Size = new System.Drawing.Size(582, 100);
@@ -84,6 +84,8 @@
             this.ccTextBox.Name = "ccTextBox";
             this.ccTextBox.Size = new System.Drawing.Size(416, 22);
             this.ccTextBox.TabIndex = 11;
+            this.ccTextBox.TextChanged += new System.EventHandler(this.ccTextBox_TextChanged);
+            this.ccTextBox.Leave += new System.EventHandler(this.ccTextBox_Leave);
             // 
             // toTextBox
             // 
@@ -93,6 +95,8 @@
             this.toTextBox.Name = "toTextBox";
             this.toTextBox.Size = new System.Drawing.Size(416, 22);
             this.toTextBox.TabIndex = 10;
+            this.toTextBox.TextChanged += new System.EventHandler(this.toTextBox_TextChanged);
+            this.toTextBox.Leave += new System.EventHandler(this.toTextBox_Leave);
             // 
             // label3
             // 
@@ -147,10 +151,10 @@
             this.mainTextBox.AllowDrop = true;
             this.mainTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.mainTextBox.Location = new System.Drawing.Point(0, 128);
+            this.mainTextBox.Location = new System.Drawing.Point(0, 130);
             this.mainTextBox.Multiline = true;
             this.mainTextBox.Name = "mainTextBox";
-            this.mainTextBox.Size = new System.Drawing.Size(582, 382);
+            this.mainTextBox.Size = new System.Drawing.Size(582, 380);
             this.mainTextBox.TabIndex = 19;
             this.mainTextBox.TextChanged += new System.EventHandler(this.mainTextBox_TextChanged);
             this.mainTextBox.DragDrop += new System.Windows.Forms.DragEventHandler(this.mainTextBox_DragDrop);
@@ -201,7 +205,7 @@
             this.sendButton.Name = "sendButton";
             this.sendButton.Size = new System.Drawing.Size(100, 28);
             this.sendButton.TabIndex = 21;
-            this.sendButton.Text = "&Send";
+            this.sendButton.Text = "&Outbox";
             this.sendButton.UseVisualStyleBackColor = true;
             this.sendButton.Click += new System.EventHandler(this.sendButton_Click);
             // 
@@ -226,7 +230,7 @@
             this.attachmentsToolStripMenuItem});
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             this.mainMenuStrip.Name = "mainMenuStrip";
-            this.mainMenuStrip.Size = new System.Drawing.Size(582, 28);
+            this.mainMenuStrip.Size = new System.Drawing.Size(582, 30);
             this.mainMenuStrip.TabIndex = 20;
             this.mainMenuStrip.Text = "menuStrip1";
             // 
@@ -238,33 +242,33 @@
             this.toolStripMenuItem1,
             this.sendToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 26);
             this.fileToolStripMenuItem.Text = "&File";
             // 
             // draftToolStripMenuItem
             // 
             this.draftToolStripMenuItem.Name = "draftToolStripMenuItem";
-            this.draftToolStripMenuItem.Size = new System.Drawing.Size(136, 26);
+            this.draftToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.draftToolStripMenuItem.Text = "&Draft";
             this.draftToolStripMenuItem.Click += new System.EventHandler(this.draftButton_Click);
             // 
             // cancelToolStripMenuItem
             // 
             this.cancelToolStripMenuItem.Name = "cancelToolStripMenuItem";
-            this.cancelToolStripMenuItem.Size = new System.Drawing.Size(136, 26);
+            this.cancelToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.cancelToolStripMenuItem.Text = "&Cancel";
             this.cancelToolStripMenuItem.Click += new System.EventHandler(this.cancelButton_Click);
             // 
             // toolStripMenuItem1
             // 
             this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(133, 6);
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(221, 6);
             // 
             // sendToolStripMenuItem
             // 
             this.sendToolStripMenuItem.Name = "sendToolStripMenuItem";
-            this.sendToolStripMenuItem.Size = new System.Drawing.Size(136, 26);
-            this.sendToolStripMenuItem.Text = "&Send";
+            this.sendToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.sendToolStripMenuItem.Text = "&Outbox";
             this.sendToolStripMenuItem.Click += new System.EventHandler(this.sendButton_Click);
             // 
             // attachmentsToolStripMenuItem
@@ -272,7 +276,7 @@
             this.attachmentsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.addToolStripMenuItem});
             this.attachmentsToolStripMenuItem.Name = "attachmentsToolStripMenuItem";
-            this.attachmentsToolStripMenuItem.Size = new System.Drawing.Size(106, 24);
+            this.attachmentsToolStripMenuItem.Size = new System.Drawing.Size(106, 26);
             this.attachmentsToolStripMenuItem.Text = "&Attachments";
             // 
             // addToolStripMenuItem

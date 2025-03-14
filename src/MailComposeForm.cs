@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Drawing;
 using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using HTCommander.radio;
 
@@ -73,8 +76,12 @@ namespace HTCommander
 
         private void UpdateInfo()
         {
-            draftButton.Enabled = (toTextBox.Text.Length > 0) || (subjectTextBox.Text.Length > 0) || (mainTextBox.Text.Length > 0);
-            sendButton.Enabled = (toTextBox.Text.Length > 0) && (subjectTextBox.Text.Length > 0) && (mainTextBox.Text.Length > 0);
+            bool tov = validateToLine(toTextBox.Text);
+            bool ccv = validateToLine(ccTextBox.Text);
+            draftButton.Enabled = true;
+            sendButton.Enabled = tov && ccv && (toTextBox.Text.Length > 0) && (subjectTextBox.Text.Length > 0) && (mainTextBox.Text.Length > 0);
+            toTextBox.BackColor = tov ? subjectTextBox.BackColor : Color.Bisque;
+            ccTextBox.BackColor = ccv ? subjectTextBox.BackColor : Color.Bisque;
         }
 
         private void mainTextBox_TextChanged(object sender, EventArgs e)
@@ -227,6 +234,73 @@ namespace HTCommander
                     attachmentsFlowLayoutPanel.Controls.Add(mailAttachmentControl);
                 }
             }
+        }
+
+        private void toTextBox_TextChanged(object sender, EventArgs e)
+        {
+            UpdateInfo();
+        }
+
+        private void ccTextBox_TextChanged(object sender, EventArgs e)
+        {
+            UpdateInfo();
+        }
+
+        private bool validateToLine(string t)
+        {
+            string[] s = t.Replace(' ', ';').Split(';');
+            foreach (string s2 in s) { if (validateToItem(s2) == false) return false; }
+            return true;
+        }
+        private bool validateToItem(string t)
+        {
+            if (string.IsNullOrEmpty(t)) return true;
+            t = t.Trim();
+            int i = t.IndexOf('@');
+            if (i == -1)
+            {
+                // Callsign
+                if (t.Length > 10) return false;
+                // Returns true is t only contains alphanumeric values
+                try
+                {
+                    if (Regex.IsMatch(t, "^[a-zA-Z0-9]+$") == false) return false;
+                }
+                catch (Exception) { return false; }
+            }
+            else
+            {
+                // Email
+                string pattern = @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
+                try
+                {
+                    Regex regex = new Regex(pattern);
+                    return regex.IsMatch(t);
+                }
+                catch (Exception) { return false; }
+            }
+            return true;
+        }
+
+        private string CleanString(string t)
+        {
+            StringBuilder sb = new StringBuilder();
+            string[] s = t.Replace(' ', ';').Split(';');
+            foreach (string s2 in s) {
+                string s3 = s2.Trim();
+                if (s3.Length > 0) { if (sb.Length > 0) { sb.Append(";"); } sb.Append(s3); }
+            }
+            return sb.ToString();
+        }
+
+        private void toTextBox_Leave(object sender, EventArgs e)
+        {
+            toTextBox.Text = CleanString(toTextBox.Text);
+        }
+
+        private void ccTextBox_Leave(object sender, EventArgs e)
+        {
+            ccTextBox.Text = CleanString(ccTextBox.Text);
         }
     }
 }

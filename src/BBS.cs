@@ -104,7 +104,7 @@ namespace HTCommander
                     session.sessionState["wlChallenge"] = WinlinkSecurity.GenerateChallenge();
 
                     StringBuilder sb = new StringBuilder();
-                    sb.Append("Handy-Talky Commander BBS\r");
+                    sb.Append("Handy-Talky Commander BBS, M for menu\r");
                     sb.Append("[HTCmd-" + GetVersion() + "-B2FWIHJM$]\r");
                     if (!string.IsNullOrEmpty(parent.winlinkPassword)) { sb.Append(";PQ: " + session.sessionState["wlChallenge"] + "\r"); }
                     //sb.Append("CMS via " + parent.callsign + " >\r");
@@ -184,6 +184,109 @@ namespace HTCommander
             if ((data == null) || (data.Length == 0)) return;
             UpdateStats(session.Addresses[0].ToString(), "Stream", 1, 0, data.Length, 0);
 
+            string mode = null;
+            if (session.sessionState.ContainsKey("mode")) { mode = (string)session.sessionState["mode"]; } 
+            if (mode == "mail") { ProcessMailStream(session, data); return; }
+            if (mode == "adventure") { ProcessAdventureStream(session, data); return; }
+            ProcessBbsStream(session, data);
+        }
+
+        public void ProcessBbsStream(AX25Session session, byte[] data)
+        {
+            string dataStr = UTF8Encoding.UTF8.GetString(data);
+            parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr);
+            string[] dataStrs = dataStr.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
+            StringBuilder sb = new StringBuilder();
+            foreach (string str in dataStrs)
+            {
+                if (str.Length == 0) continue;
+                parent.AddBbsTraffic(session.Addresses[0].ToString(), false, str.Trim());
+
+                // Switch to Winlink mail mode
+                if ((!session.sessionState.ContainsKey("mode")) && (str.Length > 6) && (str.IndexOf("-") > 0) && str.StartsWith("[") && str.EndsWith("$]"))
+                {
+                    session.sessionState["mode"] = "mail";
+                    ProcessMailStream(session, data);
+                    return;
+                }
+
+                // Decode command and arguments
+                string key = str, value = "";
+                int i = str.IndexOf(' ');
+                if (i > 0) { key = str.Substring(0, i).ToUpper(); value = str.Substring(i + 1); }
+
+                // Process commands
+                if ((key == "M") || (key == "MENU"))
+                {
+                    sb.Append("Welcome to our BBS\r");
+                    sb.Append("---\r");
+                    sb.Append("[M]ain menu\r");
+                    sb.Append("[A]dventure game\r");
+                    sb.Append("[D]isconnect\r");
+                    sb.Append("[S]oftware information\r");
+                    sb.Append("---\r");
+                }
+                else if ((key == "S") || (key == "SOFTWARE"))
+                {
+                    sb.Append("This BBS is run by Handy-Talky Commander, an open source software available at https://github.com/Ylianst/HTCommander. This BBS can also handle Winlink messages in a limited way.\r");
+                }
+                else if ((key == "A") || (key == "ADVENTURE"))
+                {
+                    sb.Append("Entering Adventure, type \"QUIT\" to exit.\r");
+                    string output = sb.ToString();
+                    parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
+                    byte[] bytesOut = UTF8Encoding.UTF8.GetBytes(output);
+                    session.Send(bytesOut);
+                    session.sessionState["mode"] = "adventure";
+                    ProcessAdventureStream(session, UTF8Encoding.UTF8.GetBytes(" "));
+                }
+                else if ((key == "X") || (key == "EXIT"))
+                {
+                    session.Disconnect();
+                    return;
+                }
+
+                if (sb.Length > 0)
+                {
+                    string output = sb.ToString();
+                    parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
+                    byte[] bytesOut = UTF8Encoding.UTF8.GetBytes(output);
+                    session.Send(bytesOut);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Process traffic from a user playing the adventure game
+        /// </summary>
+        /// <param name="session"></param>
+        /// <param name="data"></param>
+        public void ProcessAdventureStream(AX25Session session, byte[] data)
+        {
+            string dataStr = UTF8Encoding.UTF8.GetString(data);
+            parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr);
+            Adventurer.GameRunner runner = new Adventurer.GameRunner();
+            string output = runner.RunTurn("adv01.dat", session.Addresses[0].CallSignWithId + ".sav", dataStr).Replace("\r\n\r\n", "\r\n").Trim();
+            if ((output != null) && (output.Length > 0))
+            {
+                if (string.Compare(dataStr.Trim(), "quit", true) == 0) {
+                    session.sessionState["mode"] = "bbs";
+                    output += "\rBack to BBS mode. Type M for menu.";
+                }
+                parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
+                byte[] bytesOut = UTF8Encoding.UTF8.GetBytes(output);
+                session.Send(bytesOut);
+                UpdateStats(session.Addresses[0].ToString(), "Stream", 1, 1, data.Length, bytesOut.Length);
+            }
+        }
+
+        /// <summary>
+        /// Process traffic from a Winlink client
+        /// </summary>
+        /// <param name="session"></param>
+        /// <param name="data"></param>
+        public void ProcessMailStream(AX25Session session, byte[] data)
+        {
             // This is embedded mail sent in compressed format
             if (session.sessionState.ContainsKey("wlMailBinary"))
             {
@@ -358,28 +461,10 @@ namespace HTCommander
                     SessionSend(session, value + "\r");
                 }
             }
-
-
-            /*
-            string dataStr = UTF8Encoding.UTF8.GetString(data);
-            parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr);
-            Adventurer.GameRunner runner = new Adventurer.GameRunner();
-            string output = runner.RunTurn("adv01.dat", session.Addresses[0].CallSignWithId + ".sav", dataStr).Replace("\r\n\r\n", "\r\n").Trim();
-            if ((output != null) && (output.Length > 0))
-            {
-                parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
-                byte[] bytesOut = UTF8Encoding.UTF8.GetBytes(output);
-                session.Send(bytesOut);
-                UpdateStats(session.Addresses[0].ToString(), "Stream", 1, 1, data.Length, bytesOut.Length);
-            }
-            */
         }
 
         private void SendProposals(AX25Session session, bool lastExchange)
         {
-            // Look to see if we have any mail in the outbox for this connected station
-            // TODO
-
             // Send proposals with checksum
             StringBuilder sb = new StringBuilder();
             List<WinLinkMail> proposedMails = new List<WinLinkMail>();
@@ -389,8 +474,12 @@ namespace HTCommander
             {
                 if ((mail.Mailbox != 1) || string.IsNullOrEmpty(mail.MID) || (mail.MID.Length != 12)) continue;
 
-                int uncompressedSize;
-                int compressedSize;
+                // See if the mail in the outbox is for the connected station
+                bool others = false;
+                bool response = WinLinkMail.IsMailForStation(session.Addresses[1].ToString(), mail.To, mail.Cc, out others);
+                if (response == false) continue;
+
+                int uncompressedSize, compressedSize;
                 List<Byte[]> blocks = WinLinkMail.EncodeMailToBlocks(mail, out uncompressedSize, out compressedSize);
                 if (blocks != null)
                 {

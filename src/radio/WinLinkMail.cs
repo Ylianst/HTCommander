@@ -20,6 +20,8 @@ using System.Text;
 using System.Globalization;
 using System.Collections.Generic;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
+using Newtonsoft.Json.Linq;
 
 namespace HTCommander.radio
 {
@@ -507,6 +509,45 @@ namespace HTCommander.radio
 
                 return result.ToString();
             }
+        }
+
+        public static bool IsMailForStation(string callsign, string to, string cc, out bool others)
+        {
+            bool o1, o2;
+            bool r1 = IsMailForStationEx(callsign, to, out o1);
+            bool r2 = IsMailForStationEx(callsign, cc, out o2);
+            others = o1 || o2;
+            return r1 || r2;
+        }
+
+        private static bool IsMailForStationEx(string callsign, string t, out bool others)
+        {
+            others = false;
+            bool response = false;
+            if (string.IsNullOrEmpty(callsign) || string.IsNullOrEmpty(t)) return false;
+            string[] s = t.Split(';');
+            foreach (string s2 in s)
+            {
+                if (string.IsNullOrEmpty(s2)) continue;
+                bool match = false;
+                string s3 = s2.Trim();
+                int i = s2.IndexOf('@');
+                if (i == -1)
+                {
+                    // Callsign
+                    if (string.Compare(callsign, s2, true) == 0) { match = true; }
+                    if (s2.ToUpper().StartsWith(callsign.ToUpper() + "-")) { match = true; }
+                }
+                else
+                {
+                    // Email
+                    string key = s2.Substring(0, i).ToUpper();
+                    string value = s2.Substring(i + 1).ToUpper();
+                    if ((value == "WINLINK.ORG") && (string.Compare(callsign, key, true) == 0) || (key.ToUpper().StartsWith(callsign + "-"))) { match = true; }
+                }
+                if (match) { response = true; } else { others = true; }
+            }
+            return response;
         }
     }
 }
