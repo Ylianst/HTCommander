@@ -121,12 +121,6 @@ namespace HTCommander
                     parent.AddBbsControlMessage("Disconnecting...");
                     break;
             }
-
-            /*
-            Adventurer.GameRunner runner = new Adventurer.GameRunner();
-            string output = runner.RunTurn("adv01.dat", session.Addresses[0].CallSignWithId + ".sav", "").Replace("\r\n\r\n", "\r\n").Trim();
-            SessionSend(session, output);
-            */
         }
 
         private bool ExtractMail(AX25Session session, MemoryStream blocks)
@@ -164,6 +158,14 @@ namespace HTCommander
                 }
             }
             proposals.RemoveAt(0);
+
+            // Check if the mail is for us
+            bool others = false;
+            bool response = WinLinkMail.IsMailForStation(parent.callsign, mail.To, mail.Cc, out others);
+            if (response == false) { mail.Mailbox = 1; }
+
+            // TODO: If others is true, we need to keep the email on the outbox for others to get.
+            // So, we need to duplicate the email.
 
             // Process the mail
             parent.Mails.Add(mail);
@@ -475,7 +477,7 @@ namespace HTCommander
 
                 // See if the mail in the outbox is for the connected station
                 bool others = false;
-                bool response = WinLinkMail.IsMailForStation(session.Addresses[1].ToString(), mail.To, mail.Cc, out others);
+                bool response = WinLinkMail.IsMailForStation(session.Addresses[1].address, mail.To, mail.Cc, out others);
                 if (response == false) continue;
 
                 int uncompressedSize, compressedSize;

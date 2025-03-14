@@ -3297,7 +3297,7 @@ namespace HTCommander
         private void deleteMailToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (mailboxListView.SelectedItems.Count == 0) return;
-            if (MessageBox.Show(this, "Permanently delete selected mails?", "Mail", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.OK)
+            if (MessageBox.Show(this, "Permanently delete selected mails?", "Mail", MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.OK)
             {
                 foreach (ListViewItem l in mailboxListView.SelectedItems)
                 {
