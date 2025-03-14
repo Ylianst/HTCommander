@@ -239,7 +239,7 @@ namespace HTCommander
                     session.sessionState["mode"] = "adventure";
                     ProcessAdventureStream(session, UTF8Encoding.UTF8.GetBytes(" "));
                 }
-                else if ((key == "X") || (key == "EXIT"))
+                else if ((key == "D") || (key == "DISC") || (key == "DISCONNECT"))
                 {
                     session.Disconnect();
                     return;

@@ -472,6 +472,12 @@ namespace HTCommander
                                         TncFragmentInFlight = true;
                                         SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
                                     }
+                                    else if (TncFragmentInFlight && HtStatus.is_in_rx)
+                                    {
+                                        // Send more data
+                                        TncFragmentInFlight = false;
+                                        Debug("INFLIGHT RX, ASSUMING FAILED");
+                                    }
                                     break;
                                 //case RadioNotification.HT_CH_CHANGED:
                                 //Event: 00020009050508CCCEC008C3A70027102710940053796C76616E00000000
