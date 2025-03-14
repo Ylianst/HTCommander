@@ -194,7 +194,6 @@ namespace HTCommander
         public void ProcessBbsStream(AX25Session session, byte[] data)
         {
             string dataStr = UTF8Encoding.UTF8.GetString(data);
-            parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr);
             string[] dataStrs = dataStr.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
             StringBuilder sb = new StringBuilder();
             foreach (string str in dataStrs)
@@ -211,7 +210,7 @@ namespace HTCommander
                 }
 
                 // Decode command and arguments
-                string key = str, value = "";
+                string key = str.ToUpper(), value = "";
                 int i = str.IndexOf(' ');
                 if (i > 0) { key = str.Substring(0, i).ToUpper(); value = str.Substring(i + 1); }
 
@@ -310,7 +309,7 @@ namespace HTCommander
             {
                 if (str.Length == 0) continue;
                 parent.AddBbsTraffic(session.Addresses[0].ToString(), false, str.Trim());
-                string key = str, value = "";
+                string key = str.ToUpper(), value = "";
                 int i = str.IndexOf(' ');
                 if (i > 0) { key = str.Substring(0, i).ToUpper(); value = str.Substring(i + 1); }
 
