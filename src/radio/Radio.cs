@@ -465,7 +465,7 @@ namespace HTCommander
                                         UpdateChannels();
                                     }
                                     
-                                    Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}, RSSI={HtStatus.rssi}");
+                                    //Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}, RSSI={HtStatus.rssi}");
                                     if (IsTncFree() && (TncFragmentInFlight == false) && (TncFragmentQueue.Count > 0)) // We are clear to send a packet
                                     {
                                         // Send more data
@@ -476,7 +476,6 @@ namespace HTCommander
                                     {
                                         // Send more data
                                         TncFragmentInFlight = false;
-                                        Debug("INFLIGHT RX, ASSUMING FAILED");
                                     }
                                     break;
                                 //case RadioNotification.HT_CH_CHANGED:

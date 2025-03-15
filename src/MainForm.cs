@@ -3338,7 +3338,7 @@ namespace HTCommander
                     int destMailBox = (int)n.Tag;
 
                     bool allowedMove = false;
-                    if (((sourceMailBox == 1) || (sourceMailBox == 2)) && ((destMailBox == 1) || (destMailBox == 2))) { allowedMove = true; }
+                    if ((sourceMailBox == 1) && (destMailBox == 2)) { allowedMove = true; }
                     if (((sourceMailBox == 0) || (sourceMailBox == 4) || (sourceMailBox == 5)) && ((destMailBox == 0) || (destMailBox == 4) || (destMailBox == 5))) { allowedMove = true; }
 
                     if ((sourceMailBox != destMailBox) && allowedMove)
