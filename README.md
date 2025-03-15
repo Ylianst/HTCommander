@@ -28,7 +28,7 @@ This is still an early version, but it's starting to have a lot of features.
 
 ### Installation
 
-There are no installer, just [download the zip file](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.13.zip), extract and run. Except for Open Street Map data, this tool does not access the internet. Pair your radio to your computer and run the application. If your computer does not have Bluetooth, you can get a inexpensive Bluetooth USB dongle. Make sure Bluetooth LE is supported. Pairing can be a bit tricky, you have to pair TWO Bluetooth devices in quick succession, [Bluetooth pairing instructions here](https://github.com/Ylianst/HTCommander/blob/main/docs/Paring.md).
+There are no installer, just [download the zip file](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.14.zip), extract and run. Except for Open Street Map data, this tool does not access the internet. Pair your radio to your computer and run the application. If your computer does not have Bluetooth, you can get a inexpensive Bluetooth USB dongle. Make sure Bluetooth LE is supported. Pairing can be a bit tricky, you have to pair TWO Bluetooth devices in quick succession, [Bluetooth pairing instructions here](https://github.com/Ylianst/HTCommander/blob/main/docs/Paring.md).
 
 ### Credits
 
