@@ -38,9 +38,10 @@
             // okButton
             // 
             this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.okButton.Location = new System.Drawing.Point(374, 244);
+            this.okButton.Location = new System.Drawing.Point(499, 300);
+            this.okButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.okButton.Name = "okButton";
-            this.okButton.Size = new System.Drawing.Size(75, 23);
+            this.okButton.Size = new System.Drawing.Size(100, 28);
             this.okButton.TabIndex = 0;
             this.okButton.Text = "OK";
             this.okButton.UseVisualStyleBackColor = true;
@@ -58,9 +59,10 @@
             this.mainListView.GridLines = true;
             this.mainListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.mainListView.HideSelection = false;
-            this.mainListView.Location = new System.Drawing.Point(12, 12);
+            this.mainListView.Location = new System.Drawing.Point(16, 15);
+            this.mainListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mainListView.Name = "mainListView";
-            this.mainListView.Size = new System.Drawing.Size(437, 226);
+            this.mainListView.Size = new System.Drawing.Size(581, 277);
             this.mainListView.TabIndex = 1;
             this.mainListView.UseCompatibleStateImageBehavior = false;
             this.mainListView.View = System.Windows.Forms.View.Details;
@@ -78,18 +80,19 @@
             // RadioSettingsForm
             // 
             this.AcceptButton = this.okButton;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(461, 279);
+            this.ClientSize = new System.Drawing.Size(615, 343);
             this.Controls.Add(this.mainListView);
             this.Controls.Add(this.okButton);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "RadioSettingsForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "Radio Status";
+            this.Text = "Radio Settings";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.RadioSettingsForm_FormClosing);
             this.Load += new System.EventHandler(this.RadioInfoForm_Load);
             this.ResumeLayout(false);

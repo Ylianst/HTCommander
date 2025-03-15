@@ -116,6 +116,13 @@ namespace HTCommander
             vfo2_mod_freq_x = Utils.GetInt(msg, 21);
         }
 
+        public byte[] ToByteArray()
+        {
+            byte[] buf = new byte[rawData.Length - 5];
+            Array.Copy(rawData, 5, buf, 0, rawData.Length - 5);
+            return buf;
+        }
+
         public byte[] ToByteArray(int cha, int chb, int xdouble_channel, bool xscan, int xsquelch)
         {
             byte[] buf = new byte[rawData.Length - 5];

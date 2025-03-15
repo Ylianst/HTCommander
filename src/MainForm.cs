@@ -69,6 +69,7 @@ namespace HTCommander
         public bool showAllChannels = false;
         public List<StationInfoClass> stations = new List<StationInfoClass>();
         public StationInfoClass activeStationLock = null;
+        public byte[] activeStationsLock_oldSettings;
         public AX25Session session = null;
         public int activeChannelIdLock = -1;
         public string winlinkPassword = null;
@@ -2599,17 +2600,22 @@ namespace HTCommander
         {
             if (station == null)
             {
-                if (session.CurrentState != AX25Session.ConnectionState.DISCONNECTED) { session.Disconnect(); }
-                if ((activeStationLock != null) && activeStationLock.WaitForConnection && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal))
+                if (session.CurrentState != AX25Session.ConnectionState.DISCONNECTED)
                 {
-                    AppendTerminalString(false, null, null, "Stopped.");
+                    session.Disconnect();
+                    return false;
                 }
-                activeStationLock = null;
-                activeChannelIdLock = -1;
-                session.Disconnect();
-                UpdateInfo();
-                UpdateRadioDisplay();
-                return true;
+                else
+                {
+                    if (activeStationsLock_oldSettings != null) { radio.WriteSettings(activeStationsLock_oldSettings); }
+                    activeStationsLock_oldSettings = null;
+                    if ((activeStationLock != null) && activeStationLock.WaitForConnection && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)) { AppendTerminalString(false, null, null, "Stopped."); }
+                    activeStationLock = null;
+                    activeChannelIdLock = -1;
+                    UpdateInfo();
+                    UpdateRadioDisplay();
+                    return true;
+                }
             }
 
             if ((station.StationType != StationInfoClass.StationTypes.Terminal) && (station.StationType != StationInfoClass.StationTypes.Winlink)) return false;
@@ -2630,7 +2636,12 @@ namespace HTCommander
             activeStationLock = station;
             activeChannelIdLock = channelIdLock;
 
-            if (radio.Settings.channel_a != activeChannelIdLock) { ChangeChannelA(activeChannelIdLock); }
+            // Store the old settings
+            activeStationsLock_oldSettings = radio.Settings.ToByteArray();
+
+            // Change to the new channel A and stop scan and dual view.
+            radio.WriteSettings(radio.Settings.ToByteArray(activeChannelIdLock, radio.Settings.channel_b, 0, false, radio.Settings.squelch_level));
+
             UpdateInfo();
             UpdateRadioDisplay();
 
