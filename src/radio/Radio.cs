@@ -238,6 +238,7 @@ namespace HTCommander
         public bool LoopbackMode = false;
         private List<fragmentInQueue> TncFragmentQueue = new List<fragmentInQueue>();
         private bool TncFragmentInFlight = false;
+        public int TransmitQueueLength { get { return TncFragmentQueue.Count; } }
 
         private class fragmentInQueue
         {

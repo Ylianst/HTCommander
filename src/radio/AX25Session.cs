@@ -56,7 +56,7 @@ namespace HTCommander
         public int MaxFrames = 4;
         public int PacketLength = 256;
         public int Retries = 3;
-        public int HBaud = 900; // 1200
+        public int HBaud = 1200;
         public bool Modulo128 = false;
         public bool Tracing = true;
 

@@ -405,7 +405,12 @@ namespace HTCommander
             {
                 if (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)
                 {
-                    AppendTerminalString(false, session.Addresses[0].ToString(), callsign + "-" + stationId, UTF8Encoding.UTF8.GetString(data));
+                    string[] dataStrs = UTF8Encoding.UTF8.GetString(data).Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
+                    for (int i = 0; i < dataStrs.Length; i++)
+                    {
+                        if ((dataStrs[i].Length == 0) && (i == (dataStrs.Length - 1))) continue;
+                        AppendTerminalString(false, session.Addresses[0].ToString(), callsign + "-" + stationId, dataStrs[i]);
+                    }
                 }
                 else if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
                 {
@@ -590,7 +595,6 @@ namespace HTCommander
                                 string dataStr = p.dataStr;
                                 if (p.pid == 242) { try { dataStr = UTF8Encoding.Default.GetString(Utils.DecompressBrotli(p.data)); } catch (Exception) { } }
                                 if (p.pid == 243) { try { dataStr = UTF8Encoding.Default.GetString(Utils.DecompressDeflate(p.data)); } catch (Exception) { } }
-                                //terminalTextBox.AppendText(p.addresses[1].ToString() + "> " + p.dataStr + Environment.NewLine);
                                 AppendTerminalString(false, p.addresses[1].ToString(), p.addresses[0].CallSignWithId, dataStr);
                             }
                         }
@@ -1222,7 +1226,7 @@ namespace HTCommander
                 // AX.25 Session
                 if (session.CurrentState == AX25Session.ConnectionState.CONNECTED)
                 {
-                    session.Send(UTF8Encoding.UTF8.GetBytes(sendText));
+                    session.Send(UTF8Encoding.UTF8.GetBytes(sendText + "\r"));
                     AppendTerminalString(true, callsign + "-" + stationId, session.Addresses[0].ToString(), sendText);
                 }
             }

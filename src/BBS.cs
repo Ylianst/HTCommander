@@ -72,10 +72,10 @@ namespace HTCommander
             if (!string.IsNullOrEmpty(output))
             {
                 string[] dataStrs = output.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
-                foreach (string str in dataStrs)
+                for (int i = 0; i < dataStrs.Length; i++)
                 {
-                    if (str.Length == 0) continue;
-                    parent.AddBbsTraffic(session.Addresses[0].ToString(), true, str.Trim());
+                    if ((dataStrs[i].Trim().Length == 0) && (i == (dataStrs.Length - 1))) continue;
+                    parent.AddBbsTraffic(session.Addresses[0].ToString(), true, dataStrs[i].Trim());
                 }
                 UpdateStats(session.Addresses[0].ToString(), "Stream", 0, 1, 0, output.Length);
                 session.Send(output);
@@ -104,7 +104,7 @@ namespace HTCommander
                     session.sessionState["wlChallenge"] = WinlinkSecurity.GenerateChallenge();
 
                     StringBuilder sb = new StringBuilder();
-                    sb.Append("Handy-Talky Commander BBS, M for menu\r");
+                    sb.Append("Handy-Talky Commander BBS\r[M] for menu\r");
                     sb.Append("[HTCmd-" + GetVersion() + "-B2FWIHJM$]\r");
                     if (!string.IsNullOrEmpty(parent.winlinkPassword)) { sb.Append(";PQ: " + session.sessionState["wlChallenge"] + "\r"); }
                     //sb.Append("CMS via " + parent.callsign + " >\r");
@@ -233,13 +233,8 @@ namespace HTCommander
                 }
                 else if ((key == "A") || (key == "ADVENTURE"))
                 {
-                    sb.Append("Entering Adventure, type \"QUIT\" to exit.\r");
-                    string output = sb.ToString();
-                    parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
-                    byte[] bytesOut = UTF8Encoding.UTF8.GetBytes(output);
-                    session.Send(bytesOut);
                     session.sessionState["mode"] = "adventure";
-                    ProcessAdventureStream(session, UTF8Encoding.UTF8.GetBytes(" "));
+                    ProcessAdventureStream(session, null, true);
                 }
                 else if ((key == "D") || (key == "DISC") || (key == "DISCONNECT"))
                 {
@@ -247,13 +242,7 @@ namespace HTCommander
                     return;
                 }
 
-                if (sb.Length > 0)
-                {
-                    string output = sb.ToString();
-                    parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
-                    byte[] bytesOut = UTF8Encoding.UTF8.GetBytes(output);
-                    session.Send(bytesOut);
-                }
+                SessionSend(session, sb.ToString());
             }
         }
 
@@ -262,22 +251,23 @@ namespace HTCommander
         /// </summary>
         /// <param name="session"></param>
         /// <param name="data"></param>
-        public void ProcessAdventureStream(AX25Session session, byte[] data)
+        public void ProcessAdventureStream(AX25Session session, byte[] data, bool start = false)
         {
-            string dataStr = UTF8Encoding.UTF8.GetString(data);
-            parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr);
+            string dataStr = null;
+            if (data != null) { dataStr = UTF8Encoding.UTF8.GetString(data).Replace("\r\n", "\r").Replace("\n", "\r").Split('\r')[0]; }
+            if (!string.IsNullOrEmpty(dataStr)) { parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr); }
+            if (start) { dataStr = "help"; }
+
             Adventurer.GameRunner runner = new Adventurer.GameRunner();
             string output = runner.RunTurn("adv01.dat", session.Addresses[0].CallSignWithId + ".sav", dataStr).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
             {
+                if (start) { output = "Welcome to the Adventure Game\r\"quit\" to go back to BBS.\r" + output; }
                 if (string.Compare(dataStr.Trim(), "quit", true) == 0) {
                     session.sessionState["mode"] = "bbs";
-                    output += "\rBack to BBS mode. Type M for menu.";
+                    output += "\rBack to BBS, [M] for menu.";
                 }
-                parent.AddBbsTraffic(session.Addresses[0].ToString(), true, output);
-                byte[] bytesOut = UTF8Encoding.UTF8.GetBytes(output);
-                session.Send(bytesOut);
-                UpdateStats(session.Addresses[0].ToString(), "Stream", 1, 1, data.Length, bytesOut.Length);
+                SessionSend(session, output + "\r");
             }
         }
 
