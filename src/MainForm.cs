@@ -1428,7 +1428,7 @@ namespace HTCommander
                 {
                     if ((aprsPacket.MessageData.Addressee == callsign) || (aprsPacket.MessageData.Addressee == callsign + "-" + stationId))
                     {
-                        if ((notifyIcon.Visible == true) && ((this.WindowState == FormWindowState.Minimized) || (mainTabControl.SelectedIndex != 0)))
+                        if ((notifyIcon.Visible == true) && ((this.Visible == false) || (mainTabControl.SelectedIndex != 0)))
                         {
                             notifyIcon.BalloonTipText = aprsPacket.MessageData.MsgText;
                             notifyIcon.BalloonTipTitle = packet.addresses[1].ToString();
@@ -3099,11 +3099,13 @@ namespace HTCommander
             Application.Exit();
         }
 
-        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        private void notifyIcon_MouseClick(object sender, MouseEventArgs e)
         {
-            if (this.WindowState == FormWindowState.Minimized) { this.WindowState = FormWindowState.Normal; }
-            else { this.WindowState = FormWindowState.Minimized; }
-            this.Focus();
+            if (e.Button == MouseButtons.Left)
+            {
+                if (this.Visible == false) { this.Visible = true; this.Focus(); }
+                else { this.Visible = false; }
+            }
         }
 
         private void systemTrayToolStripMenuItem_Click(object sender, EventArgs e)
@@ -3115,8 +3117,7 @@ namespace HTCommander
         private void notifyIcon_BalloonTipClicked(object sender, EventArgs e)
         {
             mainTabControl.SelectedIndex = 0;
-            if (this.WindowState == FormWindowState.Minimized) { this.WindowState = FormWindowState.Normal; }
-            this.Focus();
+            if (this.Visible == false) { this.Visible = true; this.Focus(); }
         }
 
         private void radioBSSSettingsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -3516,7 +3517,7 @@ namespace HTCommander
             if (systemTrayToolStripMenuItem.Checked)
             {
                 e.Cancel = true;
-                this.WindowState = FormWindowState.Minimized;
+                this.Visible = false;
             }
             else
             {
@@ -3572,5 +3573,20 @@ namespace HTCommander
             e.Handled = false;
         }
 
+        private void showToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (this.Visible == false) { this.Visible = true; this.Focus(); }
+        }
+
+        private void hideToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.Visible = false;
+        }
+
+        private void notifyContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            showToolStripMenuItem.Visible = (this.Visible == false);
+            hideToolStripMenuItem.Visible = (this.Visible == true);
+        }
     }
 }

@@ -30,20 +30,20 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup17 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup18 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup19 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -252,7 +252,8 @@
             this.clearStatsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.notifyIcon = new System.Windows.Forms.NotifyIcon(this.components);
             this.notifyContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.showToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.hideToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem12 = new System.Windows.Forms.ToolStripSeparator();
             this.exitToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.mailTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
@@ -342,13 +343,13 @@
             // mainToolStripStatusLabel
             // 
             this.mainToolStripStatusLabel.Name = "mainToolStripStatusLabel";
-            this.mainToolStripStatusLabel.Size = new System.Drawing.Size(816, 16);
+            this.mainToolStripStatusLabel.Size = new System.Drawing.Size(816, 17);
             this.mainToolStripStatusLabel.Spring = true;
             // 
             // batteryToolStripStatusLabel
             // 
             this.batteryToolStripStatusLabel.Name = "batteryToolStripStatusLabel";
-            this.batteryToolStripStatusLabel.Size = new System.Drawing.Size(56, 20);
+            this.batteryToolStripStatusLabel.Size = new System.Drawing.Size(44, 17);
             this.batteryToolStripStatusLabel.Text = "Battery";
             this.batteryToolStripStatusLabel.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.batteryToolStripStatusLabel.Visible = false;
@@ -364,7 +365,7 @@
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             this.mainMenuStrip.Name = "mainMenuStrip";
             this.mainMenuStrip.Padding = new System.Windows.Forms.Padding(4, 2, 0, 2);
-            this.mainMenuStrip.Size = new System.Drawing.Size(831, 28);
+            this.mainMenuStrip.Size = new System.Drawing.Size(831, 24);
             this.mainMenuStrip.TabIndex = 1;
             this.mainMenuStrip.Text = "menuStrip1";
             this.mainMenuStrip.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.mainMenuStrip_ItemClicked);
@@ -380,13 +381,13 @@
             this.toolStripMenuItem4,
             this.exitToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 20);
             this.fileToolStripMenuItem.Text = "&File";
             // 
             // connectToolStripMenuItem
             // 
             this.connectToolStripMenuItem.Name = "connectToolStripMenuItem";
-            this.connectToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
+            this.connectToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.connectToolStripMenuItem.Text = "&Connect...";
             this.connectToolStripMenuItem.Click += new System.EventHandler(this.connectToolStripMenuItem_Click);
             // 
@@ -394,19 +395,19 @@
             // 
             this.disconnectToolStripMenuItem.Enabled = false;
             this.disconnectToolStripMenuItem.Name = "disconnectToolStripMenuItem";
-            this.disconnectToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
+            this.disconnectToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.disconnectToolStripMenuItem.Text = "&Disconnect";
             this.disconnectToolStripMenuItem.Click += new System.EventHandler(this.disconnectToolStripMenuItem_Click);
             // 
             // toolStripMenuItem1
             // 
             this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(167, 6);
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(133, 6);
             // 
             // settingsToolStripMenuItem
             // 
             this.settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
-            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
+            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.settingsToolStripMenuItem.Text = "&Settings...";
             this.settingsToolStripMenuItem.Click += new System.EventHandler(this.settingsToolStripMenuItem_Click);
             // 
@@ -414,19 +415,19 @@
             // 
             this.systemTrayToolStripMenuItem.CheckOnClick = true;
             this.systemTrayToolStripMenuItem.Name = "systemTrayToolStripMenuItem";
-            this.systemTrayToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
+            this.systemTrayToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.systemTrayToolStripMenuItem.Text = "System &Tray";
             this.systemTrayToolStripMenuItem.Click += new System.EventHandler(this.systemTrayToolStripMenuItem_Click);
             // 
             // toolStripMenuItem4
             // 
             this.toolStripMenuItem4.Name = "toolStripMenuItem4";
-            this.toolStripMenuItem4.Size = new System.Drawing.Size(167, 6);
+            this.toolStripMenuItem4.Size = new System.Drawing.Size(133, 6);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.exitToolStripMenuItem.Text = "E&xit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
             // 
@@ -442,14 +443,14 @@
             this.exportChannelsToolStripMenuItem,
             this.importChannelsToolStripMenuItem});
             this.settingsToolStripMenuItem1.Name = "settingsToolStripMenuItem1";
-            this.settingsToolStripMenuItem1.Size = new System.Drawing.Size(76, 24);
+            this.settingsToolStripMenuItem1.Size = new System.Drawing.Size(61, 20);
             this.settingsToolStripMenuItem1.Text = "&Settings";
             // 
             // dualWatchToolStripMenuItem
             // 
             this.dualWatchToolStripMenuItem.Enabled = false;
             this.dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
-            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.dualWatchToolStripMenuItem.Text = "&Dual-Watch";
             this.dualWatchToolStripMenuItem.Click += new System.EventHandler(this.dualWatchToolStripMenuItem_Click);
             // 
@@ -457,7 +458,7 @@
             // 
             this.scanToolStripMenuItem.Enabled = false;
             this.scanToolStripMenuItem.Name = "scanToolStripMenuItem";
-            this.scanToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.scanToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.scanToolStripMenuItem.Text = "&Scan";
             this.scanToolStripMenuItem.Click += new System.EventHandler(this.scanToolStripMenuItem_Click);
             // 
@@ -465,39 +466,39 @@
             // 
             this.regionToolStripMenuItem.Enabled = false;
             this.regionToolStripMenuItem.Name = "regionToolStripMenuItem";
-            this.regionToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.regionToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.regionToolStripMenuItem.Text = "&Regions";
             // 
             // toolStripMenuItem5
             // 
             this.toolStripMenuItem5.Name = "toolStripMenuItem5";
-            this.toolStripMenuItem5.Size = new System.Drawing.Size(206, 6);
+            this.toolStripMenuItem5.Size = new System.Drawing.Size(168, 6);
             // 
             // volumeToolStripMenuItem
             // 
             this.volumeToolStripMenuItem.Enabled = false;
             this.volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.volumeToolStripMenuItem.Text = "&Volume...";
             this.volumeToolStripMenuItem.Click += new System.EventHandler(this.volumeToolStripMenuItem_Click);
             // 
             // toolStripMenuItem10
             // 
             this.toolStripMenuItem10.Name = "toolStripMenuItem10";
-            this.toolStripMenuItem10.Size = new System.Drawing.Size(206, 6);
+            this.toolStripMenuItem10.Size = new System.Drawing.Size(168, 6);
             // 
             // exportChannelsToolStripMenuItem
             // 
             this.exportChannelsToolStripMenuItem.Enabled = false;
             this.exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
-            this.exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.exportChannelsToolStripMenuItem.Text = "&Export Channels...";
             this.exportChannelsToolStripMenuItem.Click += new System.EventHandler(this.exportChannelsToolStripMenuItem_Click);
             // 
             // importChannelsToolStripMenuItem
             // 
             this.importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
-            this.importChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.importChannelsToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.importChannelsToolStripMenuItem.Text = "&Import Channels...";
             this.importChannelsToolStripMenuItem.Click += new System.EventHandler(this.importChannelsToolStripMenuItem_Click);
             // 
@@ -515,7 +516,7 @@
             this.packetsToolStripMenuItem,
             this.debugToolStripMenuItem});
             this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
-            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
+            this.viewToolStripMenuItem.Size = new System.Drawing.Size(44, 20);
             this.viewToolStripMenuItem.Text = "&View";
             this.viewToolStripMenuItem.DropDownOpening += new System.EventHandler(this.viewToolStripMenuItem_DropDownOpening);
             // 
@@ -525,27 +526,27 @@
             this.radioToolStripMenuItem.CheckOnClick = true;
             this.radioToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             this.radioToolStripMenuItem.Name = "radioToolStripMenuItem";
-            this.radioToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            this.radioToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.radioToolStripMenuItem.Text = "&Radio";
             this.radioToolStripMenuItem.Click += new System.EventHandler(this.radioToolStripMenuItem_Click);
             // 
             // allChannelsToolStripMenuItem
             // 
             this.allChannelsToolStripMenuItem.Name = "allChannelsToolStripMenuItem";
-            this.allChannelsToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            this.allChannelsToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.allChannelsToolStripMenuItem.Text = "All Channels";
             this.allChannelsToolStripMenuItem.Click += new System.EventHandler(this.allChannelsToolStripMenuItem_Click);
             // 
             // toolStripMenuItem6
             // 
             this.toolStripMenuItem6.Name = "toolStripMenuItem6";
-            this.toolStripMenuItem6.Size = new System.Drawing.Size(170, 6);
+            this.toolStripMenuItem6.Size = new System.Drawing.Size(137, 6);
             // 
             // mapToolStripMenuItem
             // 
             this.mapToolStripMenuItem.CheckOnClick = true;
             this.mapToolStripMenuItem.Name = "mapToolStripMenuItem";
-            this.mapToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            this.mapToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.mapToolStripMenuItem.Text = "&Map";
             this.mapToolStripMenuItem.Click += new System.EventHandler(this.mapToolStripMenuItem_Click);
             // 
@@ -553,7 +554,7 @@
             // 
             this.terminalToolStripMenuItem.CheckOnClick = true;
             this.terminalToolStripMenuItem.Name = "terminalToolStripMenuItem";
-            this.terminalToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            this.terminalToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.terminalToolStripMenuItem.Text = "&Terminal";
             this.terminalToolStripMenuItem.Click += new System.EventHandler(this.terminalToolStripMenuItem_Click);
             // 
@@ -561,7 +562,7 @@
             // 
             this.mailToolStripMenuItem.CheckOnClick = true;
             this.mailToolStripMenuItem.Name = "mailToolStripMenuItem";
-            this.mailToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            this.mailToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.mailToolStripMenuItem.Text = "&Mail";
             this.mailToolStripMenuItem.Click += new System.EventHandler(this.mailToolStripMenuItem_Click);
             // 
@@ -569,7 +570,7 @@
             // 
             this.contactsToolStripMenuItem.CheckOnClick = true;
             this.contactsToolStripMenuItem.Name = "contactsToolStripMenuItem";
-            this.contactsToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            this.contactsToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.contactsToolStripMenuItem.Text = "&Stations";
             this.contactsToolStripMenuItem.Click += new System.EventHandler(this.contactsToolStripMenuItem_Click);
             // 
@@ -577,7 +578,7 @@
             // 
             this.bBSToolStripMenuItem.CheckOnClick = true;
             this.bBSToolStripMenuItem.Name = "bBSToolStripMenuItem";
-            this.bBSToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            this.bBSToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.bBSToolStripMenuItem.Text = "&BBS";
             this.bBSToolStripMenuItem.Click += new System.EventHandler(this.bBSToolStripMenuItem_Click);
             // 
@@ -585,7 +586,7 @@
             // 
             this.packetsToolStripMenuItem.CheckOnClick = true;
             this.packetsToolStripMenuItem.Name = "packetsToolStripMenuItem";
-            this.packetsToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            this.packetsToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.packetsToolStripMenuItem.Text = "&Packets";
             this.packetsToolStripMenuItem.Click += new System.EventHandler(this.packetsToolStripMenuItem_Click);
             // 
@@ -593,7 +594,7 @@
             // 
             this.debugToolStripMenuItem.CheckOnClick = true;
             this.debugToolStripMenuItem.Name = "debugToolStripMenuItem";
-            this.debugToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            this.debugToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.debugToolStripMenuItem.Text = "&Debug";
             this.debugToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.debugToolStripMenuItem_CheckStateChanged);
             // 
@@ -607,14 +608,14 @@
             this.toolStripMenuItem2,
             this.aboutToolStripMenuItem1});
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(52, 20);
             this.aboutToolStripMenuItem.Text = "&About";
             // 
             // radioInformationToolStripMenuItem
             // 
             this.radioInformationToolStripMenuItem.Enabled = false;
             this.radioInformationToolStripMenuItem.Name = "radioInformationToolStripMenuItem";
-            this.radioInformationToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
+            this.radioInformationToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.radioInformationToolStripMenuItem.Text = "Radio Information...";
             this.radioInformationToolStripMenuItem.Click += new System.EventHandler(this.radioInformationToolStripMenuItem_Click);
             // 
@@ -622,7 +623,7 @@
             // 
             this.radioStatusToolStripMenuItem.Enabled = false;
             this.radioStatusToolStripMenuItem.Name = "radioStatusToolStripMenuItem";
-            this.radioStatusToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
+            this.radioStatusToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.radioStatusToolStripMenuItem.Text = "Radio &Status...";
             this.radioStatusToolStripMenuItem.Click += new System.EventHandler(this.radioStatusToolStripMenuItem_Click);
             // 
@@ -630,7 +631,7 @@
             // 
             this.radioSettingsToolStripMenuItem.Enabled = false;
             this.radioSettingsToolStripMenuItem.Name = "radioSettingsToolStripMenuItem";
-            this.radioSettingsToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
+            this.radioSettingsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.radioSettingsToolStripMenuItem.Text = "Radio S&ettings...";
             this.radioSettingsToolStripMenuItem.Click += new System.EventHandler(this.radioSettingsToolStripMenuItem_Click);
             // 
@@ -638,19 +639,19 @@
             // 
             this.radioBSSSettingsToolStripMenuItem.Enabled = false;
             this.radioBSSSettingsToolStripMenuItem.Name = "radioBSSSettingsToolStripMenuItem";
-            this.radioBSSSettingsToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
+            this.radioBSSSettingsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.radioBSSSettingsToolStripMenuItem.Text = "Radio BSS Settings...";
             this.radioBSSSettingsToolStripMenuItem.Click += new System.EventHandler(this.radioBSSSettingsToolStripMenuItem_Click);
             // 
             // toolStripMenuItem2
             // 
             this.toolStripMenuItem2.Name = "toolStripMenuItem2";
-            this.toolStripMenuItem2.Size = new System.Drawing.Size(223, 6);
+            this.toolStripMenuItem2.Size = new System.Drawing.Size(177, 6);
             // 
             // aboutToolStripMenuItem1
             // 
             this.aboutToolStripMenuItem1.Name = "aboutToolStripMenuItem1";
-            this.aboutToolStripMenuItem1.Size = new System.Drawing.Size(226, 26);
+            this.aboutToolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
             this.aboutToolStripMenuItem1.Text = "&About...";
             this.aboutToolStripMenuItem1.Click += new System.EventHandler(this.aboutToolStripMenuItem1_Click);
             // 
@@ -666,9 +667,9 @@
             this.radioPanel.Controls.Add(this.connectButton);
             this.radioPanel.Controls.Add(this.radioPictureBox);
             this.radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
-            this.radioPanel.Location = new System.Drawing.Point(0, 28);
+            this.radioPanel.Location = new System.Drawing.Point(0, 24);
             this.radioPanel.Name = "radioPanel";
-            this.radioPanel.Size = new System.Drawing.Size(280, 522);
+            this.radioPanel.Size = new System.Drawing.Size(280, 526);
             this.radioPanel.TabIndex = 2;
             this.radioPanel.SizeChanged += new System.EventHandler(this.radioPanel_SizeChanged);
             // 
@@ -686,7 +687,7 @@
             // 
             this.channelsFlowLayoutPanel.BackColor = System.Drawing.Color.DarkKhaki;
             this.channelsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 382);
+            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 386);
             this.channelsFlowLayoutPanel.Name = "channelsFlowLayoutPanel";
             this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(276, 68);
             this.channelsFlowLayoutPanel.TabIndex = 2;
@@ -695,7 +696,7 @@
             // checkBluetoothButton
             // 
             this.checkBluetoothButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 450);
+            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 454);
             this.checkBluetoothButton.Name = "checkBluetoothButton";
             this.checkBluetoothButton.Size = new System.Drawing.Size(276, 34);
             this.checkBluetoothButton.TabIndex = 3;
@@ -837,7 +838,7 @@
             // connectButton
             // 
             this.connectButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.connectButton.Location = new System.Drawing.Point(0, 484);
+            this.connectButton.Location = new System.Drawing.Point(0, 488);
             this.connectButton.Name = "connectButton";
             this.connectButton.Size = new System.Drawing.Size(276, 34);
             this.connectButton.TabIndex = 0;
@@ -868,11 +869,11 @@
             this.mainTabControl.Controls.Add(this.debugTabPage);
             this.mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTabControl.ImageList = this.tabsImageList;
-            this.mainTabControl.Location = new System.Drawing.Point(280, 28);
+            this.mainTabControl.Location = new System.Drawing.Point(280, 24);
             this.mainTabControl.Multiline = true;
             this.mainTabControl.Name = "mainTabControl";
             this.mainTabControl.SelectedIndex = 0;
-            this.mainTabControl.Size = new System.Drawing.Size(551, 522);
+            this.mainTabControl.Size = new System.Drawing.Size(551, 526);
             this.mainTabControl.TabIndex = 3;
             // 
             // aprsTabPage
@@ -884,7 +885,7 @@
             this.aprsTabPage.ImageIndex = 3;
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Size = new System.Drawing.Size(508, 514);
+            this.aprsTabPage.Size = new System.Drawing.Size(508, 518);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -906,7 +907,7 @@
             this.aprsChatControl.Name = "aprsChatControl";
             this.aprsChatControl.ShadowOffset = 2;
             this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(508, 416);
+            this.aprsChatControl.Size = new System.Drawing.Size(508, 420);
             this.aprsChatControl.TabIndex = 5;
             this.aprsChatControl.TextColor = System.Drawing.Color.Black;
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
@@ -957,7 +958,7 @@
             this.missingAprsChannelLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.missingAprsChannelLabel.Location = new System.Drawing.Point(5, 7);
             this.missingAprsChannelLabel.Name = "missingAprsChannelLabel";
-            this.missingAprsChannelLabel.Size = new System.Drawing.Size(410, 20);
+            this.missingAprsChannelLabel.Size = new System.Drawing.Size(323, 16);
             this.missingAprsChannelLabel.TabIndex = 7;
             this.missingAprsChannelLabel.Text = "Configure a channel labeled APRS to use this feature.";
             // 
@@ -968,7 +969,7 @@
             this.aprsBottomPanel.Controls.Add(this.aprsTextBox);
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 476);
+            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 480);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
             this.aprsBottomPanel.Size = new System.Drawing.Size(508, 38);
             this.aprsBottomPanel.TabIndex = 4;
@@ -986,7 +987,7 @@
             this.aprsDestinationComboBox.Location = new System.Drawing.Point(5, 6);
             this.aprsDestinationComboBox.MaxLength = 9;
             this.aprsDestinationComboBox.Name = "aprsDestinationComboBox";
-            this.aprsDestinationComboBox.Size = new System.Drawing.Size(111, 33);
+            this.aprsDestinationComboBox.Size = new System.Drawing.Size(111, 28);
             this.aprsDestinationComboBox.TabIndex = 7;
             this.aprsDestinationComboBox.SelectionChangeCommitted += new System.EventHandler(this.aprsDestinationComboBox_SelectionChangeCommitted);
             this.aprsDestinationComboBox.TextChanged += new System.EventHandler(this.aprsDestinationComboBox_TextChanged);
@@ -1001,7 +1002,7 @@
             this.aprsTextBox.Location = new System.Drawing.Point(122, 7);
             this.aprsTextBox.MaxLength = 67;
             this.aprsTextBox.Name = "aprsTextBox";
-            this.aprsTextBox.Size = new System.Drawing.Size(302, 30);
+            this.aprsTextBox.Size = new System.Drawing.Size(302, 26);
             this.aprsTextBox.TabIndex = 1;
             this.aprsTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.aprsTextBox_KeyPress);
             // 
@@ -1061,7 +1062,7 @@
             this.aprsTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.aprsTitleLabel.Location = new System.Drawing.Point(5, 5);
             this.aprsTitleLabel.Name = "aprsTitleLabel";
-            this.aprsTitleLabel.Size = new System.Drawing.Size(66, 25);
+            this.aprsTitleLabel.Size = new System.Drawing.Size(53, 20);
             this.aprsTitleLabel.TabIndex = 0;
             this.aprsTitleLabel.Text = "APRS";
             this.aprsTitleLabel.DoubleClick += new System.EventHandler(this.aprsTitleLabel_DoubleClick);
@@ -1074,7 +1075,7 @@
             this.mapTabPage.ImageIndex = 1;
             this.mapTabPage.Location = new System.Drawing.Point(4, 4);
             this.mapTabPage.Name = "mapTabPage";
-            this.mapTabPage.Size = new System.Drawing.Size(508, 512);
+            this.mapTabPage.Size = new System.Drawing.Size(508, 518);
             this.mapTabPage.TabIndex = 0;
             this.mapTabPage.ToolTipText = "APRS";
             this.mapTabPage.UseVisualStyleBackColor = true;
@@ -1119,7 +1120,7 @@
             this.mapTopLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.mapTopLabel.Location = new System.Drawing.Point(5, 5);
             this.mapTopLabel.Name = "mapTopLabel";
-            this.mapTopLabel.Size = new System.Drawing.Size(51, 25);
+            this.mapTopLabel.Size = new System.Drawing.Size(40, 20);
             this.mapTopLabel.TabIndex = 0;
             this.mapTopLabel.Text = "Map";
             // 
@@ -1131,7 +1132,7 @@
             this.mailTabPage.ImageIndex = 5;
             this.mailTabPage.Location = new System.Drawing.Point(4, 4);
             this.mailTabPage.Name = "mailTabPage";
-            this.mailTabPage.Size = new System.Drawing.Size(508, 512);
+            this.mailTabPage.Size = new System.Drawing.Size(508, 518);
             this.mailTabPage.TabIndex = 5;
             this.mailTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1150,8 +1151,8 @@
             // mailboxHorizontalSplitContainer.Panel2
             // 
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailPreviewTextBox);
-            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(508, 452);
-            this.mailboxHorizontalSplitContainer.SplitterDistance = 217;
+            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(508, 458);
+            this.mailboxHorizontalSplitContainer.SplitterDistance = 218;
             this.mailboxHorizontalSplitContainer.SplitterWidth = 3;
             this.mailboxHorizontalSplitContainer.TabIndex = 7;
             // 
@@ -1170,7 +1171,7 @@
             // mailboxVerticalSplitContainer.Panel2
             // 
             this.mailboxVerticalSplitContainer.Panel2.Controls.Add(this.mailboxListView);
-            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(508, 217);
+            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(508, 218);
             this.mailboxVerticalSplitContainer.SplitterDistance = 151;
             this.mailboxVerticalSplitContainer.SplitterWidth = 3;
             this.mailboxVerticalSplitContainer.TabIndex = 6;
@@ -1186,7 +1187,7 @@
             this.mailBoxesTreeView.Name = "mailBoxesTreeView";
             this.mailBoxesTreeView.SelectedImageIndex = 0;
             this.mailBoxesTreeView.ShowRootLines = false;
-            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 217);
+            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 218);
             this.mailBoxesTreeView.TabIndex = 0;
             this.mailBoxesTreeView.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.mailBoxesTreeView_NodeMouseClick);
             this.mailBoxesTreeView.DragDrop += new System.Windows.Forms.DragEventHandler(this.mailBoxesTreeView_DragDrop);
@@ -1220,7 +1221,7 @@
             this.mailboxListView.HideSelection = false;
             this.mailboxListView.Location = new System.Drawing.Point(0, 0);
             this.mailboxListView.Name = "mailboxListView";
-            this.mailboxListView.Size = new System.Drawing.Size(354, 217);
+            this.mailboxListView.Size = new System.Drawing.Size(354, 218);
             this.mailboxListView.SmallImageList = this.mainImageList;
             this.mailboxListView.TabIndex = 5;
             this.mailboxListView.UseCompatibleStateImageBehavior = false;
@@ -1262,13 +1263,13 @@
             this.toolStripMenuItem15,
             this.deleteMailToolStripMenuItem});
             this.mailContextMenuStrip.Name = "mailContextMenuStrip";
-            this.mailContextMenuStrip.Size = new System.Drawing.Size(187, 208);
+            this.mailContextMenuStrip.Size = new System.Drawing.Size(162, 192);
             // 
             // viewMailToolStripMenuItem
             // 
             this.viewMailToolStripMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.viewMailToolStripMenuItem.Name = "viewMailToolStripMenuItem";
-            this.viewMailToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.viewMailToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.viewMailToolStripMenuItem.Text = "&View...";
             this.viewMailToolStripMenuItem.Click += new System.EventHandler(this.mailboxListView_DoubleClick);
             // 
@@ -1276,59 +1277,59 @@
             // 
             this.editMailToolStripMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.editMailToolStripMenuItem.Name = "editMailToolStripMenuItem";
-            this.editMailToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.editMailToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.editMailToolStripMenuItem.Text = "&Edit...";
             this.editMailToolStripMenuItem.Click += new System.EventHandler(this.mailboxListView_DoubleClick);
             // 
             // toolStripMenuItem14
             // 
             this.toolStripMenuItem14.Name = "toolStripMenuItem14";
-            this.toolStripMenuItem14.Size = new System.Drawing.Size(183, 6);
+            this.toolStripMenuItem14.Size = new System.Drawing.Size(158, 6);
             // 
             // moveToDraftToolStripMenuItem
             // 
             this.moveToDraftToolStripMenuItem.Name = "moveToDraftToolStripMenuItem";
-            this.moveToDraftToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.moveToDraftToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.moveToDraftToolStripMenuItem.Text = "Move to D&raft";
             this.moveToDraftToolStripMenuItem.Click += new System.EventHandler(this.moveToDraftToolStripMenuItem_Click);
             // 
             // moveToOutboxToolStripMenuItem
             // 
             this.moveToOutboxToolStripMenuItem.Name = "moveToOutboxToolStripMenuItem";
-            this.moveToOutboxToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.moveToOutboxToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.moveToOutboxToolStripMenuItem.Text = "Move to &Outbox";
             this.moveToOutboxToolStripMenuItem.Click += new System.EventHandler(this.moveToOutboxToolStripMenuItem_Click);
             // 
             // moveToInboxToolStripMenuItem
             // 
             this.moveToInboxToolStripMenuItem.Name = "moveToInboxToolStripMenuItem";
-            this.moveToInboxToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.moveToInboxToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.moveToInboxToolStripMenuItem.Text = "Move to &Inbox";
             this.moveToInboxToolStripMenuItem.Click += new System.EventHandler(this.moveToInboxToolStripMenuItem_Click);
             // 
             // moveToArchiveToolStripMenuItem
             // 
             this.moveToArchiveToolStripMenuItem.Name = "moveToArchiveToolStripMenuItem";
-            this.moveToArchiveToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.moveToArchiveToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.moveToArchiveToolStripMenuItem.Text = "Move to &Archive";
             this.moveToArchiveToolStripMenuItem.Click += new System.EventHandler(this.moveToArchiveToolStripMenuItem_Click);
             // 
             // moveToTrashToolStripMenuItem
             // 
             this.moveToTrashToolStripMenuItem.Name = "moveToTrashToolStripMenuItem";
-            this.moveToTrashToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.moveToTrashToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.moveToTrashToolStripMenuItem.Text = "Move to &Trash";
             this.moveToTrashToolStripMenuItem.Click += new System.EventHandler(this.moveToTrashToolStripMenuItem_Click);
             // 
             // toolStripMenuItem15
             // 
             this.toolStripMenuItem15.Name = "toolStripMenuItem15";
-            this.toolStripMenuItem15.Size = new System.Drawing.Size(183, 6);
+            this.toolStripMenuItem15.Size = new System.Drawing.Size(158, 6);
             // 
             // deleteMailToolStripMenuItem
             // 
             this.deleteMailToolStripMenuItem.Name = "deleteMailToolStripMenuItem";
-            this.deleteMailToolStripMenuItem.Size = new System.Drawing.Size(186, 24);
+            this.deleteMailToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.deleteMailToolStripMenuItem.Text = "&Delete";
             this.deleteMailToolStripMenuItem.Click += new System.EventHandler(this.deleteMailToolStripMenuItem_Click);
             // 
@@ -1340,7 +1341,7 @@
             this.mailPreviewTextBox.Margin = new System.Windows.Forms.Padding(2);
             this.mailPreviewTextBox.Name = "mailPreviewTextBox";
             this.mailPreviewTextBox.ReadOnly = true;
-            this.mailPreviewTextBox.Size = new System.Drawing.Size(508, 232);
+            this.mailPreviewTextBox.Size = new System.Drawing.Size(508, 237);
             this.mailPreviewTextBox.TabIndex = 0;
             this.mailPreviewTextBox.Text = "";
             // 
@@ -1349,7 +1350,7 @@
             this.mailTransferStatusPanel.BackColor = System.Drawing.Color.Silver;
             this.mailTransferStatusPanel.Controls.Add(this.mailTransferStatusLabel);
             this.mailTransferStatusPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 482);
+            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 488);
             this.mailTransferStatusPanel.Name = "mailTransferStatusPanel";
             this.mailTransferStatusPanel.Size = new System.Drawing.Size(508, 30);
             this.mailTransferStatusPanel.TabIndex = 8;
@@ -1422,19 +1423,19 @@
             this.exportStationsToolStripMenuItem,
             this.importStationsToolStripMenuItem});
             this.stationsTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.stationsTabContextMenuStrip.Size = new System.Drawing.Size(190, 52);
+            this.stationsTabContextMenuStrip.Size = new System.Drawing.Size(165, 48);
             // 
             // exportStationsToolStripMenuItem
             // 
             this.exportStationsToolStripMenuItem.Name = "exportStationsToolStripMenuItem";
-            this.exportStationsToolStripMenuItem.Size = new System.Drawing.Size(189, 24);
+            this.exportStationsToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
             this.exportStationsToolStripMenuItem.Text = "&Export Stations...";
             this.exportStationsToolStripMenuItem.Click += new System.EventHandler(this.exportStationsToolStripMenuItem_Click);
             // 
             // importStationsToolStripMenuItem
             // 
             this.importStationsToolStripMenuItem.Name = "importStationsToolStripMenuItem";
-            this.importStationsToolStripMenuItem.Size = new System.Drawing.Size(189, 24);
+            this.importStationsToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
             this.importStationsToolStripMenuItem.Text = "&Import Stations...";
             this.importStationsToolStripMenuItem.Click += new System.EventHandler(this.importStationsToolStripMenuItem_Click);
             // 
@@ -1446,7 +1447,7 @@
             this.mailTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.mailTitleLabel.Location = new System.Drawing.Point(3, 5);
             this.mailTitleLabel.Name = "mailTitleLabel";
-            this.mailTitleLabel.Size = new System.Drawing.Size(48, 25);
+            this.mailTitleLabel.Size = new System.Drawing.Size(37, 20);
             this.mailTitleLabel.TabIndex = 1;
             this.mailTitleLabel.Text = "Mail";
             // 
@@ -1458,7 +1459,7 @@
             this.terminalTabPage.ImageKey = "terminal-32.png";
             this.terminalTabPage.Location = new System.Drawing.Point(4, 4);
             this.terminalTabPage.Name = "terminalTabPage";
-            this.terminalTabPage.Size = new System.Drawing.Size(508, 514);
+            this.terminalTabPage.Size = new System.Drawing.Size(508, 518);
             this.terminalTabPage.TabIndex = 2;
             this.terminalTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1472,7 +1473,7 @@
             this.terminalTextBox.Location = new System.Drawing.Point(0, 30);
             this.terminalTextBox.Name = "terminalTextBox";
             this.terminalTextBox.ReadOnly = true;
-            this.terminalTextBox.Size = new System.Drawing.Size(508, 447);
+            this.terminalTextBox.Size = new System.Drawing.Size(508, 451);
             this.terminalTextBox.TabIndex = 4;
             this.terminalTextBox.Text = "";
             // 
@@ -1482,7 +1483,7 @@
             this.terminalBottomPanel.Controls.Add(this.terminalInputTextBox);
             this.terminalBottomPanel.Controls.Add(this.terminalSendButton);
             this.terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 477);
+            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 481);
             this.terminalBottomPanel.Name = "terminalBottomPanel";
             this.terminalBottomPanel.Size = new System.Drawing.Size(508, 37);
             this.terminalBottomPanel.TabIndex = 3;
@@ -1495,7 +1496,7 @@
             this.terminalInputTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.terminalInputTextBox.Location = new System.Drawing.Point(7, 6);
             this.terminalInputTextBox.Name = "terminalInputTextBox";
-            this.terminalInputTextBox.Size = new System.Drawing.Size(417, 30);
+            this.terminalInputTextBox.Size = new System.Drawing.Size(417, 26);
             this.terminalInputTextBox.TabIndex = 1;
             this.terminalInputTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.terminalInputTextBox_KeyPress);
             // 
@@ -1555,7 +1556,7 @@
             this.terminalTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.terminalTitleLabel.Location = new System.Drawing.Point(3, 5);
             this.terminalTitleLabel.Name = "terminalTitleLabel";
-            this.terminalTitleLabel.Size = new System.Drawing.Size(88, 25);
+            this.terminalTitleLabel.Size = new System.Drawing.Size(69, 20);
             this.terminalTitleLabel.TabIndex = 1;
             this.terminalTitleLabel.Text = "Terminal";
             // 
@@ -1566,7 +1567,7 @@
             this.addressesTabPage.ImageIndex = 4;
             this.addressesTabPage.Location = new System.Drawing.Point(4, 4);
             this.addressesTabPage.Name = "addressesTabPage";
-            this.addressesTabPage.Size = new System.Drawing.Size(508, 512);
+            this.addressesTabPage.Size = new System.Drawing.Size(508, 518);
             this.addressesTabPage.TabIndex = 4;
             this.addressesTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1580,27 +1581,27 @@
             this.mainAddressBookListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainAddressBookListView.FullRowSelect = true;
             this.mainAddressBookListView.GridLines = true;
-            listViewGroup1.Header = "Generic Stations";
-            listViewGroup1.Name = "Generic Stations";
-            listViewGroup2.Header = "APRS Stations";
-            listViewGroup2.Name = "APRS Stations";
-            listViewGroup3.Header = "Terminal Stations";
-            listViewGroup3.Name = "Terminal Stations";
-            listViewGroup4.Header = "BBS";
-            listViewGroup4.Name = "BBS";
-            listViewGroup5.Header = "Winlink Gateways";
-            listViewGroup5.Name = "Winlink Gateways";
+            listViewGroup9.Header = "Generic Stations";
+            listViewGroup9.Name = "Generic Stations";
+            listViewGroup10.Header = "APRS Stations";
+            listViewGroup10.Name = "APRS Stations";
+            listViewGroup11.Header = "Terminal Stations";
+            listViewGroup11.Name = "Terminal Stations";
+            listViewGroup12.Header = "BBS";
+            listViewGroup12.Name = "BBS";
+            listViewGroup13.Header = "Winlink Gateways";
+            listViewGroup13.Name = "Winlink Gateways";
             this.mainAddressBookListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup1,
-            listViewGroup2,
-            listViewGroup3,
-            listViewGroup4,
-            listViewGroup5});
+            listViewGroup9,
+            listViewGroup10,
+            listViewGroup11,
+            listViewGroup12,
+            listViewGroup13});
             this.mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.mainAddressBookListView.HideSelection = false;
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 30);
             this.mainAddressBookListView.Name = "mainAddressBookListView";
-            this.mainAddressBookListView.Size = new System.Drawing.Size(508, 482);
+            this.mainAddressBookListView.Size = new System.Drawing.Size(508, 488);
             this.mainAddressBookListView.SmallImageList = this.mainImageList;
             this.mainAddressBookListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.mainAddressBookListView.TabIndex = 4;
@@ -1632,12 +1633,12 @@
             this.removeToolStripMenuItem,
             this.setToolStripMenuItem});
             this.stationsContextMenuStrip.Name = "stationsContextMenuStrip";
-            this.stationsContextMenuStrip.Size = new System.Drawing.Size(133, 76);
+            this.stationsContextMenuStrip.Size = new System.Drawing.Size(118, 70);
             // 
             // editToolStripMenuItem
             // 
             this.editToolStripMenuItem.Name = "editToolStripMenuItem";
-            this.editToolStripMenuItem.Size = new System.Drawing.Size(132, 24);
+            this.editToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
             this.editToolStripMenuItem.Text = "&Edit...";
             this.editToolStripMenuItem.Visible = false;
             this.editToolStripMenuItem.Click += new System.EventHandler(this.mainAddressBookListView_DoubleClick);
@@ -1645,14 +1646,14 @@
             // removeToolStripMenuItem
             // 
             this.removeToolStripMenuItem.Name = "removeToolStripMenuItem";
-            this.removeToolStripMenuItem.Size = new System.Drawing.Size(132, 24);
+            this.removeToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
             this.removeToolStripMenuItem.Text = "&Remove";
             this.removeToolStripMenuItem.Click += new System.EventHandler(this.removeToolStripMenuItem_Click);
             // 
             // setToolStripMenuItem
             // 
             this.setToolStripMenuItem.Name = "setToolStripMenuItem";
-            this.setToolStripMenuItem.Size = new System.Drawing.Size(132, 24);
+            this.setToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
             this.setToolStripMenuItem.Text = "&Set";
             this.setToolStripMenuItem.Click += new System.EventHandler(this.setToolStripMenuItem_Click);
             // 
@@ -1713,7 +1714,7 @@
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label1.Location = new System.Drawing.Point(5, 5);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(135, 25);
+            this.label1.Size = new System.Drawing.Size(109, 20);
             this.label1.TabIndex = 0;
             this.label1.Text = "Address Book";
             // 
@@ -1724,7 +1725,7 @@
             this.bbsTabPage.ImageIndex = 7;
             this.bbsTabPage.Location = new System.Drawing.Point(4, 4);
             this.bbsTabPage.Name = "bbsTabPage";
-            this.bbsTabPage.Size = new System.Drawing.Size(508, 512);
+            this.bbsTabPage.Size = new System.Drawing.Size(508, 518);
             this.bbsTabPage.TabIndex = 7;
             this.bbsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1742,7 +1743,7 @@
             // bbsSplitContainer.Panel2
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
-            this.bbsSplitContainer.Size = new System.Drawing.Size(508, 482);
+            this.bbsSplitContainer.Size = new System.Drawing.Size(508, 488);
             this.bbsSplitContainer.SplitterDistance = 115;
             this.bbsSplitContainer.TabIndex = 7;
             // 
@@ -1756,16 +1757,16 @@
             this.bbsListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.bbsListView.FullRowSelect = true;
             this.bbsListView.GridLines = true;
-            listViewGroup6.Header = "Generic Stations";
-            listViewGroup6.Name = "Generic Stations";
-            listViewGroup7.Header = "APRS Stations";
-            listViewGroup7.Name = "APRS Stations";
-            listViewGroup8.Header = "Terminal Stations";
-            listViewGroup8.Name = "Terminal Stations";
+            listViewGroup14.Header = "Generic Stations";
+            listViewGroup14.Name = "Generic Stations";
+            listViewGroup15.Header = "APRS Stations";
+            listViewGroup15.Name = "APRS Stations";
+            listViewGroup16.Header = "Terminal Stations";
+            listViewGroup16.Name = "Terminal Stations";
             this.bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup6,
-            listViewGroup7,
-            listViewGroup8});
+            listViewGroup14,
+            listViewGroup15,
+            listViewGroup16});
             this.bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.bbsListView.HideSelection = false;
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
@@ -1803,7 +1804,7 @@
             this.bbsTextBox.Location = new System.Drawing.Point(0, 0);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(508, 363);
+            this.bbsTextBox.Size = new System.Drawing.Size(508, 369);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -1850,7 +1851,7 @@
             this.label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label3.Location = new System.Drawing.Point(5, 5);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(52, 25);
+            this.label3.Size = new System.Drawing.Size(42, 20);
             this.label3.TabIndex = 0;
             this.label3.Text = "BBS";
             // 
@@ -1861,7 +1862,7 @@
             this.packetsTabPage.ImageIndex = 6;
             this.packetsTabPage.Location = new System.Drawing.Point(4, 4);
             this.packetsTabPage.Name = "packetsTabPage";
-            this.packetsTabPage.Size = new System.Drawing.Size(508, 512);
+            this.packetsTabPage.Size = new System.Drawing.Size(508, 518);
             this.packetsTabPage.TabIndex = 6;
             this.packetsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1879,8 +1880,8 @@
             // packetsSplitContainer.Panel2
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
-            this.packetsSplitContainer.Size = new System.Drawing.Size(508, 482);
-            this.packetsSplitContainer.SplitterDistance = 227;
+            this.packetsSplitContainer.Size = new System.Drawing.Size(508, 488);
+            this.packetsSplitContainer.SplitterDistance = 226;
             this.packetsSplitContainer.TabIndex = 6;
             // 
             // packetsListView
@@ -1897,7 +1898,7 @@
             this.packetsListView.HideSelection = false;
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
             this.packetsListView.Name = "packetsListView";
-            this.packetsListView.Size = new System.Drawing.Size(508, 227);
+            this.packetsListView.Size = new System.Drawing.Size(508, 226);
             this.packetsListView.SmallImageList = this.mainImageList;
             this.packetsListView.TabIndex = 5;
             this.packetsListView.UseCompatibleStateImageBehavior = false;
@@ -1927,20 +1928,20 @@
             this.copyHEXValuesToolStripMenuItem,
             this.saveToFileToolStripMenuItem});
             this.packetsListContextMenuStrip.Name = "packetsListContextMenuStrip";
-            this.packetsListContextMenuStrip.Size = new System.Drawing.Size(191, 52);
+            this.packetsListContextMenuStrip.Size = new System.Drawing.Size(164, 48);
             this.packetsListContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.packetsListContextMenuStrip_Opening);
             // 
             // copyHEXValuesToolStripMenuItem
             // 
             this.copyHEXValuesToolStripMenuItem.Name = "copyHEXValuesToolStripMenuItem";
-            this.copyHEXValuesToolStripMenuItem.Size = new System.Drawing.Size(190, 24);
+            this.copyHEXValuesToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
             this.copyHEXValuesToolStripMenuItem.Text = "Copy &HEX Values";
             this.copyHEXValuesToolStripMenuItem.Click += new System.EventHandler(this.copyHEXValuesToolStripMenuItem_Click);
             // 
             // saveToFileToolStripMenuItem
             // 
             this.saveToFileToolStripMenuItem.Name = "saveToFileToolStripMenuItem";
-            this.saveToFileToolStripMenuItem.Size = new System.Drawing.Size(190, 24);
+            this.saveToFileToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
             this.saveToFileToolStripMenuItem.Text = "Save to &File..";
             this.saveToFileToolStripMenuItem.Click += new System.EventHandler(this.saveToFileToolStripMenuItem_Click_1);
             // 
@@ -1953,30 +1954,30 @@
             this.packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.packetDecodeListView.FullRowSelect = true;
             this.packetDecodeListView.GridLines = true;
-            listViewGroup9.Header = "Metadata";
-            listViewGroup9.Name = "packetDecodeMetadataListViewGroup";
-            listViewGroup10.Header = "AX.25 Header";
-            listViewGroup10.Name = "packetDecodeHeaderListViewGroup";
-            listViewGroup11.Header = "AX.25 Data";
-            listViewGroup11.Name = "packetDecodeDataListViewGroup";
-            listViewGroup12.Header = "APRS";
-            listViewGroup12.Name = "packetDecodeAprsListViewGroup";
-            listViewGroup13.Header = "Position";
-            listViewGroup13.Name = "packetDecodePositionListViewGroup";
-            listViewGroup14.Header = "Decompression";
-            listViewGroup14.Name = "packetDecodeDecompressionListViewGroup";
+            listViewGroup1.Header = "Metadata";
+            listViewGroup1.Name = "packetDecodeMetadataListViewGroup";
+            listViewGroup2.Header = "AX.25 Header";
+            listViewGroup2.Name = "packetDecodeHeaderListViewGroup";
+            listViewGroup3.Header = "AX.25 Data";
+            listViewGroup3.Name = "packetDecodeDataListViewGroup";
+            listViewGroup17.Header = "APRS";
+            listViewGroup17.Name = "packetDecodeAprsListViewGroup";
+            listViewGroup18.Header = "Position";
+            listViewGroup18.Name = "packetDecodePositionListViewGroup";
+            listViewGroup19.Header = "Decompression";
+            listViewGroup19.Name = "packetDecodeDecompressionListViewGroup";
             this.packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup9,
-            listViewGroup10,
-            listViewGroup11,
-            listViewGroup12,
-            listViewGroup13,
-            listViewGroup14});
+            listViewGroup1,
+            listViewGroup2,
+            listViewGroup3,
+            listViewGroup17,
+            listViewGroup18,
+            listViewGroup19});
             this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.packetDecodeListView.HideSelection = false;
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(508, 251);
+            this.packetDecodeListView.Size = new System.Drawing.Size(508, 258);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;
@@ -1996,13 +1997,13 @@
             this.packetDataContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.copyToClipboardToolStripMenuItem});
             this.packetDataContextMenuStrip.Name = "packetDataContextMenuStrip";
-            this.packetDataContextMenuStrip.Size = new System.Drawing.Size(201, 28);
+            this.packetDataContextMenuStrip.Size = new System.Drawing.Size(172, 26);
             this.packetDataContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.packetDataContextMenuStrip_Opening);
             // 
             // copyToClipboardToolStripMenuItem
             // 
             this.copyToClipboardToolStripMenuItem.Name = "copyToClipboardToolStripMenuItem";
-            this.copyToClipboardToolStripMenuItem.Size = new System.Drawing.Size(200, 24);
+            this.copyToClipboardToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.copyToClipboardToolStripMenuItem.Text = "Copy to Clipboard";
             this.copyToClipboardToolStripMenuItem.Click += new System.EventHandler(this.copyToClipboardToolStripMenuItem_Click);
             // 
@@ -2037,7 +2038,7 @@
             this.label5.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label5.Location = new System.Drawing.Point(5, 5);
             this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(147, 25);
+            this.label5.Size = new System.Drawing.Size(119, 20);
             this.label5.TabIndex = 0;
             this.label5.Text = "Packet Capture";
             // 
@@ -2048,7 +2049,7 @@
             this.debugTabPage.ImageIndex = 0;
             this.debugTabPage.Location = new System.Drawing.Point(4, 4);
             this.debugTabPage.Name = "debugTabPage";
-            this.debugTabPage.Size = new System.Drawing.Size(508, 512);
+            this.debugTabPage.Size = new System.Drawing.Size(508, 518);
             this.debugTabPage.TabIndex = 1;
             this.debugTabPage.ToolTipText = "Debug";
             this.debugTabPage.UseVisualStyleBackColor = true;
@@ -2064,7 +2065,7 @@
             this.debugTextBox.Name = "debugTextBox";
             this.debugTextBox.ReadOnly = true;
             this.debugTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.debugTextBox.Size = new System.Drawing.Size(508, 482);
+            this.debugTextBox.Size = new System.Drawing.Size(508, 488);
             this.debugTextBox.TabIndex = 1;
             this.debugTextBox.WordWrap = false;
             // 
@@ -2099,7 +2100,7 @@
             this.label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label2.Location = new System.Drawing.Point(3, 5);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(164, 25);
+            this.label2.Size = new System.Drawing.Size(133, 20);
             this.label2.TabIndex = 1;
             this.label2.Text = "Developer Debug";
             // 
@@ -2126,39 +2127,39 @@
             this.smSMessageToolStripMenuItem,
             this.weatherReportToolStripMenuItem});
             this.aprsContextMenuStrip.Name = "aprsContextMenuStrip";
-            this.aprsContextMenuStrip.Size = new System.Drawing.Size(194, 106);
+            this.aprsContextMenuStrip.Size = new System.Drawing.Size(168, 98);
             // 
             // showAllMessagesToolStripMenuItem
             // 
             this.showAllMessagesToolStripMenuItem.CheckOnClick = true;
             this.showAllMessagesToolStripMenuItem.Name = "showAllMessagesToolStripMenuItem";
-            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(193, 24);
+            this.showAllMessagesToolStripMenuItem.Size = new System.Drawing.Size(167, 22);
             this.showAllMessagesToolStripMenuItem.Text = "Show &Telemetry";
             this.showAllMessagesToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showAllMessagesToolStripMenuItem_CheckStateChanged);
             // 
             // toolStripMenuItem7
             // 
             this.toolStripMenuItem7.Name = "toolStripMenuItem7";
-            this.toolStripMenuItem7.Size = new System.Drawing.Size(190, 6);
+            this.toolStripMenuItem7.Size = new System.Drawing.Size(164, 6);
             // 
             // beaconSettingsToolStripMenuItem
             // 
             this.beaconSettingsToolStripMenuItem.Name = "beaconSettingsToolStripMenuItem";
-            this.beaconSettingsToolStripMenuItem.Size = new System.Drawing.Size(193, 24);
+            this.beaconSettingsToolStripMenuItem.Size = new System.Drawing.Size(167, 22);
             this.beaconSettingsToolStripMenuItem.Text = "&Beacon Settings...";
             this.beaconSettingsToolStripMenuItem.Click += new System.EventHandler(this.beaconSettingsToolStripMenuItem_Click);
             // 
             // smSMessageToolStripMenuItem
             // 
             this.smSMessageToolStripMenuItem.Name = "smSMessageToolStripMenuItem";
-            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(193, 24);
+            this.smSMessageToolStripMenuItem.Size = new System.Drawing.Size(167, 22);
             this.smSMessageToolStripMenuItem.Text = "&SMS Message...";
             this.smSMessageToolStripMenuItem.Click += new System.EventHandler(this.aprsSmsButton_Click);
             // 
             // weatherReportToolStripMenuItem
             // 
             this.weatherReportToolStripMenuItem.Name = "weatherReportToolStripMenuItem";
-            this.weatherReportToolStripMenuItem.Size = new System.Drawing.Size(193, 24);
+            this.weatherReportToolStripMenuItem.Size = new System.Drawing.Size(167, 22);
             this.weatherReportToolStripMenuItem.Text = "&Weather Report...";
             this.weatherReportToolStripMenuItem.Click += new System.EventHandler(this.weatherReportToolStripMenuItem_Click);
             // 
@@ -2171,32 +2172,32 @@
             this.toolStripMenuItem9,
             this.toolStripMenuItem13});
             this.terminalTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(211, 82);
+            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(182, 76);
             // 
             // showCallsignToolStripMenuItem
             // 
             this.showCallsignToolStripMenuItem.CheckOnClick = true;
             this.showCallsignToolStripMenuItem.Name = "showCallsignToolStripMenuItem";
-            this.showCallsignToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.showCallsignToolStripMenuItem.Size = new System.Drawing.Size(181, 22);
             this.showCallsignToolStripMenuItem.Text = "&Show Callsign";
             this.showCallsignToolStripMenuItem.Click += new System.EventHandler(this.showCallsignToolStripMenuItem_Click);
             // 
             // waitForConnectionToolStripMenuItem
             // 
             this.waitForConnectionToolStripMenuItem.Name = "waitForConnectionToolStripMenuItem";
-            this.waitForConnectionToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.waitForConnectionToolStripMenuItem.Size = new System.Drawing.Size(181, 22);
             this.waitForConnectionToolStripMenuItem.Text = "&Wait for Connection";
             this.waitForConnectionToolStripMenuItem.Click += new System.EventHandler(this.waitForConnectionToolStripMenuItem_Click);
             // 
             // toolStripMenuItem9
             // 
             this.toolStripMenuItem9.Name = "toolStripMenuItem9";
-            this.toolStripMenuItem9.Size = new System.Drawing.Size(207, 6);
+            this.toolStripMenuItem9.Size = new System.Drawing.Size(178, 6);
             // 
             // toolStripMenuItem13
             // 
             this.toolStripMenuItem13.Name = "toolStripMenuItem13";
-            this.toolStripMenuItem13.Size = new System.Drawing.Size(210, 24);
+            this.toolStripMenuItem13.Size = new System.Drawing.Size(181, 22);
             this.toolStripMenuItem13.Text = "&Clear";
             this.toolStripMenuItem13.Click += new System.EventHandler(this.toolStripMenuItem13_Click);
             // 
@@ -2212,12 +2213,12 @@
             this.toolStripMenuItem8,
             this.clearToolStripMenuItem});
             this.debugTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.debugTabContextMenuStrip.Size = new System.Drawing.Size(235, 136);
+            this.debugTabContextMenuStrip.Size = new System.Drawing.Size(200, 126);
             // 
             // debugSaveToFileToolStripMenuItem
             // 
             this.debugSaveToFileToolStripMenuItem.Name = "debugSaveToFileToolStripMenuItem";
-            this.debugSaveToFileToolStripMenuItem.Size = new System.Drawing.Size(234, 24);
+            this.debugSaveToFileToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             this.debugSaveToFileToolStripMenuItem.Text = "&Save To File...";
             this.debugSaveToFileToolStripMenuItem.Click += new System.EventHandler(this.saveToFileToolStripMenuItem_Click);
             // 
@@ -2225,7 +2226,7 @@
             // 
             this.showBluetoothFramesToolStripMenuItem.CheckOnClick = true;
             this.showBluetoothFramesToolStripMenuItem.Name = "showBluetoothFramesToolStripMenuItem";
-            this.showBluetoothFramesToolStripMenuItem.Size = new System.Drawing.Size(234, 24);
+            this.showBluetoothFramesToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             this.showBluetoothFramesToolStripMenuItem.Text = "Show Bluetooth Frames";
             this.showBluetoothFramesToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showBluetoothFramesToolStripMenuItem_CheckStateChanged);
             // 
@@ -2233,31 +2234,31 @@
             // 
             this.loopbackModeToolStripMenuItem.CheckOnClick = true;
             this.loopbackModeToolStripMenuItem.Name = "loopbackModeToolStripMenuItem";
-            this.loopbackModeToolStripMenuItem.Size = new System.Drawing.Size(234, 24);
+            this.loopbackModeToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             this.loopbackModeToolStripMenuItem.Text = "&Loopback Mode";
             this.loopbackModeToolStripMenuItem.Click += new System.EventHandler(this.loopbackModeToolStripMenuItem_Click);
             // 
             // toolStripMenuItem3
             // 
             this.toolStripMenuItem3.Name = "toolStripMenuItem3";
-            this.toolStripMenuItem3.Size = new System.Drawing.Size(231, 6);
+            this.toolStripMenuItem3.Size = new System.Drawing.Size(196, 6);
             // 
             // queryDeviceNamesToolStripMenuItem
             // 
             this.queryDeviceNamesToolStripMenuItem.Name = "queryDeviceNamesToolStripMenuItem";
-            this.queryDeviceNamesToolStripMenuItem.Size = new System.Drawing.Size(234, 24);
+            this.queryDeviceNamesToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             this.queryDeviceNamesToolStripMenuItem.Text = "Query Device Names";
             this.queryDeviceNamesToolStripMenuItem.Click += new System.EventHandler(this.queryDeviceNamesToolStripMenuItem_Click);
             // 
             // toolStripMenuItem8
             // 
             this.toolStripMenuItem8.Name = "toolStripMenuItem8";
-            this.toolStripMenuItem8.Size = new System.Drawing.Size(231, 6);
+            this.toolStripMenuItem8.Size = new System.Drawing.Size(196, 6);
             // 
             // clearToolStripMenuItem
             // 
             this.clearToolStripMenuItem.Name = "clearToolStripMenuItem";
-            this.clearToolStripMenuItem.Size = new System.Drawing.Size(234, 24);
+            this.clearToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             this.clearToolStripMenuItem.Text = "&Clear";
             this.clearToolStripMenuItem.Click += new System.EventHandler(this.clearToolStripMenuItem_Click);
             // 
@@ -2280,35 +2281,35 @@
             this.copyMessageToolStripMenuItem,
             this.copyCallsignToolStripMenuItem});
             this.aprsMsgContextMenuStrip.Name = "aprsMsgContextMenuStrip";
-            this.aprsMsgContextMenuStrip.Size = new System.Drawing.Size(185, 100);
+            this.aprsMsgContextMenuStrip.Size = new System.Drawing.Size(162, 92);
             this.aprsMsgContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.aprsMsgContextMenuStrip_Opening);
             // 
             // detailsToolStripMenuItem
             // 
             this.detailsToolStripMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.detailsToolStripMenuItem.Name = "detailsToolStripMenuItem";
-            this.detailsToolStripMenuItem.Size = new System.Drawing.Size(184, 24);
+            this.detailsToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.detailsToolStripMenuItem.Text = "&Details...";
             this.detailsToolStripMenuItem.Click += new System.EventHandler(this.detailsToolStripMenuItem_Click);
             // 
             // showLocationToolStripMenuItem
             // 
             this.showLocationToolStripMenuItem.Name = "showLocationToolStripMenuItem";
-            this.showLocationToolStripMenuItem.Size = new System.Drawing.Size(184, 24);
+            this.showLocationToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.showLocationToolStripMenuItem.Text = "Show Location...";
             this.showLocationToolStripMenuItem.Click += new System.EventHandler(this.showLocationToolStripMenuItem_Click);
             // 
             // copyMessageToolStripMenuItem
             // 
             this.copyMessageToolStripMenuItem.Name = "copyMessageToolStripMenuItem";
-            this.copyMessageToolStripMenuItem.Size = new System.Drawing.Size(184, 24);
+            this.copyMessageToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.copyMessageToolStripMenuItem.Text = "Copy Message";
             this.copyMessageToolStripMenuItem.Click += new System.EventHandler(this.copyMessageToolStripMenuItem_Click);
             // 
             // copyCallsignToolStripMenuItem
             // 
             this.copyCallsignToolStripMenuItem.Name = "copyCallsignToolStripMenuItem";
-            this.copyCallsignToolStripMenuItem.Size = new System.Drawing.Size(184, 24);
+            this.copyCallsignToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
             this.copyCallsignToolStripMenuItem.Text = "Copy Callsign";
             this.copyCallsignToolStripMenuItem.Click += new System.EventHandler(this.copyCallsignToolStripMenuItem_Click);
             // 
@@ -2323,45 +2324,45 @@
             this.toolStripMenuItem17,
             this.clearPacketsToolStripMenuItem});
             this.packetsContextMenuStrip.Name = "packetsContextMenuStrip";
-            this.packetsContextMenuStrip.Size = new System.Drawing.Size(217, 112);
+            this.packetsContextMenuStrip.Size = new System.Drawing.Size(185, 104);
             this.packetsContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.packetsContextMenuStrip_Opening);
             // 
             // showPacketDecodeToolStripMenuItem
             // 
             this.showPacketDecodeToolStripMenuItem.CheckOnClick = true;
             this.showPacketDecodeToolStripMenuItem.Name = "showPacketDecodeToolStripMenuItem";
-            this.showPacketDecodeToolStripMenuItem.Size = new System.Drawing.Size(216, 24);
+            this.showPacketDecodeToolStripMenuItem.Size = new System.Drawing.Size(184, 22);
             this.showPacketDecodeToolStripMenuItem.Text = "&Show Packet Decode";
             this.showPacketDecodeToolStripMenuItem.CheckStateChanged += new System.EventHandler(this.showPacketDecodeToolStripMenuItem_CheckStateChanged);
             // 
             // toolStripMenuItem18
             // 
             this.toolStripMenuItem18.Name = "toolStripMenuItem18";
-            this.toolStripMenuItem18.Size = new System.Drawing.Size(213, 6);
+            this.toolStripMenuItem18.Size = new System.Drawing.Size(181, 6);
             // 
             // saveToFileToolStripMenuItem1
             // 
             this.saveToFileToolStripMenuItem1.Name = "saveToFileToolStripMenuItem1";
-            this.saveToFileToolStripMenuItem1.Size = new System.Drawing.Size(216, 24);
+            this.saveToFileToolStripMenuItem1.Size = new System.Drawing.Size(184, 22);
             this.saveToFileToolStripMenuItem1.Text = "Save to &File...";
             this.saveToFileToolStripMenuItem1.Click += new System.EventHandler(this.saveToFileToolStripMenuItem1_Click);
             // 
             // openFileToolStripMenuItem
             // 
             this.openFileToolStripMenuItem.Name = "openFileToolStripMenuItem";
-            this.openFileToolStripMenuItem.Size = new System.Drawing.Size(216, 24);
+            this.openFileToolStripMenuItem.Size = new System.Drawing.Size(184, 22);
             this.openFileToolStripMenuItem.Text = "Open File...";
             this.openFileToolStripMenuItem.Click += new System.EventHandler(this.openFileToolStripMenuItem_Click);
             // 
             // toolStripMenuItem17
             // 
             this.toolStripMenuItem17.Name = "toolStripMenuItem17";
-            this.toolStripMenuItem17.Size = new System.Drawing.Size(213, 6);
+            this.toolStripMenuItem17.Size = new System.Drawing.Size(181, 6);
             // 
             // clearPacketsToolStripMenuItem
             // 
             this.clearPacketsToolStripMenuItem.Name = "clearPacketsToolStripMenuItem";
-            this.clearPacketsToolStripMenuItem.Size = new System.Drawing.Size(216, 24);
+            this.clearPacketsToolStripMenuItem.Size = new System.Drawing.Size(184, 22);
             this.clearPacketsToolStripMenuItem.Text = "&Clear Packets";
             this.clearPacketsToolStripMenuItem.Click += new System.EventHandler(this.clearPacketsToolStripMenuItem_Click);
             // 
@@ -2408,7 +2409,7 @@
             this.toolStripMenuItem11,
             this.clearStatsToolStripMenuItem});
             this.bbsTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.bbsTabContextMenuStrip.Size = new System.Drawing.Size(156, 62);
+            this.bbsTabContextMenuStrip.Size = new System.Drawing.Size(135, 54);
             // 
             // viewTrafficToolStripMenuItem
             // 
@@ -2416,19 +2417,19 @@
             this.viewTrafficToolStripMenuItem.CheckOnClick = true;
             this.viewTrafficToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             this.viewTrafficToolStripMenuItem.Name = "viewTrafficToolStripMenuItem";
-            this.viewTrafficToolStripMenuItem.Size = new System.Drawing.Size(155, 26);
+            this.viewTrafficToolStripMenuItem.Size = new System.Drawing.Size(134, 22);
             this.viewTrafficToolStripMenuItem.Text = "&View Traffic";
             this.viewTrafficToolStripMenuItem.Click += new System.EventHandler(this.viewTrafficToolStripMenuItem_Click);
             // 
             // toolStripMenuItem11
             // 
             this.toolStripMenuItem11.Name = "toolStripMenuItem11";
-            this.toolStripMenuItem11.Size = new System.Drawing.Size(152, 6);
+            this.toolStripMenuItem11.Size = new System.Drawing.Size(131, 6);
             // 
             // clearStatsToolStripMenuItem
             // 
             this.clearStatsToolStripMenuItem.Name = "clearStatsToolStripMenuItem";
-            this.clearStatsToolStripMenuItem.Size = new System.Drawing.Size(155, 26);
+            this.clearStatsToolStripMenuItem.Size = new System.Drawing.Size(134, 22);
             this.clearStatsToolStripMenuItem.Text = "&Clear Stats";
             this.clearStatsToolStripMenuItem.Click += new System.EventHandler(this.clearStatsToolStripMenuItem_Click);
             // 
@@ -2438,34 +2439,43 @@
             this.notifyIcon.Icon = ((System.Drawing.Icon)(resources.GetObject("notifyIcon.Icon")));
             this.notifyIcon.Text = "HT Commander";
             this.notifyIcon.BalloonTipClicked += new System.EventHandler(this.notifyIcon_BalloonTipClicked);
-            this.notifyIcon.Click += new System.EventHandler(this.openToolStripMenuItem_Click);
+            this.notifyIcon.MouseClick += new System.Windows.Forms.MouseEventHandler(this.notifyIcon_MouseClick);
             // 
             // notifyContextMenuStrip
             // 
             this.notifyContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.notifyContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.openToolStripMenuItem,
+            this.showToolStripMenuItem,
+            this.hideToolStripMenuItem,
             this.toolStripMenuItem12,
             this.exitToolStripMenuItem1});
             this.notifyContextMenuStrip.Name = "notifyContextMenuStrip";
-            this.notifyContextMenuStrip.Size = new System.Drawing.Size(115, 58);
+            this.notifyContextMenuStrip.Size = new System.Drawing.Size(181, 98);
+            this.notifyContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.notifyContextMenuStrip_Opening);
             // 
-            // openToolStripMenuItem
+            // showToolStripMenuItem
             // 
-            this.openToolStripMenuItem.Name = "openToolStripMenuItem";
-            this.openToolStripMenuItem.Size = new System.Drawing.Size(114, 24);
-            this.openToolStripMenuItem.Text = "&Open";
-            this.openToolStripMenuItem.Click += new System.EventHandler(this.openToolStripMenuItem_Click);
+            this.showToolStripMenuItem.Name = "showToolStripMenuItem";
+            this.showToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.showToolStripMenuItem.Text = "&Show";
+            this.showToolStripMenuItem.Click += new System.EventHandler(this.showToolStripMenuItem_Click);
+            // 
+            // hideToolStripMenuItem
+            // 
+            this.hideToolStripMenuItem.Name = "hideToolStripMenuItem";
+            this.hideToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.hideToolStripMenuItem.Text = "&Hide";
+            this.hideToolStripMenuItem.Click += new System.EventHandler(this.hideToolStripMenuItem_Click);
             // 
             // toolStripMenuItem12
             // 
             this.toolStripMenuItem12.Name = "toolStripMenuItem12";
-            this.toolStripMenuItem12.Size = new System.Drawing.Size(111, 6);
+            this.toolStripMenuItem12.Size = new System.Drawing.Size(177, 6);
             // 
             // exitToolStripMenuItem1
             // 
             this.exitToolStripMenuItem1.Name = "exitToolStripMenuItem1";
-            this.exitToolStripMenuItem1.Size = new System.Drawing.Size(114, 24);
+            this.exitToolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
             this.exitToolStripMenuItem1.Text = "&Exit";
             this.exitToolStripMenuItem1.Click += new System.EventHandler(this.exitToolStripMenuItem1_Click);
             // 
@@ -2479,39 +2489,39 @@
             this.backupMailToolStripMenuItem,
             this.restoreMailToolStripMenuItem});
             this.mailTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.mailTabContextMenuStrip.Size = new System.Drawing.Size(171, 106);
+            this.mailTabContextMenuStrip.Size = new System.Drawing.Size(149, 98);
             // 
             // showPreviewToolStripMenuItem
             // 
             this.showPreviewToolStripMenuItem.CheckOnClick = true;
             this.showPreviewToolStripMenuItem.Name = "showPreviewToolStripMenuItem";
-            this.showPreviewToolStripMenuItem.Size = new System.Drawing.Size(170, 24);
+            this.showPreviewToolStripMenuItem.Size = new System.Drawing.Size(148, 22);
             this.showPreviewToolStripMenuItem.Text = "&Show Preview";
             this.showPreviewToolStripMenuItem.Click += new System.EventHandler(this.showPreviewToolStripMenuItem_Click);
             // 
             // showTrafficToolStripMenuItem
             // 
             this.showTrafficToolStripMenuItem.Name = "showTrafficToolStripMenuItem";
-            this.showTrafficToolStripMenuItem.Size = new System.Drawing.Size(170, 24);
+            this.showTrafficToolStripMenuItem.Size = new System.Drawing.Size(148, 22);
             this.showTrafficToolStripMenuItem.Text = "Show Traffic...";
             this.showTrafficToolStripMenuItem.Click += new System.EventHandler(this.showTrafficToolStripMenuItem_Click);
             // 
             // toolStripMenuItem16
             // 
             this.toolStripMenuItem16.Name = "toolStripMenuItem16";
-            this.toolStripMenuItem16.Size = new System.Drawing.Size(167, 6);
+            this.toolStripMenuItem16.Size = new System.Drawing.Size(145, 6);
             // 
             // backupMailToolStripMenuItem
             // 
             this.backupMailToolStripMenuItem.Name = "backupMailToolStripMenuItem";
-            this.backupMailToolStripMenuItem.Size = new System.Drawing.Size(170, 24);
+            this.backupMailToolStripMenuItem.Size = new System.Drawing.Size(148, 22);
             this.backupMailToolStripMenuItem.Text = "&Backup Mail...";
             this.backupMailToolStripMenuItem.Click += new System.EventHandler(this.backupMailToolStripMenuItem_Click);
             // 
             // restoreMailToolStripMenuItem
             // 
             this.restoreMailToolStripMenuItem.Name = "restoreMailToolStripMenuItem";
-            this.restoreMailToolStripMenuItem.Size = new System.Drawing.Size(170, 24);
+            this.restoreMailToolStripMenuItem.Size = new System.Drawing.Size(148, 22);
             this.restoreMailToolStripMenuItem.Text = "&Restore Mail...";
             this.restoreMailToolStripMenuItem.Click += new System.EventHandler(this.restoreMailToolStripMenuItem_Click);
             // 
@@ -2808,7 +2818,6 @@
         private System.Windows.Forms.RichTextBox bbsTextBox;
         private System.Windows.Forms.NotifyIcon notifyIcon;
         private System.Windows.Forms.ContextMenuStrip notifyContextMenuStrip;
-        private System.Windows.Forms.ToolStripMenuItem openToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem12;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem systemTrayToolStripMenuItem;
@@ -2851,6 +2860,8 @@
         private System.Windows.Forms.Panel mailTransferStatusPanel;
         private System.Windows.Forms.Label mailTransferStatusLabel;
         private System.Windows.Forms.ToolStripMenuItem showTrafficToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem showToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem hideToolStripMenuItem;
     }
 }
 
