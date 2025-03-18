@@ -211,7 +211,7 @@ namespace HTCommander
                     {
                         // Send proposal checksum
                         checksum = (-checksum) & 0xFF;
-                        sb.Append("F> " + checksum.ToString("X2"));
+                        sb.Append("F> " + checksum.ToString("X2") + "\r");
                         SessionSend(session, sb.ToString());
                         session.sessionState["OutMails"] = proposedMails;
                         session.sessionState["OutMailBlocks"] = proposedMailsBinary;
@@ -219,7 +219,7 @@ namespace HTCommander
                     else
                     {
                         // No mail proposals sent, give a change to the server to send us mails.
-                        sb.Append("FF");
+                        sb.Append("FF\r");
                         SessionSend(session, sb.ToString());
                     }
                 }
@@ -262,28 +262,28 @@ namespace HTCommander
                                     // Winlink Session Close
                                     UpdateEmails(session);
                                     StateMessage("No emails to transfer.");
-                                    SessionSend(session, "FF");
+                                    SessionSend(session, "FF\r");
                                 }
                             }
                             else
                             {
                                 // Winlink Session Close
                                 StateMessage("Incorrect proposal response.");
-                                SessionSend(session, "FQ");
+                                SessionSend(session, "FQ\r");
                             }
                         }
                         else
                         {
                             // Winlink Session Close
                             StateMessage("Unexpected proposal response.");
-                            SessionSend(session, "FQ");
+                            SessionSend(session, "FQ\r");
                         }
                     }
                     else if (key == "FF")
                     {
                         // Winlink Session Close
                         UpdateEmails(session);
-                        SessionSend(session, "FQ");
+                        SessionSend(session, "FQ\r");
                     }
                     else if (key == "FC")
                     {
