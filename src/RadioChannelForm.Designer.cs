@@ -78,9 +78,10 @@
             // 
             this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancelButton.Location = new System.Drawing.Point(314, 633);
+            this.cancelButton.Location = new System.Drawing.Point(419, 779);
+            this.cancelButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.cancelButton.Name = "cancelButton";
-            this.cancelButton.Size = new System.Drawing.Size(75, 23);
+            this.cancelButton.Size = new System.Drawing.Size(100, 28);
             this.cancelButton.TabIndex = 32;
             this.cancelButton.Text = "Cancel";
             this.cancelButton.UseVisualStyleBackColor = true;
@@ -90,9 +91,10 @@
             // 
             this.label4.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.label4.Location = new System.Drawing.Point(12, 9);
+            this.label4.Location = new System.Drawing.Point(16, 11);
+            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(302, 52);
+            this.label4.Size = new System.Drawing.Size(403, 64);
             this.label4.TabIndex = 8;
             this.label4.Text = "Finding the right frequencies and settings for your area can be some work, take a" +
     " look at this site for help:";
@@ -112,9 +114,11 @@
             this.basicGroupBox.Controls.Add(this.nameTextBox);
             this.basicGroupBox.Controls.Add(this.modeComboBox);
             this.basicGroupBox.Controls.Add(this.freqTextBox);
-            this.basicGroupBox.Location = new System.Drawing.Point(15, 67);
+            this.basicGroupBox.Location = new System.Drawing.Point(20, 82);
+            this.basicGroupBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.basicGroupBox.Name = "basicGroupBox";
-            this.basicGroupBox.Size = new System.Drawing.Size(374, 229);
+            this.basicGroupBox.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.basicGroupBox.Size = new System.Drawing.Size(499, 282);
             this.basicGroupBox.TabIndex = 7;
             this.basicGroupBox.TabStop = false;
             this.basicGroupBox.Text = "Channel";
@@ -122,9 +126,10 @@
             // moreSettingsButton
             // 
             this.moreSettingsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.moreSettingsButton.Location = new System.Drawing.Point(9, 200);
+            this.moreSettingsButton.Location = new System.Drawing.Point(12, 246);
+            this.moreSettingsButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.moreSettingsButton.Name = "moreSettingsButton";
-            this.moreSettingsButton.Size = new System.Drawing.Size(90, 23);
+            this.moreSettingsButton.Size = new System.Drawing.Size(120, 28);
             this.moreSettingsButton.TabIndex = 7;
             this.moreSettingsButton.Text = "More Settings";
             this.moreSettingsButton.UseVisualStyleBackColor = true;
@@ -133,9 +138,10 @@
             // muteCheckBox
             // 
             this.muteCheckBox.AutoSize = true;
-            this.muteCheckBox.Location = new System.Drawing.Point(161, 178);
+            this.muteCheckBox.Location = new System.Drawing.Point(215, 219);
+            this.muteCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.muteCheckBox.Name = "muteCheckBox";
-            this.muteCheckBox.Size = new System.Drawing.Size(50, 17);
+            this.muteCheckBox.Size = new System.Drawing.Size(58, 20);
             this.muteCheckBox.TabIndex = 6;
             this.muteCheckBox.Text = "Mute";
             this.muteCheckBox.UseVisualStyleBackColor = true;
@@ -144,9 +150,10 @@
             // disableTransmitCheckBox
             // 
             this.disableTransmitCheckBox.AutoSize = true;
-            this.disableTransmitCheckBox.Location = new System.Drawing.Point(161, 155);
+            this.disableTransmitCheckBox.Location = new System.Drawing.Point(215, 191);
+            this.disableTransmitCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.disableTransmitCheckBox.Name = "disableTransmitCheckBox";
-            this.disableTransmitCheckBox.Size = new System.Drawing.Size(104, 17);
+            this.disableTransmitCheckBox.Size = new System.Drawing.Size(131, 20);
             this.disableTransmitCheckBox.TabIndex = 5;
             this.disableTransmitCheckBox.Text = "Disable Transmit";
             this.disableTransmitCheckBox.UseVisualStyleBackColor = true;
@@ -155,9 +162,10 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(6, 122);
+            this.label5.Location = new System.Drawing.Point(8, 150);
+            this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(37, 13);
+            this.label5.Size = new System.Drawing.Size(45, 16);
             this.label5.TabIndex = 7;
             this.label5.Text = "Power";
             // 
@@ -172,9 +180,10 @@
             "High",
             "Medium",
             "Low"});
-            this.powerComboBox.Location = new System.Drawing.Point(161, 119);
+            this.powerComboBox.Location = new System.Drawing.Point(215, 146);
+            this.powerComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.powerComboBox.Name = "powerComboBox";
-            this.powerComboBox.Size = new System.Drawing.Size(207, 21);
+            this.powerComboBox.Size = new System.Drawing.Size(275, 25);
             this.powerComboBox.TabIndex = 4;
             this.powerComboBox.SelectedIndexChanged += new System.EventHandler(this.powerComboBox_SelectedIndexChanged);
             // 
@@ -183,27 +192,30 @@
             this.label3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.label3.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
-            this.label3.Location = new System.Drawing.Point(158, 92);
+            this.label3.Location = new System.Drawing.Point(211, 113);
+            this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(210, 15);
+            this.label3.Size = new System.Drawing.Size(280, 18);
             this.label3.TabIndex = 5;
             this.label3.Text = "136 MHz - 174 MHz, 300 MHz - 550 MHz\r\n";
             // 
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(6, 70);
+            this.label2.Location = new System.Drawing.Point(8, 86);
+            this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(57, 13);
+            this.label2.Size = new System.Drawing.Size(71, 16);
             this.label2.TabIndex = 4;
             this.label2.Text = "Frequency";
             // 
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(6, 31);
+            this.label1.Location = new System.Drawing.Point(8, 38);
+            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(35, 13);
+            this.label1.Size = new System.Drawing.Size(44, 16);
             this.label1.TabIndex = 3;
             this.label1.Text = "Name";
             // 
@@ -212,10 +224,11 @@
             this.nameTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.nameTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.nameTextBox.Location = new System.Drawing.Point(161, 19);
-            this.nameTextBox.MaxLength = 8;
+            this.nameTextBox.Location = new System.Drawing.Point(215, 23);
+            this.nameTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nameTextBox.MaxLength = 10;
             this.nameTextBox.Name = "nameTextBox";
-            this.nameTextBox.Size = new System.Drawing.Size(207, 31);
+            this.nameTextBox.Size = new System.Drawing.Size(275, 37);
             this.nameTextBox.TabIndex = 1;
             this.nameTextBox.TextChanged += new System.EventHandler(this.nameTextBox_TextChanged);
             // 
@@ -228,9 +241,10 @@
             this.modeComboBox.Items.AddRange(new object[] {
             "FM",
             "AM"});
-            this.modeComboBox.Location = new System.Drawing.Point(307, 56);
+            this.modeComboBox.Location = new System.Drawing.Point(409, 69);
+            this.modeComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.modeComboBox.Name = "modeComboBox";
-            this.modeComboBox.Size = new System.Drawing.Size(61, 33);
+            this.modeComboBox.Size = new System.Drawing.Size(80, 38);
             this.modeComboBox.TabIndex = 3;
             // 
             // freqTextBox
@@ -238,9 +252,10 @@
             this.freqTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.freqTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.freqTextBox.Location = new System.Drawing.Point(161, 58);
+            this.freqTextBox.Location = new System.Drawing.Point(215, 71);
+            this.freqTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.freqTextBox.Name = "freqTextBox";
-            this.freqTextBox.Size = new System.Drawing.Size(138, 31);
+            this.freqTextBox.Size = new System.Drawing.Size(183, 37);
             this.freqTextBox.TabIndex = 2;
             this.freqTextBox.TextChanged += new System.EventHandler(this.freqTextBox_TextChanged);
             this.freqTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.freqTextBox_KeyPress);
@@ -249,9 +264,10 @@
             // 
             this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox2.Image = global::HTCommander.Properties.Resources.Signal;
-            this.pictureBox2.Location = new System.Drawing.Point(320, 9);
+            this.pictureBox2.Location = new System.Drawing.Point(427, 11);
+            this.pictureBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.pictureBox2.Name = "pictureBox2";
-            this.pictureBox2.Size = new System.Drawing.Size(69, 52);
+            this.pictureBox2.Size = new System.Drawing.Size(92, 64);
             this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox2.TabIndex = 9;
             this.pictureBox2.TabStop = false;
@@ -260,9 +276,10 @@
             // 
             this.repeaterBookLinkLabel.AutoSize = true;
             this.repeaterBookLinkLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.repeaterBookLinkLabel.Location = new System.Drawing.Point(12, 40);
+            this.repeaterBookLinkLabel.Location = new System.Drawing.Point(16, 49);
+            this.repeaterBookLinkLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.repeaterBookLinkLabel.Name = "repeaterBookLinkLabel";
-            this.repeaterBookLinkLabel.Size = new System.Drawing.Size(157, 16);
+            this.repeaterBookLinkLabel.Size = new System.Drawing.Size(194, 20);
             this.repeaterBookLinkLabel.TabIndex = 0;
             this.repeaterBookLinkLabel.TabStop = true;
             this.repeaterBookLinkLabel.Text = "https://repeaterbook.com";
@@ -293,9 +310,11 @@
             this.advGroupBox.Controls.Add(this.advNameTextBox);
             this.advGroupBox.Controls.Add(this.advModeComboBox);
             this.advGroupBox.Controls.Add(this.advReceiveFreqTextBox);
-            this.advGroupBox.Location = new System.Drawing.Point(15, 302);
+            this.advGroupBox.Location = new System.Drawing.Point(20, 372);
+            this.advGroupBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.advGroupBox.Name = "advGroupBox";
-            this.advGroupBox.Size = new System.Drawing.Size(374, 324);
+            this.advGroupBox.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advGroupBox.Size = new System.Drawing.Size(499, 399);
             this.advGroupBox.TabIndex = 12;
             this.advGroupBox.TabStop = false;
             this.advGroupBox.Text = "Channel";
@@ -303,9 +322,10 @@
             // deemphasisCheckBox
             // 
             this.deemphasisCheckBox.AutoSize = true;
-            this.deemphasisCheckBox.Location = new System.Drawing.Point(271, 301);
+            this.deemphasisCheckBox.Location = new System.Drawing.Point(361, 370);
+            this.deemphasisCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.deemphasisCheckBox.Name = "deemphasisCheckBox";
-            this.deemphasisCheckBox.Size = new System.Drawing.Size(87, 17);
+            this.deemphasisCheckBox.Size = new System.Drawing.Size(110, 20);
             this.deemphasisCheckBox.TabIndex = 22;
             this.deemphasisCheckBox.Text = "De-emphasis";
             this.deemphasisCheckBox.UseVisualStyleBackColor = true;
@@ -313,9 +333,10 @@
             // label13
             // 
             this.label13.AutoSize = true;
-            this.label13.Location = new System.Drawing.Point(6, 204);
+            this.label13.Location = new System.Drawing.Point(8, 251);
+            this.label13.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label13.Name = "label13";
-            this.label13.Size = new System.Drawing.Size(57, 13);
+            this.label13.Size = new System.Drawing.Size(69, 16);
             this.label13.TabIndex = 21;
             this.label13.Text = "Bandwidth";
             // 
@@ -329,17 +350,19 @@
             this.advBandwidthComboBox.Items.AddRange(new object[] {
             "25 Khz - Wide",
             "12.5 KHz - Narrow"});
-            this.advBandwidthComboBox.Location = new System.Drawing.Point(161, 201);
+            this.advBandwidthComboBox.Location = new System.Drawing.Point(215, 247);
+            this.advBandwidthComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.advBandwidthComboBox.Name = "advBandwidthComboBox";
-            this.advBandwidthComboBox.Size = new System.Drawing.Size(207, 21);
+            this.advBandwidthComboBox.Size = new System.Drawing.Size(275, 25);
             this.advBandwidthComboBox.TabIndex = 16;
             // 
             // label12
             // 
             this.label12.AutoSize = true;
-            this.label12.Location = new System.Drawing.Point(6, 177);
+            this.label12.Location = new System.Drawing.Point(8, 218);
+            this.label12.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label12.Name = "label12";
-            this.label12.Size = new System.Drawing.Size(112, 13);
+            this.label12.Size = new System.Drawing.Size(138, 16);
             this.label12.TabIndex = 19;
             this.label12.Text = "Receive CTCSS/DCS";
             // 
@@ -508,17 +531,19 @@
             "DCS-734N/371I",
             "DCS-743N/654I",
             "DCS-754N/116I"});
-            this.receiveCtcssComboBox.Location = new System.Drawing.Point(161, 174);
+            this.receiveCtcssComboBox.Location = new System.Drawing.Point(215, 214);
+            this.receiveCtcssComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.receiveCtcssComboBox.Name = "receiveCtcssComboBox";
-            this.receiveCtcssComboBox.Size = new System.Drawing.Size(207, 21);
+            this.receiveCtcssComboBox.Size = new System.Drawing.Size(275, 25);
             this.receiveCtcssComboBox.TabIndex = 15;
             // 
             // label7
             // 
             this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(6, 150);
+            this.label7.Location = new System.Drawing.Point(8, 185);
+            this.label7.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(112, 13);
+            this.label7.Size = new System.Drawing.Size(139, 16);
             this.label7.TabIndex = 17;
             this.label7.Text = "Transmit CTCSS/DCS";
             // 
@@ -687,17 +712,19 @@
             "DCS-734N/371I",
             "DCS-743N/654I",
             "DCS-754N/116I"});
-            this.transmitCtcssComboBox.Location = new System.Drawing.Point(161, 147);
+            this.transmitCtcssComboBox.Location = new System.Drawing.Point(215, 181);
+            this.transmitCtcssComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.transmitCtcssComboBox.Name = "transmitCtcssComboBox";
-            this.transmitCtcssComboBox.Size = new System.Drawing.Size(207, 21);
+            this.transmitCtcssComboBox.Size = new System.Drawing.Size(275, 25);
             this.transmitCtcssComboBox.TabIndex = 14;
             // 
             // advTalkAroundCheckBox
             // 
             this.advTalkAroundCheckBox.AutoSize = true;
-            this.advTalkAroundCheckBox.Location = new System.Drawing.Point(271, 278);
+            this.advTalkAroundCheckBox.Location = new System.Drawing.Point(361, 342);
+            this.advTalkAroundCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.advTalkAroundCheckBox.Name = "advTalkAroundCheckBox";
-            this.advTalkAroundCheckBox.Size = new System.Drawing.Size(84, 17);
+            this.advTalkAroundCheckBox.Size = new System.Drawing.Size(102, 20);
             this.advTalkAroundCheckBox.TabIndex = 21;
             this.advTalkAroundCheckBox.Text = "Talk Around";
             this.advTalkAroundCheckBox.UseVisualStyleBackColor = true;
@@ -705,9 +732,10 @@
             // advScanCheckBox
             // 
             this.advScanCheckBox.AutoSize = true;
-            this.advScanCheckBox.Location = new System.Drawing.Point(271, 255);
+            this.advScanCheckBox.Location = new System.Drawing.Point(361, 314);
+            this.advScanCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.advScanCheckBox.Name = "advScanCheckBox";
-            this.advScanCheckBox.Size = new System.Drawing.Size(51, 17);
+            this.advScanCheckBox.Size = new System.Drawing.Size(60, 20);
             this.advScanCheckBox.TabIndex = 20;
             this.advScanCheckBox.Text = "Scan";
             this.advScanCheckBox.UseVisualStyleBackColor = true;
@@ -717,18 +745,20 @@
             this.label10.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.label10.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
-            this.label10.Location = new System.Drawing.Point(158, 129);
+            this.label10.Location = new System.Drawing.Point(211, 159);
+            this.label10.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(210, 15);
+            this.label10.Size = new System.Drawing.Size(280, 18);
             this.label10.TabIndex = 13;
             this.label10.Text = "136 MHz - 174 MHz, 300 MHz - 550 MHz\r\n";
             // 
             // label11
             // 
             this.label11.AutoSize = true;
-            this.label11.Location = new System.Drawing.Point(6, 107);
+            this.label11.Location = new System.Drawing.Point(8, 132);
+            this.label11.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label11.Name = "label11";
-            this.label11.Size = new System.Drawing.Size(100, 13);
+            this.label11.Size = new System.Drawing.Size(126, 16);
             this.label11.TabIndex = 12;
             this.label11.Text = "Transmit Frequency";
             // 
@@ -737,9 +767,10 @@
             this.advTransmitFreqTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.advTransmitFreqTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.advTransmitFreqTextBox.Location = new System.Drawing.Point(161, 95);
+            this.advTransmitFreqTextBox.Location = new System.Drawing.Point(215, 117);
+            this.advTransmitFreqTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.advTransmitFreqTextBox.Name = "advTransmitFreqTextBox";
-            this.advTransmitFreqTextBox.Size = new System.Drawing.Size(138, 31);
+            this.advTransmitFreqTextBox.Size = new System.Drawing.Size(183, 37);
             this.advTransmitFreqTextBox.TabIndex = 13;
             this.advTransmitFreqTextBox.TextChanged += new System.EventHandler(this.advTransmitFreqTextBox_TextChanged);
             this.advTransmitFreqTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.advTransmitFreqTextBox_KeyPress);
@@ -747,9 +778,10 @@
             // advMuteCheckBox
             // 
             this.advMuteCheckBox.AutoSize = true;
-            this.advMuteCheckBox.Location = new System.Drawing.Point(161, 278);
+            this.advMuteCheckBox.Location = new System.Drawing.Point(215, 342);
+            this.advMuteCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.advMuteCheckBox.Name = "advMuteCheckBox";
-            this.advMuteCheckBox.Size = new System.Drawing.Size(50, 17);
+            this.advMuteCheckBox.Size = new System.Drawing.Size(58, 20);
             this.advMuteCheckBox.TabIndex = 19;
             this.advMuteCheckBox.Text = "Mute";
             this.advMuteCheckBox.UseVisualStyleBackColor = true;
@@ -757,9 +789,10 @@
             // advDisableTransmitCheckBox
             // 
             this.advDisableTransmitCheckBox.AutoSize = true;
-            this.advDisableTransmitCheckBox.Location = new System.Drawing.Point(161, 255);
+            this.advDisableTransmitCheckBox.Location = new System.Drawing.Point(215, 314);
+            this.advDisableTransmitCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.advDisableTransmitCheckBox.Name = "advDisableTransmitCheckBox";
-            this.advDisableTransmitCheckBox.Size = new System.Drawing.Size(104, 17);
+            this.advDisableTransmitCheckBox.Size = new System.Drawing.Size(131, 20);
             this.advDisableTransmitCheckBox.TabIndex = 18;
             this.advDisableTransmitCheckBox.Text = "Disable Transmit";
             this.advDisableTransmitCheckBox.UseVisualStyleBackColor = true;
@@ -767,9 +800,10 @@
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(6, 231);
+            this.label6.Location = new System.Drawing.Point(8, 284);
+            this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(37, 13);
+            this.label6.Size = new System.Drawing.Size(45, 16);
             this.label6.TabIndex = 7;
             this.label6.Text = "Power";
             // 
@@ -784,26 +818,29 @@
             "High",
             "Medium",
             "Low"});
-            this.advPowerComboBox.Location = new System.Drawing.Point(161, 228);
+            this.advPowerComboBox.Location = new System.Drawing.Point(215, 281);
+            this.advPowerComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.advPowerComboBox.Name = "advPowerComboBox";
-            this.advPowerComboBox.Size = new System.Drawing.Size(207, 21);
+            this.advPowerComboBox.Size = new System.Drawing.Size(275, 25);
             this.advPowerComboBox.TabIndex = 17;
             // 
             // label8
             // 
             this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(6, 70);
+            this.label8.Location = new System.Drawing.Point(8, 86);
+            this.label8.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(100, 13);
+            this.label8.Size = new System.Drawing.Size(125, 16);
             this.label8.TabIndex = 4;
             this.label8.Text = "Receive Frequency";
             // 
             // label9
             // 
             this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(6, 31);
+            this.label9.Location = new System.Drawing.Point(8, 38);
+            this.label9.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(35, 13);
+            this.label9.Size = new System.Drawing.Size(44, 16);
             this.label9.TabIndex = 3;
             this.label9.Text = "Name";
             // 
@@ -812,10 +849,11 @@
             this.advNameTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.advNameTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.advNameTextBox.Location = new System.Drawing.Point(161, 19);
-            this.advNameTextBox.MaxLength = 8;
+            this.advNameTextBox.Location = new System.Drawing.Point(215, 23);
+            this.advNameTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advNameTextBox.MaxLength = 10;
             this.advNameTextBox.Name = "advNameTextBox";
-            this.advNameTextBox.Size = new System.Drawing.Size(207, 31);
+            this.advNameTextBox.Size = new System.Drawing.Size(275, 37);
             this.advNameTextBox.TabIndex = 10;
             // 
             // advModeComboBox
@@ -827,9 +865,10 @@
             this.advModeComboBox.Items.AddRange(new object[] {
             "FM",
             "AM"});
-            this.advModeComboBox.Location = new System.Drawing.Point(307, 56);
+            this.advModeComboBox.Location = new System.Drawing.Point(409, 69);
+            this.advModeComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.advModeComboBox.Name = "advModeComboBox";
-            this.advModeComboBox.Size = new System.Drawing.Size(61, 33);
+            this.advModeComboBox.Size = new System.Drawing.Size(80, 38);
             this.advModeComboBox.TabIndex = 12;
             // 
             // advReceiveFreqTextBox
@@ -837,9 +876,10 @@
             this.advReceiveFreqTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.advReceiveFreqTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.advReceiveFreqTextBox.Location = new System.Drawing.Point(161, 58);
+            this.advReceiveFreqTextBox.Location = new System.Drawing.Point(215, 71);
+            this.advReceiveFreqTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.advReceiveFreqTextBox.Name = "advReceiveFreqTextBox";
-            this.advReceiveFreqTextBox.Size = new System.Drawing.Size(138, 31);
+            this.advReceiveFreqTextBox.Size = new System.Drawing.Size(183, 37);
             this.advReceiveFreqTextBox.TabIndex = 11;
             this.advReceiveFreqTextBox.TextChanged += new System.EventHandler(this.advReceiveFreqTextBox_TextChanged);
             this.advReceiveFreqTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.advReceiveFreqTextBox_KeyPress);
@@ -847,9 +887,10 @@
             // okButton
             // 
             this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.okButton.Location = new System.Drawing.Point(233, 632);
+            this.okButton.Location = new System.Drawing.Point(311, 778);
+            this.okButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.okButton.Name = "okButton";
-            this.okButton.Size = new System.Drawing.Size(75, 23);
+            this.okButton.Size = new System.Drawing.Size(100, 28);
             this.okButton.TabIndex = 31;
             this.okButton.Text = "OK";
             this.okButton.UseVisualStyleBackColor = true;
@@ -858,9 +899,10 @@
             // clearButton
             // 
             this.clearButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.clearButton.Location = new System.Drawing.Point(15, 633);
+            this.clearButton.Location = new System.Drawing.Point(20, 779);
+            this.clearButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.clearButton.Name = "clearButton";
-            this.clearButton.Size = new System.Drawing.Size(75, 23);
+            this.clearButton.Size = new System.Drawing.Size(100, 28);
             this.clearButton.TabIndex = 30;
             this.clearButton.Text = "Clear";
             this.clearButton.UseVisualStyleBackColor = true;
@@ -869,10 +911,10 @@
             // RadioChannelForm
             // 
             this.AcceptButton = this.okButton;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.cancelButton;
-            this.ClientSize = new System.Drawing.Size(401, 668);
+            this.ClientSize = new System.Drawing.Size(535, 822);
             this.Controls.Add(this.clearButton);
             this.Controls.Add(this.okButton);
             this.Controls.Add(this.advGroupBox);
@@ -883,6 +925,7 @@
             this.Controls.Add(this.cancelButton);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "RadioChannelForm";

@@ -122,7 +122,7 @@ namespace HTCommander
 
             byte[] nameBuf = UTF8Encoding.Default.GetBytes(name_str);
             int nameLen = nameBuf.Length;
-            if (nameLen > 9) { nameLen = 9; }
+            if (nameLen > 10) { nameLen = 10; }
             Array.Copy(nameBuf, 0, r, 15, nameLen);
 
             return r;

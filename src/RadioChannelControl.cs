@@ -127,6 +127,18 @@ namespace HTCommander
                     e.Effect = DragDropEffects.Copy;
                 }
             }
+            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                if ((files.Length == 1) && (files[0].ToLower().EndsWith(".csv")))
+                {
+                    e.Effect = DragDropEffects.Copy;
+                }
+                else
+                {
+                    e.Effect = DragDropEffects.None;
+                }
+            }
             else
             {
                 e.Effect = DragDropEffects.None;
@@ -135,13 +147,24 @@ namespace HTCommander
 
         private void RadioChannelControl_DragDrop(object sender, DragEventArgs e)
         {
-            RadioChannelInfo c = (RadioChannelInfo)e.Data.GetData(typeof(RadioChannelInfo));
-            if (c.channel_id == channel.channel_id) return;
-            if (MessageBox.Show(parent, string.Format("Copy \"{0}\" to channel {1}?", c.name_str, channel.channel_id), "Channel", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
+            if (e.Data.GetDataPresent(typeof(RadioChannelInfo)))
             {
-                RadioChannelInfo c2 = new RadioChannelInfo(c);
-                c2.channel_id = channel.channel_id;
-                parent.radio.SetChannel(c2);
+                RadioChannelInfo c = (RadioChannelInfo)e.Data.GetData(typeof(RadioChannelInfo));
+                if (c.channel_id == channel.channel_id) return;
+                if (MessageBox.Show(parent, string.Format("Copy \"{0}\" to channel {1}?", c.name_str, channel.channel_id), "Channel", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
+                {
+                    RadioChannelInfo c2 = new RadioChannelInfo(c);
+                    c2.channel_id = channel.channel_id;
+                    parent.radio.SetChannel(c2);
+                }
+            }
+            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                if ((files.Length == 1) && (files[0].ToLower().EndsWith(".csv")))
+                {
+                    parent.importChannels(files[0]);
+                }
             }
         }
 

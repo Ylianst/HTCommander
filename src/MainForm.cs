@@ -220,14 +220,7 @@ namespace HTCommander
             bBSToolStripMenuItem.Checked = (registry.ReadInt("ViewBBS", 0) == 1);
             terminalToolStripMenuItem.Checked = (registry.ReadInt("ViewTerminal", 1) == 1);
             winlinkPassword = registry.ReadString("WinlinkPassword", "");
-            if (previewMode)
-            {
-                mailToolStripMenuItem.Checked = (registry.ReadInt("ViewMail", 0) == 1);
-            }
-            else
-            {
-                mailToolStripMenuItem.Checked = mailToolStripMenuItem.Visible = false;
-            }
+            mailToolStripMenuItem.Checked = (registry.ReadInt("ViewMail", 0) == 1);
             packetsToolStripMenuItem.Checked = (registry.ReadInt("ViewPackets", 0) == 1);
             debugToolStripMenuItem.Checked = (registry.ReadInt("ViewDebug", 0) == 1);
             showAllMessagesToolStripMenuItem.Checked = (registry.ReadInt("aprsViewAll", 1) == 1);
@@ -257,7 +250,7 @@ namespace HTCommander
             {
                 // If the packet file is big, load only the first 200 packets
                 int i = 0;
-                if (lines.Length > 200) { i = lines.Length - 200; }
+                if (lines.Length > 5000) { i = lines.Length - 5000; }
                 for (; i < lines.Length; i++)
                 {
                     try
@@ -771,8 +764,14 @@ namespace HTCommander
             }
         }
 
+
+        public delegate void EmptyFuncHandler();
+
         private void UpdateRadioDisplay()
         {
+            if (this.Disposing || this.IsDisposed) return;
+            if (this.InvokeRequired) { this.Invoke(new EmptyFuncHandler(UpdateRadioDisplay)); return; }
+
             if (radio.Settings == null) return;
             if (radio.Channels != null)
             {
@@ -926,6 +925,30 @@ namespace HTCommander
                 vfo2StatusLabel.Text = "";
                 vfo1StatusLabel.ForeColor = vfo1FreqLabel.ForeColor = vfo1Label.ForeColor = Color.LightGray;
                 vfo2StatusLabel.ForeColor = vfo2FreqLabel.ForeColor = vfo2Label.ForeColor = Color.LightGray;
+            }
+            AdjustVfoLabel(vfo1Label);
+            AdjustVfoLabel(vfo2Label);
+        }
+
+        private void AdjustVfoLabel(Label label)
+        {
+            // Initial font size.
+            float fontSize = 20;
+            label.Font = new Font(label.Font.FontFamily, fontSize);
+
+            // Create a Graphics object to measure the text.
+            using (Graphics g = label.CreateGraphics())
+            {
+                // Measure the text width.
+                SizeF textSize = g.MeasureString(label.Text, new Font(label.Font.FontFamily, fontSize));
+
+                // While the text width exceeds the label width, reduce the font size.
+                while (textSize.Width > label.ClientSize.Width && fontSize > 1) //Ensure font size doesn't go below 1
+                {
+                    fontSize -= 1; // Reduce font size by 1 (or a finer increment)
+                    label.Font = new Font(label.Font.FontFamily, fontSize);
+                    textSize = g.MeasureString(label.Text, label.Font);
+                }
             }
         }
 
@@ -1585,6 +1608,9 @@ namespace HTCommander
 
         public void UpdateInfo()
         {
+            if (this.Disposing || this.IsDisposed) return;
+            if (this.InvokeRequired) { this.Invoke(new EmptyFuncHandler(UpdateInfo)); return; }
+
             radioStateLabel.Visible = (radio.State != Radio.RadioState.Connected);
             if (radio.State != Radio.RadioState.Connected)
             {
@@ -2869,40 +2895,49 @@ namespace HTCommander
             }
         }
 
+        public void importChannels(string filename)
+        {
+            List<RadioChannelInfo> importChannels = new List<RadioChannelInfo>();
+            string[] lines = null;
+            try { lines = File.ReadAllLines(filename); } catch (Exception ex) { MessageBox.Show(this, ex.ToString(), "File Error"); }
+            if ((lines == null) || (lines.Length < 2)) return;
+            Dictionary<string, int> headers = lines[0].Split(',').Select((h, i) => new { h, i }).ToDictionary(x => x.h.Trim(), x => x.i);
+
+            // File format 1
+            if (headers.ContainsKey("Location") && headers.ContainsKey("Name") && headers.ContainsKey("Frequency") && headers.ContainsKey("Mode"))
+            {
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    RadioChannelInfo c = null;
+                    try { c = ParseChannel1(lines[i].Split(','), headers); } catch (Exception) { }
+                    if (c != null) { importChannels.Add(c); }
+                }
+            }
+
+            // File format 2
+            if (headers.ContainsKey("title") && headers.ContainsKey("tx_freq") && headers.ContainsKey("rx_freq"))
+            {
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    RadioChannelInfo c = null;
+                    try { c = ParseChannel2(lines[i].Split(','), headers); } catch (Exception) { }
+                    if (c != null) { importChannels.Add(c); }
+                }
+            }
+
+            // If there are decoded import channels, open a dialog box to merge them.
+            if (importChannels.Count == 0) return;
+            ImportChannelsForm f = new ImportChannelsForm(null, importChannels.ToArray());
+            f.Text = f.Text + " - " + new FileInfo(filename).Name;
+            f.Show(this);
+        }
+
         private void importChannelsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             //if ((radio.State != RadioState.Connected) || (radio.Channels == null)) return;
             if (importChannelFileDialog.ShowDialog(this) == DialogResult.OK)
             {
-                List<RadioChannelInfo> importChannels = new List<RadioChannelInfo>();
-                string[] lines = File.ReadAllLines(importChannelFileDialog.FileName);
-                if (lines.Length < 2) return;
-                Dictionary<string, int> headers = lines[0].Split(',').Select((h, i) => new { h, i }).ToDictionary(x => x.h.Trim(), x => x.i);
-                if (headers.ContainsKey("Location") && headers.ContainsKey("Name") && headers.ContainsKey("Frequency") && headers.ContainsKey("Mode"))
-                {
-                    for (int i = 1; i < lines.Length; i++)
-                    {
-                        RadioChannelInfo c = null;
-                        try { c = ParseChannel1(lines[i].Split(','), headers); } catch (Exception) { }
-                        if (c != null) { importChannels.Add(c); }
-                    }
-                }
-
-                if (headers.ContainsKey("title") && headers.ContainsKey("tx_freq") && headers.ContainsKey("rx_freq"))
-                {
-                    for (int i = 1; i < lines.Length; i++)
-                    {
-                        RadioChannelInfo c = null;
-                        try { c = ParseChannel2(lines[i].Split(','), headers); } catch (Exception) { }
-                        if (c != null) { importChannels.Add(c); }
-                    }
-                }
-
-                // If there are decoded import channels, open a dialog box to merge them.
-                if (importChannels.Count == 0) return;
-                ImportChannelsForm f = new ImportChannelsForm(null, importChannels.ToArray());
-                f.Text = f.Text + " - " + new FileInfo(importChannelFileDialog.FileName).Name;
-                f.Show(this);
+                importChannels(importChannelFileDialog.FileName);
             }
         }
 
@@ -3587,6 +3622,34 @@ namespace HTCommander
         {
             showToolStripMenuItem.Visible = (this.Visible == false);
             hideToolStripMenuItem.Visible = (this.Visible == true);
+        }
+
+        private void radioPictureBox_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                if ((files.Length == 1) && (files[0].ToLower().EndsWith(".csv")))
+                {
+                    e.Effect = DragDropEffects.Copy;
+                }
+                else
+                {
+                    e.Effect = DragDropEffects.None;
+                }
+            }
+        }
+
+        private void radioPictureBox_DragDrop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                if ((files.Length == 1) && (files[0].ToLower().EndsWith(".csv")))
+                {
+                    importChannels(files[0]);
+                }
+            }
         }
     }
 }
