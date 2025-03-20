@@ -639,13 +639,11 @@ namespace HTCommander
             }
         }
 
+        private delegate void RadioInfoUpdateHandler(Radio sender, Radio.RadioUpdateNotification msg);
+
         private void Radio_InfoUpdate(Radio sender, Radio.RadioUpdateNotification msg)
         {
-            if (this.InvokeRequired)
-            {
-                try { this.Invoke(new Action(() => { Radio_InfoUpdate(sender, msg); })); } catch (Exception) { }
-                return;
-            }
+            if (this.InvokeRequired) { this.Invoke(new RadioInfoUpdateHandler(Radio_InfoUpdate), sender, msg); return; }
             try
             {
                 switch (msg)
