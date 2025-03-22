@@ -115,6 +115,7 @@ namespace HTCommander
                 Array.Copy(dataSelected, i * blockSize, torrentFile.Blocks[i], 0, thisBlockSize);
             }
 
+            /*
             // Select random blocks to set to null (DEBUG)
             Random random = new Random();
             int nullBlocks = blockCount / 2;
@@ -123,6 +124,7 @@ namespace HTCommander
                 int blockIndex = random.Next(0, blockCount);
                 torrentFile.Blocks[blockIndex] = null;
             }
+            */
 
             descriptionTextBox.Focus();
             UpdateInfo();

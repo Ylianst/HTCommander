@@ -22,12 +22,15 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using aprsparser;
 using HTCommander.radio;
+using Windows.Storage;
+using static System.Collections.Specialized.BitVector32;
 
 namespace HTCommander
 {
     public class BBS
     {
         private MainForm parent;
+        private string adventureAppDataPath;
         public Dictionary<string, StationStats> stats = new Dictionary<string, StationStats>();
 
         public class StationStats
@@ -45,6 +48,11 @@ namespace HTCommander
         public BBS(MainForm parent)
         {
             this.parent = parent;
+
+            // Get application data path
+            adventureAppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", "Adventure");
+            // Create the application data path if it does not exist
+            if (!Directory.Exists(adventureAppDataPath)) { try { Directory.CreateDirectory(adventureAppDataPath); } catch (Exception) { } }
         }
 
         private void UpdateStats(string callsign, string protocol, int packetIn, int packetOut, int bytesIn, int bytesOut)
@@ -259,7 +267,8 @@ namespace HTCommander
             if (start) { dataStr = "help"; }
 
             Adventurer.GameRunner runner = new Adventurer.GameRunner();
-            string output = runner.RunTurn("adv01.dat", session.Addresses[0].CallSignWithId + ".sav", dataStr).Replace("\r\n\r\n", "\r\n").Trim();
+
+            string output = runner.RunTurn("adv01.dat", Path.Combine(adventureAppDataPath, session.Addresses[0].CallSignWithId + ".sav"), dataStr).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
             {
                 if (start) { output = "Welcome to the Adventure Game\r\"quit\" to go back to BBS.\r" + output; }
@@ -603,7 +612,8 @@ namespace HTCommander
             if (p.pid == 243) { try { dataStr = UTF8Encoding.Default.GetString(Utils.CompressDeflate(p.data)); } catch (Exception) { } }
             parent.AddBbsTraffic(p.addresses[1].ToString(), false, dataStr);
             Adventurer.GameRunner runner = new Adventurer.GameRunner();
-            string output = runner.RunTurn("adv01.dat", p.addresses[1].CallSignWithId + ".sav", p.dataStr).Replace("\r\n\r\n", "\r\n").Trim();
+
+            string output = runner.RunTurn("adv01.dat", Path.Combine(adventureAppDataPath, p.addresses[1].CallSignWithId + ".sav"), p.dataStr).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
             {
                 parent.AddBbsTraffic(p.addresses[1].ToString(), true, output);
@@ -665,7 +675,8 @@ namespace HTCommander
 
             parent.AddBbsTraffic(p.addresses[1].ToString(), false, aprsPacket.MessageData.MsgText);
             Adventurer.GameRunner runner = new Adventurer.GameRunner();
-            string output = runner.RunTurn("adv01.dat", p.addresses[1].CallSignWithId + ".sav", aprsPacket.MessageData.MsgText).Replace("\r\n\r\n", "\r\n").Trim();
+
+            string output = runner.RunTurn("adv01.dat", Path.Combine(adventureAppDataPath, p.addresses[1].CallSignWithId + ".sav"), aprsPacket.MessageData.MsgText).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
             {
                 // Replace characters that are not allowed in APRS messages

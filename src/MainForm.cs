@@ -83,6 +83,7 @@ namespace HTCommander
         public AprsStack aprsStack;
         public bool Loading = true;
         public MailClientDebugForm mailClientDebugForm = new MailClientDebugForm();
+        public string appDataPath;
 #if !__MonoCS__
         public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
@@ -248,9 +249,16 @@ namespace HTCommander
             Mails = WinLinkMail.Deserialize(registry.ReadString("Mails", ""));
             UpdateMail();
 
+            // Get application data path
+            appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander");
+
+            // Read torrent files
+            List<TorrentFile> torrentFiles = TorrentFile.ReadTorrentFiles();
+            foreach (TorrentFile torrentFile in torrentFiles) { AddTorrent(torrentFile); }
+
             // Read the packets file
             string[] lines = null;
-            try { lines = File.ReadAllLines("packets.ptcap"); } catch (Exception) { }
+            try { lines = File.ReadAllLines(Path.Combine(appDataPath, "packets.ptcap")); } catch (Exception) { }
             if (lines != null)
             {
                 // If the packet file is big, load only the first 200 packets
@@ -302,7 +310,7 @@ namespace HTCommander
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
 
             // Open the packet write file
-            AprsFile = File.Open("packets.ptcap", FileMode.Append, FileAccess.Write);
+            AprsFile = File.Open(Path.Combine(appDataPath, "packets.ptcap"), FileMode.Append, FileAccess.Write);
             aprsChatControl.UpdateMessages(true);
 
             debugTextBox.Clear();
@@ -3711,7 +3719,7 @@ namespace HTCommander
         private void AddTorrent(TorrentFile torrentFile)
         {
             ListViewItem l = new ListViewItem(new string[] { torrentFile.FileName, torrentFile.Mode.ToString(), torrentFile.Description });
-            l.ImageIndex = 9;
+            l.ImageIndex = torrentFile.Completed ? 9 : 10;
 
             string groupName = torrentFile.Callsign;
             if (torrentFile.StationId > 0) groupName += "-" + torrentFile.StationId;
@@ -3730,6 +3738,7 @@ namespace HTCommander
             torrentFile.ListViewItem = l;
             torrentListView.Items.Add(l);
             torrent.Add(torrentFile);
+            torrentFile.WriteTorrentFile();
         }
 
         private void torrentListView_DragEnter(object sender, DragEventArgs e)
@@ -3860,6 +3869,7 @@ namespace HTCommander
             if (MessageBox.Show(this, "Deleted selected torrent file?", "Torrent", MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.OK)
             {
                 TorrentFile file = (TorrentFile)torrentListView.SelectedItems[0].Tag;
+                file.DeleteTorrentFile();
                 torrent.Remove(file);
                 torrentListView.Items.Remove(torrentListView.SelectedItems[0]);
             }

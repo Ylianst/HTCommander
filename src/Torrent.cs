@@ -15,11 +15,10 @@ limitations under the License.
 */
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Collections.Generic;
 
 namespace HTCommander
 {
@@ -134,6 +133,99 @@ namespace HTCommander
             Size = fileData.Length;
 
             return fileData;
+        }
+
+        public static List<TorrentFile> ReadTorrentFiles()
+        {
+            List<TorrentFile> torrents = new List<TorrentFile>();
+            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string torrentPath = Path.Combine(appDataPath, "HTCommander", "Torrents");
+            if (Directory.Exists(torrentPath))
+            {
+                string[] files = Directory.GetFiles(torrentPath, "*.httorrent");
+                foreach (string file in files)
+                {
+                    BinaryDataFile binaryDataFile = new BinaryDataFile(file);
+                    binaryDataFile.Open();
+                    TorrentFile torrentFile = new TorrentFile();
+                    object UserData;
+                    int UserType;
+                    int blockIndex = 0;
+
+                    while ((UserType = binaryDataFile.ReadNextRecord(out UserData)) > 0)
+                    {
+                        if (UserType == 3) { torrentFile.Id = (byte[])UserData; }
+                        else if (UserType == 4) { torrentFile.Callsign = (string)UserData; }
+                        else if (UserType == 5) { torrentFile.StationId = (int)UserData; }
+                        else if (UserType == 6) { torrentFile.FileName = (string)UserData; }
+                        else if (UserType == 7) { torrentFile.Description = (string)UserData; }
+                        else if (UserType == 8) { torrentFile.Size = (int)UserData; }
+                        else if (UserType == 9) { torrentFile.CompressedSize = (int)UserData; }
+                        else if (UserType == 10) { torrentFile.Compression = (TorrentCompression)(int)UserData; }
+                        else if (UserType == 11) { torrentFile.Mode = (TorrentModes)(int)UserData; }
+                        else if (UserType == 12) { torrentFile.Completed = ((int)UserData != 0); }
+                        else if (UserType == 13) { torrentFile.Blocks = new byte[(int)UserData][]; }
+                        else if (UserType == 14) { blockIndex = (int)UserData; }
+                        else if (UserType == 15) { torrentFile.Blocks[(int)blockIndex] = (byte[])UserData; }
+                    }
+
+                    torrents.Add(torrentFile);
+                    binaryDataFile.Close();
+                }
+            }
+            return torrents;
+        }
+
+        public void DeleteTorrentFile()
+        {
+            // Get the path to the current user's Roaming AppData folder.
+            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string torrentPath = Path.Combine(appDataPath, "HTCommander", "Torrents");
+            // Create the directory if it doesn't exist.
+            Directory.CreateDirectory(torrentPath);
+            // Create the file path using the Callsign, StationId, and Id.
+            string filename = Path.Combine(torrentPath, Callsign + "-" + StationId.ToString() + "-" + Utils.BytesToHex(Id) + ".httorrent");
+            if (File.Exists(filename)) { File.Delete(filename); }
+        }
+
+        public void WriteTorrentFile()
+        {
+            // Get the path to the current user's Roaming AppData folder.
+            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string torrentPath = Path.Combine(appDataPath, "HTCommander", "Torrents");
+
+            // Create the directory if it doesn't exist.
+            Directory.CreateDirectory(torrentPath);
+
+            // Create the file path using the Callsign, StationId, and Id.
+            string filename = Path.Combine(torrentPath, Callsign + "-" + StationId.ToString() + "-" + Utils.BytesToHex(Id) + ".httorrent");
+            BinaryDataFile binaryDataFile = new BinaryDataFile(filename);
+            binaryDataFile.Open();
+            binaryDataFile.AppendRecord(1, "HTCommanderTorrent"); // Magic Start
+            binaryDataFile.AppendRecord(2, 1); // Version
+            binaryDataFile.AppendRecord(3, Id);
+            binaryDataFile.AppendRecord(4, Callsign);
+            binaryDataFile.AppendRecord(5, StationId);
+            binaryDataFile.AppendRecord(6, FileName);
+            binaryDataFile.AppendRecord(7, Description);
+            binaryDataFile.AppendRecord(8, Size);
+            binaryDataFile.AppendRecord(9, CompressedSize);
+            binaryDataFile.AppendRecord(10, (int)Compression);
+            binaryDataFile.AppendRecord(11, (int)Mode);
+            binaryDataFile.AppendRecord(12, (int)(Completed ? 1 : 0));
+            if (Blocks != null)
+            {
+                binaryDataFile.AppendRecord(13, Blocks.Length);
+                for (int i = 0; i < Blocks.Length; i++)
+                {
+                    if (Blocks[i] != null)
+                    {
+                        binaryDataFile.AppendRecord(14, i);
+                        binaryDataFile.AppendRecord(15, Blocks[i]);
+                    }
+                }
+            }
+            binaryDataFile.Close();
         }
     }
 }
