@@ -93,6 +93,16 @@ namespace HTCommander.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap file_transfer {
+            get {
+                object obj = ResourceManager.GetObject("file-transfer", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap Letter {
             get {
                 object obj = ResourceManager.GetObject("Letter", resourceCulture);

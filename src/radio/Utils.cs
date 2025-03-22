@@ -22,6 +22,7 @@ using System.IO.Compression;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Brotli;
+using System.Security.Cryptography;
 
 namespace HTCommander
 {
@@ -128,7 +129,12 @@ namespace HTCommander
 
         public static byte[] DecompressBrotli(byte[] compressedData)
         {
-            using (var input = new MemoryStream(compressedData))
+            return DecompressBrotli(compressedData, 0, compressedData.Length);
+        }
+
+        public static byte[] DecompressBrotli(byte[] compressedData, int index, int length)
+        {
+            using (var input = new MemoryStream(compressedData, index, length))
             using (var brotli = new BrotliStream(input, CompressionMode.Decompress))
             using (var output = new MemoryStream())
             {
@@ -149,14 +155,30 @@ namespace HTCommander
             }
         }
 
-        static public byte[] DecompressDeflate(byte[] compressedData)
+        public static byte[] DecompressDeflate(byte[] compressedData)
         {
-            using (var input = new MemoryStream(compressedData))
+            return DecompressDeflate(compressedData, 0, compressedData.Length);
+        }
+
+        static public byte[] DecompressDeflate(byte[] compressedData, int index, int length)
+        {
+            using (var input = new MemoryStream(compressedData, index, length))
             using (var output = new MemoryStream())
             using (var dstream = new DeflateStream(input, CompressionMode.Decompress))
             {
                 dstream.CopyTo(output);
                 return output.ToArray();
+            }
+        }
+
+        public static byte[] ComputeShortSha256Hash(byte[] rawData)
+        {
+            using (SHA256 sha256Hash = SHA256.Create())
+            {
+                byte[] r = sha256Hash.ComputeHash(rawData);
+                byte[] r2 = new byte[12];
+                Array.Copy(r, 0, r2, 0, 12);
+                return r2;
             }
         }
     }

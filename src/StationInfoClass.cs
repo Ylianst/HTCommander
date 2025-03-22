@@ -28,7 +28,8 @@ namespace HTCommander
             APRS = 1,
             Terminal = 2,
             BBS = 3,
-            Winlink = 4
+            Winlink = 4,
+            Torrent = 5
         }
 
         public enum TerminalProtocols : int

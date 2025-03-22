@@ -100,6 +100,12 @@
     <Compile Include="AddStationForm.Designer.cs">
       <DependentUpon>AddStationForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="AddTorrentFileForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AddTorrentFileForm.Designer.cs">
+      <DependentUpon>AddTorrentFileForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="adventurer\Advent - Constants.cs" />
     <Compile Include="adventurer\Advent - Events.cs" />
     <Compile Include="adventurer\Advent - Game Variables.cs" />
@@ -298,6 +304,7 @@
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="StationInfoClass.cs" />
+    <Compile Include="Torrent.cs" />
     <Compile Include="WebServerClass.cs" />
     <Compile Include="WinlinkClient.cs" />
     <EmbeddedResource Include="AboutForm.resx">
@@ -311,6 +318,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="AddStationForm.resx">
       <DependentUpon>AddStationForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="AddTorrentFileForm.resx">
+      <DependentUpon>AddTorrentFileForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="AprsConfigurationForm.resx">
       <DependentUpon>AprsConfigurationForm.cs</DependentUpon>
@@ -417,6 +427,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="HTCommander.ico" />
+    <None Include="Resources\file-transfer.png" />
     <None Include="Resources\DownArrow64.png" />
     <None Include="Resources\xicon64.png" />
     <None Include="Resources\Letter.png" />
