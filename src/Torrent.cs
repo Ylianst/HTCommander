@@ -64,6 +64,7 @@ namespace HTCommander
 
         public enum TorrentCompression : int
         {
+            Unknown = -1,
             None = 0,
             Deflate = 1,
             Brotli = 2
@@ -76,11 +77,23 @@ namespace HTCommander
         public string Description; // File description, max 200 bytes
         public int Size; // File size
         public int CompressedSize; // Compressed file size
-        public TorrentCompression Compression = TorrentCompression.None; // Compression type
+        public TorrentCompression Compression = TorrentCompression.Unknown; // Compression type
         public byte[][] Blocks; // Blocks
         public TorrentModes Mode = TorrentModes.Pause; // Sharing mode
         public bool Completed = false; // File complete
+        public bool ReceivedLastBlock = false;
         public ListViewItem ListViewItem;
+
+        public int TotalBlocks { get { if (Blocks != null) { return Blocks.Length; } else { return 0; } } }
+        public int ReceivedBlocks {
+            get
+            {
+                if (Blocks == null) return 0;
+                int count = 0;
+                foreach (byte[] block in Blocks) { if (block != null) count++; }
+                return count;
+            }
+        }
 
         public byte[] GetFileData()
         {

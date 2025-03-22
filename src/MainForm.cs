@@ -230,8 +230,10 @@ namespace HTCommander
             showPacketDecodeToolStripMenuItem.Checked = (registry.ReadInt("showPacketDecode", 0) == 1);
             showCallsignToolStripMenuItem.Checked = (registry.ReadInt("TerminalShowCallsign", 1) == 1);
             viewTrafficToolStripMenuItem.Checked = (registry.ReadInt("ViewBbsTraffic", 1) == 1);
-            systemTrayToolStripMenuItem.Checked = (registry.ReadInt("SystemTray", 1) == 1);
             bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
+            systemTrayToolStripMenuItem.Checked = (registry.ReadInt("SystemTray", 1) == 1);
+            showDetailsToolStripMenuItem.Checked = (registry.ReadInt("ViewTorrentDetails", 1) == 1);
+            torrentSplitContainer.Panel2Collapsed = !showDetailsToolStripMenuItem.Checked;
 
             showPreviewToolStripMenuItem.Checked = (registry.ReadInt("MailViewPreview", 1) == 1);
             mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
@@ -3789,6 +3791,19 @@ namespace HTCommander
                 torrentSaveAsToolStripMenuItem.Visible = file.Completed;
                 toolStripMenuItem20.Visible = true;
                 torrentDeleteToolStripMenuItem.Visible = true;
+
+                torrentDetailsListView.Items.Clear();
+                if (!string.IsNullOrEmpty(file.FileName)) { addTorrentDetailProperty("File name", file.FileName); }
+                if (!string.IsNullOrEmpty(file.Description)) { addTorrentDetailProperty("Description", file.Description); }
+                if (!string.IsNullOrEmpty(file.Callsign)) { string cs = file.Callsign; if (file.StationId > 0) cs += "-" + file.StationId; addTorrentDetailProperty("Source", cs); }
+                if (file.Size != 0) { addTorrentDetailProperty("File Size", file.Size.ToString() + " bytes"); }
+                if (file.Compression != TorrentFile.TorrentCompression.Unknown) {
+                    string comp = file.Compression.ToString();
+                    if (file.CompressedSize != 0) { comp += ", " + file.CompressedSize.ToString() + " bytes"; }
+                    addTorrentDetailProperty("Compression", comp);
+                }
+                if (file.TotalBlocks != 0) { addTorrentDetailProperty("Blocks", file.ReceivedBlocks.ToString() + " / " + file.TotalBlocks.ToString()); }
+                torrentBlocksUserControl.Blocks = file.Blocks;
             }
             else
             {
@@ -3799,7 +3814,15 @@ namespace HTCommander
                 torrentSaveAsToolStripMenuItem.Visible = false;
                 toolStripMenuItem20.Visible = false;
                 torrentDeleteToolStripMenuItem.Visible = false;
+                torrentDetailsListView.Items.Clear();
+                torrentBlocksUserControl.Blocks = null;
             }
+        }
+
+        private void addTorrentDetailProperty(string name, string value)
+        {
+            ListViewItem l = new ListViewItem(new string[] { name, value });
+            torrentDetailsListView.Items.Add(l);
         }
 
         private void torrentPauseToolStripMenuItem_Click(object sender, EventArgs e)
@@ -3860,6 +3883,43 @@ namespace HTCommander
                     MessageBox.Show(this, "Error saving file: " + ex.Message, "Torrent", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+        }
+
+        private void torrentMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
+        {
+            torrentTabContextMenuStrip.Show(torrentMenuPictureBox, e.Location);
+        }
+
+        private void showDetailsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            torrentSplitContainer.Panel2Collapsed = !showDetailsToolStripMenuItem.Checked;
+            registry.WriteInt("ViewTorrentDetails", showDetailsToolStripMenuItem.Checked ? 1 : 0);
+        }
+
+        private void torrentTabContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            showDetailsToolStripMenuItem.Checked = !torrentSplitContainer.Panel2Collapsed;
+        }
+
+        private void torrentListView_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Delete)
+            {
+                torrentDeleteToolStripMenuItem_Click(this, null);
+                e.Handled = true;
+                return;
+            }
+            e.Handled = false;
+        }
+
+        private void torrentListView_Resize(object sender, EventArgs e)
+        {
+            torrentListView.Columns[2].Width = torrentListView.Width - torrentListView.Columns[1].Width - torrentListView.Columns[0].Width - 28;
+        }
+
+        private void torrentDetailsListView_Resize(object sender, EventArgs e)
+        {
+            torrentDetailsListView.Columns[1].Width = torrentDetailsListView.Width - torrentDetailsListView.Columns[0].Width - 28;
         }
     }
 }

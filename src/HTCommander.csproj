@@ -305,6 +305,12 @@
     </Compile>
     <Compile Include="StationInfoClass.cs" />
     <Compile Include="Torrent.cs" />
+    <Compile Include="TorrentBlocksUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="TorrentBlocksUserControl.Designer.cs">
+      <DependentUpon>TorrentBlocksUserControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="WebServerClass.cs" />
     <Compile Include="WinlinkClient.cs" />
     <EmbeddedResource Include="AboutForm.resx">
@@ -401,6 +407,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="SettingsForm.resx">
       <DependentUpon>SettingsForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TorrentBlocksUserControl.resx">
+      <DependentUpon>TorrentBlocksUserControl.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="app.manifest" />
     <None Include="Properties\Settings.settings">

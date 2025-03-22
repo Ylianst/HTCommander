@@ -115,13 +115,23 @@ namespace HTCommander
                 Array.Copy(dataSelected, i * blockSize, torrentFile.Blocks[i], 0, thisBlockSize);
             }
 
+            // Select random blocks to set to null (DEBUG)
+            Random random = new Random();
+            int nullBlocks = blockCount / 2;
+            for (int i = 0; i < nullBlocks; i++)
+            {
+                int blockIndex = random.Next(0, blockCount);
+                torrentFile.Blocks[blockIndex] = null;
+            }
+
             descriptionTextBox.Focus();
+            UpdateInfo();
             return true;
         }
 
         private void UpdateInfo()
         {
-            okButton.Enabled = (fileNameTextBox.Text.Length > 0) && (descriptionTextBox.Text.Length > 0);
+            okButton.Enabled = (fileNameTextBox.Text.Length > 0);// && (descriptionTextBox.Text.Length > 0);
         }
 
         private void descriptionTextBox_TextChanged(object sender, EventArgs e)
