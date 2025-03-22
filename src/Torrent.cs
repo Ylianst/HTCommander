@@ -21,6 +21,7 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Linq;
+using System.Threading;
 
 namespace HTCommander
 {
@@ -30,11 +31,20 @@ namespace HTCommander
         private bool Active = false;
         public List<TorrentFile> Files = new List<TorrentFile>();
         public TorrentFile Advertised = null;
-        public Dictionary<string, TorrentFile> Stations = new Dictionary<string, TorrentFile>();
+        public List<TorrentFile> Stations = new List<TorrentFile>();
+        private System.Timers.Timer BeaconTimer = new System.Timers.Timer();
 
         public Torrent(MainForm parent)
         {
             this.parent = parent;
+            BeaconTimer.Elapsed += BeaconTimer_Elapsed;
+            BeaconTimer.Interval = 30000;
+        }
+
+        private void BeaconTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            if ((parent.radio == null) || (parent.radio.TransmitQueueLength > 0)) return;
+            SendRequestFrame();
         }
 
         public bool Add(TorrentFile file)
@@ -57,11 +67,328 @@ namespace HTCommander
         {
             if (Active == active) return;
             Active = active;
+            BeaconTimer.Enabled = active;
+            if (active) { SendRequestFrame(true); }
+        }
+
+        private TorrentFile FindStationFile(string callsign, int stationId)
+        {
+            foreach (TorrentFile file in Stations)
+            {
+                if ((file.Callsign == callsign) && (file.StationId == stationId)) { return file; }
+            }
+            return null;
+        }
+
+        private TorrentFile FindTorrentFileWithShortId(string callsign, int stationId, byte[] shortId)
+        {
+            foreach (TorrentFile file in Files)
+            {
+                if (file.ShortId.SequenceEqual(shortId) && (file.Callsign == callsign) && (file.StationId == stationId)) { return file; }
+            }
+            foreach (TorrentFile file in Stations)
+            {
+                if (file.ShortId.SequenceEqual(shortId) && (file.Callsign == callsign) && (file.StationId == stationId)) { return file; }
+            }
+            return null;
+        }
+
+        private void SendRequestFrame(bool discovery = false)
+        {
+            MemoryStream ms = new MemoryStream();
+            BinaryWriter writer = new BinaryWriter(ms);
+            writer.Write((byte)1); // Version
+            writer.Write((byte)1);
+
+            // Advertize out files
+            if (Advertised == null)
+            {
+                writer.Write((byte)3); // Advertized No Files
+            }
+            else
+            {
+                writer.Write((byte)4); // Advertized Files
+                writer.Write(Advertised.Id);
+                writer.Write((ushort)Advertised.Blocks.Length);
+            }
+
+            // Discovery
+            if (discovery)
+            {
+                writer.Write((byte)7); // Discovery
+            }
+
+            List<Request> requests = GetNextRequests();
+            int currentStationId = parent.stationId;
+            string currentCallsign = parent.callsign;
+            byte[] currentShortId = null;
+            foreach (Request request in requests)
+            {
+                if ((currentStationId != request.StationId) || (currentStationId != request.StationId))
+                {
+                    writer.Write((byte)2); // Station Id + Callsign
+                    writer.Write((byte)request.StationId);
+                    byte[] callsignBuf = Encoding.UTF8.GetBytes(request.Callsign);
+                    writer.Write((byte)callsignBuf.Length);
+                    writer.Write(callsignBuf);
+                    currentStationId = request.StationId;
+                    currentCallsign = request.Callsign;
+                }
+
+                if ((currentShortId == null) || (currentShortId.SequenceEqual(request.ShortId) == false))
+                {
+                    writer.Write((byte)5); // ShortId
+                    writer.Write(request.ShortId);
+                    currentShortId = request.ShortId;
+                }
+
+                writer.Write((byte)6); // Simple Request
+                writer.Write((ushort)request.BlockNumber);
+                writer.Write((byte)request.BlockCount);
+            }
+
+            // Send the packet
+            List<AX25Address> addresses = new List<AX25Address>();
+            addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
+            AX25Packet packet = new AX25Packet(addresses, ms.ToArray(), DateTime.Now);
+            packet.pid = 162; // Control packet
+            packet.channel_id = parent.activeChannelIdLock;
+            //packet.channel_name = p.channel_name;
+            if (parent.activeChannelIdLock >= 0)
+            {
+                parent.radio.TransmitTncData(packet, packet.channel_id);
+            }
+        }
+
+        private struct Request
+        {
+            public string Callsign;
+            public int StationId;
+            public byte[] ShortId;
+            public int BlockNumber;
+            public int BlockCount;
+        }
+
+        private List<TorrentFile> GetAllRequestTorrents()
+        {
+            List<TorrentFile> torrents = new List<TorrentFile>();
+            foreach (TorrentFile file in Stations)
+            {
+                if (file.Mode == TorrentFile.TorrentModes.Request) { torrents.Add(file); }
+            }
+            foreach (TorrentFile file in Files)
+            {
+                if (file.Mode == TorrentFile.TorrentModes.Request) { torrents.Add(file); }
+            }
+            return torrents;
+        }
+
+        private List<Request> GetNextRequests()
+        {
+            List<Request> requests = new List<Request>();
+
+            // Request other files
+            List<TorrentFile> allRequestTorrents = GetAllRequestTorrents();
+            foreach (TorrentFile file in allRequestTorrents)
+            {
+                if (file.Mode == TorrentFile.TorrentModes.Request)
+                {
+                    // Find the first block that is missing and how many more blocks are missing after it
+                    int requestBlockIndex = -1;
+                    int requestBlockCount = 0;
+                    int totalRequestCount = 0;
+                    for (int i = 0; i < file.Blocks.Length; i++)
+                    {
+                        if (file.Blocks[i] == null)
+                        {
+                            if (requestBlockIndex == -1) { requestBlockIndex = i; }
+                            requestBlockCount++;
+                            totalRequestCount++;
+
+                            if ((requestBlockCount > 30) || (totalRequestCount > 30))
+                            {
+                                Request r = new Request(); // Simple Request
+                                r.Callsign = file.Callsign;
+                                r.StationId = file.StationId;
+                                r.ShortId = file.ShortId;
+                                r.BlockNumber = requestBlockIndex;
+                                r.BlockCount = requestBlockCount;
+                                requests.Add(r);
+                                requestBlockIndex = -1;
+                                requestBlockCount = 0;
+                            }
+                        }
+                        else
+                        {
+                            if (requestBlockIndex != -1)
+                            {
+                                Request r = new Request(); // Simple Request
+                                r.Callsign = file.Callsign;
+                                r.StationId = file.StationId;
+                                r.ShortId = file.ShortId;
+                                r.BlockNumber = requestBlockIndex;
+                                r.BlockCount = requestBlockCount;
+                                requests.Add(r);
+                                requestBlockIndex = -1;
+                                requestBlockCount = 0;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return requests;
         }
 
         public void ProcessFrame(TncDataFragment frame, AX25Packet p)
         {
+            if ((p.pid != 162) || (p.pid != 163) || (p.addresses.Count != 1)) return;
 
+            if (p.pid == 162)
+            {
+                // This is a control packet
+                MemoryStream ms = new MemoryStream(p.data);
+                BinaryReader reader = new BinaryReader(ms);
+
+                string callsign = p.addresses[0].address;
+                int stationId = p.addresses[0].SSID;
+                byte[] shortId = null;
+
+                while (ms.Position < ms.Length)
+                {
+                    byte recordType = reader.ReadByte();
+                    switch (recordType)
+                    {
+                        case 1: // Version
+                            byte version = reader.ReadByte();
+                            if (version != 1) return;
+                            break;
+                        case 2: // Station Id + Callsign
+                            stationId = reader.ReadByte();
+                            byte len = reader.ReadByte();
+                            byte[] data = reader.ReadBytes(len);
+                            callsign = Encoding.UTF8.GetString(data);
+                            break;
+                        case 3: // Advertized No Files
+                            TorrentFile xFile = FindStationFile(callsign, stationId);
+                            if (xFile != null)
+                            {
+                                // Remove the station file
+                                Stations.Remove(xFile);
+                                // TODO: Remove all files from this state
+                            }
+                            break;
+                        case 4: // Advertized Files
+                            byte[] sId = reader.ReadBytes(12);
+                            int sblockCount = reader.ReadUInt16();
+                            TorrentFile sFile = FindStationFile(callsign, stationId);
+                            if ((sFile != null) && (sFile.Id.SequenceEqual(sId) == false))
+                            {
+                                // Remove the old station file
+                                Stations.Remove(sFile);
+                                sFile = null;
+                            }
+                            if (sFile == null)
+                            {
+                                // Create a new station file
+                                sFile = new TorrentFile();
+                                sFile.Id = sId;
+                                sFile.Callsign = callsign;
+                                sFile.StationId = stationId;
+                                sFile.Blocks = new byte[sblockCount][];
+                                sFile.Completed = false;
+                                sFile.ReceivedLastBlock = true;
+                                sFile.Mode = TorrentFile.TorrentModes.Request;
+                                Stations.Add(sFile);
+                            }
+                            break;
+                        case 5: // Short Id
+                            shortId = reader.ReadBytes(6);
+                            break;
+                        case 6: // Simple Request (Short Id, Block Number, Block Count)
+                            if (shortId == null) break;
+                            int blockNumber = reader.ReadUInt16();
+                            int blockCount = reader.ReadByte();
+                            TorrentFile file = FindTorrentFileWithShortId(callsign, stationId, shortId);
+                            if (file != null)
+                            {
+                                // Send the blocks
+                                for (int i = blockNumber; i < Math.Min(blockNumber + blockCount, file.Blocks.Length); i++)
+                                {
+                                    byte[] block = file.Blocks[i];
+                                    if (block != null)
+                                    {
+                                        // Create the block frame
+                                        byte[] blockFrame = new byte[block.Length + 8];
+                                        Array.Copy(shortId, 0, blockFrame, 0, 6);
+                                        if (i == file.Blocks.Length - 1) { blockFrame[6] += 1; }
+                                        blockFrame[6] = (byte)(i >> 8);
+                                        blockFrame[7] = (byte)(i & 0xFF);
+                                        Array.Copy(block, 0, blockFrame, 8, block.Length);
+
+                                        // Send the packet
+                                        List<AX25Address> addresses = new List<AX25Address>();
+                                        addresses.Add(AX25Address.GetAddress(file.Callsign, file.StationId));
+                                        AX25Packet packet = new AX25Packet(addresses, blockFrame, DateTime.Now);
+                                        packet.pid = 163; // Data packet
+                                        packet.channel_id = p.channel_id;
+                                        packet.channel_name = p.channel_name;
+                                        parent.radio.TransmitTncData(packet, packet.channel_id);
+                                    }
+                                }
+                            }
+                            break;
+                        case 7: // Discovery
+                            SendRequestFrame(true);
+                            break;
+                    }
+                }
+            }
+            else if (p.pid == 163)
+            {
+                // This is a data block
+                byte[] blockShortId = new byte[6];
+                Array.Copy(p.data, 0, blockShortId, 0, 6);
+                bool lastBlock = ((p.data[6] & 0x01) != 0);
+                int blockNumber = (p.data[6] << 8) + p.data[7];
+                byte[] block = new byte[p.data.Length - 8];
+
+                // See if we have a file that matches this block
+                foreach (TorrentFile file in Files)
+                {
+                    if (file.ShortId.SequenceEqual(blockShortId) && !file.Completed)
+                    {
+                        if (file.Blocks == null) { file.Blocks = new byte[blockNumber + (lastBlock ? 1 : 40)][]; }
+                        if (file.Blocks.Length <= blockNumber) { Array.Resize(ref file.Blocks, blockNumber + (lastBlock ? 1 : 40)); }
+                        if (file.Blocks[blockNumber] == null)
+                        {
+                            file.Blocks[blockNumber] = block;
+                            file.ReceivedLastBlock = lastBlock;
+                            int r = file.IsCompleted();
+                            if (r == 1) { file.Completed = true; file.Mode = TorrentFile.TorrentModes.Sharing; }
+                            if (r == 2) { file.Mode = TorrentFile.TorrentModes.Error; }
+                            parent.updateTorrent(file);
+                        }
+                    }
+                }
+
+                // See if a station matches this block
+                foreach (TorrentFile file in Stations)
+                {
+                    if (file.ShortId.SequenceEqual(blockShortId) && !file.Completed)
+                    {
+                        if ((file.Blocks == null) && (file.Blocks.Length <= blockNumber)) return;
+                        if (file.Blocks[blockNumber] == null)
+                        {
+                            file.Blocks[blockNumber] = block;
+                            file.ReceivedLastBlock = lastBlock;
+                            int r = file.IsCompleted();
+                            if (r == 1) { file.Completed = true; file.Mode = TorrentFile.TorrentModes.Sharing; UpdateStationAdvertised(file); }
+                            if (r == 2) { file.Mode = TorrentFile.TorrentModes.Error; }
+                        }
+                    }
+                }
+            }
         }
 
         private void UpdateStationAdvertised(TorrentFile torrentFile)
@@ -294,6 +621,8 @@ namespace HTCommander
         public string Callsign; // Source Callsign
         public int StationId; // Source Station ID
         public byte[] Id; // First 12 byte of SHA256 hash of compressed file
+        private byte[] _ShortId; // First 6 byte of SHA256 hash of compressed file, last bit is cleared
+        public byte[] ShortId { get { if (_ShortId == null) { _ShortId = new byte[6]; Array.Copy(Id, 0, _ShortId, 0, 6); } _ShortId[5] = (byte)(_ShortId[5] & 0xFE); return _ShortId; } }
         public string FileName; // File name
         public string Description; // File description, max 200 bytes
         public int Size; // File size

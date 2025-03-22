@@ -127,7 +127,7 @@ namespace HTCommander
                 done = last;
                 i += 7;
             } while (!done);
-            if (addresses.Count < 2) return null;
+            if (addresses.Count < 1) return null;
             bool command = addresses[0].CRBit1;
             bool modulo128 = (addresses[0].CRBit2 == false);
 
@@ -226,7 +226,7 @@ namespace HTCommander
 
         public byte[] ToByteArray()
         {
-            if ((addresses == null) || (addresses.Count < 2)) return null;
+            if ((addresses == null) || (addresses.Count < 1)) return null;
             byte[] dataBytes = null;
             int dataBytesLen = 0;
             if (data != null)
