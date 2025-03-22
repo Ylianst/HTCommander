@@ -5,6 +5,8 @@ VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HTCommander", "src\HTCommander.csproj", "{19A17BAD-F6A6-4706-A50B-485197C37B37}"
 EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "HTCommander.setup", "HTCommander.setup\HTCommander.setup.vdproj", "{2977DA98-C215-BAC5-CE53-5298B697DC0B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -15,8 +17,13 @@ Global
 		{19A17BAD-F6A6-4706-A50B-485197C37B37}.Debug|x64.Build.0 = Debug|x64
 		{19A17BAD-F6A6-4706-A50B-485197C37B37}.Release|x64.ActiveCfg = Release|x64
 		{19A17BAD-F6A6-4706-A50B-485197C37B37}.Release|x64.Build.0 = Release|x64
+		{2977DA98-C215-BAC5-CE53-5298B697DC0B}.Debug|x64.ActiveCfg = Debug
+		{2977DA98-C215-BAC5-CE53-5298B697DC0B}.Release|x64.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6DD3D3F6-13DE-44B2-89A0-BA8F108E5C25}
 	EndGlobalSection
 EndGlobal
