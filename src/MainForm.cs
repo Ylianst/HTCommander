@@ -2660,7 +2660,7 @@ namespace HTCommander
             }
         }
 
-        public bool ActiveLockToStation(StationInfoClass station)
+        public bool ActiveLockToStation(StationInfoClass station, int channelIdLock = -1)
         {
             if (station == null)
             {
@@ -2671,6 +2671,7 @@ namespace HTCommander
                 }
                 else
                 {
+                    torrent.Activate(false);
                     if (activeStationsLock_oldSettings != null) { radio.WriteSettings(activeStationsLock_oldSettings); }
                     activeStationsLock_oldSettings = null;
                     if ((activeStationLock != null) && activeStationLock.WaitForConnection && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)) { AppendTerminalString(false, null, null, "Stopped."); }
@@ -2682,14 +2683,16 @@ namespace HTCommander
                 }
             }
 
-            if ((station.StationType != StationInfoClass.StationTypes.Terminal) && (station.StationType != StationInfoClass.StationTypes.Winlink)) return false;
-            if (station.Channel == null) return false;
+            if (station.StationType == StationInfoClass.StationTypes.Generic) return false;
+            if ((station.Channel == null) && (channelIdLock == -1)) return false;
             if (radio.Channels == null) return false;
 
-            int channelIdLock = -1;
-            foreach (var channel in radio.Channels)
+            if (channelIdLock == -1)
             {
-                if ((channel != null) && (channel.name_str == station.Channel)) { channelIdLock = channel.channel_id; }
+                foreach (var channel in radio.Channels)
+                {
+                    if ((channel != null) && (channel.name_str == station.Channel)) { channelIdLock = channel.channel_id; }
+                }
             }
             if (channelIdLock == -1)
             {
@@ -2715,6 +2718,11 @@ namespace HTCommander
                 addresses.Add(AX25Address.GetAddress(station.Callsign));
                 addresses.Add(AX25Address.GetAddress(callsign, stationId));
                 session.Connect(addresses);
+            }
+
+            if (activeStationLock.StationType == StationInfoClass.StationTypes.Torrent)
+            {
+                torrent.Activate(true);
             }
 
             return true;
@@ -3065,19 +3073,15 @@ namespace HTCommander
             {
                 if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
                 {
-                    activeStationLock = null;
-                    activeChannelIdLock = -1;
-                    UpdateInfo();
-                    UpdateRadioDisplay();
+                    ActiveLockToStation(null);
                 }
             }
             else
             {
-                activeChannelIdLock = radio.Settings.channel_a;
-                activeStationLock = new StationInfoClass();
-                activeStationLock.StationType = StationInfoClass.StationTypes.BBS;
-                UpdateInfo();
-                UpdateRadioDisplay();
+
+                StationInfoClass station = new StationInfoClass();
+                station.StationType = StationInfoClass.StationTypes.BBS;
+                ActiveLockToStation(station, radio.Settings.channel_a);
             }
         }
 
@@ -3693,19 +3697,14 @@ namespace HTCommander
             {
                 if (activeStationLock.StationType == StationInfoClass.StationTypes.Torrent)
                 {
-                    activeStationLock = null;
-                    activeChannelIdLock = -1;
-                    UpdateInfo();
-                    UpdateRadioDisplay();
+                    ActiveLockToStation(null);
                 }
             }
             else
             {
-                activeChannelIdLock = radio.Settings.channel_a;
-                activeStationLock = new StationInfoClass();
-                activeStationLock.StationType = StationInfoClass.StationTypes.Torrent;
-                UpdateInfo();
-                UpdateRadioDisplay();
+                StationInfoClass station = new StationInfoClass();
+                station.StationType = StationInfoClass.StationTypes.Torrent;
+                ActiveLockToStation(station, radio.Settings.channel_a);
             }
         }
         private void torrentAddFileButton_Click(object sender, EventArgs e)
@@ -3791,13 +3790,16 @@ namespace HTCommander
 
                 torrentPauseToolStripMenuItem.Visible = true;
                 torrentPauseToolStripMenuItem.Checked = (file.Mode == TorrentFile.TorrentModes.Pause);
+                torrentPauseToolStripMenuItem.Enabled = (file.Mode != TorrentFile.TorrentModes.Error);
                 torrentShareToolStripMenuItem.Visible = true;
                 torrentShareToolStripMenuItem.Checked = (file.Mode == TorrentFile.TorrentModes.Sharing);
+                torrentShareToolStripMenuItem.Enabled = (file.Completed == true) && (file.Mode != TorrentFile.TorrentModes.Error);
                 torrentRequestToolStripMenuItem.Visible = true;
                 torrentRequestToolStripMenuItem.Checked = (file.Mode == TorrentFile.TorrentModes.Request);
-                torrentRequestToolStripMenuItem.Enabled = (file.Completed == false);
+                torrentRequestToolStripMenuItem.Enabled = (file.Completed == false) && (file.Mode != TorrentFile.TorrentModes.Error);
                 toolStripMenuItem19.Visible = true;
-                torrentSaveAsToolStripMenuItem.Visible = file.Completed;
+                torrentSaveAsToolStripMenuItem.Visible = true;
+                torrentSaveAsToolStripMenuItem.Enabled = file.Completed && (file.Mode != TorrentFile.TorrentModes.Error);
                 toolStripMenuItem20.Visible = true;
                 torrentDeleteToolStripMenuItem.Visible = true;
 
@@ -3930,6 +3932,37 @@ namespace HTCommander
         private void torrentDetailsListView_Resize(object sender, EventArgs e)
         {
             torrentDetailsListView.Columns[1].Width = torrentDetailsListView.Width - torrentDetailsListView.Columns[0].Width - 28;
+        }
+
+        public delegate void UpdateTorrentHandler(TorrentFile file);
+        public void updateTorrent(TorrentFile file)
+        {
+            if (this.InvokeRequired) { this.Invoke(new UpdateTorrentHandler(updateTorrent), file); return; }
+
+            // Update a single torrent file
+            if (file.ListViewItem != null)
+            {
+                file.ListViewItem.SubItems[0].Text = (file.FileName == null) ? "" : file.FileName;
+                file.ListViewItem.SubItems[1].Text = file.Mode.ToString();
+                file.ListViewItem.SubItems[2].Text = (file.Description == null) ? "" : file.Description;
+                file.ListViewItem.ImageIndex = file.Completed ? 9 : 10;
+                if ((torrentListView.SelectedItems.Count == 1) && (torrentListView.SelectedItems[0] == file.ListViewItem))
+                {
+                    torrentListView_SelectedIndexChanged(null, null);
+                }
+            }
+            else
+            {
+                AddTorrent(file);
+            }
+        }
+
+        public void updateTorrentList()
+        {
+            if (this.InvokeRequired) { this.Invoke(new MethodInvoker(updateTorrentList)); return; }
+
+            // Update the entire torrent list
+            foreach (TorrentFile file in torrent.Files) { updateTorrent(file); }
         }
     }
 }
