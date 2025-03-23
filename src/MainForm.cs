@@ -84,6 +84,7 @@ namespace HTCommander
         public bool Loading = true;
         public MailClientDebugForm mailClientDebugForm = new MailClientDebugForm();
         public string appDataPath;
+        public bool RealExit = false;
 #if !__MonoCS__
         public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
@@ -1009,6 +1010,7 @@ namespace HTCommander
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            RealExit = true;
             Application.Exit();
         }
 
@@ -3170,6 +3172,7 @@ namespace HTCommander
 
         private void exitToolStripMenuItem1_Click(object sender, EventArgs e)
         {
+            RealExit = true;
             Application.Exit();
         }
 
@@ -3588,7 +3591,7 @@ namespace HTCommander
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (systemTrayToolStripMenuItem.Checked)
+            if ((systemTrayToolStripMenuItem.Checked) && (RealExit == false))
             {
                 e.Cancel = true;
                 this.Visible = false;
@@ -3858,6 +3861,7 @@ namespace HTCommander
             TorrentFile file = (TorrentFile)torrentListView.SelectedItems[0].Tag;
             file.Mode = TorrentFile.TorrentModes.Request;
             file.ListViewItem.SubItems[1].Text = file.Mode.ToString();
+            torrent.SendRequest(); // Cause a request frame to be sent
         }
 
         private void torrentContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)

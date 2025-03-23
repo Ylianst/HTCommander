@@ -97,8 +97,16 @@ namespace HTCommander
             return null;
         }
 
+        public void SendRequest()
+        {
+            // Send a request frame
+            SendRequestFrame();
+        }
+
         private void SendRequestFrame(bool discovery = false)
         {
+            if ((parent.activeStationLock == null) || (parent.activeStationLock.StationType != StationInfoClass.StationTypes.Torrent)) return;
+
             MemoryStream ms = new MemoryStream();
             BinaryWriter writer = new BinaryWriter(ms);
             writer.Write((byte)1); // Version

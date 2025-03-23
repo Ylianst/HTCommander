@@ -8,7 +8,7 @@ namespace HTCommander
     public partial class TorrentBlocksUserControl : UserControl
     {
         private byte[][] _blocks;
-        private const int BlockSize = 24;
+        private const int BlockSize = 12;
         private const int BlockMargin = 2;
         private const int ShadowOffset = 2;
         private readonly Color ShadowColor = Color.FromArgb(64, Color.Black); // Semi-transparent black

@@ -102,7 +102,6 @@
             this.radioPictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
-            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsMissingChannelPanel = new System.Windows.Forms.Panel();
             this.aprsSetupButton = new System.Windows.Forms.Button();
@@ -205,7 +204,6 @@
             this.columnHeader13 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader17 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.panel5 = new System.Windows.Forms.Panel();
             this.torrentAddFileButton = new System.Windows.Forms.Button();
             this.torrentMenuPictureBox = new System.Windows.Forms.PictureBox();
@@ -294,6 +292,8 @@
             this.backupMailSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.restoreMailOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.torrentSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
+            this.aprsChatControl = new HTCommander.ChatControl();
+            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -966,30 +966,6 @@
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
-            // aprsChatControl
-            // 
-            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
-            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
-            this.aprsChatControl.CornerRadius = 4;
-            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.aprsChatControl.Images = this.mainImageList;
-            this.aprsChatControl.InterMessageMargin = 12;
-            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
-            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.aprsChatControl.MaxWidth = 300;
-            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
-            this.aprsChatControl.MessageBoxMargin = 10;
-            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
-            this.aprsChatControl.MinWidth = 100;
-            this.aprsChatControl.Name = "aprsChatControl";
-            this.aprsChatControl.ShadowOffset = 2;
-            this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(693, 525);
-            this.aprsChatControl.TabIndex = 5;
-            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
-            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
-            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
-            // 
             // mainImageList
             // 
             this.mainImageList.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("mainImageList.ImageStream")));
@@ -1166,7 +1142,7 @@
             this.mapTabPage.Location = new System.Drawing.Point(4, 4);
             this.mapTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.mapTabPage.Name = "mapTabPage";
-            this.mapTabPage.Size = new System.Drawing.Size(693, 646);
+            this.mapTabPage.Size = new System.Drawing.Size(693, 644);
             this.mapTabPage.TabIndex = 0;
             this.mapTabPage.ToolTipText = "APRS";
             this.mapTabPage.UseVisualStyleBackColor = true;
@@ -1228,7 +1204,7 @@
             this.mailTabPage.Location = new System.Drawing.Point(4, 4);
             this.mailTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.mailTabPage.Name = "mailTabPage";
-            this.mailTabPage.Size = new System.Drawing.Size(693, 646);
+            this.mailTabPage.Size = new System.Drawing.Size(693, 644);
             this.mailTabPage.TabIndex = 5;
             this.mailTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1247,8 +1223,8 @@
             // mailboxHorizontalSplitContainer.Panel2
             // 
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailPreviewTextBox);
-            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(693, 572);
-            this.mailboxHorizontalSplitContainer.SplitterDistance = 269;
+            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(693, 570);
+            this.mailboxHorizontalSplitContainer.SplitterDistance = 268;
             this.mailboxHorizontalSplitContainer.TabIndex = 7;
             // 
             // mailboxVerticalSplitContainer
@@ -1266,7 +1242,7 @@
             // mailboxVerticalSplitContainer.Panel2
             // 
             this.mailboxVerticalSplitContainer.Panel2.Controls.Add(this.mailboxListView);
-            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(693, 269);
+            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(693, 268);
             this.mailboxVerticalSplitContainer.SplitterDistance = 151;
             this.mailboxVerticalSplitContainer.TabIndex = 6;
             // 
@@ -1281,7 +1257,7 @@
             this.mailBoxesTreeView.Name = "mailBoxesTreeView";
             this.mailBoxesTreeView.SelectedImageIndex = 0;
             this.mailBoxesTreeView.ShowRootLines = false;
-            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 269);
+            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 268);
             this.mailBoxesTreeView.TabIndex = 0;
             this.mailBoxesTreeView.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.mailBoxesTreeView_NodeMouseClick);
             this.mailBoxesTreeView.DragDrop += new System.Windows.Forms.DragEventHandler(this.mailBoxesTreeView_DragDrop);
@@ -1316,7 +1292,7 @@
             this.mailboxListView.Location = new System.Drawing.Point(0, 0);
             this.mailboxListView.Margin = new System.Windows.Forms.Padding(4);
             this.mailboxListView.Name = "mailboxListView";
-            this.mailboxListView.Size = new System.Drawing.Size(538, 269);
+            this.mailboxListView.Size = new System.Drawing.Size(538, 268);
             this.mailboxListView.SmallImageList = this.mainImageList;
             this.mailboxListView.TabIndex = 5;
             this.mailboxListView.UseCompatibleStateImageBehavior = false;
@@ -1436,7 +1412,7 @@
             this.mailPreviewTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.mailPreviewTextBox.Name = "mailPreviewTextBox";
             this.mailPreviewTextBox.ReadOnly = true;
-            this.mailPreviewTextBox.Size = new System.Drawing.Size(693, 299);
+            this.mailPreviewTextBox.Size = new System.Drawing.Size(693, 298);
             this.mailPreviewTextBox.TabIndex = 0;
             this.mailPreviewTextBox.Text = "";
             // 
@@ -1445,7 +1421,7 @@
             this.mailTransferStatusPanel.BackColor = System.Drawing.Color.Silver;
             this.mailTransferStatusPanel.Controls.Add(this.mailTransferStatusLabel);
             this.mailTransferStatusPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 609);
+            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 607);
             this.mailTransferStatusPanel.Margin = new System.Windows.Forms.Padding(4);
             this.mailTransferStatusPanel.Name = "mailTransferStatusPanel";
             this.mailTransferStatusPanel.Size = new System.Drawing.Size(693, 37);
@@ -1562,7 +1538,7 @@
             this.terminalTabPage.Location = new System.Drawing.Point(4, 4);
             this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTabPage.Name = "terminalTabPage";
-            this.terminalTabPage.Size = new System.Drawing.Size(693, 646);
+            this.terminalTabPage.Size = new System.Drawing.Size(693, 644);
             this.terminalTabPage.TabIndex = 2;
             this.terminalTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1577,7 +1553,7 @@
             this.terminalTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTextBox.Name = "terminalTextBox";
             this.terminalTextBox.ReadOnly = true;
-            this.terminalTextBox.Size = new System.Drawing.Size(693, 563);
+            this.terminalTextBox.Size = new System.Drawing.Size(693, 561);
             this.terminalTextBox.TabIndex = 4;
             this.terminalTextBox.Text = "";
             // 
@@ -1587,7 +1563,7 @@
             this.terminalBottomPanel.Controls.Add(this.terminalInputTextBox);
             this.terminalBottomPanel.Controls.Add(this.terminalSendButton);
             this.terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 600);
+            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 598);
             this.terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.terminalBottomPanel.Name = "terminalBottomPanel";
             this.terminalBottomPanel.Size = new System.Drawing.Size(693, 46);
@@ -1679,7 +1655,7 @@
             this.addressesTabPage.Location = new System.Drawing.Point(4, 4);
             this.addressesTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.addressesTabPage.Name = "addressesTabPage";
-            this.addressesTabPage.Size = new System.Drawing.Size(693, 646);
+            this.addressesTabPage.Size = new System.Drawing.Size(693, 644);
             this.addressesTabPage.TabIndex = 4;
             this.addressesTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1714,7 +1690,7 @@
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 37);
             this.mainAddressBookListView.Margin = new System.Windows.Forms.Padding(4);
             this.mainAddressBookListView.Name = "mainAddressBookListView";
-            this.mainAddressBookListView.Size = new System.Drawing.Size(693, 609);
+            this.mainAddressBookListView.Size = new System.Drawing.Size(693, 607);
             this.mainAddressBookListView.SmallImageList = this.mainImageList;
             this.mainAddressBookListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.mainAddressBookListView.TabIndex = 4;
@@ -1844,7 +1820,7 @@
             this.bbsTabPage.Location = new System.Drawing.Point(4, 4);
             this.bbsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTabPage.Name = "bbsTabPage";
-            this.bbsTabPage.Size = new System.Drawing.Size(693, 646);
+            this.bbsTabPage.Size = new System.Drawing.Size(693, 644);
             this.bbsTabPage.TabIndex = 7;
             this.bbsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1863,8 +1839,8 @@
             // bbsSplitContainer.Panel2
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
-            this.bbsSplitContainer.Size = new System.Drawing.Size(693, 609);
-            this.bbsSplitContainer.SplitterDistance = 140;
+            this.bbsSplitContainer.Size = new System.Drawing.Size(693, 607);
+            this.bbsSplitContainer.SplitterDistance = 139;
             this.bbsSplitContainer.SplitterWidth = 5;
             this.bbsSplitContainer.TabIndex = 7;
             // 
@@ -1893,7 +1869,7 @@
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
             this.bbsListView.Margin = new System.Windows.Forms.Padding(4);
             this.bbsListView.Name = "bbsListView";
-            this.bbsListView.Size = new System.Drawing.Size(693, 140);
+            this.bbsListView.Size = new System.Drawing.Size(693, 139);
             this.bbsListView.SmallImageList = this.mainImageList;
             this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.bbsListView.TabIndex = 6;
@@ -1927,7 +1903,7 @@
             this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(693, 464);
+            this.bbsTextBox.Size = new System.Drawing.Size(693, 463);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -2164,19 +2140,10 @@
             this.tabPage2.Location = new System.Drawing.Point(4, 25);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage2.Size = new System.Drawing.Size(685, 293);
+            this.tabPage2.Size = new System.Drawing.Size(685, 292);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
-            // 
-            // torrentBlocksUserControl
-            // 
-            this.torrentBlocksUserControl.AutoScroll = true;
-            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 3);
-            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(679, 287);
-            this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // panel5
             // 
@@ -2268,7 +2235,7 @@
             this.packetsTabPage.Location = new System.Drawing.Point(4, 4);
             this.packetsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.packetsTabPage.Name = "packetsTabPage";
-            this.packetsTabPage.Size = new System.Drawing.Size(693, 646);
+            this.packetsTabPage.Size = new System.Drawing.Size(693, 644);
             this.packetsTabPage.TabIndex = 6;
             this.packetsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -2287,8 +2254,8 @@
             // packetsSplitContainer.Panel2
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
-            this.packetsSplitContainer.Size = new System.Drawing.Size(693, 609);
-            this.packetsSplitContainer.SplitterDistance = 278;
+            this.packetsSplitContainer.Size = new System.Drawing.Size(693, 607);
+            this.packetsSplitContainer.SplitterDistance = 277;
             this.packetsSplitContainer.SplitterWidth = 5;
             this.packetsSplitContainer.TabIndex = 6;
             // 
@@ -2307,7 +2274,7 @@
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
             this.packetsListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetsListView.Name = "packetsListView";
-            this.packetsListView.Size = new System.Drawing.Size(693, 278);
+            this.packetsListView.Size = new System.Drawing.Size(693, 277);
             this.packetsListView.SmallImageList = this.mainImageList;
             this.packetsListView.TabIndex = 5;
             this.packetsListView.UseCompatibleStateImageBehavior = false;
@@ -2387,7 +2354,7 @@
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             this.packetDecodeListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(693, 326);
+            this.packetDecodeListView.Size = new System.Drawing.Size(693, 325);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;
@@ -2463,7 +2430,7 @@
             this.debugTabPage.Location = new System.Drawing.Point(4, 4);
             this.debugTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.debugTabPage.Name = "debugTabPage";
-            this.debugTabPage.Size = new System.Drawing.Size(693, 646);
+            this.debugTabPage.Size = new System.Drawing.Size(693, 644);
             this.debugTabPage.TabIndex = 1;
             this.debugTabPage.ToolTipText = "Debug";
             this.debugTabPage.UseVisualStyleBackColor = true;
@@ -2479,7 +2446,7 @@
             this.debugTextBox.Name = "debugTextBox";
             this.debugTextBox.ReadOnly = true;
             this.debugTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.debugTextBox.Size = new System.Drawing.Size(693, 609);
+            this.debugTextBox.Size = new System.Drawing.Size(693, 607);
             this.debugTextBox.TabIndex = 1;
             this.debugTextBox.WordWrap = false;
             // 
@@ -2960,6 +2927,39 @@
             // torrentSaveFileDialog
             // 
             this.torrentSaveFileDialog.Title = "Save Torrent File";
+            // 
+            // aprsChatControl
+            // 
+            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
+            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
+            this.aprsChatControl.CornerRadius = 4;
+            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.aprsChatControl.Images = this.mainImageList;
+            this.aprsChatControl.InterMessageMargin = 12;
+            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
+            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.aprsChatControl.MaxWidth = 300;
+            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
+            this.aprsChatControl.MessageBoxMargin = 10;
+            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
+            this.aprsChatControl.MinWidth = 100;
+            this.aprsChatControl.Name = "aprsChatControl";
+            this.aprsChatControl.ShadowOffset = 2;
+            this.aprsChatControl.SideMargins = 12;
+            this.aprsChatControl.Size = new System.Drawing.Size(693, 525);
+            this.aprsChatControl.TabIndex = 5;
+            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
+            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
+            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
+            // 
+            // torrentBlocksUserControl
+            // 
+            this.torrentBlocksUserControl.AutoScroll = true;
+            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 3);
+            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(679, 286);
+            this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // MainForm
             // 
