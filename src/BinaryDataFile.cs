@@ -83,6 +83,7 @@ namespace HTCommander
         /// <exception cref="InvalidOperationException">Thrown if the file is not open.</exception>
         public void AppendRecord(int userType, object data)
         {
+            if (data == null) return;
             if (!_isOpened || _writer == null)
             {
                 throw new InvalidOperationException("The file must be opened before appending a record.");

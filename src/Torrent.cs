@@ -17,11 +17,10 @@ limitations under the License.
 using System;
 using System.IO;
 using System.Text;
+using System.Linq;
 using System.Windows.Forms;
 using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Linq;
-using System.Threading;
 
 namespace HTCommander
 {
@@ -33,6 +32,7 @@ namespace HTCommander
         public TorrentFile Advertised = null;
         public List<TorrentFile> Stations = new List<TorrentFile>();
         private System.Timers.Timer BeaconTimer = new System.Timers.Timer();
+        public const int DefaultBlockSize = 170;
 
         public Torrent(MainForm parent)
         {
@@ -82,6 +82,10 @@ namespace HTCommander
 
         private TorrentFile FindTorrentFileWithShortId(string callsign, int stationId, byte[] shortId)
         {
+            if ((Advertised != null) && (Advertised.Callsign == callsign) && (Advertised.StationId == stationId) && Advertised.ShortId.SequenceEqual(shortId))
+            {
+                return Advertised;
+            }
             foreach (TorrentFile file in Files)
             {
                 if (file.ShortId.SequenceEqual(shortId) && (file.Callsign == callsign) && (file.StationId == stationId)) { return file; }
@@ -216,6 +220,7 @@ namespace HTCommander
                                 requests.Add(r);
                                 requestBlockIndex = -1;
                                 requestBlockCount = 0;
+                                if (totalRequestCount > 30) return requests;
                             }
                         }
                         else
@@ -231,8 +236,20 @@ namespace HTCommander
                                 requests.Add(r);
                                 requestBlockIndex = -1;
                                 requestBlockCount = 0;
+                                if (totalRequestCount > 30) return requests;
                             }
                         }
+                    }
+
+                    if (requestBlockIndex != -1)
+                    {
+                        Request r = new Request(); // Simple Request
+                        r.Callsign = file.Callsign;
+                        r.StationId = file.StationId;
+                        r.ShortId = file.ShortId;
+                        r.BlockNumber = requestBlockIndex;
+                        r.BlockCount = requestBlockCount;
+                        requests.Add(r);
                     }
                 }
             }
@@ -242,7 +259,7 @@ namespace HTCommander
 
         public void ProcessFrame(TncDataFragment frame, AX25Packet p)
         {
-            if ((p.pid != 162) || (p.pid != 163) || (p.addresses.Count != 1)) return;
+            if (((p.pid != 162) && (p.pid != 163)) || (p.addresses.Count != 1)) return;
 
             if (p.pid == 162)
             {
@@ -339,7 +356,7 @@ namespace HTCommander
                             }
                             break;
                         case 7: // Discovery
-                            SendRequestFrame(true);
+                            SendRequestFrame(false);
                             break;
                     }
                 }
@@ -352,6 +369,7 @@ namespace HTCommander
                 bool lastBlock = ((p.data[6] & 0x01) != 0);
                 int blockNumber = (p.data[6] << 8) + p.data[7];
                 byte[] block = new byte[p.data.Length - 8];
+                Array.Copy(p.data, 8, block, 0, block.Length);
 
                 // See if we have a file that matches this block
                 foreach (TorrentFile file in Files)
@@ -363,6 +381,7 @@ namespace HTCommander
                         if (file.Blocks[blockNumber] == null)
                         {
                             file.Blocks[blockNumber] = block;
+                            file.AppendToTorrentFile(blockNumber, false, false);
                             file.ReceivedLastBlock = lastBlock;
                             int r = file.IsCompleted();
                             if (r == 1) { file.Completed = true; file.Mode = TorrentFile.TorrentModes.Sharing; }
@@ -462,7 +481,7 @@ namespace HTCommander
                             tFile.FileName = xfilename;
                             tFile.Description = xdescription;
                             tFile.Blocks = new byte[blockCount][];
-                            updatedTorrentFiles.Add(tFile);
+                            tFile.WriteTorrentFile();
                             xfilename = null;
                             xdescription = null;
                         }
@@ -477,14 +496,19 @@ namespace HTCommander
                 bool found = false;
                 foreach (TorrentFile file in Files)
                 {
-                    if ((file.Id == tFile.Id) && (file.Callsign == tFile.Callsign) && (tFile.StationId == file.StationId)) {
+                    if ((file.Id.SequenceEqual(tFile.Id)) && (file.Callsign == tFile.Callsign) && (tFile.StationId == file.StationId)) {
                         found = true;
-                        if (file.FileName != tFile.FileName) { file.FileName = tFile.FileName; changed = true; }
-                        if (file.Description != tFile.Description) { file.Description = tFile.Description; changed = true; }
+                        bool filenameChanged = false, descriptionChanged = false;
+                        if (file.FileName != tFile.FileName) { file.FileName = tFile.FileName; filenameChanged = true;  changed = true; }
+                        if (file.Description != tFile.Description) { file.Description = tFile.Description; descriptionChanged = true;  changed = true; }
+                        if (filenameChanged || descriptionChanged) { tFile.AppendToTorrentFile(-1, filenameChanged, descriptionChanged); }
                         break;
                     }
                 }
-                if (!found) { Files.Add(tFile); }
+                if (!found) {
+                    Files.Add(tFile);
+                    updatedTorrentFiles.Add(tFile);
+                }
                 changed = true;
             }
 
@@ -583,15 +607,14 @@ namespace HTCommander
             torrentFile.Id = Utils.ComputeShortSha256Hash(dataSelected);
 
             // Create blocks
-            int blockSize = 100;
-            int blockCount = dataSelected.Length / blockSize;
-            if ((dataSelected.Length % blockSize) != 0) { blockCount++; }
+            int blockCount = dataSelected.Length / DefaultBlockSize;
+            if ((dataSelected.Length % DefaultBlockSize) != 0) { blockCount++; }
             torrentFile.Blocks = new byte[blockCount][];
             for (int i = 0; i < blockCount; i++)
             {
-                int thisBlockSize = Math.Min(blockSize, dataSelected.Length - (i * blockSize));
+                int thisBlockSize = Math.Min(DefaultBlockSize, dataSelected.Length - (i * DefaultBlockSize));
                 torrentFile.Blocks[i] = new byte[thisBlockSize];
-                Array.Copy(dataSelected, i * blockSize, torrentFile.Blocks[i], 0, thisBlockSize);
+                Array.Copy(dataSelected, i * DefaultBlockSize, torrentFile.Blocks[i], 0, thisBlockSize);
             }
 
             // Done
@@ -794,6 +817,29 @@ namespace HTCommander
             // Create the file path using the Callsign, StationId, and Id.
             string filename = Path.Combine(torrentPath, Callsign + "-" + StationId.ToString() + "-" + Utils.BytesToHex(Id) + ".httorrent");
             if (File.Exists(filename)) { File.Delete(filename); }
+        }
+
+        public void AppendToTorrentFile(int blockIndex, bool updateFilename, bool updateDesc)
+        {
+            // Get the path to the current user's Roaming AppData folder.
+            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string torrentPath = Path.Combine(appDataPath, "HTCommander", "Torrents");
+
+            // Create the directory if it doesn't exist.
+            Directory.CreateDirectory(torrentPath);
+
+            // Create the file path using the Callsign, StationId, and Id.
+            string filename = Path.Combine(torrentPath, Callsign + "-" + StationId.ToString() + "-" + Utils.BytesToHex(Id) + ".httorrent");
+            if (File.Exists(filename) == false) { WriteTorrentFile(); return; }
+
+            // Append the record
+            BinaryDataFile binaryDataFile = new BinaryDataFile(filename);
+            binaryDataFile.Open();
+            binaryDataFile.SeekToEnd();
+            if (updateFilename) { binaryDataFile.AppendRecord(6, FileName); }
+            if (updateDesc) { binaryDataFile.AppendRecord(6, Description); }
+            if (blockIndex >= 0) { binaryDataFile.AppendRecord(14, blockIndex); binaryDataFile.AppendRecord(15, Blocks[blockIndex]); }
+            binaryDataFile.Close();
         }
 
         public void WriteTorrentFile()

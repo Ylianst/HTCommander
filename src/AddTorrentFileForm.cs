@@ -104,27 +104,15 @@ namespace HTCommander
             torrentFile.Id = Utils.ComputeShortSha256Hash(dataSelected);
 
             // Create blocks
-            int blockSize = 100;
-            int blockCount = dataSelected.Length / blockSize;
-            if ((dataSelected.Length % blockSize) != 0) { blockCount++; }
+            int blockCount = dataSelected.Length / Torrent.DefaultBlockSize;
+            if ((dataSelected.Length % Torrent.DefaultBlockSize) != 0) { blockCount++; }
             torrentFile.Blocks = new byte[blockCount][];
             for (int i = 0; i < blockCount; i++)
             {
-                int thisBlockSize = Math.Min(blockSize, dataSelected.Length - (i * blockSize));
+                int thisBlockSize = Math.Min(Torrent.DefaultBlockSize, dataSelected.Length - (i * Torrent.DefaultBlockSize));
                 torrentFile.Blocks[i] = new byte[thisBlockSize];
-                Array.Copy(dataSelected, i * blockSize, torrentFile.Blocks[i], 0, thisBlockSize);
+                Array.Copy(dataSelected, i * Torrent.DefaultBlockSize, torrentFile.Blocks[i], 0, thisBlockSize);
             }
-
-            /*
-            // Select random blocks to set to null (DEBUG)
-            Random random = new Random();
-            int nullBlocks = blockCount / 2;
-            for (int i = 0; i < nullBlocks; i++)
-            {
-                int blockIndex = random.Next(0, blockCount);
-                torrentFile.Blocks[blockIndex] = null;
-            }
-            */
 
             descriptionTextBox.Focus();
             UpdateInfo();
@@ -133,7 +121,7 @@ namespace HTCommander
 
         private void UpdateInfo()
         {
-            okButton.Enabled = (fileNameTextBox.Text.Length > 0);// && (descriptionTextBox.Text.Length > 0);
+            okButton.Enabled = (fileNameTextBox.Text.Length > 0);
         }
 
         private void descriptionTextBox_TextChanged(object sender, EventArgs e)
