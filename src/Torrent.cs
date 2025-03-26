@@ -166,6 +166,8 @@ namespace HTCommander
             packet.pid = 162; // Control packet
             packet.channel_id = parent.activeChannelIdLock;
             //packet.channel_name = p.channel_name;
+            packet.tag = "TorrentRequest"; // Tag this packet so we can delete it from the send queue if needed.
+            packet.deadline = DateTime.Now.AddSeconds(30); // If we can't send this in the next 30 seconds, don't bother.
             if (parent.activeChannelIdLock >= 0)
             {
                 parent.radio.TransmitTncData(packet, packet.channel_id);
@@ -346,7 +348,8 @@ namespace HTCommander
                                         // Create the block frame
                                         byte[] blockFrame = new byte[block.Length + 8];
                                         Array.Copy(shortId, 0, blockFrame, 0, 6);
-                                        if (i == file.Blocks.Length - 1) { blockFrame[6] += 1; }
+                                        if (file.StationFile) { blockFrame[5] += 0x02; }
+                                        if (i == file.Blocks.Length - 1) { blockFrame[5] += 0x01; }
                                         blockFrame[6] = (byte)(i >> 8);
                                         blockFrame[7] = (byte)(i & 0xFF);
                                         Array.Copy(block, 0, blockFrame, 8, block.Length);
@@ -358,6 +361,8 @@ namespace HTCommander
                                         packet.pid = 163; // Data packet
                                         packet.channel_id = p.channel_id;
                                         packet.channel_name = p.channel_name;
+                                        packet.tag = file.Callsign + "-" + file.StationId + "-" + Utils.BytesToHex(shortId) + "-" + i; // Tag this packet so we can delete it from the send queue if needed.
+                                        packet.deadline = DateTime.Now.AddSeconds(60); // If we can't send this in the next 60 seconds, don't bother.
                                         parent.radio.TransmitTncData(packet, packet.channel_id);
                                     }
                                 }
@@ -372,46 +377,72 @@ namespace HTCommander
             else if (p.pid == 163)
             {
                 // This is a data block
+                string callsign = p.addresses[0].address;
+                int stationId = p.addresses[0].SSID;
                 byte[] blockShortId = new byte[6];
                 Array.Copy(p.data, 0, blockShortId, 0, 6);
-                bool lastBlock = ((p.data[6] & 0x01) != 0);
+                bool lastBlock = ((p.data[5] & 0x01) != 0);
+                bool isStationFile = ((p.data[5] & 0x02) != 0);
+                blockShortId[5] = (byte)(blockShortId[5] & 0xFC);
                 int blockNumber = (p.data[6] << 8) + p.data[7];
                 byte[] block = new byte[p.data.Length - 8];
                 Array.Copy(p.data, 8, block, 0, block.Length);
 
-                // See if we have a file that matches this block
-                foreach (TorrentFile file in Files)
+                // If we just received data that is in the transmit queue, delete it, someone else sent it
+                string packetTag = callsign + "-" + stationId + "-" + Utils.BytesToHex(blockShortId) + "-" + blockNumber;
+                parent.radio.DeleteTransmitByTag(packetTag);
+
+                if (isStationFile)
                 {
-                    if (file.ShortId.SequenceEqual(blockShortId) && !file.Completed)
+                    // See if a station matches this block
+                    TorrentFile sfile = null;
+                    foreach (TorrentFile file in Stations)
                     {
-                        if (file.Blocks == null) { file.Blocks = new byte[blockNumber + (lastBlock ? 1 : 40)][]; }
-                        if (file.Blocks.Length <= blockNumber) { Array.Resize(ref file.Blocks, blockNumber + (lastBlock ? 1 : 40)); }
-                        if (file.Blocks[blockNumber] == null)
+                        if ((file.Callsign == callsign) && (file.StationId == stationId) && file.ShortId.SequenceEqual(blockShortId) && !file.Completed) { sfile = file; }
+
+                        // If the file is completed, nothing more to do
+                        if ((sfile != null) && sfile.Completed) return;
+
+                        // TODO: This is not a known station, create a new TorrentFile for it.
+
+                        if (sfile != null)
                         {
-                            file.Blocks[blockNumber] = block;
-                            file.AppendToTorrentFile(blockNumber, false, false);
-                            file.ReceivedLastBlock = lastBlock;
-                            int r = file.IsCompleted();
-                            if (r == 1) { file.Completed = true; file.Mode = TorrentFile.TorrentModes.Sharing; }
-                            if (r == 2) { file.Mode = TorrentFile.TorrentModes.Error; }
-                            parent.updateTorrent(file);
+                            if ((file.Blocks == null) && (file.Blocks.Length <= blockNumber)) return;
+                            if (file.Blocks[blockNumber] == null)
+                            {
+                                file.Blocks[blockNumber] = block;
+                                file.ReceivedLastBlock = lastBlock;
+                                int r = file.IsCompleted();
+                                if (r == 1) { file.Completed = true; file.Mode = TorrentFile.TorrentModes.Sharing; UpdateStationAdvertised(file); }
+                                if (r == 2) { file.Mode = TorrentFile.TorrentModes.Error; }
+                            }
                         }
                     }
                 }
-
-                // See if a station matches this block
-                foreach (TorrentFile file in Stations)
+                else
                 {
-                    if (file.ShortId.SequenceEqual(blockShortId) && !file.Completed)
+                    // See if we have a file that matches this block
+                    TorrentFile mfile = null;
+                    foreach (TorrentFile file in Files) { if ((file.Callsign == callsign) && (file.StationId == stationId) && file.ShortId.SequenceEqual(blockShortId)) { mfile = file; } }
+
+                    // If the file is completed, nothing more to do
+                    if ((mfile != null) && mfile.Completed) return;
+
+                    // TODO: This is not a known file, create a new TorrentFile for it.
+
+                    if (mfile != null)
                     {
-                        if ((file.Blocks == null) && (file.Blocks.Length <= blockNumber)) return;
-                        if (file.Blocks[blockNumber] == null)
+                        if (mfile.Blocks == null) { mfile.Blocks = new byte[blockNumber + (lastBlock ? 1 : 40)][]; }
+                        if (mfile.Blocks.Length <= blockNumber) { Array.Resize(ref mfile.Blocks, blockNumber + (lastBlock ? 1 : 40)); }
+                        if (mfile.Blocks[blockNumber] == null)
                         {
-                            file.Blocks[blockNumber] = block;
-                            file.ReceivedLastBlock = lastBlock;
-                            int r = file.IsCompleted();
-                            if (r == 1) { file.Completed = true; file.Mode = TorrentFile.TorrentModes.Sharing; UpdateStationAdvertised(file); }
-                            if (r == 2) { file.Mode = TorrentFile.TorrentModes.Error; }
+                            mfile.Blocks[blockNumber] = block;
+                            mfile.AppendToTorrentFile(blockNumber, false, false);
+                            mfile.ReceivedLastBlock = lastBlock;
+                            int r = mfile.IsCompleted();
+                            if (r == 1) { mfile.Completed = true; mfile.Mode = TorrentFile.TorrentModes.Sharing; }
+                            if (r == 2) { mfile.Mode = TorrentFile.TorrentModes.Error; }
+                            parent.updateTorrent(mfile);
                         }
                     }
                 }
@@ -653,7 +684,8 @@ namespace HTCommander
         public int StationId; // Source Station ID
         public byte[] Id; // First 12 byte of SHA256 hash of compressed file
         private byte[] _ShortId; // First 6 byte of SHA256 hash of compressed file, last bit is cleared
-        public byte[] ShortId { get { if (_ShortId == null) { _ShortId = new byte[6]; Array.Copy(Id, 0, _ShortId, 0, 6); } _ShortId[5] = (byte)(_ShortId[5] & 0xFE); return _ShortId; } }
+        public bool StationFile = false; // True if this contains a list of files for a station
+        public byte[] ShortId { get { if (_ShortId == null) { _ShortId = new byte[6]; Array.Copy(Id, 0, _ShortId, 0, 6); } _ShortId[5] = (byte)(_ShortId[5] & 0xFC); return _ShortId; } }
         public string FileName; // File name
         public string Description; // File description, max 200 bytes
         public int Size; // File size

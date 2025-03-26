@@ -27,6 +27,7 @@ using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
 using HTCommander.radio;
 
+
 #if !__MonoCS__
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
@@ -130,6 +131,7 @@ namespace HTCommander
             radio.DebugMessage += Radio_DebugMessage;
             radio.OnInfoUpdate += Radio_InfoUpdate;
             radio.OnDataFrame += Radio_OnDataFrame;
+            radio.OnChannelClear += Radio_OnChannelClear;
             mainTabControl.SelectedTab = aprsTabPage;
 
 #if !__MonoCS__
@@ -505,6 +507,13 @@ namespace HTCommander
                 UpdateInfo();
                 radioStateLabel.Text = "Disconnected";
             }
+        }
+
+        private void Radio_OnChannelClear(Radio sender)
+        {
+            if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_OnChannelClear(sender); })); return; }
+
+            DebugTrace("Channel is clear");
         }
 
         private void Radio_OnDataFrame(Radio sender, TncDataFragment frame)

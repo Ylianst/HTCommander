@@ -43,6 +43,9 @@ namespace HTCommander
         public string dataStr; // Only used for I_FRAME and U_FRAME_UI
         public byte[] data;    // Only used for I_FRAME and U_FRAME_UI
 
+        // Tag and deadline are used to limit when a message can be sent
+        public string tag;
+        public DateTime deadline;
         public bool isSame(AX25Packet p)
         {
             if (p.dataStr != dataStr) return false;

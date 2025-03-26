@@ -236,17 +236,79 @@ namespace HTCommander
         public int BatteryAsPercentage = -1;
         public int Volume = -1;
         public bool LoopbackMode = false;
-        private List<fragmentInQueue> TncFragmentQueue = new List<fragmentInQueue>();
+        private List<FragmentInQueue> TncFragmentQueue = new List<FragmentInQueue>();
         private bool TncFragmentInFlight = false;
         public int TransmitQueueLength { get { return TncFragmentQueue.Count; } }
+        public void DeleteTransmitByTag(string tag) { lock (TncFragmentQueue) { foreach (FragmentInQueue f in TncFragmentQueue) { if (f.tag == tag) { f.deleted = true; } } } }
 
-        private class fragmentInQueue
+        // Timer that calls back when the frequency is clear
+        private System.Timers.Timer ClearChannelTimer = new System.Timers.Timer();
+        private DateTime nextMinFreeChannelTime = DateTime.MaxValue; // We never want to call back that the frequency is clear before this time
+        private int nextChannelTimeRandomMS = 100; // If the frequency is clear, we want to add a random milli seconds delay before we call back
+        public void SetNextChannelTimeRandom(int ms) { nextChannelTimeRandomMS = ms; }
+        private int NextFreeChannelRandomTime() { return new Random().Next(0, nextChannelTimeRandomMS); }
+        public void SetNextFreeChannelTime(DateTime time)
+        {
+            nextMinFreeChannelTime = time;
+            if (nextMinFreeChannelTime == DateTime.MaxValue) { ClearChannelTimer.Stop(); }
+            ClearChannelTimer.Stop();
+            if (IsTncFree())
+            {
+                int delta = 0;
+                if (nextMinFreeChannelTime <= DateTime.Now) {
+                    delta = NextFreeChannelRandomTime();
+                } else {
+                    delta = (int)(nextMinFreeChannelTime - DateTime.Now).TotalMilliseconds + NextFreeChannelRandomTime();
+                }
+                ClearChannelTimer.Interval = delta;
+                ClearChannelTimer.Start();
+            }
+        }
+        private void ChannelState(bool channelFree)
+        {
+            if (channelFree == ClearChannelTimer.Enabled) return;
+            ClearChannelTimer.Stop();
+            if (channelFree)
+            {
+                int delta = 0;
+                if (nextMinFreeChannelTime <= DateTime.Now)
+                {
+                    delta = NextFreeChannelRandomTime();
+                }
+                else
+                {
+                    delta = (int)(nextMinFreeChannelTime - DateTime.Now).TotalMilliseconds + NextFreeChannelRandomTime();
+                }
+                ClearChannelTimer.Interval = delta;
+                ClearChannelTimer.Start();
+            }
+        }
+
+        private void ClearTransmitQueue()
+        {
+            lock (TncFragmentQueue)
+            {
+                if ((TncFragmentQueue.Count == 0) || (TncFragmentQueue[0].fragid != 0)) return;
+                DateTime now = DateTime.Now;
+                for (int i = 0; i < TncFragmentQueue.Count; i++)
+                {
+                    if ((TncFragmentQueue[i].deleted || (DateTime.Compare(TncFragmentQueue[i].deadline, DateTime.Now) <= 0))) { TncFragmentQueue.RemoveAt(i); i--; }
+                }
+            }
+        }
+
+        private class FragmentInQueue
         {
             public byte[] fragment;
             public bool isLast;
             public int fragid;
 
-            public fragmentInQueue(byte[] fragment, bool isLast, int fragid)
+            // Tag and deadline are used to limit when a message can be sent
+            public string tag;
+            public DateTime deadline;
+            public bool deleted;
+
+            public FragmentInQueue(byte[] fragment, bool isLast, int fragid)
             {
                 this.fragment = fragment;
                 this.isLast = isLast;
@@ -285,7 +347,16 @@ namespace HTCommander
         private TncDataFragment frameAccumulator = null;
         private RadioBluetoothWin radioTransport;
 
-        public Radio() { }
+        public Radio() {
+            ClearChannelTimer.Elapsed += ClearFrequencyTimer_Elapsed;
+            ClearChannelTimer.Enabled = false;
+        }
+        private void ClearFrequencyTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            ClearChannelTimer.Stop();
+            if (OnChannelClear != null) { OnChannelClear(this); }
+        }
+
         public string SelectedDevice { get { return ((radioTransport != null) && (state == RadioState.Connected)) ? radioTransport.selectedDevice : null; } }
 
 
@@ -306,8 +377,11 @@ namespace HTCommander
         public event InfoUpdateHandler OnInfoUpdate;
         private void Update(RadioUpdateNotification msg) { if (OnInfoUpdate != null) { OnInfoUpdate(this, msg); } }
 
-        public delegate void PakcetHandler(Radio sender, TncDataFragment frame);
-        public event PakcetHandler OnDataFrame;
+        public delegate void PacketHandler(Radio sender, TncDataFragment frame);
+        public event PacketHandler OnDataFrame;
+
+        public delegate void ChannelClearHandler(Radio sender);
+        public event ChannelClearHandler OnChannelClear;
 
         public void Dispose()
         {
@@ -403,6 +477,7 @@ namespace HTCommander
 
         private void RadioTransport_ReceivedData(RadioBluetoothWin sender, Exception error, byte[] value)
         {
+            bool channelFree;
             if ((state != RadioState.Connected) && (state != RadioState.Connecting)) { return; }
             if (error != null) { Debug($"Notification ERROR SET"); }
             if (value == null) { Debug($"Notification: NULL"); return; }
@@ -465,19 +540,26 @@ namespace HTCommander
                                         Update(RadioUpdateNotification.ChannelInfo);
                                         UpdateChannels();
                                     }
-                                    
+
                                     //Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}, RSSI={HtStatus.rssi}");
-                                    if (IsTncFree() && (TncFragmentInFlight == false) && (TncFragmentQueue.Count > 0)) // We are clear to send a packet
+                                    ClearTransmitQueue();
+                                    channelFree = IsTncFree();
+                                    if (channelFree && (TncFragmentInFlight == false) && (TncFragmentQueue.Count > 0)) // We are clear to send a packet
                                     {
                                         // Send more data
+                                        channelFree = false;
                                         TncFragmentInFlight = true;
                                         SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
                                     }
                                     else if (TncFragmentInFlight && HtStatus.is_in_rx)
                                     {
-                                        // Send more data
+                                        // The data we sent needs to be sent again
                                         TncFragmentInFlight = false;
                                     }
+
+                                    // Used to call back when the channel is clear
+                                    ChannelState(channelFree);
+
                                     break;
                                 //case RadioNotification.HT_CH_CHANGED:
                                 //Event: 00020009050508CCCEC008C3A70027102710940053796C76616E00000000
@@ -577,16 +659,19 @@ namespace HTCommander
                             // Data sent, ready to send more
                             // 0002801F00 = OK READY FOR MORE.
                             // 0002801F06 = NOT READY, TRY AGAIN.
+                            ClearTransmitQueue();
                             if (TncFragmentQueue.Count == 0) { TncFragmentInFlight = false; break; }
 
+                            channelFree = IsTncFree();
                             RadioCommandState errorCode = (RadioCommandState)value[4];
                             if (errorCode == RadioCommandState.INCORRECT_STATE)
                             {
                                 if (TncFragmentQueue[0].fragid == 0)
                                 {
-                                    if (IsTncFree())
+                                    if (channelFree)
                                     {
                                         // If this is the first fragment, try again
+                                        channelFree = false;
                                         TncFragmentInFlight = true;
                                         Debug("TNC Fragment failed, TRYING AGAIN.");
                                         SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
@@ -612,9 +697,10 @@ namespace HTCommander
                             }
 
                             // Ready for more data. If this is the start of a new fragment, wait with RSSI is zero.
-                            if ((TncFragmentQueue.Count > 0) && ((TncFragmentQueue[0].fragid != 0) || IsTncFree()))
+                            if ((TncFragmentQueue.Count > 0) && ((TncFragmentQueue[0].fragid != 0) || channelFree))
                             {
                                 // Send the next fragment
+                                channelFree = false;
                                 TncFragmentInFlight = true;
                                 SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
                             }
@@ -623,6 +709,10 @@ namespace HTCommander
                                 // Nothing more to send
                                 TncFragmentInFlight = false;
                             }
+
+                            // Used to call back when the channel is clear
+                            ChannelState(channelFree);
+
                             break;
                         case RadioBasicCommand.SET_VOLUME:
                             break;
@@ -715,7 +805,7 @@ namespace HTCommander
                 fragmentChannelName = Channels[channelId].name_str;
             }
 
-            // Create a fragment for eventing that we are sendign this
+            // Create a large TNC fragment 
             TncDataFragment fragment = new TncDataFragment(true, 0, outboundData, channelId, regionId);
             fragment.incoming = false;
             fragment.time = t;
@@ -724,7 +814,7 @@ namespace HTCommander
 
             if (LoopbackMode == false)
             {
-                // Break the packet into fragments and send
+                // Break the packet into smaller Bluetooth fragments
                 int fragid = 0;
                 while (i < outboundData.Length)
                 {
@@ -733,7 +823,10 @@ namespace HTCommander
                     Array.Copy(outboundData, i, fragmentData, 0, fragmentSize);
                     bool isLast = (i + fragmentData.Length) == outboundData.Length;
                     fragment = new TncDataFragment(isLast, fragid, fragmentData, channelId, regionId);
-                    TncFragmentQueue.Add(new fragmentInQueue(fragment.toByteArray(), isLast, fragid));
+                    FragmentInQueue fragmentInQueue = new FragmentInQueue(fragment.toByteArray(), isLast, fragid);
+                    fragmentInQueue.tag = packet.tag;
+                    fragmentInQueue.deadline = packet.deadline;
+                    TncFragmentQueue.Add(fragmentInQueue);
                     i += fragmentSize;
                     fragid++;
                 }
