@@ -244,9 +244,9 @@ namespace HTCommander
         // Timer that calls back when the frequency is clear
         private System.Timers.Timer ClearChannelTimer = new System.Timers.Timer();
         private DateTime nextMinFreeChannelTime = DateTime.MaxValue; // We never want to call back that the frequency is clear before this time
-        private int nextChannelTimeRandomMS = 150; // If the frequency is clear, we want to add a random milli seconds delay before we call back
+        private int nextChannelTimeRandomMS = 800; // If the frequency is clear, we want to add a random milli seconds delay before we call back
         public void SetNextChannelTimeRandom(int ms) { nextChannelTimeRandomMS = ms; }
-        private int NextFreeChannelRandomTime() { return 50 + new Random().Next(0, nextChannelTimeRandomMS); }
+        private int NextFreeChannelRandomTime() { return 800 + new Random().Next(0, nextChannelTimeRandomMS); }
         public void SetNextFreeChannelTime(DateTime time)
         {
             nextMinFreeChannelTime = time;
@@ -260,8 +260,11 @@ namespace HTCommander
                 } else {
                     delta = (int)(nextMinFreeChannelTime - DateTime.Now).TotalMilliseconds + NextFreeChannelRandomTime();
                 }
-                ClearChannelTimer.Interval = delta;
-                ClearChannelTimer.Start();
+                if (delta > 0)
+                {
+                    ClearChannelTimer.Interval = delta;
+                    ClearChannelTimer.Start();
+                }
             }
         }
         private void ChannelState(bool channelFree)

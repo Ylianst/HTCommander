@@ -32,6 +32,7 @@ namespace HTCommander
         public TorrentFile Advertised = null;
         public List<TorrentFile> Stations = new List<TorrentFile>();
         public const int DefaultBlockSize = 170;
+        public bool FirstDiscovery = true;
 
         public Torrent(MainForm parent)
         {
@@ -41,7 +42,8 @@ namespace HTCommander
         public void ChannelIsClear()
         {
             if ((parent.radio == null) || (parent.radio.TransmitQueueLength > 0)) return;
-            SendRequestFrame();
+            SendRequestFrame(FirstDiscovery);
+            FirstDiscovery = false;
             parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(30));
         }
 
@@ -65,8 +67,10 @@ namespace HTCommander
         {
             if (Active == active) return;
             Active = active;
-            if (active) {
+            if (active)
+            {
                 //SendRequestFrame(true);
+                FirstDiscovery = true;
                 parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(5));
             }
         }
@@ -100,7 +104,8 @@ namespace HTCommander
         public void SendRequest()
         {
             // Send a request frame
-            SendRequestFrame();
+            SendRequestFrame(FirstDiscovery);
+            FirstDiscovery = false;
         }
 
         private void SendRequestFrame(bool discovery = false)
@@ -324,9 +329,11 @@ namespace HTCommander
                                 sFile.StationId = stationId;
                                 sFile.Blocks = new byte[sblockCount][];
                                 sFile.Completed = false;
+                                sFile.StationFile = true;
                                 sFile.ReceivedLastBlock = true;
                                 sFile.Mode = TorrentFile.TorrentModes.Request;
                                 Stations.Add(sFile);
+                                parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(1));
                             }
                             break;
                         case 5: // Short Id
@@ -348,7 +355,7 @@ namespace HTCommander
                                         // Create the block frame
                                         byte[] blockFrame = new byte[block.Length + 8];
                                         Array.Copy(shortId, 0, blockFrame, 0, 6);
-                                        if (file.StationFile) { blockFrame[5] += 0x02; }
+                                        //if (file.StationFile) { blockFrame[5] += 0x02; }
                                         if (i == file.Blocks.Length - 1) { blockFrame[5] += 0x01; }
                                         blockFrame[6] = (byte)(i >> 8);
                                         blockFrame[7] = (byte)(i & 0xFF);
@@ -383,7 +390,7 @@ namespace HTCommander
                 Array.Copy(p.data, 0, blockShortId, 0, 6);
                 bool lastBlock = ((p.data[5] & 0x01) != 0);
                 bool isStationFile = ((p.data[5] & 0x02) != 0);
-                blockShortId[5] = (byte)(blockShortId[5] & 0xFC);
+                blockShortId[5] = (byte)(blockShortId[5] & 0xFE);
                 int blockNumber = (p.data[6] << 8) + p.data[7];
                 byte[] block = new byte[p.data.Length - 8];
                 Array.Copy(p.data, 8, block, 0, block.Length);
@@ -437,7 +444,7 @@ namespace HTCommander
                         if (mfile.Blocks[blockNumber] == null)
                         {
                             mfile.Blocks[blockNumber] = block;
-                            mfile.AppendToTorrentFile(blockNumber, false, false);
+                            mfile.AppendToTorrentFile(blockNumber, false, false, false);
                             mfile.ReceivedLastBlock = lastBlock;
                             int r = mfile.IsCompleted();
                             if (r == 1) { mfile.Completed = true; mfile.Mode = TorrentFile.TorrentModes.Sharing; }
@@ -447,6 +454,11 @@ namespace HTCommander
                     }
                 }
             }
+        }
+
+        public void UpdateAllStations()
+        {
+            foreach (TorrentFile file in Stations) { UpdateStationAdvertised(file); }
         }
 
         private void UpdateStationAdvertised(TorrentFile torrentFile)
@@ -521,6 +533,7 @@ namespace HTCommander
                             tFile.Description = xdescription;
                             tFile.Blocks = new byte[blockCount][];
                             tFile.WriteTorrentFile();
+                            updatedTorrentFiles.Add(tFile);
                             xfilename = null;
                             xdescription = null;
                         }
@@ -535,20 +548,18 @@ namespace HTCommander
                 bool found = false;
                 foreach (TorrentFile file in Files)
                 {
-                    if ((file.Id.SequenceEqual(tFile.Id)) && (file.Callsign == tFile.Callsign) && (tFile.StationId == file.StationId)) {
+                    if ((file.ShortId.SequenceEqual(tFile.ShortId)) && (file.Callsign == tFile.Callsign) && (tFile.StationId == file.StationId))
+                    {
                         found = true;
-                        bool filenameChanged = false, descriptionChanged = false;
-                        if (file.FileName != tFile.FileName) { file.FileName = tFile.FileName; filenameChanged = true;  changed = true; }
-                        if (file.Description != tFile.Description) { file.Description = tFile.Description; descriptionChanged = true;  changed = true; }
-                        if (filenameChanged || descriptionChanged) { tFile.AppendToTorrentFile(-1, filenameChanged, descriptionChanged); }
+                        bool idChanged = false, filenameChanged = false, descriptionChanged = false;
+                        if (file.Id == null) { file.Id = tFile.Id; idChanged = true; changed = true; }
+                        if (file.FileName != tFile.FileName) { file.FileName = tFile.FileName; filenameChanged = true; changed = true; }
+                        if (file.Description != tFile.Description) { file.Description = tFile.Description; descriptionChanged = true; changed = true; }
+                        if (filenameChanged || descriptionChanged) { tFile.AppendToTorrentFile(-1, idChanged, filenameChanged, descriptionChanged); }
                         break;
                     }
                 }
-                if (!found) {
-                    Files.Add(tFile);
-                    updatedTorrentFiles.Add(tFile);
-                }
-                changed = true;
+                if (!found) { Files.Add(tFile); changed = true; }
             }
 
             // If we have files that are not in the updated list, remove them.
@@ -612,6 +623,7 @@ namespace HTCommander
 
             TorrentFile torrentFile = new TorrentFile();
             torrentFile.Completed = true;
+            torrentFile.StationFile = true;
             torrentFile.Callsign = parent.callsign;
             torrentFile.StationId = parent.stationId;
             torrentFile.Mode = TorrentFile.TorrentModes.Sharing;
@@ -685,7 +697,7 @@ namespace HTCommander
         public byte[] Id; // First 12 byte of SHA256 hash of compressed file
         private byte[] _ShortId; // First 6 byte of SHA256 hash of compressed file, last bit is cleared
         public bool StationFile = false; // True if this contains a list of files for a station
-        public byte[] ShortId { get { if (_ShortId == null) { _ShortId = new byte[6]; Array.Copy(Id, 0, _ShortId, 0, 6); } _ShortId[5] = (byte)(_ShortId[5] & 0xFC); return _ShortId; } }
+        public byte[] ShortId { get { if (_ShortId == null) { _ShortId = new byte[6]; Array.Copy(Id, 0, _ShortId, 0, 6); } _ShortId[5] = (byte)((_ShortId[5] & 0xFC) + (StationFile ? 2 : 0)); return _ShortId; } }
         public string FileName; // File name
         public string Description; // File description, max 200 bytes
         public int Size; // File size
@@ -698,7 +710,8 @@ namespace HTCommander
         public ListViewItem ListViewItem;
 
         public int TotalBlocks { get { if (Blocks != null) { return Blocks.Length; } else { return 0; } } }
-        public int ReceivedBlocks {
+        public int ReceivedBlocks
+        {
             get
             {
                 if (Blocks == null) return 0;
@@ -718,7 +731,8 @@ namespace HTCommander
 
             // Compute the total size of all blocks
             int totalSize = 0;
-            for (int i = 0; i < Blocks.Length; i++) {
+            for (int i = 0; i < Blocks.Length; i++)
+            {
                 if (Blocks[i] == null) return 0;
                 totalSize += Blocks[i].Length;
             }
@@ -859,7 +873,7 @@ namespace HTCommander
             if (File.Exists(filename)) { File.Delete(filename); }
         }
 
-        public void AppendToTorrentFile(int blockIndex, bool updateFilename, bool updateDesc)
+        public void AppendToTorrentFile(int blockIndex, bool idChanged, bool updateFilename, bool updateDesc)
         {
             // Get the path to the current user's Roaming AppData folder.
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -876,6 +890,7 @@ namespace HTCommander
             BinaryDataFile binaryDataFile = new BinaryDataFile(filename);
             binaryDataFile.Open();
             binaryDataFile.SeekToEnd();
+            if (idChanged) { binaryDataFile.AppendRecord(3, Id); }
             if (updateFilename) { binaryDataFile.AppendRecord(6, FileName); }
             if (updateDesc) { binaryDataFile.AppendRecord(6, Description); }
             if (blockIndex >= 0) { binaryDataFile.AppendRecord(14, blockIndex); binaryDataFile.AppendRecord(15, Blocks[blockIndex]); }

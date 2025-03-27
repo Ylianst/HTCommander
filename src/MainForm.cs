@@ -861,7 +861,17 @@ namespace HTCommander
                         vfo1Label.Text = "Empty";
                         vfo1FreqLabel.Text = "";
                     }
-                    vfo1StatusLabel.Text = (activeStationLock == null) ? "" : "Locked";
+                    if (activeStationLock == null)
+                    {
+                        vfo1StatusLabel.Text = "";
+                    }
+                    else
+                    {
+                        if (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal) { vfo1StatusLabel.Text = "Terminal"; }
+                        else if (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink) { vfo1StatusLabel.Text = "WinLink"; }
+                        else if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS) { vfo1StatusLabel.Text = "BBS"; }
+                        else if (activeStationLock.StationType == StationInfoClass.StationTypes.Torrent) { vfo1StatusLabel.Text = "Torrent"; }
+                    }
                 }
                 else
                 {
@@ -3801,22 +3811,33 @@ namespace HTCommander
 
         private void torrentListView_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (torrentListView.SelectedItems.Count == 1)
+            if (torrentListView.SelectedItems.Count > 0)
             {
                 TorrentFile file = (TorrentFile)torrentListView.SelectedItems[0].Tag;
 
+                bool hasPaused = false, hasShared = false, hasRequest = false, hasNotError = false, hasCompleted = false, hasNotCompleted = false;
+                foreach (ListViewItem l in torrentListView.SelectedItems)
+                {
+                    TorrentFile xfile = (TorrentFile)l.Tag;
+                    if (xfile.Mode == TorrentFile.TorrentModes.Pause) { hasPaused = true; hasNotError = true; }
+                    if (xfile.Mode == TorrentFile.TorrentModes.Sharing) { hasShared = true; hasNotError = true; }
+                    if (xfile.Mode == TorrentFile.TorrentModes.Request) { hasRequest = true; hasNotError = true; }
+                    if (xfile.Completed == true) { hasCompleted = true; }
+                    if (xfile.Completed == false) { hasNotCompleted = true; }
+                }
+
                 torrentPauseToolStripMenuItem.Visible = true;
-                torrentPauseToolStripMenuItem.Checked = (file.Mode == TorrentFile.TorrentModes.Pause);
-                torrentPauseToolStripMenuItem.Enabled = (file.Mode != TorrentFile.TorrentModes.Error);
+                torrentPauseToolStripMenuItem.Checked = hasPaused;
+                torrentPauseToolStripMenuItem.Enabled = hasNotError;
                 torrentShareToolStripMenuItem.Visible = true;
-                torrentShareToolStripMenuItem.Checked = (file.Mode == TorrentFile.TorrentModes.Sharing);
-                torrentShareToolStripMenuItem.Enabled = (file.Completed == true) && (file.Mode != TorrentFile.TorrentModes.Error);
+                torrentShareToolStripMenuItem.Checked = hasShared;
+                torrentShareToolStripMenuItem.Enabled = hasCompleted && hasNotError;
                 torrentRequestToolStripMenuItem.Visible = true;
-                torrentRequestToolStripMenuItem.Checked = (file.Mode == TorrentFile.TorrentModes.Request);
-                torrentRequestToolStripMenuItem.Enabled = (file.Completed == false) && (file.Mode != TorrentFile.TorrentModes.Error);
+                torrentRequestToolStripMenuItem.Checked = hasRequest;
+                torrentRequestToolStripMenuItem.Enabled = hasNotCompleted && hasNotError;
                 toolStripMenuItem19.Visible = true;
                 torrentSaveAsToolStripMenuItem.Visible = true;
-                torrentSaveAsToolStripMenuItem.Enabled = file.Completed && (file.Mode != TorrentFile.TorrentModes.Error);
+                torrentSaveAsToolStripMenuItem.Enabled = hasCompleted && hasNotError && (torrentListView.SelectedItems.Count == 1);
                 toolStripMenuItem20.Visible = true;
                 torrentDeleteToolStripMenuItem.Visible = true;
 
@@ -3855,27 +3876,43 @@ namespace HTCommander
 
         private void torrentPauseToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (torrentListView.SelectedItems.Count != 1) return;
-            TorrentFile file = (TorrentFile)torrentListView.SelectedItems[0].Tag;
-            file.Mode = TorrentFile.TorrentModes.Pause;
-            file.ListViewItem.SubItems[1].Text = file.Mode.ToString();
+            foreach (ListViewItem l in torrentListView.SelectedItems)
+            {
+                TorrentFile file = (TorrentFile)l.Tag;
+                if (file.Mode != TorrentFile.TorrentModes.Error)
+                {
+                    file.Mode = TorrentFile.TorrentModes.Pause;
+                    l.SubItems[1].Text = file.Mode.ToString();
+                }
+            }
         }
 
         private void torrentShareToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (torrentListView.SelectedItems.Count != 1) return;
-            TorrentFile file = (TorrentFile)torrentListView.SelectedItems[0].Tag;
-            file.Mode = TorrentFile.TorrentModes.Sharing;
-            file.ListViewItem.SubItems[1].Text = file.Mode.ToString();
+            foreach (ListViewItem l in torrentListView.SelectedItems)
+            {
+                TorrentFile file = (TorrentFile)l.Tag;
+                if ((file.Mode != TorrentFile.TorrentModes.Error) && (file.Completed == true))
+                {
+                    file.Mode = TorrentFile.TorrentModes.Sharing;
+                    l.SubItems[1].Text = file.Mode.ToString();
+                }
+            }
         }
 
         private void torrentRequestToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (torrentListView.SelectedItems.Count != 1) return;
-            TorrentFile file = (TorrentFile)torrentListView.SelectedItems[0].Tag;
-            file.Mode = TorrentFile.TorrentModes.Request;
-            file.ListViewItem.SubItems[1].Text = file.Mode.ToString();
-            torrent.SendRequest(); // Cause a request frame to be sent
+            bool sendRequest = false;
+            foreach (ListViewItem l in torrentListView.SelectedItems)
+            {
+                TorrentFile file = (TorrentFile)l.Tag;
+                if ((file.Mode != TorrentFile.TorrentModes.Error) && (file.Completed == false) && (file.Mode != TorrentFile.TorrentModes.Sharing))
+                {
+                    file.Mode = TorrentFile.TorrentModes.Request;
+                    l.SubItems[1].Text = file.Mode.ToString();
+                }
+            }
+            if (sendRequest) torrent.SendRequest(); // Cause a request frame to be sent
         }
 
         private void torrentContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
@@ -3885,13 +3922,17 @@ namespace HTCommander
 
         private void torrentDeleteToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (torrentListView.SelectedItems.Count != 1) return;
-            if (MessageBox.Show(this, "Deleted selected torrent file?", "Torrent", MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.OK)
+            if (torrentListView.SelectedItems.Count == 0) return;
+            if (MessageBox.Show(this, (torrentListView.SelectedItems.Count == 1) ? "Deleted selected torrent file?" : "Deleted selected torrent files?", "Torrent", MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.OK)
             {
-                TorrentFile file = (TorrentFile)torrentListView.SelectedItems[0].Tag;
-                file.DeleteTorrentFile();
-                torrent.Remove(file);
-                torrentListView.Items.Remove(torrentListView.SelectedItems[0]);
+                foreach (ListViewItem l in torrentListView.SelectedItems)
+                {
+                    TorrentFile file = (TorrentFile)l.Tag;
+                    file.DeleteTorrentFile(); // TODO
+                    torrent.Remove(file);
+                    torrentListView.Items.Remove(torrentListView.SelectedItems[0]);
+                }
+                torrent.UpdateAllStations();
             }
         }
 
