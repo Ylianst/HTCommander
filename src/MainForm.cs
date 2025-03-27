@@ -514,6 +514,10 @@ namespace HTCommander
             if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_OnChannelClear(sender); })); return; }
 
             DebugTrace("Channel is clear");
+            if ((activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Torrent))
+            {
+                torrent.ChannelIsClear();
+            }
         }
 
         private void Radio_OnDataFrame(Radio sender, TncDataFragment frame)
@@ -2675,6 +2679,7 @@ namespace HTCommander
         {
             if (station == null)
             {
+                radio.SetNextFreeChannelTime(DateTime.MaxValue);
                 if (session.CurrentState != AX25Session.ConnectionState.DISCONNECTED)
                 {
                     session.Disconnect();

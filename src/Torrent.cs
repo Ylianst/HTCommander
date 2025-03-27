@@ -31,20 +31,18 @@ namespace HTCommander
         public List<TorrentFile> Files = new List<TorrentFile>();
         public TorrentFile Advertised = null;
         public List<TorrentFile> Stations = new List<TorrentFile>();
-        private System.Timers.Timer BeaconTimer = new System.Timers.Timer();
         public const int DefaultBlockSize = 170;
 
         public Torrent(MainForm parent)
         {
             this.parent = parent;
-            BeaconTimer.Elapsed += BeaconTimer_Elapsed;
-            BeaconTimer.Interval = 30000;
         }
 
-        private void BeaconTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        public void ChannelIsClear()
         {
             if ((parent.radio == null) || (parent.radio.TransmitQueueLength > 0)) return;
             SendRequestFrame();
+            parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(30));
         }
 
         public bool Add(TorrentFile file)
@@ -67,8 +65,10 @@ namespace HTCommander
         {
             if (Active == active) return;
             Active = active;
-            BeaconTimer.Enabled = active;
-            if (active) { SendRequestFrame(true); }
+            if (active) {
+                //SendRequestFrame(true);
+                parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(5));
+            }
         }
 
         private TorrentFile FindStationFile(string callsign, int stationId)
