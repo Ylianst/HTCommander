@@ -724,6 +724,7 @@ namespace HTCommander
                                 break;
                             case Radio.RadioState.UnableToConnect:
                                 radioStateLabel.Text = "Can't connect";
+                                new CantConnectForm().ShowDialog(this);
                                 break;
                             case Radio.RadioState.AccessDenied:
                                 radioStateLabel.Text = "Access Denied";

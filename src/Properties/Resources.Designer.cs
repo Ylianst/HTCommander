@@ -73,6 +73,16 @@ namespace HTCommander.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap CantConnect {
+            get {
+                object obj = ResourceManager.GetObject("CantConnect", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap Certificate {
             get {
                 object obj = ResourceManager.GetObject("Certificate", resourceCulture);

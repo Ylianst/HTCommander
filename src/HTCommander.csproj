@@ -152,6 +152,12 @@
     <Compile Include="BTActivateForm.Designer.cs">
       <DependentUpon>BTActivateForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="CantConnectForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="CantConnectForm.Designer.cs">
+      <DependentUpon>CantConnectForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="EditBeaconSettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -342,6 +348,9 @@
     <EmbeddedResource Include="BTActivateForm.resx">
       <DependentUpon>BTActivateForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="CantConnectForm.resx">
+      <DependentUpon>CantConnectForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="EditBeaconSettingsForm.resx">
       <DependentUpon>EditBeaconSettingsForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -438,6 +447,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="HTCommander.ico" />
+    <None Include="Resources\CantConnect.png" />
     <None Include="Resources\file-transfer.png" />
     <None Include="Resources\DownArrow64.png" />
     <None Include="Resources\xicon64.png" />
