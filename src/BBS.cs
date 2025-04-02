@@ -22,8 +22,6 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using aprsparser;
 using HTCommander.radio;
-using Windows.Storage;
-using static System.Collections.Specialized.BitVector32;
 
 namespace HTCommander
 {

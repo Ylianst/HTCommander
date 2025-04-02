@@ -19,7 +19,6 @@ using System.IO;
 using System.Net;
 using System.Collections.Generic;
 
-
 namespace HTCommander
 {
     public class Radio : IDisposable
@@ -238,6 +237,8 @@ namespace HTCommander
         public bool LoopbackMode = false;
         private List<FragmentInQueue> TncFragmentQueue = new List<FragmentInQueue>();
         private bool TncFragmentInFlight = false;
+        private RadioAudio radioAudio;
+        private string macAddress;
         public int TransmitQueueLength { get { return TncFragmentQueue.Count; } }
         public void DeleteTransmitByTag(string tag) { lock (TncFragmentQueue) { foreach (FragmentInQueue f in TncFragmentQueue) { if (f.tag == tag) { f.deleted = true; } } } }
 
@@ -354,6 +355,8 @@ namespace HTCommander
         private RadioBluetoothWin radioTransport;
 
         public Radio() {
+            radioAudio = new RadioAudio();
+            radioAudio.OnDebugMessage += RadioAudio_OnDebugMessage;
             ClearChannelTimer.Elapsed += ClearFrequencyTimer_Elapsed;
             ClearChannelTimer.Enabled = false;
         }
@@ -418,14 +421,40 @@ namespace HTCommander
 
             radioTransport = new RadioBluetoothWin(this);
             radioTransport.ReceivedData += RadioTransport_ReceivedData;
-            bool success = await radioTransport.Connect(macAddress);
-            if (success)
+            radioTransport.OnDebugMessage += RadioTransport_OnDebugMessage;
+            radioTransport.OnConnected += RadioTransport_OnConnected;
+            radioTransport.Connect(macAddress);
+            this.macAddress = macAddress;
+        }
+
+        private void RadioTransport_OnConnected()
+        {
+            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
+            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_SETTINGS, null);
+            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_BSS_SETTINGS, null);
+            RequestPowerStatus(RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE);
+        }
+
+        private void RadioTransport_OnDebugMessage(string msg)
+        {
+            Debug("Transport: " + msg);
+        }
+
+        public void AudioEnabled(bool enabled)
+        {
+            if (enabled)
             {
-                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
-                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_SETTINGS, null);
-                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_BSS_SETTINGS, null);
-                RequestPowerStatus(RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE);
+                radioAudio.Start("38D20000FAF9");
             }
+            else
+            {
+                radioAudio.Stop();
+            }
+        }
+
+        private void RadioAudio_OnDebugMessage(string msg)
+        {
+            Debug("Audio: " + msg);
         }
 
         private void UpdateChannels()
@@ -571,7 +600,7 @@ namespace HTCommander
                                 //Event: 00020009050508CCCEC008C3A70027102710940053796C76616E00000000
                                 //break;
                                 case RadioNotification.DATA_RXD:
-                                    //Debug("RawData: " + BytesToHex(e.Value));
+                                    Debug("RawData: " + Utils.BytesToHex(value));
                                     TncDataFragment fragment = new TncDataFragment(value);
                                     if ((fragment.channel_id == -1) && (HtStatus != null))
                                     {

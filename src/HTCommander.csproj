@@ -262,6 +262,9 @@
     <Compile Include="radio\AX25Address.cs" />
     <Compile Include="radio\AX25Packet.cs" />
     <Compile Include="radio\AX25Session.cs" />
+    <Compile Include="radio\LibSbc.cs" />
+    <Compile Include="radio\RadioAudio.cs" />
+    <Compile Include="radio\RadioBluetoothWin.cs" />
     <Compile Include="radio\WinLinkMail.cs" />
     <Compile Include="radio\WinLinkUtils.cs" />
     <Compile Include="radio\Radio.cs" />
@@ -296,7 +299,6 @@
       <DependentUpon>RadioVolumeForm.cs</DependentUpon>
     </Compile>
     <Compile Include="radio\RadioBluetoothLinux.cs" />
-    <Compile Include="radio\RadioBluetoothWin.cs" />
     <Compile Include="radio\RadioBssSettings.cs" />
     <Compile Include="radio\RadioChannelInfo.cs" />
     <Compile Include="radio\RadioDevInfo.cs" />
@@ -441,8 +443,14 @@
     <PackageReference Include="GMap.NET.WinForms">
       <Version>2.1.7</Version>
     </PackageReference>
-    <PackageReference Include="InTheHand.BluetoothLE">
-      <Version>4.0.37</Version>
+    <PackageReference Include="InTheHand.Net.Bluetooth">
+      <Version>4.2.1</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts">
+      <Version>10.0.26100.1742</Version>
+    </PackageReference>
+    <PackageReference Include="NAudio">
+      <Version>2.2.1</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>

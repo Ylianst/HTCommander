@@ -460,7 +460,7 @@ namespace HTCommander
         {
             radioStateLabel.Text = "Searching";
             DebugTrace("Looking for compatible radios...");
-            bluetoothEnabled = await RadioBluetoothWin.CheckBluetooth();
+            bluetoothEnabled = RadioBluetoothWin.CheckBluetooth();
             if (bluetoothEnabled == false)
             {
                 radioStateLabel.Text = "Disconnected";
@@ -4023,6 +4023,16 @@ namespace HTCommander
 
             // Update the entire torrent list
             foreach (TorrentFile file in torrent.Files) { updateTorrent(file); }
+        }
+
+        private void enableToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (radio != null) { radio.AudioEnabled(true); }
+        }
+
+        private void disableToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (radio != null) { radio.AudioEnabled(false); }
         }
     }
 }

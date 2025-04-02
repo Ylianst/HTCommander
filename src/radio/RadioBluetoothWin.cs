@@ -15,14 +15,21 @@ limitations under the License.
 */
 
 using System;
+using System.Text;
 using System.Linq;
-using System.Threading;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using InTheHand.Net.Bluetooth;
+using InTheHand.Net.Sockets;
+using InTheHand.Net;
+using Windows.Devices.Enumeration;
+using System.Net.NetworkInformation;
+using System.Text.RegularExpressions;
+
+
 #if !__MonoCS__
 using System.Collections.Concurrent;
-using Windows.Devices.Enumeration;
-using InTheHand.Bluetooth;
 #endif
 
 namespace HTCommander
@@ -30,27 +37,38 @@ namespace HTCommander
     public class RadioBluetoothWin
     {
         private Radio parent;
+        public string selectedDevice;
+        private bool running = false;
+        private BluetoothClient connectionClient = new BluetoothClient();
+        private NetworkStream stream;
+        public delegate void DebugMessageEventHandler(string msg);
+        public event DebugMessageEventHandler OnDebugMessage;
+        public delegate void ConnectedEventHandler();
+        public event ConnectedEventHandler OnConnected;
 
-#if !__MonoCS__
-        // Bluetooth Write Queue
-        private class DeviceWriteData { public int expectResponse; public byte[] data; public DeviceWriteData(int expectResponse, byte[] data) { this.expectResponse = expectResponse; this.data = data; } }
-        private ConcurrentQueue<DeviceWriteData> _writeQueue = new ConcurrentQueue<DeviceWriteData>();
-        private SemaphoreSlim _writeSemaphore = new SemaphoreSlim(1, 1); // To ensure only one write is active
-        private bool _isProcessing = false;
-        private int _expectedResponse = 0;
+        private static string BytesToHex(byte[] data, int index, int length)
+        {
+            if (data == null) return "";
+            StringBuilder Result = new StringBuilder(data.Length * 2);
+            string HexAlphabet = "0123456789ABCDEF";
+            for (int i = index; i < length; i++)
+            {
+                byte B = data[i];
+                Result.Append(HexAlphabet[(int)(B >> 4)]);
+                Result.Append(HexAlphabet[(int)(B & 0xF)]);
+            }
+            return Result.ToString();
+        }
+
+        private void Debug(string msg)
+        {
+            if (OnDebugMessage != null) { OnDebugMessage(msg); }
+        }
 
         // Define the target device name and guids
         private static readonly string[] TargetDeviceNames = { "UV-PRO", "GA-5WB", "VR-N76", "VR-N7500" };
-        private readonly Guid RADIO_SERVICE_UUID = new Guid("00001100-d102-11e1-9b23-00025b00a5a5");
-        private readonly Guid RADIO_WRITE_UUID = new Guid("00001101-d102-11e1-9b23-00025b00a5a5");
-        private readonly Guid RADIO_INDICATE_UUID = new Guid("00001102-d102-11e1-9b23-00025b00a5a5");
-
-        private RemoteGattServer gatt = null;
-        private GattCharacteristic writeCharacteristic = null;
-        private GattCharacteristic indicateCharacteristic = null;
-#endif
-
-        public string selectedDevice;
+        private class DeviceWriteData { public int expectResponse; public byte[] data; public DeviceWriteData(int expectResponse, byte[] data) { this.expectResponse = expectResponse; this.data = data; } }
+        private ConcurrentQueue<DeviceWriteData> _writeQueue = new ConcurrentQueue<DeviceWriteData>();
 
         public RadioBluetoothWin(Radio parent)
         {
@@ -59,27 +77,14 @@ namespace HTCommander
 
         public void Disconnect()
         {
-#if !__MonoCS__
-            writeCharacteristic = null;
-            indicateCharacteristic = null;
-            _writeQueue = new ConcurrentQueue<DeviceWriteData>();
-            _writeSemaphore = new SemaphoreSlim(1, 1);
-            _isProcessing = false;
-            _expectedResponse = 0;
-            if (gatt != null) { gatt.Disconnect(); gatt = null; }
-#endif
+            running = false;
         }
 
-        public static async Task<bool> CheckBluetooth()
+        public static bool CheckBluetooth()
         {
-#if !__MonoCS__
-            bool bluetoothAvailable = false;
-            try { bluetoothAvailable = await Bluetooth.GetAvailabilityAsync(); } catch (Exception) { }
-            return bluetoothAvailable;
-#else
-            return false;
-#endif
+            return (BluetoothRadio.Default != null);
         }
+
         public static async Task<string[]> GetDeviceNames()
         {
             List<string> r = new List<string>();
@@ -131,123 +136,114 @@ namespace HTCommander
             return compatibleDevices.ToArray();
         }
 
-        public async Task<bool> Connect(string macAddress)
+        public bool Connect(string macAddress)
         {
-#if !__MonoCS__
-            // Regular expression to capture the 12-character MAC address
-            var bluetoothDevice = await BluetoothDevice.FromIdAsync(macAddress);
-            if (bluetoothDevice == null)
-            {
-                parent.Disconnect($"Unable to connect.", Radio.RadioState.AccessDenied);
-                return false;
-            }
-            selectedDevice = $"{bluetoothDevice.Name} ({bluetoothDevice.Id})";
-            parent.Debug($"Selected device: {bluetoothDevice.Name} - {bluetoothDevice.Id}");
-
-            // Connect to the device
-            gatt = bluetoothDevice.Gatt;
-            parent.Debug("Connecting to radio...");
-            try { await gatt.ConnectAsync(); } catch (Exception) { parent.Disconnect($"Unable to connect.", Radio.RadioState.UnableToConnect); return false; }
-            //gatt.AutoConnect = true;
-            if (gatt.IsConnected == false) { parent.Disconnect($"Gatt not connected.", Radio.RadioState.UnableToConnect); return false; }
-
-            parent.Debug("Getting radio service...");
-            var service = await gatt.GetPrimaryServiceAsync(RADIO_SERVICE_UUID);
-            if (service == null) { parent.Disconnect($"Radio service not found.", Radio.RadioState.UnableToConnect); return false; }
-
-            // Get characteristics
-            parent.Debug("Getting radio characteristic...");
-            writeCharacteristic = await service.GetCharacteristicAsync(RADIO_WRITE_UUID);
-            if (writeCharacteristic == null) { parent.Disconnect($"Unable to get write characteristic.", Radio.RadioState.UnableToConnect); return false; }
-            indicateCharacteristic = await service.GetCharacteristicAsync(RADIO_INDICATE_UUID);
-            if (indicateCharacteristic == null) { parent.Disconnect($"Unable to get read/notify characteristic.", Radio.RadioState.UnableToConnect); return false; }
-
-            // Receive command responses
-            parent.Debug("Getting radio information...");
-            indicateCharacteristic.CharacteristicValueChanged += Characteristic_CharacteristicValueChanged;
-
+            if (running) return false;
+            Task.Run(() => StartAsync(macAddress));
             return true;
-#else
-            return false;
-#endif
         }
-
-        // private void ReceivedData(RadioBluetooth sender, Exception error, byte[] value)
 
         public delegate void ReceivedDataHandler(RadioBluetoothWin sender, Exception error, byte[] value);
         public event ReceivedDataHandler ReceivedData;
 
-#if !__MonoCS__
-        private void Characteristic_CharacteristicValueChanged(object sender, GattCharacteristicValueChangedEventArgs e)
-        {
-            Task.Run(() =>
-            {
-                if (e.Value != null)
-                {
-                    if ((_expectedResponse == -1) || ((_expectedResponse | 0x8000) == Utils.GetInt(e.Value, 0)))
-                    {
-                        _expectedResponse = 0;
-                    }
-                }
-
-                if (ReceivedData != null) { ReceivedData(this, e.Error, e.Value); }
-            });
-        }
-#endif
-
         // Method to queue a write operation
         public void EnqueueWrite(int expectedResponse, byte[] cmdData)
         {
-#if !__MonoCS__
-            _writeQueue.Enqueue(new DeviceWriteData(expectedResponse, cmdData));
-            ProcessQueue(); // Start processing the queue if it's not already running
-#endif
+            if (!running) return;
+            byte[] bytes = GaiaEncode(cmdData);
+            //Debug("Write: " + BytesToHex(bytes, 0, bytes.Length));
+            try { stream.Write(bytes, 0, bytes.Length); } catch (Exception ex) { Debug("Error sending request: " + ex.Message); return; }
         }
 
-        // Processes the queue
-        private async void ProcessQueue()
+        private static int GaiaDecode(byte[] data, int index, int len, out byte[] cmd)
         {
-#if !__MonoCS__
-            if (_isProcessing) return; // Avoid multiple threads starting processing
-            _isProcessing = true;
+            cmd = null;
+            if (len < 8) return 0;
+            if (data[index] != 0xFF) return -1; // Error
+            if (data[index + 1] != 0x01) return -1; // Error
+            byte nBytesPayload = data[index + 3];
+            int hasChecksum = (data[index + 2] & 1);
+            int totalLen = nBytesPayload + 8 + hasChecksum;
+            if (totalLen > len) return 0; // Wait for more data
+            cmd = new byte[4 + nBytesPayload]; // TODO: Check if checksum is correct if present
+            Array.Copy(data, index + 4, cmd, 0, cmd.Length);
+            return totalLen;
+        }
 
+        private static byte[] GaiaEncode(byte[] cmd)
+        {
+            byte[] bytes = new byte[cmd.Length + 4];
+            bytes[0] = 0xFF;
+            bytes[1] = 0x01;
+            bytes[3] = (byte)(cmd.Length - 4);
+            Array.Copy(cmd, 0, bytes, 4, cmd.Length);
+            return bytes;
+        }
+
+        private async void StartAsync(string mac)
+        {
+            Guid rfcommServiceUuid = BluetoothService.SerialPort;
+            BluetoothAddress address = BluetoothAddress.Parse(mac);
+            BluetoothEndPoint remoteEndPoint = new BluetoothEndPoint(address, rfcommServiceUuid, 0);
             try
             {
-                // Execute the write on a separate thread to avoid blocking
-                await Task.Run(async () =>
+                // Connect to the remote endpoint asynchronously
+                Debug("Attempting to connect...");
+                connectionClient.Connect(remoteEndPoint);
+                Debug("Successfully connected to the RFCOMM channel.");
+
+                byte[] accumulator = new byte[4096];
+                int accumulatorPtr = 0, accumulatorLen = 0;
+                stream = connectionClient.GetStream();
+
+                running = true;
+                //Debug("Ready to receive data.");
+                if (OnConnected != null) { OnConnected(); }
+                while (running && connectionClient.Connected)
                 {
-                    while (_writeQueue.TryDequeue(out DeviceWriteData cmdData))
+                    // Receive data
+                    int bytesRead = stream.Read(accumulator, accumulatorPtr, accumulator.Length - (accumulatorPtr + accumulatorLen));
+                    accumulatorLen += bytesRead;
+                    //Debug($"Received {bytesRead} bytes, Accumulator: {BytesToHex(accumulator, accumulatorPtr, accumulatorLen)}");
+                    if (running == false) { connectionClient?.Close(); stream = null; return; }
+                    if (bytesRead == 0) { running = false; connectionClient?.Close(); stream = null; Debug("Connection closed by remote host."); break; }
+                    if (accumulatorLen < 8) continue; // Wait for at least 8 bytes
+
+                    int cmdSize;
+                    byte[] cmd;
+                    while ((cmdSize = GaiaDecode(accumulator, accumulatorPtr, accumulatorLen, out cmd)) != 0)
                     {
-                        try
-                        {
-                            if (writeCharacteristic != null)
-                            {
-                                if (parent.PacketTrace) { parent.Debug("<--" + _writeQueue.Count + "-- " + Utils.BytesToHex(cmdData.data)); }
-                                else { Program.BlockBoxEvent("<--" + _writeQueue.Count + "-- " + Utils.BytesToHex(cmdData.data)); }
-                                _expectedResponse = cmdData.expectResponse;
-                                await Task.Run(async () => { await writeCharacteristic.WriteValueWithResponseAsync(cmdData.data); });
-                                if (_expectedResponse == -2) { _expectedResponse = 0; }
-                            }
+                        if (cmdSize < 0) {
+                            cmdSize = accumulatorLen;
+                            Debug($"GAIA: {BytesToHex(accumulator, accumulatorPtr, accumulatorLen)}");
                         }
-                        catch (Exception ex)
+                        accumulatorPtr += cmdSize;
+                        accumulatorLen -= cmdSize;
+
+                        if (cmd != null)
                         {
-                            if (ex.HResult == -2140864497)
-                            {
-                                parent.Disconnect("Access denied. Please re-pair the device.", Radio.RadioState.AccessDenied);
-                            }
-                            else
-                            {
-                                parent.Disconnect("Unable to send command to device.", Radio.RadioState.Disconnected);
-                            }
+                            //Debug("CMD: " + BytesToHex(cmd, 0, cmd.Length));
+                            if (ReceivedData != null) { ReceivedData(this, null, cmd); }
                         }
                     }
-                });
+
+                    // Get the accumulator ready for the next read
+                    if (accumulatorLen == 0) { accumulatorPtr = 0; }
+                    if (accumulatorPtr > 2048) { Array.Copy(accumulator, accumulatorPtr, accumulator, 0, accumulatorLen); accumulatorPtr = 0; }
+                }
+            }
+            catch (Exception ex)
+            {
+                running = false;
+                Debug($"Connection error: {ex.Message}");
             }
             finally
             {
-                _isProcessing = false; // Mark as not processing when the queue is empty
+                running = false;
+                stream = null;
+                connectionClient?.Close();
+                Debug("Bluetooth connection closed.");
             }
-#endif
         }
 
     }
