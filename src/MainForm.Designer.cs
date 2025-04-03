@@ -30,20 +30,20 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup20 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup17 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup18 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup19 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -294,9 +294,7 @@
             this.torrentSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.aprsChatControl = new HTCommander.ChatControl();
             this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
-            this.audioToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.disableToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.enableToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.audioEnabledToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -406,7 +404,6 @@
             this.mainMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.fileToolStripMenuItem,
             this.settingsToolStripMenuItem1,
-            this.audioToolStripMenuItem,
             this.viewToolStripMenuItem,
             this.aboutToolStripMenuItem});
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
@@ -428,7 +425,7 @@
             this.toolStripMenuItem4,
             this.exitToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 26);
             this.fileToolStripMenuItem.Text = "&File";
             // 
             // connectToolStripMenuItem
@@ -485,19 +482,21 @@
             this.scanToolStripMenuItem,
             this.regionToolStripMenuItem,
             this.toolStripMenuItem5,
+            this.audioEnabledToolStripMenuItem,
             this.volumeToolStripMenuItem,
             this.toolStripMenuItem10,
             this.exportChannelsToolStripMenuItem,
             this.importChannelsToolStripMenuItem});
             this.settingsToolStripMenuItem1.Name = "settingsToolStripMenuItem1";
-            this.settingsToolStripMenuItem1.Size = new System.Drawing.Size(76, 24);
+            this.settingsToolStripMenuItem1.Size = new System.Drawing.Size(76, 26);
             this.settingsToolStripMenuItem1.Text = "&Settings";
+            this.settingsToolStripMenuItem1.DropDownOpening += new System.EventHandler(this.settingsToolStripMenuItem1_DropDownOpening);
             // 
             // dualWatchToolStripMenuItem
             // 
             this.dualWatchToolStripMenuItem.Enabled = false;
             this.dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
-            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.dualWatchToolStripMenuItem.Text = "&Dual-Watch";
             this.dualWatchToolStripMenuItem.Click += new System.EventHandler(this.dualWatchToolStripMenuItem_Click);
             // 
@@ -505,7 +504,7 @@
             // 
             this.scanToolStripMenuItem.Enabled = false;
             this.scanToolStripMenuItem.Name = "scanToolStripMenuItem";
-            this.scanToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.scanToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.scanToolStripMenuItem.Text = "&Scan";
             this.scanToolStripMenuItem.Click += new System.EventHandler(this.scanToolStripMenuItem_Click);
             // 
@@ -513,39 +512,39 @@
             // 
             this.regionToolStripMenuItem.Enabled = false;
             this.regionToolStripMenuItem.Name = "regionToolStripMenuItem";
-            this.regionToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.regionToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.regionToolStripMenuItem.Text = "&Regions";
             // 
             // toolStripMenuItem5
             // 
             this.toolStripMenuItem5.Name = "toolStripMenuItem5";
-            this.toolStripMenuItem5.Size = new System.Drawing.Size(206, 6);
+            this.toolStripMenuItem5.Size = new System.Drawing.Size(221, 6);
             // 
             // volumeToolStripMenuItem
             // 
             this.volumeToolStripMenuItem.Enabled = false;
             this.volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.volumeToolStripMenuItem.Text = "&Volume...";
             this.volumeToolStripMenuItem.Click += new System.EventHandler(this.volumeToolStripMenuItem_Click);
             // 
             // toolStripMenuItem10
             // 
             this.toolStripMenuItem10.Name = "toolStripMenuItem10";
-            this.toolStripMenuItem10.Size = new System.Drawing.Size(206, 6);
+            this.toolStripMenuItem10.Size = new System.Drawing.Size(221, 6);
             // 
             // exportChannelsToolStripMenuItem
             // 
             this.exportChannelsToolStripMenuItem.Enabled = false;
             this.exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
-            this.exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.exportChannelsToolStripMenuItem.Text = "&Export Channels...";
             this.exportChannelsToolStripMenuItem.Click += new System.EventHandler(this.exportChannelsToolStripMenuItem_Click);
             // 
             // importChannelsToolStripMenuItem
             // 
             this.importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
-            this.importChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.importChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.importChannelsToolStripMenuItem.Text = "&Import Channels...";
             this.importChannelsToolStripMenuItem.Click += new System.EventHandler(this.importChannelsToolStripMenuItem_Click);
             // 
@@ -564,7 +563,7 @@
             this.packetsToolStripMenuItem,
             this.debugToolStripMenuItem});
             this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
-            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
+            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 26);
             this.viewToolStripMenuItem.Text = "&View";
             this.viewToolStripMenuItem.DropDownOpening += new System.EventHandler(this.viewToolStripMenuItem_DropDownOpening);
             // 
@@ -664,7 +663,7 @@
             this.toolStripMenuItem2,
             this.aboutToolStripMenuItem1});
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 26);
             this.aboutToolStripMenuItem.Text = "&About";
             // 
             // radioInformationToolStripMenuItem
@@ -725,7 +724,7 @@
             this.radioPanel.Controls.Add(this.radioPictureBox);
             this.radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
             this.radioPanel.Location = new System.Drawing.Point(0, 28);
-            this.radioPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.radioPanel.Margin = new System.Windows.Forms.Padding(4);
             this.radioPanel.Name = "radioPanel";
             this.radioPanel.Size = new System.Drawing.Size(372, 654);
             this.radioPanel.TabIndex = 2;
@@ -748,7 +747,7 @@
             this.channelsFlowLayoutPanel.BackColor = System.Drawing.Color.DarkKhaki;
             this.channelsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 482);
-            this.channelsFlowLayoutPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.channelsFlowLayoutPanel.Margin = new System.Windows.Forms.Padding(4);
             this.channelsFlowLayoutPanel.Name = "channelsFlowLayoutPanel";
             this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(368, 84);
             this.channelsFlowLayoutPanel.TabIndex = 2;
@@ -758,7 +757,7 @@
             // 
             this.checkBluetoothButton.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.checkBluetoothButton.Location = new System.Drawing.Point(0, 566);
-            this.checkBluetoothButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.checkBluetoothButton.Margin = new System.Windows.Forms.Padding(4);
             this.checkBluetoothButton.Name = "checkBluetoothButton";
             this.checkBluetoothButton.Size = new System.Drawing.Size(368, 42);
             this.checkBluetoothButton.TabIndex = 3;
@@ -774,7 +773,7 @@
             this.rssiProgressBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
             this.rssiProgressBar.ForeColor = System.Drawing.Color.Black;
             this.rssiProgressBar.Location = new System.Drawing.Point(84, 326);
-            this.rssiProgressBar.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.rssiProgressBar.Margin = new System.Windows.Forms.Padding(4);
             this.rssiProgressBar.Maximum = 15;
             this.rssiProgressBar.Name = "rssiProgressBar";
             this.rssiProgressBar.Size = new System.Drawing.Size(205, 7);
@@ -794,7 +793,7 @@
             this.connectedPanel.Controls.Add(this.vfo2Label);
             this.connectedPanel.Controls.Add(this.vfo1Label);
             this.connectedPanel.Location = new System.Drawing.Point(84, 172);
-            this.connectedPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.connectedPanel.Margin = new System.Windows.Forms.Padding(4);
             this.connectedPanel.Name = "connectedPanel";
             this.connectedPanel.Size = new System.Drawing.Size(205, 151);
             this.connectedPanel.TabIndex = 1;
@@ -833,7 +832,7 @@
             this.linePanel.BackColor = System.Drawing.Color.LightGray;
             this.linePanel.ForeColor = System.Drawing.Color.LightGray;
             this.linePanel.Location = new System.Drawing.Point(15, 63);
-            this.linePanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.linePanel.Margin = new System.Windows.Forms.Padding(4);
             this.linePanel.Name = "linePanel";
             this.linePanel.Size = new System.Drawing.Size(175, 2);
             this.linePanel.TabIndex = 5;
@@ -913,7 +912,7 @@
             // 
             this.connectButton.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.connectButton.Location = new System.Drawing.Point(0, 608);
-            this.connectButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.connectButton.Margin = new System.Windows.Forms.Padding(4);
             this.connectButton.Name = "connectButton";
             this.connectButton.Size = new System.Drawing.Size(368, 42);
             this.connectButton.TabIndex = 0;
@@ -925,7 +924,7 @@
             // 
             this.radioPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("radioPictureBox.Image")));
             this.radioPictureBox.Location = new System.Drawing.Point(11, -2);
-            this.radioPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.radioPictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.radioPictureBox.Name = "radioPictureBox";
             this.radioPictureBox.Size = new System.Drawing.Size(341, 678);
             this.radioPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -949,7 +948,7 @@
             this.mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTabControl.ImageList = this.tabsImageList;
             this.mainTabControl.Location = new System.Drawing.Point(372, 28);
-            this.mainTabControl.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mainTabControl.Margin = new System.Windows.Forms.Padding(4);
             this.mainTabControl.Multiline = true;
             this.mainTabControl.Name = "mainTabControl";
             this.mainTabControl.SelectedIndex = 0;
@@ -964,7 +963,7 @@
             this.aprsTabPage.Controls.Add(this.aprsTopPanel);
             this.aprsTabPage.ImageIndex = 3;
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
-            this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
             this.aprsTabPage.Size = new System.Drawing.Size(693, 646);
             this.aprsTabPage.TabIndex = 3;
@@ -993,7 +992,7 @@
             this.aprsMissingChannelPanel.Controls.Add(this.missingAprsChannelLabel);
             this.aprsMissingChannelPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.aprsMissingChannelPanel.Location = new System.Drawing.Point(0, 37);
-            this.aprsMissingChannelPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsMissingChannelPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsMissingChannelPanel.Name = "aprsMissingChannelPanel";
             this.aprsMissingChannelPanel.Size = new System.Drawing.Size(693, 37);
             this.aprsMissingChannelPanel.TabIndex = 6;
@@ -1003,7 +1002,7 @@
             // 
             this.aprsSetupButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.aprsSetupButton.Location = new System.Drawing.Point(588, 5);
-            this.aprsSetupButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsSetupButton.Margin = new System.Windows.Forms.Padding(4);
             this.aprsSetupButton.Name = "aprsSetupButton";
             this.aprsSetupButton.Size = new System.Drawing.Size(100, 28);
             this.aprsSetupButton.TabIndex = 8;
@@ -1032,7 +1031,7 @@
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.aprsBottomPanel.Location = new System.Drawing.Point(0, 599);
-            this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
             this.aprsBottomPanel.Size = new System.Drawing.Size(693, 47);
             this.aprsBottomPanel.TabIndex = 4;
@@ -1048,7 +1047,7 @@
             "QST",
             "CQ"});
             this.aprsDestinationComboBox.Location = new System.Drawing.Point(7, 7);
-            this.aprsDestinationComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsDestinationComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.aprsDestinationComboBox.MaxLength = 9;
             this.aprsDestinationComboBox.Name = "aprsDestinationComboBox";
             this.aprsDestinationComboBox.Size = new System.Drawing.Size(147, 33);
@@ -1064,7 +1063,7 @@
             this.aprsTextBox.Enabled = false;
             this.aprsTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.aprsTextBox.Location = new System.Drawing.Point(163, 9);
-            this.aprsTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTextBox.MaxLength = 67;
             this.aprsTextBox.Name = "aprsTextBox";
             this.aprsTextBox.Size = new System.Drawing.Size(417, 30);
@@ -1076,7 +1075,7 @@
             this.aprsSendButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.aprsSendButton.Enabled = false;
             this.aprsSendButton.Location = new System.Drawing.Point(589, 6);
-            this.aprsSendButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsSendButton.Margin = new System.Windows.Forms.Padding(4);
             this.aprsSendButton.Name = "aprsSendButton";
             this.aprsSendButton.Size = new System.Drawing.Size(100, 34);
             this.aprsSendButton.TabIndex = 0;
@@ -1092,7 +1091,7 @@
             this.aprsTopPanel.Controls.Add(this.aprsTitleLabel);
             this.aprsTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.aprsTopPanel.Location = new System.Drawing.Point(0, 0);
-            this.aprsTopPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsTopPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTopPanel.Name = "aprsTopPanel";
             this.aprsTopPanel.Size = new System.Drawing.Size(693, 37);
             this.aprsTopPanel.TabIndex = 2;
@@ -1103,7 +1102,7 @@
             this.aprsRouteComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.aprsRouteComboBox.FormattingEnabled = true;
             this.aprsRouteComboBox.Location = new System.Drawing.Point(528, 6);
-            this.aprsRouteComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsRouteComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.aprsRouteComboBox.Name = "aprsRouteComboBox";
             this.aprsRouteComboBox.Size = new System.Drawing.Size(124, 24);
             this.aprsRouteComboBox.TabIndex = 3;
@@ -1115,7 +1114,7 @@
             this.aprsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.aprsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("aprsMenuPictureBox.Image")));
             this.aprsMenuPictureBox.Location = new System.Drawing.Point(661, 6);
-            this.aprsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.aprsMenuPictureBox.Name = "aprsMenuPictureBox";
             this.aprsMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.aprsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -1144,7 +1143,7 @@
             this.mapTabPage.Controls.Add(this.mapTopPanel);
             this.mapTabPage.ImageIndex = 1;
             this.mapTabPage.Location = new System.Drawing.Point(4, 4);
-            this.mapTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mapTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.mapTabPage.Name = "mapTabPage";
             this.mapTabPage.Size = new System.Drawing.Size(693, 644);
             this.mapTabPage.TabIndex = 0;
@@ -1155,7 +1154,7 @@
             // 
             this.mapZoomOutButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.mapZoomOutButton.Location = new System.Drawing.Point(4, 94);
-            this.mapZoomOutButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mapZoomOutButton.Margin = new System.Windows.Forms.Padding(4);
             this.mapZoomOutButton.Name = "mapZoomOutButton";
             this.mapZoomOutButton.Size = new System.Drawing.Size(56, 42);
             this.mapZoomOutButton.TabIndex = 5;
@@ -1167,7 +1166,7 @@
             // 
             this.mapZoomInbutton.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.mapZoomInbutton.Location = new System.Drawing.Point(4, 44);
-            this.mapZoomInbutton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mapZoomInbutton.Margin = new System.Windows.Forms.Padding(4);
             this.mapZoomInbutton.Name = "mapZoomInbutton";
             this.mapZoomInbutton.Size = new System.Drawing.Size(56, 42);
             this.mapZoomInbutton.TabIndex = 4;
@@ -1181,7 +1180,7 @@
             this.mapTopPanel.Controls.Add(this.mapTopLabel);
             this.mapTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.mapTopPanel.Location = new System.Drawing.Point(0, 0);
-            this.mapTopPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mapTopPanel.Margin = new System.Windows.Forms.Padding(4);
             this.mapTopPanel.Name = "mapTopPanel";
             this.mapTopPanel.Size = new System.Drawing.Size(693, 37);
             this.mapTopPanel.TabIndex = 3;
@@ -1206,7 +1205,7 @@
             this.mailTabPage.Controls.Add(this.panel2);
             this.mailTabPage.ImageIndex = 5;
             this.mailTabPage.Location = new System.Drawing.Point(4, 4);
-            this.mailTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mailTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.mailTabPage.Name = "mailTabPage";
             this.mailTabPage.Size = new System.Drawing.Size(693, 644);
             this.mailTabPage.TabIndex = 5;
@@ -1294,7 +1293,7 @@
             this.mailboxListView.GridLines = true;
             this.mailboxListView.HideSelection = false;
             this.mailboxListView.Location = new System.Drawing.Point(0, 0);
-            this.mailboxListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mailboxListView.Margin = new System.Windows.Forms.Padding(4);
             this.mailboxListView.Name = "mailboxListView";
             this.mailboxListView.Size = new System.Drawing.Size(538, 265);
             this.mailboxListView.SmallImageList = this.mainImageList;
@@ -1426,7 +1425,7 @@
             this.mailTransferStatusPanel.Controls.Add(this.mailTransferStatusLabel);
             this.mailTransferStatusPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 607);
-            this.mailTransferStatusPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mailTransferStatusPanel.Margin = new System.Windows.Forms.Padding(4);
             this.mailTransferStatusPanel.Name = "mailTransferStatusPanel";
             this.mailTransferStatusPanel.Size = new System.Drawing.Size(693, 37);
             this.mailTransferStatusPanel.TabIndex = 8;
@@ -1453,7 +1452,7 @@
             this.panel2.Controls.Add(this.mailTitleLabel);
             this.panel2.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel2.Location = new System.Drawing.Point(0, 0);
-            this.panel2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.panel2.Margin = new System.Windows.Forms.Padding(4);
             this.panel2.Name = "panel2";
             this.panel2.Size = new System.Drawing.Size(693, 37);
             this.panel2.TabIndex = 2;
@@ -1462,7 +1461,7 @@
             // 
             this.newMailButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.newMailButton.Location = new System.Drawing.Point(443, 4);
-            this.newMailButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.newMailButton.Margin = new System.Windows.Forms.Padding(4);
             this.newMailButton.Name = "newMailButton";
             this.newMailButton.Size = new System.Drawing.Size(100, 28);
             this.newMailButton.TabIndex = 6;
@@ -1475,7 +1474,7 @@
             this.mailConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.mailConnectButton.Enabled = false;
             this.mailConnectButton.Location = new System.Drawing.Point(551, 4);
-            this.mailConnectButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mailConnectButton.Margin = new System.Windows.Forms.Padding(4);
             this.mailConnectButton.Name = "mailConnectButton";
             this.mailConnectButton.Size = new System.Drawing.Size(100, 28);
             this.mailConnectButton.TabIndex = 5;
@@ -1489,7 +1488,7 @@
             this.mailMenuPictureBox.ContextMenuStrip = this.stationsTabContextMenuStrip;
             this.mailMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("mailMenuPictureBox.Image")));
             this.mailMenuPictureBox.Location = new System.Drawing.Point(661, 6);
-            this.mailMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mailMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.mailMenuPictureBox.Name = "mailMenuPictureBox";
             this.mailMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.mailMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -1540,7 +1539,7 @@
             this.terminalTabPage.Controls.Add(this.terminalTopPanel);
             this.terminalTabPage.ImageKey = "terminal-32.png";
             this.terminalTabPage.Location = new System.Drawing.Point(4, 4);
-            this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTabPage.Name = "terminalTabPage";
             this.terminalTabPage.Size = new System.Drawing.Size(693, 644);
             this.terminalTabPage.TabIndex = 2;
@@ -1554,7 +1553,7 @@
             this.terminalTextBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold);
             this.terminalTextBox.ForeColor = System.Drawing.Color.Gainsboro;
             this.terminalTextBox.Location = new System.Drawing.Point(0, 37);
-            this.terminalTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.terminalTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTextBox.Name = "terminalTextBox";
             this.terminalTextBox.ReadOnly = true;
             this.terminalTextBox.Size = new System.Drawing.Size(693, 561);
@@ -1568,7 +1567,7 @@
             this.terminalBottomPanel.Controls.Add(this.terminalSendButton);
             this.terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.terminalBottomPanel.Location = new System.Drawing.Point(0, 598);
-            this.terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.terminalBottomPanel.Name = "terminalBottomPanel";
             this.terminalBottomPanel.Size = new System.Drawing.Size(693, 46);
             this.terminalBottomPanel.TabIndex = 3;
@@ -1580,7 +1579,7 @@
             this.terminalInputTextBox.Enabled = false;
             this.terminalInputTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.terminalInputTextBox.Location = new System.Drawing.Point(9, 7);
-            this.terminalInputTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.terminalInputTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalInputTextBox.Name = "terminalInputTextBox";
             this.terminalInputTextBox.Size = new System.Drawing.Size(570, 30);
             this.terminalInputTextBox.TabIndex = 1;
@@ -1591,7 +1590,7 @@
             this.terminalSendButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.terminalSendButton.Enabled = false;
             this.terminalSendButton.Location = new System.Drawing.Point(589, 5);
-            this.terminalSendButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.terminalSendButton.Margin = new System.Windows.Forms.Padding(4);
             this.terminalSendButton.Name = "terminalSendButton";
             this.terminalSendButton.Size = new System.Drawing.Size(100, 34);
             this.terminalSendButton.TabIndex = 0;
@@ -1607,7 +1606,7 @@
             this.terminalTopPanel.Controls.Add(this.terminalTitleLabel);
             this.terminalTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.terminalTopPanel.Location = new System.Drawing.Point(0, 0);
-            this.terminalTopPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.terminalTopPanel.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTopPanel.Name = "terminalTopPanel";
             this.terminalTopPanel.Size = new System.Drawing.Size(693, 37);
             this.terminalTopPanel.TabIndex = 1;
@@ -1617,7 +1616,7 @@
             this.terminalConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.terminalConnectButton.Enabled = false;
             this.terminalConnectButton.Location = new System.Drawing.Point(551, 4);
-            this.terminalConnectButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.terminalConnectButton.Margin = new System.Windows.Forms.Padding(4);
             this.terminalConnectButton.Name = "terminalConnectButton";
             this.terminalConnectButton.Size = new System.Drawing.Size(100, 28);
             this.terminalConnectButton.TabIndex = 4;
@@ -1630,7 +1629,7 @@
             this.terminalMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.terminalMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("terminalMenuPictureBox.Image")));
             this.terminalMenuPictureBox.Location = new System.Drawing.Point(661, 6);
-            this.terminalMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.terminalMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalMenuPictureBox.Name = "terminalMenuPictureBox";
             this.terminalMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.terminalMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -1657,7 +1656,7 @@
             this.addressesTabPage.Controls.Add(this.panel1);
             this.addressesTabPage.ImageIndex = 4;
             this.addressesTabPage.Location = new System.Drawing.Point(4, 4);
-            this.addressesTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.addressesTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.addressesTabPage.Name = "addressesTabPage";
             this.addressesTabPage.Size = new System.Drawing.Size(693, 644);
             this.addressesTabPage.TabIndex = 4;
@@ -1673,26 +1672,26 @@
             this.mainAddressBookListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainAddressBookListView.FullRowSelect = true;
             this.mainAddressBookListView.GridLines = true;
-            listViewGroup4.Header = "Generic Stations";
-            listViewGroup4.Name = "Generic Stations";
-            listViewGroup5.Header = "APRS Stations";
-            listViewGroup5.Name = "APRS Stations";
-            listViewGroup6.Header = "Terminal Stations";
-            listViewGroup6.Name = "Terminal Stations";
-            listViewGroup7.Header = "BBS";
-            listViewGroup7.Name = "BBS";
-            listViewGroup8.Header = "Winlink Gateways";
-            listViewGroup8.Name = "Winlink Gateways";
+            listViewGroup9.Header = "Generic Stations";
+            listViewGroup9.Name = "Generic Stations";
+            listViewGroup10.Header = "APRS Stations";
+            listViewGroup10.Name = "APRS Stations";
+            listViewGroup11.Header = "Terminal Stations";
+            listViewGroup11.Name = "Terminal Stations";
+            listViewGroup12.Header = "BBS";
+            listViewGroup12.Name = "BBS";
+            listViewGroup13.Header = "Winlink Gateways";
+            listViewGroup13.Name = "Winlink Gateways";
             this.mainAddressBookListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup4,
-            listViewGroup5,
-            listViewGroup6,
-            listViewGroup7,
-            listViewGroup8});
+            listViewGroup9,
+            listViewGroup10,
+            listViewGroup11,
+            listViewGroup12,
+            listViewGroup13});
             this.mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.mainAddressBookListView.HideSelection = false;
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 37);
-            this.mainAddressBookListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mainAddressBookListView.Margin = new System.Windows.Forms.Padding(4);
             this.mainAddressBookListView.Name = "mainAddressBookListView";
             this.mainAddressBookListView.Size = new System.Drawing.Size(693, 607);
             this.mainAddressBookListView.SmallImageList = this.mainImageList;
@@ -1759,7 +1758,7 @@
             this.panel1.Controls.Add(this.label1);
             this.panel1.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel1.Location = new System.Drawing.Point(0, 0);
-            this.panel1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.panel1.Margin = new System.Windows.Forms.Padding(4);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(693, 37);
             this.panel1.TabIndex = 3;
@@ -1770,7 +1769,7 @@
             this.stationsMenuPictureBox.ContextMenuStrip = this.stationsTabContextMenuStrip;
             this.stationsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("stationsMenuPictureBox.Image")));
             this.stationsMenuPictureBox.Location = new System.Drawing.Point(661, 6);
-            this.stationsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.stationsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.stationsMenuPictureBox.Name = "stationsMenuPictureBox";
             this.stationsMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.stationsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -1782,7 +1781,7 @@
             // 
             this.addStationButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.addStationButton.Location = new System.Drawing.Point(443, 4);
-            this.addStationButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.addStationButton.Margin = new System.Windows.Forms.Padding(4);
             this.addStationButton.Name = "addStationButton";
             this.addStationButton.Size = new System.Drawing.Size(100, 28);
             this.addStationButton.TabIndex = 2;
@@ -1795,7 +1794,7 @@
             this.removeStationButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.removeStationButton.Enabled = false;
             this.removeStationButton.Location = new System.Drawing.Point(551, 4);
-            this.removeStationButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.removeStationButton.Margin = new System.Windows.Forms.Padding(4);
             this.removeStationButton.Name = "removeStationButton";
             this.removeStationButton.Size = new System.Drawing.Size(100, 28);
             this.removeStationButton.TabIndex = 1;
@@ -1822,7 +1821,7 @@
             this.bbsTabPage.Controls.Add(this.panel4);
             this.bbsTabPage.ImageIndex = 8;
             this.bbsTabPage.Location = new System.Drawing.Point(4, 4);
-            this.bbsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.bbsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTabPage.Name = "bbsTabPage";
             this.bbsTabPage.Size = new System.Drawing.Size(693, 644);
             this.bbsTabPage.TabIndex = 7;
@@ -1832,7 +1831,7 @@
             // 
             this.bbsSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
             this.bbsSplitContainer.Location = new System.Drawing.Point(0, 37);
-            this.bbsSplitContainer.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.bbsSplitContainer.Margin = new System.Windows.Forms.Padding(4);
             this.bbsSplitContainer.Name = "bbsSplitContainer";
             this.bbsSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -1858,20 +1857,20 @@
             this.bbsListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.bbsListView.FullRowSelect = true;
             this.bbsListView.GridLines = true;
-            listViewGroup9.Header = "Generic Stations";
-            listViewGroup9.Name = "Generic Stations";
-            listViewGroup10.Header = "APRS Stations";
-            listViewGroup10.Name = "APRS Stations";
-            listViewGroup11.Header = "Terminal Stations";
-            listViewGroup11.Name = "Terminal Stations";
+            listViewGroup14.Header = "Generic Stations";
+            listViewGroup14.Name = "Generic Stations";
+            listViewGroup15.Header = "APRS Stations";
+            listViewGroup15.Name = "APRS Stations";
+            listViewGroup16.Header = "Terminal Stations";
+            listViewGroup16.Name = "Terminal Stations";
             this.bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup9,
-            listViewGroup10,
-            listViewGroup11});
+            listViewGroup14,
+            listViewGroup15,
+            listViewGroup16});
             this.bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.bbsListView.HideSelection = false;
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
-            this.bbsListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.bbsListView.Margin = new System.Windows.Forms.Padding(4);
             this.bbsListView.Name = "bbsListView";
             this.bbsListView.Size = new System.Drawing.Size(693, 137);
             this.bbsListView.SmallImageList = this.mainImageList;
@@ -1904,7 +1903,7 @@
             this.bbsTextBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold);
             this.bbsTextBox.ForeColor = System.Drawing.Color.Gainsboro;
             this.bbsTextBox.Location = new System.Drawing.Point(0, 0);
-            this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
             this.bbsTextBox.Size = new System.Drawing.Size(693, 465);
@@ -1919,7 +1918,7 @@
             this.panel4.Controls.Add(this.label3);
             this.panel4.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel4.Location = new System.Drawing.Point(0, 0);
-            this.panel4.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.panel4.Margin = new System.Windows.Forms.Padding(4);
             this.panel4.Name = "panel4";
             this.panel4.Size = new System.Drawing.Size(693, 37);
             this.panel4.TabIndex = 5;
@@ -1929,7 +1928,7 @@
             this.bbsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.bbsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("bbsMenuPictureBox.Image")));
             this.bbsMenuPictureBox.Location = new System.Drawing.Point(661, 6);
-            this.bbsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.bbsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsMenuPictureBox.Name = "bbsMenuPictureBox";
             this.bbsMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.bbsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -1941,7 +1940,7 @@
             // 
             this.bbsConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.bbsConnectButton.Location = new System.Drawing.Point(551, 4);
-            this.bbsConnectButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.bbsConnectButton.Margin = new System.Windows.Forms.Padding(4);
             this.bbsConnectButton.Name = "bbsConnectButton";
             this.bbsConnectButton.Size = new System.Drawing.Size(100, 28);
             this.bbsConnectButton.TabIndex = 2;
@@ -2165,7 +2164,7 @@
             this.panel5.Controls.Add(this.label4);
             this.panel5.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel5.Location = new System.Drawing.Point(0, 0);
-            this.panel5.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.panel5.Margin = new System.Windows.Forms.Padding(4);
             this.panel5.Name = "panel5";
             this.panel5.Size = new System.Drawing.Size(693, 37);
             this.panel5.TabIndex = 6;
@@ -2174,7 +2173,7 @@
             // 
             this.torrentAddFileButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.torrentAddFileButton.Location = new System.Drawing.Point(444, 4);
-            this.torrentAddFileButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.torrentAddFileButton.Margin = new System.Windows.Forms.Padding(4);
             this.torrentAddFileButton.Name = "torrentAddFileButton";
             this.torrentAddFileButton.Size = new System.Drawing.Size(100, 28);
             this.torrentAddFileButton.TabIndex = 5;
@@ -2188,7 +2187,7 @@
             this.torrentMenuPictureBox.ContextMenuStrip = this.torrentTabContextMenuStrip;
             this.torrentMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("torrentMenuPictureBox.Image")));
             this.torrentMenuPictureBox.Location = new System.Drawing.Point(661, 6);
-            this.torrentMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.torrentMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.torrentMenuPictureBox.Name = "torrentMenuPictureBox";
             this.torrentMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.torrentMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -2217,7 +2216,7 @@
             // 
             this.torrentConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.torrentConnectButton.Location = new System.Drawing.Point(552, 4);
-            this.torrentConnectButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.torrentConnectButton.Margin = new System.Windows.Forms.Padding(4);
             this.torrentConnectButton.Name = "torrentConnectButton";
             this.torrentConnectButton.Size = new System.Drawing.Size(100, 28);
             this.torrentConnectButton.TabIndex = 2;
@@ -2244,7 +2243,7 @@
             this.packetsTabPage.Controls.Add(this.panel3);
             this.packetsTabPage.ImageIndex = 6;
             this.packetsTabPage.Location = new System.Drawing.Point(4, 4);
-            this.packetsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.packetsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.packetsTabPage.Name = "packetsTabPage";
             this.packetsTabPage.Size = new System.Drawing.Size(693, 644);
             this.packetsTabPage.TabIndex = 6;
@@ -2254,7 +2253,7 @@
             // 
             this.packetsSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
             this.packetsSplitContainer.Location = new System.Drawing.Point(0, 37);
-            this.packetsSplitContainer.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.packetsSplitContainer.Margin = new System.Windows.Forms.Padding(4);
             this.packetsSplitContainer.Name = "packetsSplitContainer";
             this.packetsSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -2283,7 +2282,7 @@
             this.packetsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.packetsListView.HideSelection = false;
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
-            this.packetsListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.packetsListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetsListView.Name = "packetsListView";
             this.packetsListView.Size = new System.Drawing.Size(693, 275);
             this.packetsListView.SmallImageList = this.mainImageList;
@@ -2341,29 +2340,29 @@
             this.packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.packetDecodeListView.FullRowSelect = true;
             this.packetDecodeListView.GridLines = true;
-            listViewGroup12.Header = "Metadata";
-            listViewGroup12.Name = "packetDecodeMetadataListViewGroup";
-            listViewGroup13.Header = "AX.25 Header";
-            listViewGroup13.Name = "packetDecodeHeaderListViewGroup";
-            listViewGroup14.Header = "AX.25 Data";
-            listViewGroup14.Name = "packetDecodeDataListViewGroup";
-            listViewGroup15.Header = "APRS";
-            listViewGroup15.Name = "packetDecodeAprsListViewGroup";
-            listViewGroup16.Header = "Position";
-            listViewGroup16.Name = "packetDecodePositionListViewGroup";
-            listViewGroup20.Header = "Decompression";
-            listViewGroup20.Name = "packetDecodeDecompressionListViewGroup";
+            listViewGroup1.Header = "Metadata";
+            listViewGroup1.Name = "packetDecodeMetadataListViewGroup";
+            listViewGroup2.Header = "AX.25 Header";
+            listViewGroup2.Name = "packetDecodeHeaderListViewGroup";
+            listViewGroup3.Header = "AX.25 Data";
+            listViewGroup3.Name = "packetDecodeDataListViewGroup";
+            listViewGroup17.Header = "APRS";
+            listViewGroup17.Name = "packetDecodeAprsListViewGroup";
+            listViewGroup18.Header = "Position";
+            listViewGroup18.Name = "packetDecodePositionListViewGroup";
+            listViewGroup19.Header = "Decompression";
+            listViewGroup19.Name = "packetDecodeDecompressionListViewGroup";
             this.packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup12,
-            listViewGroup13,
-            listViewGroup14,
-            listViewGroup15,
-            listViewGroup16,
-            listViewGroup20});
+            listViewGroup1,
+            listViewGroup2,
+            listViewGroup3,
+            listViewGroup17,
+            listViewGroup18,
+            listViewGroup19});
             this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.packetDecodeListView.HideSelection = false;
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
-            this.packetDecodeListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.packetDecodeListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetDecodeListView.Name = "packetDecodeListView";
             this.packetDecodeListView.Size = new System.Drawing.Size(693, 327);
             this.packetDecodeListView.TabIndex = 1;
@@ -2402,7 +2401,7 @@
             this.panel3.Controls.Add(this.label5);
             this.panel3.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel3.Location = new System.Drawing.Point(0, 0);
-            this.panel3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.panel3.Margin = new System.Windows.Forms.Padding(4);
             this.panel3.Name = "panel3";
             this.panel3.Size = new System.Drawing.Size(693, 37);
             this.panel3.TabIndex = 3;
@@ -2412,7 +2411,7 @@
             this.packetsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.packetsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("packetsMenuPictureBox.Image")));
             this.packetsMenuPictureBox.Location = new System.Drawing.Point(661, 6);
-            this.packetsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.packetsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.packetsMenuPictureBox.Name = "packetsMenuPictureBox";
             this.packetsMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.packetsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -2439,7 +2438,7 @@
             this.debugTabPage.Controls.Add(this.debugControlsPanel);
             this.debugTabPage.ImageIndex = 0;
             this.debugTabPage.Location = new System.Drawing.Point(4, 4);
-            this.debugTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.debugTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.debugTabPage.Name = "debugTabPage";
             this.debugTabPage.Size = new System.Drawing.Size(693, 644);
             this.debugTabPage.TabIndex = 1;
@@ -2468,7 +2467,7 @@
             this.debugControlsPanel.Controls.Add(this.label2);
             this.debugControlsPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.debugControlsPanel.Location = new System.Drawing.Point(0, 0);
-            this.debugControlsPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.debugControlsPanel.Margin = new System.Windows.Forms.Padding(4);
             this.debugControlsPanel.Name = "debugControlsPanel";
             this.debugControlsPanel.Size = new System.Drawing.Size(693, 37);
             this.debugControlsPanel.TabIndex = 0;
@@ -2478,7 +2477,7 @@
             this.debugMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.debugMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("debugMenuPictureBox.Image")));
             this.debugMenuPictureBox.Location = new System.Drawing.Point(661, 6);
-            this.debugMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.debugMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.debugMenuPictureBox.Name = "debugMenuPictureBox";
             this.debugMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.debugMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -2973,28 +2972,12 @@
             this.torrentBlocksUserControl.Size = new System.Drawing.Size(679, 290);
             this.torrentBlocksUserControl.TabIndex = 0;
             // 
-            // audioToolStripMenuItem
+            // audioEnabledToolStripMenuItem
             // 
-            this.audioToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.enableToolStripMenuItem,
-            this.disableToolStripMenuItem});
-            this.audioToolStripMenuItem.Name = "audioToolStripMenuItem";
-            this.audioToolStripMenuItem.Size = new System.Drawing.Size(63, 24);
-            this.audioToolStripMenuItem.Text = "A&udio";
-            // 
-            // disableToolStripMenuItem
-            // 
-            this.disableToolStripMenuItem.Name = "disableToolStripMenuItem";
-            this.disableToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.disableToolStripMenuItem.Text = "&Disable";
-            this.disableToolStripMenuItem.Click += new System.EventHandler(this.disableToolStripMenuItem_Click);
-            // 
-            // enableToolStripMenuItem
-            // 
-            this.enableToolStripMenuItem.Name = "enableToolStripMenuItem";
-            this.enableToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.enableToolStripMenuItem.Text = "&Enable";
-            this.enableToolStripMenuItem.Click += new System.EventHandler(this.enableToolStripMenuItem_Click);
+            this.audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
+            this.audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
+            this.audioEnabledToolStripMenuItem.Click += new System.EventHandler(this.audioEnabledToolStripMenuItem_Click);
             // 
             // MainForm
             // 
@@ -3007,7 +2990,7 @@
             this.Controls.Add(this.mainMenuStrip);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.mainMenuStrip;
-            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.MinimumSize = new System.Drawing.Size(1061, 713);
             this.Name = "MainForm";
             this.Text = "Handi-Talkie Commander";
@@ -3363,9 +3346,7 @@
         private System.Windows.Forms.ColumnHeader columnHeader13;
         private System.Windows.Forms.ColumnHeader columnHeader17;
         private TorrentBlocksUserControl torrentBlocksUserControl;
-        private System.Windows.Forms.ToolStripMenuItem audioToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem enableToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem disableToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem audioEnabledToolStripMenuItem;
     }
 }
 

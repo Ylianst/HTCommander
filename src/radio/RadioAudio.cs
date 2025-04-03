@@ -1,8 +1,6 @@
 ﻿using System;
 using System.IO;
-using System.Text;
 using System.Net.Sockets;
-using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using InTheHand.Net;
@@ -14,37 +12,32 @@ namespace HTCommander
 {
     public class RadioAudio
     {
+        private Radio parent;
         private const int ReceiveBufferSize = 1024;
         private BluetoothClient connectionClient;
         private LibSbc.sbc_struct sbcContext;
         private bool isSbcInitialized = false;
         private WaveOutEvent waveOut;
-        //private RawSourceWaveStream waveSource;
-        private BufferedWaveProvider waveProvider;
-        private WaveFormat waveFormat;
         private byte[] pcmFrame = new byte[16000];
         private bool running = false;
+        private NetworkStream audioStream;
 
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
+        public delegate void AudioStateChangedHandler(RadioAudio sender, bool enabled);
+        public event AudioStateChangedHandler OnAudioStateChanged;
+
+        public RadioAudio(Radio radio)
+        {
+            parent = radio;
+        }
 
         private void Debug(string msg)
         {
             if (OnDebugMessage != null) { OnDebugMessage(msg); }
         }
-        private static string BytesToHex(byte[] data, int index, int length)
-        {
-            if (data == null) return "";
-            StringBuilder Result = new StringBuilder(data.Length * 2);
-            string HexAlphabet = "0123456789ABCDEF";
-            for (int i = index; i < length; i++)
-            {
-                byte B = data[i];
-                Result.Append(HexAlphabet[(int)(B >> 4)]);
-                Result.Append(HexAlphabet[(int)(B & 0xF)]);
-            }
-            return Result.ToString();
-        }
+
+        public bool IsAudioEnabled { get { return running; } }
 
         private static byte[] UnescapeBytes(byte[] b)
         {
@@ -158,13 +151,15 @@ namespace HTCommander
 
         public void Stop()
         {
+            if (running == false) return;
             running = false;
+            try { if (audioStream != null) { audioStream.Dispose(); } } catch (Exception) { }
+            if (OnAudioStateChanged != null) { OnAudioStateChanged(this, false); }
         }
 
         public void Start(string mac)
         {
             if (running) return;
-            //Task.Run(() => StartAsync(mac));
             StartAsync(mac);
         }
 
@@ -177,25 +172,28 @@ namespace HTCommander
         private async void StartAsync(string mac)
         {
             running = true;
-
-            // Example: Using the Generic Audio UUID for A2DP Sink
             Guid rfcommServiceUuid = BluetoothService.GenericAudio;
-
             BluetoothAddress address = BluetoothAddress.Parse(mac);
-
-            // Create the RFCOMM endpoint
             BluetoothEndPoint remoteEndPoint = new BluetoothEndPoint(address, rfcommServiceUuid, 2);
-
-            // Create a new BluetoothClient for the connection
             connectionClient = new BluetoothClient();
+
+            // Connect to the remote endpoint asynchronously
+            Debug("Attempting to connect...");
+            try
+            {
+                connectionClient.Connect(remoteEndPoint);
+            } catch (Exception ex)
+            {
+                Debug($"Connection error: {ex.Message}");
+                connectionClient.Dispose();
+                connectionClient = null;
+                running = false;
+                return;
+            }
+            Debug("Successfully connected to the RFCOMM channel.");
 
             try
             {
-                // Connect to the remote endpoint asynchronously
-                Debug("Attempting to connect...");
-                connectionClient.Connect(remoteEndPoint); // We can fix async later
-                Debug("Successfully connected to the RFCOMM channel.");
-
                 // Initialize SBC context with A2DP profile (likely)
                 sbcContext = new LibSbc.sbc_struct();
                 int initResult = LibSbc.sbc_init(ref sbcContext, 0);
@@ -204,153 +202,54 @@ namespace HTCommander
 
                 // Configure audio output (adjust format based on SBC parameters)
                 // These are common A2DP SBC defaults, but the actual device might differ.
-                int sampleRate = 32000;
-                int channels = 1;// (sbcContext.mode == SBC_MODE_MONO) ? 1 : 2;
-                int bitsPerSample = 16;
-                waveFormat = new WaveFormat(sampleRate, bitsPerSample, channels);
-                waveProvider = new BufferedWaveProvider(waveFormat);
+                WaveFormat waveFormat = new WaveFormat(32000, 16, 1);
+                BufferedWaveProvider waveProvider = new BufferedWaveProvider(waveFormat);
                 //waveProvider.BufferDuration = new TimeSpan(0, 0, 0, 0, 500);
                 waveOut = new WaveOutEvent();
                 waveOut.Init(waveProvider);
                 waveOut.Play();
 
                 MemoryStream accumulator = new MemoryStream();
-
                 using (NetworkStream stream = connectionClient.GetStream())
                 {
+                    audioStream = stream;
                     Debug("Ready to receive data.");
+                    if (OnAudioStateChanged != null) { OnAudioStateChanged(this, true); }
                     byte[] receiveBuffer = new byte[ReceiveBufferSize];
 
                     while (running && connectionClient.Connected)
                     {
-                        try
+                        // Receive data asynchronously
+                        int bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
+                        if (bytesRead > 0)
                         {
-                            /*
-                            // Receive data asynchronously
-                            int bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
-
-                            if (bytesRead > 0)
+                            accumulator.Write(receiveBuffer, 0, bytesRead);
+                            byte[] buffer = accumulator.GetBuffer();
+                            byte[] frame;
+                            while ((frame = ExtractData(ref accumulator)) != null)
                             {
-                                accumulator.Write(receiveBuffer, 0, bytesRead);
-                                byte[] buffer = accumulator.GetBuffer();
-                                long bufferLength = accumulator.Length;
-                                long currentPosition = 0;
-
-                                while (currentPosition < bufferLength)
+                                byte[] uframe = UnescapeBytes(frame);
+                                switch (uframe[0])
                                 {
-                                    long startPosition = -1;
-                                    long endPosition = -1;
-
-                                    // Find the first occurrence of 0x7e from the current position
-                                    for (long i = currentPosition; i < bufferLength; i++)
-                                    {
-                                        if (buffer[i] == 0x7e) { startPosition = i; break; }
-                                    }
-
-                                    // No start marker found in the remaining data
-                                    if (startPosition == -1) { break; }
-
-                                    // Move past consecutive 0x7e
-                                    if ((startPosition < (bufferLength - 1)) && (buffer[startPosition + 1] == 0x7e)) { startPosition++; }
-
-                                    // Find the next occurrence of 0x7e after the start marker
-                                    for (long i = startPosition + 1; i < bufferLength; i++)
-                                    {
-                                        if (buffer[i] == 0x7e) { endPosition = i; break; }
-                                    }
-
-                                    if (endPosition != -1 && endPosition > startPosition)
-                                    {
-                                        // Extract the data between the markers
-                                        byte[] frame = new byte[(int)(endPosition - startPosition - 1)];
-                                        Array.Copy(buffer, (int)startPosition + 1, frame, 0, frame.Length);
-
-                                        byte[] uframe = UnescapeBytes(frame);
-                                        switch (uframe[0])
-                                        {
-                                            case 0x00: // Audio normal
-                                            case 0x03: // Audio odd
-                                                DecodeSbcFrame(uframe, 1, uframe.Length - 1);
-                                                break;
-                                            case 0x01: // Audio end
-                                                //Debug("Command: 0x01, Audio End, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
-                                                break;
-                                            case 0x02: // Audio ACK
-                                                //Debug("Command: 0x02, Audio Ack, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
-                                                break;
-                                            default:
-                                                Debug($"Unknown command: {uframe[0]}");
-                                                break;
-                                        }
-
-                                        // Move the current position past the processed frame
-                                        currentPosition = endPosition + 1;
-                                    }
-                                    else
-                                    {
-                                        // No complete frame found, exit the inner loop
+                                    case 0x00: // Audio normal
+                                    case 0x03: // Audio odd
+                                        if (parent.IsOnMuteChannel() == false) { DecodeSbcFrame(waveProvider, uframe, 1, uframe.Length - 1); }
                                         break;
-                                    }
+                                    case 0x01: // Audio end
+                                        //Debug("Command: 0x01, Audio End, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
+                                        break;
+                                    case 0x02: // Audio ACK
+                                        //Debug("Command: 0x02, Audio Ack, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
+                                        break;
+                                    default:
+                                        Debug($"Unknown command: {uframe[0]}");
+                                        break;
                                 }
-
-                                // Create a new MemoryStream with the remaining data
-                                if ((bufferLength - currentPosition) > 0)
-                                {
-                                    byte[] remainingBuffer = new byte[bufferLength - currentPosition];
-                                    if (remainingBuffer.Length > 0) { Array.Copy(buffer, currentPosition, remainingBuffer, 0, remainingBuffer.Length); }
-                                    accumulator.SetLength(0);
-                                    accumulator.Write(remainingBuffer, 0, remainingBuffer.Length);
-                                }
-                                else
-                                {
-                                    accumulator.SetLength(0);
-                                }
-                            }
-                            else if (bytesRead == 0)
-                            {
-                                Debug("Connection closed by remote host.");
-                                break;
-                            }
-                            */
-
-                            // Receive data asynchronously
-                            int bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
-
-                            if (bytesRead > 0)
-                            {
-                                accumulator.Write(receiveBuffer, 0, bytesRead);
-                                byte[] buffer = accumulator.GetBuffer();
-                                byte[] frame;
-                                while ((frame = ExtractData(ref accumulator)) != null)
-                                {
-                                    byte[] uframe = UnescapeBytes(frame);
-                                    switch (uframe[0])
-                                    {
-                                        case 0x00: // Audio normal
-                                        case 0x03: // Audio odd
-                                            DecodeSbcFrame(uframe, 1, uframe.Length - 1);
-                                            break;
-                                        case 0x01: // Audio end
-                                            //Debug("Command: 0x01, Audio End, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
-                                            break;
-                                        case 0x02: // Audio ACK
-                                            //Debug("Command: 0x02, Audio Ack, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
-                                            break;
-                                        default:
-                                            Debug($"Unknown command: {uframe[0]}");
-                                            break;
-                                    }
-                                }
-                            }
-                            else if (bytesRead == 0)
-                            {
-                                Debug("Connection closed by remote host.");
-                                break;
                             }
                         }
-                        catch (Exception ex)
+                        else if (bytesRead == 0)
                         {
-                            Debug($"Error reading from stream: {ex.Message}");
+                            if (running) { Debug("Connection closed by remote host."); }
                             break;
                         }
                     }
@@ -358,20 +257,23 @@ namespace HTCommander
             }
             catch (Exception ex)
             {
-                Debug($"Connection error: {ex.Message}");
+                if (running) { Debug($"Connection error: {ex.Message}"); }
             }
             finally
             {
                 running = false;
+                if (OnAudioStateChanged != null) { OnAudioStateChanged(this, false); }
                 connectionClient?.Close();
                 waveOut?.Stop();
                 waveOut?.Dispose();
+                waveOut = null;
+                audioStream = null;
                 if (isSbcInitialized) { LibSbc.sbc_finish(ref sbcContext); }
                 Debug("Bluetooth connection closed.");
             }
         }
 
-        private int DecodeSbcFrame(byte[] sbcFrame, int start, int length)
+        private int DecodeSbcFrame(BufferedWaveProvider waveProvider, byte[] sbcFrame, int start, int length)
         {
             if (sbcFrame == null || sbcFrame.Length == 0) return 1;
 
@@ -388,7 +290,7 @@ namespace HTCommander
             GCHandle pcmHandle = GCHandle.Alloc(pcmFrame, GCHandleType.Pinned);
             IntPtr pcmPtr = pcmHandle.AddrOfPinnedObject();
             UIntPtr pcmLen = (UIntPtr)pcmFrame.Length;
-            UIntPtr written;//, totalWritten = 0;
+            UIntPtr written;
 
             // Decode the SBC frame
             IntPtr decodeResult;

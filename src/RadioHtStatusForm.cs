@@ -41,7 +41,7 @@ namespace HTCommander
             addItem("Double Channel", radio.HtStatus.double_channel.ToString());
             addItem("Scanning", radio.HtStatus.is_scan.ToString());
             addItem("Radio", radio.HtStatus.is_radio.ToString());
-            addItem("Current Channel ID", radio.HtStatus.curr_ch_id.ToString());
+            addItem("Current Channel ID", (radio.HtStatus.curr_ch_id + 1).ToString());
             addItem("GPS Locker", radio.HtStatus.is_gps_locked.ToString());
             addItem("HFP Connected", radio.HtStatus.is_hfp_connected.ToString());
             addItem("AOC Connected", radio.HtStatus.is_aoc_connected.ToString());

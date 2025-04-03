@@ -355,11 +355,18 @@ namespace HTCommander
         private RadioBluetoothWin radioTransport;
 
         public Radio() {
-            radioAudio = new RadioAudio();
+            radioAudio = new RadioAudio(this);
             radioAudio.OnDebugMessage += RadioAudio_OnDebugMessage;
+            radioAudio.OnAudioStateChanged += RadioAudio_OnAudioStateChanged;
             ClearChannelTimer.Elapsed += ClearFrequencyTimer_Elapsed;
             ClearChannelTimer.Enabled = false;
         }
+
+        private void RadioAudio_OnAudioStateChanged(RadioAudio sender, bool enabled)
+        {
+            if (OnAudioStateChanged != null) { OnAudioStateChanged(this, enabled); }
+        }
+
         private void ClearFrequencyTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
             ClearChannelTimer.Stop();
@@ -392,6 +399,11 @@ namespace HTCommander
         public delegate void ChannelClearHandler(Radio sender);
         public event ChannelClearHandler OnChannelClear;
 
+        public delegate void AudioStateChangedHandler(Radio sender, bool enabled);
+        public event AudioStateChangedHandler OnAudioStateChanged;
+
+        public bool AudioState { get { return radioAudio.IsAudioEnabled; } }
+
         public void Dispose()
         {
             Disconnect(null, RadioState.Disconnected);
@@ -400,6 +412,7 @@ namespace HTCommander
         public void Disconnect(string msg, RadioState newstate = RadioState.Disconnected)
         {
             if (msg != null) { Debug(msg); }
+            AudioEnabled(false);
             UpdateState(newstate);
             radioTransport.Disconnect();
             Info = null;
@@ -444,7 +457,7 @@ namespace HTCommander
         {
             if (enabled)
             {
-                radioAudio.Start("38D20000FAF9");
+                radioAudio.Start(macAddress);
             }
             else
             {
@@ -508,6 +521,14 @@ namespace HTCommander
             byte[] data = new byte[2];
             data[1] = (byte)powerStatus;
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_STATUS, data);
+        }
+
+        public bool IsOnMuteChannel()
+        {
+            if ((state != RadioState.Connected) || (Channels == null)) return false;
+            if (HtStatus.curr_ch_id >= Channels.Length) return false;
+            if (Channels[HtStatus.curr_ch_id] == null) return false;
+            return Channels[HtStatus.curr_ch_id].mute;
         }
 
         private void RadioTransport_ReceivedData(RadioBluetoothWin sender, Exception error, byte[] value)

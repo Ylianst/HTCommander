@@ -100,7 +100,7 @@ namespace HTCommander
         private bool _mailIsDragging;
 
         public static bool IsRunningOnMono() { return Type.GetType("Mono.Runtime") != null; }
-        public static System.Drawing.Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
+        public static Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
 
         public MainForm(string[] args)
         {
@@ -238,6 +238,7 @@ namespace HTCommander
             systemTrayToolStripMenuItem.Checked = (registry.ReadInt("SystemTray", 1) == 1);
             showDetailsToolStripMenuItem.Checked = (registry.ReadInt("ViewTorrentDetails", 1) == 1);
             torrentSplitContainer.Panel2Collapsed = !showDetailsToolStripMenuItem.Checked;
+            audioEnabledToolStripMenuItem.Checked = (registry.ReadInt("Audio", 0) == 1);
 
             showPreviewToolStripMenuItem.Checked = (registry.ReadInt("MailViewPreview", 1) == 1);
             mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
@@ -696,6 +697,7 @@ namespace HTCommander
                                 radioStateLabel.Text = "Connected";
                                 channelControls = new RadioChannelControl[radio.Info.channel_count];
                                 vfo2LastChannelId = -1;
+                                if (registry.ReadInt("Audio", 0) == 1) { radio.AudioEnabled(true); }
                                 break;
                             case Radio.RadioState.Disconnected:
                                 connectToolStripMenuItem.Enabled = true;
@@ -754,6 +756,7 @@ namespace HTCommander
                         batteryToolStripStatusLabel.Visible = true;
                         break;
                     case Radio.RadioUpdateNotification.HtStatus:
+                        if (radio.HtStatus == null) break;
                         rssiProgressBar.Visible = radio.HtStatus.is_in_rx;
                         rssiProgressBar.Value = radio.HtStatus.rssi;
                         transmitBarPanel.Visible = radio.HtStatus.is_in_tx;
@@ -811,6 +814,20 @@ namespace HTCommander
             if (this.InvokeRequired) { this.Invoke(new EmptyFuncHandler(UpdateRadioDisplay)); return; }
 
             if (radio.Settings == null) return;
+
+            if ((radio.HtStatus != null) && (radio.HtStatus.curr_ch_id >= 254))
+            {
+                vfo1Label.Text = "NOAA";
+                vfo1FreqLabel.Text = "";
+                vfo1StatusLabel.Text = "";
+                vfo2Label.Text = "";
+                vfo2FreqLabel.Text = "";
+                vfo2StatusLabel.Text = "";
+                AdjustVfoLabel(vfo1Label);
+                AdjustVfoLabel(vfo2Label);
+                return;
+            }
+
             if (radio.Channels != null)
             {
                 RadioChannelInfo channelA = null;
@@ -1475,7 +1492,7 @@ namespace HTCommander
                 MessageText = packet.dataStr;
             }
 
-            if ((MessageText != null) && (MessageText.Length > 0))
+            if ((MessageText != null) && (MessageText.Trim().Length > 0))
             {
                 ChatMessage c = new ChatMessage(RoutingString, SenderCallsign, MessageText.Trim(), packet.time, sender, -1);
                 c.Tag = packet;
@@ -1670,6 +1687,7 @@ namespace HTCommander
             smSMessageToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             weatherReportToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             beaconSettingsToolStripMenuItem.Enabled = ((radio.State == Radio.RadioState.Connected) && (radio.BssSettings != null));
+            audioEnabledToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             volumeToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             dualWatchToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             scanToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
@@ -1855,14 +1873,7 @@ namespace HTCommander
 
         private void volumeToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (radioVolumeForm != null)
-            {
-                radioVolumeForm.Focus();
-            }
-            else
-            {
-                radio.GetVolumeLevel();
-            }
+            if (radioVolumeForm != null) { radioVolumeForm.Focus(); } else { radio.GetVolumeLevel(); }
         }
 
         public void ChangeChannelA(int channelId)
@@ -4025,14 +4036,18 @@ namespace HTCommander
             foreach (TorrentFile file in torrent.Files) { updateTorrent(file); }
         }
 
-        private void enableToolStripMenuItem_Click(object sender, EventArgs e)
+        private void settingsToolStripMenuItem1_DropDownOpening(object sender, EventArgs e)
         {
-            if (radio != null) { radio.AudioEnabled(true); }
+            if (radio.State == RadioState.Connected)
+            {
+                audioEnabledToolStripMenuItem.Checked = radio.AudioState;
+            }
         }
 
-        private void disableToolStripMenuItem_Click(object sender, EventArgs e)
+        private void audioEnabledToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (radio != null) { radio.AudioEnabled(false); }
+            radio.AudioEnabled(!audioEnabledToolStripMenuItem.Checked);
+            registry.WriteInt("Audio", audioEnabledToolStripMenuItem.Checked ? 0 : 1);
         }
     }
 }

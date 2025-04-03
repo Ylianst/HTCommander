@@ -24,9 +24,6 @@ using InTheHand.Net.Bluetooth;
 using InTheHand.Net.Sockets;
 using InTheHand.Net;
 using Windows.Devices.Enumeration;
-using System.Net.NetworkInformation;
-using System.Text.RegularExpressions;
-
 
 #if !__MonoCS__
 using System.Collections.Concurrent;
@@ -78,6 +75,7 @@ namespace HTCommander
         public void Disconnect()
         {
             running = false;
+            try { if (stream != null) { stream.Dispose(); stream = null; } } catch (Exception) { }
         }
 
         public static bool CheckBluetooth()
@@ -185,13 +183,21 @@ namespace HTCommander
             Guid rfcommServiceUuid = BluetoothService.SerialPort;
             BluetoothAddress address = BluetoothAddress.Parse(mac);
             BluetoothEndPoint remoteEndPoint = new BluetoothEndPoint(address, rfcommServiceUuid, 0);
+            // Connect to the remote endpoint asynchronously
+            Debug("Attempting to connect...");
             try
             {
-                // Connect to the remote endpoint asynchronously
-                Debug("Attempting to connect...");
                 connectionClient.Connect(remoteEndPoint);
-                Debug("Successfully connected to the RFCOMM channel.");
+            }
+            catch (Exception)
+            {
+                parent.Disconnect("Unable to connect", Radio.RadioState.UnableToConnect);
+                return;
+            }
+            Debug("Successfully connected to the RFCOMM channel.");
 
+            try
+            {
                 byte[] accumulator = new byte[4096];
                 int accumulatorPtr = 0, accumulatorLen = 0;
                 stream = connectionClient.GetStream();
@@ -205,8 +211,8 @@ namespace HTCommander
                     int bytesRead = stream.Read(accumulator, accumulatorPtr, accumulator.Length - (accumulatorPtr + accumulatorLen));
                     accumulatorLen += bytesRead;
                     //Debug($"Received {bytesRead} bytes, Accumulator: {BytesToHex(accumulator, accumulatorPtr, accumulatorLen)}");
-                    if (running == false) { connectionClient?.Close(); stream = null; return; }
-                    if (bytesRead == 0) { running = false; connectionClient?.Close(); stream = null; Debug("Connection closed by remote host."); break; }
+                    if (running == false) { connectionClient?.Close(); stream.Dispose(); stream = null; return; }
+                    if (bytesRead == 0) { running = false; connectionClient?.Close(); stream = null; parent.Disconnect("Connection closed by remote host.", Radio.RadioState.Disconnected); break; }
                     if (accumulatorLen < 8) continue; // Wait for at least 8 bytes
 
                     int cmdSize;
@@ -234,15 +240,14 @@ namespace HTCommander
             }
             catch (Exception ex)
             {
-                running = false;
-                Debug($"Connection error: {ex.Message}");
+                if (running) { Debug($"Connection error: {ex.Message}"); }
             }
             finally
             {
                 running = false;
                 stream = null;
                 connectionClient?.Close();
-                Debug("Bluetooth connection closed.");
+                parent.Disconnect("Bluetooth connection closed.", Radio.RadioState.Disconnected);
             }
         }
 
