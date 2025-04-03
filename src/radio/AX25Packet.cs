@@ -45,7 +45,7 @@ namespace HTCommander
 
         // Tag and deadline are used to limit when a message can be sent
         public string tag;
-        public DateTime deadline;
+        public DateTime deadline = DateTime.MaxValue;
         public bool isSame(AX25Packet p)
         {
             if (p.dataStr != dataStr) return false;
