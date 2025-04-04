@@ -525,7 +525,7 @@ namespace HTCommander
 
         public bool IsOnMuteChannel()
         {
-            if ((state != RadioState.Connected) || (Channels == null)) return false;
+            if ((state != RadioState.Connected) || (Channels == null) || (HtStatus == null)) return false;
             if (HtStatus.curr_ch_id >= Channels.Length) return false;
             if (Channels[HtStatus.curr_ch_id] == null) return false;
             return Channels[HtStatus.curr_ch_id].mute;

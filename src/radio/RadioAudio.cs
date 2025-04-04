@@ -1,6 +1,9 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 using System.Net.Sockets;
+using System.Speech.AudioFormat; // Requires reference to System.Speech assembly
+using System.Speech.Recognition;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using InTheHand.Net;
@@ -21,21 +24,16 @@ namespace HTCommander
         private byte[] pcmFrame = new byte[16000];
         private bool running = false;
         private NetworkStream audioStream;
+        public bool voiceToText = true;
 
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
         public delegate void AudioStateChangedHandler(RadioAudio sender, bool enabled);
         public event AudioStateChangedHandler OnAudioStateChanged;
 
-        public RadioAudio(Radio radio)
-        {
-            parent = radio;
-        }
+        public RadioAudio(Radio radio) { parent = radio; }
 
-        private void Debug(string msg)
-        {
-            if (OnDebugMessage != null) { OnDebugMessage(msg); }
-        }
+        private void Debug(string msg) { if (OnDebugMessage != null) { OnDebugMessage(msg); } }
 
         public bool IsAudioEnabled { get { return running; } }
 
@@ -48,22 +46,10 @@ namespace HTCommander
                 if (b[i] == 0x7d)
                 {
                     i++;
-                    if (i < b.Length) // Make sure we don't go out of bounds
-                    {
-                        outList.Add((byte)(b[i] ^ 0x20));
-                    }
-                    else
-                    {
-                        // Handle the case where 0x7d is the last byte (shouldn't happen in a valid escaped sequence)
-                        // You might want to throw an exception or handle it differently based on your requirements.
-                        // For now, we'll just break the loop.
-                        break;
-                    }
+                    // Make sure we don't go out of bounds
+                    if (i < b.Length) { outList.Add((byte)(b[i] ^ 0x20)); } else { break; }
                 }
-                else
-                {
-                    outList.Add(b[i]);
-                }
+                else { outList.Add(b[i]); }
                 i++;
             }
             return outList.ToArray();
@@ -97,29 +83,16 @@ namespace HTCommander
             byte[] buffer = inputStream.ToArray();
 
             // Find the first occurrence of 0x7e
-            for (int i = 0; i < buffer.Length; i++)
-            {
-                if (buffer[i] == 0x7e) { startPosition = i; break; }
-            }
+            for (int i = 0; i < buffer.Length; i++) { if (buffer[i] == 0x7e) { startPosition = i; break; } }
 
-            if (startPosition == -1)
-            {
-                // No start marker found, return null
-                inputStream.Position = 0; // Reset the stream position
-                return null;
-            }
+            // No start marker found, return null
+            if (startPosition == -1) { inputStream.Position = 0; return null; }
 
             // We found the end of the previous frame, move to next frame
             if ((startPosition < (buffer.Length - 1)) && (buffer[startPosition + 1] == 0x7e)) { startPosition++; }
 
             // If a start marker is found, look for the next 0x7e
-            if (startPosition != -1)
-            {
-                for (int i = (int)startPosition + 1; i < buffer.Length; i++)
-                {
-                    if (buffer[i] == 0x7e) { endPosition = i; break; }
-                }
-            }
+            if (startPosition != -1) { for (int i = (int)startPosition + 1; i < buffer.Length; i++) { if (buffer[i] == 0x7e) { endPosition = i; break; } } }
 
             // If both start and end markers are found
             if (startPosition != -1 && endPosition != -1 && endPosition > startPosition)
@@ -132,11 +105,7 @@ namespace HTCommander
 
                 // Create a new MemoryStream with the data after the second 0x7e
                 MemoryStream remainingStream = new MemoryStream();
-                if (endPosition + 1 < buffer.Length)
-                {
-                    remainingStream.Write(buffer, (int)endPosition + 1, buffer.Length - (int)endPosition - 1);
-                }
-
+                if (endPosition + 1 < buffer.Length) { remainingStream.Write(buffer, (int)endPosition + 1, buffer.Length - (int)endPosition - 1); }
                 inputStream = remainingStream;
             }
             else
@@ -169,6 +138,62 @@ namespace HTCommander
             set { if (waveOut != null) { waveOut.Volume = value; } }
         }
 
+        private class SpeechStreamer : Stream
+        {
+            private AutoResetEvent _writeEvent;
+            private List<byte> _buffer;
+            private int _buffersize;
+            private int _readposition;
+            private int _writeposition;
+            private bool _reset;
+
+            public SpeechStreamer(int bufferSize)
+            {
+                _writeEvent = new AutoResetEvent(false);
+                _buffersize = bufferSize;
+                _buffer = new List<byte>(_buffersize);
+                for (int i = 0; i < _buffersize; i++)
+                    _buffer.Add(new byte());
+                _readposition = 0;
+                _writeposition = 0;
+            }
+
+            public override bool CanRead { get { return true; } }
+            public override bool CanSeek { get { return false; } }
+            public override bool CanWrite { get { return true; } }
+            public override long Length { get { return -1L; } }
+            public override long Position { get { return 0L; } set { } }
+            public override long Seek(long offset, SeekOrigin origin) { return 0L; }
+            public override void SetLength(long value) { }
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                int i = 0;
+                while (i < count && _writeEvent != null)
+                {
+                    if (!_reset && _readposition >= _writeposition) { _writeEvent.WaitOne(100, true); continue; }
+                    buffer[i] = _buffer[_readposition + offset];
+                    _readposition++;
+                    if (_readposition == _buffersize) { _readposition = 0; _reset = false; }
+                    i++;
+                }
+                return count;
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                for (int i = offset; i < offset + count; i++)
+                {
+                    _buffer[_writeposition] = buffer[i];
+                    _writeposition++;
+                    if (_writeposition == _buffersize) { _writeposition = 0; _reset = true; }
+                }
+                _writeEvent.Set();
+            }
+
+            public override void Close() { _writeEvent.Close(); _writeEvent = null; base.Close(); }
+            public override void Flush() { }
+        }
+
         private async void StartAsync(string mac)
         {
             running = true;
@@ -192,9 +217,33 @@ namespace HTCommander
             }
             Debug("Successfully connected to the RFCOMM channel.");
 
+            SpeechRecognitionEngine recognizer = null;
+            SpeechStreamer recognizerAudioStream = null;
+            if (voiceToText)
+            {
+                // Setup voice-to-text engine
+                recognizer = new SpeechRecognitionEngine();
+                recognizer.SpeechRecognized += Recognizer_SpeechRecognized;
+                recognizer.RecognizeCompleted += Recognizer_RecognizeCompleted;
+                recognizer.SpeechRecognitionRejected += Recognizer_SpeechRecognitionRejected; // Optional but good
+                recognizer.LoadGrammar(new DictationGrammar()); // DictationGrammar is simplest for free-form text.
+
+                // Define the audio format for the recognizer
+                SpeechAudioFormatInfo formatInfo = new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono);
+
+                // Use our custom pipe stream
+                recognizerAudioStream = new SpeechStreamer(100000);
+
+                // RecognizeAsync runs in the background. RecognizeCompleted will fire when done.
+                // RecognizeMode.Single stops after the first recognized phrase.
+                // Use RecognizeMode.Multiple for continuous recognition until StopAsync is called.
+                recognizer.SetInputToAudioStream(recognizerAudioStream, formatInfo);
+                recognizer.RecognizeAsync(RecognizeMode.Multiple);
+            }
+
             try
             {
-                // Initialize SBC context with A2DP profile (likely)
+                // Initialize SBC context
                 sbcContext = new LibSbc.sbc_struct();
                 int initResult = LibSbc.sbc_init(ref sbcContext, 0);
                 if (initResult != 0) { Debug($"Error initializing SBC (A2DP): {initResult}"); running = false; return; }
@@ -204,7 +253,6 @@ namespace HTCommander
                 // These are common A2DP SBC defaults, but the actual device might differ.
                 WaveFormat waveFormat = new WaveFormat(32000, 16, 1);
                 BufferedWaveProvider waveProvider = new BufferedWaveProvider(waveFormat);
-                //waveProvider.BufferDuration = new TimeSpan(0, 0, 0, 0, 500);
                 waveOut = new WaveOutEvent();
                 waveOut.Init(waveProvider);
                 waveOut.Play();
@@ -233,7 +281,7 @@ namespace HTCommander
                                 {
                                     case 0x00: // Audio normal
                                     case 0x03: // Audio odd
-                                        if (parent.IsOnMuteChannel() == false) { DecodeSbcFrame(waveProvider, uframe, 1, uframe.Length - 1); }
+                                        if (parent.IsOnMuteChannel() == false) { DecodeSbcFrame(waveProvider, recognizerAudioStream, recognizer, uframe, 1, uframe.Length - 1); }
                                         break;
                                     case 0x01: // Audio end
                                         //Debug("Command: 0x01, Audio End, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
@@ -262,6 +310,7 @@ namespace HTCommander
             finally
             {
                 running = false;
+                if (recognizer != null) { recognizer.RecognizeAsyncStop(); }
                 if (OnAudioStateChanged != null) { OnAudioStateChanged(this, false); }
                 connectionClient?.Close();
                 waveOut?.Stop();
@@ -273,7 +322,51 @@ namespace HTCommander
             }
         }
 
-        private int DecodeSbcFrame(BufferedWaveProvider waveProvider, byte[] sbcFrame, int start, int length)
+        private void Recognizer_SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
+        {
+            if (e.Result != null)
+            {
+                Debug($"Recognized: {e.Result.Text} (Confidence: {e.Result.Confidence:P1})");
+            }
+            else
+            {
+                Debug("Recognized: (null result)");
+            }
+        }
+
+        private void Recognizer_RecognizeCompleted(object sender, RecognizeCompletedEventArgs e)
+        {
+            if (e.Error != null)
+            {
+                Debug($"Completed with error: {e.Error.Message}");
+            }
+            else if (e.Cancelled)
+            {
+                Debug("Recognition cancelled.");
+            }
+            else if (e.InputStreamEnded)
+            {
+                Debug("Recognition completed (stream ended).");
+            }
+            else
+            {
+                Debug("Recognition completed."); // Generic completion
+            }
+        }
+
+        private void Recognizer_SpeechRecognitionRejected(object sender, SpeechRecognitionRejectedEventArgs e)
+        {
+            if (e.Result != null) // Can still have partial results sometimes
+            {
+                Debug($"Rejected: {e.Result.Text} (Confidence: {e.Result.Confidence:P1})");
+            }
+            else
+            {
+                Debug("Rejected: No speech recognized or matched grammar.");
+            }
+        }
+
+        private int DecodeSbcFrame(BufferedWaveProvider waveProvider, SpeechStreamer recognizerAudioStream, SpeechRecognitionEngine recognizer, byte[] sbcFrame, int start, int length)
         {
             if (sbcFrame == null || sbcFrame.Length == 0) return 1;
 
@@ -288,17 +381,16 @@ namespace HTCommander
 
             // Allocate a buffer for the decoded PCM data
             GCHandle pcmHandle = GCHandle.Alloc(pcmFrame, GCHandleType.Pinned);
-            IntPtr pcmPtr = pcmHandle.AddrOfPinnedObject();
-            UIntPtr pcmLen = (UIntPtr)pcmFrame.Length;
-            UIntPtr written;
+            IntPtr decodeResult, pcmPtr = pcmHandle.AddrOfPinnedObject();
+            UIntPtr written, pcmLen = (UIntPtr)pcmFrame.Length;
 
             // Decode the SBC frame
-            IntPtr decodeResult;
             while ((decodeResult = LibSbc.sbc_decode(ref sbcContext, sbcPtr, sbcLen, pcmPtr, pcmLen, out written)).ToInt64() > 0)
             {
                 sbcPtr += (int)decodeResult;
                 sbcLen -= (int)decodeResult;
                 try { waveProvider.AddSamples(pcmFrame, 0, (int)written); } catch (Exception) { }
+                if (recognizerAudioStream != null) { recognizerAudioStream.Write(pcmFrame, 0, (int)written); }
             }
 
             pcmHandle.Free();
