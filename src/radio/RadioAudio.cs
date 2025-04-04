@@ -24,7 +24,7 @@ namespace HTCommander
         private byte[] pcmFrame = new byte[16000];
         private bool running = false;
         private NetworkStream audioStream;
-        public bool voiceToText = true;
+        public bool speechToText = true;
 
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
@@ -219,7 +219,7 @@ namespace HTCommander
 
             SpeechRecognitionEngine recognizer = null;
             SpeechStreamer recognizerAudioStream = null;
-            if (voiceToText)
+            if (speechToText)
             {
                 // Setup voice-to-text engine
                 recognizer = new SpeechRecognitionEngine();
@@ -310,7 +310,8 @@ namespace HTCommander
             finally
             {
                 running = false;
-                if (recognizer != null) { recognizer.RecognizeAsyncStop(); }
+                if (recognizerAudioStream != null) { recognizerAudioStream.Close(); }
+                if (recognizer != null) { recognizer.Dispose(); }
                 if (OnAudioStateChanged != null) { OnAudioStateChanged(this, false); }
                 connectionClient?.Close();
                 waveOut?.Stop();

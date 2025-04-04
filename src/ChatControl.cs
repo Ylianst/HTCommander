@@ -19,6 +19,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Drawing.Drawing2D;
 using System.Collections.Generic;
+using System.Drawing.Text;
 
 namespace HTCommander
 {
@@ -150,18 +151,18 @@ namespace HTCommander
             SizeF timeLineSize = SizeF.Empty;
             if ((previousChatMessage == null) || (previousChatMessage.Time.AddMinutes(30).CompareTo(chatMessage.Time) < 0))
             {
-                timeLineSize = g.MeasureString(chatMessage.Time.ToString(), CallsignFont);
+                timeLineSize = TextRenderer.MeasureText(chatMessage.Time.ToString(), CallsignFont);
             }
             SizeF callSignSize = SizeF.Empty;
             if (!string.IsNullOrEmpty(chatMessage.Route) && ((previousChatMessage == null) || (previousChatMessage.Route != chatMessage.Route)))
             {
-                callSignSize = g.MeasureString(chatMessage.Route, CallsignFont);
+                callSignSize = TextRenderer.MeasureText(chatMessage.Message, CallsignFont);
             }
             SizeF messageSize = SizeF.Empty;
             if (!string.IsNullOrEmpty(chatMessage.Message))
             {
                 int maxWidth = (int)((Width - chatScrollBar.Width) * 0.8);
-                messageSize = g.MeasureString(chatMessage.Message, MessageFont, maxWidth);
+                messageSize = TextRenderer.MeasureText(chatMessage.Message, MessageFont, new Size((int)maxWidth, int.MaxValue));
             }
             return timeLineSize.Height + callSignSize.Height + messageSize.Height + (MessageBoxMargin * 2) + InterMessageMargin;
         }
@@ -188,24 +189,24 @@ namespace HTCommander
                     timeString = chatMessage.Time.ToShortTimeString();
                 }
 
-                timeLineSize = g.MeasureString(chatMessage.Time.ToString(), CallsignFont);
+                timeLineSize = TextRenderer.MeasureText(timeString, CallsignFont);
                 var textRect = new RectangleF(SideMargins, top, ClientRectangle.Width - chatScrollBar.Width - (SideMargins * 2), timeLineSize.Height);
-                g.DrawString(timeString, CallsignFont, callsignTextBrush, textRect, centerFormat);
+                TextRenderer.DrawText(g, timeString, CallsignFont, new Point((int)(textRect.X), (int)(textRect.Y)), callsignTextColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak);
             }
 
             SizeF callSignSize = SizeF.Empty;
             if (!string.IsNullOrEmpty(chatMessage.Route) && ((previousChatMessage == null) || (previousChatMessage.Route != chatMessage.Route)))
             {
-                callSignSize = g.MeasureString(chatMessage.Route, CallsignFont);
+                callSignSize = TextRenderer.MeasureText(chatMessage.Route, CallsignFont);
                 var textRect = new RectangleF(SideMargins, timeLineSize.Height + top, ClientRectangle.Width - chatScrollBar.Width - (SideMargins * 2), callSignSize.Height);
-                g.DrawString(chatMessage.Route, CallsignFont, callsignTextBrush, textRect, chatMessage.Sender ? farFormat : nearFormat);
+                TextRenderer.DrawText(g, chatMessage.Route, CallsignFont, new Point((int)(textRect.X), (int)(textRect.Y)), callsignTextColor, TextFormatFlags.Left | TextFormatFlags.WordBreak);
             }
 
             SizeF messageSize = SizeF.Empty;
             if (!string.IsNullOrEmpty(chatMessage.Message))
             {
                 int maxWidth = (int)((Width - chatScrollBar.Width) * 0.8);
-                messageSize = g.MeasureString(chatMessage.Message, MessageFont, maxWidth);
+                messageSize = TextRenderer.MeasureText(chatMessage.Message, MessageFont, new Size((int)maxWidth, int.MaxValue));
 
                 // Draw Shadow
                 RectangleF r = new RectangleF(
@@ -242,7 +243,7 @@ namespace HTCommander
                     top + timeLineSize.Height + callSignSize.Height + MessageBoxMargin + 2,
                     messageSize.Width,
                     messageSize.Height);
-                g.DrawString(chatMessage.Message, MessageFont, textBrush, r3);
+                TextRenderer.DrawText(g, chatMessage.Message, MessageFont, new Point((int)(r3.X), (int)(r3.Y)), textColor, TextFormatFlags.Left | TextFormatFlags.WordBreak);
 
                 // Draw the image
                 if ((Images != null) && (chatMessage.ImageIndex >= 0) && (chatMessage.ImageIndex < Images.Images.Count))
