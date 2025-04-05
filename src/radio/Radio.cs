@@ -18,6 +18,8 @@ using System;
 using System.IO;
 using System.Net;
 using System.Collections.Generic;
+using static HTCommander.MainForm;
+using System.ComponentModel;
 
 namespace HTCommander
 {
@@ -401,6 +403,9 @@ namespace HTCommander
 
         public delegate void AudioStateChangedHandler(Radio sender, bool enabled);
         public event AudioStateChangedHandler OnAudioStateChanged;
+
+        public delegate void VoiceTextChangedHandler(Radio sender, string text, bool completed);
+        public event VoiceTextChangedHandler OnVoiceText;
 
         public bool AudioState { get { return radioAudio.IsAudioEnabled; } }
 
@@ -900,6 +905,11 @@ namespace HTCommander
             }
 
             return outboundData.Length;
+        }
+
+        public void UpdateVoiceLiveText(string text, bool completed)
+        {
+            if (OnVoiceText != null) { OnVoiceText(this, text, completed); }
         }
 
     }

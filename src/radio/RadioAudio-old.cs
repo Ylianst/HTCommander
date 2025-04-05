@@ -2,6 +2,8 @@
 using System.IO;
 using System.Threading;
 using System.Net.Sockets;
+using System.Speech.AudioFormat; // Requires reference to System.Speech assembly
+using System.Speech.Recognition;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using InTheHand.Net;
@@ -27,7 +29,7 @@ namespace HTCommander
         private bool running = false;
         private NetworkStream audioStream;
         private AsyncDeepSpeechRecognizer deepSpeech;
-        public bool speechToText = true;
+        public int speechToText = 2;
         
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
@@ -200,7 +202,6 @@ namespace HTCommander
         private async void StartAsync(string mac)
         {
             running = true;
-            int maxVoiceDecodeTime = 0;
             Guid rfcommServiceUuid = BluetoothService.GenericAudio;
             BluetoothAddress address = BluetoothAddress.Parse(mac);
             BluetoothEndPoint remoteEndPoint = new BluetoothEndPoint(address, rfcommServiceUuid, 2);
@@ -220,6 +221,38 @@ namespace HTCommander
                 return;
             }
             Debug("Successfully connected to the RFCOMM channel.");
+
+            SpeechRecognitionEngine recognizer = null;
+            SpeechStreamer recognizerAudioStream = null;
+            if (speechToText == 1)
+            {
+                // Setup voice-to-text engine
+                recognizer = new SpeechRecognitionEngine();
+                recognizer.SpeechRecognized += Recognizer_SpeechRecognized;
+                recognizer.RecognizeCompleted += Recognizer_RecognizeCompleted;
+                recognizer.SpeechRecognitionRejected += Recognizer_SpeechRecognitionRejected; // Optional but good
+                recognizer.LoadGrammar(new DictationGrammar()); // DictationGrammar is simplest for free-form text.
+
+                // Define the audio format for the recognizer
+                SpeechAudioFormatInfo formatInfo = new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono);
+
+                // Use our custom pipe stream
+                recognizerAudioStream = new SpeechStreamer(10000);
+
+                // RecognizeAsync runs in the background. RecognizeCompleted will fire when done.
+                // RecognizeMode.Single stops after the first recognized phrase.
+                // Use RecognizeMode.Multiple for continuous recognition until StopAsync is called.
+                recognizer.SetInputToAudioStream(recognizerAudioStream, formatInfo);
+                recognizer.RecognizeAsync(RecognizeMode.Multiple);
+            }
+            if (speechToText == 2)
+            {
+                deepSpeech = new AsyncDeepSpeechRecognizer("deepspeech-0.9.3-models.pbmm", "deepspeech-0.9.3-models.scorer");
+                //deepSpeech = new AsyncDeepSpeechRecognizer("deepspeech-0.9.3-models.pbmm", null);
+                deepSpeech.IntermediateResultReady += DeepSpeech_IntermediateResultReady;
+                deepSpeech.FinalResultReady += DeepSpeech_FinalResultReady;
+                deepSpeech.StartStreaming();
+            }
 
             try
             {
@@ -261,33 +294,36 @@ namespace HTCommander
                                 {
                                     case 0x00: // Audio normal
                                     case 0x03: // Audio odd
-                                        if (parent.IsOnMuteChannel() == false) {
-                                            if (speechToText && (deepSpeech == null))
-                                            {
-                                                deepSpeech = new AsyncDeepSpeechRecognizer("deepspeech-0.9.3-models.pbmm", "deepspeech-0.9.3-models.scorer");
-                                                deepSpeech.IntermediateResultReady += DeepSpeech_IntermediateResultReady;
-                                                deepSpeech.FinalResultReady += DeepSpeech_FinalResultReady;
-                                                deepSpeech.StartStreaming();
-                                                maxVoiceDecodeTime = 0;
-                                            }
-                                            DecodeSbcFrame(waveProvider, uframe, 1, uframe.Length - 1);
-                                            maxVoiceDecodeTime += (uframe.Length - 1);
-                                            if ((deepSpeech != null) && (maxVoiceDecodeTime > 19200000)) // 5 minutes (32k * 2 * 60 & 5)
-                                            {
-                                                Task<string> _ = deepSpeech.FinishStreamingAsync();
-                                                deepSpeech.StartStreaming();
-                                                maxVoiceDecodeTime = 0;
-                                            }
-                                        }
+                                        if (parent.IsOnMuteChannel() == false) { DecodeSbcFrame(waveProvider, recognizerAudioStream, recognizer, uframe, 1, uframe.Length - 1); }
                                         break;
                                     case 0x01: // Audio end
-                                        //Debug("Command: 0x01, Audio End, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
-                                        if (deepSpeech != null)
-                                        {
-                                            Task<string> _ = deepSpeech.FinishStreamingAsync();
-                                            deepSpeech.StartStreaming();
-                                            maxVoiceDecodeTime = 0;
+                                        if (recognizerAudioStream != null) {
+                                            recognizerAudioStream.Close();
+                                            recognizer.RecognizeAsyncStop();
+                                            recognizer.Dispose();
+
+                                            Debug("Recognize Break");
+
+                                            // Setup voice-to-text engine
+                                            recognizer = new SpeechRecognitionEngine();
+                                            recognizer.SpeechRecognized += Recognizer_SpeechRecognized;
+                                            recognizer.RecognizeCompleted += Recognizer_RecognizeCompleted;
+                                            recognizer.SpeechRecognitionRejected += Recognizer_SpeechRecognitionRejected; // Optional but good
+                                            recognizer.LoadGrammar(new DictationGrammar()); // DictationGrammar is simplest for free-form text.
+
+                                            // Define the audio format for the recognizer
+                                            SpeechAudioFormatInfo formatInfo = new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono);
+
+                                            // Use our custom pipe stream
+                                            recognizerAudioStream = new SpeechStreamer(10000);
+
+                                            // RecognizeAsync runs in the background. RecognizeCompleted will fire when done.
+                                            // RecognizeMode.Single stops after the first recognized phrase.
+                                            // Use RecognizeMode.Multiple for continuous recognition until StopAsync is called.
+                                            recognizer.SetInputToAudioStream(recognizerAudioStream, formatInfo);
+                                            recognizer.RecognizeAsync(RecognizeMode.Multiple);
                                         }
+                                        //Debug("Command: 0x01, Audio End, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
                                         break;
                                     case 0x02: // Audio ACK
                                         //Debug("Command: 0x02, Audio Ack, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
@@ -313,6 +349,8 @@ namespace HTCommander
             finally
             {
                 running = false;
+                if (recognizerAudioStream != null) { recognizerAudioStream.Close(); }
+                if (recognizer != null) { recognizer.Dispose(); }
                 if (deepSpeech != null) {  deepSpeech.Dispose(); deepSpeech = null; }
                 if (OnAudioStateChanged != null) { OnAudioStateChanged(this, false); }
                 connectionClient?.Close();
@@ -325,19 +363,61 @@ namespace HTCommander
             }
         }
 
-        private void DeepSpeech_FinalResultReady(string text)
+        private void DeepSpeech_FinalResultReady(string obj)
         {
-            //Debug("Final: " + text);
-            parent.UpdateVoiceLiveText(text, true);
+            Debug("Final: " + obj);
         }
 
-        private void DeepSpeech_IntermediateResultReady(string text)
+        private void DeepSpeech_IntermediateResultReady(string obj)
         {
-            //Debug("Intermediate: " + text);
-            parent.UpdateVoiceLiveText(text, false);
+            Debug("Intermediate: " + obj);
         }
 
-        private int DecodeSbcFrame(BufferedWaveProvider waveProvider, byte[] sbcFrame, int start, int length)
+        private void Recognizer_SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
+        {
+            if (e.Result != null)
+            {
+                Debug($"Recognized: {e.Result.Text} (Confidence: {e.Result.Confidence:P1})");
+            }
+            else
+            {
+                Debug("Recognized: (null result)");
+            }
+        }
+
+        private void Recognizer_RecognizeCompleted(object sender, RecognizeCompletedEventArgs e)
+        {
+            if (e.Error != null)
+            {
+                Debug($"Completed with error: {e.Error.Message}");
+            }
+            else if (e.Cancelled)
+            {
+                Debug("Recognition cancelled.");
+            }
+            else if (e.InputStreamEnded)
+            {
+                Debug("Recognition completed (stream ended).");
+            }
+            else
+            {
+                Debug("Recognition completed."); // Generic completion
+            }
+        }
+
+        private void Recognizer_SpeechRecognitionRejected(object sender, SpeechRecognitionRejectedEventArgs e)
+        {
+            if (e.Result != null) // Can still have partial results sometimes
+            {
+                Debug($"Rejected: {e.Result.Text} (Confidence: {e.Result.Confidence:P1})");
+            }
+            else
+            {
+                Debug("Rejected: No speech recognized or matched grammar.");
+            }
+        }
+
+        private int DecodeSbcFrame(BufferedWaveProvider waveProvider, SpeechStreamer recognizerAudioStream, SpeechRecognitionEngine recognizer, byte[] sbcFrame, int start, int length)
         {
             if (sbcFrame == null || sbcFrame.Length == 0) return 1;
 
@@ -361,6 +441,7 @@ namespace HTCommander
                 sbcPtr += (int)decodeResult;
                 sbcLen -= (int)decodeResult;
                 try { waveProvider.AddSamples(pcmFrame, 0, (int)written); } catch (Exception) { }
+                if (recognizerAudioStream != null) { recognizerAudioStream.Write(pcmFrame, 0, (int)written); }
                 if (deepSpeech != null) { deepSpeech.ProcessAudioChunk(pcmFrame, 0, (int)written); }
             }
 
@@ -500,7 +581,7 @@ namespace HTCommander
                 }
 
                 DateTime now = DateTime.Now;
-                if (lastIntermediate.AddSeconds(1) < now)
+                if (lastIntermediate.AddSeconds(10) < now)
                 {
                     lastIntermediate = now;
                     string intermediateResult = _model.IntermediateDecode(_deepSpeechStream);
@@ -546,7 +627,7 @@ namespace HTCommander
                 try
                 {
                     // Example: Assuming a FreeStream method exists on the model
-                    //_model.FreeStream(_deepSpeechStream); // This causes a crash!!
+                    _model.FreeStream(_deepSpeechStream);
                 }
                 catch (Exception ex)
                 {

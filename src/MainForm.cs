@@ -132,6 +132,7 @@ namespace HTCommander
             radio.OnInfoUpdate += Radio_InfoUpdate;
             radio.OnDataFrame += Radio_OnDataFrame;
             radio.OnChannelClear += Radio_OnChannelClear;
+            radio.OnVoiceText += Radio_OnVoiceText;
             mainTabControl.SelectedTab = aprsTabPage;
 
 #if !__MonoCS__
@@ -222,6 +223,7 @@ namespace HTCommander
             showBluetoothFramesToolStripMenuItem.Checked = (registry.ReadInt("PacketTrace", 0) == 1);
             showAllChannels = (registry.ReadInt("ShowAllChannels", 0) == 1);
             aprsDestinationComboBox.Text = registry.ReadString("AprsDestination", "ALL");
+            voiceToolStripMenuItem.Checked = (registry.ReadInt("ViewVoice", 0) == 1);
             contactsToolStripMenuItem.Checked = (registry.ReadInt("ViewContacts", 0) == 1);
             bBSToolStripMenuItem.Checked = (registry.ReadInt("ViewBBS", 0) == 1);
             torrentToolStripMenuItem.Checked = (registry.ReadInt("ViewTorrent", 0) == 1);
@@ -363,6 +365,20 @@ namespace HTCommander
             session.DataReceivedEvent += Session_DataReceivedEvent;
             session.UiDataReceivedEvent += Session_UiDataReceivedEvent;
             session.ErrorEvent += Session_ErrorEvent;
+        }
+
+        private void Radio_OnVoiceText(Radio sender, string text, bool completed)
+        {
+            if (this.InvokeRequired) { this.Invoke(new VoiceTextChangedHandler(Radio_OnVoiceText), text, completed); return; }
+            if (completed)
+            {
+                voiceHistoryTextBox.AppendText(" - " + text + "\r\n\r\n");
+                voiceLiveTextBox.Clear();
+            }
+            else
+            {
+                if (text != null) { voiceLiveTextBox.Text = text; }
+            }
         }
 
         private void Session_StateChanged(AX25Session sender, AX25Session.ConnectionState state)
@@ -1902,6 +1918,11 @@ namespace HTCommander
             UpdateTabs();
         }
 
+        private void voiceToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            UpdateTabs();
+        }
+
         private void terminalToolStripMenuItem_Click(object sender, EventArgs e)
         {
             UpdateTabs();
@@ -1945,6 +1966,7 @@ namespace HTCommander
             if (mapToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(mapTabPage); }
             registry.WriteInt("ViewMap", mapToolStripMenuItem.Checked ? 1 : 0);
 #endif
+            if (voiceToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(voiceTabPage); }
             if (mailToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(mailTabPage); }
             if (terminalToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(terminalTabPage); }
             if (contactsToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(addressesTabPage); }
@@ -1952,6 +1974,7 @@ namespace HTCommander
             if (torrentToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(torrentTabPage); }
             if (packetsToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(packetsTabPage); }
             if (debugToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(debugTabPage); }
+            registry.WriteInt("ViewVoice", voiceToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewTerminal", terminalToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewMail", mailToolStripMenuItem.Checked ? 1 : 0);
             registry.WriteInt("ViewContacts", contactsToolStripMenuItem.Checked ? 1 : 0);
@@ -4048,6 +4071,16 @@ namespace HTCommander
         {
             radio.AudioEnabled(!audioEnabledToolStripMenuItem.Checked);
             registry.WriteInt("Audio", audioEnabledToolStripMenuItem.Checked ? 0 : 1);
+        }
+
+        private void clearHistoryToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            voiceHistoryTextBox.Clear();
+        }
+
+        private void voiceMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
+        {
+            voiceTabContextMenuStrip.Show(voiceMenuPictureBox, e.Location);
         }
     }
 }

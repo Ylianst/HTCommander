@@ -441,6 +441,9 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Brotli.NET" Version="2.1.1" />
+    <PackageReference Include="DeepSpeech">
+      <Version>0.9.3</Version>
+    </PackageReference>
     <PackageReference Include="GMap.NET.WinForms">
       <Version>2.1.7</Version>
     </PackageReference>
