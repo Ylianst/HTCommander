@@ -39,14 +39,15 @@ namespace HTCommander
         private byte[] pcmFrame = new byte[16000];
         private bool running = false;
         private NetworkStream audioStream;
-        public int speechToText = 2; // 0 = None, 1 = Microsoft OS, 2 = DeepSpeech
+        public int speechToText = 0; // 0 = None, 1 = Microsoft OS, 2 = DeepSpeech
         private SpeechToText speechToTextEngine = null;
+        public string currentChannelName = "";
 
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
         public delegate void AudioStateChangedHandler(RadioAudio sender, bool enabled);
         public event AudioStateChangedHandler OnAudioStateChanged;
-        public delegate void OnVoiceTextReady(string text);
+        public delegate void OnVoiceTextReady(string text, string channel, DateTime time);
 
         public RadioAudio(Radio radio) { parent = radio; }
 
@@ -288,6 +289,12 @@ namespace HTCommander
                                                 maxVoiceDecodeTime = 0;
                                             }
                                         }
+                                        if ((speechToText == 0) && (speechToTextEngine != null))
+                                        {
+                                            speechToTextEngine.ResetVoiceSegment();
+                                            speechToTextEngine.Dispose();
+                                            speechToTextEngine = null;
+                                        }
                                         DecodeSbcFrame(waveProvider, uframe, 1, uframe.Length - 1);
                                         maxVoiceDecodeTime += (uframe.Length - 1);
                                         if ((speechToTextEngine != null) && (maxVoiceDecodeTime > 19200000)) // 5 minutes (32k * 2 * 60 & 5)
@@ -340,14 +347,14 @@ namespace HTCommander
             }
         }
 
-        private void SpeechToTextEngine_onFinalResultReady(string text)
+        private void SpeechToTextEngine_onFinalResultReady(string text, string channel, DateTime t)
         {
-            parent.UpdateVoiceLiveText(text, true);
+            parent.UpdateVoiceLiveText(text, true, channel, t);
         }
 
-        private void SpeechToTextEngine_onIntermediateResultReady(string text)
+        private void SpeechToTextEngine_onIntermediateResultReady(string text, string channel, DateTime t)
         {
-            parent.UpdateVoiceLiveText(text, false);
+            parent.UpdateVoiceLiveText(text, false, channel, t);
         }
 
         private int DecodeSbcFrame(BufferedWaveProvider waveProvider, byte[] sbcFrame, int start, int length)
@@ -374,7 +381,7 @@ namespace HTCommander
                 sbcPtr += (int)decodeResult;
                 sbcLen -= (int)decodeResult;
                 try { waveProvider.AddSamples(pcmFrame, 0, (int)written); } catch (Exception) { }
-                if (speechToTextEngine != null) { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, (int)written); }
+                if (speechToTextEngine != null) { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, (int)written, currentChannelName); }
             }
 
             pcmHandle.Free();

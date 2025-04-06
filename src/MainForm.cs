@@ -26,13 +26,6 @@ using aprsparser;
 using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
 using HTCommander.radio;
-using System.Data.Common;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
-using System.Runtime.Remoting.Channels;
-
-
-
-
 #if !__MonoCS__
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
@@ -250,6 +243,11 @@ namespace HTCommander
             showPreviewToolStripMenuItem.Checked = (registry.ReadInt("MailViewPreview", 1) == 1);
             mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
 
+            if (!File.Exists("deepspeech-0.9.3-models.pbmm") || !File.Exists("deepspeech-0.9.3-models.scorer")) {
+                voiceToolStripMenuItem.Enabled = voiceToolStripMenuItem.Visible = false;
+                radio.AudioToTextState = false;
+            }
+
             // Setup mailboxes
             MailBoxTreeNodes = new TreeNode[MailBoxesNames.Length];
             for (int i = 0; i < MailBoxesNames.Length; i++)
@@ -372,13 +370,13 @@ namespace HTCommander
             session.ErrorEvent += Session_ErrorEvent;
         }
 
-        private void Radio_OnVoiceText(Radio sender, string text, bool completed)
+        private void Radio_OnVoiceText(Radio sender, string text, bool completed, string channel, DateTime time)
         {
-            if (this.InvokeRequired) { this.Invoke(new VoiceTextChangedHandler(Radio_OnVoiceText), text, completed); return; }
+            if (this.InvokeRequired) { this.Invoke(new VoiceTextChangedHandler(Radio_OnVoiceText), sender, text, completed, channel, time); return; }
             if (completed)
             {
                 if (text.Trim().Length > 0) {
-                    RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, "Sample", text);
+                    RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, time, channel, text);
                     //voiceHistoryTextBox.AppendText(" - " + text + "\r\n\r\n");
                 }
                 voiceLiveTextBox.Clear();
@@ -1791,6 +1789,10 @@ namespace HTCommander
                 this.Text = appTitle;
             }
 
+            // Audio to Text
+            voiceEnableButton.Enabled = (radio.State == Radio.RadioState.Connected) && radio.AudioState;
+            voiceEnableButton.Text = (radio.AudioToTextState) ? "Disable" : "Enable";
+
             // System Tray
             notifyIcon.Visible = systemTrayToolStripMenuItem.Checked;
             this.ShowInTaskbar = !systemTrayToolStripMenuItem.Checked;
@@ -1974,7 +1976,9 @@ namespace HTCommander
             if (mapToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(mapTabPage); }
             registry.WriteInt("ViewMap", mapToolStripMenuItem.Checked ? 1 : 0);
 #endif
-            if (voiceToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(voiceTabPage); }
+            if (voiceToolStripMenuItem.Checked && voiceToolStripMenuItem.Enabled) {
+                mainTabControl.TabPages.Add(voiceTabPage);
+            }
             if (mailToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(mailTabPage); }
             if (terminalToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(terminalTabPage); }
             if (contactsToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(addressesTabPage); }
@@ -4079,6 +4083,7 @@ namespace HTCommander
         {
             radio.AudioEnabled(!audioEnabledToolStripMenuItem.Checked);
             registry.WriteInt("Audio", audioEnabledToolStripMenuItem.Checked ? 0 : 1);
+            UpdateInfo();
         }
 
         private void clearHistoryToolStripMenuItem_Click(object sender, EventArgs e)
@@ -4089,6 +4094,12 @@ namespace HTCommander
         private void voiceMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
         {
             voiceTabContextMenuStrip.Show(voiceMenuPictureBox, e.Location);
+        }
+
+        private void voiceEnableButton_Click(object sender, EventArgs e)
+        {
+            radio.AudioToTextState = !radio.AudioToTextState;
+            UpdateInfo();
         }
     }
 }

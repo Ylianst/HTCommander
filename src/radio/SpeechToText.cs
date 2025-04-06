@@ -15,7 +15,7 @@ namespace HTCommander.radio
 
         void ResetVoiceSegment();
 
-        void ProcessAudioChunk(byte[] data, int index, int length);
+        void ProcessAudioChunk(byte[] data, int index, int length, string channel);
 
         void Dispose();
     }

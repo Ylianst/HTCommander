@@ -44,19 +44,19 @@ namespace HTCommander.radio
             deepSpeech.StartStreaming();
         }
 
-        public void ProcessAudioChunk(byte[] data, int index, int length) {
-            deepSpeech.ProcessAudioChunk(data, index, length);
+        public void ProcessAudioChunk(byte[] data, int index, int length, string channel) {
+            deepSpeech.ProcessAudioChunk(data, index, length, channel);
         }
 
         public void Dispose() { }
-        private void DeepSpeech_FinalResultReady(string text)
+        private void DeepSpeech_FinalResultReady(string text, string channel, DateTime t)
         {
-            if (onFinalResultReady != null) { onFinalResultReady(text); }
+            if (onFinalResultReady != null) { onFinalResultReady(text, channel, t); }
         }
 
-        private void DeepSpeech_IntermediateResultReady(string text)
+        private void DeepSpeech_IntermediateResultReady(string text, string channel, DateTime t)
         {
-            if (onIntermediateResultReady != null) { onIntermediateResultReady(text); }
+            if (onIntermediateResultReady != null) { onIntermediateResultReady(text, channel, t); }
         }
 
         public class DeepSpeechStreamingRecognizer : IDisposable
@@ -66,11 +66,13 @@ namespace HTCommander.radio
             private readonly WaveFormat _targetFormat; // Format required by DeepSpeech (16kHz)
             private DeepSpeechStream _deepSpeechStream; // Use StreamingState which is the type returned by CreateStream
             private DateTime lastIntermediate;
+            private DateTime firstFrame = DateTime.MinValue;
+            private string lastChannel = string.Empty; // Default channel name
 
             // Event to notify subscribers of intermediate results
-            public event Action<string> IntermediateResultReady;
+            public event Action<string, string, DateTime> IntermediateResultReady;
             // Event to notify subscribers of the final result for a segment
-            public event Action<string> FinalResultReady;
+            public event Action<string, string, DateTime> FinalResultReady;
 
             /// <summary>
             /// Initializes the DeepSpeech streaming recognizer.
@@ -157,7 +159,7 @@ namespace HTCommander.radio
             /// Processes a chunk of audio data. Resamples and feeds it to the DeepSpeech stream.
             /// </summary>
             /// <param name="audioData">Byte array containing PCM audio data (32kHz, 16-bit, Mono).</param>
-            public void ProcessAudioChunk(byte[] audioData, int index, int length)
+            public void ProcessAudioChunk(byte[] audioData, int index, int length, string channel)
             {
                 if (_deepSpeechStream == null)
                 {
@@ -172,6 +174,7 @@ namespace HTCommander.radio
 
                 try
                 {
+                    if (firstFrame == DateTime.MinValue) { firstFrame = DateTime.Now; lastChannel = channel; }
                     using (var sourceStream = new RawSourceWaveStream(audioData, index, length, _sourceFormat))
                     using (var resampler = new MediaFoundationResampler(sourceStream, _targetFormat))
                     {
@@ -193,7 +196,7 @@ namespace HTCommander.radio
                         string intermediateResult = _model.IntermediateDecode(_deepSpeechStream);
                         if (!string.IsNullOrWhiteSpace(intermediateResult))
                         {
-                            IntermediateResultReady?.Invoke(intermediateResult);
+                            IntermediateResultReady?.Invoke(intermediateResult, channel, firstFrame);
                         }
                     }
                 }
@@ -222,7 +225,8 @@ namespace HTCommander.radio
                 {
                     Console.WriteLine("Finishing DeepSpeech stream...");
                     finalResult = _model.FinishStream(_deepSpeechStream);
-                    FinalResultReady?.Invoke(finalResult);
+                    FinalResultReady?.Invoke(finalResult, lastChannel, firstFrame);
+                    firstFrame = DateTime.MinValue; // Reset first frame for the next stream
                 }
                 catch (Exception ex)
                 {
@@ -304,7 +308,8 @@ namespace HTCommander.radio
             private class ProcessCommand : RecognizerCommand
             {
                 public byte[] Data { get; }
-                public ProcessCommand(byte[] data) { Data = data; } // Data is already a copy
+                public string Channel { get; }
+                public ProcessCommand(byte[] data, string channel) { Data = data; Channel = channel; } // Data is already a copy
             }
             private class FinishCommand : RecognizerCommand
             {
@@ -322,8 +327,8 @@ namespace HTCommander.radio
             private DeepSpeechStreamingRecognizer _recognizerInstance; // Only accessed by the background thread
 
             // Events that will be marshalled back to the captured context (if any)
-            public event Action<string> IntermediateResultReady;
-            public event Action<string> FinalResultReady;
+            public event Action<string, string, DateTime> IntermediateResultReady;
+            public event Action<string, string, DateTime> FinalResultReady;
             public event Action<Exception> ProcessingErrorOccurred;
 
             /// <summary>
@@ -371,7 +376,7 @@ namespace HTCommander.radio
             /// <param name="audioData">Byte array containing PCM audio data.</param>
             /// <param name="index">Start index in the buffer.</param>
             /// <param name="length">Number of bytes to process from the buffer.</param>
-            public void ProcessAudioChunk(byte[] audioData, int index, int length)
+            public void ProcessAudioChunk(byte[] audioData, int index, int length, string channel)
             {
                 CheckDisposed();
                 if (audioData == null || length == 0) return;
@@ -383,7 +388,7 @@ namespace HTCommander.radio
 
                 try
                 {
-                    _commandQueue.Add(new ProcessCommand(chunkCopy), _cts.Token);
+                    _commandQueue.Add(new ProcessCommand(chunkCopy, channel), _cts.Token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -463,7 +468,7 @@ namespace HTCommander.radio
 
                                 case ProcessCommand pc:
                                     // Process the copied audio data
-                                    _recognizerInstance.ProcessAudioChunk(pc.Data, 0, pc.Data.Length);
+                                    _recognizerInstance.ProcessAudioChunk(pc.Data, 0, pc.Data.Length, pc.Channel);
                                     break;
 
                                 case FinishCommand fc:
@@ -532,14 +537,16 @@ namespace HTCommander.radio
 
             // --- Event Marshalling ---
 
-            private void OnInnerIntermediateResultReady(string result)
+            private void OnInnerIntermediateResultReady(string result, string channel, DateTime t)
             {
-                RaiseEvent(IntermediateResultReady, result);
+                //RaiseEvent(IntermediateResultReady, result, channel);
+                IntermediateResultReady.Invoke(result, channel, t);
             }
 
-            private void OnInnerFinalResultReady(string result)
+            private void OnInnerFinalResultReady(string result, string channel, DateTime t)
             {
-                RaiseEvent(FinalResultReady, result);
+                //RaiseEvent(FinalResultReady, result, channel);
+                FinalResultReady?.Invoke(result, channel, t);
             }
 
             private void RaiseProcessingError(Exception ex)

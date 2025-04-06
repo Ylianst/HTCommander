@@ -18,8 +18,6 @@ using System;
 using System.IO;
 using System.Net;
 using System.Collections.Generic;
-using static HTCommander.MainForm;
-using System.ComponentModel;
 
 namespace HTCommander
 {
@@ -404,10 +402,11 @@ namespace HTCommander
         public delegate void AudioStateChangedHandler(Radio sender, bool enabled);
         public event AudioStateChangedHandler OnAudioStateChanged;
 
-        public delegate void VoiceTextChangedHandler(Radio sender, string text, bool completed);
+        public delegate void VoiceTextChangedHandler(Radio sender, string text, bool completed, string channel, DateTime time);
         public event VoiceTextChangedHandler OnVoiceText;
 
         public bool AudioState { get { return radioAudio.IsAudioEnabled; } }
+        public bool AudioToTextState { get { return radioAudio.speechToText != 0; } set { radioAudio.speechToText = value ? 2 : 0;  } }
 
         public void Dispose()
         {
@@ -600,6 +599,20 @@ namespace HTCommander
                                         if (Channels != null) { for (int i = 0; i < Channels.Length; i++) { Channels[i] = null; } }
                                         Update(RadioUpdateNotification.ChannelInfo);
                                         UpdateChannels();
+                                    }
+
+                                    // Set channel name
+                                    if (HtStatus.curr_ch_id >= 254)
+                                    {
+                                        radioAudio.currentChannelName = "NOAA";
+                                    }
+                                    else if ((Channels != null) && (Channels.Length > HtStatus.curr_ch_id) && (Channels[HtStatus.curr_ch_id] != null))
+                                    {
+                                        radioAudio.currentChannelName = Channels[HtStatus.curr_ch_id].name_str;
+                                    }
+                                    else
+                                    {
+                                        radioAudio.currentChannelName = string.Empty;
                                     }
 
                                     //Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}, RSSI={HtStatus.rssi}");
@@ -907,9 +920,9 @@ namespace HTCommander
             return outboundData.Length;
         }
 
-        public void UpdateVoiceLiveText(string text, bool completed)
+        public void UpdateVoiceLiveText(string text, bool completed, string channel, DateTime t)
         {
-            if (OnVoiceText != null) { OnVoiceText(this, text, completed); }
+            if (OnVoiceText != null) { OnVoiceText(this, text, completed, channel, t); }
         }
 
     }

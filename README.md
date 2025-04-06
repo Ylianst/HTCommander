@@ -28,6 +28,7 @@ Handi-Talky Commander is starting to have a lot of features.
 - [Terminal support](https://github.com/Ylianst/HTCommander/blob/main/docs/Terminal.md). Use the terminal to communicate in packet modes with other stations, users or BBS'es.
 - [BBS support](https://github.com/Ylianst/HTCommander/blob/main/docs/BBS.md). Built-in support for a BBS. Right now it's basic with WInLink and a text adventure game. Route emails and challenge your friends to get a high score over packet radio.
 - [Packet Capture](https://github.com/Ylianst/HTCommander/blob/main/docs/Capture.md). Use this application to capture and decode packets with the built-in packet capture feature.
+- [Speech-to-Text support](https://github.com/Ylianst/HTCommander/blob/main/docs/Voice.md). DeepSpeech integration will attempt to convert audio to text in real-time.
 
 ### Installation
 

@@ -71,6 +71,7 @@
             this.allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem6 = new System.Windows.Forms.ToolStripSeparator();
             this.mapToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.voiceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.terminalToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.contactsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -120,6 +121,13 @@
             this.mapZoomInbutton = new System.Windows.Forms.Button();
             this.mapTopPanel = new System.Windows.Forms.Panel();
             this.mapTopLabel = new System.Windows.Forms.Label();
+            this.voiceTabPage = new System.Windows.Forms.TabPage();
+            this.voiceSplitContainer = new System.Windows.Forms.SplitContainer();
+            this.voiceHistoryTextBox = new System.Windows.Forms.RichTextBox();
+            this.voiceLiveTextBox = new System.Windows.Forms.TextBox();
+            this.panel6 = new System.Windows.Forms.Panel();
+            this.voiceMenuPictureBox = new System.Windows.Forms.PictureBox();
+            this.label6 = new System.Windows.Forms.Label();
             this.mailTabPage = new System.Windows.Forms.TabPage();
             this.mailboxHorizontalSplitContainer = new System.Windows.Forms.SplitContainer();
             this.mailboxVerticalSplitContainer = new System.Windows.Forms.SplitContainer();
@@ -293,18 +301,11 @@
             this.backupMailSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.restoreMailOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.torrentSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
-            this.voiceTabPage = new System.Windows.Forms.TabPage();
-            this.panel6 = new System.Windows.Forms.Panel();
-            this.voiceMenuPictureBox = new System.Windows.Forms.PictureBox();
-            this.label6 = new System.Windows.Forms.Label();
-            this.voiceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.voiceSplitContainer = new System.Windows.Forms.SplitContainer();
-            this.voiceLiveTextBox = new System.Windows.Forms.TextBox();
             this.voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.voiceEnableButton = new System.Windows.Forms.Button();
             this.aprsChatControl = new HTCommander.ChatControl();
             this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
-            this.voiceHistoryTextBox = new System.Windows.Forms.RichTextBox();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -318,6 +319,13 @@
             ((System.ComponentModel.ISupportInitialize)(this.aprsMenuPictureBox)).BeginInit();
             this.mapTabPage.SuspendLayout();
             this.mapTopPanel.SuspendLayout();
+            this.voiceTabPage.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.voiceSplitContainer)).BeginInit();
+            this.voiceSplitContainer.Panel1.SuspendLayout();
+            this.voiceSplitContainer.Panel2.SuspendLayout();
+            this.voiceSplitContainer.SuspendLayout();
+            this.panel6.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.voiceMenuPictureBox)).BeginInit();
             this.mailTabPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.mailboxHorizontalSplitContainer)).BeginInit();
             this.mailboxHorizontalSplitContainer.Panel1.SuspendLayout();
@@ -379,13 +387,6 @@
             this.bbsTabContextMenuStrip.SuspendLayout();
             this.notifyContextMenuStrip.SuspendLayout();
             this.mailTabContextMenuStrip.SuspendLayout();
-            this.voiceTabPage.SuspendLayout();
-            this.panel6.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.voiceMenuPictureBox)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.voiceSplitContainer)).BeginInit();
-            this.voiceSplitContainer.Panel1.SuspendLayout();
-            this.voiceSplitContainer.Panel2.SuspendLayout();
-            this.voiceSplitContainer.SuspendLayout();
             this.voiceTabContextMenuStrip.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -395,10 +396,10 @@
             this.mainStatusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.mainToolStripStatusLabel,
             this.batteryToolStripStatusLabel});
-            this.mainStatusStrip.Location = new System.Drawing.Point(0, 682);
+            this.mainStatusStrip.Location = new System.Drawing.Point(0, 681);
             this.mainStatusStrip.Name = "mainStatusStrip";
             this.mainStatusStrip.Padding = new System.Windows.Forms.Padding(1, 0, 19, 0);
-            this.mainStatusStrip.Size = new System.Drawing.Size(1108, 22);
+            this.mainStatusStrip.Size = new System.Drawing.Size(1082, 22);
             this.mainStatusStrip.TabIndex = 0;
             this.mainStatusStrip.Text = "statusStrip1";
             // 
@@ -427,7 +428,7 @@
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             this.mainMenuStrip.Name = "mainMenuStrip";
             this.mainMenuStrip.Padding = new System.Windows.Forms.Padding(5, 2, 0, 2);
-            this.mainMenuStrip.Size = new System.Drawing.Size(1108, 30);
+            this.mainMenuStrip.Size = new System.Drawing.Size(1082, 28);
             this.mainMenuStrip.TabIndex = 1;
             this.mainMenuStrip.Text = "menuStrip1";
             this.mainMenuStrip.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.mainMenuStrip_ItemClicked);
@@ -623,6 +624,14 @@
             this.mapToolStripMenuItem.Text = "&Map";
             this.mapToolStripMenuItem.Click += new System.EventHandler(this.mapToolStripMenuItem_Click);
             // 
+            // voiceToolStripMenuItem
+            // 
+            this.voiceToolStripMenuItem.CheckOnClick = true;
+            this.voiceToolStripMenuItem.Name = "voiceToolStripMenuItem";
+            this.voiceToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            this.voiceToolStripMenuItem.Text = "&Voice";
+            this.voiceToolStripMenuItem.Click += new System.EventHandler(this.voiceToolStripMenuItem_Click);
+            // 
             // terminalToolStripMenuItem
             // 
             this.terminalToolStripMenuItem.CheckOnClick = true;
@@ -749,10 +758,10 @@
             this.radioPanel.Controls.Add(this.connectButton);
             this.radioPanel.Controls.Add(this.radioPictureBox);
             this.radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
-            this.radioPanel.Location = new System.Drawing.Point(0, 30);
+            this.radioPanel.Location = new System.Drawing.Point(0, 28);
             this.radioPanel.Margin = new System.Windows.Forms.Padding(4);
             this.radioPanel.Name = "radioPanel";
-            this.radioPanel.Size = new System.Drawing.Size(372, 652);
+            this.radioPanel.Size = new System.Drawing.Size(372, 653);
             this.radioPanel.TabIndex = 2;
             this.radioPanel.SizeChanged += new System.EventHandler(this.radioPanel_SizeChanged);
             this.radioPanel.DragDrop += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragDrop);
@@ -772,7 +781,7 @@
             // 
             this.channelsFlowLayoutPanel.BackColor = System.Drawing.Color.DarkKhaki;
             this.channelsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 480);
+            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 481);
             this.channelsFlowLayoutPanel.Margin = new System.Windows.Forms.Padding(4);
             this.channelsFlowLayoutPanel.Name = "channelsFlowLayoutPanel";
             this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(368, 84);
@@ -782,7 +791,7 @@
             // checkBluetoothButton
             // 
             this.checkBluetoothButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 564);
+            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 565);
             this.checkBluetoothButton.Margin = new System.Windows.Forms.Padding(4);
             this.checkBluetoothButton.Name = "checkBluetoothButton";
             this.checkBluetoothButton.Size = new System.Drawing.Size(368, 42);
@@ -937,7 +946,7 @@
             // connectButton
             // 
             this.connectButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.connectButton.Location = new System.Drawing.Point(0, 606);
+            this.connectButton.Location = new System.Drawing.Point(0, 607);
             this.connectButton.Margin = new System.Windows.Forms.Padding(4);
             this.connectButton.Name = "connectButton";
             this.connectButton.Size = new System.Drawing.Size(368, 42);
@@ -974,12 +983,12 @@
             this.mainTabControl.Controls.Add(this.debugTabPage);
             this.mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTabControl.ImageList = this.tabsImageList;
-            this.mainTabControl.Location = new System.Drawing.Point(372, 30);
+            this.mainTabControl.Location = new System.Drawing.Point(372, 28);
             this.mainTabControl.Margin = new System.Windows.Forms.Padding(4);
             this.mainTabControl.Multiline = true;
             this.mainTabControl.Name = "mainTabControl";
             this.mainTabControl.SelectedIndex = 0;
-            this.mainTabControl.Size = new System.Drawing.Size(736, 652);
+            this.mainTabControl.Size = new System.Drawing.Size(710, 653);
             this.mainTabControl.TabIndex = 3;
             // 
             // aprsTabPage
@@ -992,7 +1001,7 @@
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
             this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Size = new System.Drawing.Size(693, 644);
+            this.aprsTabPage.Size = new System.Drawing.Size(667, 645);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1021,14 +1030,14 @@
             this.aprsMissingChannelPanel.Location = new System.Drawing.Point(0, 37);
             this.aprsMissingChannelPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsMissingChannelPanel.Name = "aprsMissingChannelPanel";
-            this.aprsMissingChannelPanel.Size = new System.Drawing.Size(693, 37);
+            this.aprsMissingChannelPanel.Size = new System.Drawing.Size(667, 37);
             this.aprsMissingChannelPanel.TabIndex = 6;
             this.aprsMissingChannelPanel.Visible = false;
             // 
             // aprsSetupButton
             // 
             this.aprsSetupButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.aprsSetupButton.Location = new System.Drawing.Point(588, 5);
+            this.aprsSetupButton.Location = new System.Drawing.Point(562, 5);
             this.aprsSetupButton.Margin = new System.Windows.Forms.Padding(4);
             this.aprsSetupButton.Name = "aprsSetupButton";
             this.aprsSetupButton.Size = new System.Drawing.Size(100, 28);
@@ -1057,10 +1066,10 @@
             this.aprsBottomPanel.Controls.Add(this.aprsTextBox);
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 597);
+            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 598);
             this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
-            this.aprsBottomPanel.Size = new System.Drawing.Size(693, 47);
+            this.aprsBottomPanel.Size = new System.Drawing.Size(667, 47);
             this.aprsBottomPanel.TabIndex = 4;
             // 
             // aprsDestinationComboBox
@@ -1093,7 +1102,7 @@
             this.aprsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTextBox.MaxLength = 67;
             this.aprsTextBox.Name = "aprsTextBox";
-            this.aprsTextBox.Size = new System.Drawing.Size(417, 30);
+            this.aprsTextBox.Size = new System.Drawing.Size(391, 30);
             this.aprsTextBox.TabIndex = 1;
             this.aprsTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.aprsTextBox_KeyPress);
             // 
@@ -1101,7 +1110,7 @@
             // 
             this.aprsSendButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.aprsSendButton.Enabled = false;
-            this.aprsSendButton.Location = new System.Drawing.Point(589, 6);
+            this.aprsSendButton.Location = new System.Drawing.Point(563, 6);
             this.aprsSendButton.Margin = new System.Windows.Forms.Padding(4);
             this.aprsSendButton.Name = "aprsSendButton";
             this.aprsSendButton.Size = new System.Drawing.Size(100, 34);
@@ -1120,7 +1129,7 @@
             this.aprsTopPanel.Location = new System.Drawing.Point(0, 0);
             this.aprsTopPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTopPanel.Name = "aprsTopPanel";
-            this.aprsTopPanel.Size = new System.Drawing.Size(693, 37);
+            this.aprsTopPanel.Size = new System.Drawing.Size(667, 37);
             this.aprsTopPanel.TabIndex = 2;
             // 
             // aprsRouteComboBox
@@ -1128,7 +1137,7 @@
             this.aprsRouteComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.aprsRouteComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.aprsRouteComboBox.FormattingEnabled = true;
-            this.aprsRouteComboBox.Location = new System.Drawing.Point(528, 6);
+            this.aprsRouteComboBox.Location = new System.Drawing.Point(502, 6);
             this.aprsRouteComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.aprsRouteComboBox.Name = "aprsRouteComboBox";
             this.aprsRouteComboBox.Size = new System.Drawing.Size(124, 24);
@@ -1140,7 +1149,7 @@
             // 
             this.aprsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.aprsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("aprsMenuPictureBox.Image")));
-            this.aprsMenuPictureBox.Location = new System.Drawing.Point(661, 6);
+            this.aprsMenuPictureBox.Location = new System.Drawing.Point(635, 6);
             this.aprsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.aprsMenuPictureBox.Name = "aprsMenuPictureBox";
             this.aprsMenuPictureBox.Size = new System.Drawing.Size(27, 25);
@@ -1224,6 +1233,99 @@
             this.mapTopLabel.Size = new System.Drawing.Size(51, 25);
             this.mapTopLabel.TabIndex = 0;
             this.mapTopLabel.Text = "Map";
+            // 
+            // voiceTabPage
+            // 
+            this.voiceTabPage.Controls.Add(this.voiceSplitContainer);
+            this.voiceTabPage.Controls.Add(this.panel6);
+            this.voiceTabPage.ImageIndex = 9;
+            this.voiceTabPage.Location = new System.Drawing.Point(4, 4);
+            this.voiceTabPage.Name = "voiceTabPage";
+            this.voiceTabPage.Size = new System.Drawing.Size(693, 644);
+            this.voiceTabPage.TabIndex = 9;
+            this.voiceTabPage.UseVisualStyleBackColor = true;
+            // 
+            // voiceSplitContainer
+            // 
+            this.voiceSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.voiceSplitContainer.Location = new System.Drawing.Point(0, 37);
+            this.voiceSplitContainer.Name = "voiceSplitContainer";
+            this.voiceSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
+            // 
+            // voiceSplitContainer.Panel1
+            // 
+            this.voiceSplitContainer.Panel1.Controls.Add(this.voiceHistoryTextBox);
+            // 
+            // voiceSplitContainer.Panel2
+            // 
+            this.voiceSplitContainer.Panel2.Controls.Add(this.voiceLiveTextBox);
+            this.voiceSplitContainer.Size = new System.Drawing.Size(693, 607);
+            this.voiceSplitContainer.SplitterDistance = 406;
+            this.voiceSplitContainer.TabIndex = 4;
+            // 
+            // voiceHistoryTextBox
+            // 
+            this.voiceHistoryTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.voiceHistoryTextBox.Location = new System.Drawing.Point(0, 0);
+            this.voiceHistoryTextBox.Name = "voiceHistoryTextBox";
+            this.voiceHistoryTextBox.ReadOnly = true;
+            this.voiceHistoryTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.ForcedVertical;
+            this.voiceHistoryTextBox.Size = new System.Drawing.Size(693, 406);
+            this.voiceHistoryTextBox.TabIndex = 0;
+            this.voiceHistoryTextBox.Text = "";
+            // 
+            // voiceLiveTextBox
+            // 
+            this.voiceLiveTextBox.BackColor = System.Drawing.Color.LightGray;
+            this.voiceLiveTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.voiceLiveTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.voiceLiveTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.voiceLiveTextBox.Location = new System.Drawing.Point(0, 0);
+            this.voiceLiveTextBox.Multiline = true;
+            this.voiceLiveTextBox.Name = "voiceLiveTextBox";
+            this.voiceLiveTextBox.ReadOnly = true;
+            this.voiceLiveTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.voiceLiveTextBox.Size = new System.Drawing.Size(693, 197);
+            this.voiceLiveTextBox.TabIndex = 5;
+            // 
+            // panel6
+            // 
+            this.panel6.BackColor = System.Drawing.Color.Silver;
+            this.panel6.Controls.Add(this.voiceEnableButton);
+            this.panel6.Controls.Add(this.voiceMenuPictureBox);
+            this.panel6.Controls.Add(this.label6);
+            this.panel6.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panel6.Location = new System.Drawing.Point(0, 0);
+            this.panel6.Margin = new System.Windows.Forms.Padding(4);
+            this.panel6.Name = "panel6";
+            this.panel6.Size = new System.Drawing.Size(693, 37);
+            this.panel6.TabIndex = 2;
+            // 
+            // voiceMenuPictureBox
+            // 
+            this.voiceMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.voiceMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("voiceMenuPictureBox.Image")));
+            this.voiceMenuPictureBox.Location = new System.Drawing.Point(661, 6);
+            this.voiceMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
+            this.voiceMenuPictureBox.Name = "voiceMenuPictureBox";
+            this.voiceMenuPictureBox.Size = new System.Drawing.Size(27, 25);
+            this.voiceMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.voiceMenuPictureBox.TabIndex = 3;
+            this.voiceMenuPictureBox.TabStop = false;
+            this.voiceMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.voiceMenuPictureBox_MouseClick);
+            // 
+            // label6
+            // 
+            this.label6.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.label6.AutoSize = true;
+            this.label6.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label6.Location = new System.Drawing.Point(4, 6);
+            this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(62, 25);
+            this.label6.TabIndex = 1;
+            this.label6.Text = "Voice";
             // 
             // mailTabPage
             // 
@@ -2966,95 +3068,6 @@
             // 
             this.torrentSaveFileDialog.Title = "Save Torrent File";
             // 
-            // voiceTabPage
-            // 
-            this.voiceTabPage.Controls.Add(this.voiceSplitContainer);
-            this.voiceTabPage.Controls.Add(this.panel6);
-            this.voiceTabPage.ImageIndex = 9;
-            this.voiceTabPage.Location = new System.Drawing.Point(4, 4);
-            this.voiceTabPage.Name = "voiceTabPage";
-            this.voiceTabPage.Size = new System.Drawing.Size(693, 644);
-            this.voiceTabPage.TabIndex = 9;
-            this.voiceTabPage.UseVisualStyleBackColor = true;
-            // 
-            // panel6
-            // 
-            this.panel6.BackColor = System.Drawing.Color.Silver;
-            this.panel6.Controls.Add(this.voiceMenuPictureBox);
-            this.panel6.Controls.Add(this.label6);
-            this.panel6.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panel6.Location = new System.Drawing.Point(0, 0);
-            this.panel6.Margin = new System.Windows.Forms.Padding(4);
-            this.panel6.Name = "panel6";
-            this.panel6.Size = new System.Drawing.Size(693, 37);
-            this.panel6.TabIndex = 2;
-            // 
-            // voiceMenuPictureBox
-            // 
-            this.voiceMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.voiceMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("voiceMenuPictureBox.Image")));
-            this.voiceMenuPictureBox.Location = new System.Drawing.Point(661, 6);
-            this.voiceMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
-            this.voiceMenuPictureBox.Name = "voiceMenuPictureBox";
-            this.voiceMenuPictureBox.Size = new System.Drawing.Size(27, 25);
-            this.voiceMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.voiceMenuPictureBox.TabIndex = 3;
-            this.voiceMenuPictureBox.TabStop = false;
-            this.voiceMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.voiceMenuPictureBox_MouseClick);
-            // 
-            // label6
-            // 
-            this.label6.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.label6.AutoSize = true;
-            this.label6.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label6.Location = new System.Drawing.Point(4, 6);
-            this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(62, 25);
-            this.label6.TabIndex = 1;
-            this.label6.Text = "Voice";
-            // 
-            // voiceToolStripMenuItem
-            // 
-            this.voiceToolStripMenuItem.CheckOnClick = true;
-            this.voiceToolStripMenuItem.Name = "voiceToolStripMenuItem";
-            this.voiceToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
-            this.voiceToolStripMenuItem.Text = "&Voice";
-            this.voiceToolStripMenuItem.Click += new System.EventHandler(this.voiceToolStripMenuItem_Click);
-            // 
-            // voiceSplitContainer
-            // 
-            this.voiceSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.voiceSplitContainer.Location = new System.Drawing.Point(0, 37);
-            this.voiceSplitContainer.Name = "voiceSplitContainer";
-            this.voiceSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
-            // 
-            // voiceSplitContainer.Panel1
-            // 
-            this.voiceSplitContainer.Panel1.Controls.Add(this.voiceHistoryTextBox);
-            // 
-            // voiceSplitContainer.Panel2
-            // 
-            this.voiceSplitContainer.Panel2.Controls.Add(this.voiceLiveTextBox);
-            this.voiceSplitContainer.Size = new System.Drawing.Size(693, 607);
-            this.voiceSplitContainer.SplitterDistance = 406;
-            this.voiceSplitContainer.TabIndex = 4;
-            // 
-            // voiceLiveTextBox
-            // 
-            this.voiceLiveTextBox.BackColor = System.Drawing.Color.LightGray;
-            this.voiceLiveTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.voiceLiveTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.voiceLiveTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.voiceLiveTextBox.Location = new System.Drawing.Point(0, 0);
-            this.voiceLiveTextBox.Multiline = true;
-            this.voiceLiveTextBox.Name = "voiceLiveTextBox";
-            this.voiceLiveTextBox.ReadOnly = true;
-            this.voiceLiveTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.voiceLiveTextBox.Size = new System.Drawing.Size(693, 197);
-            this.voiceLiveTextBox.TabIndex = 5;
-            // 
             // voiceTabContextMenuStrip
             // 
             this.voiceTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
@@ -3069,6 +3082,19 @@
             this.clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
             this.clearHistoryToolStripMenuItem.Text = "&Clear History";
             this.clearHistoryToolStripMenuItem.Click += new System.EventHandler(this.clearHistoryToolStripMenuItem_Click);
+            // 
+            // voiceEnableButton
+            // 
+            this.voiceEnableButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.voiceEnableButton.Enabled = false;
+            this.voiceEnableButton.Location = new System.Drawing.Point(553, 4);
+            this.voiceEnableButton.Margin = new System.Windows.Forms.Padding(4);
+            this.voiceEnableButton.Name = "voiceEnableButton";
+            this.voiceEnableButton.Size = new System.Drawing.Size(100, 28);
+            this.voiceEnableButton.TabIndex = 6;
+            this.voiceEnableButton.Text = "&Enable";
+            this.voiceEnableButton.UseVisualStyleBackColor = true;
+            this.voiceEnableButton.Click += new System.EventHandler(this.voiceEnableButton_Click);
             // 
             // aprsChatControl
             // 
@@ -3088,7 +3114,7 @@
             this.aprsChatControl.Name = "aprsChatControl";
             this.aprsChatControl.ShadowOffset = 2;
             this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(693, 523);
+            this.aprsChatControl.Size = new System.Drawing.Size(667, 524);
             this.aprsChatControl.TabIndex = 5;
             this.aprsChatControl.TextColor = System.Drawing.Color.Black;
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
@@ -3101,25 +3127,14 @@
             this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
             this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(679, 290);
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(679, 292);
             this.torrentBlocksUserControl.TabIndex = 0;
-            // 
-            // voiceHistoryTextBox
-            // 
-            this.voiceHistoryTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.voiceHistoryTextBox.Location = new System.Drawing.Point(0, 0);
-            this.voiceHistoryTextBox.Name = "voiceHistoryTextBox";
-            this.voiceHistoryTextBox.ReadOnly = true;
-            this.voiceHistoryTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.ForcedVertical;
-            this.voiceHistoryTextBox.Size = new System.Drawing.Size(693, 406);
-            this.voiceHistoryTextBox.TabIndex = 0;
-            this.voiceHistoryTextBox.Text = "";
             // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1108, 704);
+            this.ClientSize = new System.Drawing.Size(1082, 703);
             this.Controls.Add(this.mainTabControl);
             this.Controls.Add(this.radioPanel);
             this.Controls.Add(this.mainStatusStrip);
@@ -3127,7 +3142,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.mainMenuStrip;
             this.Margin = new System.Windows.Forms.Padding(4);
-            this.MinimumSize = new System.Drawing.Size(1061, 713);
+            this.MinimumSize = new System.Drawing.Size(1100, 750);
             this.Name = "MainForm";
             this.Text = "Handi-Talkie Commander";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainForm_FormClosing);
@@ -3151,6 +3166,15 @@
             this.mapTabPage.ResumeLayout(false);
             this.mapTopPanel.ResumeLayout(false);
             this.mapTopPanel.PerformLayout();
+            this.voiceTabPage.ResumeLayout(false);
+            this.voiceSplitContainer.Panel1.ResumeLayout(false);
+            this.voiceSplitContainer.Panel2.ResumeLayout(false);
+            this.voiceSplitContainer.Panel2.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.voiceSplitContainer)).EndInit();
+            this.voiceSplitContainer.ResumeLayout(false);
+            this.panel6.ResumeLayout(false);
+            this.panel6.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.voiceMenuPictureBox)).EndInit();
             this.mailTabPage.ResumeLayout(false);
             this.mailboxHorizontalSplitContainer.Panel1.ResumeLayout(false);
             this.mailboxHorizontalSplitContainer.Panel2.ResumeLayout(false);
@@ -3221,15 +3245,6 @@
             this.bbsTabContextMenuStrip.ResumeLayout(false);
             this.notifyContextMenuStrip.ResumeLayout(false);
             this.mailTabContextMenuStrip.ResumeLayout(false);
-            this.voiceTabPage.ResumeLayout(false);
-            this.panel6.ResumeLayout(false);
-            this.panel6.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.voiceMenuPictureBox)).EndInit();
-            this.voiceSplitContainer.Panel1.ResumeLayout(false);
-            this.voiceSplitContainer.Panel2.ResumeLayout(false);
-            this.voiceSplitContainer.Panel2.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.voiceSplitContainer)).EndInit();
-            this.voiceSplitContainer.ResumeLayout(false);
             this.voiceTabContextMenuStrip.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -3503,6 +3518,7 @@
         private System.Windows.Forms.ContextMenuStrip voiceTabContextMenuStrip;
         private System.Windows.Forms.ToolStripMenuItem clearHistoryToolStripMenuItem;
         private System.Windows.Forms.RichTextBox voiceHistoryTextBox;
+        private System.Windows.Forms.Button voiceEnableButton;
     }
 }
 

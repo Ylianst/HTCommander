@@ -19,6 +19,7 @@ using System.Threading;
 using System.Collections.Generic;
 using System.Speech.AudioFormat; // Requires reference to System.Speech assembly
 using System.Speech.Recognition;
+using System;
 
 namespace HTCommander.radio
 {
@@ -26,6 +27,8 @@ namespace HTCommander.radio
 	{
 		private SpeechRecognitionEngine recognizer = null;
 		private SpeechStreamer recognizerAudioStream = null;
+		private string lastChannel;
+		private DateTime firstFrame = DateTime.MinValue;
 
 		public event RadioAudio.OnVoiceTextReady onFinalResultReady;
 		public event RadioAudio.OnVoiceTextReady onIntermediateResultReady;
@@ -84,7 +87,7 @@ namespace HTCommander.radio
         {
             if (e.Result != null)
             {
-				if (onFinalResultReady != null) { onFinalResultReady(e.Result.Text); }
+				if (onFinalResultReady != null) { onFinalResultReady(e.Result.Text, lastChannel, firstFrame); }
 				//Debug($"Recognized: {e.Result.Text} (Confidence: {e.Result.Confidence:P1})");
 			}
 			else
@@ -118,9 +121,10 @@ namespace HTCommander.radio
 			// NOP
 		}
 
-		public void ProcessAudioChunk(byte[] data, int index, int length)
+		public void ProcessAudioChunk(byte[] data, int index, int length, string channel)
 		{
-			if (recognizerAudioStream != null) { recognizerAudioStream.Write(data, index, length); }
+			if (firstFrame == DateTime.MinValue) { firstFrame = DateTime.Now; lastChannel = channel; }
+            if (recognizerAudioStream != null) { recognizerAudioStream.Write(data, index, length); }
 		}
 
 		public void Dispose()
