@@ -11,7 +11,7 @@ To enable this feature, you need to download the following two files and add the
 
 If you installed HTCommander using the installer, you can find the executable in the following location: `C:\Program Files\Open Source\Handi-Talky Commander`, so, copy the two large files here. Then, start HT Commander again, you will see a new "Voice" option in the "View" menu. You need to enable audio to play thru your computer and then, enable the voice feature to start seeing text. 
 
-The feature does not work well, but it's a nice party trick for new. In my view, The two main problems are that:
+The feature does not work well, but it's a nice party trick for now. In my view, The two main problems are that:
 
 - It does not handle rapid voice very at all. If someone says something quickly as most HAM radio people do, it does not seem to be able to keep up. I don't think it's a question of my computer being slow, it still seems to process all the audio frames, it just seems to do a lot better when saying things slowly. NOAA weather is the one test case I have that is always transmitting, so, it's clearly WAY to fast for the model.
 - The AI model is not trained on HAM radio speak. For example, it does not understand "Alpha", "Bravo", etc. At least, not all of them. This is a HUGE bummer. It does numbers "One", "Two".
