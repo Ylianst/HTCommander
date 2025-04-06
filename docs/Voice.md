@@ -2,7 +2,7 @@
 
 ![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/ht-voice-to-text.png?raw=true)
 
-Handi-Talky Commander has built-in speech recognition capabilities with integration of DeepSpeech. Radio audio will be run into the DeepSpeech neural-network to convert into text in near real-time. However, there are limitations to this, it's currently not great but fun to try.
+Handi-Talky Commander has built-in speech recognition capabilities with integration of DeepSpeech. Radio audio will be run into the DeepSpeech neural-network to convert into text in near real-time. However, there are limitations to this, it's currently not great but fun to try. Don't try this on a slow computer with limited RAM, but will keep you CPU working.
 
 To enable this feature, you need to download the following two files and add them in the same folder as the HTCommander executable. These two files are very large and total about a gigabyte in size.
 
