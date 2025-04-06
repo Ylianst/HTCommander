@@ -30,20 +30,20 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+            System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup17 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup18 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup19 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup20 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -294,17 +294,17 @@
             this.restoreMailOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.torrentSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.voiceTabPage = new System.Windows.Forms.TabPage();
-            this.voiceHistoryTextBox = new System.Windows.Forms.TextBox();
             this.panel6 = new System.Windows.Forms.Panel();
             this.voiceMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.label6 = new System.Windows.Forms.Label();
             this.voiceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.voiceSplitContainer = new System.Windows.Forms.SplitContainer();
             this.voiceLiveTextBox = new System.Windows.Forms.TextBox();
-            this.aprsChatControl = new HTCommander.ChatControl();
-            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.aprsChatControl = new HTCommander.ChatControl();
+            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
+            this.voiceHistoryTextBox = new System.Windows.Forms.RichTextBox();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -427,7 +427,7 @@
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             this.mainMenuStrip.Name = "mainMenuStrip";
             this.mainMenuStrip.Padding = new System.Windows.Forms.Padding(5, 2, 0, 2);
-            this.mainMenuStrip.Size = new System.Drawing.Size(1108, 28);
+            this.mainMenuStrip.Size = new System.Drawing.Size(1108, 30);
             this.mainMenuStrip.TabIndex = 1;
             this.mainMenuStrip.Text = "menuStrip1";
             this.mainMenuStrip.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.mainMenuStrip_ItemClicked);
@@ -443,7 +443,7 @@
             this.toolStripMenuItem4,
             this.exitToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 26);
             this.fileToolStripMenuItem.Text = "&File";
             // 
             // connectToolStripMenuItem
@@ -506,7 +506,7 @@
             this.exportChannelsToolStripMenuItem,
             this.importChannelsToolStripMenuItem});
             this.settingsToolStripMenuItem1.Name = "settingsToolStripMenuItem1";
-            this.settingsToolStripMenuItem1.Size = new System.Drawing.Size(76, 24);
+            this.settingsToolStripMenuItem1.Size = new System.Drawing.Size(76, 26);
             this.settingsToolStripMenuItem1.Text = "&Settings";
             this.settingsToolStripMenuItem1.DropDownOpening += new System.EventHandler(this.settingsToolStripMenuItem1_DropDownOpening);
             // 
@@ -589,7 +589,7 @@
             this.packetsToolStripMenuItem,
             this.debugToolStripMenuItem});
             this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
-            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
+            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 26);
             this.viewToolStripMenuItem.Text = "&View";
             this.viewToolStripMenuItem.DropDownOpening += new System.EventHandler(this.viewToolStripMenuItem_DropDownOpening);
             // 
@@ -689,7 +689,7 @@
             this.toolStripMenuItem2,
             this.aboutToolStripMenuItem1});
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 26);
             this.aboutToolStripMenuItem.Text = "&About";
             // 
             // radioInformationToolStripMenuItem
@@ -749,10 +749,10 @@
             this.radioPanel.Controls.Add(this.connectButton);
             this.radioPanel.Controls.Add(this.radioPictureBox);
             this.radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
-            this.radioPanel.Location = new System.Drawing.Point(0, 28);
+            this.radioPanel.Location = new System.Drawing.Point(0, 30);
             this.radioPanel.Margin = new System.Windows.Forms.Padding(4);
             this.radioPanel.Name = "radioPanel";
-            this.radioPanel.Size = new System.Drawing.Size(372, 654);
+            this.radioPanel.Size = new System.Drawing.Size(372, 652);
             this.radioPanel.TabIndex = 2;
             this.radioPanel.SizeChanged += new System.EventHandler(this.radioPanel_SizeChanged);
             this.radioPanel.DragDrop += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragDrop);
@@ -772,7 +772,7 @@
             // 
             this.channelsFlowLayoutPanel.BackColor = System.Drawing.Color.DarkKhaki;
             this.channelsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 482);
+            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 480);
             this.channelsFlowLayoutPanel.Margin = new System.Windows.Forms.Padding(4);
             this.channelsFlowLayoutPanel.Name = "channelsFlowLayoutPanel";
             this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(368, 84);
@@ -782,7 +782,7 @@
             // checkBluetoothButton
             // 
             this.checkBluetoothButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 566);
+            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 564);
             this.checkBluetoothButton.Margin = new System.Windows.Forms.Padding(4);
             this.checkBluetoothButton.Name = "checkBluetoothButton";
             this.checkBluetoothButton.Size = new System.Drawing.Size(368, 42);
@@ -937,7 +937,7 @@
             // connectButton
             // 
             this.connectButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.connectButton.Location = new System.Drawing.Point(0, 608);
+            this.connectButton.Location = new System.Drawing.Point(0, 606);
             this.connectButton.Margin = new System.Windows.Forms.Padding(4);
             this.connectButton.Name = "connectButton";
             this.connectButton.Size = new System.Drawing.Size(368, 42);
@@ -974,12 +974,12 @@
             this.mainTabControl.Controls.Add(this.debugTabPage);
             this.mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTabControl.ImageList = this.tabsImageList;
-            this.mainTabControl.Location = new System.Drawing.Point(372, 28);
+            this.mainTabControl.Location = new System.Drawing.Point(372, 30);
             this.mainTabControl.Margin = new System.Windows.Forms.Padding(4);
             this.mainTabControl.Multiline = true;
             this.mainTabControl.Name = "mainTabControl";
             this.mainTabControl.SelectedIndex = 0;
-            this.mainTabControl.Size = new System.Drawing.Size(736, 654);
+            this.mainTabControl.Size = new System.Drawing.Size(736, 652);
             this.mainTabControl.TabIndex = 3;
             // 
             // aprsTabPage
@@ -992,7 +992,7 @@
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
             this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Size = new System.Drawing.Size(693, 646);
+            this.aprsTabPage.Size = new System.Drawing.Size(693, 644);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1057,7 +1057,7 @@
             this.aprsBottomPanel.Controls.Add(this.aprsTextBox);
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 599);
+            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 597);
             this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
             this.aprsBottomPanel.Size = new System.Drawing.Size(693, 47);
@@ -1568,7 +1568,7 @@
             this.terminalTabPage.Location = new System.Drawing.Point(4, 4);
             this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTabPage.Name = "terminalTabPage";
-            this.terminalTabPage.Size = new System.Drawing.Size(693, 646);
+            this.terminalTabPage.Size = new System.Drawing.Size(693, 644);
             this.terminalTabPage.TabIndex = 2;
             this.terminalTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1583,7 +1583,7 @@
             this.terminalTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTextBox.Name = "terminalTextBox";
             this.terminalTextBox.ReadOnly = true;
-            this.terminalTextBox.Size = new System.Drawing.Size(693, 563);
+            this.terminalTextBox.Size = new System.Drawing.Size(693, 561);
             this.terminalTextBox.TabIndex = 4;
             this.terminalTextBox.Text = "";
             // 
@@ -1593,7 +1593,7 @@
             this.terminalBottomPanel.Controls.Add(this.terminalInputTextBox);
             this.terminalBottomPanel.Controls.Add(this.terminalSendButton);
             this.terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 600);
+            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 598);
             this.terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.terminalBottomPanel.Name = "terminalBottomPanel";
             this.terminalBottomPanel.Size = new System.Drawing.Size(693, 46);
@@ -1699,22 +1699,22 @@
             this.mainAddressBookListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainAddressBookListView.FullRowSelect = true;
             this.mainAddressBookListView.GridLines = true;
-            listViewGroup1.Header = "Generic Stations";
-            listViewGroup1.Name = "Generic Stations";
-            listViewGroup2.Header = "APRS Stations";
-            listViewGroup2.Name = "APRS Stations";
-            listViewGroup3.Header = "Terminal Stations";
-            listViewGroup3.Name = "Terminal Stations";
-            listViewGroup4.Header = "BBS";
-            listViewGroup4.Name = "BBS";
-            listViewGroup5.Header = "Winlink Gateways";
-            listViewGroup5.Name = "Winlink Gateways";
+            listViewGroup15.Header = "Generic Stations";
+            listViewGroup15.Name = "Generic Stations";
+            listViewGroup16.Header = "APRS Stations";
+            listViewGroup16.Name = "APRS Stations";
+            listViewGroup17.Header = "Terminal Stations";
+            listViewGroup17.Name = "Terminal Stations";
+            listViewGroup18.Header = "BBS";
+            listViewGroup18.Name = "BBS";
+            listViewGroup19.Header = "Winlink Gateways";
+            listViewGroup19.Name = "Winlink Gateways";
             this.mainAddressBookListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup1,
-            listViewGroup2,
-            listViewGroup3,
-            listViewGroup4,
-            listViewGroup5});
+            listViewGroup15,
+            listViewGroup16,
+            listViewGroup17,
+            listViewGroup18,
+            listViewGroup19});
             this.mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.mainAddressBookListView.HideSelection = false;
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 37);
@@ -1884,16 +1884,16 @@
             this.bbsListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.bbsListView.FullRowSelect = true;
             this.bbsListView.GridLines = true;
-            listViewGroup6.Header = "Generic Stations";
-            listViewGroup6.Name = "Generic Stations";
-            listViewGroup7.Header = "APRS Stations";
-            listViewGroup7.Name = "APRS Stations";
-            listViewGroup8.Header = "Terminal Stations";
-            listViewGroup8.Name = "Terminal Stations";
+            listViewGroup1.Header = "Generic Stations";
+            listViewGroup1.Name = "Generic Stations";
+            listViewGroup2.Header = "APRS Stations";
+            listViewGroup2.Name = "APRS Stations";
+            listViewGroup3.Header = "Terminal Stations";
+            listViewGroup3.Name = "Terminal Stations";
             this.bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup6,
-            listViewGroup7,
-            listViewGroup8});
+            listViewGroup1,
+            listViewGroup2,
+            listViewGroup3});
             this.bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.bbsListView.HideSelection = false;
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
@@ -2367,25 +2367,25 @@
             this.packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.packetDecodeListView.FullRowSelect = true;
             this.packetDecodeListView.GridLines = true;
-            listViewGroup9.Header = "Metadata";
-            listViewGroup9.Name = "packetDecodeMetadataListViewGroup";
-            listViewGroup10.Header = "AX.25 Header";
-            listViewGroup10.Name = "packetDecodeHeaderListViewGroup";
-            listViewGroup11.Header = "AX.25 Data";
-            listViewGroup11.Name = "packetDecodeDataListViewGroup";
-            listViewGroup12.Header = "APRS";
-            listViewGroup12.Name = "packetDecodeAprsListViewGroup";
-            listViewGroup13.Header = "Position";
-            listViewGroup13.Name = "packetDecodePositionListViewGroup";
-            listViewGroup14.Header = "Decompression";
-            listViewGroup14.Name = "packetDecodeDecompressionListViewGroup";
+            listViewGroup4.Header = "Metadata";
+            listViewGroup4.Name = "packetDecodeMetadataListViewGroup";
+            listViewGroup5.Header = "AX.25 Header";
+            listViewGroup5.Name = "packetDecodeHeaderListViewGroup";
+            listViewGroup6.Header = "AX.25 Data";
+            listViewGroup6.Name = "packetDecodeDataListViewGroup";
+            listViewGroup7.Header = "APRS";
+            listViewGroup7.Name = "packetDecodeAprsListViewGroup";
+            listViewGroup8.Header = "Position";
+            listViewGroup8.Name = "packetDecodePositionListViewGroup";
+            listViewGroup20.Header = "Decompression";
+            listViewGroup20.Name = "packetDecodeDecompressionListViewGroup";
             this.packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup9,
-            listViewGroup10,
-            listViewGroup11,
-            listViewGroup12,
-            listViewGroup13,
-            listViewGroup14});
+            listViewGroup4,
+            listViewGroup5,
+            listViewGroup6,
+            listViewGroup7,
+            listViewGroup8,
+            listViewGroup20});
             this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.packetDecodeListView.HideSelection = false;
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
@@ -2973,23 +2973,9 @@
             this.voiceTabPage.ImageIndex = 9;
             this.voiceTabPage.Location = new System.Drawing.Point(4, 4);
             this.voiceTabPage.Name = "voiceTabPage";
-            this.voiceTabPage.Size = new System.Drawing.Size(693, 646);
+            this.voiceTabPage.Size = new System.Drawing.Size(693, 644);
             this.voiceTabPage.TabIndex = 9;
             this.voiceTabPage.UseVisualStyleBackColor = true;
-            // 
-            // voiceHistoryTextBox
-            // 
-            this.voiceHistoryTextBox.BackColor = System.Drawing.Color.LightGray;
-            this.voiceHistoryTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.voiceHistoryTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.voiceHistoryTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.voiceHistoryTextBox.Location = new System.Drawing.Point(0, 0);
-            this.voiceHistoryTextBox.Multiline = true;
-            this.voiceHistoryTextBox.Name = "voiceHistoryTextBox";
-            this.voiceHistoryTextBox.ReadOnly = true;
-            this.voiceHistoryTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.voiceHistoryTextBox.Size = new System.Drawing.Size(693, 408);
-            this.voiceHistoryTextBox.TabIndex = 3;
             // 
             // panel6
             // 
@@ -3051,8 +3037,8 @@
             // voiceSplitContainer.Panel2
             // 
             this.voiceSplitContainer.Panel2.Controls.Add(this.voiceLiveTextBox);
-            this.voiceSplitContainer.Size = new System.Drawing.Size(693, 609);
-            this.voiceSplitContainer.SplitterDistance = 408;
+            this.voiceSplitContainer.Size = new System.Drawing.Size(693, 607);
+            this.voiceSplitContainer.SplitterDistance = 406;
             this.voiceSplitContainer.TabIndex = 4;
             // 
             // voiceLiveTextBox
@@ -3068,6 +3054,21 @@
             this.voiceLiveTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.voiceLiveTextBox.Size = new System.Drawing.Size(693, 197);
             this.voiceLiveTextBox.TabIndex = 5;
+            // 
+            // voiceTabContextMenuStrip
+            // 
+            this.voiceTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.voiceTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.clearHistoryToolStripMenuItem});
+            this.voiceTabContextMenuStrip.Name = "debugTabContextMenuStrip";
+            this.voiceTabContextMenuStrip.Size = new System.Drawing.Size(164, 28);
+            // 
+            // clearHistoryToolStripMenuItem
+            // 
+            this.clearHistoryToolStripMenuItem.Name = "clearHistoryToolStripMenuItem";
+            this.clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
+            this.clearHistoryToolStripMenuItem.Text = "&Clear History";
+            this.clearHistoryToolStripMenuItem.Click += new System.EventHandler(this.clearHistoryToolStripMenuItem_Click);
             // 
             // aprsChatControl
             // 
@@ -3087,7 +3088,7 @@
             this.aprsChatControl.Name = "aprsChatControl";
             this.aprsChatControl.ShadowOffset = 2;
             this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(693, 525);
+            this.aprsChatControl.Size = new System.Drawing.Size(693, 523);
             this.aprsChatControl.TabIndex = 5;
             this.aprsChatControl.TextColor = System.Drawing.Color.Black;
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
@@ -3103,20 +3104,16 @@
             this.torrentBlocksUserControl.Size = new System.Drawing.Size(679, 290);
             this.torrentBlocksUserControl.TabIndex = 0;
             // 
-            // voiceTabContextMenuStrip
+            // voiceHistoryTextBox
             // 
-            this.voiceTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.voiceTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.clearHistoryToolStripMenuItem});
-            this.voiceTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.voiceTabContextMenuStrip.Size = new System.Drawing.Size(164, 28);
-            // 
-            // clearHistoryToolStripMenuItem
-            // 
-            this.clearHistoryToolStripMenuItem.Name = "clearHistoryToolStripMenuItem";
-            this.clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
-            this.clearHistoryToolStripMenuItem.Text = "&Clear History";
-            this.clearHistoryToolStripMenuItem.Click += new System.EventHandler(this.clearHistoryToolStripMenuItem_Click);
+            this.voiceHistoryTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.voiceHistoryTextBox.Location = new System.Drawing.Point(0, 0);
+            this.voiceHistoryTextBox.Name = "voiceHistoryTextBox";
+            this.voiceHistoryTextBox.ReadOnly = true;
+            this.voiceHistoryTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.ForcedVertical;
+            this.voiceHistoryTextBox.Size = new System.Drawing.Size(693, 406);
+            this.voiceHistoryTextBox.TabIndex = 0;
+            this.voiceHistoryTextBox.Text = "";
             // 
             // MainForm
             // 
@@ -3229,7 +3226,6 @@
             this.panel6.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.voiceMenuPictureBox)).EndInit();
             this.voiceSplitContainer.Panel1.ResumeLayout(false);
-            this.voiceSplitContainer.Panel1.PerformLayout();
             this.voiceSplitContainer.Panel2.ResumeLayout(false);
             this.voiceSplitContainer.Panel2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.voiceSplitContainer)).EndInit();
@@ -3499,7 +3495,6 @@
         private System.Windows.Forms.ToolStripMenuItem audioEnabledToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem voiceToolStripMenuItem;
         private System.Windows.Forms.TabPage voiceTabPage;
-        private System.Windows.Forms.TextBox voiceHistoryTextBox;
         private System.Windows.Forms.Panel panel6;
         private System.Windows.Forms.PictureBox voiceMenuPictureBox;
         private System.Windows.Forms.Label label6;
@@ -3507,6 +3502,7 @@
         private System.Windows.Forms.TextBox voiceLiveTextBox;
         private System.Windows.Forms.ContextMenuStrip voiceTabContextMenuStrip;
         private System.Windows.Forms.ToolStripMenuItem clearHistoryToolStripMenuItem;
+        private System.Windows.Forms.RichTextBox voiceHistoryTextBox;
     }
 }
 

@@ -118,9 +118,9 @@ namespace HTCommander.radio
 
                 // Set desired model parameters (optional)
                 // _model.SetModelBeamWidth(500); // Example: Adjust beam width if needed
-                _model.SetModelBeamWidth(500); // Example: Adjust beam width if needed
-                                               //int sampleRate = _model.GetModelSampleRate();
-                                               //uint beamWidth = _model.GetModelBeamWidth();
+                _model.SetModelBeamWidth(2000); // Example: Adjust beam width if needed
+                //int sampleRate = _model.GetModelSampleRate();
+                //uint beamWidth = _model.GetModelBeamWidth();
 
                 // Define the source audio format (32kHz, 16-bit, Mono PCM)
                 _sourceFormat = new WaveFormat(rate: 32000, bits: 16, channels: 1);

@@ -26,6 +26,11 @@ using aprsparser;
 using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
 using HTCommander.radio;
+using System.Data.Common;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
+using System.Runtime.Remoting.Channels;
+
+
 
 
 #if !__MonoCS__
@@ -372,7 +377,10 @@ namespace HTCommander
             if (this.InvokeRequired) { this.Invoke(new VoiceTextChangedHandler(Radio_OnVoiceText), text, completed); return; }
             if (completed)
             {
-                if (text.Trim().Length > 0) { voiceHistoryTextBox.AppendText(" - " + text + "\r\n\r\n"); }
+                if (text.Trim().Length > 0) {
+                    RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, "Sample", text);
+                    //voiceHistoryTextBox.AppendText(" - " + text + "\r\n\r\n");
+                }
                 voiceLiveTextBox.Clear();
             }
             else

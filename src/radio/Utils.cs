@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Brotli;
 using System.Security.Cryptography;
+using System.Drawing;
 
 namespace HTCommander
 {
@@ -216,6 +217,84 @@ namespace HTCommander
         public string ToRtf()
         {
             return @"{\rtf1\ansi " + _builder.ToString() + @" }";
+        }
+        public static void AddFormattedEntry(RichTextBox rtb, DateTime entryTime, string smallText, string largeText)
+        {
+            // Ensure we are manipulating the control on the UI thread
+            if (rtb.InvokeRequired)
+            {
+                // If called from a different thread, marshal the call back to the UI thread
+                rtb.Invoke(new Action(() => AddFormattedEntry(rtb, entryTime, smallText, largeText)));
+                return; // Exit the current (non-UI thread) method call
+            }
+
+            // --- Define Formatting ---
+            // Use the RichTextBox's current font family as a base for consistency
+            string baseFontFamily = rtb.Font.FontFamily.Name;
+
+            // Small font for metadata (date/source) and separator line
+            Font smallFont = new Font(baseFontFamily, 8f, FontStyle.Regular);
+            Color smallColor = Color.DimGray; // A nice, lighter gray
+
+            // Larger font for the main message
+            Font largeFont = new Font(baseFontFamily, 11f, FontStyle.Regular); // Adjust size as needed
+            Color largeColor = Color.Black;
+
+            // Separator line - using a character that repeats well
+            // Adjust the count (e.g., 50) based on your RichTextBox width and preference
+            string horizontalLine = new string('\u2015', 50); // U+2015 HORIZONTAL BAR character
+
+            // Store original settings to potentially restore later if needed (optional)
+            // Font originalFont = rtb.SelectionFont;
+            // Color originalColor = rtb.SelectionColor;
+
+            // --- Append First Line (Date + Small Text) ---
+            // Move cursor to the end
+            rtb.Select(rtb.TextLength, 0);
+            // Apply small font and color
+            rtb.SelectionFont = smallFont;
+            rtb.SelectionColor = smallColor;
+            // Append the text including a newline
+            rtb.AppendText($"{entryTime:yyyy-MM-dd HH:mm:ss} - {smallText}{Environment.NewLine}");
+
+            // --- Append Horizontal Line ---
+            // Keep small font and color for the separator line
+            rtb.Select(rtb.TextLength, 0);
+            rtb.SelectionFont = smallFont;
+            rtb.SelectionColor = smallColor;
+            // Append the line including a newline
+            rtb.AppendText($"{horizontalLine}{Environment.NewLine}");
+
+            // --- Append Large Text ---
+            // Move cursor to the end
+            rtb.Select(rtb.TextLength, 0);
+            // Apply large font and black color
+            rtb.SelectionFont = largeFont;
+            rtb.SelectionColor = largeColor;
+            // Append the main message
+            rtb.AppendText(largeText); // No newline immediately after
+
+            // --- Add Bottom Spacing ---
+            // Move cursor to the end
+            rtb.Select(rtb.TextLength, 0);
+            // Reset to default font/color before adding spacing newlines (looks cleaner)
+            rtb.SelectionFont = rtb.Font; // Use the control's default font
+            rtb.SelectionColor = rtb.ForeColor; // Use the control's default color
+                                                // Append two newlines: one to end the largeText line, one for spacing
+            rtb.AppendText($"{Environment.NewLine}{Environment.NewLine}");
+
+            // --- Clean up ---
+            // Dispose of the Font objects we created (good practice)
+            smallFont.Dispose();
+            largeFont.Dispose();
+
+            // Optional: Restore original selection font/color if needed
+            // rtb.SelectionFont = originalFont;
+            // rtb.SelectionColor = originalColor;
+
+            // --- Ensure Visibility ---
+            // Scroll to the caret (which is now at the end) to make the new entry visible
+            rtb.ScrollToCaret();
         }
     }
 }
