@@ -263,9 +263,11 @@
     <Compile Include="radio\AX25Address.cs" />
     <Compile Include="radio\AX25Packet.cs" />
     <Compile Include="radio\AX25Session.cs" />
+    <Compile Include="radio\DeepSpeechEngine.cs" />
     <Compile Include="radio\LibSbc.cs" />
     <Compile Include="radio\RadioAudio.cs" />
     <Compile Include="radio\RadioBluetoothWin.cs" />
+    <Compile Include="radio\SpeechToText.cs" />
     <Compile Include="radio\WinLinkMail.cs" />
     <Compile Include="radio\WinLinkUtils.cs" />
     <Compile Include="radio\Radio.cs" />
@@ -459,6 +461,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="HTCommander.ico" />
+    <Compile Include="radio\SystemSpeechEngine.cs" />
     <None Include="Resources\CantConnect.png" />
     <None Include="Resources\file-transfer.png" />
     <None Include="Resources\DownArrow64.png" />

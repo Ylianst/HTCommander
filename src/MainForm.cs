@@ -372,7 +372,7 @@ namespace HTCommander
             if (this.InvokeRequired) { this.Invoke(new VoiceTextChangedHandler(Radio_OnVoiceText), text, completed); return; }
             if (completed)
             {
-                voiceHistoryTextBox.AppendText(" - " + text + "\r\n\r\n");
+                if (text.Trim().Length > 0) { voiceHistoryTextBox.AppendText(" - " + text + "\r\n\r\n"); }
                 voiceLiveTextBox.Clear();
             }
             else
