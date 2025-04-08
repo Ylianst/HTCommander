@@ -243,10 +243,13 @@ namespace HTCommander
             showPreviewToolStripMenuItem.Checked = (registry.ReadInt("MailViewPreview", 1) == 1);
             mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
 
-            if (!File.Exists("deepspeech-0.9.3-models.pbmm") || !File.Exists("deepspeech-0.9.3-models.scorer")) {
+            /*
+            // Check if this CPU supports media instructions
+            if () {
                 voiceToolStripMenuItem.Enabled = voiceToolStripMenuItem.Visible = false;
                 radio.AudioToTextState = false;
             }
+            */
 
             // Setup mailboxes
             MailBoxTreeNodes = new TreeNode[MailBoxesNames.Length];
@@ -375,7 +378,7 @@ namespace HTCommander
             if (this.InvokeRequired) { this.Invoke(new VoiceTextChangedHandler(Radio_OnVoiceText), sender, text, completed, channel, time); return; }
             if (completed)
             {
-                if (text.Trim().Length > 0) {
+                if ((text == null) || (text.Trim().Length > 0)) {
                     RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, time, channel, text);
                     //voiceHistoryTextBox.AppendText(" - " + text + "\r\n\r\n");
                 }

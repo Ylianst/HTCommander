@@ -406,7 +406,7 @@ namespace HTCommander
         public event VoiceTextChangedHandler OnVoiceText;
 
         public bool AudioState { get { return radioAudio.IsAudioEnabled; } }
-        public bool AudioToTextState { get { return radioAudio.speechToText != 0; } set { radioAudio.speechToText = value ? 2 : 0;  } }
+        public bool AudioToTextState { get { return radioAudio.speechToText; } set { radioAudio.speechToText = value;  } }
 
         public void Dispose()
         {

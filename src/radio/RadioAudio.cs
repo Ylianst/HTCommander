@@ -39,8 +39,8 @@ namespace HTCommander
         private byte[] pcmFrame = new byte[16000];
         private bool running = false;
         private NetworkStream audioStream;
-        public int speechToText = 0; // 0 = None, 1 = Microsoft OS, 2 = DeepSpeech
-        private SpeechToText speechToTextEngine = null;
+        public bool speechToText = false;
+        private WhisperEngine speechToTextEngine = null;
         public string currentChannelName = "";
 
         public delegate void DebugMessageEventHandler(string msg);
@@ -277,19 +277,15 @@ namespace HTCommander
                                     case 0x00: // Audio normal
                                     case 0x03: // Audio odd
                                         if (parent.IsOnMuteChannel() == true) break;
-                                        if ((speechToText > 0) && (speechToTextEngine == null))
+                                        if (speechToText && (speechToTextEngine == null))
                                         {
-                                            if (speechToText == 1) { speechToTextEngine = new SystemSpeechEngine(); }
-                                            if (speechToText == 2) { speechToTextEngine = new DeepSpeechEngine(); }
-                                            if (speechToTextEngine != null)
-                                            {
-                                                speechToTextEngine.onIntermediateResultReady += SpeechToTextEngine_onIntermediateResultReady;
-                                                speechToTextEngine.onFinalResultReady += SpeechToTextEngine_onFinalResultReady;
-                                                speechToTextEngine.StartVoiceSegment();
-                                                maxVoiceDecodeTime = 0;
-                                            }
+                                            speechToTextEngine = new WhisperEngine();
+                                            speechToTextEngine.onIntermediateResultReady += SpeechToTextEngine_onIntermediateResultReady;
+                                            speechToTextEngine.onFinalResultReady += SpeechToTextEngine_onFinalResultReady;
+                                            speechToTextEngine.StartVoiceSegment();
+                                            maxVoiceDecodeTime = 0;
                                         }
-                                        if ((speechToText == 0) && (speechToTextEngine != null))
+                                        if (!speechToText && (speechToTextEngine != null))
                                         {
                                             speechToTextEngine.ResetVoiceSegment();
                                             speechToTextEngine.Dispose();
@@ -381,7 +377,9 @@ namespace HTCommander
                 sbcPtr += (int)decodeResult;
                 sbcLen -= (int)decodeResult;
                 try { waveProvider.AddSamples(pcmFrame, 0, (int)written); } catch (Exception) { }
-                if (speechToTextEngine != null) { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, (int)written, currentChannelName); }
+                if (speechToTextEngine != null) {
+                    speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, (int)written, currentChannelName);
+                }
             }
 
             pcmHandle.Free();

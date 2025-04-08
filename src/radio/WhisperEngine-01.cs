@@ -20,54 +20,55 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using NAudio.Wave;
-using DeepSpeechClient;
-using DeepSpeechClient.Models;
+using Whisper.net;
+using Whisper.net.Ggml;
+using System.Diagnostics;
 
 namespace HTCommander.radio
 {
-    public class DeepSpeechEngine : SpeechToText
+    public class WhisperEngine : SpeechToText
     {
-        private AsyncDeepSpeechRecognizer deepSpeech;
+        private AsyncWhisperRecognizer Whisper;
 
         public event RadioAudio.OnVoiceTextReady onFinalResultReady;
         public event RadioAudio.OnVoiceTextReady onIntermediateResultReady;
 
         public void StartVoiceSegment() {
-            deepSpeech = new AsyncDeepSpeechRecognizer("deepspeech-0.9.3-models.pbmm", "deepspeech-0.9.3-models.scorer");
-            deepSpeech.IntermediateResultReady += DeepSpeech_IntermediateResultReady;
-            deepSpeech.FinalResultReady += DeepSpeech_FinalResultReady;
-            deepSpeech.StartStreaming();
+            Whisper = new AsyncWhisperRecognizer("Whisper-0.9.3-models.pbmm", "Whisper-0.9.3-models.scorer");
+            Whisper.IntermediateResultReady += Whisper_IntermediateResultReady;
+            Whisper.FinalResultReady += Whisper_FinalResultReady;
+            Whisper.StartStreaming();
         }
 
         public void ResetVoiceSegment() {
-            Task<string> _ = deepSpeech.FinishStreamingAsync();
-            deepSpeech.StartStreaming();
+            Task<string> _ = Whisper.FinishStreamingAsync();
+            Whisper.StartStreaming();
         }
 
         public void ProcessAudioChunk(byte[] data, int index, int length, string channel) {
-            deepSpeech.ProcessAudioChunk(data, index, length, channel);
+            Whisper.ProcessAudioChunk(data, index, length, channel);
         }
 
         public void Dispose() { }
-        private void DeepSpeech_FinalResultReady(string text, string channel, DateTime t)
+        private void Whisper_FinalResultReady(string text, string channel, DateTime t)
         {
             if (onFinalResultReady != null) { onFinalResultReady(text, channel, t); }
         }
 
-        private void DeepSpeech_IntermediateResultReady(string text, string channel, DateTime t)
+        private void Whisper_IntermediateResultReady(string text, string channel, DateTime t)
         {
             if (onIntermediateResultReady != null) { onIntermediateResultReady(text, channel, t); }
         }
 
-        public class DeepSpeechStreamingRecognizer : IDisposable
+        public class WhisperStreamingRecognizer : IDisposable
         {
-            private readonly DeepSpeech _model;
             private readonly WaveFormat _sourceFormat; // Format of the incoming audio (32kHz)
-            private readonly WaveFormat _targetFormat; // Format required by DeepSpeech (16kHz)
-            private DeepSpeechStream _deepSpeechStream; // Use StreamingState which is the type returned by CreateStream
+            private readonly WaveFormat _targetFormat; // Format required by Whisper (16kHz)
             private DateTime lastIntermediate;
             private DateTime firstFrame = DateTime.MinValue;
             private string lastChannel = string.Empty; // Default channel name
+            private WhisperFactory whisperFactory;
+            private WhisperProcessor processor;
 
             // Event to notify subscribers of intermediate results
             public event Action<string, string, DateTime> IntermediateResultReady;
@@ -75,61 +76,40 @@ namespace HTCommander.radio
             public event Action<string, string, DateTime> FinalResultReady;
 
             /// <summary>
-            /// Initializes the DeepSpeech streaming recognizer.
+            /// Initializes the Whisper streaming recognizer.
             /// </summary>
-            /// <param name="modelPath">Path to the DeepSpeech model file (.pbmm).</param>
+            /// <param name="modelPath">Path to the Whisper model file (.pbmm).</param>
             /// <param name="scorerPath">Optional path to the language model scorer file (.scorer).</param>
-            public DeepSpeechStreamingRecognizer(string modelPath, string scorerPath = null)
+            public WhisperStreamingRecognizer(string modelPath, string scorerPath = null)
             {
-                // https://deepspeech.readthedocs.io/en/latest/USING.html
-                // https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.pbmm
-                // https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.scorer
+                // https://Whisper.readthedocs.io/en/latest/USING.html
+                // https://github.com/mozilla/Whisper/releases/download/v0.9.3/Whisper-0.9.3-models.pbmm
+                // https://github.com/mozilla/Whisper/releases/download/v0.9.3/Whisper-0.9.3-models.scorer
 
                 if (string.IsNullOrEmpty(modelPath) || !File.Exists(modelPath))
                 {
-                    throw new FileNotFoundException($"DeepSpeech model not found or path is invalid: {modelPath}");
+                    throw new FileNotFoundException($"Whisper model not found or path is invalid: {modelPath}");
                 }
 
                 try
                 {
-                    _model = new DeepSpeech(modelPath);
+                    // This section creates the whisperFactory object which is used to create the processor object.
+                    whisperFactory = WhisperFactory.FromPath("ggml-base.bin");
                 }
                 catch (Exception ex)
                 {
-                    throw new InvalidOperationException($"Failed to initialize DeepSpeech model from {modelPath}. Error: {ex.Message}", ex);
-                }
-
-                if (!string.IsNullOrEmpty(scorerPath))
-                {
-                    if (!File.Exists(scorerPath))
-                    {
-                        Console.WriteLine($"Warning: Scorer file not found at: {scorerPath}. Recognition accuracy may be reduced.");
-                    }
-                    else
-                    {
-                        try
-                        {
-                            _model.EnableExternalScorer(scorerPath);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Warning: Failed to enable scorer '{scorerPath}'. Error: {ex.Message}. Proceeding without scorer.");
-                        }
-                    }
+                    throw new InvalidOperationException($"Failed to initialize Whisper model from {modelPath}. Error: {ex.Message}", ex);
                 }
 
                 // Set desired model parameters (optional)
-                // _model.SetModelBeamWidth(500); // Example: Adjust beam width if needed
-                _model.SetModelBeamWidth(2000); // Example: Adjust beam width if needed
-                //int sampleRate = _model.GetModelSampleRate();
-                //uint beamWidth = _model.GetModelBeamWidth();
+                // TODO
 
                 // Define the source audio format (32kHz, 16-bit, Mono PCM)
                 _sourceFormat = new WaveFormat(rate: 32000, bits: 16, channels: 1);
-                // Define the target audio format required by DeepSpeech (16kHz, 16-bit, Mono PCM)
-                _targetFormat = new WaveFormat(rate: 16000, bits: 16, channels: 1); // Standard DeepSpeech requirement
+                // Define the target audio format required by Whisper (16kHz, 16-bit, Mono PCM)
+                _targetFormat = new WaveFormat(rate: 16000, bits: 16, channels: 1); // Standard Whisper requirement
 
-                Console.WriteLine($"DeepSpeech Recognizer initialized. Source Format: {_sourceFormat}, Target Format: {_targetFormat}");
+                Console.WriteLine($"Whisper Recognizer initialized. Source Format: {_sourceFormat}, Target Format: {_targetFormat}");
             }
 
             /// <summary>
@@ -137,7 +117,7 @@ namespace HTCommander.radio
             /// </summary>
             public void StartStreaming()
             {
-                if (_deepSpeechStream != null)
+                if (processor != null)
                 {
                     Console.WriteLine("Warning: Streaming already in progress. Call FinishStreaming() before starting a new stream.");
                     FinishStreaming(); // Clean up the previous stream
@@ -146,22 +126,25 @@ namespace HTCommander.radio
                 {
                     // Create the stream state directly from the model
                     lastIntermediate = DateTime.Now;
-                    _deepSpeechStream = _model.CreateStream();
-                    Console.WriteLine("DeepSpeech stream started.");
+
+                    // This section creates the processor object which is used to process the audio file, it uses language `auto` to detect the language of the audio file.
+                    processor = whisperFactory.CreateBuilder().WithLanguage("auto").Build();
+
+                    Console.WriteLine("Whisper stream started.");
                 }
                 catch (Exception ex)
                 {
-                    throw new InvalidOperationException($"Failed to create DeepSpeech stream. Error: {ex.Message}", ex);
+                    throw new InvalidOperationException($"Failed to create Whisper stream. Error: {ex.Message}", ex);
                 }
             }
 
             /// <summary>
-            /// Processes a chunk of audio data. Resamples and feeds it to the DeepSpeech stream.
+            /// Processes a chunk of audio data. Resamples and feeds it to the Whisper stream.
             /// </summary>
             /// <param name="audioData">Byte array containing PCM audio data (32kHz, 16-bit, Mono).</param>
             public void ProcessAudioChunk(byte[] audioData, int index, int length, string channel)
             {
-                if (_deepSpeechStream == null)
+                if (processor == null)
                 {
                     Console.WriteLine("Error: Streaming not started. Call StartStreaming() first.");
                     return;
@@ -182,10 +165,11 @@ namespace HTCommander.radio
                         byte[] buffer = new byte[length / 2];
                         while ((bytesRead = resampler.Read(buffer, 0, buffer.Length)) > 0)
                         {
-                            // Convert byte[] to short[] as DeepSpeech expects 16-bit samples
+                            // Convert byte[] to short[] as Whisper expects 16-bit samples
                             short[] shortBuffer = new short[bytesRead / 2];
                             Buffer.BlockCopy(buffer, 0, shortBuffer, 0, bytesRead);
-                            _model.FeedAudioContent(_deepSpeechStream, shortBuffer, (uint)shortBuffer.Length);
+                            processor.ProcessAsync()
+                            _model.FeedAudioContent(_WhisperStream, shortBuffer, (uint)shortBuffer.Length);
                         }
                     }
 
@@ -193,7 +177,7 @@ namespace HTCommander.radio
                     if (lastIntermediate.AddSeconds(1) < now)
                     {
                         lastIntermediate = now;
-                        string intermediateResult = _model.IntermediateDecode(_deepSpeechStream);
+                        string intermediateResult = _model.IntermediateDecode(_WhisperStream);
                         if (!string.IsNullOrWhiteSpace(intermediateResult))
                         {
                             IntermediateResultReady?.Invoke(intermediateResult, channel, firstFrame);
@@ -214,7 +198,7 @@ namespace HTCommander.radio
             /// <returns>The final recognized text, or null if streaming was not active.</returns>
             public string FinishStreaming()
             {
-                if (_deepSpeechStream == null)
+                if (_WhisperStream == null)
                 {
                     Console.WriteLine("Warning: FinishStreaming called but streaming was not active.");
                     return null;
@@ -223,8 +207,8 @@ namespace HTCommander.radio
                 string finalResult = null;
                 try
                 {
-                    Console.WriteLine("Finishing DeepSpeech stream...");
-                    finalResult = _model.FinishStream(_deepSpeechStream);
+                    Console.WriteLine("Finishing Whisper stream...");
+                    finalResult = _model.FinishStream(_WhisperStream);
                     FinalResultReady?.Invoke(finalResult, lastChannel, firstFrame);
                     firstFrame = DateTime.MinValue; // Reset first frame for the next stream
                 }
@@ -237,7 +221,7 @@ namespace HTCommander.radio
                     try
                     {
                         // Example: Assuming a FreeStream method exists on the model
-                        //_model.FreeStream(_deepSpeechStream); // This causes a crash!!
+                        //_model.FreeStream(_WhisperStream); // This causes a crash!!
                     }
                     catch (Exception ex)
                     {
@@ -247,15 +231,15 @@ namespace HTCommander.radio
 
                     // The Dispose method on your handle object might just null the pointer,
                     // so calling it might still be okay or necessary.
-                    _deepSpeechStream?.Dispose();
-                    _deepSpeechStream = null;
-                    Console.WriteLine("DeepSpeech stream finished and resources potentially freed.");
+                    _WhisperStream?.Dispose();
+                    _WhisperStream = null;
+                    Console.WriteLine("Whisper stream finished and resources potentially freed.");
                 }
                 return finalResult;
             }
 
             /// <summary>
-            /// Releases resources used by the DeepSpeech model and any active stream.
+            /// Releases resources used by the Whisper model and any active stream.
             /// </summary>
             public void Dispose()
             {
@@ -268,38 +252,38 @@ namespace HTCommander.radio
                 if (disposing)
                 {
                     // Dispose managed resources
-                    if (_deepSpeechStream != null)
+                    if (_WhisperStream != null)
                     {
                         try
                         {
-                            _model.FreeStream(_deepSpeechStream);
+                            _model.FreeStream(_WhisperStream);
                         }
                         catch (Exception ex)
                         {
                             Console.WriteLine($"Error freeing stream resource during dispose: {ex.Message}");
                         }
-                        _deepSpeechStream.Dispose(); // Dispose the handle object
-                        _deepSpeechStream = null;
+                        _WhisperStream.Dispose(); // Dispose the handle object
+                        _WhisperStream = null;
                     }
-                    _model?.Dispose(); // Dispose the main DeepSpeech model object
-                    Console.WriteLine("DeepSpeech Recognizer disposed.");
+                    _model?.Dispose(); // Dispose the main Whisper model object
+                    Console.WriteLine("Whisper Recognizer disposed.");
                 }
                 // Dispose unmanaged resources here if any
             }
 
             // Destructor (finalize) - safety net for unmanaged resources if Dispose isn't called
-            ~DeepSpeechStreamingRecognizer()
+            ~WhisperStreamingRecognizer()
             {
                 Dispose(false);
             }
         }
 
         /// <summary>
-        /// Wraps DeepSpeechStreamingRecognizer to run all its operations on a dedicated
+        /// Wraps WhisperStreamingRecognizer to run all its operations on a dedicated
         /// background thread, allowing the calling thread (e.g., UI thread) to remain responsive.
         /// Audio chunks are queued for processing.
         /// </summary>
-        public class AsyncDeepSpeechRecognizer : IDisposable
+        public class AsyncWhisperRecognizer : IDisposable
         {
             private enum CommandType { Start, Process, Finish, Shutdown }
 
@@ -324,7 +308,7 @@ namespace HTCommander.radio
             private readonly CancellationTokenSource _cts;
             private readonly SynchronizationContext _capturedContext;
             private bool _isDisposed = false;
-            private DeepSpeechStreamingRecognizer _recognizerInstance; // Only accessed by the background thread
+            private WhisperStreamingRecognizer _recognizerInstance; // Only accessed by the background thread
 
             // Events that will be marshalled back to the captured context (if any)
             public event Action<string, string, DateTime> IntermediateResultReady;
@@ -332,12 +316,12 @@ namespace HTCommander.radio
             public event Action<Exception> ProcessingErrorOccurred;
 
             /// <summary>
-            /// Initializes the async DeepSpeech recognizer. This starts a background thread
-            /// where the actual DeepSpeech model will be loaded and processing will occur.
+            /// Initializes the async Whisper recognizer. This starts a background thread
+            /// where the actual Whisper model will be loaded and processing will occur.
             /// </summary>
-            /// <param name="modelPath">Path to the DeepSpeech model file (.pbmm).</param>
+            /// <param name="modelPath">Path to the Whisper model file (.pbmm).</param>
             /// <param name="scorerPath">Optional path to the language model scorer file (.scorer).</param>
-            public AsyncDeepSpeechRecognizer(string modelPath, string scorerPath = null)
+            public AsyncWhisperRecognizer(string modelPath, string scorerPath = null)
             {
                 _commandQueue = new BlockingCollection<RecognizerCommand>();
                 _cts = new CancellationTokenSource();
@@ -416,7 +400,7 @@ namespace HTCommander.radio
                 catch (Exception ex) when (ex is OperationCanceledException || ex is InvalidOperationException)
                 {
                     CheckDisposed(); // Throw if disposed
-                    tcs.TrySetException(new ObjectDisposedException(nameof(AsyncDeepSpeechRecognizer), "Cannot finish streaming as the recognizer is disposed or shutting down."));
+                    tcs.TrySetException(new ObjectDisposedException(nameof(AsyncWhisperRecognizer), "Cannot finish streaming as the recognizer is disposed or shutting down."));
                 }
                 return tcs.Task;
             }
@@ -430,13 +414,13 @@ namespace HTCommander.radio
                 try
                 {
                     // 1. Initialize the actual recognizer on this thread
-                    _recognizerInstance = new DeepSpeechStreamingRecognizer(modelPath, scorerPath);
+                    _recognizerInstance = new WhisperStreamingRecognizer(modelPath, scorerPath);
 
                     // Hook up internal events to marshalling handlers
                     _recognizerInstance.IntermediateResultReady += OnInnerIntermediateResultReady;
                     _recognizerInstance.FinalResultReady += OnInnerFinalResultReady;
 
-                    Console.WriteLine("AsyncDeepSpeechRecognizer: Background thread started and inner recognizer initialized.");
+                    Console.WriteLine("AsyncWhisperRecognizer: Background thread started and inner recognizer initialized.");
 
                     // 2. Process commands from the queue
                     while (!token.IsCancellationRequested)
@@ -462,7 +446,7 @@ namespace HTCommander.radio
                             switch (command)
                             {
                                 case StartCommand _:
-                                    Console.WriteLine("AsyncDeepSpeechRecognizer: Received Start command.");
+                                    Console.WriteLine("AsyncWhisperRecognizer: Received Start command.");
                                     _recognizerInstance.StartStreaming();
                                     break;
 
@@ -472,13 +456,13 @@ namespace HTCommander.radio
                                     break;
 
                                 case FinishCommand fc:
-                                    Console.WriteLine("AsyncDeepSpeechRecognizer: Received Finish command.");
+                                    Console.WriteLine("AsyncWhisperRecognizer: Received Finish command.");
                                     string result = _recognizerInstance.FinishStreaming();
                                     fc.Tcs.TrySetResult(result); // Signal completion back to the caller
                                     break;
 
                                 case ShutdownCommand _:
-                                    Console.WriteLine("AsyncDeepSpeechRecognizer: Received Shutdown command.");
+                                    Console.WriteLine("AsyncWhisperRecognizer: Received Shutdown command.");
                                     goto Shutdown; // Exit the loop cleanly
 
                                 default:
@@ -488,7 +472,7 @@ namespace HTCommander.radio
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"AsyncDeepSpeechRecognizer: Error processing command {command?.GetType().Name}: {ex.Message}");
+                            Console.WriteLine($"AsyncWhisperRecognizer: Error processing command {command?.GetType().Name}: {ex.Message}");
                             RaiseProcessingError(ex);
                             // Handle specific command errors if needed (e.g., set exception on FinishCommand's TCS)
                             if (command is FinishCommand fcErr)
@@ -500,14 +484,14 @@ namespace HTCommander.radio
                 }
                 catch (Exception ex) // Catch initialization errors
                 {
-                    Console.WriteLine($"AsyncDeepSpeechRecognizer: Fatal error during initialization or loop: {ex.ToString()}");
+                    Console.WriteLine($"AsyncWhisperRecognizer: Fatal error during initialization or loop: {ex.ToString()}");
                     RaiseProcessingError(ex);
                     // If initialization fails, subsequent calls will likely fail or throw ObjectDisposedException
                     // We should ensure cleanup happens.
                 }
 
             Shutdown:
-                Console.WriteLine("AsyncDeepSpeechRecognizer: Shutting down processing loop.");
+                Console.WriteLine("AsyncWhisperRecognizer: Shutting down processing loop.");
 
                 // 3. Cleanup resources on this thread
                 if (_recognizerInstance != null)
@@ -522,17 +506,17 @@ namespace HTCommander.radio
                     try
                     {
                         _recognizerInstance.Dispose();
-                        Console.WriteLine("AsyncDeepSpeechRecognizer: Inner recognizer disposed.");
+                        Console.WriteLine("AsyncWhisperRecognizer: Inner recognizer disposed.");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"AsyncDeepSpeechRecognizer: Error disposing inner recognizer: {ex.Message}");
+                        Console.WriteLine($"AsyncWhisperRecognizer: Error disposing inner recognizer: {ex.Message}");
                         RaiseProcessingError(ex);
                     }
                     _recognizerInstance = null;
                 }
                 _commandQueue.Dispose(); // Dispose the queue
-                Console.WriteLine("AsyncDeepSpeechRecognizer: Background thread finished.");
+                Console.WriteLine("AsyncWhisperRecognizer: Background thread finished.");
             }
 
             // --- Event Marshalling ---
@@ -573,7 +557,7 @@ namespace HTCommander.radio
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"AsyncDeepSpeechRecognizer: Exception in event handler for {eventHandler.Method.Name}: {ex.Message}");
+                        Console.WriteLine($"AsyncWhisperRecognizer: Exception in event handler for {eventHandler.Method.Name}: {ex.Message}");
                         // Consider logging this, but don't let handler exceptions stop the background thread.
                     }
                 }
@@ -586,7 +570,7 @@ namespace HTCommander.radio
             {
                 if (_isDisposed)
                 {
-                    throw new ObjectDisposedException(nameof(AsyncDeepSpeechRecognizer));
+                    throw new ObjectDisposedException(nameof(AsyncWhisperRecognizer));
                 }
             }
 
@@ -602,7 +586,7 @@ namespace HTCommander.radio
 
                 if (disposing)
                 {
-                    Console.WriteLine("AsyncDeepSpeechRecognizer: Dispose called.");
+                    Console.WriteLine("AsyncWhisperRecognizer: Dispose called.");
                     // Signal the background thread to shut down
                     if (!_cts.IsCancellationRequested)
                     {
@@ -635,31 +619,31 @@ namespace HTCommander.radio
                         }
                         else
                         {
-                            Console.WriteLine("AsyncDeepSpeechRecognizer: Background task completed.");
+                            Console.WriteLine("AsyncWhisperRecognizer: Background task completed.");
                         }
                     }
                     catch (AggregateException ae)
                     {
                         // Observe exceptions, especially OperationCanceledException which is expected
                         ae.Handle(ex => ex is OperationCanceledException);
-                        Console.WriteLine("AsyncDeepSpeechRecognizer: Background task cancelled as expected during Dispose.");
+                        Console.WriteLine("AsyncWhisperRecognizer: Background task cancelled as expected during Dispose.");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"AsyncDeepSpeechRecognizer: Exception while waiting for background task during Dispose: {ex.Message}");
+                        Console.WriteLine($"AsyncWhisperRecognizer: Exception while waiting for background task during Dispose: {ex.Message}");
                     }
 
                     _cts.Dispose();
                     // _commandQueue is disposed within the ProcessingLoop after it exits.
 
-                    Console.WriteLine("AsyncDeepSpeechRecognizer: Dispose finished.");
+                    Console.WriteLine("AsyncWhisperRecognizer: Dispose finished.");
                 }
 
                 _isDisposed = true;
             }
 
             // Optional: Finalizer as a safety net (though background thread makes it less critical for managed resources)
-            ~AsyncDeepSpeechRecognizer()
+            ~AsyncWhisperRecognizer()
             {
                 Dispose(false);
             }

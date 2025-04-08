@@ -255,33 +255,43 @@ namespace HTCommander
             rtb.SelectionFont = smallFont;
             rtb.SelectionColor = smallColor;
             // Append the text including a newline
-            rtb.AppendText($"{entryTime:yyyy-MM-dd HH:mm:ss} - {smallText}{Environment.NewLine}");
+            if (entryTime != DateTime.MinValue)
+            {
+                rtb.AppendText($"{entryTime:yyyy-MM-dd HH:mm:ss} - {smallText}{Environment.NewLine}");
+            }
+            else
+            {
+                rtb.AppendText($"{smallText}{Environment.NewLine}");
+            }
 
-            // --- Append Horizontal Line ---
-            // Keep small font and color for the separator line
-            rtb.Select(rtb.TextLength, 0);
-            rtb.SelectionFont = smallFont;
-            rtb.SelectionColor = smallColor;
-            // Append the line including a newline
-            rtb.AppendText($"{horizontalLine}{Environment.NewLine}");
+            if (largeText != null)
+            {
+                // --- Append Horizontal Line ---
+                // Keep small font and color for the separator line
+                rtb.Select(rtb.TextLength, 0);
+                rtb.SelectionFont = smallFont;
+                rtb.SelectionColor = smallColor;
+                // Append the line including a newline
+                rtb.AppendText($"{horizontalLine}{Environment.NewLine}");
 
-            // --- Append Large Text ---
-            // Move cursor to the end
-            rtb.Select(rtb.TextLength, 0);
-            // Apply large font and black color
-            rtb.SelectionFont = largeFont;
-            rtb.SelectionColor = largeColor;
-            // Append the main message
-            rtb.AppendText(largeText); // No newline immediately after
+                // --- Append Large Text ---
+                // Move cursor to the end
+                rtb.Select(rtb.TextLength, 0);
+                // Apply large font and black color
+                rtb.SelectionFont = largeFont;
+                rtb.SelectionColor = largeColor;
+                // Append the main message
+                rtb.AppendText(largeText); // No newline immediately after
 
-            // --- Add Bottom Spacing ---
-            // Move cursor to the end
-            rtb.Select(rtb.TextLength, 0);
-            // Reset to default font/color before adding spacing newlines (looks cleaner)
-            rtb.SelectionFont = rtb.Font; // Use the control's default font
-            rtb.SelectionColor = rtb.ForeColor; // Use the control's default color
-                                                // Append two newlines: one to end the largeText line, one for spacing
-            rtb.AppendText($"{Environment.NewLine}{Environment.NewLine}");
+                // --- Add Bottom Spacing ---
+                // Move cursor to the end
+                rtb.Select(rtb.TextLength, 0);
+                // Reset to default font/color before adding spacing newlines (looks cleaner)
+                rtb.SelectionFont = rtb.Font; // Use the control's default font
+                rtb.SelectionColor = rtb.ForeColor; // Use the control's default color
+                                                    // Append two newlines: one to end the largeText line, one for spacing
+                rtb.AppendText($"{Environment.NewLine}{Environment.NewLine}");
+            }
 
             // --- Clean up ---
             // Dispose of the Font objects we created (good practice)
