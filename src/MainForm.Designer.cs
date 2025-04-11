@@ -306,6 +306,7 @@
             this.torrentSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.voiceProcessingLabel = new System.Windows.Forms.Label();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -820,6 +821,7 @@
             // connectedPanel
             // 
             this.connectedPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
+            this.connectedPanel.Controls.Add(this.voiceProcessingLabel);
             this.connectedPanel.Controls.Add(this.vfo2StatusLabel);
             this.connectedPanel.Controls.Add(this.vfo2FreqLabel);
             this.connectedPanel.Controls.Add(this.linePanel);
@@ -1310,7 +1312,7 @@
             this.voiceLiveTextBox.Name = "voiceLiveTextBox";
             this.voiceLiveTextBox.ReadOnly = true;
             this.voiceLiveTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.voiceLiveTextBox.Size = new System.Drawing.Size(667, 198);
+            this.voiceLiveTextBox.Size = new System.Drawing.Size(150, 46);
             this.voiceLiveTextBox.TabIndex = 5;
             // 
             // panel6
@@ -2317,7 +2319,7 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(685, 294);
+            this.tabPage2.Size = new System.Drawing.Size(659, 295);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -2329,7 +2331,7 @@
             this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
             this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(679, 290);
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(653, 291);
             this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // panel5
@@ -3131,6 +3133,19 @@
             this.clearHistoryToolStripMenuItem.Text = "&Clear History";
             this.clearHistoryToolStripMenuItem.Click += new System.EventHandler(this.clearHistoryToolStripMenuItem_Click);
             // 
+            // voiceProcessingLabel
+            // 
+            this.voiceProcessingLabel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
+            this.voiceProcessingLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.voiceProcessingLabel.ForeColor = System.Drawing.Color.LightGray;
+            this.voiceProcessingLabel.Location = new System.Drawing.Point(4, 129);
+            this.voiceProcessingLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.voiceProcessingLabel.Name = "voiceProcessingLabel";
+            this.voiceProcessingLabel.Size = new System.Drawing.Size(14, 18);
+            this.voiceProcessingLabel.TabIndex = 8;
+            this.voiceProcessingLabel.Text = "●";
+            this.voiceProcessingLabel.Visible = false;
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -3520,6 +3535,7 @@
         private System.Windows.Forms.ToolStripMenuItem clearHistoryToolStripMenuItem;
         private System.Windows.Forms.RichTextBox voiceHistoryTextBox;
         private System.Windows.Forms.Button voiceEnableButton;
+        private System.Windows.Forms.Label voiceProcessingLabel;
     }
 }
 

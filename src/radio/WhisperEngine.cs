@@ -15,16 +15,47 @@ limitations under the License.
 */
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
-using NAudio.Gui;
+using System.Collections.Generic;
 using NAudio.Wave;
 using Whisper.net;
+using System.Speech.Synthesis;
+using System.Speech.AudioFormat;
 
 namespace HTCommander.radio // Use your original namespace
 {
+    public class VoiceEngine
+    {
+        private MemoryStream audioStream = new MemoryStream();
+        private SpeechSynthesizer synthesizer = new SpeechSynthesizer();
+        private bool Processing = false;
+
+        public VoiceEngine()
+        {
+            // Initialize the synthesizer
+            synthesizer.SetOutputToAudioStream(audioStream, new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
+            synthesizer.SelectVoice("Microsoft Zira Desktop");
+            synthesizer.Rate = 0; // Set the rate to 0 for normal speed
+            synthesizer.Volume = 100; // Set volume to maximum
+            synthesizer.SpeakCompleted += Synthesizer_SpeakCompleted;
+        }
+
+        public void Speak(string text)
+        {
+            Processing = true;
+            synthesizer.SpeakAsync(text);
+        }
+
+        private void Synthesizer_SpeakCompleted(object sender, SpeakCompletedEventArgs e)
+        {
+            byte[] speech = audioStream.ToArray();
+            // TODO: Send to radio
+            audioStream.SetLength(0); // Clear the stream for next use
+            Processing = false;
+        }
+    }
+
     public class WhisperEngine
     {
         private WhisperProcessor _processor; // The core Whisper processor
@@ -36,10 +67,14 @@ namespace HTCommander.radio // Use your original namespace
         private string audioBufferChannel = null;
         private DateTime processingAudioBufferTime = DateTime.MinValue;
         private string processingAudioBufferChannel = null;
-        private StringBuilder textAccumulator = new StringBuilder();
-        private int whisperProgress = 100;
+        private bool processing = false;
         private bool disposed = false;
-        private List<ProcessingHold> ProcessingHolds = new List<ProcessingHold>(); 
+        private List<ProcessingHold> ProcessingHolds = new List<ProcessingHold>();
+
+        public delegate void OnTextReadyHandler(string text, string channel, DateTime time);
+        public event OnTextReadyHandler onTextReady;
+        public delegate void OnProcessingVoiceHandler(bool processing);
+        public event OnProcessingVoiceHandler onProcessingVoice;
 
         // Holding buffer for audio data
         private class ProcessingHold
@@ -55,21 +90,13 @@ namespace HTCommander.radio // Use your original namespace
             public float[] holdAudioBuffer;
         }
 
-        // Event for the final aggregated text when Finish/Reset is called
-        public event RadioAudio.OnVoiceTextReady onFinalResultReady;
-        // Event for each confirmed segment detected by Whisper
-        public event RadioAudio.OnVoiceTextReady onIntermediateResultReady;
-
         // "ggml-tiny.bin", "ggml-base.bin"
         // Constructor now takes the model path and expected input format
-        public WhisperEngine(string modelPath = "ggml-base.bin")
+        public WhisperEngine(string modelPath, string language)
         {
             // Basic validation
             if (string.IsNullOrWhiteSpace(modelPath)) throw new ArgumentNullException(nameof(modelPath));
             if (!File.Exists(modelPath)) throw new FileNotFoundException($"Whisper model file not found: {modelPath}", modelPath);
-
-            // Consider downloading model here if needed (your commented code is a good start)
-            // await DownloadModelIfNotExistsAsync(); // Make constructor async if using this
 
             // --- Factory and Processor Initialization ---
             WhisperFactory factory = WhisperFactory.FromPath(modelPath);
@@ -78,10 +105,9 @@ namespace HTCommander.radio // Use your original namespace
             if (builder == null) throw new InvalidOperationException("WhisperFactory.CreateBuilder returned null.");
 
             // --- Configure the processor ---
-            //.WithLanguageDetection()
-            builder = builder.WithLanguage("en").WithThreads(Math.Max(1, Environment.ProcessorCount / 2));
+            builder = builder.WithThreads(Math.Max(1, Environment.ProcessorCount / 2));
+            if (language == "auto") { builder = builder.WithLanguageDetection(); } else { builder = builder.WithLanguage(language); }
             builder = builder.WithSegmentEventHandler(OnWhisperInternalSegmentReceived);
-            builder = builder.WithProgressHandler(OnWhisperProgress);
 
             _processor = builder.Build();
             if (_processor == null) throw new InvalidOperationException("WhisperProcessorBuilder.Build returned null.");
@@ -101,69 +127,68 @@ namespace HTCommander.radio // Use your original namespace
         public void ProcessAudioChunk(byte[] data, int index, int length, string channel)
         {
             if (disposed) return;
-            try
+            if (length > 0)
             {
+                // Collect the time and channel of the first audio frame
+                if (audioBufferChannel == null)
+                {
+                    audioBufferTime = DateTime.Now;
+                    audioBufferChannel = channel;
+                }
+
+                // Gather up a bunch of audio data
+                if (audioBuffer == null) { audioBuffer = new byte[1280000]; audioBufferLength = 0; }
+                Array.Copy(data, index, audioBuffer, audioBufferLength, length);
+                audioBufferLength += length;
+            }
+
+            if ((audioBufferLength > 0) && ((audioBufferLength > (audioBuffer.Length - 1024)) || (length == 0)))
+            {
+                // Resample the audio from 32kHz to 16kHz
+                byte[] pcm16kBytes = ResampleAudioChunk(audioBuffer, 0, audioBufferLength);
+                if (pcm16kBytes == null || pcm16kBytes.Length == 0) return;
+
+                // Reset the buffer for the next chunk
                 if (length > 0)
                 {
-                    // Collect the time and channel of the first audio frame
-                    if (audioBufferChannel == null)
-                    {
-                        audioBufferTime = DateTime.Now;
-                        audioBufferChannel = channel;
-                    }
-
-                    // Gather up a bunch of audio data
-                    if (audioBuffer == null) { audioBuffer = new byte[1280000]; audioBufferLength = 0; }
-                    Array.Copy(data, index, audioBuffer, audioBufferLength, length);
-                    audioBufferLength += length;
+                    Array.Copy(audioBuffer, 1280000 - 128000, audioBuffer, 0, 128000);
+                    audioBufferLength = 128000;
                 }
-
-                if ((audioBufferLength > 0) && ((audioBufferLength > (audioBuffer.Length - 1024)) || (length == 0)))
+                else
                 {
-                    // Resample the audio from 32kHz to 16kHz
-                    byte[] pcm16kBytes = ResampleAudioChunk(audioBuffer, 0, audioBufferLength);
-                    if (pcm16kBytes == null || pcm16kBytes.Length == 0) return;
-
-                    // Reset the buffer for the next chunk
-                    if (length > 0)
-                    {
-                        Array.Copy(audioBuffer, 1280000 - 128000, audioBuffer, 0, 128000);
-                        audioBufferLength = 128000;
-                    }
-                    else
-                    {
-                        audioBufferLength = 0;
-                    }
-
-                    if (whisperProgress == 100)
-                    {
-                        // Convert 16-bit PCM bytes to float[] (-1.0 to 1.0) and process it
-                        whisperProgress = 0;
-                        processingAudioBufferTime = audioBufferTime;
-                        processingAudioBufferChannel = audioBufferChannel;
-                        Task.Run(() => { _processor.Process(ConvertPcm16ToFloat32(pcm16kBytes)); });
-                    }
-                    else
-                    {
-                        if (ProcessingHolds.Count < 5)
-                        {
-                            Console.WriteLine("Processing hold added");
-                            lock (ProcessingHolds)
-                            {
-                                ProcessingHolds.Add(new ProcessingHold(audioBufferTime, audioBufferChannel, ConvertPcm16ToFloat32(pcm16kBytes)));
-                            }
-                        }
-                        else
-                        {
-                            if (onFinalResultReady != null) { onFinalResultReady(null, "(CPU Overloaded)", DateTime.MinValue); }
-                        }
-                    }
-                    audioBufferChannel = null;
+                    audioBufferLength = 0;
                 }
-            }
-            catch (Exception ex)
-            {
-                int t = 5;
+
+                if (processing == false)
+                {
+                    // Convert 16-bit PCM bytes to float[] (-1.0 to 1.0) and process it
+                    processing = true;
+                    if (onProcessingVoice != null) { onProcessingVoice(true); }
+                    processingAudioBufferTime = audioBufferTime;
+                    processingAudioBufferChannel = audioBufferChannel;
+                    try
+                    {
+                        Task.Run(() => { _processor.Process(ConvertPcm16ToFloat32(pcm16kBytes)); })
+                        .ContinueWith(task => { if (task.IsCompleted) { OnWhispeCompleted(); } });
+                    }
+                    catch (Exception) { }
+                }
+                else
+                {
+                    if (ProcessingHolds.Count < 5)
+                    {
+                        Console.WriteLine("Processing hold added");
+                        lock (ProcessingHolds)
+                        {
+                            ProcessingHolds.Add(new ProcessingHold(audioBufferTime, audioBufferChannel, ConvertPcm16ToFloat32(pcm16kBytes)));
+                        }
+                    }
+                    else
+                    {
+                        if (onTextReady != null) { onTextReady(null, "(CPU Overloaded)", DateTime.MinValue); }
+                    }
+                }
+                audioBufferChannel = null;
             }
         }
 
@@ -173,42 +198,37 @@ namespace HTCommander.radio // Use your original namespace
             _processor.Dispose();
             _processor = null;
             audioBuffer = null;
-            textAccumulator.Clear();
-            textAccumulator = null;
         }
 
         private void OnWhisperInternalSegmentReceived(SegmentData segment)
         {
+            // Remove unwanted segments
             string t = segment.Text.Trim();
             if ((t == "[BLANK_AUDIO]") || (t == "(water running)") || (t == "*whistles*") || (t == "[Music]") || (t == "(gunshot)")) return;
 
-            DateTime st = processingAudioBufferTime.Add(segment.Start);
-
-            if (onFinalResultReady != null) { onFinalResultReady(st.ToString("mm:ss.fff") + ": " + segment.Text, processingAudioBufferChannel, processingAudioBufferTime); }
-
-            //textAccumulator.Append(segment.Text);
+            // Event the segment
+            if (onTextReady != null) { onTextReady(segment.Text, processingAudioBufferChannel, processingAudioBufferTime.Add(segment.Start)); }
         }
 
-        private void OnWhisperProgress(int progressPercent)
+        private void OnWhispeCompleted()
         {
-            whisperProgress = progressPercent;
-            if ((progressPercent == 100) && (textAccumulator.Length > 0))
-            {
-                //if (onFinalResultReady != null) { onFinalResultReady(textAccumulator.ToString().Trim(), processingAudioBufferChannel, processingAudioBufferTime); }
-                //textAccumulator.Clear();
-            }
+            // We are done, process the next round
             lock (ProcessingHolds)
             {
-                if ((progressPercent == 100) && (ProcessingHolds.Count > 0))
+                if (ProcessingHolds.Count > 0)
                 {
-                    whisperProgress = 0;
                     ProcessingHold p = ProcessingHolds[0];
                     ProcessingHolds.RemoveAt(0);
                     processingAudioBufferTime = p.holdAudioBufferTime;
                     processingAudioBufferChannel = p.holdAudioBufferChannel;
-                    Task.Run(() => { _processor.Process(p.holdAudioBuffer); });
+                    try { Task.Run(() => { _processor.Process(p.holdAudioBuffer); }); } catch (Exception) { }
+                }
+                else
+                {
+                    processing = false;
                 }
             }
+            if ((onProcessingVoice != null) && (processing == false)) { onProcessingVoice(false); }
         }
 
         private float[] ConvertPcm16ToFloat32(byte[] pcm16Bytes)

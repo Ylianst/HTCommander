@@ -117,6 +117,9 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="label10.Text" xml:space="preserve">
+    <value>Open AI's Whisper Language Model can be used offline to translate radio conversations into text. To do this, a language model file must be downloaded from the Internet and your computer CPU must be capable. No decoded text is sent to the Internet.</value>
+  </data>
   <data name="label1.Text" xml:space="preserve">
     <value>In order to transmit, this application  requires you to have a amateur radio license. Getting one is not difficult and allows you to learns that basics and join a fun community. In the United States, you can get more information on how to get a license at:</value>
   </data>

@@ -235,6 +235,7 @@ namespace HTCommander
         public int BatteryAsPercentage = -1;
         public int Volume = -1;
         public bool LoopbackMode = false;
+
         private List<FragmentInQueue> TncFragmentQueue = new List<FragmentInQueue>();
         private bool TncFragmentInFlight = false;
         private RadioAudio radioAudio;
@@ -358,8 +359,20 @@ namespace HTCommander
             radioAudio = new RadioAudio(this);
             radioAudio.OnDebugMessage += RadioAudio_OnDebugMessage;
             radioAudio.OnAudioStateChanged += RadioAudio_OnAudioStateChanged;
+            radioAudio.onProcessingVoice += RadioAudio_onProcessingVoice;
+            radioAudio.onTextReady += RadioAudio_onTextReady;
             ClearChannelTimer.Elapsed += ClearFrequencyTimer_Elapsed;
             ClearChannelTimer.Enabled = false;
+        }
+
+        private void RadioAudio_onTextReady(string text, string channel, DateTime time)
+        {
+            if (onTextReady != null) { onTextReady(text, channel, time); }
+        }
+
+        private void RadioAudio_onProcessingVoice(bool listening, bool processing)
+        {
+            if (onProcessingVoice != null) { onProcessingVoice(listening, processing); }
         }
 
         private void RadioAudio_OnAudioStateChanged(RadioAudio sender, bool enabled)
@@ -402,11 +415,25 @@ namespace HTCommander
         public delegate void AudioStateChangedHandler(Radio sender, bool enabled);
         public event AudioStateChangedHandler OnAudioStateChanged;
 
-        public delegate void VoiceTextChangedHandler(Radio sender, string text, bool completed, string channel, DateTime time);
-        public event VoiceTextChangedHandler OnVoiceText;
+        public delegate void OnTextReadyHandler(string text, string channel, DateTime time);
+        public event OnTextReadyHandler onTextReady;
 
+        public delegate void OnProcessingVoiceHandler(bool listening, bool processing);
+        public event OnProcessingVoiceHandler onProcessingVoice;
         public bool AudioState { get { return radioAudio.IsAudioEnabled; } }
-        public bool AudioToTextState { get { return radioAudio.speechToText; } set { radioAudio.speechToText = value;  } }
+        public bool AudioToTextState { get { return radioAudio.speechToText; } }
+
+        public void StartAudioToText(string language, string model)
+        {
+            radioAudio.voiceLanguage = language;
+            radioAudio.voiceModel = model;
+            radioAudio.speechToText = true;
+        }
+
+        public void StopAudioToText()
+        {
+            radioAudio.speechToText = false;
+        }
 
         public void Dispose()
         {
@@ -918,11 +945,6 @@ namespace HTCommander
             }
 
             return outboundData.Length;
-        }
-
-        public void UpdateVoiceLiveText(string text, bool completed, string channel, DateTime t)
-        {
-            if (OnVoiceText != null) { OnVoiceText(this, text, completed, channel, t); }
         }
 
     }

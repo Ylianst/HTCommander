@@ -42,12 +42,17 @@ namespace HTCommander
         public bool speechToText = false;
         private WhisperEngine speechToTextEngine = null;
         public string currentChannelName = "";
+        public string voiceLanguage = "auto";
+        public string voiceModel = null;
 
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
         public delegate void AudioStateChangedHandler(RadioAudio sender, bool enabled);
         public event AudioStateChangedHandler OnAudioStateChanged;
-        public delegate void OnVoiceTextReady(string text, string channel, DateTime time);
+        public delegate void OnTextReadyHandler(string text, string channel, DateTime time);
+        public event OnTextReadyHandler onTextReady;
+        public delegate void OnProcessingVoiceHandler(bool listening, bool processing);
+        public event OnProcessingVoiceHandler onProcessingVoice;
 
         public RadioAudio(Radio radio) { parent = radio; }
 
@@ -279,17 +284,21 @@ namespace HTCommander
                                         if (parent.IsOnMuteChannel() == true) break;
                                         if (speechToText && (speechToTextEngine == null))
                                         {
-                                            speechToTextEngine = new WhisperEngine();
-                                            speechToTextEngine.onIntermediateResultReady += SpeechToTextEngine_onIntermediateResultReady;
-                                            speechToTextEngine.onFinalResultReady += SpeechToTextEngine_onFinalResultReady;
+                                            speechToTextEngine = new WhisperEngine(voiceModel, voiceLanguage);
+                                            speechToTextEngine.onProcessingVoice += SpeechToTextEngine_onProcessingVoice;
+                                            speechToTextEngine.onTextReady += SpeechToTextEngine_onTextReady;
                                             speechToTextEngine.StartVoiceSegment();
                                             maxVoiceDecodeTime = 0;
+                                            if (onProcessingVoice != null) { onProcessingVoice(true, false); }
                                         }
                                         if (!speechToText && (speechToTextEngine != null))
                                         {
                                             speechToTextEngine.ResetVoiceSegment();
+                                            speechToTextEngine.onProcessingVoice -= SpeechToTextEngine_onProcessingVoice;
+                                            speechToTextEngine.onTextReady -= SpeechToTextEngine_onTextReady;
                                             speechToTextEngine.Dispose();
                                             speechToTextEngine = null;
+                                            if (onProcessingVoice != null) { onProcessingVoice(false, false); }
                                         }
                                         DecodeSbcFrame(waveProvider, uframe, 1, uframe.Length - 1);
                                         maxVoiceDecodeTime += (uframe.Length - 1);
@@ -331,6 +340,15 @@ namespace HTCommander
             finally
             {
                 running = false;
+
+                if (speechToTextEngine != null) {
+                    speechToTextEngine.ResetVoiceSegment();
+                    speechToTextEngine.onProcessingVoice -= SpeechToTextEngine_onProcessingVoice;
+                    speechToTextEngine.onTextReady -= SpeechToTextEngine_onTextReady;
+                    speechToTextEngine.Dispose();
+                    speechToTextEngine = null;
+                }
+
                 if (speechToTextEngine != null) { speechToTextEngine.Dispose(); speechToTextEngine = null; }
                 if (OnAudioStateChanged != null) { OnAudioStateChanged(this, false); }
                 connectionClient?.Close();
@@ -343,14 +361,13 @@ namespace HTCommander
             }
         }
 
-        private void SpeechToTextEngine_onFinalResultReady(string text, string channel, DateTime t)
+        private void SpeechToTextEngine_onTextReady(string text, string channel, DateTime time)
         {
-            parent.UpdateVoiceLiveText(text, true, channel, t);
+            if (onTextReady != null) { onTextReady(text, channel, time); }
         }
-
-        private void SpeechToTextEngine_onIntermediateResultReady(string text, string channel, DateTime t)
+        private void SpeechToTextEngine_onProcessingVoice(bool processing)
         {
-            parent.UpdateVoiceLiveText(text, false, channel, t);
+            if (onProcessingVoice != null) { onProcessingVoice(speechToTextEngine != null, processing); }
         }
 
         private int DecodeSbcFrame(BufferedWaveProvider waveProvider, byte[] sbcFrame, int start, int length)

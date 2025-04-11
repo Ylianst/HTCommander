@@ -48,6 +48,14 @@
             this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.addAprsButton = new System.Windows.Forms.Button();
             this.deleteAprsButton = new System.Windows.Forms.Button();
+            this.winlinkTabPage = new System.Windows.Forms.TabPage();
+            this.linkLabel2 = new System.Windows.Forms.LinkLabel();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.label7 = new System.Windows.Forms.Label();
+            this.winlinkAccountTextBox = new System.Windows.Forms.TextBox();
+            this.label8 = new System.Windows.Forms.Label();
+            this.winlinkPasswordTextBox = new System.Windows.Forms.TextBox();
+            this.label9 = new System.Windows.Forms.Label();
             this.webServerTabPage = new System.Windows.Forms.TabPage();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.webPortNumericUpDown = new System.Windows.Forms.NumericUpDown();
@@ -56,30 +64,36 @@
             this.label5 = new System.Windows.Forms.Label();
             this.okButton = new System.Windows.Forms.Button();
             this.cancelButton = new System.Windows.Forms.Button();
-            this.winlinkTabPage = new System.Windows.Forms.TabPage();
-            this.linkLabel2 = new System.Windows.Forms.LinkLabel();
-            this.groupBox4 = new System.Windows.Forms.GroupBox();
-            this.label8 = new System.Windows.Forms.Label();
-            this.winlinkPasswordTextBox = new System.Windows.Forms.TextBox();
-            this.label9 = new System.Windows.Forms.Label();
+            this.voiceTabPage = new System.Windows.Forms.TabPage();
+            this.label10 = new System.Windows.Forms.Label();
+            this.groupBox5 = new System.Windows.Forms.GroupBox();
+            this.downloadButton = new System.Windows.Forms.Button();
+            this.deleteButton = new System.Windows.Forms.Button();
+            this.languageComboBox = new System.Windows.Forms.ComboBox();
+            this.label11 = new System.Windows.Forms.Label();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.pictureBox2 = new System.Windows.Forms.PictureBox();
+            this.pictureBox5 = new System.Windows.Forms.PictureBox();
             this.pictureBox4 = new System.Windows.Forms.PictureBox();
             this.pictureBox3 = new System.Windows.Forms.PictureBox();
-            this.winlinkAccountTextBox = new System.Windows.Forms.TextBox();
-            this.label7 = new System.Windows.Forms.Label();
+            this.modelsComboBox = new System.Windows.Forms.ComboBox();
+            this.label12 = new System.Windows.Forms.Label();
+            this.progressBar = new System.Windows.Forms.ProgressBar();
             this.tabControl1.SuspendLayout();
             this.licenseTabPage.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.aprsTabPage.SuspendLayout();
             this.groupBox2.SuspendLayout();
+            this.winlinkTabPage.SuspendLayout();
+            this.groupBox4.SuspendLayout();
             this.webServerTabPage.SuspendLayout();
             this.groupBox3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.webPortNumericUpDown)).BeginInit();
-            this.winlinkTabPage.SuspendLayout();
-            this.groupBox4.SuspendLayout();
+            this.voiceTabPage.SuspendLayout();
+            this.groupBox5.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox5)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
             this.SuspendLayout();
@@ -91,10 +105,11 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl1.Controls.Add(this.licenseTabPage);
             this.tabControl1.Controls.Add(this.aprsTabPage);
+            this.tabControl1.Controls.Add(this.voiceTabPage);
             this.tabControl1.Controls.Add(this.winlinkTabPage);
             this.tabControl1.Controls.Add(this.webServerTabPage);
             this.tabControl1.Location = new System.Drawing.Point(16, 15);
-            this.tabControl1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabControl1.Margin = new System.Windows.Forms.Padding(4);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
             this.tabControl1.Size = new System.Drawing.Size(500, 459);
@@ -107,9 +122,9 @@
             this.licenseTabPage.Controls.Add(this.pictureBox1);
             this.licenseTabPage.Controls.Add(this.label1);
             this.licenseTabPage.Location = new System.Drawing.Point(4, 25);
-            this.licenseTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.licenseTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.licenseTabPage.Name = "licenseTabPage";
-            this.licenseTabPage.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.licenseTabPage.Padding = new System.Windows.Forms.Padding(4);
             this.licenseTabPage.Size = new System.Drawing.Size(492, 430);
             this.licenseTabPage.TabIndex = 0;
             this.licenseTabPage.Text = "License";
@@ -137,9 +152,9 @@
             this.groupBox1.Controls.Add(this.stationIdComboBox);
             this.groupBox1.Controls.Add(this.callsignTextBox);
             this.groupBox1.Location = new System.Drawing.Point(12, 142);
-            this.groupBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox1.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox1.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox1.Size = new System.Drawing.Size(469, 144);
             this.groupBox1.TabIndex = 2;
             this.groupBox1.TabStop = false;
@@ -150,7 +165,7 @@
             this.allowTransmitCheckBox.AutoSize = true;
             this.allowTransmitCheckBox.Enabled = false;
             this.allowTransmitCheckBox.Location = new System.Drawing.Point(12, 110);
-            this.allowTransmitCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.allowTransmitCheckBox.Margin = new System.Windows.Forms.Padding(4);
             this.allowTransmitCheckBox.Name = "allowTransmitCheckBox";
             this.allowTransmitCheckBox.Size = new System.Drawing.Size(219, 20);
             this.allowTransmitCheckBox.TabIndex = 4;
@@ -202,7 +217,7 @@
             "14",
             "15"});
             this.stationIdComboBox.Location = new System.Drawing.Point(372, 60);
-            this.stationIdComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.stationIdComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.stationIdComboBox.Name = "stationIdComboBox";
             this.stationIdComboBox.Size = new System.Drawing.Size(88, 38);
             this.stationIdComboBox.TabIndex = 1;
@@ -213,7 +228,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.callsignTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.callsignTextBox.Location = new System.Drawing.Point(8, 60);
-            this.callsignTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.callsignTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.callsignTextBox.MaxLength = 6;
             this.callsignTextBox.Name = "callsignTextBox";
             this.callsignTextBox.Size = new System.Drawing.Size(324, 37);
@@ -238,9 +253,9 @@
             this.aprsTabPage.Controls.Add(this.label4);
             this.aprsTabPage.Controls.Add(this.groupBox2);
             this.aprsTabPage.Location = new System.Drawing.Point(4, 25);
-            this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsTabPage.Padding = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Size = new System.Drawing.Size(492, 430);
             this.aprsTabPage.TabIndex = 1;
             this.aprsTabPage.Text = "APRS";
@@ -264,9 +279,9 @@
             this.groupBox2.Controls.Add(this.addAprsButton);
             this.groupBox2.Controls.Add(this.deleteAprsButton);
             this.groupBox2.Location = new System.Drawing.Point(8, 108);
-            this.groupBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox2.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox2.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox2.Size = new System.Drawing.Size(473, 197);
             this.groupBox2.TabIndex = 0;
             this.groupBox2.TabStop = false;
@@ -277,7 +292,7 @@
             this.editButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.editButton.Enabled = false;
             this.editButton.Location = new System.Drawing.Point(257, 161);
-            this.editButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.editButton.Margin = new System.Windows.Forms.Padding(4);
             this.editButton.Name = "editButton";
             this.editButton.Size = new System.Drawing.Size(100, 28);
             this.editButton.TabIndex = 4;
@@ -298,7 +313,7 @@
             this.aprsRoutesListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.aprsRoutesListView.HideSelection = false;
             this.aprsRoutesListView.Location = new System.Drawing.Point(8, 23);
-            this.aprsRoutesListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsRoutesListView.Margin = new System.Windows.Forms.Padding(4);
             this.aprsRoutesListView.MultiSelect = false;
             this.aprsRoutesListView.Name = "aprsRoutesListView";
             this.aprsRoutesListView.Size = new System.Drawing.Size(456, 130);
@@ -322,7 +337,7 @@
             // 
             this.addAprsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.addAprsButton.Location = new System.Drawing.Point(149, 161);
-            this.addAprsButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.addAprsButton.Margin = new System.Windows.Forms.Padding(4);
             this.addAprsButton.Name = "addAprsButton";
             this.addAprsButton.Size = new System.Drawing.Size(100, 28);
             this.addAprsButton.TabIndex = 1;
@@ -335,7 +350,7 @@
             this.deleteAprsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.deleteAprsButton.Enabled = false;
             this.deleteAprsButton.Location = new System.Drawing.Point(365, 161);
-            this.deleteAprsButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.deleteAprsButton.Margin = new System.Windows.Forms.Padding(4);
             this.deleteAprsButton.Name = "deleteAprsButton";
             this.deleteAprsButton.Size = new System.Drawing.Size(100, 28);
             this.deleteAprsButton.TabIndex = 0;
@@ -343,121 +358,12 @@
             this.deleteAprsButton.UseVisualStyleBackColor = true;
             this.deleteAprsButton.Click += new System.EventHandler(this.deleteAprsButton_Click);
             // 
-            // webServerTabPage
-            // 
-            this.webServerTabPage.Controls.Add(this.groupBox3);
-            this.webServerTabPage.Controls.Add(this.label5);
-            this.webServerTabPage.Controls.Add(this.pictureBox3);
-            this.webServerTabPage.Location = new System.Drawing.Point(4, 25);
-            this.webServerTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.webServerTabPage.Name = "webServerTabPage";
-            this.webServerTabPage.Size = new System.Drawing.Size(492, 430);
-            this.webServerTabPage.TabIndex = 2;
-            this.webServerTabPage.Text = "Web Server";
-            this.webServerTabPage.UseVisualStyleBackColor = true;
-            // 
-            // groupBox3
-            // 
-            this.groupBox3.Controls.Add(this.webPortNumericUpDown);
-            this.groupBox3.Controls.Add(this.label6);
-            this.groupBox3.Controls.Add(this.webServerEnabledCheckBox);
-            this.groupBox3.Location = new System.Drawing.Point(8, 108);
-            this.groupBox3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.groupBox3.Size = new System.Drawing.Size(473, 102);
-            this.groupBox3.TabIndex = 6;
-            this.groupBox3.TabStop = false;
-            this.groupBox3.Text = "Server Settings";
-            // 
-            // webPortNumericUpDown
-            // 
-            this.webPortNumericUpDown.Location = new System.Drawing.Point(305, 66);
-            this.webPortNumericUpDown.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.webPortNumericUpDown.Maximum = new decimal(new int[] {
-            65535,
-            0,
-            0,
-            0});
-            this.webPortNumericUpDown.Minimum = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            this.webPortNumericUpDown.Name = "webPortNumericUpDown";
-            this.webPortNumericUpDown.Size = new System.Drawing.Size(160, 22);
-            this.webPortNumericUpDown.TabIndex = 2;
-            this.webPortNumericUpDown.Value = new decimal(new int[] {
-            8080,
-            0,
-            0,
-            0});
-            // 
-            // label6
-            // 
-            this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(17, 69);
-            this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(106, 16);
-            this.label6.TabIndex = 1;
-            this.label6.Text = "Web Server Port";
-            // 
-            // webServerEnabledCheckBox
-            // 
-            this.webServerEnabledCheckBox.AutoSize = true;
-            this.webServerEnabledCheckBox.Location = new System.Drawing.Point(21, 34);
-            this.webServerEnabledCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.webServerEnabledCheckBox.Name = "webServerEnabledCheckBox";
-            this.webServerEnabledCheckBox.Size = new System.Drawing.Size(147, 20);
-            this.webServerEnabledCheckBox.TabIndex = 0;
-            this.webServerEnabledCheckBox.Text = "Enable Web Server";
-            this.webServerEnabledCheckBox.UseVisualStyleBackColor = true;
-            this.webServerEnabledCheckBox.CheckedChanged += new System.EventHandler(this.webServerEnabledCheckBox_CheckedChanged);
-            // 
-            // label5
-            // 
-            this.label5.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.label5.Location = new System.Drawing.Point(8, 14);
-            this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(381, 91);
-            this.label5.TabIndex = 4;
-            this.label5.Text = "Enable the built-in web server to order to share radio services with other applic" +
-    "ations including other instances of this application. Allows you to access this " +
-    "radio over the local network.";
-            // 
-            // okButton
-            // 
-            this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.okButton.Location = new System.Drawing.Point(311, 481);
-            this.okButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.okButton.Name = "okButton";
-            this.okButton.Size = new System.Drawing.Size(100, 28);
-            this.okButton.TabIndex = 16;
-            this.okButton.Text = "OK";
-            this.okButton.UseVisualStyleBackColor = true;
-            this.okButton.Click += new System.EventHandler(this.okButton_Click);
-            // 
-            // cancelButton
-            // 
-            this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancelButton.Location = new System.Drawing.Point(411, 481);
-            this.cancelButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.cancelButton.Name = "cancelButton";
-            this.cancelButton.Size = new System.Drawing.Size(100, 28);
-            this.cancelButton.TabIndex = 15;
-            this.cancelButton.Text = "Cancel";
-            this.cancelButton.UseVisualStyleBackColor = true;
-            // 
             // winlinkTabPage
             // 
             this.winlinkTabPage.Controls.Add(this.linkLabel2);
             this.winlinkTabPage.Controls.Add(this.groupBox4);
-            this.winlinkTabPage.Controls.Add(this.pictureBox4);
             this.winlinkTabPage.Controls.Add(this.label9);
+            this.winlinkTabPage.Controls.Add(this.pictureBox4);
             this.winlinkTabPage.Location = new System.Drawing.Point(4, 25);
             this.winlinkTabPage.Name = "winlinkTabPage";
             this.winlinkTabPage.Size = new System.Drawing.Size(492, 430);
@@ -494,6 +400,24 @@
             this.groupBox4.TabStop = false;
             this.groupBox4.Text = "Winlink Credentials";
             // 
+            // label7
+            // 
+            this.label7.AutoSize = true;
+            this.label7.Location = new System.Drawing.Point(8, 26);
+            this.label7.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(55, 16);
+            this.label7.TabIndex = 4;
+            this.label7.Text = "Account";
+            // 
+            // winlinkAccountTextBox
+            // 
+            this.winlinkAccountTextBox.Location = new System.Drawing.Point(11, 50);
+            this.winlinkAccountTextBox.Name = "winlinkAccountTextBox";
+            this.winlinkAccountTextBox.ReadOnly = true;
+            this.winlinkAccountTextBox.Size = new System.Drawing.Size(450, 22);
+            this.winlinkAccountTextBox.TabIndex = 3;
+            // 
             // label8
             // 
             this.label8.AutoSize = true;
@@ -529,6 +453,201 @@
             this.label9.Text = "You can send and receive emails with this software using Winlink. Create an accou" +
     "nt with your callsign and enter you password account here to get started.";
             // 
+            // webServerTabPage
+            // 
+            this.webServerTabPage.Controls.Add(this.groupBox3);
+            this.webServerTabPage.Controls.Add(this.label5);
+            this.webServerTabPage.Controls.Add(this.pictureBox3);
+            this.webServerTabPage.Location = new System.Drawing.Point(4, 25);
+            this.webServerTabPage.Margin = new System.Windows.Forms.Padding(4);
+            this.webServerTabPage.Name = "webServerTabPage";
+            this.webServerTabPage.Size = new System.Drawing.Size(492, 430);
+            this.webServerTabPage.TabIndex = 2;
+            this.webServerTabPage.Text = "Web Server";
+            this.webServerTabPage.UseVisualStyleBackColor = true;
+            // 
+            // groupBox3
+            // 
+            this.groupBox3.Controls.Add(this.webPortNumericUpDown);
+            this.groupBox3.Controls.Add(this.label6);
+            this.groupBox3.Controls.Add(this.webServerEnabledCheckBox);
+            this.groupBox3.Location = new System.Drawing.Point(8, 108);
+            this.groupBox3.Margin = new System.Windows.Forms.Padding(4);
+            this.groupBox3.Name = "groupBox3";
+            this.groupBox3.Padding = new System.Windows.Forms.Padding(4);
+            this.groupBox3.Size = new System.Drawing.Size(473, 102);
+            this.groupBox3.TabIndex = 6;
+            this.groupBox3.TabStop = false;
+            this.groupBox3.Text = "Server Settings";
+            // 
+            // webPortNumericUpDown
+            // 
+            this.webPortNumericUpDown.Location = new System.Drawing.Point(305, 66);
+            this.webPortNumericUpDown.Margin = new System.Windows.Forms.Padding(4);
+            this.webPortNumericUpDown.Maximum = new decimal(new int[] {
+            65535,
+            0,
+            0,
+            0});
+            this.webPortNumericUpDown.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.webPortNumericUpDown.Name = "webPortNumericUpDown";
+            this.webPortNumericUpDown.Size = new System.Drawing.Size(160, 22);
+            this.webPortNumericUpDown.TabIndex = 2;
+            this.webPortNumericUpDown.Value = new decimal(new int[] {
+            8080,
+            0,
+            0,
+            0});
+            // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Location = new System.Drawing.Point(17, 69);
+            this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(106, 16);
+            this.label6.TabIndex = 1;
+            this.label6.Text = "Web Server Port";
+            // 
+            // webServerEnabledCheckBox
+            // 
+            this.webServerEnabledCheckBox.AutoSize = true;
+            this.webServerEnabledCheckBox.Location = new System.Drawing.Point(21, 34);
+            this.webServerEnabledCheckBox.Margin = new System.Windows.Forms.Padding(4);
+            this.webServerEnabledCheckBox.Name = "webServerEnabledCheckBox";
+            this.webServerEnabledCheckBox.Size = new System.Drawing.Size(147, 20);
+            this.webServerEnabledCheckBox.TabIndex = 0;
+            this.webServerEnabledCheckBox.Text = "Enable Web Server";
+            this.webServerEnabledCheckBox.UseVisualStyleBackColor = true;
+            this.webServerEnabledCheckBox.CheckedChanged += new System.EventHandler(this.webServerEnabledCheckBox_CheckedChanged);
+            // 
+            // label5
+            // 
+            this.label5.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.label5.Location = new System.Drawing.Point(8, 14);
+            this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(381, 91);
+            this.label5.TabIndex = 4;
+            this.label5.Text = "Enable the built-in web server to order to share radio services with other applic" +
+    "ations including other instances of this application. Allows you to access this " +
+    "radio over the local network.";
+            // 
+            // okButton
+            // 
+            this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.okButton.Location = new System.Drawing.Point(311, 481);
+            this.okButton.Margin = new System.Windows.Forms.Padding(4);
+            this.okButton.Name = "okButton";
+            this.okButton.Size = new System.Drawing.Size(100, 28);
+            this.okButton.TabIndex = 16;
+            this.okButton.Text = "OK";
+            this.okButton.UseVisualStyleBackColor = true;
+            this.okButton.Click += new System.EventHandler(this.okButton_Click);
+            // 
+            // cancelButton
+            // 
+            this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
+            this.cancelButton.Location = new System.Drawing.Point(411, 481);
+            this.cancelButton.Margin = new System.Windows.Forms.Padding(4);
+            this.cancelButton.Name = "cancelButton";
+            this.cancelButton.Size = new System.Drawing.Size(100, 28);
+            this.cancelButton.TabIndex = 15;
+            this.cancelButton.Text = "Cancel";
+            this.cancelButton.UseVisualStyleBackColor = true;
+            // 
+            // voiceTabPage
+            // 
+            this.voiceTabPage.Controls.Add(this.progressBar);
+            this.voiceTabPage.Controls.Add(this.pictureBox5);
+            this.voiceTabPage.Controls.Add(this.label10);
+            this.voiceTabPage.Controls.Add(this.groupBox5);
+            this.voiceTabPage.Location = new System.Drawing.Point(4, 25);
+            this.voiceTabPage.Name = "voiceTabPage";
+            this.voiceTabPage.Size = new System.Drawing.Size(492, 430);
+            this.voiceTabPage.TabIndex = 4;
+            this.voiceTabPage.Text = "Voice";
+            this.voiceTabPage.UseVisualStyleBackColor = true;
+            // 
+            // label10
+            // 
+            this.label10.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.label10.Location = new System.Drawing.Point(8, 14);
+            this.label10.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label10.Name = "label10";
+            this.label10.Size = new System.Drawing.Size(381, 91);
+            this.label10.TabIndex = 5;
+            this.label10.Text = resources.GetString("label10.Text");
+            // 
+            // groupBox5
+            // 
+            this.groupBox5.Controls.Add(this.label12);
+            this.groupBox5.Controls.Add(this.modelsComboBox);
+            this.groupBox5.Controls.Add(this.label11);
+            this.groupBox5.Controls.Add(this.languageComboBox);
+            this.groupBox5.Controls.Add(this.downloadButton);
+            this.groupBox5.Controls.Add(this.deleteButton);
+            this.groupBox5.Location = new System.Drawing.Point(8, 108);
+            this.groupBox5.Margin = new System.Windows.Forms.Padding(4);
+            this.groupBox5.Name = "groupBox5";
+            this.groupBox5.Padding = new System.Windows.Forms.Padding(4);
+            this.groupBox5.Size = new System.Drawing.Size(473, 128);
+            this.groupBox5.TabIndex = 4;
+            this.groupBox5.TabStop = false;
+            this.groupBox5.Text = "Speech-to-Text";
+            // 
+            // downloadButton
+            // 
+            this.downloadButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.downloadButton.Location = new System.Drawing.Point(257, 92);
+            this.downloadButton.Margin = new System.Windows.Forms.Padding(4);
+            this.downloadButton.Name = "downloadButton";
+            this.downloadButton.Size = new System.Drawing.Size(100, 28);
+            this.downloadButton.TabIndex = 1;
+            this.downloadButton.Text = "Download...";
+            this.downloadButton.UseVisualStyleBackColor = true;
+            this.downloadButton.Click += new System.EventHandler(this.downloadButton_Click);
+            // 
+            // deleteButton
+            // 
+            this.deleteButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.deleteButton.Enabled = false;
+            this.deleteButton.Location = new System.Drawing.Point(365, 92);
+            this.deleteButton.Margin = new System.Windows.Forms.Padding(4);
+            this.deleteButton.Name = "deleteButton";
+            this.deleteButton.Size = new System.Drawing.Size(100, 28);
+            this.deleteButton.TabIndex = 0;
+            this.deleteButton.Text = "Delete";
+            this.deleteButton.UseVisualStyleBackColor = true;
+            this.deleteButton.Click += new System.EventHandler(this.deleteButton_Click);
+            // 
+            // languageComboBox
+            // 
+            this.languageComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.languageComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.languageComboBox.FormattingEnabled = true;
+            this.languageComboBox.Location = new System.Drawing.Point(149, 29);
+            this.languageComboBox.Name = "languageComboBox";
+            this.languageComboBox.Size = new System.Drawing.Size(316, 24);
+            this.languageComboBox.TabIndex = 5;
+            // 
+            // label11
+            // 
+            this.label11.AutoSize = true;
+            this.label11.Location = new System.Drawing.Point(7, 32);
+            this.label11.Name = "label11";
+            this.label11.Size = new System.Drawing.Size(68, 16);
+            this.label11.TabIndex = 6;
+            this.label11.Text = "Language";
+            // 
             // pictureBox1
             // 
             this.pictureBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
@@ -552,6 +671,18 @@
             this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox2.TabIndex = 3;
             this.pictureBox2.TabStop = false;
+            // 
+            // pictureBox5
+            // 
+            this.pictureBox5.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.pictureBox5.Image = global::HTCommander.Properties.Resources.Voice;
+            this.pictureBox5.Location = new System.Drawing.Point(397, 10);
+            this.pictureBox5.Margin = new System.Windows.Forms.Padding(4);
+            this.pictureBox5.Name = "pictureBox5";
+            this.pictureBox5.Size = new System.Drawing.Size(92, 95);
+            this.pictureBox5.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox5.TabIndex = 6;
+            this.pictureBox5.TabStop = false;
             // 
             // pictureBox4
             // 
@@ -577,23 +708,36 @@
             this.pictureBox3.TabIndex = 5;
             this.pictureBox3.TabStop = false;
             // 
-            // winlinkAccountTextBox
+            // modelsComboBox
             // 
-            this.winlinkAccountTextBox.Location = new System.Drawing.Point(11, 50);
-            this.winlinkAccountTextBox.Name = "winlinkAccountTextBox";
-            this.winlinkAccountTextBox.ReadOnly = true;
-            this.winlinkAccountTextBox.Size = new System.Drawing.Size(450, 22);
-            this.winlinkAccountTextBox.TabIndex = 3;
+            this.modelsComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.modelsComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.modelsComboBox.FormattingEnabled = true;
+            this.modelsComboBox.Location = new System.Drawing.Point(149, 59);
+            this.modelsComboBox.Name = "modelsComboBox";
+            this.modelsComboBox.Size = new System.Drawing.Size(316, 24);
+            this.modelsComboBox.TabIndex = 7;
+            this.modelsComboBox.SelectedIndexChanged += new System.EventHandler(this.modelsComboBox_SelectedIndexChanged);
             // 
-            // label7
+            // label12
             // 
-            this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(8, 26);
-            this.label7.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(55, 16);
-            this.label7.TabIndex = 4;
-            this.label7.Text = "Account";
+            this.label12.AutoSize = true;
+            this.label12.Location = new System.Drawing.Point(7, 62);
+            this.label12.Name = "label12";
+            this.label12.Size = new System.Drawing.Size(45, 16);
+            this.label12.TabIndex = 8;
+            this.label12.Text = "Model";
+            // 
+            // progressBar
+            // 
+            this.progressBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.progressBar.Location = new System.Drawing.Point(8, 395);
+            this.progressBar.Name = "progressBar";
+            this.progressBar.Size = new System.Drawing.Size(473, 23);
+            this.progressBar.TabIndex = 7;
+            this.progressBar.Visible = false;
             // 
             // SettingsForm
             // 
@@ -621,16 +765,20 @@
             this.groupBox1.PerformLayout();
             this.aprsTabPage.ResumeLayout(false);
             this.groupBox2.ResumeLayout(false);
-            this.webServerTabPage.ResumeLayout(false);
-            this.groupBox3.ResumeLayout(false);
-            this.groupBox3.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.webPortNumericUpDown)).EndInit();
             this.winlinkTabPage.ResumeLayout(false);
             this.winlinkTabPage.PerformLayout();
             this.groupBox4.ResumeLayout(false);
             this.groupBox4.PerformLayout();
+            this.webServerTabPage.ResumeLayout(false);
+            this.groupBox3.ResumeLayout(false);
+            this.groupBox3.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.webPortNumericUpDown)).EndInit();
+            this.voiceTabPage.ResumeLayout(false);
+            this.groupBox5.ResumeLayout(false);
+            this.groupBox5.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox5)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).EndInit();
             this.ResumeLayout(false);
@@ -677,5 +825,16 @@
         private System.Windows.Forms.Label label9;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.TextBox winlinkAccountTextBox;
+        private System.Windows.Forms.TabPage voiceTabPage;
+        private System.Windows.Forms.PictureBox pictureBox5;
+        private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.GroupBox groupBox5;
+        private System.Windows.Forms.Button downloadButton;
+        private System.Windows.Forms.Button deleteButton;
+        private System.Windows.Forms.Label label11;
+        private System.Windows.Forms.ComboBox languageComboBox;
+        private System.Windows.Forms.Label label12;
+        private System.Windows.Forms.ComboBox modelsComboBox;
+        private System.Windows.Forms.ProgressBar progressBar;
     }
 }

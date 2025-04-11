@@ -14,14 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+using HTCommander.radio;
 using System;
+using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Windows.Forms;
+using Windows.Storage;
 
 namespace HTCommander
 {
     public partial class SettingsForm : Form
     {
+        private readonly FileDownloader _downloader;
+        private CancellationTokenSource _cts;
+
         public bool AllowTransmit { get { return allowTransmitCheckBox.Checked; } set { allowTransmitCheckBox.Checked = value; } }
         public string CallSign { get { return callsignTextBox.Text; } set { callsignTextBox.Text = value; } }
         public int StationId { get { return stationIdComboBox.SelectedIndex; } set { stationIdComboBox.SelectedIndex = value; } }
@@ -30,9 +38,124 @@ namespace HTCommander
         public bool WebServerEnabled { get { return webServerEnabledCheckBox.Checked; } set { webServerEnabledCheckBox.Checked = value; } }
         public int WebServerPort { get { return (int)webPortNumericUpDown.Value; } set { if (value > 0) { webPortNumericUpDown.Value = value; } else { webPortNumericUpDown.Value = 8080; }; } }
 
+        public string VoiceLanguage {
+            get { ComboBoxItem selected = (ComboBoxItem)languageComboBox.SelectedItem; return selected.Value; }
+            set { foreach (ComboBoxItem item in languageComboBox.Items) { if (item.Value == value) { languageComboBox.SelectedItem = item; break; } } }
+        }
+
+        public string VoiceModel
+        {
+            get { ComboBoxItem selected = (ComboBoxItem)modelsComboBox.SelectedItem; return selected.Value; }
+            set { if (value == "") { modelsComboBox.SelectedIndex = 0; return; } foreach(ComboBoxItem item in modelsComboBox.Items) { if (item.Value == value) { modelsComboBox.SelectedItem = item; break; } } }
+        }
+
+        string[] models = new string[] {
+            "None",
+            "Tiny, 77.7 MB",
+            "Tiny.en, 77.7 MB, English Only",
+            "Base, 148 MB, Recommended",
+            "Base.en, 148 MB, English Only",
+            "Small, 488 MB",
+            "Small.en, 488 MB, English Only",
+            "Medium, 1.53 GB",
+            "Medium.en, 1.53 GB, English Only",
+            "Large-v1, 3.09 GB",
+            "Large-v2, 3.09 GB",
+            "Large-v3, 3.1 GB",
+            "Large-v3-turbo, 1.62 GB"
+        };
+
+        string[] languages = new string[] {
+            "auto|Auto-detect",
+            "af|Afrikaans",
+            "ar|Arabic",
+            "hy|Armenian",
+            "az|Azerbaijani",
+            "be|Belarusian",
+            "bs|Bosnian",
+            "bg|Bulgarian",
+            "ca|Catalan",
+            "zh|Chinese",
+            "hr|Croatian",
+            "cs|Czech",
+            "da|Danish",
+            "nl|Dutch",
+            "en|English",
+            "et|Estonian",
+            "fi|Finnish",
+            "fr|French",
+            "gl|Galician",
+            "de|German",
+            "el|Greek",
+            "he|Hebrew",
+            "hi|Hindi",
+            "hu|Hungarian",
+            "is|Icelandic",
+            "id|Indonesian",
+            "it|Italian",
+            "ja|Japanese",
+            "kn|Kannada",
+            "kk|Kazakh",
+            "ko|Korean",
+            "lv|Latvian",
+            "lt|Lithuanian",
+            "mk|Macedonian",
+            "ms|Malay",
+            "mr|Marathi",
+            "mi|Maori",
+            "ne|Nepali",
+            "no|Norwegian",
+            "fa|Persian",
+            "pl|Polish",
+            "pt|Portuguese",
+            "ro|Romanian",
+            "ru|Russian",
+            "sr|Serbian",
+            "sk|Slovak",
+            "sl|Slovenian",
+            "es|Spanish",
+            "sw|Swahili",
+            "sv|Swedish",
+            "tl|Tagalog",
+            "ta|Tamil",
+            "th|Thai",
+            "tr|Turkish",
+            "uk|Ukrainian",
+            "ur|Urdu",
+            "vi|Vietnamese",
+            "cy|Welsh"
+        };
+
+        private class ComboBoxItem
+        {
+            public string Value { get; }
+            public string Text { get; }
+            public ComboBoxItem(string value, string text) { Value = value; Text = text; }
+            public override string ToString() { return Text;}
+        }
+
         public SettingsForm()
         {
             InitializeComponent();
+            _downloader = new FileDownloader();
+
+            foreach (string language in languages)
+            {
+                string[] parts = language.Split('|');
+                if (parts.Length == 2) { languageComboBox.Items.Add(new ComboBoxItem(parts[0], parts[1])); }
+            }
+            languageComboBox.SelectedIndex = 0;
+
+            foreach (string model in models)
+            {
+                int i = model.IndexOf(',');
+                string modelName = "";
+                if (i > 0) { modelName = model.Substring(0, i); }
+                modelsComboBox.Items.Add(new ComboBoxItem(modelName, model));
+            }
+            modelsComboBox.SelectedIndex = 0;
+
+            UpdateInfo();
         }
 
         private void SettingsForm_Load(object sender, EventArgs e)
@@ -88,6 +211,15 @@ namespace HTCommander
                 winlinkAccountTextBox.Text = "None";
                 winlinkPasswordTextBox.Enabled = false;
             }
+
+            // For the models, if the selected model is "None", disable the download button.
+            ComboBoxItem selected = (ComboBoxItem)modelsComboBox.SelectedItem;
+            string filename = "ggml-" + selected.Value.ToLower() + ".bin";
+            downloadButton.Enabled = (_cts == null) && (modelsComboBox.SelectedIndex != 0) && !File.Exists(filename);
+            deleteButton.Enabled = (modelsComboBox.SelectedIndex != 0) && File.Exists(filename);
+
+            // okButton
+            okButton.Enabled = (downloadButton.Enabled == false);
         }
 
         private void callsignTextBox_TextChanged(object sender, EventArgs e)
@@ -169,6 +301,75 @@ namespace HTCommander
         private void linkLabel2_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             System.Diagnostics.Process.Start("https://" + linkLabel2.Text);
+        }
+
+        private async void downloadButton_Click(object sender, EventArgs e)
+        {
+            string model = ((ComboBoxItem)modelsComboBox.SelectedItem).Value;
+            string url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-" + model.ToLower() + ".bin?download=true";
+            string filename = "ggml-" + model.ToLower() + ".bin";
+            string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", filename);
+
+            try
+            {
+                // Prepare for download
+                _cts = new CancellationTokenSource();
+                var progressIndicator = new Progress<DownloadProgressInfo>(ReportProgress);
+
+                // Start the download asynchronously
+                await _downloader.DownloadFileAsync(url, filename, progressIndicator, _cts);
+            }
+            catch (Exception ex) // Catch potential exceptions during setup/await if not caught by downloader
+            {
+                MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            UpdateInfo();
+        }
+
+        private void ReportProgress(DownloadProgressInfo progressInfo)
+        {
+            if (progressInfo.Error != null)
+            {
+                MessageBox.Show($"Error: {progressInfo.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _cts?.Dispose();
+                _cts = null;
+                UpdateInfo();
+            }
+            else if (progressInfo.IsCancelled)
+            {
+                MessageBox.Show("Download cancelled.", "Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _cts?.Dispose();
+                _cts = null;
+                UpdateInfo();
+            }
+            else if (progressInfo.IsComplete)
+            {
+                progressBar.Visible = false;
+                MessageBox.Show("Download completed successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _cts?.Dispose();
+                _cts = null;
+                UpdateInfo();
+            }
+            else
+            {
+                progressBar.Visible = true;
+                progressBar.Value = (int)progressInfo.Percentage;
+            }
+        }
+
+        private void modelsComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UpdateInfo();
+        }
+
+        private void deleteButton_Click(object sender, EventArgs e)
+        {
+            if (MessageBox.Show(this, "Delete selected model?", "Speech Model", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                string model = ((ComboBoxItem)modelsComboBox.SelectedItem).Value;
+                string filename = "ggml-" + model.ToLower() + ".bin";
+                if (File.Exists(filename)) { File.Delete(filename); UpdateInfo(); }
+            }
         }
     }
 }

@@ -26,6 +26,9 @@ using aprsparser;
 using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
 using HTCommander.radio;
+using Windows.UI.Xaml.Controls.Primitives;
+
+
 #if !__MonoCS__
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
@@ -84,6 +87,8 @@ namespace HTCommander
         public MailClientDebugForm mailClientDebugForm = new MailClientDebugForm();
         public string appDataPath;
         public bool RealExit = false;
+        public string voiceLanguage = "auto";
+        public string voiceModel = null;
 #if !__MonoCS__
         public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
@@ -130,7 +135,8 @@ namespace HTCommander
             radio.OnInfoUpdate += Radio_InfoUpdate;
             radio.OnDataFrame += Radio_OnDataFrame;
             radio.OnChannelClear += Radio_OnChannelClear;
-            radio.OnVoiceText += Radio_OnVoiceText;
+            radio.onTextReady += Radio_onTextReady;
+            radio.onProcessingVoice += Radio_onProcessingVoice;
             mainTabControl.SelectedTab = aprsTabPage;
 
 #if !__MonoCS__
@@ -342,6 +348,10 @@ namespace HTCommander
             allowTransmit = (registry.ReadInt("AllowTransmit", 0) == 1);
             Loading = false;
 
+            // Setup voice language and model
+            voiceLanguage = registry.ReadString("VoiceLanguage", "auto");
+            voiceModel = registry.ReadString("VoiceModel", null);
+
 #if __MonoCS__
             mainTabControl.Alignment = TabAlignment.Top;
             aprsTabPage.ImageIndex = -1;
@@ -372,22 +382,17 @@ namespace HTCommander
             session.UiDataReceivedEvent += Session_UiDataReceivedEvent;
             session.ErrorEvent += Session_ErrorEvent;
         }
-
-        private void Radio_OnVoiceText(Radio sender, string text, bool completed, string channel, DateTime time)
+        private void Radio_onProcessingVoice(bool listening, bool processing)
         {
-            if (this.InvokeRequired) { this.Invoke(new VoiceTextChangedHandler(Radio_OnVoiceText), sender, text, completed, channel, time); return; }
-            if (completed)
-            {
-                if ((text == null) || (text.Trim().Length > 0)) {
-                    RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, time, channel, text);
-                    //voiceHistoryTextBox.AppendText(" - " + text + "\r\n\r\n");
-                }
-                voiceLiveTextBox.Clear();
-            }
-            else
-            {
-                if (text != null) { voiceLiveTextBox.Text = text; }
-            }
+            if (this.InvokeRequired) { this.Invoke(new Radio.OnProcessingVoiceHandler(Radio_onProcessingVoice), listening, processing); return; }
+            voiceProcessingLabel.Visible = processing;
+        }
+
+        private void Radio_onTextReady(string text, string channel, DateTime time)
+        {
+            if (this.InvokeRequired) { this.Invoke(new Radio.OnTextReadyHandler(Radio_onTextReady), text, channel, time); return; }
+            if ((text == null) || (text.Trim().Length > 0)) { RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, time, channel, text); }
+            voiceLiveTextBox.Clear();
         }
 
         private void Session_StateChanged(AX25Session sender, AX25Session.ConnectionState state)
@@ -1793,7 +1798,7 @@ namespace HTCommander
             }
 
             // Audio to Text
-            voiceEnableButton.Enabled = (radio.State == Radio.RadioState.Connected) && radio.AudioState;
+            voiceEnableButton.Enabled = (radio.State == Radio.RadioState.Connected) && radio.AudioState && (voiceModel != "");
             voiceEnableButton.Text = (radio.AudioToTextState) ? "Disable" : "Enable";
 
             // System Tray
@@ -1853,6 +1858,8 @@ namespace HTCommander
                 settingsForm.WinlinkPassword = winlinkPassword;
                 settingsForm.WebServerEnabled = webServerEnabled;
                 settingsForm.WebServerPort = webServerPort;
+                settingsForm.VoiceLanguage = voiceLanguage;
+                settingsForm.VoiceModel = voiceModel;
                 if (settingsForm.ShowDialog(this) == DialogResult.OK)
                 {
                     // License Settings
@@ -1862,11 +1869,15 @@ namespace HTCommander
                     winlinkPassword = settingsForm.WinlinkPassword;
                     webServerEnabled = settingsForm.WebServerEnabled;
                     webServerPort = settingsForm.WebServerPort;
+                    voiceLanguage = settingsForm.VoiceLanguage;
+                    voiceModel = settingsForm.VoiceModel;
                     registry.WriteString("CallSign", callsign);
                     registry.WriteInt("StationId", stationId);
                     registry.WriteInt("AllowTransmit", allowTransmit ? 1 : 0);
                     registry.WriteInt("webServerEnabled", webServerEnabled ? 1 : 0);
                     registry.WriteInt("webServerPort", webServerPort);
+                    registry.WriteString("VoiceLanguage", voiceLanguage);
+                    registry.WriteString("VoiceModel", voiceModel);
 
                     // APRS Settings
                     string aprsRoutesStr = settingsForm.AprsRoutes;
@@ -4101,8 +4112,23 @@ namespace HTCommander
 
         private void voiceEnableButton_Click(object sender, EventArgs e)
         {
-            radio.AudioToTextState = !radio.AudioToTextState;
-            UpdateInfo();
+            if (radio.AudioToTextState)
+            {
+                radio.StopAudioToText();
+                UpdateInfo();
+            }
+            else
+            {
+                string filename = "ggml-" + voiceModel + ".bin";
+                if (File.Exists(filename))
+                {
+                    if (voiceModel != "") { radio.StartAudioToText(voiceLanguage, filename); UpdateInfo(); }
+                }
+                else
+                {
+                    MessageBox.Show(this, "Voice model not found: " + filename, "Voice", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         }
     }
 }
