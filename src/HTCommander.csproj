@@ -210,6 +210,11 @@
     <Compile Include="PacketCaptureViewerForm.Designer.cs">
       <DependentUpon>PacketCaptureViewerForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
     <Compile Include="RadioSelectorForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -227,11 +232,6 @@
     </Compile>
     <Compile Include="AprsSmsForm.Designer.cs">
       <DependentUpon>AprsSmsForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
     <Compile Include="RadioChannelControl.cs">
       <SubType>UserControl</SubType>
@@ -265,6 +265,7 @@
     <Compile Include="radio\AX25Session.cs" />
     <Compile Include="radio\FileDownloader.cs" />
     <Compile Include="radio\LibSbc.cs" />
+    <Compile Include="radio\Microphone.cs" />
     <Compile Include="radio\RadioAudio.cs" />
     <Compile Include="radio\RadioBluetoothWin.cs" />
     <Compile Include="radio\WhisperEngine.cs" />

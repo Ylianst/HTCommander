@@ -16,7 +16,6 @@ limitations under the License.
 
 using System;
 using System.IO;
-using System.Threading;
 using System.Net.Sockets;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -34,6 +33,7 @@ namespace HTCommander
         private const int ReceiveBufferSize = 1024;
         private BluetoothClient connectionClient;
         private LibSbc.sbc_struct sbcContext;
+        private LibSbc.sbc_struct sbcContext2;
         private bool isSbcInitialized = false;
         private WaveOutEvent waveOut;
         private byte[] pcmFrame = new byte[16000];
@@ -44,6 +44,9 @@ namespace HTCommander
         public string currentChannelName = "";
         public string voiceLanguage = "auto";
         public string voiceModel = null;
+        private int pcmInputSizePerFrame; // Expected PCM bytes per encode call
+        private int sbcOutputSizePerFrame; // Max SBC bytes generated per encode call
+        private byte[] sbcOutputBuffer; // Reusable buffer for SBC frame output
 
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
@@ -78,11 +81,14 @@ namespace HTCommander
             return outList.ToArray();
         }
 
-        private static byte[] EscapeBytes(byte[] b)
+        private static byte[] EscapeBytes(byte cmd, byte[] b, int len)
         {
             var outList = new List<byte>();
-            foreach (byte currentByte in b)
+            outList.Add(0x7e);
+            outList.Add(cmd);
+            for (int i = 0; i < len; i++)
             {
+                byte currentByte = b[i];
                 if (currentByte == 0x7d || currentByte == 0x7e)
                 {
                     outList.Add(0x7d);
@@ -93,6 +99,7 @@ namespace HTCommander
                     outList.Add(currentByte);
                 }
             }
+            outList.Add(0x7e);
             return outList.ToArray();
         }
 
@@ -161,62 +168,6 @@ namespace HTCommander
             set { if (waveOut != null) { waveOut.Volume = value; } }
         }
 
-        private class SpeechStreamer : Stream
-        {
-            private AutoResetEvent _writeEvent;
-            private List<byte> _buffer;
-            private int _buffersize;
-            private int _readposition;
-            private int _writeposition;
-            private bool _reset;
-
-            public SpeechStreamer(int bufferSize)
-            {
-                _writeEvent = new AutoResetEvent(false);
-                _buffersize = bufferSize;
-                _buffer = new List<byte>(_buffersize);
-                for (int i = 0; i < _buffersize; i++)
-                    _buffer.Add(new byte());
-                _readposition = 0;
-                _writeposition = 0;
-            }
-
-            public override bool CanRead { get { return true; } }
-            public override bool CanSeek { get { return false; } }
-            public override bool CanWrite { get { return true; } }
-            public override long Length { get { return -1L; } }
-            public override long Position { get { return 0L; } set { } }
-            public override long Seek(long offset, SeekOrigin origin) { return 0L; }
-            public override void SetLength(long value) { }
-            public override int Read(byte[] buffer, int offset, int count)
-            {
-                int i = 0;
-                while (i < count && _writeEvent != null)
-                {
-                    if (!_reset && _readposition >= _writeposition) { _writeEvent.WaitOne(100, true); continue; }
-                    buffer[i] = _buffer[_readposition + offset];
-                    _readposition++;
-                    if (_readposition == _buffersize) { _readposition = 0; _reset = false; }
-                    i++;
-                }
-                return count;
-            }
-
-            public override void Write(byte[] buffer, int offset, int count)
-            {
-                for (int i = offset; i < offset + count; i++)
-                {
-                    _buffer[_writeposition] = buffer[i];
-                    _writeposition++;
-                    if (_writeposition == _buffersize) { _writeposition = 0; _reset = true; }
-                }
-                _writeEvent.Set();
-            }
-
-            public override void Close() { _writeEvent.Close(); _writeEvent = null; base.Close(); }
-            public override void Flush() { }
-        }
-
         private async void StartAsync(string mac)
         {
             running = true;
@@ -244,10 +195,27 @@ namespace HTCommander
             try
             {
                 // Initialize SBC context
+                sbcContext2 = new LibSbc.sbc_struct();
+                sbcContext2.frequency = LibSbc.SBC_FREQ_32000;
+                sbcContext2.endian = LibSbc.SBC_LE;
+                sbcContext2.mode = LibSbc.SBC_MODE_MONO;
+                sbcContext2.blocks = LibSbc.SBC_BLK_16;
+                sbcContext2.allocation = LibSbc.SBC_AM_LOUDNESS;
+                sbcContext2.subbands = LibSbc.SBC_SB_8;
+                int initResult = LibSbc.sbc_init(ref sbcContext2, 0);
+                if (initResult != 0) { Debug($"Error initializing SBC (A2DP): {initResult}"); running = false; return; }
+
                 sbcContext = new LibSbc.sbc_struct();
-                int initResult = LibSbc.sbc_init(ref sbcContext, 0);
+                initResult = LibSbc.sbc_init(ref sbcContext, 0);
                 if (initResult != 0) { Debug($"Error initializing SBC (A2DP): {initResult}"); running = false; return; }
                 isSbcInitialized = true;
+
+                // Get expected frame sizes
+                pcmInputSizePerFrame = (int)LibSbc.sbc_get_codesize(ref sbcContext).ToUInt32();
+                sbcOutputSizePerFrame = (int)LibSbc.sbc_get_frame_length(ref sbcContext).ToUInt32();
+
+                // Allocate reusable output buffer
+                sbcOutputBuffer = new byte[sbcOutputSizePerFrame];
 
                 // Configure audio output (adjust format based on SBC parameters)
                 // These are common A2DP SBC defaults, but the actual device might differ.
@@ -403,5 +371,112 @@ namespace HTCommander
             sbcHandle.Free();
             return 0;
         }
+
+        public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength)
+        {
+            byte[] encodedSbcFrame;
+            int bytesConsumed;
+            while (pcmLength > pcmInputSizePerFrame)
+            {
+                // Process the PCM data in chunks, Encode PCM to SBC
+                bool r = EncodeSbcFrame(pcmInputData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed);
+                if (r == false) return false;
+                pcmOffset += bytesConsumed;
+                pcmLength -= bytesConsumed;
+
+                // Escape the SBC frame
+                byte[] escaped = EscapeBytes(0, encodedSbcFrame, encodedSbcFrame.Length);
+
+                // Send the SBC frame over Bluetooth
+                audioStream.WriteAsync(escaped, 0, escaped.Length);
+            }
+            return true;
+        }
+
+        private bool EncodeSbcFrame(byte[] pcmInputData, int pcmOffset, int pcmLength, out byte[] encodedSbcFrame, out int bytesConsumed)
+        {
+            encodedSbcFrame = null;
+            bytesConsumed = 0;
+
+            //if (!isInitialized) { return false; }
+            if (pcmInputData == null) { return false; }
+            if (sbcOutputBuffer == null) { return false; }
+            if (pcmLength < pcmInputSizePerFrame) { return false; }
+            if (pcmOffset < 0 || pcmOffset >= pcmInputData.Length || pcmOffset + pcmInputSizePerFrame > pcmInputData.Length) { return false; }
+
+            // Pin the PCM input buffer segment
+            GCHandle pcmHandle = GCHandle.Alloc(pcmInputData, GCHandleType.Pinned);
+            IntPtr pcmPtr = pcmHandle.AddrOfPinnedObject() + pcmOffset;
+            UIntPtr pcmLen = (UIntPtr)pcmInputSizePerFrame; // Process exactly one frame's worth
+
+            // Pin the reusable SBC output buffer
+            GCHandle sbcHandle = GCHandle.Alloc(sbcOutputBuffer, GCHandleType.Pinned);
+            IntPtr sbcPtr = sbcHandle.AddrOfPinnedObject();
+            UIntPtr sbcBufLen = (UIntPtr)sbcOutputBuffer.Length; // Max capacity
+
+            IntPtr sbcBytesWritten; // To receive the actual number of bytes written
+
+            try
+            {
+                // Call the native SBC encode function
+                IntPtr consumedResult = LibSbc.sbc_encode(ref sbcContext2, pcmPtr, pcmLen, sbcPtr, sbcBufLen, out sbcBytesWritten);
+
+                if (consumedResult.ToInt64() < 0)
+                {
+                    Console.Error.WriteLine($"SBC encoding failed with error code: {consumedResult.ToInt64()}");
+                    return false; // Encoding error
+                }
+
+                bytesConsumed = (int)consumedResult.ToInt64();
+
+                if (bytesConsumed > pcmInputSizePerFrame)
+                {
+                    // Should not happen if pcmLen was set correctly, but check anyway
+                    Console.Error.WriteLine($"Warning: SBC encode consumed {bytesConsumed} bytes, more than expected {pcmInputSizePerFrame}");
+                    bytesConsumed = pcmInputSizePerFrame; // Cap consumption
+                }
+                else if (bytesConsumed == 0 && pcmInputSizePerFrame > 0)
+                {
+                    // Consumed nothing - likely an issue or end of stream?
+                    Console.Error.WriteLine($"Warning: SBC encode consumed 0 bytes.");
+                    // Depending on lib behavior, this might be ok or an error.
+                    // Let's treat it as non-fatal for now, but report 0 bytes written.
+                    sbcBytesWritten = IntPtr.Zero;
+                }
+
+
+                // If bytes were written to the SBC buffer, copy them to the output array
+                int actualSbcBytes = (int)sbcBytesWritten.ToInt64();
+                if (actualSbcBytes > 0)
+                {
+                    if (actualSbcBytes > sbcOutputSizePerFrame)
+                    {
+                        Console.Error.WriteLine($"Error: SBC encode wrote {actualSbcBytes} bytes, exceeding buffer capacity {sbcOutputSizePerFrame}.");
+                        return false; // Buffer overflow potentially happened
+                    }
+                    encodedSbcFrame = new byte[actualSbcBytes];
+                    Array.Copy(sbcOutputBuffer, 0, encodedSbcFrame, 0, actualSbcBytes);
+                }
+                else
+                {
+                    // No bytes written, return null frame but indicate consumption if any occurred
+                    encodedSbcFrame = null; // Or return byte[0];
+                }
+
+                return true; // Success (even if 0 bytes written, we consumed input)
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Exception during SBC encoding: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                // Unpin the memory handles
+                if (sbcHandle.IsAllocated) sbcHandle.Free();
+                if (pcmHandle.IsAllocated) pcmHandle.Free();
+            }
+        }
+
     }
 }

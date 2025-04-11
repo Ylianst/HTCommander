@@ -30,9 +30,12 @@ namespace HTCommander.radio // Use your original namespace
         private MemoryStream audioStream = new MemoryStream();
         private SpeechSynthesizer synthesizer = new SpeechSynthesizer();
         private bool Processing = false;
+        private Radio radio;
 
-        public VoiceEngine()
+        public VoiceEngine(Radio radio)
         {
+            this.radio = radio;
+
             // Initialize the synthesizer
             synthesizer.SetOutputToAudioStream(audioStream, new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
             synthesizer.SelectVoice("Microsoft Zira Desktop");
@@ -50,7 +53,7 @@ namespace HTCommander.radio // Use your original namespace
         private void Synthesizer_SpeakCompleted(object sender, SpeakCompletedEventArgs e)
         {
             byte[] speech = audioStream.ToArray();
-            // TODO: Send to radio
+            radio.TransmitVoice(speech, 0, speech.Length);
             audioStream.SetLength(0); // Clear the stream for next use
             Processing = false;
         }

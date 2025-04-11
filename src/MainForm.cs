@@ -26,8 +26,6 @@ using aprsparser;
 using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
 using HTCommander.radio;
-using Windows.UI.Xaml.Controls.Primitives;
-
 
 #if !__MonoCS__
 using GMap.NET.MapProviders;
@@ -42,6 +40,7 @@ namespace HTCommander
     {
         static public MainForm g_MainForm = null;
         public Radio radio = new Radio();
+        public VoiceEngine voiceEngine;
         public RadioChannelControl[] channelControls = null;
         public RadioHtStatusForm radioHtStatusForm = null;
         public RadioSettingsForm radioSettingsForm = null;
@@ -104,6 +103,8 @@ namespace HTCommander
 
         public static bool IsRunningOnMono() { return Type.GetType("Mono.Runtime") != null; }
         public static Image GetImage(int i) { return g_MainForm.mainImageList.Images[i]; }
+        public Microphone microphone = null;
+        public bool microphoneTransmit = false;
 
         public MainForm(string[] args)
         {
@@ -115,6 +116,15 @@ namespace HTCommander
             torrent = new Torrent(this);
             aprsStack = new AprsStack(this);
             winlinkClient = new WinlinkClient(this);
+            voiceEngine = new VoiceEngine(radio);
+            microphone = new Microphone();
+            microphone.DataAvailable += Microphone_DataAvailable;
+            microphone.StartListening();
+        }
+
+        private void Microphone_DataAvailable(byte[] data, int bytesRecorded)
+        {
+            if (microphoneTransmit) { radio.TransmitVoice(data, 0, bytesRecorded); }
         }
 
         public int GetNextAprsMessageId()
@@ -351,6 +361,7 @@ namespace HTCommander
             // Setup voice language and model
             voiceLanguage = registry.ReadString("VoiceLanguage", "auto");
             voiceModel = registry.ReadString("VoiceModel", null);
+            transmitPictureBox.Image = microphoneImageList.Images[0];
 
 #if __MonoCS__
             mainTabControl.Alignment = TabAlignment.Top;
@@ -392,7 +403,6 @@ namespace HTCommander
         {
             if (this.InvokeRequired) { this.Invoke(new Radio.OnTextReadyHandler(Radio_onTextReady), text, channel, time); return; }
             if ((text == null) || (text.Trim().Length > 0)) { RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, time, channel, text); }
-            voiceLiveTextBox.Clear();
         }
 
         private void Session_StateChanged(AX25Session sender, AX25Session.ConnectionState state)
@@ -1735,6 +1745,7 @@ namespace HTCommander
             waitForConnectionToolStripMenuItem.Visible = allowTransmit;
             waitForConnectionToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected) && allowTransmit && (activeStationLock == null);
 
+            transmitPictureBox.Visible = (radio.State == Radio.RadioState.Connected) && allowTransmit;
             toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = weatherReportToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
             beaconSettingsToolStripMenuItem.Visible = (radio.State == Radio.RadioState.Connected) && allowTransmit;
             aprsBottomPanel.Visible = allowTransmit;
@@ -1764,6 +1775,10 @@ namespace HTCommander
             aprsRouteComboBox.SelectedItem = selectedAprsRoute;
             if (aprsRouteComboBox.SelectedIndex == -1) { aprsRouteComboBox.SelectedIndex = 0; }
             aprsSelectedRoute = null;
+
+            // Voice
+            voiceBottomPanel.Visible = allowTransmit;
+            speakButton.Enabled = speakTextBox.Enabled = (radio.State == Radio.RadioState.Connected) && allowTransmit && (activeStationLock == null);
 
             // Terminal
             terminalInputTextBox.Enabled = ((radio.State == Radio.RadioState.Connected) && (activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal));
@@ -4129,6 +4144,34 @@ namespace HTCommander
                     MessageBox.Show(this, "Voice model not found: " + filename, "Voice", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+        }
+
+        private void transmitPictureBox_MouseLeave(object sender, EventArgs e)
+        {
+            transmitPictureBox.Image = microphoneImageList.Images[0];
+        }
+
+        private void transmitPictureBox_MouseEnter(object sender, EventArgs e)
+        {
+            transmitPictureBox.Image = microphoneImageList.Images[1];
+        }
+
+        private void transmitPictureBox_MouseDown(object sender, MouseEventArgs e)
+        {
+            transmitPictureBox.Image = microphoneImageList.Images[2];
+            microphoneTransmit = true;
+        }
+
+        private void transmitPictureBox_MouseUp(object sender, MouseEventArgs e)
+        {
+            transmitPictureBox.Image = microphoneImageList.Images[1];
+            microphoneTransmit = false;
+        }
+
+        private void speakButton_Click(object sender, EventArgs e)
+        {
+            voiceEngine.Speak(speakTextBox.Text);
+            speakTextBox.Clear();
         }
     }
 }
