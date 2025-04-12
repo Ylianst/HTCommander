@@ -39,16 +39,23 @@ namespace HTCommander.radio // Use your original namespace
             // Initialize the synthesizer
             //synthesizer.SetOutputToDefaultAudioDevice();
             synthesizer.SetOutputToAudioStream(audioStream, new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
-            synthesizer.SelectVoice("Microsoft Zira Desktop");
+            try { synthesizer.SelectVoice("Microsoft Zira Desktop"); } catch (Exception) { } // Default to Zira if not specified
             synthesizer.Rate = 0; // Set the rate to 0 for normal speed
             synthesizer.Volume = 100; // Set volume to maximum
             synthesizer.SpeakCompleted += Synthesizer_SpeakCompleted;
         }
 
-        public bool Speak(string text)
+        public bool SetVoice(string voiceName)
+        {
+            try { synthesizer.SelectVoice(voiceName); } catch (Exception) { return false; }
+            return true;
+        }
+
+        public bool Speak(string text, string voice)
         {
             if (Processing) return false; // Already processing another speech
             Processing = true;
+            try { synthesizer.SelectVoice(voice); } catch (Exception) { return false; }
             synthesizer.SpeakAsync(text);
             return true;
         }
@@ -58,8 +65,11 @@ namespace HTCommander.radio // Use your original namespace
             Task.Run(() =>
             {
                 byte[] speech = audioStream.ToArray();
-                BoostVolume(speech, speech.Length, 5f); // Boost volume
-                radio.TransmitVoice(speech, 0, speech.Length, true);
+                if (speech.Length > 0)
+                {
+                    BoostVolume(speech, speech.Length, 5f); // Boost volume
+                    radio.TransmitVoice(speech, 0, speech.Length, true);
+                }
                 audioStream.SetLength(0);
                 Processing = false;
             });
@@ -121,23 +131,26 @@ namespace HTCommander.radio // Use your original namespace
         // Constructor now takes the model path and expected input format
         public WhisperEngine(string modelPath, string language)
         {
-            // Basic validation
-            if (string.IsNullOrWhiteSpace(modelPath)) throw new ArgumentNullException(nameof(modelPath));
-            if (!File.Exists(modelPath)) throw new FileNotFoundException($"Whisper model file not found: {modelPath}", modelPath);
+            Task.Run(() =>
+            {
+                // Basic validation
+                if (string.IsNullOrWhiteSpace(modelPath)) throw new ArgumentNullException(nameof(modelPath));
+                if (!File.Exists(modelPath)) throw new FileNotFoundException($"Whisper model file not found: {modelPath}", modelPath);
 
-            // --- Factory and Processor Initialization ---
-            WhisperFactory factory = WhisperFactory.FromPath(modelPath);
-            if (factory == null) throw new InvalidOperationException("WhisperFactory.FromPath returned null.");
-            WhisperProcessorBuilder builder = factory.CreateBuilder();
-            if (builder == null) throw new InvalidOperationException("WhisperFactory.CreateBuilder returned null.");
+                // --- Factory and Processor Initialization ---
+                WhisperFactory factory = WhisperFactory.FromPath(modelPath);
+                if (factory == null) throw new InvalidOperationException("WhisperFactory.FromPath returned null.");
+                WhisperProcessorBuilder builder = factory.CreateBuilder();
+                if (builder == null) throw new InvalidOperationException("WhisperFactory.CreateBuilder returned null.");
 
-            // --- Configure the processor ---
-            builder = builder.WithThreads(Math.Max(1, Environment.ProcessorCount / 2));
-            if (language == "auto") { builder = builder.WithLanguageDetection(); } else { builder = builder.WithLanguage(language); }
-            builder = builder.WithSegmentEventHandler(OnWhisperInternalSegmentReceived);
+                // --- Configure the processor ---
+                builder = builder.WithThreads(Math.Max(1, Environment.ProcessorCount / 2));
+                if (language == "auto") { builder = builder.WithLanguageDetection(); } else { builder = builder.WithLanguage(language); }
+                builder = builder.WithSegmentEventHandler(OnWhisperInternalSegmentReceived);
 
-            _processor = builder.Build();
-            if (_processor == null) throw new InvalidOperationException("WhisperProcessorBuilder.Build returned null.");
+                _processor = builder.Build();
+                if (_processor == null) throw new InvalidOperationException("WhisperProcessorBuilder.Build returned null.");
+            });
         }
 
         public void StartVoiceSegment()
@@ -153,6 +166,7 @@ namespace HTCommander.radio // Use your original namespace
 
         public void ProcessAudioChunk(byte[] data, int index, int length, string channel)
         {
+            if (_processor == null) return;
             if (disposed) return;
             if (length > 0)
             {
@@ -195,7 +209,9 @@ namespace HTCommander.radio // Use your original namespace
                     processingAudioBufferChannel = audioBufferChannel;
                     try
                     {
-                        Task.Run(() => { _processor.Process(ConvertPcm16ToFloat32(pcm16kBytes)); })
+                        Task.Run(() => {
+                            try { _processor.Process(ConvertPcm16ToFloat32(pcm16kBytes)); } catch (Exception) { }
+                        })
                         .ContinueWith(task => { if (task.IsCompleted) { OnWhispeCompleted(); } });
                     }
                     catch (Exception) { }
@@ -222,7 +238,7 @@ namespace HTCommander.radio // Use your original namespace
         public void Dispose()
         {
             disposed = true;
-            _processor.Dispose();
+            _processor.DisposeAsync();
             _processor = null;
             audioBuffer = null;
         }

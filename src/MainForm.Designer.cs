@@ -30,19 +30,19 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup17 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup18 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup19 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup20 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -1760,22 +1760,22 @@
             this.mainAddressBookListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainAddressBookListView.FullRowSelect = true;
             this.mainAddressBookListView.GridLines = true;
-            listViewGroup15.Header = "Generic Stations";
-            listViewGroup15.Name = "Generic Stations";
-            listViewGroup16.Header = "APRS Stations";
-            listViewGroup16.Name = "APRS Stations";
-            listViewGroup17.Header = "Terminal Stations";
-            listViewGroup17.Name = "Terminal Stations";
-            listViewGroup18.Header = "BBS";
-            listViewGroup18.Name = "BBS";
-            listViewGroup19.Header = "Winlink Gateways";
-            listViewGroup19.Name = "Winlink Gateways";
+            listViewGroup4.Header = "Generic Stations";
+            listViewGroup4.Name = "Generic Stations";
+            listViewGroup5.Header = "APRS Stations";
+            listViewGroup5.Name = "APRS Stations";
+            listViewGroup6.Header = "Terminal Stations";
+            listViewGroup6.Name = "Terminal Stations";
+            listViewGroup7.Header = "BBS";
+            listViewGroup7.Name = "BBS";
+            listViewGroup8.Header = "Winlink Gateways";
+            listViewGroup8.Name = "Winlink Gateways";
             this.mainAddressBookListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup15,
-            listViewGroup16,
-            listViewGroup17,
-            listViewGroup18,
-            listViewGroup19});
+            listViewGroup4,
+            listViewGroup5,
+            listViewGroup6,
+            listViewGroup7,
+            listViewGroup8});
             this.mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.mainAddressBookListView.HideSelection = false;
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 30);
@@ -1936,16 +1936,16 @@
             this.bbsListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.bbsListView.FullRowSelect = true;
             this.bbsListView.GridLines = true;
-            listViewGroup1.Header = "Generic Stations";
-            listViewGroup1.Name = "Generic Stations";
-            listViewGroup2.Header = "APRS Stations";
-            listViewGroup2.Name = "APRS Stations";
-            listViewGroup3.Header = "Terminal Stations";
-            listViewGroup3.Name = "Terminal Stations";
+            listViewGroup9.Header = "Generic Stations";
+            listViewGroup9.Name = "Generic Stations";
+            listViewGroup10.Header = "APRS Stations";
+            listViewGroup10.Name = "APRS Stations";
+            listViewGroup11.Header = "Terminal Stations";
+            listViewGroup11.Name = "Terminal Stations";
             this.bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup1,
-            listViewGroup2,
-            listViewGroup3});
+            listViewGroup9,
+            listViewGroup10,
+            listViewGroup11});
             this.bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.bbsListView.HideSelection = false;
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
@@ -2405,24 +2405,24 @@
             this.packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.packetDecodeListView.FullRowSelect = true;
             this.packetDecodeListView.GridLines = true;
-            listViewGroup4.Header = "Metadata";
-            listViewGroup4.Name = "packetDecodeMetadataListViewGroup";
-            listViewGroup5.Header = "AX.25 Header";
-            listViewGroup5.Name = "packetDecodeHeaderListViewGroup";
-            listViewGroup6.Header = "AX.25 Data";
-            listViewGroup6.Name = "packetDecodeDataListViewGroup";
-            listViewGroup7.Header = "APRS";
-            listViewGroup7.Name = "packetDecodeAprsListViewGroup";
-            listViewGroup8.Header = "Position";
-            listViewGroup8.Name = "packetDecodePositionListViewGroup";
+            listViewGroup12.Header = "Metadata";
+            listViewGroup12.Name = "packetDecodeMetadataListViewGroup";
+            listViewGroup13.Header = "AX.25 Header";
+            listViewGroup13.Name = "packetDecodeHeaderListViewGroup";
+            listViewGroup14.Header = "AX.25 Data";
+            listViewGroup14.Name = "packetDecodeDataListViewGroup";
+            listViewGroup15.Header = "APRS";
+            listViewGroup15.Name = "packetDecodeAprsListViewGroup";
+            listViewGroup16.Header = "Position";
+            listViewGroup16.Name = "packetDecodePositionListViewGroup";
             listViewGroup20.Header = "Decompression";
             listViewGroup20.Name = "packetDecodeDecompressionListViewGroup";
             this.packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup4,
-            listViewGroup5,
-            listViewGroup6,
-            listViewGroup7,
-            listViewGroup8,
+            listViewGroup12,
+            listViewGroup13,
+            listViewGroup14,
+            listViewGroup15,
+            listViewGroup16,
             listViewGroup20});
             this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.packetDecodeListView.HideSelection = false;
@@ -3037,11 +3037,12 @@
             this.speakTextBox.Enabled = false;
             this.speakTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.speakTextBox.Location = new System.Drawing.Point(7, 7);
-            this.speakTextBox.MaxLength = 67;
+            this.speakTextBox.MaxLength = 1000;
             this.speakTextBox.Name = "speakTextBox";
             this.speakTextBox.Size = new System.Drawing.Size(399, 26);
             this.speakTextBox.TabIndex = 1;
             this.speakTextBox.Text = "This is KK7VZT. This is a radio test.";
+            this.speakTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.speakTextBox_KeyPress);
             // 
             // speakButton
             // 

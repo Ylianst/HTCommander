@@ -16,12 +16,12 @@ limitations under the License.
 
 using HTCommander.radio;
 using System;
+using System.Collections.ObjectModel;
 using System.IO;
-using System.Linq;
+using System.Speech.Synthesis;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
-using Windows.Storage;
 
 namespace HTCommander
 {
@@ -49,6 +49,13 @@ namespace HTCommander
             set { if (value == "") { modelsComboBox.SelectedIndex = 0; return; } foreach(ComboBoxItem item in modelsComboBox.Items) { if (item.Value == value) { modelsComboBox.SelectedItem = item; break; } } }
         }
 
+        public string Voice
+        {
+            get { return (string)voicesComboBox.SelectedItem; }
+            set { foreach (string item in voicesComboBox.Items) { if (item == value) { voicesComboBox.SelectedItem = item; break; } } }
+        }
+
+        // https://huggingface.co/ggerganov/whisper.cpp/tree/main
         string[] models = new string[] {
             "None",
             "Tiny, 77.7 MB",
@@ -59,10 +66,11 @@ namespace HTCommander
             "Small.en, 488 MB, English Only",
             "Medium, 1.53 GB",
             "Medium.en, 1.53 GB, English Only",
-            "Large-v1, 3.09 GB",
-            "Large-v2, 3.09 GB",
-            "Large-v3, 3.1 GB",
-            "Large-v3-turbo, 1.62 GB"
+            //"Large-v3-turbo-q5_0, 574 MB"
+            //"Large-v1, 3.09 GB",
+            //"Large-v2, 3.09 GB",
+            //"Large-v3, 3.1 GB",
+            //"Large-v3-turbo, 1.62 GB"
         };
 
         string[] languages = new string[] {
@@ -154,6 +162,13 @@ namespace HTCommander
                 modelsComboBox.Items.Add(new ComboBoxItem(modelName, model));
             }
             modelsComboBox.SelectedIndex = 0;
+
+            SpeechSynthesizer synthesizer = new SpeechSynthesizer();
+            ReadOnlyCollection<InstalledVoice> voices = synthesizer.GetInstalledVoices();
+            foreach (InstalledVoice voice in voices) { voicesComboBox.Items.Add(voice.VoiceInfo.Name); }
+            voicesComboBox.SelectedIndex = 0;
+            Voice = "Microsoft Zira Desktop";
+            synthesizer.Dispose();
 
             UpdateInfo();
         }

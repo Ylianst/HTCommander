@@ -235,6 +235,7 @@ namespace HTCommander
         public int BatteryAsPercentage = -1;
         public int Volume = -1;
         public bool LoopbackMode = false;
+        public string currentChannelName = null;
 
         private List<FragmentInQueue> TncFragmentQueue = new List<FragmentInQueue>();
         private bool TncFragmentInFlight = false;
@@ -599,6 +600,21 @@ namespace HTCommander
                         case RadioBasicCommand.READ_RF_CH:
                             RadioChannelInfo c = new RadioChannelInfo(value);
                             if (Channels != null) { Channels[c.channel_id] = c; }
+
+                            // Set channel name
+                            if (HtStatus.curr_ch_id >= 254)
+                            {
+                                currentChannelName = radioAudio.currentChannelName = "NOAA";
+                            }
+                            else if ((Channels != null) && (Channels.Length > HtStatus.curr_ch_id) && (Channels[HtStatus.curr_ch_id] != null))
+                            {
+                                currentChannelName = radioAudio.currentChannelName = Channels[HtStatus.curr_ch_id].name_str;
+                            }
+                            else
+                            {
+                                currentChannelName = radioAudio.currentChannelName = string.Empty;
+                            }
+
                             //if (c.name_str.Length > 0) { Debug($"Channel ({c.channel_id}): '{c.name_str}'"); }
                             Update(RadioUpdateNotification.ChannelInfo);
                             if (AllChannelsLoaded()) { Update(RadioUpdateNotification.AllChannelsLoaded); }
@@ -639,15 +655,15 @@ namespace HTCommander
                                     // Set channel name
                                     if (HtStatus.curr_ch_id >= 254)
                                     {
-                                        radioAudio.currentChannelName = "NOAA";
+                                        currentChannelName = radioAudio.currentChannelName = "NOAA";
                                     }
                                     else if ((Channels != null) && (Channels.Length > HtStatus.curr_ch_id) && (Channels[HtStatus.curr_ch_id] != null))
                                     {
-                                        radioAudio.currentChannelName = Channels[HtStatus.curr_ch_id].name_str;
+                                        currentChannelName = radioAudio.currentChannelName = Channels[HtStatus.curr_ch_id].name_str;
                                     }
                                     else
                                     {
-                                        radioAudio.currentChannelName = string.Empty;
+                                        currentChannelName = radioAudio.currentChannelName = string.Empty;
                                     }
 
                                     //Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}, RSSI={HtStatus.rssi}");

@@ -24,6 +24,9 @@ using InTheHand.Net.Sockets;
 using InTheHand.Net.Bluetooth;
 using NAudio.Wave;
 using HTCommander.radio;
+using System.Threading.Tasks;
+using System.Runtime.Remoting.Channels;
+using System.Threading;
 
 namespace HTCommander
 {
@@ -375,14 +378,14 @@ namespace HTCommander
 
         public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength, bool play)
         {
-            if (play) { waveProvider.AddSamples(pcmInputData, pcmOffset, pcmLength); }
+            if (play) { PlayPcmBufferAsync(pcmInputData, pcmOffset, pcmLength); }
 
             byte[] encodedSbcFrame;
             int bytesConsumed;
-            while (pcmLength > 0)
+            while (pcmLength >= pcmInputSizePerFrame)
             {
                 // Process the PCM data in chunks, Encode PCM to SBC
-                if (!EncodeSbcFrame(pcmInputData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed)) return false;
+                if (!EncodeSbcFrame(pcmInputData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed)) { return false; }
                 pcmOffset += bytesConsumed;
                 pcmLength -= bytesConsumed;
 
@@ -400,6 +403,22 @@ namespace HTCommander
             audioStream.FlushAsync();
 
             return true;
+        }
+
+        public void PlayPcmBufferAsync(byte[] pcmInputData, int pcmOffset, int pcmLength)
+        {
+            Task.Run(() =>
+            {
+                int bytesPerMillisecond = waveProvider.WaveFormat.AverageBytesPerSecond / 1000;
+                int chunkMilliseconds = 20;
+                int chunkSize = bytesPerMillisecond * chunkMilliseconds;
+                for (int offset = pcmOffset; offset < pcmOffset + pcmLength; offset += chunkSize)
+                {
+                    int bytesToCopy = Math.Min(chunkSize, pcmOffset + pcmLength - offset);
+                    while (waveProvider.BufferedBytes + bytesToCopy > waveProvider.BufferLength) { Thread.Sleep(5); }
+                    waveProvider.AddSamples(pcmInputData, offset, bytesToCopy);
+                }
+            });
         }
 
         private bool EncodeSbcFrame(byte[] pcmInputData, int pcmOffset, int pcmLength, out byte[] encodedSbcFrame, out int bytesConsumed)

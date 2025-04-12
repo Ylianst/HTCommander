@@ -218,7 +218,7 @@ namespace HTCommander
         {
             return @"{\rtf1\ansi " + _builder.ToString() + @" }";
         }
-        public static void AddFormattedEntry(RichTextBox rtb, DateTime entryTime, string smallText, string largeText)
+        public static void AddFormattedEntry(RichTextBox rtb, DateTime entryTime, string smallText, string largeText, bool outbound = false)
         {
             // Ensure we are manipulating the control on the UI thread
             if (rtb.InvokeRequired)
@@ -239,6 +239,7 @@ namespace HTCommander
             // Larger font for the main message
             Font largeFont = new Font(baseFontFamily, 11f, FontStyle.Regular); // Adjust size as needed
             Color largeColor = Color.Black;
+            if (outbound) { largeColor = Color.Red; }
 
             // Separator line - using a character that repeats well
             // Adjust the count (e.g., 50) based on your RichTextBox width and preference

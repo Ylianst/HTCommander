@@ -88,6 +88,7 @@ namespace HTCommander
         public bool RealExit = false;
         public string voiceLanguage = "auto";
         public string voiceModel = null;
+        public string voice = null;
 #if !__MonoCS__
         public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
@@ -361,6 +362,7 @@ namespace HTCommander
             // Setup voice language and model
             voiceLanguage = registry.ReadString("VoiceLanguage", "auto");
             voiceModel = registry.ReadString("VoiceModel", null);
+            voice = registry.ReadString("Voice", null);
             transmitPictureBox.Image = microphoneImageList.Images[0];
 
 #if __MonoCS__
@@ -1875,6 +1877,7 @@ namespace HTCommander
                 settingsForm.WebServerPort = webServerPort;
                 settingsForm.VoiceLanguage = voiceLanguage;
                 settingsForm.VoiceModel = voiceModel;
+                settingsForm.Voice = voice;
                 if (settingsForm.ShowDialog(this) == DialogResult.OK)
                 {
                     // License Settings
@@ -1886,6 +1889,7 @@ namespace HTCommander
                     webServerPort = settingsForm.WebServerPort;
                     voiceLanguage = settingsForm.VoiceLanguage;
                     voiceModel = settingsForm.VoiceModel;
+                    voice = settingsForm.Voice;
                     registry.WriteString("CallSign", callsign);
                     registry.WriteInt("StationId", stationId);
                     registry.WriteInt("AllowTransmit", allowTransmit ? 1 : 0);
@@ -1893,6 +1897,7 @@ namespace HTCommander
                     registry.WriteInt("webServerPort", webServerPort);
                     registry.WriteString("VoiceLanguage", voiceLanguage);
                     registry.WriteString("VoiceModel", voiceModel);
+                    registry.WriteString("Voice", voice);
 
                     // APRS Settings
                     string aprsRoutesStr = settingsForm.AprsRoutes;
@@ -4167,11 +4172,16 @@ namespace HTCommander
             transmitPictureBox.Image = microphoneImageList.Images[1];
             microphoneTransmit = false;
         }
-
         private void speakButton_Click(object sender, EventArgs e)
         {
-            voiceEngine.Speak(speakTextBox.Text);
-            //speakTextBox.Clear();
+            RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true);
+            voiceEngine.Speak(speakTextBox.Text, voice);
+            speakTextBox.Clear();
+        }
+
+        private void speakTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == 13) { speakButton_Click(this, null); e.Handled = true; return; }
         }
     }
 }
