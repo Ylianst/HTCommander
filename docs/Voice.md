@@ -15,7 +15,7 @@ From within Handi-Talky Commander you can select and download one of the Whisper
 - Medium, 1.53 GB
 - Medium.en, 1.53 GB, English Only
 
-The English-only models are best if your intend to only listen to English conversations, otherwise, the normal models support a large range of languages. You can help the model out by selecting the language you will be listening to in the Settings panel, this will give a hint to the model to focus on the selected language.
+The English-only models are best if you intend to only listen to English conversations, otherwise, the normal models support a large range of languages. You can help the model out by selecting the language you will be listening to in the Settings panel, this will give a hint to the model to focus that selected language.
 
 Once enabled, the voice recognition will run when the radio no longer receives a signal or every 20 to 30 seconds.
 
