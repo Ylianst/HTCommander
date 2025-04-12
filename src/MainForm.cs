@@ -89,6 +89,7 @@ namespace HTCommander
         public string voiceLanguage = "auto";
         public string voiceModel = null;
         public string voice = null;
+        public string voiceConfirmedChannelName;
 #if !__MonoCS__
         public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
@@ -128,6 +129,11 @@ namespace HTCommander
             if (microphoneTransmit) { radio.TransmitVoice(data, 0, bytesRecorded, false); }
         }
 
+        private void cancelVoiceButton_Click(object sender, EventArgs e)
+        {
+            radio.CancelVoiceTransmit();
+        }
+
         public int GetNextAprsMessageId()
         {
             int msgId = nextAprsMessageId++;
@@ -148,6 +154,7 @@ namespace HTCommander
             radio.OnChannelClear += Radio_OnChannelClear;
             radio.onTextReady += Radio_onTextReady;
             radio.onProcessingVoice += Radio_onProcessingVoice;
+            radio.OnVoiceTransmitStateChanged += Radio_OnVoiceTransmitStateChanged;
             mainTabControl.SelectedTab = aprsTabPage;
 
 #if !__MonoCS__
@@ -259,14 +266,6 @@ namespace HTCommander
 
             showPreviewToolStripMenuItem.Checked = (registry.ReadInt("MailViewPreview", 1) == 1);
             mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
-
-            /*
-            // Check if this CPU supports media instructions
-            if () {
-                voiceToolStripMenuItem.Enabled = voiceToolStripMenuItem.Visible = false;
-                radio.AudioToTextState = false;
-            }
-            */
 
             // Setup mailboxes
             MailBoxTreeNodes = new TreeNode[MailBoxesNames.Length];
@@ -395,6 +394,14 @@ namespace HTCommander
             session.UiDataReceivedEvent += Session_UiDataReceivedEvent;
             session.ErrorEvent += Session_ErrorEvent;
         }
+
+        private void Radio_OnVoiceTransmitStateChanged(Radio sender, bool transmitting)
+        {
+            if (this.InvokeRequired) { this.Invoke(new Radio.VoiceTransmitStateHandler(Radio_OnVoiceTransmitStateChanged), sender, transmitting); return; }
+            cancelVoiceButton.Visible = transmitting;
+            speakButton.Enabled = !transmitting;
+        }
+
         private void Radio_onProcessingVoice(bool listening, bool processing)
         {
             if (this.InvokeRequired) { this.Invoke(new Radio.OnProcessingVoiceHandler(Radio_onProcessingVoice), listening, processing); return; }
@@ -404,7 +411,7 @@ namespace HTCommander
         private void Radio_onTextReady(string text, string channel, DateTime time)
         {
             if (this.InvokeRequired) { this.Invoke(new Radio.OnTextReadyHandler(Radio_onTextReady), text, channel, time); return; }
-            if ((text == null) || (text.Trim().Length > 0)) { RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, time, channel, text); }
+            if ((text == null) || (text.Trim().Length > 0)) { RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, time, channel, text.Trim()); }
         }
 
         private void Session_StateChanged(AX25Session sender, AX25Session.ConnectionState state)
@@ -857,6 +864,7 @@ namespace HTCommander
 
             if (radio.Settings == null) return;
 
+            /*
             if ((radio.HtStatus != null) && (radio.HtStatus.curr_ch_id >= 254))
             {
                 vfo1Label.Text = "NOAA";
@@ -869,6 +877,7 @@ namespace HTCommander
                 AdjustVfoLabel(vfo2Label);
                 return;
             }
+            */
 
             if (radio.Channels != null)
             {
@@ -1747,7 +1756,7 @@ namespace HTCommander
             waitForConnectionToolStripMenuItem.Visible = allowTransmit;
             waitForConnectionToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected) && allowTransmit && (activeStationLock == null);
 
-            transmitPictureBox.Visible = (radio.State == Radio.RadioState.Connected) && allowTransmit;
+            transmitPictureBox.Visible = (radio.State == Radio.RadioState.Connected) && allowTransmit && radio.AudioState;
             toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = weatherReportToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
             beaconSettingsToolStripMenuItem.Visible = (radio.State == Radio.RadioState.Connected) && allowTransmit;
             aprsBottomPanel.Visible = allowTransmit;
@@ -1757,6 +1766,7 @@ namespace HTCommander
             bbsConnectButton.Visible = allowTransmit;
             bBSToolStripMenuItem.Visible = allowTransmit;
             terminalToolStripMenuItem.Visible = allowTransmit;
+            if (radio.State != Radio.RadioState.Connected) cancelVoiceButton.Visible = false;
 
             // APRS Beacon
             if ((radio.State == Radio.RadioState.Connected) && (radio.BssSettings != null) && (radio.BssSettings.LocationShareInterval > 0) && (radio.BssSettings.PacketFormat == 1) && (radio.BssSettings.BeaconMessage.Trim().Length > 0))
@@ -1815,7 +1825,7 @@ namespace HTCommander
             }
 
             // Audio to Text
-            voiceEnableButton.Enabled = (radio.State == Radio.RadioState.Connected) && radio.AudioState && (voiceModel != "");
+            voiceEnableButton.Enabled = (radio.State == Radio.RadioState.Connected);
             voiceEnableButton.Text = (radio.AudioToTextState) ? "Disable" : "Enable";
 
             // System Tray
@@ -1866,6 +1876,11 @@ namespace HTCommander
 
         private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            ShowSettingsForm();
+        }
+
+        private void ShowSettingsForm(int tab = 0)
+        {
             using (SettingsForm settingsForm = new SettingsForm())
             {
                 if ((callsign != null) && (callsign.Length <= 6)) { settingsForm.CallSign = callsign; }
@@ -1878,6 +1893,7 @@ namespace HTCommander
                 settingsForm.VoiceLanguage = voiceLanguage;
                 settingsForm.VoiceModel = voiceModel;
                 settingsForm.Voice = voice;
+                settingsForm.MoveToTab(tab);
                 if (settingsForm.ShowDialog(this) == DialogResult.OK)
                 {
                     // License Settings
@@ -4116,7 +4132,7 @@ namespace HTCommander
         private void audioEnabledToolStripMenuItem_Click(object sender, EventArgs e)
         {
             radio.AudioEnabled(!audioEnabledToolStripMenuItem.Checked);
-            registry.WriteInt("Audio", audioEnabledToolStripMenuItem.Checked ? 0 : 1);
+            registry.WriteInt("Audio", radio.AudioState ? 1 : 0);
             UpdateInfo();
         }
 
@@ -4140,13 +4156,19 @@ namespace HTCommander
             else
             {
                 string filename = "ggml-" + voiceModel + ".bin";
-                if (File.Exists(filename))
+                string appDataFilename = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", filename);
+                if ((voiceModel != "") && (File.Exists(appDataFilename)))
                 {
-                    if (voiceModel != "") { radio.StartAudioToText(voiceLanguage, filename); UpdateInfo(); }
+                    radio.AudioEnabled(true);
+                    radio.StartAudioToText(voiceLanguage, appDataFilename);
+                    UpdateInfo();
                 }
                 else
                 {
-                    MessageBox.Show(this, "Voice model not found: " + filename, "Voice", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    if (MessageBox.Show(this, "A voice model must be download to enable speech-to-text.", "Voice", MessageBoxButtons.OKCancel) == DialogResult.OK)
+                    {
+                        ShowSettingsForm(2);
+                    }
                 }
             }
         }
@@ -4174,14 +4196,45 @@ namespace HTCommander
         }
         private void speakButton_Click(object sender, EventArgs e)
         {
-            RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true);
-            voiceEngine.Speak(speakTextBox.Text, voice);
-            speakTextBox.Clear();
+            if (speakTextBox.Text.Trim().Length == 0) return;
+            if (voiceConfirmedChannelName != radio.currentChannelName)
+            {
+                if (MessageBox.Show(this, "Confirm transmit on " + radio.currentChannelName + "?", "Transmit", MessageBoxButtons.OKCancel) == DialogResult.OK)
+                {
+                    voiceConfirmedChannelName = radio.currentChannelName;
+                    RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true);
+                    if (speakButton.Text == "&Speak") { voiceEngine.Speak(speakTextBox.Text, voice); }
+                    if (speakButton.Text == "&Morse") { voiceEngine.Morse(speakTextBox.Text); }
+                    speakTextBox.Clear();
+                }
+            }
+            else
+            {
+                RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true);
+                if (speakButton.Text == "&Speak") { voiceEngine.Speak(speakTextBox.Text, voice); }
+                if (speakButton.Text == "&Morse") { voiceEngine.Morse(speakTextBox.Text); }
+                speakTextBox.Clear();
+            }
         }
 
         private void speakTextBox_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == 13) { speakButton_Click(this, null); e.Handled = true; return; }
         }
+
+        private void speakToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            speakButton.Text = "&Speak";
+            speakToolStripMenuItem.Checked = true;
+            morseToolStripMenuItem.Checked = false;
+        }
+
+        private void morseToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            speakButton.Text = "&Morse";
+            speakToolStripMenuItem.Checked = false;
+            morseToolStripMenuItem.Checked = true;
+        }
+
     }
 }

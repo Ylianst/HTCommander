@@ -25,7 +25,6 @@ using InTheHand.Net.Bluetooth;
 using NAudio.Wave;
 using HTCommander.radio;
 using System.Threading.Tasks;
-using System.Runtime.Remoting.Channels;
 using System.Threading;
 
 namespace HTCommander
@@ -259,6 +258,7 @@ namespace HTCommander
                                         if (speechToText && (speechToTextEngine == null))
                                         {
                                             speechToTextEngine = new WhisperEngine(voiceModel, voiceLanguage);
+                                            speechToTextEngine.OnDebugMessage += SpeechToTextEngine_OnDebugMessage;
                                             speechToTextEngine.onProcessingVoice += SpeechToTextEngine_onProcessingVoice;
                                             speechToTextEngine.onTextReady += SpeechToTextEngine_onTextReady;
                                             speechToTextEngine.StartVoiceSegment();
@@ -268,6 +268,7 @@ namespace HTCommander
                                         if (!speechToText && (speechToTextEngine != null))
                                         {
                                             speechToTextEngine.ResetVoiceSegment();
+                                            speechToTextEngine.OnDebugMessage -= SpeechToTextEngine_OnDebugMessage;
                                             speechToTextEngine.onProcessingVoice -= SpeechToTextEngine_onProcessingVoice;
                                             speechToTextEngine.onTextReady -= SpeechToTextEngine_onTextReady;
                                             speechToTextEngine.Dispose();
@@ -317,6 +318,7 @@ namespace HTCommander
 
                 if (speechToTextEngine != null) {
                     speechToTextEngine.ResetVoiceSegment();
+                    speechToTextEngine.OnDebugMessage -= SpeechToTextEngine_OnDebugMessage;
                     speechToTextEngine.onProcessingVoice -= SpeechToTextEngine_onProcessingVoice;
                     speechToTextEngine.onTextReady -= SpeechToTextEngine_onTextReady;
                     speechToTextEngine.Dispose();
@@ -333,6 +335,11 @@ namespace HTCommander
                 if (isSbcInitialized) { LibSbc.sbc_finish(ref sbcContext); }
                 Debug("Bluetooth connection closed.");
             }
+        }
+
+        private void SpeechToTextEngine_OnDebugMessage(string msg)
+        {
+            Debug("Whisper: " + msg);
         }
 
         private void SpeechToTextEngine_onTextReady(string text, string channel, DateTime time)
@@ -376,32 +383,58 @@ namespace HTCommander
             return 0;
         }
 
+        private bool VoiceTransmit = false;
+        private bool VoiceTransmitCancel = false;
+        public delegate void VoiceTransmitStateHandler(RadioAudio sender, bool transmitting);
+        public event VoiceTransmitStateHandler OnVoiceTransmitStateChanged;
+
+        public void CancelVoiceTransmit() {
+            waveProvider.ClearBuffer();
+            VoiceTransmitCancel = true;
+        }
+
         public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength, bool play)
         {
-            if (play) { PlayPcmBufferAsync(pcmInputData, pcmOffset, pcmLength); }
-
-            byte[] encodedSbcFrame;
-            int bytesConsumed;
-            while (pcmLength >= pcmInputSizePerFrame)
+            if (VoiceTransmit == true) return false;
+            Task.Run(() =>
             {
-                // Process the PCM data in chunks, Encode PCM to SBC
-                if (!EncodeSbcFrame(pcmInputData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed)) { return false; }
-                pcmOffset += bytesConsumed;
-                pcmLength -= bytesConsumed;
+                VoiceTransmit = true;
+                VoiceTransmitCancel = false;
+                if (OnVoiceTransmitStateChanged != null) { OnVoiceTransmitStateChanged(this, true); }
 
-                // Escape the SBC frame
-                byte[] escaped = EscapeBytes(0, encodedSbcFrame, encodedSbcFrame.Length);
+                if (play) { PlayPcmBufferAsync(pcmInputData, pcmOffset, pcmLength); }
 
-                // Send the SBC frame over Bluetooth
-                audioStream.WriteAsync(escaped, 0, escaped.Length);
+                byte[] encodedSbcFrame;
+                int bytesConsumed;
+                int totalPcmLength = pcmLength;
+                while ((pcmLength >= pcmInputSizePerFrame) && (VoiceTransmitCancel == false))
+                {
+                    // Process the PCM data in chunks, Encode PCM to SBC
+                    if (!EncodeSbcFrame(pcmInputData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed)) break;
+                    pcmOffset += bytesConsumed;
+                    pcmLength -= bytesConsumed;
+
+                    // Escape the SBC frame
+                    byte[] escaped = EscapeBytes(0, encodedSbcFrame, encodedSbcFrame.Length);
+
+                    // Send the SBC frame over Bluetooth
+                    audioStream.WriteAsync(escaped, 0, escaped.Length);
+                    audioStream.FlushAsync();
+
+                    // Hold off for a bit to allow the audio to play
+                    Thread.Sleep(bytesConsumed / 64);
+                    if (VoiceTransmitCancel) break;
+                }
+
+                // Send end audio frame
+                byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
+                audioStream.WriteAsync(endAudio, 0, endAudio.Length);
                 audioStream.FlushAsync();
-            }
 
-            // Send end audio frame
-            byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
-            audioStream.WriteAsync(endAudio, 0, endAudio.Length);
-            audioStream.FlushAsync();
-
+                // We are done
+                VoiceTransmit = false;
+                if (OnVoiceTransmitStateChanged != null) { OnVoiceTransmitStateChanged(this, false); }
+            });
             return true;
         }
 
@@ -415,7 +448,11 @@ namespace HTCommander
                 for (int offset = pcmOffset; offset < pcmOffset + pcmLength; offset += chunkSize)
                 {
                     int bytesToCopy = Math.Min(chunkSize, pcmOffset + pcmLength - offset);
-                    while (waveProvider.BufferedBytes + bytesToCopy > waveProvider.BufferLength) { Thread.Sleep(5); }
+                    while ((waveProvider.BufferedBytes + bytesToCopy > waveProvider.BufferLength) && (VoiceTransmitCancel == false)) { Thread.Sleep(5); }
+                    if (VoiceTransmitCancel == true) {
+                        waveProvider.ClearBuffer();
+                        return;
+                    }
                     waveProvider.AddSamples(pcmInputData, offset, bytesToCopy);
                 }
             });

@@ -71,6 +71,7 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Speech" />
     <Reference Include="System.Web" />
@@ -266,6 +267,7 @@
     <Compile Include="radio\FileDownloader.cs" />
     <Compile Include="radio\LibSbc.cs" />
     <Compile Include="radio\Microphone.cs" />
+    <Compile Include="radio\MorseCodeEngine.cs" />
     <Compile Include="radio\RadioAudio.cs" />
     <Compile Include="radio\RadioBluetoothWin.cs" />
     <Compile Include="radio\WhisperEngine.cs" />

@@ -1,21 +1,22 @@
-# Speech to Text
+# Voice
 
-![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/ht-voice-to-text.png?raw=true)
+![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/ht-voice.png?raw=true)
 
-Handi-Talky Commander has built-in speech recognition capabilities with integration of DeepSpeech. Radio audio will be run into the DeepSpeech neural-network to convert into text in near real-time. However, there are limitations to this, it's currently not great but fun to try. Don't try this on a slow computer with limited RAM, but will keep you CPU working.
+Handi-Talky Commander has built-in speech recognition capabilities with integration of Open AI's Whisper. Radio audio will be run into a neural-network language model to convert into text and the results are quite impressive. A powerful CPU with AVX support is required.
 
-To enable this feature, you need to download the following two files and add them in the same folder as the HTCommander executable. These two files are very large and total about a gigabyte in size.
+From within Handi-Talky Commander you can select and download one of the Whisper models. The larger the model, the better the results but also the more CPU power is required.
 
-- [DeepSpeech v0.9.3 Model](https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.pbmm)
-- [DeepSpeech v0.9.3 Scorer](https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.scorer)
+- Tiny, 77.7 MB
+- Tiny.en, 77.7 MB, English Only
+- Base, 148 MB
+- Base.en, 148 MB, English Only (Recommended)
+- Small, 488 MB
+- Small.en, 488 MB, English Only
+- Medium, 1.53 GB
+- Medium.en, 1.53 GB, English Only
 
-If you installed HTCommander using the installer, you can find the executable in the following location: `C:\Program Files\Open Source\Handi-Talky Commander`, so, copy the two large files here. Then, start HT Commander again, you will see a new "Voice" option in the "View" menu. You need to enable audio to play thru your computer and then, enable the voice feature to start seeing text. 
+The English-only models are best if your intend to only listen to English conversations, otherwise, the normal models support a large range of languages. You can help the model out by selecting the language you will be listening to in the Settings panel, this will give a hint to the model to focus on the selected language.
 
-The feature does not work well, but it's a nice party trick for now. In my view, The two main problems are that:
+Once enabled, the voice recognition will run when the radio no longer receives a signal or every 20 to 30 seconds.
 
-- It does not handle rapid voice very at all. If someone says something quickly as most HAM radio people do, it does not seem to be able to keep up. I don't think it's a question of my computer being slow, it still seems to process all the audio frames, it just seems to do a lot better when saying things slowly. NOAA weather is the one test case I have that is always transmitting, so, it's clearly WAY to fast for the model.
-- The AI model is not trained on HAM radio speak. For example, it does not understand "Alpha", "Bravo", etc. At least, not all of them. This is a HUGE bummer. It does numbers "One", "Two".
-
-So, basically, you get junk a lot of the time. I did make the Speech-to-Text a bit more modular so, I could implement different solutions in the future. OpenAI Wisper is probably another one I can look at, I would have to find one with a large community. I am only looking at offline ones, I am not sure anyone would use an online one, even if it was any good.
-
-I think ultimately, the solution is going to be to fine tune a speech model specifically for this usage.
+In addition, there is support for text-to-speech (TTS) using the Microsoft Speech API. So, you can type a message and it will be read on the radio.

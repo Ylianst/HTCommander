@@ -362,6 +362,7 @@ namespace HTCommander
             radioAudio.OnAudioStateChanged += RadioAudio_OnAudioStateChanged;
             radioAudio.onProcessingVoice += RadioAudio_onProcessingVoice;
             radioAudio.onTextReady += RadioAudio_onTextReady;
+            radioAudio.OnVoiceTransmitStateChanged += RadioAudio_OnVoiceTransmitStateChanged;
             ClearChannelTimer.Elapsed += ClearFrequencyTimer_Elapsed;
             ClearChannelTimer.Enabled = false;
         }
@@ -435,6 +436,16 @@ namespace HTCommander
         {
             radioAudio.speechToText = false;
         }
+
+        public delegate void VoiceTransmitStateHandler(Radio sender, bool transmitting);
+        public event VoiceTransmitStateHandler OnVoiceTransmitStateChanged;
+
+        private void RadioAudio_OnVoiceTransmitStateChanged(RadioAudio sender, bool transmitting)
+        {
+            if (OnVoiceTransmitStateChanged != null) { OnVoiceTransmitStateChanged(this, transmitting); }
+        }
+
+        public void CancelVoiceTransmit() { radioAudio.CancelVoiceTransmit(); }
 
         public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength, bool play)
         {

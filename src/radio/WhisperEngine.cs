@@ -91,6 +91,19 @@ namespace HTCommander.radio // Use your original namespace
             }
         }
 
+        public void Morse(string text)
+        {
+            Task.Run(() =>
+            {
+                byte[] speech = MorseCodeEngine.GenerateMorsePcm(text);
+                if (speech.Length > 0)
+                {
+                    BoostVolume(speech, speech.Length, 5f); // Boost volume
+                    radio.TransmitVoice(speech, 0, speech.Length, true);
+                }
+            });
+        }
+
     }
 
     public class WhisperEngine
@@ -113,6 +126,10 @@ namespace HTCommander.radio // Use your original namespace
         public delegate void OnProcessingVoiceHandler(bool processing);
         public event OnProcessingVoiceHandler onProcessingVoice;
 
+        public delegate void DebugMessageEventHandler(string msg);
+        public event DebugMessageEventHandler OnDebugMessage;
+        private void Debug(string msg) { if (OnDebugMessage != null) { OnDebugMessage(msg); } }
+
         // Holding buffer for audio data
         private class ProcessingHold
         {
@@ -133,23 +150,30 @@ namespace HTCommander.radio // Use your original namespace
         {
             Task.Run(() =>
             {
-                // Basic validation
-                if (string.IsNullOrWhiteSpace(modelPath)) throw new ArgumentNullException(nameof(modelPath));
-                if (!File.Exists(modelPath)) throw new FileNotFoundException($"Whisper model file not found: {modelPath}", modelPath);
+                try
+                {
+                    // Basic validation
+                    if (string.IsNullOrWhiteSpace(modelPath)) throw new ArgumentNullException(nameof(modelPath));
+                    if (!File.Exists(modelPath)) throw new FileNotFoundException($"Whisper model file not found: {modelPath}", modelPath);
 
-                // --- Factory and Processor Initialization ---
-                WhisperFactory factory = WhisperFactory.FromPath(modelPath);
-                if (factory == null) throw new InvalidOperationException("WhisperFactory.FromPath returned null.");
-                WhisperProcessorBuilder builder = factory.CreateBuilder();
-                if (builder == null) throw new InvalidOperationException("WhisperFactory.CreateBuilder returned null.");
+                    // --- Factory and Processor Initialization ---
+                    WhisperFactory factory = WhisperFactory.FromPath(modelPath);
+                    if (factory == null) throw new InvalidOperationException("WhisperFactory.FromPath returned null.");
+                    WhisperProcessorBuilder builder = factory.CreateBuilder();
+                    if (builder == null) throw new InvalidOperationException("WhisperFactory.CreateBuilder returned null.");
 
-                // --- Configure the processor ---
-                builder = builder.WithThreads(Math.Max(1, Environment.ProcessorCount / 2));
-                if (language == "auto") { builder = builder.WithLanguageDetection(); } else { builder = builder.WithLanguage(language); }
-                builder = builder.WithSegmentEventHandler(OnWhisperInternalSegmentReceived);
+                    // --- Configure the processor ---
+                    builder = builder.WithThreads(Math.Max(1, Environment.ProcessorCount / 2));
+                    if (language == "auto") { builder = builder.WithLanguageDetection(); } else { builder = builder.WithLanguage(language); }
+                    builder = builder.WithSegmentEventHandler(OnWhisperInternalSegmentReceived);
 
-                _processor = builder.Build();
-                if (_processor == null) throw new InvalidOperationException("WhisperProcessorBuilder.Build returned null.");
+                    _processor = builder.Build();
+                    if (_processor == null) throw new InvalidOperationException("WhisperProcessorBuilder.Build returned null.");
+                }
+                catch (Exception ex)
+                {
+                    Debug(ex.Message);
+                }
             });
         }
 
@@ -220,7 +244,7 @@ namespace HTCommander.radio // Use your original namespace
                 {
                     if (ProcessingHolds.Count < 5)
                     {
-                        Console.WriteLine("Processing hold added");
+                        Debug("Processing hold added");
                         lock (ProcessingHolds)
                         {
                             ProcessingHolds.Add(new ProcessingHold(audioBufferTime, audioBufferChannel, ConvertPcm16ToFloat32(pcm16kBytes)));
@@ -238,7 +262,7 @@ namespace HTCommander.radio // Use your original namespace
         public void Dispose()
         {
             disposed = true;
-            _processor.DisposeAsync();
+            if (_processor != null) { _processor.DisposeAsync(); }
             _processor = null;
             audioBuffer = null;
         }

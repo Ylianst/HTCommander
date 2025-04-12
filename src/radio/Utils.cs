@@ -17,13 +17,13 @@ limitations under the License.
 using System;
 using System.IO;
 using System.Text;
+using System.Drawing;
 using System.Windows.Forms;
 using System.IO.Compression;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 using Brotli;
-using System.Security.Cryptography;
-using System.Drawing;
 
 namespace HTCommander
 {
@@ -307,5 +307,6 @@ namespace HTCommander
             // Scroll to the caret (which is now at the end) to make the new entry visible
             rtb.ScrollToCaret();
         }
+
     }
 }

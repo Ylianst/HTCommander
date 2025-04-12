@@ -82,6 +82,7 @@
             this.groupBox6 = new System.Windows.Forms.GroupBox();
             this.label14 = new System.Windows.Forms.Label();
             this.voicesComboBox = new System.Windows.Forms.ComboBox();
+            this.cancelDownloadButton = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.licenseTabPage.SuspendLayout();
             this.groupBox1.SuspendLayout();
@@ -414,6 +415,7 @@
             // 
             // groupBox5
             // 
+            this.groupBox5.Controls.Add(this.cancelDownloadButton);
             this.groupBox5.Controls.Add(this.label12);
             this.groupBox5.Controls.Add(this.modelsComboBox);
             this.groupBox5.Controls.Add(this.label11);
@@ -706,6 +708,7 @@
             this.cancelButton.TabIndex = 15;
             this.cancelButton.Text = "Cancel";
             this.cancelButton.UseVisualStyleBackColor = true;
+            this.cancelButton.Click += new System.EventHandler(this.cancelButton_Click);
             // 
             // groupBox6
             // 
@@ -739,6 +742,18 @@
             this.voicesComboBox.Name = "voicesComboBox";
             this.voicesComboBox.Size = new System.Drawing.Size(238, 21);
             this.voicesComboBox.TabIndex = 5;
+            // 
+            // cancelDownloadButton
+            // 
+            this.cancelDownloadButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.cancelDownloadButton.Location = new System.Drawing.Point(112, 74);
+            this.cancelDownloadButton.Name = "cancelDownloadButton";
+            this.cancelDownloadButton.Size = new System.Drawing.Size(75, 23);
+            this.cancelDownloadButton.TabIndex = 9;
+            this.cancelDownloadButton.Text = "Cancel";
+            this.cancelDownloadButton.UseVisualStyleBackColor = true;
+            this.cancelDownloadButton.Visible = false;
+            this.cancelDownloadButton.Click += new System.EventHandler(this.cancelDownloadButton_Click);
             // 
             // SettingsForm
             // 
@@ -842,5 +857,6 @@
         private System.Windows.Forms.GroupBox groupBox6;
         private System.Windows.Forms.Label label14;
         private System.Windows.Forms.ComboBox voicesComboBox;
+        private System.Windows.Forms.Button cancelDownloadButton;
     }
 }

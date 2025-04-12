@@ -59,13 +59,13 @@ namespace HTCommander
         string[] models = new string[] {
             "None",
             "Tiny, 77.7 MB",
-            "Tiny.en, 77.7 MB, English Only",
-            "Base, 148 MB, Recommended",
-            "Base.en, 148 MB, English Only",
+            "Tiny.en, 77.7 MB, English",
+            "Base, 148 MB",
+            "Base.en, 148 MB, English (Recommended)",
             "Small, 488 MB",
-            "Small.en, 488 MB, English Only",
+            "Small.en, 488 MB, English",
             "Medium, 1.53 GB",
-            "Medium.en, 1.53 GB, English Only",
+            "Medium.en, 1.53 GB, English",
             //"Large-v3-turbo-q5_0, 574 MB"
             //"Large-v1, 3.09 GB",
             //"Large-v2, 3.09 GB",
@@ -173,6 +173,11 @@ namespace HTCommander
             UpdateInfo();
         }
 
+        public void MoveToTab(int tabIndex)
+        {
+            if (tabControl1.TabPages.Count > tabIndex) { tabControl1.SelectedIndex = tabIndex; }
+        }
+
         private void SettingsForm_Load(object sender, EventArgs e)
         {
             // If there are no ARPS routes, add the default one.
@@ -230,8 +235,9 @@ namespace HTCommander
             // For the models, if the selected model is "None", disable the download button.
             ComboBoxItem selected = (ComboBoxItem)modelsComboBox.SelectedItem;
             string filename = "ggml-" + selected.Value.ToLower() + ".bin";
-            downloadButton.Enabled = (_cts == null) && (modelsComboBox.SelectedIndex != 0) && !File.Exists(filename);
-            deleteButton.Enabled = (modelsComboBox.SelectedIndex != 0) && File.Exists(filename);
+            string appDataFilename = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", filename);
+            downloadButton.Enabled = (_cts == null) && (modelsComboBox.SelectedIndex != 0) && !File.Exists(appDataFilename);
+            deleteButton.Enabled = (modelsComboBox.SelectedIndex != 0) && File.Exists(appDataFilename);
 
             // okButton
             okButton.Enabled = (downloadButton.Enabled == false);
@@ -320,10 +326,14 @@ namespace HTCommander
 
         private async void downloadButton_Click(object sender, EventArgs e)
         {
+            // Get application data path
             string model = ((ComboBoxItem)modelsComboBox.SelectedItem).Value;
             string url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-" + model.ToLower() + ".bin?download=true";
             string filename = "ggml-" + model.ToLower() + ".bin";
-            string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", filename);
+            string filenamePart = "ggml-" + model.ToLower() + ".bin.part";
+            string appDataFilename = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", filename);
+            string appDataFilenamePart = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", filenamePart);
+            File.Delete(appDataFilenamePart);
 
             try
             {
@@ -332,12 +342,19 @@ namespace HTCommander
                 var progressIndicator = new Progress<DownloadProgressInfo>(ReportProgress);
 
                 // Start the download asynchronously
-                await _downloader.DownloadFileAsync(url, filename, progressIndicator, _cts);
+                cancelDownloadButton.Visible = true;
+                downloadButton.Enabled = false;
+                await _downloader.DownloadFileAsync(url, appDataFilenamePart, progressIndicator, _cts);
             }
             catch (Exception ex) // Catch potential exceptions during setup/await if not caught by downloader
             {
+                cancelDownloadButton.Visible = false;
                 MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                UpdateInfo();
+                return;
             }
+            cancelDownloadButton.Visible = false;
+            try { File.Move(appDataFilenamePart, appDataFilename); } catch (Exception) { }
             UpdateInfo();
         }
 
@@ -383,8 +400,19 @@ namespace HTCommander
             {
                 string model = ((ComboBoxItem)modelsComboBox.SelectedItem).Value;
                 string filename = "ggml-" + model.ToLower() + ".bin";
-                if (File.Exists(filename)) { File.Delete(filename); UpdateInfo(); }
+                string appDataFilename = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", filename);
+                if (File.Exists(appDataFilename)) { File.Delete(appDataFilename); UpdateInfo(); }
             }
+        }
+
+        private void cancelDownloadButton_Click(object sender, EventArgs e)
+        {
+            if (_cts != null) { _cts.Cancel(); }
+        }
+
+        private void cancelButton_Click(object sender, EventArgs e)
+        {
+            if (_cts != null) { _cts.Cancel(); }
         }
     }
 }
