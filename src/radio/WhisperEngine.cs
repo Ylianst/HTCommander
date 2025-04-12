@@ -37,6 +37,7 @@ namespace HTCommander.radio // Use your original namespace
             this.radio = radio;
 
             // Initialize the synthesizer
+            //synthesizer.SetOutputToDefaultAudioDevice();
             synthesizer.SetOutputToAudioStream(audioStream, new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
             synthesizer.SelectVoice("Microsoft Zira Desktop");
             synthesizer.Rate = 0; // Set the rate to 0 for normal speed
@@ -44,19 +45,42 @@ namespace HTCommander.radio // Use your original namespace
             synthesizer.SpeakCompleted += Synthesizer_SpeakCompleted;
         }
 
-        public void Speak(string text)
+        public bool Speak(string text)
         {
+            if (Processing) return false; // Already processing another speech
             Processing = true;
             synthesizer.SpeakAsync(text);
+            return true;
         }
 
         private void Synthesizer_SpeakCompleted(object sender, SpeakCompletedEventArgs e)
         {
-            byte[] speech = audioStream.ToArray();
-            radio.TransmitVoice(speech, 0, speech.Length);
-            audioStream.SetLength(0); // Clear the stream for next use
-            Processing = false;
+            Task.Run(() =>
+            {
+                byte[] speech = audioStream.ToArray();
+                BoostVolume(speech, speech.Length, 5f); // Boost volume
+                radio.TransmitVoice(speech, 0, speech.Length, true);
+                audioStream.SetLength(0);
+                Processing = false;
+            });
         }
+
+        private void BoostVolume(byte[] buffer, int bytesRecorded, float volume)
+        {
+            for (int i = 0; i < bytesRecorded; i += 2)
+            {
+                short sample = (short)(buffer[i] | (buffer[i + 1] << 8));
+                int boosted = (int)(sample * volume);
+
+                // Clamp to prevent clipping
+                if (boosted > short.MaxValue) boosted = short.MaxValue;
+                if (boosted < short.MinValue) boosted = short.MinValue;
+
+                buffer[i] = (byte)(boosted & 0xFF);
+                buffer[i + 1] = (byte)((boosted >> 8) & 0xFF);
+            }
+        }
+
     }
 
     public class WhisperEngine

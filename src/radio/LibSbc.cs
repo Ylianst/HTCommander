@@ -35,7 +35,7 @@ namespace HTCommander
         [StructLayout(LayoutKind.Sequential)]
         public struct sbc_struct
         {
-            public ulong flags;
+            public uint flags;
             public byte frequency;
             public byte blocks;
             public byte subbands;

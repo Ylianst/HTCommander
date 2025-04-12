@@ -435,12 +435,12 @@ namespace HTCommander
             radioAudio.speechToText = false;
         }
 
-        public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength)
+        public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength, bool play)
         {
             if (state != RadioState.Connected) return false;
             if (radioAudio.IsAudioEnabled == false) { Debug("Audio is not enabled"); return false; }
             if (radioTransport == null) { Debug("Radio transport is null"); return false; }
-            return radioAudio.TransmitVoice(pcmInputData, pcmOffset, pcmLength);
+            return radioAudio.TransmitVoice(pcmInputData, pcmOffset, pcmLength, play);
         }
 
         public void Dispose()

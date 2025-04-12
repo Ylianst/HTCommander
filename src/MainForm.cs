@@ -124,7 +124,7 @@ namespace HTCommander
 
         private void Microphone_DataAvailable(byte[] data, int bytesRecorded)
         {
-            if (microphoneTransmit) { radio.TransmitVoice(data, 0, bytesRecorded); }
+            if (microphoneTransmit) { radio.TransmitVoice(data, 0, bytesRecorded, false); }
         }
 
         public int GetNextAprsMessageId()
@@ -1778,7 +1778,7 @@ namespace HTCommander
 
             // Voice
             voiceBottomPanel.Visible = allowTransmit;
-            speakButton.Enabled = speakTextBox.Enabled = (radio.State == Radio.RadioState.Connected) && allowTransmit && (activeStationLock == null);
+            speakButton.Enabled = speakTextBox.Enabled = true; // (radio.State == Radio.RadioState.Connected) && allowTransmit && (activeStationLock == null);
 
             // Terminal
             terminalInputTextBox.Enabled = ((radio.State == Radio.RadioState.Connected) && (activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal));
@@ -4171,7 +4171,7 @@ namespace HTCommander
         private void speakButton_Click(object sender, EventArgs e)
         {
             voiceEngine.Speak(speakTextBox.Text);
-            speakTextBox.Clear();
+            //speakTextBox.Clear();
         }
     }
 }

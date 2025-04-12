@@ -47,6 +47,7 @@ namespace HTCommander
         private int pcmInputSizePerFrame; // Expected PCM bytes per encode call
         private int sbcOutputSizePerFrame; // Max SBC bytes generated per encode call
         private byte[] sbcOutputBuffer; // Reusable buffer for SBC frame output
+        private BufferedWaveProvider waveProvider;
 
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
@@ -196,13 +197,14 @@ namespace HTCommander
             {
                 // Initialize SBC context
                 sbcContext2 = new LibSbc.sbc_struct();
+                int initResult = LibSbc.sbc_init(ref sbcContext2, 0);
                 sbcContext2.frequency = LibSbc.SBC_FREQ_32000;
+                sbcContext2.blocks = LibSbc.SBC_BLK_16;
                 sbcContext2.endian = LibSbc.SBC_LE;
                 sbcContext2.mode = LibSbc.SBC_MODE_MONO;
-                sbcContext2.blocks = LibSbc.SBC_BLK_16;
                 sbcContext2.allocation = LibSbc.SBC_AM_LOUDNESS;
                 sbcContext2.subbands = LibSbc.SBC_SB_8;
-                int initResult = LibSbc.sbc_init(ref sbcContext2, 0);
+                sbcContext2.bitpool = 18;
                 if (initResult != 0) { Debug($"Error initializing SBC (A2DP): {initResult}"); running = false; return; }
 
                 sbcContext = new LibSbc.sbc_struct();
@@ -215,12 +217,13 @@ namespace HTCommander
                 sbcOutputSizePerFrame = (int)LibSbc.sbc_get_frame_length(ref sbcContext).ToUInt32();
 
                 // Allocate reusable output buffer
-                sbcOutputBuffer = new byte[sbcOutputSizePerFrame];
+                //sbcOutputBuffer = new byte[sbcOutputSizePerFrame + 1024];
+                sbcOutputBuffer = new byte[1024];
 
                 // Configure audio output (adjust format based on SBC parameters)
                 // These are common A2DP SBC defaults, but the actual device might differ.
                 WaveFormat waveFormat = new WaveFormat(32000, 16, 1);
-                BufferedWaveProvider waveProvider = new BufferedWaveProvider(waveFormat);
+                waveProvider = new BufferedWaveProvider(waveFormat);
                 waveOut = new WaveOutEvent();
                 waveOut.Init(waveProvider);
                 waveOut.Play();
@@ -268,7 +271,7 @@ namespace HTCommander
                                             speechToTextEngine = null;
                                             if (onProcessingVoice != null) { onProcessingVoice(false, false); }
                                         }
-                                        DecodeSbcFrame(waveProvider, uframe, 1, uframe.Length - 1);
+                                        DecodeSbcFrame(uframe, 1, uframe.Length - 1);
                                         maxVoiceDecodeTime += (uframe.Length - 1);
                                         if ((speechToTextEngine != null) && (maxVoiceDecodeTime > 19200000)) // 5 minutes (32k * 2 * 60 & 5)
                                         {
@@ -277,7 +280,7 @@ namespace HTCommander
                                         }
                                         break;
                                     case 0x01: // Audio end
-                                        //Debug("Command: 0x01, Audio End, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
+                                        Debug("Command: 0x01, Audio End, Size: " + uframe.Length);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
                                         if (speechToTextEngine != null)
                                         {
                                             speechToTextEngine.ResetVoiceSegment();
@@ -285,7 +288,7 @@ namespace HTCommander
                                         }
                                         break;
                                     case 0x02: // Audio ACK
-                                        //Debug("Command: 0x02, Audio Ack, Size: " + uframe.Length + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
+                                        Debug("Command: 0x02, Audio Ack, Size: " + uframe.Length);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
                                         break;
                                     default:
                                         Debug($"Unknown command: {uframe[0]}");
@@ -338,7 +341,7 @@ namespace HTCommander
             if (onProcessingVoice != null) { onProcessingVoice(speechToTextEngine != null, processing); }
         }
 
-        private int DecodeSbcFrame(BufferedWaveProvider waveProvider, byte[] sbcFrame, int start, int length)
+        private int DecodeSbcFrame(byte[] sbcFrame, int start, int length)
         {
             if (sbcFrame == null || sbcFrame.Length == 0) return 1;
 
@@ -362,9 +365,7 @@ namespace HTCommander
                 sbcPtr += (int)decodeResult;
                 sbcLen -= (int)decodeResult;
                 try { waveProvider.AddSamples(pcmFrame, 0, (int)written); } catch (Exception) { }
-                if (speechToTextEngine != null) {
-                    speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, (int)written, currentChannelName);
-                }
+                if (speechToTextEngine != null) { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, (int)written, currentChannelName); }
             }
 
             pcmHandle.Free();
@@ -372,15 +373,16 @@ namespace HTCommander
             return 0;
         }
 
-        public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength)
+        public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength, bool play)
         {
+            if (play) { waveProvider.AddSamples(pcmInputData, pcmOffset, pcmLength); }
+
             byte[] encodedSbcFrame;
             int bytesConsumed;
-            while (pcmLength > pcmInputSizePerFrame)
+            while (pcmLength > 0)
             {
                 // Process the PCM data in chunks, Encode PCM to SBC
-                bool r = EncodeSbcFrame(pcmInputData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed);
-                if (r == false) return false;
+                if (!EncodeSbcFrame(pcmInputData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed)) return false;
                 pcmOffset += bytesConsumed;
                 pcmLength -= bytesConsumed;
 
@@ -389,7 +391,14 @@ namespace HTCommander
 
                 // Send the SBC frame over Bluetooth
                 audioStream.WriteAsync(escaped, 0, escaped.Length);
+                audioStream.FlushAsync();
             }
+
+            // Send end audio frame
+            byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
+            audioStream.WriteAsync(endAudio, 0, endAudio.Length);
+            audioStream.FlushAsync();
+
             return true;
         }
 
@@ -397,8 +406,6 @@ namespace HTCommander
         {
             encodedSbcFrame = null;
             bytesConsumed = 0;
-
-            //if (!isInitialized) { return false; }
             if (pcmInputData == null) { return false; }
             if (sbcOutputBuffer == null) { return false; }
             if (pcmLength < pcmInputSizePerFrame) { return false; }
@@ -407,63 +414,44 @@ namespace HTCommander
             // Pin the PCM input buffer segment
             GCHandle pcmHandle = GCHandle.Alloc(pcmInputData, GCHandleType.Pinned);
             IntPtr pcmPtr = pcmHandle.AddrOfPinnedObject() + pcmOffset;
-            UIntPtr pcmLen = (UIntPtr)pcmInputSizePerFrame; // Process exactly one frame's worth
+            //UIntPtr pcmLen = (UIntPtr)pcmInputSizePerFrame; // Process exactly one frame's worth
+            UIntPtr pcmLen = (UIntPtr)pcmLength;
 
             // Pin the reusable SBC output buffer
             GCHandle sbcHandle = GCHandle.Alloc(sbcOutputBuffer, GCHandleType.Pinned);
             IntPtr sbcPtr = sbcHandle.AddrOfPinnedObject();
-            UIntPtr sbcBufLen = (UIntPtr)sbcOutputBuffer.Length; // Max capacity
-
+            UIntPtr sbcBufLen = (UIntPtr)(sbcOutputBuffer.Length); // Max capacity
             IntPtr sbcBytesWritten; // To receive the actual number of bytes written
+
+            int TotalToConsume = pcmLength;
+            int TotalGenerated = 0;
 
             try
             {
-                // Call the native SBC encode function
-                IntPtr consumedResult = LibSbc.sbc_encode(ref sbcContext2, pcmPtr, pcmLen, sbcPtr, sbcBufLen, out sbcBytesWritten);
-
-                if (consumedResult.ToInt64() < 0)
+                while ((TotalToConsume >= pcmInputSizePerFrame) && (TotalGenerated < 300))
                 {
-                    Console.Error.WriteLine($"SBC encoding failed with error code: {consumedResult.ToInt64()}");
-                    return false; // Encoding error
-                }
+                    // Call the native SBC encode function
+                    int bytesConsumedThisRound = (int)LibSbc.sbc_encode(ref sbcContext2, pcmPtr, pcmLen, sbcPtr, sbcBufLen, out sbcBytesWritten).ToInt64();
+                    if (bytesConsumedThisRound < 0) return false;
+                    int sbcWrittenBytes = (int)sbcBytesWritten.ToInt64();
 
-                bytesConsumed = (int)consumedResult.ToInt64();
-
-                if (bytesConsumed > pcmInputSizePerFrame)
-                {
-                    // Should not happen if pcmLen was set correctly, but check anyway
-                    Console.Error.WriteLine($"Warning: SBC encode consumed {bytesConsumed} bytes, more than expected {pcmInputSizePerFrame}");
-                    bytesConsumed = pcmInputSizePerFrame; // Cap consumption
+                    TotalToConsume -= bytesConsumedThisRound;
+                    TotalGenerated += sbcWrittenBytes;
+                    pcmPtr += bytesConsumedThisRound;
+                    pcmLen -= bytesConsumedThisRound;
+                    sbcPtr += sbcWrittenBytes;
+                    sbcBufLen -= sbcWrittenBytes;
+                    bytesConsumed += bytesConsumedThisRound;
                 }
-                else if (bytesConsumed == 0 && pcmInputSizePerFrame > 0)
-                {
-                    // Consumed nothing - likely an issue or end of stream?
-                    Console.Error.WriteLine($"Warning: SBC encode consumed 0 bytes.");
-                    // Depending on lib behavior, this might be ok or an error.
-                    // Let's treat it as non-fatal for now, but report 0 bytes written.
-                    sbcBytesWritten = IntPtr.Zero;
-                }
-
 
                 // If bytes were written to the SBC buffer, copy them to the output array
-                int actualSbcBytes = (int)sbcBytesWritten.ToInt64();
-                if (actualSbcBytes > 0)
+                if (TotalGenerated > 0)
                 {
-                    if (actualSbcBytes > sbcOutputSizePerFrame)
-                    {
-                        Console.Error.WriteLine($"Error: SBC encode wrote {actualSbcBytes} bytes, exceeding buffer capacity {sbcOutputSizePerFrame}.");
-                        return false; // Buffer overflow potentially happened
-                    }
-                    encodedSbcFrame = new byte[actualSbcBytes];
-                    Array.Copy(sbcOutputBuffer, 0, encodedSbcFrame, 0, actualSbcBytes);
-                }
-                else
-                {
-                    // No bytes written, return null frame but indicate consumption if any occurred
-                    encodedSbcFrame = null; // Or return byte[0];
+                    encodedSbcFrame = new byte[TotalGenerated];
+                    Array.Copy(sbcOutputBuffer, 0, encodedSbcFrame, 0, TotalGenerated);
                 }
 
-                return true; // Success (even if 0 bytes written, we consumed input)
+                return true;
             }
             catch (Exception ex)
             {
@@ -476,6 +464,61 @@ namespace HTCommander
                 if (sbcHandle.IsAllocated) sbcHandle.Free();
                 if (pcmHandle.IsAllocated) pcmHandle.Free();
             }
+        }
+
+
+        public static void ParseSbcFrame(byte[] data)
+        {
+            if (data.Length < 4)
+            {
+                Console.WriteLine("Frame too short to be valid.");
+                return;
+            }
+
+            int index = 0;
+
+            // Sync word
+            if (data[index++] != 0x9C)
+            {
+                Console.WriteLine("Invalid SBC frame: Missing sync word (0x9C).");
+                return;
+            }
+
+            byte headerByte = data[index++];
+
+            // Sampling Frequency
+            int samplingFreq = (headerByte >> 6) & 0x03;
+            string[] frequencies = { "16 kHz", "32 kHz", "44.1 kHz", "48 kHz" };
+
+            // Block Count
+            int blocks = ((headerByte >> 4) & 0x03);
+            int[] blockValues = { 4, 8, 12, 16 };
+
+            // Channel Mode
+            int channelMode = (headerByte >> 2) & 0x03;
+            string[] channelModes = { "Mono", "Dual Channel", "Stereo", "Joint Stereo" };
+
+            // Allocation Method
+            int allocationMethod = (headerByte >> 1) & 0x01;
+            string allocation = allocationMethod == 0 ? "Loudness" : "SNR";
+
+            // Subbands
+            int subbands = (headerByte & 0x01) == 0 ? 4 : 8;
+
+            // Bitpool
+            byte bitpool = data[index++];
+
+            // CRC
+            byte crc = data[index++];
+
+            Console.WriteLine("SBC Frame Parsed:");
+            Console.WriteLine($"  Sampling Frequency : {frequencies[samplingFreq]}");
+            Console.WriteLine($"  Blocks             : {blockValues[blocks]}");
+            Console.WriteLine($"  Channel Mode       : {channelModes[channelMode]}");
+            Console.WriteLine($"  Allocation Method  : {allocation}");
+            Console.WriteLine($"  Subbands           : {subbands}");
+            Console.WriteLine($"  Bitpool            : {bitpool}");
+            Console.WriteLine($"  CRC                : 0x{crc:X2}");
         }
 
     }
