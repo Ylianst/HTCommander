@@ -29,6 +29,12 @@ namespace HTCommander
 {
     public class Utils
     {
+        [DllImport("user32.dll")]
+        public static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        public const int WM_SETREDRAW = 0x0B;
+
+
         public static string BytesToHex(byte[] Bytes)
         {
             if (Bytes == null) return "";
@@ -218,13 +224,13 @@ namespace HTCommander
         {
             return @"{\rtf1\ansi " + _builder.ToString() + @" }";
         }
-        public static void AddFormattedEntry(RichTextBox rtb, DateTime entryTime, string smallText, string largeText, bool outbound = false)
+        public static void AddFormattedEntry(RichTextBox rtb, DateTime entryTime, string smallText, string largeText, bool completed, bool outbound)
         {
             // Ensure we are manipulating the control on the UI thread
             if (rtb.InvokeRequired)
             {
                 // If called from a different thread, marshal the call back to the UI thread
-                rtb.Invoke(new Action(() => AddFormattedEntry(rtb, entryTime, smallText, largeText)));
+                rtb.Invoke(new Action(() => AddFormattedEntry(rtb, entryTime, smallText, largeText, completed, outbound)));
                 return; // Exit the current (non-UI thread) method call
             }
 
@@ -240,6 +246,7 @@ namespace HTCommander
             Font largeFont = new Font(baseFontFamily, 11f, FontStyle.Regular); // Adjust size as needed
             Color largeColor = Color.Black;
             if (outbound) { largeColor = Color.Red; }
+            else if (!completed) { largeColor = Color.DarkBlue; }
 
             // Separator line - using a character that repeats well
             // Adjust the count (e.g., 50) based on your RichTextBox width and preference

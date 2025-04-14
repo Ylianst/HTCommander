@@ -367,9 +367,9 @@ namespace HTCommander
             ClearChannelTimer.Enabled = false;
         }
 
-        private void RadioAudio_onTextReady(string text, string channel, DateTime time)
+        private void RadioAudio_onTextReady(string text, string channel, DateTime time, bool completed)
         {
-            if (onTextReady != null) { onTextReady(text, channel, time); }
+            if (onTextReady != null) { onTextReady(text, channel, time, completed); }
         }
 
         private void RadioAudio_onProcessingVoice(bool listening, bool processing)
@@ -417,7 +417,7 @@ namespace HTCommander
         public delegate void AudioStateChangedHandler(Radio sender, bool enabled);
         public event AudioStateChangedHandler OnAudioStateChanged;
 
-        public delegate void OnTextReadyHandler(string text, string channel, DateTime time);
+        public delegate void OnTextReadyHandler(string text, string channel, DateTime time, bool completed);
         public event OnTextReadyHandler onTextReady;
 
         public delegate void OnProcessingVoiceHandler(bool listening, bool processing);

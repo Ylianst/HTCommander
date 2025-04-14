@@ -22,6 +22,8 @@ using NAudio.Wave;
 using Whisper.net;
 using System.Speech.Synthesis;
 using System.Speech.AudioFormat;
+using System.Text;
+using System.Linq;
 
 namespace HTCommander.radio // Use your original namespace
 {
@@ -115,13 +117,18 @@ namespace HTCommander.radio // Use your original namespace
         private int audioBufferLength = 0;
         private DateTime audioBufferTime = DateTime.MinValue;
         private string audioBufferChannel = null;
+        private int audioTimeOffset = 0;
         private DateTime processingAudioBufferTime = DateTime.MinValue;
         private string processingAudioBufferChannel = null;
+        private int processingAudioTimeOffset = 0;
+        private bool processingAudioCompleted = false;
         private bool processing = false;
         private bool disposed = false;
         private List<ProcessingHold> ProcessingHolds = new List<ProcessingHold>();
+        private List<WhisperToken> Tokens = new List<WhisperToken>();
+        private List<WhisperToken> NewTokens = new List<WhisperToken>();
 
-        public delegate void OnTextReadyHandler(string text, string channel, DateTime time);
+        public delegate void OnTextReadyHandler(string text, string channel, DateTime time, bool completed);
         public event OnTextReadyHandler onTextReady;
         public delegate void OnProcessingVoiceHandler(bool processing);
         public event OnProcessingVoiceHandler onProcessingVoice;
@@ -133,15 +140,19 @@ namespace HTCommander.radio // Use your original namespace
         // Holding buffer for audio data
         private class ProcessingHold
         {
-            public ProcessingHold(DateTime time, string channel, float[] buffer)
+            public ProcessingHold(DateTime time, int offset, string channel, float[] buffer, bool completed)
             {
                 holdAudioBufferTime = time;
                 holdAudioBufferChannel = channel;
                 holdAudioBuffer = buffer;
+                holdAudioTimeOffset = offset;
+                holdAudioCompleted = completed;
             }
             public DateTime holdAudioBufferTime;
             public string holdAudioBufferChannel;
             public float[] holdAudioBuffer;
+            public int holdAudioTimeOffset;
+            public bool holdAudioCompleted;
         }
 
         // "ggml-tiny.bin", "ggml-base.bin"
@@ -165,6 +176,7 @@ namespace HTCommander.radio // Use your original namespace
                     // --- Configure the processor ---
                     builder = builder.WithThreads(Math.Max(1, Environment.ProcessorCount / 2));
                     if (language == "auto") { builder = builder.WithLanguageDetection(); } else { builder = builder.WithLanguage(language); }
+                    builder = builder.WithTokenTimestamps();
                     builder = builder.WithSegmentEventHandler(OnWhisperInternalSegmentReceived);
 
                     _processor = builder.Build();
@@ -188,6 +200,8 @@ namespace HTCommander.radio // Use your original namespace
             ProcessAudioChunk(null, 0, 0, null);
         }
 
+        int segmentsOverlap = 512000;
+
         public void ProcessAudioChunk(byte[] data, int index, int length, string channel)
         {
             if (_processor == null) return;
@@ -210,14 +224,15 @@ namespace HTCommander.radio // Use your original namespace
             if ((audioBufferLength > 0) && ((audioBufferLength > (audioBuffer.Length - 1024)) || (length == 0)))
             {
                 // Resample the audio from 32kHz to 16kHz
+                int originalAudioBufferLength = audioBufferLength;
                 byte[] pcm16kBytes = ResampleAudioChunk(audioBuffer, 0, audioBufferLength);
                 if (pcm16kBytes == null || pcm16kBytes.Length == 0) return;
 
                 // Reset the buffer for the next chunk
                 if (length > 0)
                 {
-                    Array.Copy(audioBuffer, 1280000 - 128000, audioBuffer, 0, 128000);
-                    audioBufferLength = 128000;
+                    Array.Copy(audioBuffer, audioBufferLength - segmentsOverlap, audioBuffer, 0, segmentsOverlap);
+                    audioBufferLength = segmentsOverlap;
                 }
                 else
                 {
@@ -231,31 +246,42 @@ namespace HTCommander.radio // Use your original namespace
                     if (onProcessingVoice != null) { onProcessingVoice(true); }
                     processingAudioBufferTime = audioBufferTime;
                     processingAudioBufferChannel = audioBufferChannel;
+                    processingAudioTimeOffset = audioTimeOffset;
+                    processingAudioCompleted = (length == 0);
                     try
                     {
                         Task.Run(() => {
-                            try { _processor.Process(ConvertPcm16ToFloat32(pcm16kBytes)); } catch (Exception) { }
-                        })
-                        .ContinueWith(task => { if (task.IsCompleted) { OnWhispeCompleted(); } });
+                            try {
+                                _processor.Process(ConvertPcm16ToFloat32(pcm16kBytes));} catch (Exception ex) { Console.WriteLine(ex.Message); } })
+                                .ContinueWith(task => { if (task.IsCompleted) { OnWhispeCompleted(); }
+                            }
+                        );
                     }
-                    catch (Exception) { }
+                    catch (Exception ex) { Console.WriteLine(ex.Message); }
                 }
                 else
                 {
                     if (ProcessingHolds.Count < 5)
                     {
-                        Debug("Processing hold added");
                         lock (ProcessingHolds)
                         {
-                            ProcessingHolds.Add(new ProcessingHold(audioBufferTime, audioBufferChannel, ConvertPcm16ToFloat32(pcm16kBytes)));
+                            ProcessingHolds.Add(new ProcessingHold(audioBufferTime, audioTimeOffset, audioBufferChannel, ConvertPcm16ToFloat32(pcm16kBytes), length == 0));
                         }
                     }
                     else
                     {
-                        if (onTextReady != null) { onTextReady(null, "(CPU Overloaded)", DateTime.MinValue); }
+                        if (onTextReady != null) { onTextReady(null, "(CPU Overloaded)", DateTime.MinValue, true); }
                     }
                 }
-                audioBufferChannel = null;
+                if (length == 0)
+                {
+                    audioBufferChannel = null;
+                    audioTimeOffset = 0;
+                }
+                else
+                {
+                    audioTimeOffset += ((originalAudioBufferLength - segmentsOverlap) / 640) + 25; // There is 64 bytes in the buffer for each millisecond (32 kHz, 16 bits)
+                }
             }
         }
 
@@ -269,16 +295,29 @@ namespace HTCommander.radio // Use your original namespace
 
         private void OnWhisperInternalSegmentReceived(SegmentData segment)
         {
-            // Remove unwanted segments
-            string t = segment.Text.Trim();
-            if ((t == "[BLANK_AUDIO]") || (t == "(water running)") || (t == "*whistles*") || (t == "[Music]") || (t == "(gunshot)")) return;
-
-            // Event the segment
-            if (onTextReady != null) { onTextReady(segment.Text, processingAudioBufferChannel, processingAudioBufferTime.Add(segment.Start)); }
+            foreach (var token in segment.Tokens) {
+                if (token.Text.StartsWith("[") && token.Text.EndsWith("]")) continue;
+                NewTokens.Add(token);
+            }
         }
 
         private void OnWhispeCompleted()
         {
+            if (Tokens.Count == 0)
+            {
+                Tokens.AddRange(NewTokens);
+            }
+            else
+            {
+                // Merge the new tokens with the existing ones
+                Tokens = MergeTokens(Tokens, NewTokens, processingAudioTimeOffset);
+                NewTokens.Clear();
+            }
+
+            if (Tokens.Count > 600) { processingAudioCompleted = true; } // Over 600 tokens, reset the token window.
+            if (onTextReady != null) { onTextReady(TokensToString(Tokens), processingAudioBufferChannel, processingAudioBufferTime, processingAudioCompleted); }
+            if (processingAudioCompleted) { Tokens.Clear(); }
+
             // We are done, process the next round
             lock (ProcessingHolds)
             {
@@ -288,7 +327,16 @@ namespace HTCommander.radio // Use your original namespace
                     ProcessingHolds.RemoveAt(0);
                     processingAudioBufferTime = p.holdAudioBufferTime;
                     processingAudioBufferChannel = p.holdAudioBufferChannel;
-                    try { Task.Run(() => { _processor.Process(p.holdAudioBuffer); }); } catch (Exception) { }
+                    processingAudioTimeOffset = p.holdAudioTimeOffset;
+                    processingAudioCompleted = p.holdAudioCompleted;
+                    try
+                    {
+                        Task.Run(() => {
+                            try{ _processor.Process(p.holdAudioBuffer); } catch (Exception ex) { Console.WriteLine(ex.Message); }
+                        })
+                        .ContinueWith(task => { if (task.IsCompleted) { OnWhispeCompleted(); } });
+                    }
+                    catch (Exception ex) { Console.WriteLine(ex.Message); }
                 }
                 else
                 {
@@ -330,5 +378,417 @@ namespace HTCommander.radio // Use your original namespace
                 }
             }
         }
+
+        private string TokensToString(List<WhisperToken> tokens)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (var token in tokens) {
+                //if (token.Text.StartsWith("[") && token.Text.EndsWith("]")) continue;
+                sb.Append(token.Text);
+            }
+            return sb.ToString();
+        }
+
+        private static WhisperToken CreateWhisperToken(string text, long start, long end, float probability)
+        {
+            WhisperToken t = new WhisperToken();
+            t.Text = text;
+            t.Start = start;
+            t.End = end;
+            t.Probability = probability;
+            return t;
+        }
+
+        // --- Configuration ---
+        // Minimum number of consecutive matching tokens to consider a reliable overlap
+        private const int MinMatchLength = 3;
+        // Time tolerance when comparing token start times during matching
+        private const int TimeTolerance = 100; // In seconds. Adjust based on observed jitter.
+
+        /*
+        /// <summary>
+        /// Merges a new list of tokens into an existing list, using an offset.
+        /// It attempts to find a matching sequence in the overlap to determine
+        /// the best midpoint cut-off.
+        /// </summary>
+        /// <param name="existingTokens">The list of tokens already merged.</param>
+        /// <param name="newTokensArray">The new tokens from the next overlapping chunk.</param>
+        /// <param name="newChunkOffsetSec">The start time (in seconds) of the audio chunk
+        /// that produced newTokensArray, relative to the start of the first chunk.</param>
+        /// <returns>A new list containing the merged tokens.</returns>
+        public static List<WhisperToken> MergeTokens10(
+            List<WhisperToken> existingTokens,
+            List<WhisperToken> newTokensArray,
+            long newChunkOffsetSec)
+        {
+            // --- Basic Edge Cases ---
+            if (newTokensArray == null || newTokensArray.Count == 0)
+            {
+                return new List<WhisperToken>(existingTokens ?? new List<WhisperToken>());
+            }
+
+            if (existingTokens == null || existingTokens.Count == 0)
+            {
+                // Adjust timestamps of new tokens and return them
+                return newTokensArray.Select(t => CreateWhisperToken(
+                                                t.Text,
+                                                t.Start + newChunkOffsetSec,
+                                                t.End + newChunkOffsetSec,
+                                                0))
+                                    .ToList();
+            }
+
+            // --- Prepare New Tokens with Adjusted Timestamps ---
+            // Create a list and adjust times globally
+            List<WhisperToken> adjustedNewTokens = newTokensArray.Select(t => CreateWhisperToken(
+                                                        t.Text,
+                                                        t.Start + newChunkOffsetSec,
+                                                        t.End + newChunkOffsetSec,
+                                                        0))
+                                                    .ToList();
+
+            // --- Check for Non-Overlapping Case ---
+            float lastExistingEndTime = existingTokens.LastOrDefault()?.End ?? 0f;
+            float firstNewStartTime = adjustedNewTokens.FirstOrDefault()?.Start ?? float.MaxValue;
+
+            if (lastExistingEndTime < firstNewStartTime)
+            {
+                // No time overlap, simply concatenate
+                List<WhisperToken> combined = new List<WhisperToken>(existingTokens);
+                combined.AddRange(adjustedNewTokens);
+                return combined;
+            }
+
+
+            // --- Find Best Matching Sequence in Overlap ---
+            int bestMatchLength = 0;
+            int bestExistingMatchEndIndex = -1; // Index of the *last* token in the matched sequence in existingTokens
+            int bestNewMatchStartIndex = -1;    // Index of the *first* token in the matched sequence in adjustedNewTokens
+
+            // Iterate backwards through existing tokens, starting from potential overlap
+            int searchStartExisting = existingTokens.FindIndex(t => t.End >= newChunkOffsetSec);
+            if (searchStartExisting == -1) searchStartExisting = 0; // Should not happen if overlap exists, but safety first
+
+            for (int i = existingTokens.Count - 1; i >= searchStartExisting; i--)
+            {
+                // Iterate forwards through new tokens
+                for (int j = 0; j < adjustedNewTokens.Count; j++)
+                {
+                    // Check if current pair (i, j) potentially starts a match
+                    if (existingTokens[i].Text == adjustedNewTokens[j].Text &&
+                        Math.Abs(existingTokens[i].Start - adjustedNewTokens[j].Start) < TimeTolerance)
+                    {
+                        // Found a potential start, now extend the match
+                        int currentMatchLength = 0;
+                        while (i + currentMatchLength < existingTokens.Count &&
+                               j + currentMatchLength < adjustedNewTokens.Count &&
+                               existingTokens[i + currentMatchLength].Text == adjustedNewTokens[j + currentMatchLength].Text &&
+                               Math.Abs(existingTokens[i + currentMatchLength].Start - adjustedNewTokens[j + currentMatchLength].Start) < TimeTolerance)
+                        {
+                            currentMatchLength++;
+                        }
+
+                        // Check if this is the best match found so far
+                        // Prioritize longer matches. If lengths are equal, prioritize matches occurring later in existingTokens.
+                        if (currentMatchLength >= MinMatchLength && currentMatchLength >= bestMatchLength) // Use >= to favour later matches of same length
+                        {
+                            bestMatchLength = currentMatchLength;
+                            bestExistingMatchEndIndex = i + currentMatchLength - 1; // Last index of the match in existing
+                            bestNewMatchStartIndex = j;                             // First index of the match in new
+                        }
+
+                        // Optimization: If we found a match starting at j, we don't need to check
+                        // subsequent j's for the same i, as we want the *longest* match extension.
+                        // However, a new potential match could start later in adjustedNewTokens for the *same* i
+                        // if the first attempt didn't pan out long enough. So, continue the inner loop.
+                    }
+                }
+                // Optimization: If we found a very long match, we might stop early,
+                // but it's safer to check all possibilities unless performance is critical.
+            }
+
+
+            // --- Determine Cut-off Point and Merge ---
+            List<WhisperToken> mergedTokens = new List<WhisperToken>();
+            int splitIndexExisting = -1; // Index of last token to take from existingTokens
+            int splitIndexNew = -1;      // Index of first token to take from adjustedNewTokens
+
+            if (bestMatchLength >= MinMatchLength)
+            {
+                // Found a reliable match - use midpoint of the *match*
+                Console.WriteLine($"Found match length: {bestMatchLength}, ExistingEndIdx: {bestExistingMatchEndIndex}, NewStartIdx: {bestNewMatchStartIndex}");
+
+                int matchMidpointRelative = bestMatchLength / 2; // Integer division gives floor, which is fine
+                splitIndexExisting = bestExistingMatchEndIndex - (bestMatchLength - 1) + matchMidpointRelative; // Index of token at midpoint in existing
+                splitIndexNew = bestNewMatchStartIndex + matchMidpointRelative + 1;                            // Index of token *after* midpoint in new
+
+                // --- Sanity checks for indices ---
+                if (splitIndexExisting < 0) splitIndexExisting = 0;
+                if (splitIndexExisting >= existingTokens.Count) splitIndexExisting = existingTokens.Count - 1;
+                if (splitIndexNew < 0) splitIndexNew = 0;
+                // No check needed for splitIndexNew >= adjustedNewTokens.Count, slicing handles it
+
+                Console.WriteLine($"Calculated split: Take existing up to index {splitIndexExisting}, start new from index {splitIndexNew}");
+
+            }
+            else
+            {
+                // No reliable match found - Fallback to simple time-based midpoint
+                // Calculate midpoint time relative to the start of the *new* chunk's original time range
+                // Assumes a nominal chunk duration (e.g., 20s) and overlap (e.g., 8s)
+                // Example: new chunk starts at 12s, duration 20s. Overlap is 8s. Midpoint is 12s + 8s/2 = 16s.
+                // This needs knowledge of the *intended* overlap duration. Let's estimate from offset.
+                // We can estimate the overlap end time based on the last token of the previous chunk.
+                float estimatedOverlapStartTime = newChunkOffsetSec;
+                float estimatedOverlapEndTime = Math.Min(existingTokens.Last().End, adjustedNewTokens.Last().Start); // Approx end of shared time
+                if (estimatedOverlapEndTime <= estimatedOverlapStartTime)
+                {
+                    // Handle cases where overlap is minimal or negative time due calculation noise
+                    estimatedOverlapEndTime = estimatedOverlapStartTime + 1.0f; // Assume at least 1 sec overlap if calculated is bad
+                }
+
+                float fallbackMidpointTime = estimatedOverlapStartTime + (estimatedOverlapEndTime - estimatedOverlapStartTime) / 2.0f;
+
+                Console.WriteLine($"No reliable match found. Using fallback time midpoint: {fallbackMidpointTime:F2}s");
+
+
+                // Find the index right BEFORE the midpoint time in existingTokens
+                splitIndexExisting = existingTokens.FindLastIndex(t => t.Start < fallbackMidpointTime);
+                if (splitIndexExisting == -1) splitIndexExisting = 0; // Take none if midpoint is before the first token
+
+                // Find the index AT or AFTER the midpoint time in adjustedNewTokens
+                splitIndexNew = adjustedNewTokens.FindIndex(t => t.Start >= fallbackMidpointTime);
+                if (splitIndexNew == -1) splitIndexNew = adjustedNewTokens.Count; // Take none if midpoint is after the last token
+
+                Console.WriteLine($"Fallback split: Take existing up to index {splitIndexExisting}, start new from index {splitIndexNew}");
+            }
+
+            // --- Perform the Merge ---
+            // Add tokens from the existing list up to the split point
+            mergedTokens.AddRange(existingTokens.Take(splitIndexExisting + 1));
+
+            // Add tokens from the new list starting from the split point
+            if (splitIndexNew < adjustedNewTokens.Count)
+            {
+                mergedTokens.AddRange(adjustedNewTokens.Skip(splitIndexNew));
+            }
+
+            // --- Final check for monotonicity (optional but good practice) ---
+            for (int k = 1; k < mergedTokens.Count; k++)
+            {
+                if (mergedTokens[k].Start < mergedTokens[k - 1].Start)
+                {
+                    // This indicates an issue in the merge logic or timestamp inconsistency
+                    Console.WriteLine($"Warning: Timestamp monotonicity violation at index {k}: {mergedTokens[k - 1]} followed by {mergedTokens[k]}");
+                    // Corrective action could be attempted here, e.g., adjusting start times,
+                    // but it's often better to flag it and refine the merge logic.
+                    // Simple fix: Adjust start time of current token if slightly off
+                    if (mergedTokens[k].Start < mergedTokens[k - 1].End)
+                    {
+                        mergedTokens[k].Start = mergedTokens[k - 1].End;
+                    }
+                }
+                // Ensure EndTime >= StartTime
+                if (mergedTokens[k].End < mergedTokens[k].Start)
+                {
+                    mergedTokens[k].End = mergedTokens[k].Start; // Simple fix
+                }
+            }
+
+            return mergedTokens;
+        }
+        */
+
+        /// <summary>
+        /// Merges a new list of tokens into an existing list, using an offset
+        /// and token probabilities to improve the cut-off decision within matched sequences.
+        /// </summary>
+        /// <param name="existingTokens">The list of tokens already merged.</param>
+        /// <param name="newTokensArray">The new tokens from the next overlapping chunk.</param>
+        /// <param name="newChunkOffsetSec">The start time (in seconds) of the audio chunk
+        /// that produced newTokensArray, relative to the start of the first chunk.</param>
+        /// <returns>A new list containing the merged tokens.</returns>
+        public static List<WhisperToken> MergeTokens(
+            List<WhisperToken> existingTokens,
+            List<WhisperToken> newTokensArray,
+            int newChunkOffsetSec)
+        {
+            // --- Basic Edge Cases ---
+            if (newTokensArray == null || newTokensArray.Count == 0)
+            {
+                return new List<WhisperToken>(existingTokens ?? new List<WhisperToken>());
+            }
+
+            if (existingTokens == null || existingTokens.Count == 0)
+            {
+                // Adjust timestamps of new tokens and return them
+                return newTokensArray.Select(t => CreateWhisperToken(
+                                                t.Text,
+                                                t.Start + newChunkOffsetSec, // Use .Start
+                                                t.End + newChunkOffsetSec,   // Use .End
+                                                t.Probability))
+                                    .ToList();
+            }
+
+            // --- Prepare New Tokens with Adjusted Timestamps ---
+            List<WhisperToken> adjustedNewTokens = newTokensArray.Select(t => CreateWhisperToken(
+                                                        t.Text,
+                                                        t.Start + newChunkOffsetSec, // Use .Start
+                                                        t.End + newChunkOffsetSec,   // Use .End
+                                                        t.Probability))
+                                                    .ToList();
+
+            // --- Check for Non-Overlapping Case ---
+            float lastExistingEndTime = existingTokens.LastOrDefault()?.End ?? 0f; // Use .End
+            float firstNewStartTime = adjustedNewTokens.FirstOrDefault()?.Start ?? float.MaxValue; // Use .Start
+
+            if (lastExistingEndTime < firstNewStartTime)
+            {
+                List<WhisperToken> combined = new List<WhisperToken>(existingTokens);
+                combined.AddRange(adjustedNewTokens);
+                return combined;
+            }
+
+            // --- Find Best Matching Sequence in Overlap ---
+            int bestMatchLength = 0;
+            int bestMatchStartIdxExisting = -1; // Start index of the match in existingTokens
+            int bestMatchStartIdxNew = -1;      // Start index of the match in adjustedNewTokens
+            int bestMatchEndIdxExisting = -1;   // End index of the match in existingTokens
+
+
+            // Iterate backwards through existing tokens, starting from potential overlap
+            int searchStartExisting = existingTokens.FindIndex(t => t.End >= newChunkOffsetSec); // Use .End
+            if (searchStartExisting == -1) searchStartExisting = 0;
+
+            for (int i = existingTokens.Count - 1; i >= searchStartExisting; i--)
+            {
+                for (int j = 0; j < adjustedNewTokens.Count; j++)
+                {
+                    // Check if current pair (i, j) potentially starts a match
+                    if (existingTokens[i].Text == adjustedNewTokens[j].Text &&
+                        Math.Abs(existingTokens[i].Start - adjustedNewTokens[j].Start) < TimeTolerance) // Use .Start
+                    {
+                        int currentMatchLength = 0;
+                        while (i + currentMatchLength < existingTokens.Count &&
+                               j + currentMatchLength < adjustedNewTokens.Count &&
+                               existingTokens[i + currentMatchLength].Text == adjustedNewTokens[j + currentMatchLength].Text &&
+                               Math.Abs(existingTokens[i + currentMatchLength].Start - adjustedNewTokens[j + currentMatchLength].Start) < TimeTolerance) // Use .Start
+                        {
+                            currentMatchLength++;
+                        }
+
+                        if (currentMatchLength >= MinMatchLength && currentMatchLength >= bestMatchLength)
+                        {
+                            bestMatchLength = currentMatchLength;
+                            bestMatchStartIdxExisting = i;
+                            bestMatchEndIdxExisting = i + currentMatchLength - 1;
+                            bestMatchStartIdxNew = j;
+                        }
+                    }
+                }
+            }
+
+            // --- Determine Cut-off Point and Merge ---
+            List<WhisperToken> mergedTokens = new List<WhisperToken>();
+            int splitIndexExisting = -1; // Index of LAST token to take from existingTokens
+            int splitIndexNew = -1;      // Index of FIRST token to take from adjustedNewTokens
+
+            if (bestMatchLength >= MinMatchLength)
+            {
+                // --- Found a reliable match - Use probability at midpoint ---
+                Console.WriteLine($"Found match length: {bestMatchLength}, ExistingMatchIdx: [{bestMatchStartIdxExisting}-{bestMatchEndIdxExisting}], NewMatchStartIdx: {bestMatchStartIdxNew}");
+
+                // Calculate the index corresponding to the midpoint of the matched sequence
+                int midMatchIdxRelative = bestMatchLength / 2;
+                int midIndexExisting = bestMatchStartIdxExisting + midMatchIdxRelative;
+                int midIndexNew = bestMatchStartIdxNew + midMatchIdxRelative;
+
+                // Get the tokens at the midpoint from both lists
+                WhisperToken tokenMidExisting = existingTokens[midIndexExisting];
+                WhisperToken tokenMidNew = adjustedNewTokens[midIndexNew];
+
+                Console.WriteLine($"Midpoint Compare: Existing='{tokenMidExisting}' vs New='{tokenMidNew}'");
+
+                // Decide based on probability
+                if (tokenMidExisting.Probability >= tokenMidNew.Probability)
+                {
+                    // Prefer the existing token's version at the midpoint
+                    splitIndexExisting = midIndexExisting; // Take existing up to and including this token
+                    splitIndexNew = midIndexNew + 1;       // Start new list *after* the corresponding midpoint token
+                    Console.WriteLine($"Decision: Prefer Existing (P={tokenMidExisting.Probability:F3} >= P={tokenMidNew.Probability:F3}). Split after existing idx {splitIndexExisting}, start new idx {splitIndexNew}");
+                }
+                else
+                {
+                    // Prefer the new token's version at the midpoint
+                    splitIndexExisting = midIndexExisting - 1; // Take existing up to the token *before* the midpoint
+                    splitIndexNew = midIndexNew;               // Start new list *at* the midpoint token
+                    Console.WriteLine($"Decision: Prefer New (P={tokenMidNew.Probability:F3} > P={tokenMidExisting.Probability:F3}). Split after existing idx {splitIndexExisting}, start new idx {splitIndexNew}");
+                }
+
+                // --- Sanity checks for indices ---
+                if (splitIndexExisting < -1) splitIndexExisting = -1; // Allow -1 for taking none from existing
+                if (splitIndexNew < 0) splitIndexNew = 0;
+                // No check needed for splitIndexNew >= adjustedNewTokens.Count, slicing handles it
+            }
+            else
+            {
+                // --- No reliable match found - Fallback to simple time-based midpoint ---
+                float estimatedOverlapStartTime = newChunkOffsetSec;
+                // Use End time of last existing token or Start time of last new token as potential end bounds
+                float estimatedOverlapEndTime = Math.Min(existingTokens.Last().End, adjustedNewTokens.Last().Start); // Use .End, .Start
+                if (estimatedOverlapEndTime <= estimatedOverlapStartTime)
+                {
+                    estimatedOverlapEndTime = estimatedOverlapStartTime + 1.0f; // Assume min 1 sec overlap
+                }
+                float fallbackMidpointTime = estimatedOverlapStartTime + (estimatedOverlapEndTime - estimatedOverlapStartTime) / 2.0f;
+
+                Console.WriteLine($"No reliable match found. Using fallback time midpoint: {fallbackMidpointTime:F2}s");
+
+                // Find the index right BEFORE the midpoint time in existingTokens
+                splitIndexExisting = existingTokens.FindLastIndex(t => t.Start < fallbackMidpointTime); // Use .Start
+                                                                                                        // If midpoint is before *any* token starts, this will be -1, which is correct (take none).
+
+                // Find the index AT or AFTER the midpoint time in adjustedNewTokens
+                splitIndexNew = adjustedNewTokens.FindIndex(t => t.Start >= fallbackMidpointTime); // Use .Start
+                if (splitIndexNew == -1) splitIndexNew = adjustedNewTokens.Count; // Take none if midpoint is after the last token starts
+
+                Console.WriteLine($"Fallback split: Take existing up to index {splitIndexExisting}, start new from index {splitIndexNew}");
+            }
+
+            // --- Perform the Merge ---
+            // Add tokens from the existing list up to the split point
+            // `Take` needs count, so index + 1
+            mergedTokens.AddRange(existingTokens.Take(splitIndexExisting + 1));
+
+            // Add tokens from the new list starting from the split point
+            if (splitIndexNew < adjustedNewTokens.Count)
+            {
+                mergedTokens.AddRange(adjustedNewTokens.Skip(splitIndexNew));
+            }
+
+            // --- Final check for monotonicity ---
+            for (int k = 1; k < mergedTokens.Count; k++)
+            {
+                // Check if current token starts before previous one *started* (more robust than checking against previous End)
+                if (mergedTokens[k].Start < mergedTokens[k - 1].Start + 0.01f) // Added small tolerance
+                {
+                    Console.WriteLine($"Warning: Timestamp monotonicity violation at index {k}: {mergedTokens[k - 1]} followed by {mergedTokens[k]}");
+                    // Simple fix: Adjust Start time if it overlaps significantly with previous *End* time
+                    if (mergedTokens[k].Start < mergedTokens[k - 1].End)
+                    {
+                        mergedTokens[k].Start = mergedTokens[k - 1].End;
+                    }
+                }
+                // Ensure End >= Start
+                if (mergedTokens[k].End < mergedTokens[k].Start)
+                {
+                    Console.WriteLine($"Warning: Correcting End time for token at index {k}: {mergedTokens[k]}");
+                    mergedTokens[k].End = mergedTokens[k].Start;
+                }
+            }
+
+            return mergedTokens;
+        }
+
     }
 }

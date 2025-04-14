@@ -90,6 +90,7 @@ namespace HTCommander
         public string voiceModel = null;
         public string voice = null;
         public string voiceConfirmedChannelName;
+        public string voiceHistoryCompleted = "";
 #if !__MonoCS__
         public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
@@ -408,10 +409,23 @@ namespace HTCommander
             voiceProcessingLabel.Visible = processing;
         }
 
-        private void Radio_onTextReady(string text, string channel, DateTime time)
+        private void Radio_onTextReady(string text, string channel, DateTime time, bool completed)
         {
-            if (this.InvokeRequired) { this.Invoke(new Radio.OnTextReadyHandler(Radio_onTextReady), text, channel, time); return; }
-            if ((text == null) || (text.Trim().Length > 0)) { RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, time, channel, text.Trim()); }
+            if (this.InvokeRequired) { this.Invoke(new Radio.OnTextReadyHandler(Radio_onTextReady), text, channel, time, completed); return; }
+            if (text.Trim().Length > 0)
+            {
+                // Suspend painting
+                //Utils.SendMessage(voiceHistoryTextBox.Handle, Utils.WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
+
+                // Perform update
+                voiceHistoryTextBox.Rtf = voiceHistoryCompleted;
+                RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, time, channel, text.Trim(), completed, false);
+                if (completed) { voiceHistoryCompleted = voiceHistoryTextBox.Rtf; }
+
+                // Resume painting
+                //Utils.SendMessage(voiceHistoryTextBox.Handle, Utils.WM_SETREDRAW, new IntPtr(1), IntPtr.Zero);
+                //voiceHistoryTextBox.Invalidate(); // Force repaint
+            }
         }
 
         private void Session_StateChanged(AX25Session sender, AX25Session.ConnectionState state)
@@ -4202,7 +4216,7 @@ namespace HTCommander
                 if (MessageBox.Show(this, "Confirm transmit on " + radio.currentChannelName + "?", "Transmit", MessageBoxButtons.OKCancel) == DialogResult.OK)
                 {
                     voiceConfirmedChannelName = radio.currentChannelName;
-                    RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true);
+                    RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true, true);
                     if (speakButton.Text == "&Speak") { voiceEngine.Speak(speakTextBox.Text, voice); }
                     if (speakButton.Text == "&Morse") { voiceEngine.Morse(speakTextBox.Text); }
                     speakTextBox.Clear();
@@ -4210,7 +4224,7 @@ namespace HTCommander
             }
             else
             {
-                RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true);
+                RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true, true);
                 if (speakButton.Text == "&Speak") { voiceEngine.Speak(speakTextBox.Text, voice); }
                 if (speakButton.Text == "&Morse") { voiceEngine.Morse(speakTextBox.Text); }
                 speakTextBox.Clear();

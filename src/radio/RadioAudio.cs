@@ -55,7 +55,7 @@ namespace HTCommander
         public event DebugMessageEventHandler OnDebugMessage;
         public delegate void AudioStateChangedHandler(RadioAudio sender, bool enabled);
         public event AudioStateChangedHandler OnAudioStateChanged;
-        public delegate void OnTextReadyHandler(string text, string channel, DateTime time);
+        public delegate void OnTextReadyHandler(string text, string channel, DateTime time, bool completed);
         public event OnTextReadyHandler onTextReady;
         public delegate void OnProcessingVoiceHandler(bool listening, bool processing);
         public event OnProcessingVoiceHandler onProcessingVoice;
@@ -342,9 +342,9 @@ namespace HTCommander
             Debug("Whisper: " + msg);
         }
 
-        private void SpeechToTextEngine_onTextReady(string text, string channel, DateTime time)
+        private void SpeechToTextEngine_onTextReady(string text, string channel, DateTime time, bool completed)
         {
-            if (onTextReady != null) { onTextReady(text, channel, time); }
+            if (onTextReady != null) { onTextReady(text, channel, time, completed); }
         }
         private void SpeechToTextEngine_onProcessingVoice(bool processing)
         {
