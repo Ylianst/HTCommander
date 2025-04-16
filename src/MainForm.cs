@@ -336,6 +336,28 @@ namespace HTCommander
                 }
             }
 
+            // Read the voice history file
+            string voiceHistoryFileName = Path.Combine(appDataPath, "voiceHistory.txt");
+            try
+            {
+                string[] voiceHistory = File.ReadAllLines(voiceHistoryFileName);
+                for (int i = 0; i < voiceHistory.Length; i++)
+                {
+                    try
+                    {
+                        int idx = voiceHistory[i].IndexOf(',');
+                        int idx2 = voiceHistory[i].IndexOf(',', idx + 1);
+                        bool outbound = (voiceHistory[i][0] == '<');
+                        DateTime dateTime = DateTime.Parse(voiceHistory[i].Substring(1, idx));
+                        string channelName = voiceHistory[i].Substring(idx + 1, idx2 - idx - 1);
+                        string text = voiceHistory[i].Substring(idx2 + 1);
+                        RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, dateTime, channelName, text.Trim(), true, outbound);
+                    }
+                    catch (Exception) { }
+                }
+                voiceHistoryCompleted = voiceHistoryTextBox.Rtf;
+            } catch (Exception) { }
+
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
 
             // Open the packet write file
@@ -425,6 +447,22 @@ namespace HTCommander
                 // Resume painting
                 //Utils.SendMessage(voiceHistoryTextBox.Handle, Utils.WM_SETREDRAW, new IntPtr(1), IntPtr.Zero);
                 //voiceHistoryTextBox.Invalidate(); // Force repaint
+
+                // If completed, append the text to the voice history file
+                if (completed)
+                {
+                    string voiceHistoryFileName = Path.Combine(appDataPath, "voiceHistory.txt");
+                    try
+                    {
+                        using (FileStream fs = new FileStream(voiceHistoryFileName, FileMode.Append, FileAccess.Write))
+                        {
+                            byte[] bytes = Encoding.UTF8.GetBytes(">" + time.ToString() + "," + channel + "," + text + "\r\n");
+                            fs.Write(bytes, 0, bytes.Length);
+                        }
+                    }
+                    catch (Exception) { }
+                }
+
             }
         }
 
@@ -3150,56 +3188,147 @@ namespace HTCommander
             return r;
         }
 
-        private static RadioChannelInfo ParseChannel1(string[] parts, Dictionary<string, int> headers)
+        public static RadioChannelInfo ParseChannel1(string[] parts, Dictionary<string, int> headers)
         {
             RadioChannelInfo r = new RadioChannelInfo();
-            r.channel_id = int.Parse(parts[headers["Location"]]);
-            r.name_str = parts[headers["Name"]];
-            r.rx_freq = (int)(double.Parse(parts[headers["Frequency"]], CultureInfo.InvariantCulture) * 1000000);
-            r.tx_at_max_power = true;
-            r.tx_at_med_power = false;
 
-            float powerWatts = -1;
-            if (headers.ContainsKey("Power"))
+            // --- Basic Info ---
+            r.channel_id = Utils.TryParseInt(Utils.GetValue(parts, headers, "Location")) ?? 0; // Default or handle error
+            r.name_str = Utils.GetValue(parts, headers, "Name");
+            double? rxFreqMHz = Utils.TryParseDouble(Utils.GetValue(parts, headers, "Frequency"));
+            r.rx_freq = rxFreqMHz.HasValue ? (int)(rxFreqMHz.Value * 1000000) : 0; // Store in Hz
+
+            // --- Power Level ---
+            r.tx_at_max_power = true; // Default to High
+            r.tx_at_med_power = false;
+            string powerStr = Utils.GetValue(parts, headers, "Power");
+            if (!string.IsNullOrEmpty(powerStr) && powerStr.EndsWith("W", StringComparison.OrdinalIgnoreCase))
             {
-                if (parts[headers["Power"]].EndsWith("W")) { float.TryParse(parts[headers["Power"]].Substring(0, parts[headers["Power"]].Length - 1), out powerWatts); }
-                if (powerWatts >= 0)
+                if (float.TryParse(powerStr.Substring(0, powerStr.Length - 1), NumberStyles.Any, CultureInfo.InvariantCulture, out float powerWatts))
                 {
-                    if (powerWatts <= 1) { r.tx_at_max_power = false; r.tx_at_med_power = false; }
-                    else if (powerWatts <= 4) { r.tx_at_max_power = false; r.tx_at_med_power = true; }
-                    else { r.tx_at_max_power = true; r.tx_at_med_power = false; }
+                    if (powerWatts <= 1.0f) { r.tx_at_max_power = false; r.tx_at_med_power = false; } // Low Power
+                    else if (powerWatts <= 4.0f) { r.tx_at_max_power = false; r.tx_at_med_power = true; }  // Medium Power
+                    else { r.tx_at_max_power = true; r.tx_at_med_power = false; } // High Power
                 }
             }
 
-            int duplex = 0;
-            if (headers.ContainsKey("Duplex"))
+            // --- Frequency: Duplex, Offset, Split ---
+            string duplexValue = Utils.GetValue(parts, headers, "Duplex");
+            string offsetValueStr = Utils.GetValue(parts, headers, "Offset");
+            double? offsetMHz = Utils.TryParseDouble(offsetValueStr);
+
+            if (duplexValue.Equals("split", StringComparison.OrdinalIgnoreCase) && offsetMHz.HasValue)
             {
-                if (parts[headers["Duplex"]] == "-") { duplex = -1; }
-                else if (parts[headers["Duplex"]] == "+") { duplex = 1; }
+                // 'Split' means the 'Offset' column *is* the TX frequency in MHz
+                r.tx_freq = (int)(offsetMHz.Value * 1000000);
             }
-            if (duplex == 0) { r.tx_freq = r.rx_freq; }
+            else if (!string.IsNullOrEmpty(duplexValue) && (duplexValue == "+" || duplexValue == "-") && offsetMHz.HasValue)
+            {
+                // Standard duplex offset
+                int offsetHz = (int)(offsetMHz.Value * 1000000);
+                int duplexSign = (duplexValue == "+") ? 1 : -1;
+                r.tx_freq = r.rx_freq + (duplexSign * offsetHz);
+            }
             else
             {
-                int offset = (int)(double.Parse(parts[headers["Offset"]], CultureInfo.InvariantCulture) * 1000000);
-                r.tx_freq = r.rx_freq + (duplex * offset);
+                // Simplex or invalid/missing duplex info
+                r.tx_freq = r.rx_freq;
             }
 
-            string tone = "";
-            if (headers.ContainsKey("Tone")) { tone = parts[headers["Tone"]]; }
-            if ((tone == "Tone") || (tone == "TSQL"))
-            {
-                r.rx_sub_audio = headers.ContainsKey("rToneFreq") ? (int)(double.Parse(parts[headers["rToneFreq"]], CultureInfo.InvariantCulture) * 100) : 0;
-                r.tx_sub_audio = headers.ContainsKey("cToneFreq") ? (int)(double.Parse(parts[headers["cToneFreq"]], CultureInfo.InvariantCulture) * 100) : 0;
-            }
-            if (tone == "DTCS")
-            {
-                r.tx_sub_audio = r.rx_sub_audio = headers.ContainsKey("DtcsCode") ? (int)(double.Parse(parts[headers["DtcsCode"]], CultureInfo.InvariantCulture)) : 0;
-            }
+            // --- Tone / Sub-Audio ---
+            string toneMode = Utils.GetValue(parts, headers, "Tone");
+            r.rx_sub_audio = 0; // Default to none
+            r.tx_sub_audio = 0; // Default to none
 
-            if (parts[headers["Mode"]] == "FM") { r.rx_mod = r.tx_mod = RadioModulationType.FM; r.bandwidth = RadioBandwidthType.WIDE; }
-            if (parts[headers["Mode"]] == "NFM") { r.rx_mod = r.tx_mod = RadioModulationType.FM; r.bandwidth = RadioBandwidthType.NARROW; }
-            if (parts[headers["Mode"]] == "DMR") { r.rx_mod = r.tx_mod = RadioModulationType.DMR; r.bandwidth = RadioBandwidthType.WIDE; }
-            if (parts[headers["Mode"]] == "AM") { r.rx_mod = r.tx_mod = RadioModulationType.AM; r.bandwidth = RadioBandwidthType.WIDE; }
+            // Safely get potential tone/code values
+            double? rToneFreq = Utils.TryParseDouble(Utils.GetValue(parts, headers, "rToneFreq"));
+            double? cToneFreq = Utils.TryParseDouble(Utils.GetValue(parts, headers, "cToneFreq"));
+            int? dtcsCode = Utils.TryParseInt(Utils.GetValue(parts, headers, "DtcsCode"));       // Used for TX DTCS
+            int? rxDtcsCode = Utils.TryParseInt(Utils.GetValue(parts, headers, "RxDtcsCode"));   // Used for RX DTCS
+            // string dtcsPolarity = GetValue(parts, headers, "DtcsPolarity", "NN"); // Example: Parse if needed
+
+            if (toneMode.Equals("Cross", StringComparison.OrdinalIgnoreCase))
+            {
+                // Cross mode: Determine whether to use CTCSS or DTCS based on which pair differs
+                bool ctcssDiffers = rToneFreq.HasValue && cToneFreq.HasValue && rToneFreq.Value != cToneFreq.Value;
+                bool dtcsDiffers = dtcsCode.HasValue && rxDtcsCode.HasValue && dtcsCode.Value != rxDtcsCode.Value;
+
+                if (ctcssDiffers) // Prioritize CTCSS if both differ? Or add specific logic if needed.
+                {
+                    // Use CTCSS tones
+                    r.rx_sub_audio = (int)(rToneFreq.Value * 100); // CHIRP uses 88.5, radio might need 885
+                    r.tx_sub_audio = (int)(cToneFreq.Value * 100); // CHIRP uses 88.5, radio might need 885
+                    Console.WriteLine($"Channel {r.channel_id}: Cross mode detected, using differing CTCSS: RX={r.rx_sub_audio / 10.0}Hz, TX={r.tx_sub_audio / 10.0}Hz");
+                }
+                else if (dtcsDiffers)
+                {
+                    // Use DTCS codes
+                    r.rx_sub_audio = rxDtcsCode.Value; // Use RxDtcsCode for Receive
+                    r.tx_sub_audio = dtcsCode.Value;   // Use DtcsCode for Transmit
+                    Console.WriteLine($"Channel {r.channel_id}: Cross mode detected, using differing DTCS: RX={r.rx_sub_audio:D3}, TX={r.tx_sub_audio:D3}");
+                }
+                else
+                {
+                    // Cross mode specified, but neither CTCSS nor DTCS pairs differ.
+                    // This might indicate bad data or only spurious matching values were present.
+                    // Defaulting to no tones. Log a warning.
+                    Console.WriteLine($"Warning: Channel {r.channel_id}: Tone='Cross' but no differing CTCSS or DTCS values found. Setting no tones.");
+                    r.rx_sub_audio = 0;
+                    r.tx_sub_audio = 0;
+                }
+            }
+            else if (toneMode.Equals("Tone", StringComparison.OrdinalIgnoreCase) || toneMode.Equals("TSQL", StringComparison.OrdinalIgnoreCase))
+            {
+                // Standard CTCSS Tone (Transmit only) or TSQL (Transmit and Receive)
+                // Note: TSQL usually implies RX tone = TX tone, but CHIRP allows separate r/cToneFreq
+                if (rToneFreq.HasValue) r.rx_sub_audio = (int)(rToneFreq.Value * 100);
+                if (cToneFreq.HasValue) r.tx_sub_audio = (int)(cToneFreq.Value * 100);
+                // If TSQL and only cToneFreq is given, often RX tone should match TX tone. Add logic if needed.
+                if (toneMode.Equals("TSQL", StringComparison.OrdinalIgnoreCase) && r.rx_sub_audio == 0 && r.tx_sub_audio != 0)
+                {
+                    r.rx_sub_audio = r.tx_sub_audio; // Common TSQL behavior assumption
+                }
+                if (toneMode.Equals("Tone", StringComparison.OrdinalIgnoreCase) && r.rx_sub_audio != 0)
+                {
+                    // Standard 'Tone' usually means TX only. Clear RX if set.
+                    // r.rx_sub_audio = 0; // Uncomment if strict TX-only 'Tone' is desired
+                }
+            }
+            else if (toneMode.Equals("DTCS", StringComparison.OrdinalIgnoreCase))
+            {
+                // Standard DTCS (Digital Tone Coded Squelch)
+                // Uses DtcsCode for TX, RxDtcsCode for RX. If RxDtcsCode is missing, often implies RX = TX.
+                if (dtcsCode.HasValue) r.tx_sub_audio = dtcsCode.Value;
+                if (rxDtcsCode.HasValue)
+                {
+                    r.rx_sub_audio = rxDtcsCode.Value;
+                }
+                else if (dtcsCode.HasValue)
+                {
+                    r.rx_sub_audio = dtcsCode.Value; // Assume RX=TX if RxDtcsCode is missing
+                }
+                // Potentially parse and use DtcsPolarity here if your RadioChannelInfo supports it
+                // r.dtcs_polarity = ParseDtcsPolarity(dtcsPolarity);
+            }
+            // Handle other tone modes like Tone->Tone, DTCS->Tone etc. if needed by parsing CrossMode column
+            // else if (toneMode is empty or "None") { // No tones, already defaulted to 0 }
+
+            // --- Mode and Bandwidth ---
+            string mode = Utils.GetValue(parts, headers, "Mode");
+            // Defaults
+            r.rx_mod = RadioModulationType.FM;
+            r.tx_mod = RadioModulationType.FM;
+            r.bandwidth = RadioBandwidthType.WIDE;
+
+            if (mode.Equals("NFM", StringComparison.OrdinalIgnoreCase)) { r.rx_mod = r.tx_mod = RadioModulationType.FM; r.bandwidth = RadioBandwidthType.NARROW; }
+            else if (mode.Equals("FM", StringComparison.OrdinalIgnoreCase)) { r.rx_mod = r.tx_mod = RadioModulationType.FM; r.bandwidth = RadioBandwidthType.WIDE; }
+            else if (mode.Equals("DMR", StringComparison.OrdinalIgnoreCase)) { r.rx_mod = r.tx_mod = RadioModulationType.DMR; r.bandwidth = RadioBandwidthType.NARROW; } // DMR is typically 12.5kHz -> Narrow
+            else if (mode.Equals("AM", StringComparison.OrdinalIgnoreCase)) { r.rx_mod = r.tx_mod = RadioModulationType.AM; r.bandwidth = RadioBandwidthType.WIDE; }
+            // Add other modes like C4FM, P25 etc. as needed
+
+            // --- Other Fields ---
+            // Parse Skip, Comment, URCALL, RPT1CALL, RPT2CALL, DVCODE etc. if needed
+            // Example: r.comment = GetValue(parts, headers, "Comment");
 
             return r;
         }
@@ -4220,6 +4349,7 @@ namespace HTCommander
                     if (speakButton.Text == "&Speak") { voiceEngine.Speak(speakTextBox.Text, voice); }
                     if (speakButton.Text == "&Morse") { voiceEngine.Morse(speakTextBox.Text); }
                     speakTextBox.Clear();
+                    logSentVoice(DateTime.Now, radio.currentChannelName, speakTextBox.Text);
                 }
             }
             else
@@ -4228,7 +4358,22 @@ namespace HTCommander
                 if (speakButton.Text == "&Speak") { voiceEngine.Speak(speakTextBox.Text, voice); }
                 if (speakButton.Text == "&Morse") { voiceEngine.Morse(speakTextBox.Text); }
                 speakTextBox.Clear();
+                logSentVoice(DateTime.Now, radio.currentChannelName, speakTextBox.Text);
             }
+        }
+
+        private void logSentVoice(DateTime time, string channel, string text)
+        {
+            string voiceHistoryFileName = Path.Combine(appDataPath, "voiceHistory.txt");
+            try
+            {
+                using (FileStream fs = new FileStream(voiceHistoryFileName, FileMode.Append, FileAccess.Write))
+                {
+                    byte[] bytes = Encoding.UTF8.GetBytes("<" + time.ToString() + "," + channel + "," + text + "\r\n");
+                    fs.Write(bytes, 0, bytes.Length);
+                }
+            }
+            catch (Exception) { }
         }
 
         private void speakTextBox_KeyPress(object sender, KeyPressEventArgs e)

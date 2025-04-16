@@ -316,7 +316,7 @@ namespace HTCommander.radio // Use your original namespace
 
             if (Tokens.Count > 600) { processingAudioCompleted = true; } // Over 600 tokens, reset the token window.
             if (onTextReady != null) { onTextReady(TokensToString(Tokens), processingAudioBufferChannel, processingAudioBufferTime, processingAudioCompleted); }
-            if (processingAudioCompleted) { Tokens.Clear(); }
+            if (processingAudioCompleted) { Tokens.Clear(); NewTokens.Clear(); }
 
             // We are done, process the next round
             lock (ProcessingHolds)

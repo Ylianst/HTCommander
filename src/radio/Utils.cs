@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 using Brotli;
+using System.Globalization;
 
 namespace HTCommander
 {
@@ -34,6 +35,36 @@ namespace HTCommander
 
         public const int WM_SETREDRAW = 0x0B;
 
+
+        // Helper function to safely get string value from parts array
+        public static string GetValue(string[] parts, Dictionary<string, int> headers, string key, string defaultValue = "")
+        {
+            if (headers.TryGetValue(key, out int index) && index < parts.Length)
+            {
+                return parts[index];
+            }
+            return defaultValue;
+        }
+
+        // Helper function to safely parse double
+        public static double? TryParseDouble(string value)
+        {
+            if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out double result))
+            {
+                return result;
+            }
+            return null;
+        }
+
+        // Helper function to safely parse int
+        public static int? TryParseInt(string value)
+        {
+            if (int.TryParse(value, out int result))
+            {
+                return result;
+            }
+            return null;
+        }
 
         public static string BytesToHex(byte[] Bytes)
         {
@@ -188,6 +219,7 @@ namespace HTCommander
                 return r2;
             }
         }
+
     }
 
     public class RtfBuilder
