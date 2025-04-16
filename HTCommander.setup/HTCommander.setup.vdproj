@@ -304,12 +304,6 @@
         "Entry"
         {
         "MsmKey" = "8:_AABEE69ED866DFB63AB6C3AE490D9698"
-        "OwnerKey" = "8:_A95C2D6C67176E995D3FF6E3D7B3A7B9"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_AABEE69ED866DFB63AB6C3AE490D9698"
         "OwnerKey" = "8:_F3864B4650DF4377A2BEA8CF1AFED783"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -317,6 +311,12 @@
         {
         "MsmKey" = "8:_AABEE69ED866DFB63AB6C3AE490D9698"
         "OwnerKey" = "8:_E285898E1E1D05E23E0ADE96FC968C9A"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_AABEE69ED866DFB63AB6C3AE490D9698"
+        "OwnerKey" = "8:_A95C2D6C67176E995D3FF6E3D7B3A7B9"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -2428,15 +2428,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Handi-Talky Commander"
-        "ProductCode" = "8:{8911889A-4F08-4E6B-A107-20E4F2AE3903}"
-        "PackageCode" = "8:{822B613E-64EA-44A1-83CA-C96DDB26E7B1}"
+        "ProductCode" = "8:{CA9E3652-0CBA-4BE0-A755-A55DC64C6C2A}"
+        "PackageCode" = "8:{523A9549-95E0-44B4-9DC1-D2FDBAF2FA8D}"
         "UpgradeCode" = "8:{A0F710F7-510C-4231-82BA-D6A27CD75ECD}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:FALSE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:0.21.0"
+        "ProductVersion" = "8:0.22.0"
         "Manufacturer" = "8:Open Source"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://github.com/Ylianst/HTCommander"
