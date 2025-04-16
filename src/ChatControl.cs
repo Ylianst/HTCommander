@@ -19,7 +19,6 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Drawing.Drawing2D;
 using System.Collections.Generic;
-using System.Drawing.Text;
 
 namespace HTCommander
 {
@@ -167,11 +166,6 @@ namespace HTCommander
             return timeLineSize.Height + callSignSize.Height + messageSize.Height + (MessageBoxMargin * 2) + InterMessageMargin;
         }
 
-        private int GetChatMessageClickBox(ChatMessage chatMessage, int x, int y)
-        {
-            return 0;
-        }
-
         private void DrawChatMessage(ChatMessage chatMessage, Graphics g, float top, ChatMessage previousChatMessage)
         {
             top += InterMessageMargin;
@@ -190,8 +184,8 @@ namespace HTCommander
                 }
 
                 timeLineSize = TextRenderer.MeasureText(timeString, CallsignFont);
-                var textRect = new RectangleF(SideMargins, top, ClientRectangle.Width - chatScrollBar.Width - (SideMargins * 2), timeLineSize.Height);
-                TextRenderer.DrawText(g, timeString, CallsignFont, new Point((int)(textRect.X), (int)(textRect.Y)), callsignTextColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak);
+                var textRect = new Rectangle(SideMargins, (int)top, ClientRectangle.Width - chatScrollBar.Width - (SideMargins * 2), (int)timeLineSize.Height);
+                TextRenderer.DrawText(g, timeString, CallsignFont, textRect, callsignTextColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak);
             }
 
             SizeF callSignSize = SizeF.Empty;

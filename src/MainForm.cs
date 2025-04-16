@@ -26,10 +26,6 @@ using aprsparser;
 using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
 using HTCommander.radio;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
-using Windows.ApplicationModel.Calls;
-
-
 
 #if !__MonoCS__
 using GMap.NET.MapProviders;

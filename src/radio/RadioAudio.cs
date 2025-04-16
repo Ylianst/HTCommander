@@ -284,7 +284,7 @@ namespace HTCommander
                                         }
                                         break;
                                     case 0x01: // Audio end
-                                        Debug("Command: 0x01, Audio End, Size: " + uframe.Length);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
+                                        //Debug("Command: 0x01, Audio End, Size: " + uframe.Length);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
                                         if (speechToTextEngine != null)
                                         {
                                             speechToTextEngine.ResetVoiceSegment();
@@ -292,7 +292,7 @@ namespace HTCommander
                                         }
                                         break;
                                     case 0x02: // Audio ACK
-                                        Debug("Command: 0x02, Audio Ack, Size: " + uframe.Length);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
+                                        //Debug("Command: 0x02, Audio Ack, Size: " + uframe.Length);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
                                         break;
                                     default:
                                         Debug($"Unknown command: {uframe[0]}");
