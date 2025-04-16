@@ -1,1 +1,2 @@
 version=0.22
+filename=HTCommander-0.22.msi

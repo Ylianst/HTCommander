@@ -267,6 +267,7 @@ namespace HTCommander
 
             showPreviewToolStripMenuItem.Checked = (registry.ReadInt("MailViewPreview", 1) == 1);
             mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
+            checkForUpdatesToolStripMenuItem.Checked = (registry.ReadInt("CheckForUpdates", 1) == 1);
 
             // Setup mailboxes
             MailBoxTreeNodes = new TreeNode[MailBoxesNames.Length];
@@ -416,6 +417,9 @@ namespace HTCommander
             session.DataReceivedEvent += Session_DataReceivedEvent;
             session.UiDataReceivedEvent += Session_UiDataReceivedEvent;
             session.ErrorEvent += Session_ErrorEvent;
+
+            // Check for updates
+            if (checkForUpdatesToolStripMenuItem.Checked) { SelfUpdateForm.CheckForUpdate(this); }
         }
 
         private void Radio_OnVoiceTransmitStateChanged(Radio sender, bool transmitting)
@@ -4466,5 +4470,9 @@ namespace HTCommander
             morseToolStripMenuItem.Checked = true;
         }
 
+        private void checkForUpdatesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            registry.WriteInt("CheckForUpdates", checkForUpdatesToolStripMenuItem.Checked ? 1 : 0);
+        }
     }
 }

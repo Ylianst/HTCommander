@@ -313,6 +313,12 @@
     <Compile Include="radio\TncDataFragment.cs" />
     <Compile Include="radio\Utils.cs" />
     <Compile Include="RegistryHelperClass.cs" />
+    <Compile Include="SelfUpdateForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SelfUpdateForm.Designer.cs">
+      <DependentUpon>SelfUpdateForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="SettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -423,6 +429,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="RadioVolumeForm.resx">
       <DependentUpon>RadioVolumeForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SelfUpdateForm.resx">
+      <DependentUpon>SelfUpdateForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SettingsForm.resx">
       <DependentUpon>SettingsForm.cs</DependentUpon>

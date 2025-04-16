@@ -20,7 +20,6 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using System.Speech.Synthesis;
-using System.Collections.ObjectModel;
 using HTCommander.radio;
 
 namespace HTCommander
@@ -164,7 +163,7 @@ namespace HTCommander
             modelsComboBox.SelectedIndex = 0;
 
             SpeechSynthesizer synthesizer = new SpeechSynthesizer();
-            ReadOnlyCollection<InstalledVoice> voices = synthesizer.GetInstalledVoices();
+            System.Collections.ObjectModel.ReadOnlyCollection<InstalledVoice> voices = synthesizer.GetInstalledVoices();
             foreach (InstalledVoice voice in voices) { voicesComboBox.Items.Add(voice.VoiceInfo.Name); }
             voicesComboBox.SelectedIndex = 0;
             Voice = "Microsoft Zira Desktop";
