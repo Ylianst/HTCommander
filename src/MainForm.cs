@@ -26,6 +26,10 @@ using aprsparser;
 using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
 using HTCommander.radio;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using Windows.ApplicationModel.Calls;
+
+
 
 #if !__MonoCS__
 using GMap.NET.MapProviders;
@@ -3118,7 +3122,7 @@ namespace HTCommander
             string[] lines = null;
             try { lines = File.ReadAllLines(filename); } catch (Exception ex) { MessageBox.Show(this, ex.ToString(), "File Error"); }
             if ((lines == null) || (lines.Length < 2)) return;
-            Dictionary<string, int> headers = lines[0].Split(',').Select((h, i) => new { h, i }).ToDictionary(x => x.h.Trim(), x => x.i);
+            Dictionary<string, int> headers = lines[0].Split(',').Select((h, i) => new { h, i }).ToDictionary(x => Utils.RemoveQuotes(x.h.Trim()), x => x.i);
 
             // File format 1
             if (headers.ContainsKey("Location") && headers.ContainsKey("Name") && headers.ContainsKey("Frequency") && headers.ContainsKey("Mode"))
@@ -3142,6 +3146,18 @@ namespace HTCommander
                 }
             }
 
+            // File format 2
+            if (headers.ContainsKey("Frequency Output") && headers.ContainsKey("Frequency Input") && headers.ContainsKey("Description") && headers.ContainsKey("PL Output Tone") && headers.ContainsKey("PL Input Tone") && headers.ContainsKey("Mode"))
+            {
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    RadioChannelInfo c = null;
+                    try { c = ParseChannel3(lines[i].Split(','), headers); } catch (Exception) { }
+                    if (c != null) { importChannels.Add(c); }
+                }
+            }
+
+
             // If there are decoded import channels, open a dialog box to merge them.
             if (importChannels.Count == 0) return;
             ImportChannelsForm f = new ImportChannelsForm(null, importChannels.ToArray());
@@ -3156,6 +3172,63 @@ namespace HTCommander
             {
                 importChannels(importChannelFileDialog.FileName);
             }
+        }
+
+        private static RadioChannelInfo ParseChannel3(string[] parts, Dictionary<string, int> headers)
+        {
+            for (int i = 0; i < parts.Length; i++) { parts[i] = Utils.RemoveQuotes(parts[i].Trim()); }
+
+            RadioChannelInfo r = new RadioChannelInfo();
+            r.channel_id = 0;
+            r.name_str = parts[headers["Description"]];
+            if (r.name_str.Length > 10) { r.name_str = r.name_str.Substring(0, 10); }
+
+            double? rxFreqMHz = Utils.TryParseDouble(Utils.GetValue(parts, headers, "Frequency Input"));
+            r.rx_freq = rxFreqMHz.HasValue ? (int)(rxFreqMHz.Value * 1000000) : 0; // Store in Hz
+
+            double? txFreqMHz = Utils.TryParseDouble(Utils.GetValue(parts, headers, "Frequency Output"));
+            r.tx_freq = txFreqMHz.HasValue ? (int)(txFreqMHz.Value * 1000000) : 0; // Store in Hz
+            if (r.rx_freq == 0) { r.rx_freq = r.tx_freq; }
+            if (r.tx_freq == 0) { r.tx_freq = r.rx_freq; }
+            if ((r.tx_freq == 0) && (r.rx_freq == 0)) return null;
+
+            string rx_mod = parts[headers["Mode"]];
+            if (rx_mod == "AM") { r.rx_mod = RadioModulationType.AM; r.bandwidth = RadioBandwidthType.WIDE; }
+            //else if (rx_mod == "DMR") { r.rx_mod = RadioModulationType.DMR; r.bandwidth = RadioBandwidthType.WIDE; }
+            else if (rx_mod == "FM") { r.rx_mod = RadioModulationType.FM; r.bandwidth = RadioBandwidthType.WIDE; }
+            else if (rx_mod == "FMN") { r.rx_mod = RadioModulationType.FM; r.bandwidth = RadioBandwidthType.NARROW; }
+            else return null;
+            r.tx_mod = r.rx_mod;
+
+            string rx_sub = parts[headers["PL Output Tone"]];
+            string tx_sub = parts[headers["PL Input Tone"]];
+            if (tx_sub.Length == 0) { tx_sub = rx_sub; } // If no TX tone, use RX tone
+            if (rx_sub.Length == 0) { rx_sub = tx_sub; } // If no RX tone, use TX tone
+
+            if (rx_sub.EndsWith(" PL")) {
+                double? rx_sub_audio = Utils.TryParseDouble(rx_sub.Substring(0, rx_sub.Length - 3));
+                r.rx_sub_audio = rx_sub_audio.HasValue ? (int)(rx_sub_audio.Value * 100) : 0;
+            }
+            //else if (rx_sub.EndsWith(" DCS")) { r.rx_sub_audio = int.Parse(rx_sub.Substring(0, rx_sub.Length - 4)); }
+            //else if (rx_sub.EndsWith(" DPL")) { r.rx_sub_audio = int.Parse(rx_sub.Substring(0, rx_sub.Length - 4)); }
+
+            if (tx_sub.EndsWith(" PL"))
+            {
+                double? tx_sub_audio = Utils.TryParseDouble(rx_sub.Substring(0, rx_sub.Length - 3));
+                r.tx_sub_audio = tx_sub_audio.HasValue ? (int)(tx_sub_audio.Value * 100) : 0;
+            }
+            //else if (tx_sub.EndsWith(" DCS")) { r.tx_sub_audio = int.Parse(tx_sub.Substring(0, tx_sub.Length - 4)); }
+            //else if (tx_sub.EndsWith(" DPL")) { r.tx_sub_audio = int.Parse(tx_sub.Substring(0, tx_sub.Length - 4)); }
+
+            r.scan = false;
+            r.tx_disable = false;
+            r.mute = false;
+            r.tx_at_max_power = true;
+            r.tx_at_med_power = false;
+            r.talk_around = false;
+            r.pre_de_emph_bypass = false;
+
+            return r;
         }
 
         private static RadioChannelInfo ParseChannel2(string[] parts, Dictionary<string, int> headers)
@@ -3180,10 +3253,12 @@ namespace HTCommander
             string rx_mod = parts[headers["rx_modulation(0=FM/1=AM)"]];
             if (rx_mod == "AM") { r.rx_mod = RadioModulationType.AM; }
             if (rx_mod == "DMR") { r.rx_mod = RadioModulationType.DMR; }
+            if (rx_mod == "FM") { r.rx_mod = RadioModulationType.FM; }
             if (rx_mod == "FO") { r.rx_mod = RadioModulationType.FM; }
             string tx_mod = parts[headers["tx_modulation(0=FM/1=AM)"]];
             if (tx_mod == "AM") { r.tx_mod = RadioModulationType.AM; }
             if (tx_mod == "DMR") { r.tx_mod = RadioModulationType.DMR; }
+            if (tx_mod == "FM") { r.tx_mod = RadioModulationType.FM; }
             if (tx_mod == "FO") { r.tx_mod = RadioModulationType.FM; }
             return r;
         }
