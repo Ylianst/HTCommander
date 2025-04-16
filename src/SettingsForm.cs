@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using HTCommander.radio;
 using System;
-using System.Collections.ObjectModel;
 using System.IO;
-using System.Speech.Synthesis;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using System.Speech.Synthesis;
+using System.Collections.ObjectModel;
+using HTCommander.radio;
 
 namespace HTCommander
 {

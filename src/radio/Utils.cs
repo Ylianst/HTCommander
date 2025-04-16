@@ -26,6 +26,9 @@ using System.Runtime.InteropServices;
 using Brotli;
 using System.Globalization;
 using Windows.Storage.Search;
+using System.Net.Http;
+using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace HTCommander
 {
@@ -36,6 +39,34 @@ namespace HTCommander
 
         public const int WM_SETREDRAW = 0x0B;
 
+        public async Task<float> GetOnlineVersion()
+        {
+            string url = "https://github.com/Ylianst/HTCommander/tree/main/releases/version.txt?raw=true";
+            try
+            {
+                HttpClient client = new HttpClient();
+                string content = await client.GetStringAsync(url);
+                string[] lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string line in lines)
+                {
+                    if (line.StartsWith("Version="))
+                    {
+                        string versionStr = line.Substring(8).Trim();
+                        if (float.TryParse(versionStr, out float version)) { return version; }
+                    }
+                }
+            }
+            catch (Exception) { }
+            return 0;
+        }
+
+        public float GetCurrentVersion()
+        {
+            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath);
+            string[] vers = versionInfo.FileVersion.Split('.');
+            if (float.TryParse(vers[0] + "." + vers[1], out float version)) { return version; }
+            return 0;
+        }
 
         // Helper function to safely get string value from parts array
         public static string GetValue(string[] parts, Dictionary<string, int> headers, string key, string defaultValue = "")
