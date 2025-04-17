@@ -341,8 +341,16 @@ namespace HTCommander
             string voiceHistoryFileName = Path.Combine(appDataPath, "voiceHistory.txt");
             try
             {
+                StringBuilder sb = new StringBuilder();
+
+                sb.AppendLine("{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\\deflang1033{\\fonttbl{\\f0\\fnil Microsoft Sans Serif;}{\\f1\\fnil\\fcharset0 Microsoft Sans Serif;}}");
+                sb.AppendLine("{\\colortbl ;\\red105\\green105\\blue105;\\red0\\green0\\blue0;}");
+                sb.AppendLine("{\\*\\generator Riched20 10.0.26100}\\viewkind4\\uc1 \\pard");
+
                 string[] voiceHistory = File.ReadAllLines(voiceHistoryFileName);
-                for (int i = 0; i < voiceHistory.Length; i++)
+                int voiceHistoryStart = 0;
+                if (voiceHistory.Length > 500) { voiceHistoryStart = voiceHistory.Length - 500; }
+                for (int i = voiceHistoryStart; i < voiceHistory.Length; i++)
                 {
                     try
                     {
@@ -352,11 +360,18 @@ namespace HTCommander
                         DateTime dateTime = DateTime.Parse(voiceHistory[i].Substring(1, idx));
                         string channelName = voiceHistory[i].Substring(idx + 1, idx2 - idx - 1);
                         string text = voiceHistory[i].Substring(idx2 + 1);
-                        RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, dateTime, channelName, text.Trim(), true, outbound);
+                        //RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, dateTime, channelName, text.Trim(), true, outbound);
+                        sb.AppendLine("\\cf1\\f0\\fs16 " + dateTime.ToString() + " - " + channelName + "\\par");
+                        sb.AppendLine("\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\par");
+                        sb.AppendLine("\\cf2\\fs22 " + text.Trim() + "\\f1\\fs17\\par\\par");
                     }
                     catch (Exception) { }
                 }
-                voiceHistoryCompleted = voiceHistoryTextBox.Rtf;
+                sb.AppendLine("\\cf0\\par");
+                sb.AppendLine("}");
+                voiceHistoryCompleted = voiceHistoryTextBox.Rtf = sb.ToString();
+                voiceHistoryTextBox.SelectionStart = voiceHistoryTextBox.Text.Length;
+                voiceHistoryTextBox.ScrollToCaret();
             } catch (Exception) { }
 
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;

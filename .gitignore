@@ -29,16 +29,16 @@ src/[Bb]in/
 src/[Oo]bj/
 src/[Ll]og/
 
-Updater/src/[Dd]ebug/
-Updater/src/[Dd]ebugPublic/
-Updater/src/[Rr]elease/
-Updater/src/[Rr]eleases/
-Updater/src/x64/
-Updater/src/x86/
-Updater/src/bld/
-Updater/src/[Bb]in/
-Updater/src/[Oo]bj/
-Updater/src/[Ll]og/
+Updater/[Dd]ebug/
+Updater/[Dd]ebugPublic/
+Updater/[Rr]elease/
+Updater/[Rr]eleases/
+Updater/x64/
+Updater/x86/
+Updater/bld/
+Updater/[Bb]in/
+Updater/[Oo]bj/
+Updater/[Ll]og/
 
 # Visual Studio 2015 cache/options directory
 .vs/
