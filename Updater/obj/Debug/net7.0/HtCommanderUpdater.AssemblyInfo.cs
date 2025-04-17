@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HtCommanderUpdater")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+859c13e1bb824c254b633f7db05faadf2034345c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d5c98494a03b1b1bb1fbf2f5a09911903262cac7")]
 [assembly: System.Reflection.AssemblyProductAttribute("HtCommanderUpdater")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HtCommanderUpdater")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
