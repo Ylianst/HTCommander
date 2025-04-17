@@ -15,23 +15,44 @@ limitations under the License.
 */
 
 using System;
+using System.IO;
+using System.Threading;
 using System.Net.Http;
 using System.Diagnostics;
 using System.Windows.Forms;
 using System.Threading.Tasks;
+using HTCommander.radio;
 
 namespace HTCommander
 {
     public partial class SelfUpdateForm: Form
     {
+        private readonly FileDownloader _downloader;
+        private CancellationTokenSource _cts;
+
         public SelfUpdateForm()
         {
             InitializeComponent();
+            _downloader = new FileDownloader();
         }
 
         public static void CheckForUpdate(MainForm parent)
         {
             Task.Run(() => { CheckForUpdateEx(parent); });
+        }
+
+        private string updateUrlEx = null;
+        public string updateUrl { get { return updateUrlEx; } set { updateUrlEx = value; } }
+
+        public string currentVersionText
+        {
+            get { return currentVersionLabel.Text; }
+            set { currentVersionLabel.Text = value; }
+        }
+        public string onlineVersionText
+        {
+            get { return onlineVersionLabel.Text; }
+            set { onlineVersionLabel.Text = value; }
         }
 
         private static async void CheckForUpdateEx(MainForm parent)
@@ -43,7 +64,7 @@ namespace HTCommander
             if (!float.TryParse(vers[0] + "." + vers[1], out currentVersion)) return;
 
             // Get online version
-            string url = "https://raw.githubusercontent.com/Ylianst/HTCommander/refs/heads/main/releases/version.txt";
+            string url = "https://raw.githubusercontent.com/Ylianst/HTCommander/refs/heads/main/releases/version.txt?req=aa";
             float onlineVersion = 0.0f;
             string updateFileName = null;
             try
@@ -65,12 +86,117 @@ namespace HTCommander
             if (onlineVersion == 0) return;
             if (onlineVersion <= currentVersion) return;
 
-            // Display update dialog
-            SelfUpdateForm updateForm = new SelfUpdateForm();
-            updateForm.currentVersionLabel.Text = currentVersion.ToString();
-            updateForm.onlineVersionLabel.Text = onlineVersion.ToString();
-            updateForm.Show(parent);
+            string xupdateUrl = "https://raw.githubusercontent.com/Ylianst/HTCommander/refs/heads/main/releases/" + updateFileName;
+            parent.UpdateAvailable(currentVersion, onlineVersion, xupdateUrl);
         }
 
+        public void RunInstallerAndExit(string msiPath)
+        {
+            if (!File.Exists(msiPath))
+            {
+                MessageBox.Show("Installer file not found: " + msiPath);
+                return;
+            }
+
+            try
+            {
+                // Use msiexec to run the MSI
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = "msiexec.exe",
+                    Arguments = $"/i \"{msiPath}\" /quiet /norestart", // Optional: remove /quiet for UI
+                    UseShellExecute = true,
+                    Verb = "runas" // Ensures elevation prompt
+                };
+
+                Process.Start(processInfo);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to start installer: " + ex.Message);
+                return;
+            }
+
+            // Cleanly exit the current app to free files/resources for the update
+            Application.Exit();
+        }
+
+        private async void okButton_Click(object sender, EventArgs e)
+        {
+            // Get application data path
+            string appDataFilename = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", "Update.msi");
+            string appDataFilenamePart = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", "Update.msi.part");
+            File.Delete(appDataFilename);
+            File.Delete(appDataFilenamePart);
+
+            try
+            {
+                // Prepare for download
+                _cts = new CancellationTokenSource();
+                var progressIndicator = new Progress<DownloadProgressInfo>(ReportProgress);
+
+                // Start the download asynchronously
+                okButton.Enabled = false;
+                await _downloader.DownloadFileAsync(updateUrlEx, appDataFilename, progressIndicator, _cts);
+            }
+            catch (Exception ex) // Catch potential exceptions during setup/await if not caught by downloader
+            {
+                try { _cts.Cancel(); _cts.Dispose(); } catch (Exception) { }
+                _cts = null;
+                MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                UpdateInfo();
+                return;
+            }
+            UpdateInfo();
+            try { File.Move(appDataFilenamePart, appDataFilename); } catch (Exception) { }
+            RunInstallerAndExit(appDataFilename);
+        }
+
+        private void ReportProgress(DownloadProgressInfo progressInfo)
+        {
+            if (progressInfo.Error != null)
+            {
+                MessageBox.Show($"Error: {progressInfo.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _cts?.Dispose();
+                _cts = null;
+                UpdateInfo();
+            }
+            else if (progressInfo.IsCancelled)
+            {
+                MessageBox.Show("Download cancelled.", "Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _cts?.Dispose();
+                _cts = null;
+                UpdateInfo();
+            }
+            else if (progressInfo.IsComplete)
+            {
+                progressBar.Visible = false;
+                //MessageBox.Show("Download completed successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _cts?.Dispose();
+                _cts = null;
+                UpdateInfo();
+            }
+            else
+            {
+                progressBar.Visible = true;
+                progressBar.Value = (int)progressInfo.Percentage;
+            }
+        }
+
+        private void UpdateInfo()
+        {
+            okButton.Enabled = (_cts == null);
+        }
+
+        private void cancelButton_Click(object sender, EventArgs e)
+        {
+            if (_cts != null)
+            {
+                _cts.Cancel();
+                _cts.Dispose();
+                _cts = null;
+            }
+            DialogResult = DialogResult.Cancel;
+        }
     }
 }

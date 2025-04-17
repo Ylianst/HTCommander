@@ -422,6 +422,20 @@ namespace HTCommander
             if (checkForUpdatesToolStripMenuItem.Checked) { SelfUpdateForm.CheckForUpdate(this); }
         }
 
+
+        private delegate void UpdateAvailableHandler(float currentVersion, float onlineVersion, string url);
+        public void UpdateAvailable(float currentVersion, float onlineVersion, string url)
+        {
+            if (this.InvokeRequired) { this.Invoke(new UpdateAvailableHandler(UpdateAvailable), currentVersion, onlineVersion, url); return; }
+
+            // Display update dialog
+            SelfUpdateForm updateForm = new SelfUpdateForm();
+            updateForm.currentVersionText = currentVersion.ToString();
+            updateForm.onlineVersionText = onlineVersion.ToString();
+            updateForm.updateUrl = url;
+            updateForm.ShowDialog(this);
+        }
+
         private void Radio_OnVoiceTransmitStateChanged(Radio sender, bool transmitting)
         {
             if (this.InvokeRequired) { this.Invoke(new Radio.VoiceTransmitStateHandler(Radio_OnVoiceTransmitStateChanged), sender, transmitting); return; }
@@ -4473,6 +4487,8 @@ namespace HTCommander
         private void checkForUpdatesToolStripMenuItem_Click(object sender, EventArgs e)
         {
             registry.WriteInt("CheckForUpdates", checkForUpdatesToolStripMenuItem.Checked ? 1 : 0);
+            // Check for updates
+            if (checkForUpdatesToolStripMenuItem.Checked) { SelfUpdateForm.CheckForUpdate(this); }
         }
     }
 }
