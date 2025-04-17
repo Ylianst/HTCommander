@@ -54,6 +54,27 @@ namespace HTCommander
             }
         }
 
+        private static void LaunchDetachedInstance()
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = Process.GetCurrentProcess().MainModule.FileName,
+                    // Launch without the /silentlaunch flag
+                    Arguments = "",
+                    UseShellExecute = true, // Important for GUI apps
+                    WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory,
+                };
+
+                Process.Start(startInfo);
+            }
+            catch (Exception ex)
+            {
+                // Log or silently fail — optional
+            }
+        }
+
         public static void BlockBoxEvent(string ev)
         {
             BlackBoxEvents.Add(DateTime.Now.ToString() + " - " + ev);

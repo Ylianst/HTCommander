@@ -80,44 +80,48 @@ namespace HTCommander
             }
             catch (Exception) { }
 
+            currentVersion = 0.21F;
+
             // Check if update is needed
             if (updateFileName == null) return;
             if (currentVersion == 0) return;
             if (onlineVersion == 0) return;
             if (onlineVersion <= currentVersion) return;
 
-            string xupdateUrl = "https://raw.githubusercontent.com/Ylianst/HTCommander/refs/heads/main/releases/" + updateFileName;
-            parent.UpdateAvailable(currentVersion, onlineVersion, xupdateUrl);
+            parent.UpdateAvailable(currentVersion, onlineVersion, "https://raw.githubusercontent.com/Ylianst/HTCommander/refs/heads/main/releases/" + updateFileName);
         }
 
-        public void RunInstallerAndExit(string msiPath)
+        private void TriggerUpdate(string msiPath)
         {
-            if (!File.Exists(msiPath))
-            {
-                MessageBox.Show("Installer file not found: " + msiPath);
-                return;
-            }
+            string originalUpdaterPath1 = "HtCommanderUpdater.exe";
+            string originalUpdaterPath2 = "HtCommanderUpdater.dll";
+            string originalUpdaterPath3 = "HtCommanderUpdater.runtimeconfig.json";
+            string tempUpdaterPath1 = Path.Combine(Path.GetTempPath(), "HtCommanderUpdater.exe");
+            string tempUpdaterPath2 = Path.Combine(Path.GetTempPath(), "HtCommanderUpdater.dll");
+            string tempUpdaterPath3 = Path.Combine(Path.GetTempPath(), "HtCommanderUpdater.runtimeconfig.json");
+            string fullExePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
 
             try
             {
-                // Use msiexec to run the MSI
-                var processInfo = new ProcessStartInfo
-                {
-                    FileName = "msiexec.exe",
-                    Arguments = $"/i \"{msiPath}\" /quiet /norestart", // Optional: remove /quiet for UI
-                    UseShellExecute = true,
-                    Verb = "runas" // Ensures elevation prompt
-                };
+                // Copy Updater to a temp directory to avoid deletion during update
+                File.Copy(originalUpdaterPath1, tempUpdaterPath1, true);
+                File.Copy(originalUpdaterPath2, tempUpdaterPath2, true);
+                File.Copy(originalUpdaterPath3, tempUpdaterPath3, true);
+                string currentProcessName = Process.GetCurrentProcess().ProcessName;
 
-                Process.Start(processInfo);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = tempUpdaterPath1,
+                    Arguments = $"\"{currentProcessName}\" \"{msiPath}\" \"{fullExePath}\"",
+                    UseShellExecute = true
+                });
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Failed to start installer: " + ex.Message);
+                MessageBox.Show("Failed to start updater: " + ex.Message);
                 return;
             }
 
-            // Cleanly exit the current app to free files/resources for the update
             Application.Exit();
         }
 
@@ -149,7 +153,7 @@ namespace HTCommander
             }
             UpdateInfo();
             try { File.Move(appDataFilenamePart, appDataFilename); } catch (Exception) { }
-            RunInstallerAndExit(appDataFilename);
+            TriggerUpdate(appDataFilename);
         }
 
         private void ReportProgress(DownloadProgressInfo progressInfo)
