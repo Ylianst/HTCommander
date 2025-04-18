@@ -1,6 +1,6 @@
 # Handi-Talky Commander
 
-This is a Amateur Radio (HAM Radio) tool for the UV-Pro, GA-5WB, VR-N76, VR-N7500 radios that works on Windows x64 with Bluetooth support. It allows for easy control over the radio with Bluetooth and allows a range of feature including Speech-to-Text, Text-to-Speech, APRS, Terminal, BBS, WinLink and more.
+This is a Amateur Radio (HAM Radio) tool for the UV-Pro, GA-5WB, VR-N76, VR-N7500 radios that works on Windows x64 with Bluetooth support. It allows for easy control over the radio with range of feature including channel programming, speech-to-text, text-to-speech, WinLink, APRS, terminal, BBS and more.
 
 ![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/th-commander-3.png?raw=true)
 
