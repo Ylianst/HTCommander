@@ -37,7 +37,7 @@
             this.disableTransmitCheckBox = new System.Windows.Forms.CheckBox();
             this.label5 = new System.Windows.Forms.Label();
             this.powerComboBox = new System.Windows.Forms.ComboBox();
-            this.label3 = new System.Windows.Forms.Label();
+            this.possibleFreqLabel1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.nameTextBox = new System.Windows.Forms.TextBox();
@@ -55,7 +55,7 @@
             this.transmitCtcssComboBox = new System.Windows.Forms.ComboBox();
             this.advTalkAroundCheckBox = new System.Windows.Forms.CheckBox();
             this.advScanCheckBox = new System.Windows.Forms.CheckBox();
-            this.label10 = new System.Windows.Forms.Label();
+            this.possibleFreqLabel2 = new System.Windows.Forms.Label();
             this.label11 = new System.Windows.Forms.Label();
             this.advTransmitFreqTextBox = new System.Windows.Forms.TextBox();
             this.advMuteCheckBox = new System.Windows.Forms.CheckBox();
@@ -79,7 +79,7 @@
             this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
             this.cancelButton.Location = new System.Drawing.Point(419, 779);
-            this.cancelButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.cancelButton.Margin = new System.Windows.Forms.Padding(4);
             this.cancelButton.Name = "cancelButton";
             this.cancelButton.Size = new System.Drawing.Size(100, 28);
             this.cancelButton.TabIndex = 32;
@@ -108,16 +108,16 @@
             this.basicGroupBox.Controls.Add(this.disableTransmitCheckBox);
             this.basicGroupBox.Controls.Add(this.label5);
             this.basicGroupBox.Controls.Add(this.powerComboBox);
-            this.basicGroupBox.Controls.Add(this.label3);
+            this.basicGroupBox.Controls.Add(this.possibleFreqLabel1);
             this.basicGroupBox.Controls.Add(this.label2);
             this.basicGroupBox.Controls.Add(this.label1);
             this.basicGroupBox.Controls.Add(this.nameTextBox);
             this.basicGroupBox.Controls.Add(this.modeComboBox);
             this.basicGroupBox.Controls.Add(this.freqTextBox);
             this.basicGroupBox.Location = new System.Drawing.Point(20, 82);
-            this.basicGroupBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.basicGroupBox.Margin = new System.Windows.Forms.Padding(4);
             this.basicGroupBox.Name = "basicGroupBox";
-            this.basicGroupBox.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.basicGroupBox.Padding = new System.Windows.Forms.Padding(4);
             this.basicGroupBox.Size = new System.Drawing.Size(499, 282);
             this.basicGroupBox.TabIndex = 7;
             this.basicGroupBox.TabStop = false;
@@ -127,7 +127,7 @@
             // 
             this.moreSettingsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.moreSettingsButton.Location = new System.Drawing.Point(12, 246);
-            this.moreSettingsButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.moreSettingsButton.Margin = new System.Windows.Forms.Padding(4);
             this.moreSettingsButton.Name = "moreSettingsButton";
             this.moreSettingsButton.Size = new System.Drawing.Size(120, 28);
             this.moreSettingsButton.TabIndex = 7;
@@ -139,7 +139,7 @@
             // 
             this.muteCheckBox.AutoSize = true;
             this.muteCheckBox.Location = new System.Drawing.Point(215, 219);
-            this.muteCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.muteCheckBox.Margin = new System.Windows.Forms.Padding(4);
             this.muteCheckBox.Name = "muteCheckBox";
             this.muteCheckBox.Size = new System.Drawing.Size(58, 20);
             this.muteCheckBox.TabIndex = 6;
@@ -151,7 +151,7 @@
             // 
             this.disableTransmitCheckBox.AutoSize = true;
             this.disableTransmitCheckBox.Location = new System.Drawing.Point(215, 191);
-            this.disableTransmitCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.disableTransmitCheckBox.Margin = new System.Windows.Forms.Padding(4);
             this.disableTransmitCheckBox.Name = "disableTransmitCheckBox";
             this.disableTransmitCheckBox.Size = new System.Drawing.Size(131, 20);
             this.disableTransmitCheckBox.TabIndex = 5;
@@ -181,23 +181,23 @@
             "Medium",
             "Low"});
             this.powerComboBox.Location = new System.Drawing.Point(215, 146);
-            this.powerComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.powerComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.powerComboBox.Name = "powerComboBox";
             this.powerComboBox.Size = new System.Drawing.Size(275, 25);
             this.powerComboBox.TabIndex = 4;
             this.powerComboBox.SelectedIndexChanged += new System.EventHandler(this.powerComboBox_SelectedIndexChanged);
             // 
-            // label3
+            // possibleFreqLabel1
             // 
-            this.label3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            this.possibleFreqLabel1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.label3.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
-            this.label3.Location = new System.Drawing.Point(211, 113);
-            this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(280, 18);
-            this.label3.TabIndex = 5;
-            this.label3.Text = "136 MHz - 174 MHz, 300 MHz - 550 MHz\r\n";
+            this.possibleFreqLabel1.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
+            this.possibleFreqLabel1.Location = new System.Drawing.Point(211, 113);
+            this.possibleFreqLabel1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.possibleFreqLabel1.Name = "possibleFreqLabel1";
+            this.possibleFreqLabel1.Size = new System.Drawing.Size(280, 18);
+            this.possibleFreqLabel1.TabIndex = 5;
+            this.possibleFreqLabel1.Text = "136 MHz - 174 MHz, 300 MHz - 550 MHz\r\n";
             // 
             // label2
             // 
@@ -225,7 +225,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.nameTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.nameTextBox.Location = new System.Drawing.Point(215, 23);
-            this.nameTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nameTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.nameTextBox.MaxLength = 10;
             this.nameTextBox.Name = "nameTextBox";
             this.nameTextBox.Size = new System.Drawing.Size(275, 37);
@@ -242,10 +242,11 @@
             "FM",
             "AM"});
             this.modeComboBox.Location = new System.Drawing.Point(409, 69);
-            this.modeComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.modeComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.modeComboBox.Name = "modeComboBox";
             this.modeComboBox.Size = new System.Drawing.Size(80, 38);
             this.modeComboBox.TabIndex = 3;
+            this.modeComboBox.SelectedIndexChanged += new System.EventHandler(this.modeComboBox_SelectedIndexChanged);
             // 
             // freqTextBox
             // 
@@ -253,7 +254,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.freqTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.freqTextBox.Location = new System.Drawing.Point(215, 71);
-            this.freqTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.freqTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.freqTextBox.Name = "freqTextBox";
             this.freqTextBox.Size = new System.Drawing.Size(183, 37);
             this.freqTextBox.TabIndex = 2;
@@ -265,7 +266,7 @@
             this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox2.Image = global::HTCommander.Properties.Resources.Signal;
             this.pictureBox2.Location = new System.Drawing.Point(427, 11);
-            this.pictureBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox2.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox2.Name = "pictureBox2";
             this.pictureBox2.Size = new System.Drawing.Size(92, 64);
             this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -298,7 +299,7 @@
             this.advGroupBox.Controls.Add(this.transmitCtcssComboBox);
             this.advGroupBox.Controls.Add(this.advTalkAroundCheckBox);
             this.advGroupBox.Controls.Add(this.advScanCheckBox);
-            this.advGroupBox.Controls.Add(this.label10);
+            this.advGroupBox.Controls.Add(this.possibleFreqLabel2);
             this.advGroupBox.Controls.Add(this.label11);
             this.advGroupBox.Controls.Add(this.advTransmitFreqTextBox);
             this.advGroupBox.Controls.Add(this.advMuteCheckBox);
@@ -311,9 +312,9 @@
             this.advGroupBox.Controls.Add(this.advModeComboBox);
             this.advGroupBox.Controls.Add(this.advReceiveFreqTextBox);
             this.advGroupBox.Location = new System.Drawing.Point(20, 372);
-            this.advGroupBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advGroupBox.Margin = new System.Windows.Forms.Padding(4);
             this.advGroupBox.Name = "advGroupBox";
-            this.advGroupBox.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advGroupBox.Padding = new System.Windows.Forms.Padding(4);
             this.advGroupBox.Size = new System.Drawing.Size(499, 399);
             this.advGroupBox.TabIndex = 12;
             this.advGroupBox.TabStop = false;
@@ -323,7 +324,7 @@
             // 
             this.deemphasisCheckBox.AutoSize = true;
             this.deemphasisCheckBox.Location = new System.Drawing.Point(361, 370);
-            this.deemphasisCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.deemphasisCheckBox.Margin = new System.Windows.Forms.Padding(4);
             this.deemphasisCheckBox.Name = "deemphasisCheckBox";
             this.deemphasisCheckBox.Size = new System.Drawing.Size(110, 20);
             this.deemphasisCheckBox.TabIndex = 22;
@@ -351,7 +352,7 @@
             "25 Khz - Wide",
             "12.5 KHz - Narrow"});
             this.advBandwidthComboBox.Location = new System.Drawing.Point(215, 247);
-            this.advBandwidthComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advBandwidthComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.advBandwidthComboBox.Name = "advBandwidthComboBox";
             this.advBandwidthComboBox.Size = new System.Drawing.Size(275, 25);
             this.advBandwidthComboBox.TabIndex = 16;
@@ -532,7 +533,7 @@
             "DCS-743N/654I",
             "DCS-754N/116I"});
             this.receiveCtcssComboBox.Location = new System.Drawing.Point(215, 214);
-            this.receiveCtcssComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.receiveCtcssComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.receiveCtcssComboBox.Name = "receiveCtcssComboBox";
             this.receiveCtcssComboBox.Size = new System.Drawing.Size(275, 25);
             this.receiveCtcssComboBox.TabIndex = 15;
@@ -713,7 +714,7 @@
             "DCS-743N/654I",
             "DCS-754N/116I"});
             this.transmitCtcssComboBox.Location = new System.Drawing.Point(215, 181);
-            this.transmitCtcssComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.transmitCtcssComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.transmitCtcssComboBox.Name = "transmitCtcssComboBox";
             this.transmitCtcssComboBox.Size = new System.Drawing.Size(275, 25);
             this.transmitCtcssComboBox.TabIndex = 14;
@@ -722,7 +723,7 @@
             // 
             this.advTalkAroundCheckBox.AutoSize = true;
             this.advTalkAroundCheckBox.Location = new System.Drawing.Point(361, 342);
-            this.advTalkAroundCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advTalkAroundCheckBox.Margin = new System.Windows.Forms.Padding(4);
             this.advTalkAroundCheckBox.Name = "advTalkAroundCheckBox";
             this.advTalkAroundCheckBox.Size = new System.Drawing.Size(102, 20);
             this.advTalkAroundCheckBox.TabIndex = 21;
@@ -733,24 +734,24 @@
             // 
             this.advScanCheckBox.AutoSize = true;
             this.advScanCheckBox.Location = new System.Drawing.Point(361, 314);
-            this.advScanCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advScanCheckBox.Margin = new System.Windows.Forms.Padding(4);
             this.advScanCheckBox.Name = "advScanCheckBox";
             this.advScanCheckBox.Size = new System.Drawing.Size(60, 20);
             this.advScanCheckBox.TabIndex = 20;
             this.advScanCheckBox.Text = "Scan";
             this.advScanCheckBox.UseVisualStyleBackColor = true;
             // 
-            // label10
+            // possibleFreqLabel2
             // 
-            this.label10.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            this.possibleFreqLabel2.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.label10.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
-            this.label10.Location = new System.Drawing.Point(211, 159);
-            this.label10.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(280, 18);
-            this.label10.TabIndex = 13;
-            this.label10.Text = "136 MHz - 174 MHz, 300 MHz - 550 MHz\r\n";
+            this.possibleFreqLabel2.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
+            this.possibleFreqLabel2.Location = new System.Drawing.Point(211, 159);
+            this.possibleFreqLabel2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.possibleFreqLabel2.Name = "possibleFreqLabel2";
+            this.possibleFreqLabel2.Size = new System.Drawing.Size(280, 18);
+            this.possibleFreqLabel2.TabIndex = 13;
+            this.possibleFreqLabel2.Text = "136 MHz - 174 MHz, 300 MHz - 550 MHz\r\n";
             // 
             // label11
             // 
@@ -768,7 +769,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.advTransmitFreqTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.advTransmitFreqTextBox.Location = new System.Drawing.Point(215, 117);
-            this.advTransmitFreqTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advTransmitFreqTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.advTransmitFreqTextBox.Name = "advTransmitFreqTextBox";
             this.advTransmitFreqTextBox.Size = new System.Drawing.Size(183, 37);
             this.advTransmitFreqTextBox.TabIndex = 13;
@@ -779,7 +780,7 @@
             // 
             this.advMuteCheckBox.AutoSize = true;
             this.advMuteCheckBox.Location = new System.Drawing.Point(215, 342);
-            this.advMuteCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advMuteCheckBox.Margin = new System.Windows.Forms.Padding(4);
             this.advMuteCheckBox.Name = "advMuteCheckBox";
             this.advMuteCheckBox.Size = new System.Drawing.Size(58, 20);
             this.advMuteCheckBox.TabIndex = 19;
@@ -790,7 +791,7 @@
             // 
             this.advDisableTransmitCheckBox.AutoSize = true;
             this.advDisableTransmitCheckBox.Location = new System.Drawing.Point(215, 314);
-            this.advDisableTransmitCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advDisableTransmitCheckBox.Margin = new System.Windows.Forms.Padding(4);
             this.advDisableTransmitCheckBox.Name = "advDisableTransmitCheckBox";
             this.advDisableTransmitCheckBox.Size = new System.Drawing.Size(131, 20);
             this.advDisableTransmitCheckBox.TabIndex = 18;
@@ -819,7 +820,7 @@
             "Medium",
             "Low"});
             this.advPowerComboBox.Location = new System.Drawing.Point(215, 281);
-            this.advPowerComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advPowerComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.advPowerComboBox.Name = "advPowerComboBox";
             this.advPowerComboBox.Size = new System.Drawing.Size(275, 25);
             this.advPowerComboBox.TabIndex = 17;
@@ -850,7 +851,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.advNameTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.advNameTextBox.Location = new System.Drawing.Point(215, 23);
-            this.advNameTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advNameTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.advNameTextBox.MaxLength = 10;
             this.advNameTextBox.Name = "advNameTextBox";
             this.advNameTextBox.Size = new System.Drawing.Size(275, 37);
@@ -866,10 +867,11 @@
             "FM",
             "AM"});
             this.advModeComboBox.Location = new System.Drawing.Point(409, 69);
-            this.advModeComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advModeComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.advModeComboBox.Name = "advModeComboBox";
             this.advModeComboBox.Size = new System.Drawing.Size(80, 38);
             this.advModeComboBox.TabIndex = 12;
+            this.advModeComboBox.SelectedIndexChanged += new System.EventHandler(this.advModeComboBox_SelectedIndexChanged);
             // 
             // advReceiveFreqTextBox
             // 
@@ -877,7 +879,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.advReceiveFreqTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.advReceiveFreqTextBox.Location = new System.Drawing.Point(215, 71);
-            this.advReceiveFreqTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.advReceiveFreqTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.advReceiveFreqTextBox.Name = "advReceiveFreqTextBox";
             this.advReceiveFreqTextBox.Size = new System.Drawing.Size(183, 37);
             this.advReceiveFreqTextBox.TabIndex = 11;
@@ -888,7 +890,7 @@
             // 
             this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.okButton.Location = new System.Drawing.Point(311, 778);
-            this.okButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.okButton.Margin = new System.Windows.Forms.Padding(4);
             this.okButton.Name = "okButton";
             this.okButton.Size = new System.Drawing.Size(100, 28);
             this.okButton.TabIndex = 31;
@@ -900,7 +902,7 @@
             // 
             this.clearButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.clearButton.Location = new System.Drawing.Point(20, 779);
-            this.clearButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.clearButton.Margin = new System.Windows.Forms.Padding(4);
             this.clearButton.Name = "clearButton";
             this.clearButton.Size = new System.Drawing.Size(100, 28);
             this.clearButton.TabIndex = 30;
@@ -925,7 +927,7 @@
             this.Controls.Add(this.cancelButton);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "RadioChannelForm";
@@ -956,13 +958,13 @@
         private System.Windows.Forms.TextBox freqTextBox;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.ComboBox powerComboBox;
-        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.Label possibleFreqLabel1;
         private System.Windows.Forms.CheckBox muteCheckBox;
         private System.Windows.Forms.CheckBox disableTransmitCheckBox;
         private System.Windows.Forms.LinkLabel repeaterBookLinkLabel;
         private System.Windows.Forms.Button moreSettingsButton;
         private System.Windows.Forms.GroupBox advGroupBox;
-        private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.Label possibleFreqLabel2;
         private System.Windows.Forms.Label label11;
         private System.Windows.Forms.TextBox advTransmitFreqTextBox;
         private System.Windows.Forms.CheckBox advMuteCheckBox;

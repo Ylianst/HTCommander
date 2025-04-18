@@ -101,9 +101,9 @@ namespace HTCommander
             byte[] r = new byte[25];
             r[0] = (byte)channel_id;
             Utils.SetInt(r, 1, (int)tx_freq);
-            r[1] += (byte)(((int)tx_mod & 0x02) << 6);
+            r[1] += (byte)(((int)tx_mod & 0x03) << 6);
             Utils.SetInt(r, 5, (int)rx_freq);
-            r[5] += (byte)(((int)rx_mod & 0x02) << 6);
+            r[5] += (byte)(((int)rx_mod & 0x03) << 6);
             Utils.SetShort(r, 9, (int)tx_sub_audio);
             Utils.SetShort(r, 11, (int)rx_sub_audio);
 

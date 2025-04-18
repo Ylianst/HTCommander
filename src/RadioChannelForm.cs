@@ -67,6 +67,8 @@ namespace HTCommander
             }
             nameTextBox.Text = c.name_str;
             advNameTextBox.Text = c.name_str;
+            if (c.tx_freq == 0) { c.tx_freq = c.rx_freq; }
+            if (c.rx_freq == 0) { c.rx_freq = c.tx_freq; }
             advTransmitFreqTextBox.Text = freqTextBox.Text = (((float)c.tx_freq) / 1000000).ToString();
             advReceiveFreqTextBox.Text = (((float)c.rx_freq) / 1000000).ToString();
 
@@ -76,8 +78,8 @@ namespace HTCommander
             advTalkAroundCheckBox.Checked = c.talk_around;
             deemphasisCheckBox.Checked = !c.pre_de_emph_bypass;
 
-            if (c.tx_mod == RadioModulationType.FM) { advModeComboBox.SelectedIndex = modeComboBox.SelectedIndex = 0; }
-            if (c.tx_mod == RadioModulationType.AM) { advModeComboBox.SelectedIndex = modeComboBox.SelectedIndex = 1; }
+            advModeComboBox.SelectedIndex = modeComboBox.SelectedIndex = 0;
+            if ((c.tx_mod == RadioModulationType.AM) || (c.rx_mod == RadioModulationType.AM)) { advModeComboBox.SelectedIndex = modeComboBox.SelectedIndex = 1; }
             if (c.bandwidth == RadioBandwidthType.WIDE) { advBandwidthComboBox.SelectedIndex = 0; }
             if (c.bandwidth == RadioBandwidthType.NARROW) { advBandwidthComboBox.SelectedIndex = 1; }
 
@@ -109,7 +111,7 @@ namespace HTCommander
                 }
             }
 
-            if ((advTransmitFreqTextBox.Text != advReceiveFreqTextBox.Text) || (c.tx_sub_audio != 0) || (c.rx_sub_audio != 0) || (c.talk_around) || (!c.scan) || (c.bandwidth == RadioBandwidthType.NARROW)) { MoveToAdvancedMode(); }
+            if ((advTransmitFreqTextBox.Text != advReceiveFreqTextBox.Text) || (c.tx_sub_audio != 0) || (c.rx_sub_audio != 0) || (c.talk_around) || (c.scan) || (c.bandwidth == RadioBandwidthType.NARROW)) { MoveToAdvancedMode(); }
         }
 
         public void UpdateChannel(int channelId)
@@ -264,9 +266,9 @@ namespace HTCommander
                 advTransmitFreqTextBox.BackColor = normalBackColor;
             }
 
-            bool f1 = CheckFreqRange(freqTextBox.Text);
-            bool f2 = CheckFreqRange(advReceiveFreqTextBox.Text);
-            bool f3 = CheckFreqRange(advTransmitFreqTextBox.Text);
+            bool f1 = CheckFreqRange(freqTextBox.Text, advancedMode ? advModeComboBox.SelectedIndex : modeComboBox.SelectedIndex);
+            bool f2 = CheckFreqRange(advReceiveFreqTextBox.Text, advancedMode ? advModeComboBox.SelectedIndex : modeComboBox.SelectedIndex);
+            bool f3 = CheckFreqRange(advTransmitFreqTextBox.Text, advancedMode ? advModeComboBox.SelectedIndex : modeComboBox.SelectedIndex);
 
             freqTextBox.BackColor = f1 ? normalBackColor : Color.LightSalmon;
             advReceiveFreqTextBox.BackColor = f2 ? normalBackColor : Color.LightSalmon;
@@ -274,22 +276,34 @@ namespace HTCommander
 
             if (advancedMode)
             {
+                if (advModeComboBox.SelectedIndex == 0) { possibleFreqLabel1.Text = possibleFreqLabel2.Text = "136 MHz - 174 MHz, 300 MHz - 550 MHz"; }
+                if (advModeComboBox.SelectedIndex == 1) { possibleFreqLabel1.Text = possibleFreqLabel2.Text = "108 MHz - 136 MHz"; }
                 okButton.Enabled = f2 & f3;
             }
             else
             {
+                if (modeComboBox.SelectedIndex == 0) { possibleFreqLabel1.Text = possibleFreqLabel2.Text = "136 MHz - 174 MHz, 300 MHz - 550 MHz"; }
+                if (modeComboBox.SelectedIndex == 1) { possibleFreqLabel1.Text = possibleFreqLabel2.Text = "108 MHz - 136 MHz"; }
                 okButton.Enabled = f1;
             }
         }
 
-        private bool CheckFreqRange(string freqStr)
+        private bool CheckFreqRange(string freqStr, int mode)
         {
             if (freqStr == null) return false;
             float freq;
             if (float.TryParse(freqStr, out freq) == false) return false;
-            if (freq < 136) return false;
-            if (freq > 550) return false;
-            if ((freq > 174) && (freq < 300)) return false;
+            if (mode == 0)
+            {
+                if (freq < 136) return false;
+                if (freq > 550) return false;
+                if ((freq > 174) && (freq < 300)) return false;
+            }
+            if (mode == 1)
+            {
+                if (freq < 108) return false;
+                if (freq > 136) return false;
+            }
             return true;
         }
 
@@ -367,10 +381,21 @@ namespace HTCommander
             advDisableTransmitCheckBox.Checked = advMuteCheckBox.Checked = false;
             advScanCheckBox.Checked = advTalkAroundCheckBox.Checked = deemphasisCheckBox.Enabled = false;
             transmitCtcssComboBox.SelectedIndex = receiveCtcssComboBox.SelectedIndex = 0;
+            modeComboBox.SelectedIndex = advModeComboBox.SelectedIndex = 0;
             advBandwidthComboBox.SelectedIndex = 0;
             advPowerComboBox.SelectedIndex = 0;
             advModeComboBox.SelectedIndex = 0;
             okButton_Click(this, null);
+        }
+
+        private void modeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UpdateInfo();
+        }
+
+        private void advModeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UpdateInfo();
         }
     }
 }

@@ -151,7 +151,7 @@ namespace HTCommander
             {
                 RadioChannelInfo c = (RadioChannelInfo)e.Data.GetData(typeof(RadioChannelInfo));
                 if (c.channel_id == channel.channel_id) return;
-                if (MessageBox.Show(parent, string.Format("Copy \"{0}\" to channel {1}?", c.name_str, channel.channel_id), "Channel", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
+                if (MessageBox.Show(parent, string.Format("Copy \"{0}\" to channel {1}?", c.name_str, (channel.channel_id + 1)), "Channel", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
                 {
                     RadioChannelInfo c2 = new RadioChannelInfo(c);
                     c2.channel_id = channel.channel_id;

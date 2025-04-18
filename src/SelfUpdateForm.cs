@@ -80,8 +80,6 @@ namespace HTCommander
             }
             catch (Exception) { }
 
-            currentVersion = 0.21F;
-
             // Check if update is needed
             if (updateFileName == null) return;
             if (currentVersion == 0) return;
