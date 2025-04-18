@@ -5,6 +5,8 @@ This is a Amateur Radio (HAM Radio) tool for the UV-Pro, GA-5WB, VR-N76, VR-N750
 ![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/th-commander-2.png?raw=true)
 Note that a Amateur radio license is required to transmit using this software. You can get [information on a license here](https://www.arrl.org/getting-licensed).
 
+****Download: [Windows x64 MSI Installer](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.23.msi)****
+
 ### Radio Support
 
 The following radios should work with this application:
