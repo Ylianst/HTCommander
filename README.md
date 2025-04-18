@@ -2,7 +2,7 @@
 
 This is a Amateur Radio (HAM Radio) tool for the UV-Pro, GA-5WB, VR-N76, VR-N7500 radios that works on Windows x64 with Bluetooth LE support. It allows for easy control over the radio over Bluetooth and doing APRS messaging. This is an early preview version with the goal for it to support BBS's, WinLink and more.
 
-![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/th-commander-2.png?raw=true)
+![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/th-commander-3.png?raw=true)
 Note that a Amateur radio license is required to transmit using this software. You can get [information on a license here](https://www.arrl.org/getting-licensed).
 
 ****Download: [Windows x64 MSI Installer](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.23.msi)****
