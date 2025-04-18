@@ -29,6 +29,7 @@ namespace HTCommander
     {
         private readonly FileDownloader _downloader;
         private CancellationTokenSource _cts;
+        private static bool checkingForUpdate = false;
 
         public SelfUpdateForm()
         {
@@ -57,36 +58,43 @@ namespace HTCommander
 
         private static async void CheckForUpdateEx(MainForm parent)
         {
-            // Get the current version of the application
-            float currentVersion = 0.0f;
-            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath);
-            string[] vers = versionInfo.FileVersion.Split('.');
-            if (!float.TryParse(vers[0] + "." + vers[1], out currentVersion)) return;
-
-            // Get online version
-            string url = "https://raw.githubusercontent.com/Ylianst/HTCommander/refs/heads/main/releases/version.txt?req=aa";
-            float onlineVersion = 0.0f;
-            string updateFileName = null;
+            if (checkingForUpdate == true) return;
             try
             {
-                HttpClient client = new HttpClient();
-                string content = await client.GetStringAsync(url);
-                string[] lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (string line in lines)
+                checkingForUpdate = true;
+                // Get the current version of the application
+                float currentVersion = 0.0f;
+                FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath);
+                string[] vers = versionInfo.FileVersion.Split('.');
+                if (!float.TryParse(vers[0] + "." + vers[1], out currentVersion)) return;
+
+                // Get online version
+                string url = "https://raw.githubusercontent.com/Ylianst/HTCommander/refs/heads/main/releases/version.txt?req=aa";
+                float onlineVersion = 0.0f;
+                string updateFileName = null;
+                try
                 {
-                    if (line.StartsWith("version=")) { if (!float.TryParse(line.Substring(8).Trim(), out onlineVersion)) return; }
-                    if (line.StartsWith("filename=")) { updateFileName = line.Substring(9).Trim(); }
+                    HttpClient client = new HttpClient();
+                    string content = await client.GetStringAsync(url);
+                    string[] lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (string line in lines)
+                    {
+                        if (line.StartsWith("version=")) { if (!float.TryParse(line.Substring(8).Trim(), out onlineVersion)) return; }
+                        if (line.StartsWith("filename=")) { updateFileName = line.Substring(9).Trim(); }
+                    }
                 }
+                catch (Exception) { }
+
+                // Check if update is needed
+                if (updateFileName == null) return;
+                if (currentVersion == 0) return;
+                if (onlineVersion == 0) return;
+                if (onlineVersion <= currentVersion) return;
+
+                parent.UpdateAvailable(currentVersion, onlineVersion, "https://raw.githubusercontent.com/Ylianst/HTCommander/refs/heads/main/releases/" + updateFileName);
             }
             catch (Exception) { }
-
-            // Check if update is needed
-            if (updateFileName == null) return;
-            if (currentVersion == 0) return;
-            if (onlineVersion == 0) return;
-            if (onlineVersion <= currentVersion) return;
-
-            parent.UpdateAvailable(currentVersion, onlineVersion, "https://raw.githubusercontent.com/Ylianst/HTCommander/refs/heads/main/releases/" + updateFileName);
+            checkingForUpdate = false;
         }
 
         private void TriggerUpdate(string msiPath)

@@ -434,7 +434,19 @@ namespace HTCommander
             session.ErrorEvent += Session_ErrorEvent;
 
             // Check for updates
-            if (checkForUpdatesToolStripMenuItem.Checked) { SelfUpdateForm.CheckForUpdate(this); }
+            if (File.Exists("NoUpdateCheck.txt"))
+            {
+                checkForUpdatesToolStripMenuItem.Visible = false;
+                checkForUpdatesToolStripMenuItem.Checked = false;
+            }
+            else if (checkForUpdatesToolStripMenuItem.Checked) {
+                string lastUpdateCheck = registry.ReadString("LastUpdateCheck", "");
+                if (string.IsNullOrEmpty(lastUpdateCheck) || (DateTime.Now - DateTime.Parse(lastUpdateCheck)).TotalDays > 1)
+                {
+                    registry.WriteString("LastUpdateCheck", DateTime.Now.ToString());
+                    SelfUpdateForm.CheckForUpdate(this);
+                }
+            }
         }
 
 
@@ -4502,8 +4514,12 @@ namespace HTCommander
         private void checkForUpdatesToolStripMenuItem_Click(object sender, EventArgs e)
         {
             registry.WriteInt("CheckForUpdates", checkForUpdatesToolStripMenuItem.Checked ? 1 : 0);
+
             // Check for updates
-            if (checkForUpdatesToolStripMenuItem.Checked) { SelfUpdateForm.CheckForUpdate(this); }
+            if (checkForUpdatesToolStripMenuItem.Checked) {
+                registry.WriteString("LastUpdateCheck", DateTime.Now.ToString());
+                SelfUpdateForm.CheckForUpdate(this);
+            }
         }
     }
 }
