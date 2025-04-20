@@ -423,6 +423,7 @@ namespace HTCommander
         public delegate void OnProcessingVoiceHandler(bool listening, bool processing);
         public event OnProcessingVoiceHandler onProcessingVoice;
         public bool AudioState { get { return radioAudio.IsAudioEnabled; } }
+        public float OutputVolume { get { return radioAudio.Volume; } set { radioAudio.Volume = value; } }
         public bool AudioToTextState { get { return radioAudio.speechToText; } }
 
         public void StartAudioToText(string language, string model)
@@ -555,6 +556,14 @@ namespace HTCommander
             byte[] buf = new byte[1];
             buf[0] = (byte)level;
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.SET_VOLUME, buf);
+        }
+
+        public void SetSquelchLevel(int level)
+        {
+            RadioSettings newSettings = new RadioSettings(Settings);
+            newSettings.squelch_level = level;
+            WriteSettings(newSettings.ToByteArray());
+            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_SETTINGS, null);
         }
 
         public void SetBssSettings(RadioBssSettings bss)

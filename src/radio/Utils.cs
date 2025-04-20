@@ -30,6 +30,16 @@ namespace HTCommander
 {
     public class Utils
     {
+        public class ComboBoxItem
+        {
+            public int Index { get; }
+            public string Value { get; }
+            public string Text { get; }
+            public ComboBoxItem(int index, string text) { Index = index; Text = text; }
+            public ComboBoxItem(string value, string text) { Value = value; Text = text; }
+            public override string ToString() { return Text; }
+        }
+
         [DllImport("user32.dll")]
         public static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
@@ -346,4 +356,5 @@ namespace HTCommander
         }
 
     }
+
 }

@@ -26,6 +26,7 @@ using NAudio.Wave;
 using HTCommander.radio;
 using System.Threading.Tasks;
 using System.Threading;
+using NAudio.CoreAudioApi;
 
 namespace HTCommander
 {
@@ -37,7 +38,7 @@ namespace HTCommander
         private LibSbc.sbc_struct sbcContext;
         private LibSbc.sbc_struct sbcContext2;
         private bool isSbcInitialized = false;
-        private WaveOutEvent waveOut;
+        private WasapiOut waveOut;
         private byte[] pcmFrame = new byte[16000];
         private bool running = false;
         private NetworkStream audioStream;
@@ -50,6 +51,8 @@ namespace HTCommander
         private int sbcOutputSizePerFrame; // Max SBC bytes generated per encode call
         private byte[] sbcOutputBuffer; // Reusable buffer for SBC frame output
         private BufferedWaveProvider waveProvider;
+        private float OutputVolume = 1;
+        private float InputVolume = 1;
 
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
@@ -167,8 +170,8 @@ namespace HTCommander
 
         public float Volume
         {
-            get { return waveOut?.Volume ?? 0; }
-            set { if (waveOut != null) { waveOut.Volume = value; } }
+            get { return waveOut?.Volume ?? OutputVolume; }
+            set { OutputVolume = value; if(waveOut != null) { waveOut.Volume = value; } }
         }
 
         private async void StartAsync(string mac)
@@ -222,11 +225,17 @@ namespace HTCommander
                 //sbcOutputBuffer = new byte[sbcOutputSizePerFrame + 1024];
                 sbcOutputBuffer = new byte[1024];
 
+                MMDeviceEnumerator enumerator = new MMDeviceEnumerator();
+                //string targetDeviceId = "YOUR_DEVICE_ID_HERE"; // <<< SET YOUR DEVICE ID HERE
+                //MMDevice targetDevice = enumerator.GetDevice(targetDeviceId);
+                MMDevice targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+
                 // Configure audio output (adjust format based on SBC parameters)
                 // These are common A2DP SBC defaults, but the actual device might differ.
                 WaveFormat waveFormat = new WaveFormat(32000, 16, 1);
                 waveProvider = new BufferedWaveProvider(waveFormat);
-                waveOut = new WaveOutEvent();
+                waveOut = new WasapiOut(targetDevice, AudioClientShareMode.Shared, true, 10); // ****
+                waveOut.Volume = OutputVolume;
                 waveOut.Init(waveProvider);
                 waveOut.Play();
 

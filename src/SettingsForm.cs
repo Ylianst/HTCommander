@@ -21,6 +21,8 @@ using System.Threading;
 using System.Windows.Forms;
 using System.Speech.Synthesis;
 using HTCommander.radio;
+using NAudio.CoreAudioApi;
+using NAudio.Wave;
 
 namespace HTCommander
 {
@@ -38,14 +40,14 @@ namespace HTCommander
         public int WebServerPort { get { return (int)webPortNumericUpDown.Value; } set { if (value > 0) { webPortNumericUpDown.Value = value; } else { webPortNumericUpDown.Value = 8080; }; } }
 
         public string VoiceLanguage {
-            get { ComboBoxItem selected = (ComboBoxItem)languageComboBox.SelectedItem; return selected.Value; }
-            set { foreach (ComboBoxItem item in languageComboBox.Items) { if (item.Value == value) { languageComboBox.SelectedItem = item; break; } } }
+            get { Utils.ComboBoxItem selected = (Utils.ComboBoxItem)languageComboBox.SelectedItem; return selected.Value; }
+            set { foreach (Utils.ComboBoxItem item in languageComboBox.Items) { if (item.Value == value) { languageComboBox.SelectedItem = item; break; } } }
         }
 
         public string VoiceModel
         {
-            get { ComboBoxItem selected = (ComboBoxItem)modelsComboBox.SelectedItem; return selected.Value; }
-            set { if (value == "") { modelsComboBox.SelectedIndex = 0; return; } foreach(ComboBoxItem item in modelsComboBox.Items) { if (item.Value == value) { modelsComboBox.SelectedItem = item; break; } } }
+            get { Utils.ComboBoxItem selected = (Utils.ComboBoxItem)modelsComboBox.SelectedItem; return selected.Value; }
+            set { if (value == "") { modelsComboBox.SelectedIndex = 0; return; } foreach(Utils.ComboBoxItem item in modelsComboBox.Items) { if (item.Value == value) { modelsComboBox.SelectedItem = item; break; } } }
         }
 
         public string Voice
@@ -133,14 +135,6 @@ namespace HTCommander
             "cy|Welsh"
         };
 
-        private class ComboBoxItem
-        {
-            public string Value { get; }
-            public string Text { get; }
-            public ComboBoxItem(string value, string text) { Value = value; Text = text; }
-            public override string ToString() { return Text;}
-        }
-
         public SettingsForm()
         {
             InitializeComponent();
@@ -149,7 +143,7 @@ namespace HTCommander
             foreach (string language in languages)
             {
                 string[] parts = language.Split('|');
-                if (parts.Length == 2) { languageComboBox.Items.Add(new ComboBoxItem(parts[0], parts[1])); }
+                if (parts.Length == 2) { languageComboBox.Items.Add(new Utils.ComboBoxItem(parts[0], parts[1])); }
             }
             languageComboBox.SelectedIndex = 0;
 
@@ -158,7 +152,7 @@ namespace HTCommander
                 int i = model.IndexOf(',');
                 string modelName = "";
                 if (i > 0) { modelName = model.Substring(0, i); }
-                modelsComboBox.Items.Add(new ComboBoxItem(modelName, model));
+                modelsComboBox.Items.Add(new Utils.ComboBoxItem(modelName, model));
             }
             modelsComboBox.SelectedIndex = 0;
 
@@ -232,7 +226,7 @@ namespace HTCommander
             }
 
             // For the models, if the selected model is "None", disable the download button.
-            ComboBoxItem selected = (ComboBoxItem)modelsComboBox.SelectedItem;
+            Utils.ComboBoxItem selected = (Utils.ComboBoxItem)modelsComboBox.SelectedItem;
             string filename = "ggml-" + selected.Value.ToLower() + ".bin";
             string appDataFilename = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", filename);
             downloadButton.Enabled = (_cts == null) && (modelsComboBox.SelectedIndex != 0) && !File.Exists(appDataFilename);
@@ -326,7 +320,7 @@ namespace HTCommander
         private async void downloadButton_Click(object sender, EventArgs e)
         {
             // Get application data path
-            string model = ((ComboBoxItem)modelsComboBox.SelectedItem).Value;
+            string model = ((Utils.ComboBoxItem)modelsComboBox.SelectedItem).Value;
             string url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-" + model.ToLower() + ".bin?download=true";
             string filename = "ggml-" + model.ToLower() + ".bin";
             string filenamePart = "ggml-" + model.ToLower() + ".bin.part";
@@ -397,7 +391,7 @@ namespace HTCommander
         {
             if (MessageBox.Show(this, "Delete selected model?", "Speech Model", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                string model = ((ComboBoxItem)modelsComboBox.SelectedItem).Value;
+                string model = ((Utils.ComboBoxItem)modelsComboBox.SelectedItem).Value;
                 string filename = "ggml-" + model.ToLower() + ".bin";
                 string appDataFilename = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", filename);
                 if (File.Exists(appDataFilename)) { File.Delete(appDataFilename); UpdateInfo(); }
@@ -412,6 +406,52 @@ namespace HTCommander
         private void cancelButton_Click(object sender, EventArgs e)
         {
             if (_cts != null) { _cts.Cancel(); }
+        }
+
+        public static int GetDefaultOutputDeviceNumber()
+        {
+            var enumerator = new MMDeviceEnumerator();
+            var defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
+            string defaultId = defaultDevice.ID;
+
+            var devices = enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
+
+            for (int i = 0; i < WaveOut.DeviceCount; i++)
+            {
+                var caps = WaveOut.GetCapabilities(i);
+                foreach (var device in devices)
+                {
+                    if (device.FriendlyName.StartsWith(caps.ProductName) && device.ID == defaultId)
+                    {
+                        return i;
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        public static int GetDefaultInputDeviceNumber()
+        {
+            var enumerator = new MMDeviceEnumerator();
+            var defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
+            string defaultId = defaultDevice.ID;
+
+            var devices = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
+
+            for (int i = 0; i < WaveIn.DeviceCount; i++)
+            {
+                var caps = WaveIn.GetCapabilities(i);
+                foreach (var device in devices)
+                {
+                    if (device.FriendlyName.StartsWith(caps.ProductName) && device.ID == defaultId)
+                    {
+                        return i;
+                    }
+                }
+            }
+
+            return -1;
         }
     }
 }

@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 using System;
+using Windows.Phone.System.Power;
 
 namespace HTCommander
 {
@@ -27,7 +28,7 @@ namespace HTCommander
         public bool scan;
         public bool aghfp_call_mode;
         public int double_channel;
-        public int squelch_level; // 1 to 16
+        public int squelch_level; // 0 to 9
         public bool tail_elim;
         public bool auto_relay_en;
         public bool auto_power_on;
@@ -61,6 +62,50 @@ namespace HTCommander
         public bool ch_data_lock;
         public int vfo1_mod_freq_x; // 4 bytes
         public int vfo2_mod_freq_x; // 4 bytes
+
+        public RadioSettings(RadioSettings clone)
+        {
+            rawData = clone.rawData;
+            channel_a = clone.channel_a;
+            channel_b = clone.channel_b;
+            scan = clone.scan;
+            aghfp_call_mode = clone.aghfp_call_mode;
+            double_channel = clone.double_channel;
+            squelch_level = clone.squelch_level;
+            tail_elim = clone.tail_elim;
+            auto_relay_en = clone.auto_relay_en;
+            auto_power_on = clone.auto_power_on;
+            keep_aghfp_link = clone.keep_aghfp_link;
+            mic_gain = clone.mic_gain;
+            tx_hold_time = clone.tx_hold_time;
+            tx_time_limit = clone.tx_time_limit;
+            local_speaker = clone.local_speaker;
+            bt_mic_gain = clone.bt_mic_gain;
+            adaptive_response = clone.adaptive_response;
+            dis_tone = clone.dis_tone;
+            power_saving_mode = clone.power_saving_mode;
+            auto_power_off = clone.auto_power_off;
+            auto_share_loc_ch = clone.auto_share_loc_ch;
+            hm_speaker = clone.hm_speaker;
+            positioning_system = clone.positioning_system;
+            time_offset = clone.time_offset;
+            use_freq_range_2 = clone.use_freq_range_2;
+            ptt_lock = clone.ptt_lock;
+            leading_sync_bit_en = clone.leading_sync_bit_en;
+            pairing_at_power_on = clone.pairing_at_power_on;
+            screen_timeout = clone.screen_timeout;
+            vfo_x = clone.vfo_x;
+            imperial_unit = clone.imperial_unit;
+            wx_mode = clone.wx_mode;
+            noaa_ch = clone.noaa_ch;
+            vfol_tx_power_x = clone.vfol_tx_power_x;
+            vfo2_tx_power_x = clone.vfo2_tx_power_x;
+            dis_digital_mute = clone.dis_digital_mute;
+            signaling_ecc_en = clone.signaling_ecc_en;
+            ch_data_lock = clone.ch_data_lock;
+            vfo1_mod_freq_x = clone.vfo1_mod_freq_x;
+            vfo2_mod_freq_x = clone.vfo2_mod_freq_x;
+        }
 
         public RadioSettings(byte[] msg)
         {

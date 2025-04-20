@@ -109,6 +109,8 @@ namespace HTCommander
         public Microphone microphone = null;
         public bool microphoneTransmit = false;
 
+        public bool AudioEnabled { get { return audioEnabledToolStripMenuItem.Checked; } set { audioEnabledToolStripMenuItem.Checked = !value; audioEnabledToolStripMenuItem_Click(this, null); } }
+
         public MainForm(string[] args)
         {
             foreach (string arg in args) { if (string.Compare(arg, "-preview", true) == 0) { previewMode = true; } }
@@ -120,6 +122,7 @@ namespace HTCommander
             aprsStack = new AprsStack(this);
             winlinkClient = new WinlinkClient(this);
             voiceEngine = new VoiceEngine(radio);
+            radioVolumeForm = new RadioVolumeForm(this, radio);
             microphone = new Microphone();
             microphone.DataAvailable += Microphone_DataAvailable;
             microphone.StartListening();
@@ -127,7 +130,7 @@ namespace HTCommander
 
         private void Microphone_DataAvailable(byte[] data, int bytesRecorded)
         {
-            if (microphoneTransmit) { radio.TransmitVoice(data, 0, bytesRecorded, false); }
+            if (radioVolumeForm.MicrophoneTransmit) { radio.TransmitVoice(data, 0, bytesRecorded, false); }
         }
 
         private void cancelVoiceButton_Click(object sender, EventArgs e)
@@ -401,7 +404,6 @@ namespace HTCommander
             voiceLanguage = registry.ReadString("VoiceLanguage", "auto");
             voiceModel = registry.ReadString("VoiceModel", null);
             voice = registry.ReadString("Voice", null);
-            transmitPictureBox.Image = microphoneImageList.Images[0];
 
 #if __MonoCS__
             mainTabControl.Alignment = TabAlignment.Top;
@@ -844,6 +846,7 @@ namespace HTCommander
                                 channelControls = new RadioChannelControl[radio.Info.channel_count];
                                 vfo2LastChannelId = -1;
                                 if (registry.ReadInt("Audio", 0) == 1) { radio.AudioEnabled(true); }
+                                radioVolumeForm.UpdateInfo();
                                 break;
                             case Radio.RadioState.Disconnected:
                                 connectToolStripMenuItem.Enabled = true;
@@ -861,7 +864,7 @@ namespace HTCommander
                                 if (radioSettingsForm != null) { radioSettingsForm.Close(); radioSettingsForm = null; }
                                 if (radioBssSettingsForm != null) { radioBssSettingsForm.Close(); radioBssSettingsForm = null; }
                                 if (radioChannelForm != null) { radioChannelForm.Close(); radioChannelForm = null; }
-                                if (radioVolumeForm != null) { radioVolumeForm.Close(); radioVolumeForm = null; }
+                                radioVolumeForm.UpdateInfo();
                                 if (aprsConfigurationForm != null) { aprsConfigurationForm.Close(); aprsConfigurationForm = null; }
                                 break;
                             case Radio.RadioState.Connecting:
@@ -919,6 +922,7 @@ namespace HTCommander
                         if ((activeStationLock != null) && (activeChannelIdLock != radio.Settings.channel_a)) { ActiveLockToStation(null); } // Check lock/unlock
                         UpdateRadioDisplay();
                         setupRegionMenu();
+                        radioVolumeForm.UpdateInfo();
                         break;
                     case Radio.RadioUpdateNotification.BssSettings:
                         if (radioSettingsForm != null) { radioBssSettingsForm.UpdateInfo(); }
@@ -926,16 +930,7 @@ namespace HTCommander
                         UpdateInfo();
                         break;
                     case Radio.RadioUpdateNotification.Volume:
-                        if (radioVolumeForm != null)
-                        {
-                            radioVolumeForm.Volume = radio.Volume;
-                        }
-                        else
-                        {
-                            radioVolumeForm = new RadioVolumeForm(this, radio);
-                            radioVolumeForm.Volume = radio.Volume;
-                            radioVolumeForm.Show(this);
-                        }
+                        radioVolumeForm.Volume = radio.Volume;
                         break;
                     case Radio.RadioUpdateNotification.RegionChange:
                         if (channelControls != null)
@@ -1836,7 +1831,6 @@ namespace HTCommander
             weatherReportToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             beaconSettingsToolStripMenuItem.Enabled = ((radio.State == Radio.RadioState.Connected) && (radio.BssSettings != null));
             audioEnabledToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
-            volumeToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             dualWatchToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             scanToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
             exportChannelsToolStripMenuItem.Enabled = ((radio.State == Radio.RadioState.Connected) && (radio.Channels != null));
@@ -1853,7 +1847,6 @@ namespace HTCommander
             waitForConnectionToolStripMenuItem.Visible = allowTransmit;
             waitForConnectionToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected) && allowTransmit && (activeStationLock == null);
 
-            transmitPictureBox.Visible = (radio.State == Radio.RadioState.Connected) && allowTransmit && radio.AudioState;
             toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = weatherReportToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
             beaconSettingsToolStripMenuItem.Visible = (radio.State == Radio.RadioState.Connected) && allowTransmit;
             aprsBottomPanel.Visible = allowTransmit;
@@ -1928,6 +1921,9 @@ namespace HTCommander
             // System Tray
             notifyIcon.Visible = systemTrayToolStripMenuItem.Checked;
             this.ShowInTaskbar = !systemTrayToolStripMenuItem.Checked;
+
+            // Audio Controls
+            radioVolumeForm.UpdateInfo();
         }
 
         public void UpdateChannelsPanel()
@@ -2046,7 +2042,9 @@ namespace HTCommander
 
         private void volumeToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (radioVolumeForm != null) { radioVolumeForm.Focus(); } else { radio.GetVolumeLevel(); }
+            radioVolumeForm.Visible = true;
+            radioVolumeForm.Focus();
+            radioVolumeForm.UpdateInfo();
         }
 
         public void ChangeChannelA(int channelId)
@@ -4385,14 +4383,18 @@ namespace HTCommander
             if (radio.State == RadioState.Connected)
             {
                 audioEnabledToolStripMenuItem.Checked = radio.AudioState;
+                radioVolumeForm.UpdateInfo();
             }
         }
 
         private void audioEnabledToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            radio.AudioEnabled(!audioEnabledToolStripMenuItem.Checked);
-            registry.WriteInt("Audio", radio.AudioState ? 1 : 0);
+            bool newAudioState = !audioEnabledToolStripMenuItem.Checked;
+            audioEnabledToolStripMenuItem.Checked = newAudioState;
+            radio.AudioEnabled(newAudioState);
+            registry.WriteInt("Audio", newAudioState ? 1 : 0);
             UpdateInfo();
+            radioVolumeForm.SetAudio(newAudioState);
         }
 
         private void clearHistoryToolStripMenuItem_Click(object sender, EventArgs e)
@@ -4432,27 +4434,6 @@ namespace HTCommander
             }
         }
 
-        private void transmitPictureBox_MouseLeave(object sender, EventArgs e)
-        {
-            transmitPictureBox.Image = microphoneImageList.Images[0];
-        }
-
-        private void transmitPictureBox_MouseEnter(object sender, EventArgs e)
-        {
-            transmitPictureBox.Image = microphoneImageList.Images[1];
-        }
-
-        private void transmitPictureBox_MouseDown(object sender, MouseEventArgs e)
-        {
-            transmitPictureBox.Image = microphoneImageList.Images[2];
-            microphoneTransmit = true;
-        }
-
-        private void transmitPictureBox_MouseUp(object sender, MouseEventArgs e)
-        {
-            transmitPictureBox.Image = microphoneImageList.Images[1];
-            microphoneTransmit = false;
-        }
         private void speakButton_Click(object sender, EventArgs e)
         {
             if (speakTextBox.Text.Trim().Length == 0) return;
