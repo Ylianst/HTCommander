@@ -50,6 +50,8 @@
             this.microphoneImageList = new System.Windows.Forms.ImageList(this.components);
             this.pollTimer = new System.Windows.Forms.Timer(this.components);
             this.audioButton = new System.Windows.Forms.Button();
+            this.inputAmplitudeHistoryBar = new HTCommander.AmplitudeHistoryBar();
+            this.outputAmplitudeHistoryBar = new HTCommander.AmplitudeHistoryBar();
             ((System.ComponentModel.ISupportInitialize)(this.volumeTrackBar)).BeginInit();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.squelchTrackBar)).BeginInit();
@@ -162,6 +164,8 @@
             // 
             // groupBox2
             // 
+            this.groupBox2.Controls.Add(this.outputAmplitudeHistoryBar);
+            this.groupBox2.Controls.Add(this.inputAmplitudeHistoryBar);
             this.groupBox2.Controls.Add(this.label7);
             this.groupBox2.Controls.Add(this.inputTrackBar);
             this.groupBox2.Controls.Add(this.label5);
@@ -198,6 +202,7 @@
             this.inputTrackBar.TabIndex = 5;
             this.inputTrackBar.TickFrequency = 10;
             this.inputTrackBar.Value = 100;
+            this.inputTrackBar.Scroll += new System.EventHandler(this.inputTrackBar_Scroll);
             // 
             // label5
             // 
@@ -281,12 +286,30 @@
             // 
             this.audioButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.audioButton.ImageList = this.microphoneImageList;
-            this.audioButton.Location = new System.Drawing.Point(401, 83);
+            this.audioButton.Location = new System.Drawing.Point(401, 88);
             this.audioButton.Name = "audioButton";
             this.audioButton.Size = new System.Drawing.Size(92, 80);
             this.audioButton.TabIndex = 8;
             this.audioButton.UseVisualStyleBackColor = true;
             this.audioButton.Click += new System.EventHandler(this.audioButton_Click);
+            // 
+            // inputAmplitudeHistoryBar
+            // 
+            this.inputAmplitudeHistoryBar.BackColor = System.Drawing.Color.Black;
+            this.inputAmplitudeHistoryBar.ForeColor = System.Drawing.Color.LimeGreen;
+            this.inputAmplitudeHistoryBar.Location = new System.Drawing.Point(197, 84);
+            this.inputAmplitudeHistoryBar.Name = "inputAmplitudeHistoryBar";
+            this.inputAmplitudeHistoryBar.Size = new System.Drawing.Size(8, 258);
+            this.inputAmplitudeHistoryBar.TabIndex = 7;
+            // 
+            // outputAmplitudeHistoryBar
+            // 
+            this.outputAmplitudeHistoryBar.BackColor = System.Drawing.Color.Black;
+            this.outputAmplitudeHistoryBar.ForeColor = System.Drawing.Color.LimeGreen;
+            this.outputAmplitudeHistoryBar.Location = new System.Drawing.Point(128, 84);
+            this.outputAmplitudeHistoryBar.Name = "outputAmplitudeHistoryBar";
+            this.outputAmplitudeHistoryBar.Size = new System.Drawing.Size(8, 258);
+            this.outputAmplitudeHistoryBar.TabIndex = 8;
             // 
             // RadioVolumeForm
             // 
@@ -346,5 +369,7 @@
         private System.Windows.Forms.ImageList microphoneImageList;
         private System.Windows.Forms.Timer pollTimer;
         private System.Windows.Forms.Button audioButton;
+        private AmplitudeHistoryBar inputAmplitudeHistoryBar;
+        private AmplitudeHistoryBar outputAmplitudeHistoryBar;
     }
 }

@@ -27,6 +27,7 @@ using HTCommander.radio;
 using System.Threading.Tasks;
 using System.Threading;
 using NAudio.CoreAudioApi;
+using NAudio.Wave.SampleProviders;
 
 namespace HTCommander
 {
@@ -53,6 +54,7 @@ namespace HTCommander
         private BufferedWaveProvider waveProvider;
         private float OutputVolume = 1;
         private float InputVolume = 1;
+        private VolumeSampleProvider volumeProvider;
 
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
@@ -170,8 +172,8 @@ namespace HTCommander
 
         public float Volume
         {
-            get { return waveOut?.Volume ?? OutputVolume; }
-            set { OutputVolume = value; if(waveOut != null) { waveOut.Volume = value; } }
+            get { return volumeProvider?.Volume ?? InputVolume; }
+            set { InputVolume = value; if (volumeProvider != null) { volumeProvider.Volume = value; } }
         }
 
         private async void StartAsync(string mac)
@@ -228,15 +230,20 @@ namespace HTCommander
                 MMDeviceEnumerator enumerator = new MMDeviceEnumerator();
                 //string targetDeviceId = "YOUR_DEVICE_ID_HERE"; // <<< SET YOUR DEVICE ID HERE
                 //MMDevice targetDevice = enumerator.GetDevice(targetDeviceId);
-                MMDevice targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                MMDevice targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia); // ****
 
                 // Configure audio output (adjust format based on SBC parameters)
                 // These are common A2DP SBC defaults, but the actual device might differ.
                 WaveFormat waveFormat = new WaveFormat(32000, 16, 1);
                 waveProvider = new BufferedWaveProvider(waveFormat);
-                waveOut = new WasapiOut(targetDevice, AudioClientShareMode.Shared, true, 10); // ****
-                waveOut.Volume = OutputVolume;
-                waveOut.Init(waveProvider);
+                var sampleProvider = waveProvider.ToSampleProvider();
+
+                // Wrap with volume control
+                volumeProvider = new VolumeSampleProvider(sampleProvider);
+                volumeProvider.Volume = OutputVolume;
+
+                waveOut = new WasapiOut(targetDevice, AudioClientShareMode.Shared, true, 50); // ****
+                waveOut.Init(volumeProvider);
                 waveOut.Play();
 
                 MemoryStream accumulator = new MemoryStream();
@@ -385,6 +392,7 @@ namespace HTCommander
                 sbcLen -= (int)decodeResult;
                 try { waveProvider.AddSamples(pcmFrame, 0, (int)written); } catch (Exception) { }
                 if (speechToTextEngine != null) { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, (int)written, currentChannelName); }
+                parent.GotAudioData(pcmFrame, (int)written, currentChannelName);
             }
 
             pcmHandle.Free();

@@ -777,6 +777,7 @@
             this.radioPanel.Size = new System.Drawing.Size(372, 661);
             this.radioPanel.TabIndex = 2;
             this.radioPanel.SizeChanged += new System.EventHandler(this.radioPanel_SizeChanged);
+            this.radioPanel.Click += new System.EventHandler(this.radioPictureBox_Click);
             this.radioPanel.DragDrop += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragDrop);
             this.radioPanel.DragEnter += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragEnter);
             // 
@@ -992,8 +993,10 @@
             this.radioPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.radioPictureBox.TabIndex = 0;
             this.radioPictureBox.TabStop = false;
+            this.radioPictureBox.Click += new System.EventHandler(this.radioPictureBox_Click);
             this.radioPictureBox.DragDrop += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragDrop);
             this.radioPictureBox.DragEnter += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragEnter);
+            this.radioPictureBox.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // mainTabControl
             // 
@@ -3204,7 +3207,7 @@
             this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
             this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 297);
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 296);
             this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // MainForm

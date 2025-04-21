@@ -130,7 +130,13 @@ namespace HTCommander
 
         private void Microphone_DataAvailable(byte[] data, int bytesRecorded)
         {
+            radioVolumeForm.ProcessInputAudioData(data, bytesRecorded);
             if (radioVolumeForm.MicrophoneTransmit) { radio.TransmitVoice(data, 0, bytesRecorded, false); }
+        }
+
+        private void RadioAudio_DataAvailable(Radio radio, byte[] data, int bytesRecorded, string channelName)
+        {
+            radioVolumeForm.ProcessOutputAudioData(data, bytesRecorded);
         }
 
         private void cancelVoiceButton_Click(object sender, EventArgs e)
@@ -159,6 +165,7 @@ namespace HTCommander
             radio.onTextReady += Radio_onTextReady;
             radio.onProcessingVoice += Radio_onProcessingVoice;
             radio.OnVoiceTransmitStateChanged += Radio_OnVoiceTransmitStateChanged;
+            radio.OnAudioDataAvailable += RadioAudio_DataAvailable;
             mainTabControl.SelectedTab = aprsTabPage;
 
 #if !__MonoCS__
@@ -4501,6 +4508,11 @@ namespace HTCommander
                 registry.WriteString("LastUpdateCheck", DateTime.Now.ToString());
                 SelfUpdateForm.CheckForUpdate(this);
             }
+        }
+
+        private void radioPictureBox_Click(object sender, EventArgs e)
+        {
+            volumeToolStripMenuItem_Click(this, null);
         }
     }
 }

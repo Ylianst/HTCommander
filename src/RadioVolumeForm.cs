@@ -17,15 +17,17 @@ limitations under the License.
 using System;
 using System.Windows.Forms;
 using NAudio.CoreAudioApi;
-using NAudio.Gui;
+using NAudio.CoreAudioApi.Interfaces;
 
 namespace HTCommander
 {
-    public partial class RadioVolumeForm : Form
+    public partial class RadioVolumeForm : Form, IMMNotificationClient
     {
         private MMDeviceEnumerator deviceEnumerator = new MMDeviceEnumerator();
         private MainForm parent;
         private Radio radio;
+        private MMDevice outputDevice;
+        private MMDevice inputDevice;
         public bool MicrophoneTransmit = false;
 
         public int Volume { get { return volumeTrackBar.Value; } set { volumeTrackBar.Value = value; } }
@@ -35,13 +37,32 @@ namespace HTCommander
             InitializeComponent();
             this.parent = parent;
             this.radio = radio;
-        }
-        private void RadioVolumeForm_Load(object sender, EventArgs e)
-        {
+            deviceEnumerator.RegisterEndpointNotificationCallback(this);
             LoadAudioDevices();
             transmitButton.Image = microphoneImageList.Images[0];
+            outputTrackBar.Value = (int)parent.registry.ReadInt("OutputAudioVolume", 100);
+            radio.OutputVolume = SliderToDecibelScaledFloat(outputTrackBar.Value);
+            inputTrackBar.Value = (int)parent.registry.ReadInt("InputAudioVolume", 100);
+            inputDevice.AudioEndpointVolume.MasterVolumeLevelScalar = inputTrackBar.Value / 100f;
             UpdateInfo();
         }
+
+        private void RadioVolumeForm_Load(object sender, EventArgs e)
+        {
+        }
+
+        private delegate void AudioEndpointVolumeNotificationDelegate(AudioVolumeNotificationData data);
+        private void AudioEndpointVolume_OnVolumeNotification(AudioVolumeNotificationData data)
+        {
+            if (InvokeRequired) { Invoke(new AudioEndpointVolumeNotificationDelegate(AudioEndpointVolume_OnVolumeNotification), data); return; }
+            masterVolumeTrackBar.Value = (int)(outputDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
+        }
+        private void AudioEndpointVolume_OnInputVolumeNotification(AudioVolumeNotificationData data)
+        {
+            if (InvokeRequired) { Invoke(new AudioEndpointVolumeNotificationDelegate(AudioEndpointVolume_OnInputVolumeNotification), data); return; }
+            inputTrackBar.Value = (int)(inputDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
+        }
+
 
         public void UpdateInfo()
         {
@@ -82,44 +103,40 @@ namespace HTCommander
             audioButton.Image = parent.AudioEnabled ? microphoneImageList.Images[4] : microphoneImageList.Images[3];
         }
 
+        private delegate void LoadAudioDevicesDelegate();
+
         private void LoadAudioDevices()
         {
+            if (InvokeRequired) { Invoke(new LoadAudioDevicesDelegate(LoadAudioDevices)); return; }
+
             // Load output devices (playback)
-            //outputDevices.Clear();
             outputComboBox.Items.Clear();
             outputComboBox.Items.Add(new Utils.ComboBoxItem(null, "Default"));
             foreach (var device in deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
             {
-                //outputDevices.Add(device);
-                outputComboBox.Items.Add(new Utils.ComboBoxItem(device.ID, device.FriendlyName));
+                outputComboBox.Items.Add(new Utils.ComboBoxItem(device.ID, FixDeviceName(device.FriendlyName)));
             }
 
             // Select default output device
-            var defaultOutput = deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
-            SetSelectedDevice(outputComboBox, defaultOutput.ID);
+            outputDevice = deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
+            SetSelectedDevice(outputComboBox, outputDevice.ID);
 
             // Load input devices (recording)
-            //inputDevices.Clear();
             inputComboBox.Items.Clear();
             inputComboBox.Items.Add(new Utils.ComboBoxItem(null, "Default"));
             foreach (var device in deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
             {
-                //inputDevices.Add(device);
-                inputComboBox.Items.Add(new Utils.ComboBoxItem(device.ID, device.FriendlyName));
+                inputComboBox.Items.Add(new Utils.ComboBoxItem(device.ID, FixDeviceName(device.FriendlyName)));
             }
 
             // Select default input device
-            var defaultInput = deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
-            SetSelectedDevice(inputComboBox, defaultInput.ID);
+            inputDevice = deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
+            SetSelectedDevice(inputComboBox, inputDevice.ID);
         }
-
 
         private void SetSelectedDevice(ComboBox comboBox, string deviceId)
         {
-            if (deviceId == null)
-            {
-                comboBox.SelectedIndex = 0;
-            }
+            if (deviceId == null) { comboBox.SelectedIndex = 0; }
             for (int i = 0; i < comboBox.Items.Count; i++)
             {
                 if (((Utils.ComboBoxItem)comboBox.Items[i]).Value == deviceId) { comboBox.SelectedIndex = i; break; }
@@ -128,24 +145,22 @@ namespace HTCommander
 
         private void outputComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (outputDevice != null) { outputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnVolumeNotification; }
             Utils.ComboBoxItem selected = (Utils.ComboBoxItem)outputComboBox.SelectedItem;
             string selectedId = selected.Value;
-            MMDevice selectedDevice = GetDeviceById(selectedId, DataFlow.Render);
+            outputDevice = GetDeviceById(selectedId, DataFlow.Render);
+            outputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnVolumeNotification;
             parent.registry.WriteString("OutputAudioDevice", selectedId == null ? "" : selectedId);
-
-            // Use selectedDevice with WasapiOut, or just store the ID
-            //Console.WriteLine("Selected Output Device: " + selectedDevice.FriendlyName);
         }
 
         private void inputComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (inputDevice != null) { inputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnInputVolumeNotification; }
             Utils.ComboBoxItem selected = (Utils.ComboBoxItem)inputComboBox.SelectedItem;
             string selectedId = selected.Value;
-            MMDevice selectedDevice = GetDeviceById(selectedId, DataFlow.Capture);
+            inputDevice = GetDeviceById(selectedId, DataFlow.Capture);
+            inputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnInputVolumeNotification;
             parent.registry.WriteString("InputAudioDevice", selectedId == null ? "" : selectedId);
-
-            // Use selectedDevice with WasapiCapture or similar
-            //Console.WriteLine("Selected Input Device: " + selectedDevice.FriendlyName);
         }
 
         private MMDevice GetDeviceById(string id, DataFlow flow)
@@ -206,110 +221,60 @@ namespace HTCommander
 
         private void masterVolumeTrackBar_Scroll(object sender, EventArgs e)
         {
-            Utils.ComboBoxItem selected = (Utils.ComboBoxItem)outputComboBox.SelectedItem;
-            string selectedId = selected.Value;
-            MMDevice selectedDevice = GetDeviceById(selectedId, DataFlow.Render);
-
             float volume = masterVolumeTrackBar.Value / 100f;
-            selectedDevice.AudioEndpointVolume.MasterVolumeLevelScalar = volume;
+            outputDevice.AudioEndpointVolume.MasterVolumeLevelScalar = volume;
         }
 
-        private void outputTrackBar_Scroll(object sender, EventArgs e)
-        {
+        private string FixDeviceName(string name) { return name.Replace("(R)", "®"); }
+
+        private void outputTrackBar_Scroll(object sender, EventArgs e) {
             radio.OutputVolume = SliderToDecibelScaledFloat(outputTrackBar.Value);
+            parent.registry.WriteInt("OutputAudioVolume", outputTrackBar.Value);
         }
 
-        /// <summary>
-        /// Converts a linear slider value (0-100) to a decibel-scaled linear float value (0-1).
-        /// </summary>
-        /// <param name="sliderValue">The input slider value (0 to 100).</param>
-        /// <param name="minDecibels">The minimum decibel level corresponding to slider value 0 (e.g., -40.0f). Must be negative.</param>
-        /// <returns>A decibel-scaled linear float value (0 to 1).</returns>
-        /// <exception cref="ArgumentException">Thrown if minDecibels is not negative.</exception>
-        public static float SliderToDecibelScaledFloat(int sliderValue, float minDecibels = -40.0f)
+        public static float SliderToDecibelScaledFloat(int sliderValue, float minDecibels = -40.0f) { return (sliderValue / 100F); }
+
+        public static int DecibelScaledFloatToSlider(float value, float minDecibels = -40.0f) { return (int)(value * 100); }
+
+        void IMMNotificationClient.OnDeviceAdded(string deviceId)
         {
-            return (sliderValue / 100F);
-
-            /*
-            if (minDecibels >= 0)
-            {
-                throw new ArgumentException("minDecibels must be a negative value for decibel scaling.");
-            }
-
-            // Clamp the input value to ensure it's within the expected range
-            sliderValue = Math.Max(0, Math.Min(100, sliderValue));
-
-            // Handle the edge case for slider value 0 to return exactly 0.0f
-            if (sliderValue == 0)
-            {
-                return 0.0f;
-            }
-
-            // Normalize the slider value to a 0-1 range
-            float normalizedSliderValue = sliderValue / 100.0f;
-
-            // Calculate the minimum linear amplitude corresponding to minDecibels
-            // This value is used to offset the curve so that sliderValue = 0 maps to 0.0f output
-            float minLinear = (float)Math.Pow(10, minDecibels / 20.0f);
-
-            // Calculate the intermediate linear value based on the slider position
-            // This value ranges from minLinear (at slider 0, conceptually) to 1 (at slider 100)
-            // using a decibel-like exponential curve.
-            float intermediateLinear = (float)Math.Pow(10, minDecibels * (1.0f - normalizedSliderValue) / 20.0f);
-
-            // Map the intermediate value from the conceptual range [minLinear, 1] to the actual output range [0, 1]
-            // This ensures that sliderValue = 0 results in 0.0f and sliderValue = 100 results in 1.0f
-            float result = (intermediateLinear - minLinear) / (1.0f - minLinear);
-
-            // Clamp the result to the 0-1 range due to potential floating point inaccuracies near the edges
-            return Math.Max(0.0f, Math.Min(1.0f, result));
-            */
+            LoadAudioDevices();
         }
 
-        /// <summary>
-        /// Converts a decibel-scaled linear float value (0-1) back to a linear slider value (0-100).
-        /// This is the inverse of SliderToDecibelScaledFloat.
-        /// </summary>
-        /// <param name="value">The input decibel-scaled linear float value (0 to 1).</param>
-        /// <param name="minDecibels">The minimum decibel level used during the forward conversion (e.g., -40.0f). Must be negative.</param>
-        /// <returns>A linear slider value (0 to 100).</returns>
-        /// <exception cref="ArgumentException">Thrown if minDecibels is not negative.</exception>
-        public static int DecibelScaledFloatToSlider(float value, float minDecibels = -40.0f)
+        void IMMNotificationClient.OnDeviceRemoved(string deviceId)
         {
-            return (int)(value * 100);
+            LoadAudioDevices();
+        }
 
-            /*
-            if (minDecibels >= 0)
-            {
-                throw new ArgumentException("minDecibels must be a negative value for decibel scaling.");
-            }
+        void IMMNotificationClient.OnDefaultDeviceChanged(DataFlow dataFlow, Role deviceRole, string defaultDeviceId)
+        {
+            LoadAudioDevices();
+        }
 
-            // Clamp the input value to ensure it's within the expected range
-            value = Math.Max(0.0f, Math.Min(1.0f, value));
+        void IMMNotificationClient.OnDeviceStateChanged(string deviceId, DeviceState newState)
+        {
+            LoadAudioDevices();
+        }
 
-            // Handle the edge case for input value 0.0f to return exactly 0
-            if (value == 0.0f)
-            {
-                return 0;
-            }
+        void IMMNotificationClient.OnPropertyValueChanged(string deviceId, PropertyKey key)
+        {
+            LoadAudioDevices();
+        }
 
-            // Calculate the minimum linear amplitude corresponding to minDecibels
-            float minLinear = (float)Math.Pow(10, minDecibels / 20.0f);
+        private void inputTrackBar_Scroll(object sender, EventArgs e)
+        {
+            parent.registry.WriteInt("InputAudioVolume", inputTrackBar.Value);
+            inputDevice.AudioEndpointVolume.MasterVolumeLevelScalar = inputTrackBar.Value / 100f;
+        }
 
-            // Reverse the mapping from [0, 1] back to the intermediate conceptual range [minLinear, 1]
-            float intermediateLinear = value * (1.0f - minLinear) + minLinear;
+        public void ProcessInputAudioData(byte[] buffer, int bytesRecorded)
+        {
+            inputAmplitudeHistoryBar.ProcessAudioData(buffer, bytesRecorded);
+        }
 
-            // Reverse the decibel conversion: D = 20 * log10(A)
-            // Calculate the decibel value corresponding to the intermediate linear value
-            float decibels = 20.0f * (float)Math.Log10(intermediateLinear);
-
-            // Map the decibel value (which ranges from minDecibels to 0) back to a 0-100 slider value
-            // This is a linear mapping: Slider = 100 * (Decibels - minDecibels) / (0 - minDecibels)
-            float sliderFloat = 100.0f * (decibels - minDecibels) / (0.0f - minDecibels);
-
-            // Clamp and round the result to an integer slider value
-            return Math.Max(0, Math.Min(100, (int)Math.Round(sliderFloat)));
-            */
+        public void ProcessOutputAudioData(byte[] buffer, int bytesRecorded)
+        {
+            outputAmplitudeHistoryBar.ProcessAudioData(buffer, bytesRecorded);
         }
     }
 }

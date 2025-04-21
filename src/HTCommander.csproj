@@ -118,6 +118,12 @@
     <Compile Include="adventurer\Adventurer.cs" />
     <Compile Include="adventurer\DATToChunks.cs" />
     <Compile Include="adventurer\GameData.cs" />
+    <Compile Include="AmplitudeHistoryBar.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="AmplitudeHistoryBar.Designer.cs">
+      <DependentUpon>AmplitudeHistoryBar.cs</DependentUpon>
+    </Compile>
     <Compile Include="aprs-parser\AprsPacket.cs" />
     <Compile Include="aprs-parser\AprsUtil.cs" />
     <Compile Include="aprs-parser\Callsign.cs" />
@@ -349,6 +355,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="AddTorrentFileForm.resx">
       <DependentUpon>AddTorrentFileForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="AmplitudeHistoryBar.resx">
+      <DependentUpon>AmplitudeHistoryBar.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="AprsConfigurationForm.resx">
       <DependentUpon>AprsConfigurationForm.cs</DependentUpon>
