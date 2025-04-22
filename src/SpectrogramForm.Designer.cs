@@ -34,16 +34,17 @@
             this.updateTimer = new System.Windows.Forms.Timer(this.components);
             this.mainMenuStrip = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.closeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
-            this.largeToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            this.rollToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.pbScaleVert = new System.Windows.Forms.PictureBox();
-            this.scaleToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.maxFreqencyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.hzToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.hzToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.hzToolStripMenuItem2 = new System.Windows.Forms.ToolStripMenuItem();
+            this.scaleToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.rollToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.largeToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
+            this.closeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.pbScaleVert = new System.Windows.Forms.PictureBox();
+            this.colorsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.pbSpectrogram)).BeginInit();
             this.mainMenuStrip.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pbScaleVert)).BeginInit();
@@ -68,7 +69,8 @@
             // 
             this.mainMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.mainMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.fileToolStripMenuItem});
+            this.fileToolStripMenuItem,
+            this.colorsToolStripMenuItem});
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             this.mainMenuStrip.Name = "mainMenuStrip";
             this.mainMenuStrip.Size = new System.Drawing.Size(817, 28);
@@ -87,52 +89,6 @@
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
             this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
             this.fileToolStripMenuItem.Text = "&File";
-            // 
-            // closeToolStripMenuItem
-            // 
-            this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
-            this.closeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.closeToolStripMenuItem.Text = "&Close";
-            this.closeToolStripMenuItem.Click += new System.EventHandler(this.closeToolStripMenuItem_Click);
-            // 
-            // toolStripMenuItem1
-            // 
-            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(221, 6);
-            // 
-            // largeToolStripMenuItem1
-            // 
-            this.largeToolStripMenuItem1.CheckOnClick = true;
-            this.largeToolStripMenuItem1.Name = "largeToolStripMenuItem1";
-            this.largeToolStripMenuItem1.Size = new System.Drawing.Size(224, 26);
-            this.largeToolStripMenuItem1.Text = "&Large";
-            this.largeToolStripMenuItem1.Click += new System.EventHandler(this.largeToolStripMenuItem1_Click);
-            // 
-            // rollToolStripMenuItem
-            // 
-            this.rollToolStripMenuItem.CheckOnClick = true;
-            this.rollToolStripMenuItem.Name = "rollToolStripMenuItem";
-            this.rollToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.rollToolStripMenuItem.Text = "&Roll";
-            this.rollToolStripMenuItem.Click += new System.EventHandler(this.rollToolStripMenuItem_Click);
-            // 
-            // pbScaleVert
-            // 
-            this.pbScaleVert.Dock = System.Windows.Forms.DockStyle.Right;
-            this.pbScaleVert.Location = new System.Drawing.Point(680, 28);
-            this.pbScaleVert.Name = "pbScaleVert";
-            this.pbScaleVert.Size = new System.Drawing.Size(137, 292);
-            this.pbScaleVert.TabIndex = 2;
-            this.pbScaleVert.TabStop = false;
-            this.pbScaleVert.Visible = false;
-            // 
-            // scaleToolStripMenuItem
-            // 
-            this.scaleToolStripMenuItem.CheckOnClick = true;
-            this.scaleToolStripMenuItem.Name = "scaleToolStripMenuItem";
-            this.scaleToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.scaleToolStripMenuItem.Text = "&Scale";
-            this.scaleToolStripMenuItem.Click += new System.EventHandler(this.scaleToolStripMenuItem_Click);
             // 
             // maxFreqencyToolStripMenuItem
             // 
@@ -166,6 +122,58 @@
             this.hzToolStripMenuItem2.Size = new System.Drawing.Size(224, 26);
             this.hzToolStripMenuItem2.Text = "4000 Hz";
             this.hzToolStripMenuItem2.Click += new System.EventHandler(this.hzToolStripMenuItem2_Click);
+            // 
+            // scaleToolStripMenuItem
+            // 
+            this.scaleToolStripMenuItem.CheckOnClick = true;
+            this.scaleToolStripMenuItem.Name = "scaleToolStripMenuItem";
+            this.scaleToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.scaleToolStripMenuItem.Text = "&Scale";
+            this.scaleToolStripMenuItem.Click += new System.EventHandler(this.scaleToolStripMenuItem_Click);
+            // 
+            // rollToolStripMenuItem
+            // 
+            this.rollToolStripMenuItem.CheckOnClick = true;
+            this.rollToolStripMenuItem.Name = "rollToolStripMenuItem";
+            this.rollToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.rollToolStripMenuItem.Text = "&Roll";
+            this.rollToolStripMenuItem.Click += new System.EventHandler(this.rollToolStripMenuItem_Click);
+            // 
+            // largeToolStripMenuItem1
+            // 
+            this.largeToolStripMenuItem1.CheckOnClick = true;
+            this.largeToolStripMenuItem1.Name = "largeToolStripMenuItem1";
+            this.largeToolStripMenuItem1.Size = new System.Drawing.Size(224, 26);
+            this.largeToolStripMenuItem1.Text = "&Large";
+            this.largeToolStripMenuItem1.Click += new System.EventHandler(this.largeToolStripMenuItem1_Click);
+            // 
+            // toolStripMenuItem1
+            // 
+            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(221, 6);
+            // 
+            // closeToolStripMenuItem
+            // 
+            this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
+            this.closeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.closeToolStripMenuItem.Text = "&Close";
+            this.closeToolStripMenuItem.Click += new System.EventHandler(this.closeToolStripMenuItem_Click);
+            // 
+            // pbScaleVert
+            // 
+            this.pbScaleVert.Dock = System.Windows.Forms.DockStyle.Right;
+            this.pbScaleVert.Location = new System.Drawing.Point(680, 28);
+            this.pbScaleVert.Name = "pbScaleVert";
+            this.pbScaleVert.Size = new System.Drawing.Size(137, 292);
+            this.pbScaleVert.TabIndex = 2;
+            this.pbScaleVert.TabStop = false;
+            this.pbScaleVert.Visible = false;
+            // 
+            // colorsToolStripMenuItem
+            // 
+            this.colorsToolStripMenuItem.Name = "colorsToolStripMenuItem";
+            this.colorsToolStripMenuItem.Size = new System.Drawing.Size(65, 24);
+            this.colorsToolStripMenuItem.Text = "&Colors";
             // 
             // SpectrogramForm
             // 
@@ -208,5 +216,6 @@
         private System.Windows.Forms.ToolStripMenuItem hzToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem hzToolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem hzToolStripMenuItem2;
+        private System.Windows.Forms.ToolStripMenuItem colorsToolStripMenuItem;
     }
 }

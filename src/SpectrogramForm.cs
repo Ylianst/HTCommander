@@ -1,4 +1,20 @@
-﻿using System;
+﻿/*
+Copyright 2025 Ylian Saint-Hilaire
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Collections.Generic;
@@ -27,14 +43,13 @@ namespace HTCommander
             this.parent = parent;
             InitializeComponent();
 
-            //for (int i = 9; i < 16; i++) cbFftSize.Items.Add($"2^{i} ({1 << i:N0})");
-            //cbFftSize.SelectedIndex = 1;
-
-            cmaps = Colormap.GetColormaps();
-            //foreach (Colormap cmap in cmaps) cbColormap.Items.Add(cmap.Name);
-            //cbColormap.SelectedIndex = cbColormap.Items.IndexOf("Viridis");
+            // Load Settings
+            maxFrequency = (int)parent.registry.ReadInt("SpecMaxFrequency", 16000);
+            pbScaleVert.Visible = scaleToolStripMenuItem.Checked = (parent.registry.ReadInt("SpecShowScale", 0) == 1);
+            roll = rollToolStripMenuItem.Checked = (parent.registry.ReadInt("SpecRoll", 0) == 1);
+            cbFftSize = (int)parent.registry.ReadInt("SpecLarge", 0);
+            largeToolStripMenuItem1.Checked = (cbFftSize == 1);
         }
-
 
         private void StartListening()
         {
@@ -81,11 +96,6 @@ namespace HTCommander
             }
         }
 
-        private void cbColormap_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            //spec.Colormap = cmaps[cbColormap.SelectedIndex];
-        }
-
         public void AddAudioData(byte[] Buffer, int BytesRecorded)
         {
             int bytesPerSample = 2;
@@ -128,6 +138,19 @@ namespace HTCommander
             heightDiff = this.Height - pbSpectrogram.Height;
             this.Height = GetRefHeight() + heightDiff;
             StartListening();
+
+            string selectedColor = parent.registry.ReadString("SpecColor", "Viridis");
+            cmaps = Colormap.GetColormaps();
+            for (int i = 0; i < cmaps.Length; i++)
+            {
+                Colormap cmap = cmaps[i];
+                ToolStripMenuItem m = new ToolStripMenuItem(cmap.Name);
+                m.Tag = i;
+                m.Click += colorToolStripMenuItem_Click;
+                m.Checked = (cmap.Name == selectedColor);
+                if (cmap.Name == selectedColor) { spec.Colormap = cmap; }
+                colorsToolStripMenuItem.DropDownItems.Add(m);
+            }
         }
 
         private void closeToolStripMenuItem_Click(object sender, EventArgs e)
@@ -138,22 +161,26 @@ namespace HTCommander
         private void largeToolStripMenuItem1_Click(object sender, EventArgs e)
         {
             cbFftSize = largeToolStripMenuItem1.Checked ? 1 : 0;
+            parent.registry.WriteInt("SpecLarge", cbFftSize);
             StartListening();
         }
 
         private void rollToolStripMenuItem_Click(object sender, EventArgs e)
         {
             roll = rollToolStripMenuItem.Checked;
+            parent.registry.WriteInt("SpecRoll", roll ? 1 : 0);
         }
 
         private void scaleToolStripMenuItem_Click(object sender, EventArgs e)
         {
             pbScaleVert.Visible = scaleToolStripMenuItem.Checked;
+            parent.registry.WriteInt("SpecShowScale", scaleToolStripMenuItem.Checked ? 1 : 0);
         }
 
         private void hzToolStripMenuItem_Click(object sender, EventArgs e)
         {
             maxFrequency = 16000;
+            parent.registry.WriteInt("SpecMaxFrequency", maxFrequency);
             hzToolStripMenuItem.Checked = true;
             hzToolStripMenuItem1.Checked = false;
             hzToolStripMenuItem2.Checked = false;
@@ -163,6 +190,7 @@ namespace HTCommander
         private void hzToolStripMenuItem1_Click(object sender, EventArgs e)
         {
             maxFrequency = 8000;
+            parent.registry.WriteInt("SpecMaxFrequency", maxFrequency);
             hzToolStripMenuItem.Checked = false;
             hzToolStripMenuItem1.Checked = true;
             hzToolStripMenuItem2.Checked = false;
@@ -172,10 +200,19 @@ namespace HTCommander
         private void hzToolStripMenuItem2_Click(object sender, EventArgs e)
         {
             maxFrequency = 4000;
+            parent.registry.WriteInt("SpecMaxFrequency", maxFrequency);
             hzToolStripMenuItem.Checked = false;
             hzToolStripMenuItem1.Checked = false;
             hzToolStripMenuItem2.Checked = true;
             StartListening();
+        }
+
+        private void colorToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ToolStripMenuItem m = (ToolStripMenuItem)sender;
+            spec.Colormap = cmaps[(int)m.Tag];
+            foreach (ToolStripMenuItem n in colorsToolStripMenuItem.DropDownItems) { n.Checked = (n == m); }
+            parent.registry.WriteString("SpecColor", spec.Colormap.Name);
         }
     }
 }
