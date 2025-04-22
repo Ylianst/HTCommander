@@ -49,6 +49,7 @@ namespace HTCommander
         public RadioVolumeForm radioVolumeForm = null;
         public AprsDetailsForm aprsDetailsForm = null;
         public BTActivateForm bluetoothActivateForm = null;
+        public SpectrogramForm spectrogramForm = null;
         public AprsConfigurationForm aprsConfigurationForm = null;
         public MailComposeForm mailComposeForm = null;
         public int vfo2LastChannelId = -1;
@@ -137,6 +138,7 @@ namespace HTCommander
         private void RadioAudio_DataAvailable(Radio radio, byte[] data, int bytesRecorded, string channelName)
         {
             radioVolumeForm.ProcessOutputAudioData(data, bytesRecorded);
+            if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, bytesRecorded); }
         }
 
         private void cancelVoiceButton_Click(object sender, EventArgs e)
@@ -487,6 +489,7 @@ namespace HTCommander
 
         private void Radio_onTextReady(string text, string channel, DateTime time, bool completed)
         {
+            if (text == null) return; // TODO: Handle CPU overload message
             if (this.InvokeRequired) { this.Invoke(new Radio.OnTextReadyHandler(Radio_onTextReady), text, channel, time, completed); return; }
             if (text.Trim().Length > 0)
             {
@@ -4513,6 +4516,19 @@ namespace HTCommander
         private void radioPictureBox_Click(object sender, EventArgs e)
         {
             volumeToolStripMenuItem_Click(this, null);
+        }
+
+        private void spectrogramToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (spectrogramForm != null)
+            {
+                spectrogramForm.Focus();
+            }
+            else
+            {
+                spectrogramForm = new SpectrogramForm(this);
+                spectrogramForm.Show(this);
+            }
         }
     }
 }

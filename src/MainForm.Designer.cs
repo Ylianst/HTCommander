@@ -311,6 +311,7 @@
             this.torrentSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.spectrogramToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsChatControl = new HTCommander.ChatControl();
             this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.mainStatusStrip.SuspendLayout();
@@ -508,6 +509,7 @@
             this.toolStripMenuItem5,
             this.audioEnabledToolStripMenuItem,
             this.volumeToolStripMenuItem,
+            this.spectrogramToolStripMenuItem,
             this.toolStripMenuItem10,
             this.exportChannelsToolStripMenuItem,
             this.importChannelsToolStripMenuItem});
@@ -790,6 +792,7 @@
             this.transmitBarPanel.Size = new System.Drawing.Size(205, 7);
             this.transmitBarPanel.TabIndex = 7;
             this.transmitBarPanel.Visible = false;
+            this.transmitBarPanel.Click += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // channelsFlowLayoutPanel
             // 
@@ -861,6 +864,7 @@
             this.voiceProcessingLabel.TabIndex = 8;
             this.voiceProcessingLabel.Text = "●";
             this.voiceProcessingLabel.Visible = false;
+            this.voiceProcessingLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // vfo2StatusLabel
             // 
@@ -875,6 +879,7 @@
             this.vfo2StatusLabel.TabIndex = 7;
             this.vfo2StatusLabel.Text = "VFO2";
             this.vfo2StatusLabel.TextAlign = System.Drawing.ContentAlignment.TopRight;
+            this.vfo2StatusLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // vfo2FreqLabel
             // 
@@ -887,6 +892,7 @@
             this.vfo2FreqLabel.Size = new System.Drawing.Size(117, 18);
             this.vfo2FreqLabel.TabIndex = 6;
             this.vfo2FreqLabel.Text = "VFO2";
+            this.vfo2FreqLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // linePanel
             // 
@@ -913,6 +919,7 @@
             this.vfo1StatusLabel.TabIndex = 4;
             this.vfo1StatusLabel.Text = "VFO1";
             this.vfo1StatusLabel.TextAlign = System.Drawing.ContentAlignment.TopRight;
+            this.vfo1StatusLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // vfo1FreqLabel
             // 
@@ -925,6 +932,7 @@
             this.vfo1FreqLabel.Size = new System.Drawing.Size(117, 18);
             this.vfo1FreqLabel.TabIndex = 3;
             this.vfo1FreqLabel.Text = "VFO1";
+            this.vfo1FreqLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // vfo2Label
             // 
@@ -940,6 +948,7 @@
             this.vfo2Label.TabIndex = 2;
             this.vfo2Label.Text = "VFO2";
             this.vfo2Label.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.vfo2Label.Click += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // vfo1Label
             // 
@@ -955,6 +964,7 @@
             this.vfo1Label.TabIndex = 1;
             this.vfo1Label.Text = "VFO1";
             this.vfo1Label.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.vfo1Label.Click += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // radioStateLabel
             // 
@@ -1282,7 +1292,7 @@
             // 
             this.cancelVoiceButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.cancelVoiceButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.cancelVoiceButton.Location = new System.Drawing.Point(493, 516);
+            this.cancelVoiceButton.Location = new System.Drawing.Point(493, 514);
             this.cancelVoiceButton.Margin = new System.Windows.Forms.Padding(4);
             this.cancelVoiceButton.Name = "cancelVoiceButton";
             this.cancelVoiceButton.Size = new System.Drawing.Size(121, 64);
@@ -1449,7 +1459,7 @@
             // 
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailPreviewTextBox);
             this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(669, 577);
-            this.mailboxHorizontalSplitContainer.SplitterDistance = 265;
+            this.mailboxHorizontalSplitContainer.SplitterDistance = 264;
             this.mailboxHorizontalSplitContainer.TabIndex = 7;
             // 
             // mailboxVerticalSplitContainer
@@ -1467,7 +1477,7 @@
             // mailboxVerticalSplitContainer.Panel2
             // 
             this.mailboxVerticalSplitContainer.Panel2.Controls.Add(this.mailboxListView);
-            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(669, 265);
+            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(669, 264);
             this.mailboxVerticalSplitContainer.SplitterDistance = 151;
             this.mailboxVerticalSplitContainer.TabIndex = 6;
             // 
@@ -1482,7 +1492,7 @@
             this.mailBoxesTreeView.Name = "mailBoxesTreeView";
             this.mailBoxesTreeView.SelectedImageIndex = 0;
             this.mailBoxesTreeView.ShowRootLines = false;
-            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 265);
+            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 264);
             this.mailBoxesTreeView.TabIndex = 0;
             this.mailBoxesTreeView.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.mailBoxesTreeView_NodeMouseClick);
             this.mailBoxesTreeView.DragDrop += new System.Windows.Forms.DragEventHandler(this.mailBoxesTreeView_DragDrop);
@@ -1517,7 +1527,7 @@
             this.mailboxListView.Location = new System.Drawing.Point(0, 0);
             this.mailboxListView.Margin = new System.Windows.Forms.Padding(4);
             this.mailboxListView.Name = "mailboxListView";
-            this.mailboxListView.Size = new System.Drawing.Size(514, 265);
+            this.mailboxListView.Size = new System.Drawing.Size(514, 264);
             this.mailboxListView.SmallImageList = this.mainImageList;
             this.mailboxListView.TabIndex = 5;
             this.mailboxListView.UseCompatibleStateImageBehavior = false;
@@ -1637,7 +1647,7 @@
             this.mailPreviewTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.mailPreviewTextBox.Name = "mailPreviewTextBox";
             this.mailPreviewTextBox.ReadOnly = true;
-            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 308);
+            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 309);
             this.mailPreviewTextBox.TabIndex = 0;
             this.mailPreviewTextBox.Text = "";
             // 
@@ -2065,7 +2075,7 @@
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
             this.bbsSplitContainer.Size = new System.Drawing.Size(669, 614);
-            this.bbsSplitContainer.SplitterDistance = 135;
+            this.bbsSplitContainer.SplitterDistance = 134;
             this.bbsSplitContainer.SplitterWidth = 5;
             this.bbsSplitContainer.TabIndex = 7;
             // 
@@ -2094,7 +2104,7 @@
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
             this.bbsListView.Margin = new System.Windows.Forms.Padding(4);
             this.bbsListView.Name = "bbsListView";
-            this.bbsListView.Size = new System.Drawing.Size(669, 135);
+            this.bbsListView.Size = new System.Drawing.Size(669, 134);
             this.bbsListView.SmallImageList = this.mainImageList;
             this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.bbsListView.TabIndex = 6;
@@ -2128,7 +2138,7 @@
             this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(669, 474);
+            this.bbsTextBox.Size = new System.Drawing.Size(669, 475);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -2211,7 +2221,7 @@
             // 
             this.torrentSplitContainer.Panel2.Controls.Add(this.torrentTabControl);
             this.torrentSplitContainer.Size = new System.Drawing.Size(669, 614);
-            this.torrentSplitContainer.SplitterDistance = 281;
+            this.torrentSplitContainer.SplitterDistance = 280;
             this.torrentSplitContainer.TabIndex = 7;
             // 
             // torrentListView
@@ -2228,7 +2238,7 @@
             this.torrentListView.Location = new System.Drawing.Point(0, 0);
             this.torrentListView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentListView.Name = "torrentListView";
-            this.torrentListView.Size = new System.Drawing.Size(669, 281);
+            this.torrentListView.Size = new System.Drawing.Size(669, 280);
             this.torrentListView.SmallImageList = this.mainImageList;
             this.torrentListView.TabIndex = 0;
             this.torrentListView.UseCompatibleStateImageBehavior = false;
@@ -2323,7 +2333,7 @@
             this.torrentTabControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentTabControl.Name = "torrentTabControl";
             this.torrentTabControl.SelectedIndex = 0;
-            this.torrentTabControl.Size = new System.Drawing.Size(669, 329);
+            this.torrentTabControl.Size = new System.Drawing.Size(669, 330);
             this.torrentTabControl.TabIndex = 0;
             // 
             // tabPage1
@@ -2333,7 +2343,7 @@
             this.tabPage1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage1.Size = new System.Drawing.Size(661, 300);
+            this.tabPage1.Size = new System.Drawing.Size(661, 301);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Details";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -2349,7 +2359,7 @@
             this.torrentDetailsListView.Location = new System.Drawing.Point(3, 2);
             this.torrentDetailsListView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentDetailsListView.Name = "torrentDetailsListView";
-            this.torrentDetailsListView.Size = new System.Drawing.Size(655, 296);
+            this.torrentDetailsListView.Size = new System.Drawing.Size(655, 297);
             this.torrentDetailsListView.TabIndex = 0;
             this.torrentDetailsListView.UseCompatibleStateImageBehavior = false;
             this.torrentDetailsListView.View = System.Windows.Forms.View.Details;
@@ -2372,7 +2382,7 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(661, 300);
+            this.tabPage2.Size = new System.Drawing.Size(661, 301);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -2487,7 +2497,7 @@
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
             this.packetsSplitContainer.Size = new System.Drawing.Size(669, 614);
-            this.packetsSplitContainer.SplitterDistance = 274;
+            this.packetsSplitContainer.SplitterDistance = 273;
             this.packetsSplitContainer.SplitterWidth = 5;
             this.packetsSplitContainer.TabIndex = 6;
             // 
@@ -2506,7 +2516,7 @@
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
             this.packetsListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetsListView.Name = "packetsListView";
-            this.packetsListView.Size = new System.Drawing.Size(669, 274);
+            this.packetsListView.Size = new System.Drawing.Size(669, 273);
             this.packetsListView.SmallImageList = this.mainImageList;
             this.packetsListView.TabIndex = 5;
             this.packetsListView.UseCompatibleStateImageBehavior = false;
@@ -2586,7 +2596,7 @@
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             this.packetDecodeListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(669, 335);
+            this.packetDecodeListView.Size = new System.Drawing.Size(669, 336);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;
@@ -3176,6 +3186,13 @@
             this.clearHistoryToolStripMenuItem.Text = "&Clear History";
             this.clearHistoryToolStripMenuItem.Click += new System.EventHandler(this.clearHistoryToolStripMenuItem_Click);
             // 
+            // spectrogramToolStripMenuItem
+            // 
+            this.spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";
+            this.spectrogramToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.spectrogramToolStripMenuItem.Text = "Spectrogram...";
+            this.spectrogramToolStripMenuItem.Click += new System.EventHandler(this.spectrogramToolStripMenuItem_Click);
+            // 
             // aprsChatControl
             // 
             this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
@@ -3207,7 +3224,7 @@
             this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
             this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 296);
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 297);
             this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // MainForm
@@ -3604,6 +3621,7 @@
         private System.Windows.Forms.ToolStripMenuItem morseToolStripMenuItem;
         private System.Windows.Forms.Button cancelVoiceButton;
         private System.Windows.Forms.ToolStripMenuItem checkForUpdatesToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem spectrogramToolStripMenuItem;
     }
 }
 

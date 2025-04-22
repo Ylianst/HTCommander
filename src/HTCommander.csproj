@@ -331,6 +331,12 @@
     <Compile Include="SettingsForm.Designer.cs">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="SpectrogramForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SpectrogramForm.Designer.cs">
+      <DependentUpon>SpectrogramForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="StationInfoClass.cs" />
     <Compile Include="Torrent.cs" />
     <Compile Include="TorrentBlocksUserControl.cs">
@@ -445,6 +451,9 @@
     <EmbeddedResource Include="SettingsForm.resx">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="SpectrogramForm.resx">
+      <DependentUpon>SpectrogramForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="TorrentBlocksUserControl.resx">
       <DependentUpon>TorrentBlocksUserControl.cs</DependentUpon>
     </EmbeddedResource>
@@ -475,6 +484,9 @@
     </PackageReference>
     <PackageReference Include="NAudio">
       <Version>2.2.1</Version>
+    </PackageReference>
+    <PackageReference Include="Spectrogram">
+      <Version>1.6.1</Version>
     </PackageReference>
     <PackageReference Include="Whisper.net">
       <Version>1.8.1</Version>

@@ -69,7 +69,7 @@ namespace HTCommander
 
                 Process.Start(startInfo);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log or silently fail — optional
             }

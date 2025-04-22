@@ -15,9 +15,12 @@ limitations under the License.
 */
 
 using System;
+using System.Drawing;
 using System.Windows.Forms;
+using FftSharp;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
+using Spectrogram;
 
 namespace HTCommander
 {
@@ -28,6 +31,7 @@ namespace HTCommander
         private Radio radio;
         private MMDevice outputDevice;
         private MMDevice inputDevice;
+        private SpectrogramGenerator sg;
         public bool MicrophoneTransmit = false;
 
         public int Volume { get { return volumeTrackBar.Value; } set { volumeTrackBar.Value = value; } }
@@ -45,6 +49,8 @@ namespace HTCommander
             inputTrackBar.Value = (int)parent.registry.ReadInt("InputAudioVolume", 100);
             inputDevice.AudioEndpointVolume.MasterVolumeLevelScalar = inputTrackBar.Value / 100f;
             UpdateInfo();
+
+            sg = new SpectrogramGenerator(36000, fftSize: 4096, stepSize: 500, maxFreq: 3000);
         }
 
         private void RadioVolumeForm_Load(object sender, EventArgs e)
