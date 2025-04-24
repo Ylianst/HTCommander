@@ -2052,7 +2052,7 @@ namespace HTCommander
 
         private void volumeToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            radioVolumeForm.Visible = true;
+            if (radioVolumeForm.Visible == false) { radioVolumeForm.Show(this); }
             radioVolumeForm.Focus();
             radioVolumeForm.UpdateInfo();
         }
@@ -4409,6 +4409,7 @@ namespace HTCommander
 
         private void clearHistoryToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            voiceHistoryCompleted = "";
             voiceHistoryTextBox.Clear();
         }
 

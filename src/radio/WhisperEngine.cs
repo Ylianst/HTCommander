@@ -220,6 +220,11 @@ namespace HTCommander.radio // Use your original namespace
                 Array.Copy(data, index, audioBuffer, audioBufferLength, length);
                 audioBufferLength += length;
             }
+            else
+            {
+                // If we are done and it's a tiny amount of audio, just ignore it
+                if (audioBufferLength < 5000) { audioBufferLength = 0; }
+            }
 
             if ((audioBufferLength > 0) && ((audioBufferLength > (audioBuffer.Length - 1024)) || (length == 0)))
             {
@@ -250,11 +255,18 @@ namespace HTCommander.radio // Use your original namespace
                     processingAudioCompleted = (length == 0);
                     try
                     {
-                        Task.Run(() => {
-                            try {
-                                _processor.Process(ConvertPcm16ToFloat32(pcm16kBytes));} catch (Exception ex) { Console.WriteLine(ex.Message); } })
-                                .ContinueWith(task => { if (task.IsCompleted) { OnWhispeCompleted(); }
+                        Task.Run(() =>
+                        {
+                            try
+                            {
+                                _processor.Process(ConvertPcm16ToFloat32(pcm16kBytes));
                             }
+                            catch (Exception ex) { Console.WriteLine(ex.Message); }
+                        })
+                                .ContinueWith(task =>
+                                {
+                                    if (task.IsCompleted) { OnWhispeCompleted(); }
+                                }
                         );
                     }
                     catch (Exception ex) { Console.WriteLine(ex.Message); }

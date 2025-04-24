@@ -36,7 +36,7 @@ namespace HTCommander
         private Radio parent;
         public string selectedDevice;
         private bool running = false;
-        private BluetoothClient connectionClient = new BluetoothClient();
+        private BluetoothClient connectionClient = null;
         private NetworkStream stream;
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
@@ -182,18 +182,32 @@ namespace HTCommander
         {
             Guid rfcommServiceUuid = BluetoothService.SerialPort;
             BluetoothAddress address = BluetoothAddress.Parse(mac);
-            BluetoothEndPoint remoteEndPoint = new BluetoothEndPoint(address, rfcommServiceUuid, 0);
+            //BluetoothEndPoint remoteEndPoint = new BluetoothEndPoint(address, rfcommServiceUuid, 0);
             // Connect to the remote endpoint asynchronously
-            Debug("Attempting to connect...");
-            try
+            int retry = 3;
+            while (retry > 0)
             {
-                connectionClient.Connect(remoteEndPoint);
+                try
+                {
+                    Debug("Attempting to connect...");
+                    connectionClient = new BluetoothClient();
+                    await connectionClient.ConnectAsync(address, rfcommServiceUuid);
+                    retry = -2;
+                }
+                catch (Exception ex)
+                {
+                    retry--;
+                    connectionClient.Dispose();
+                    connectionClient = null;
+                    Debug("Connect failed: " + ex.ToString());
+                }
             }
-            catch (Exception)
+            if (retry != -2)
             {
                 parent.Disconnect("Unable to connect", Radio.RadioState.UnableToConnect);
                 return;
             }
+
             Debug("Successfully connected to the RFCOMM channel.");
 
             try

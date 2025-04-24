@@ -672,6 +672,7 @@ namespace HTCommander
                                     if (HtStatus != null) { oldRegion = HtStatus.curr_region; }
                                     HtStatus = new RadioHtStatus(value);
                                     Update(RadioUpdateNotification.HtStatus);
+                                    if (HtStatus == null) return;
                                     if (oldRegion != HtStatus.curr_region)
                                     {
                                         Update(RadioUpdateNotification.RegionChange);

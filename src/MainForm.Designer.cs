@@ -56,16 +56,7 @@
             this.systemTrayToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem4 = new System.Windows.Forms.ToolStripSeparator();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.settingsToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            this.dualWatchToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.scanToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.regionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem5 = new System.Windows.Forms.ToolStripSeparator();
-            this.audioEnabledToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.volumeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem10 = new System.Windows.Forms.ToolStripSeparator();
-            this.exportChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.importChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.audioToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.radioToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -312,6 +303,15 @@
             this.voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.spectrogramToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.volumeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem21 = new System.Windows.Forms.ToolStripMenuItem();
+            this.dualWatchToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.scanToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.regionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.exportChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.importChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.audioEnabledToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsChatControl = new HTCommander.ChatControl();
             this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.mainStatusStrip.SuspendLayout();
@@ -428,7 +428,8 @@
             this.mainMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.mainMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.fileToolStripMenuItem,
-            this.settingsToolStripMenuItem1,
+            this.toolStripMenuItem21,
+            this.audioToolStripMenuItem1,
             this.viewToolStripMenuItem,
             this.aboutToolStripMenuItem});
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
@@ -500,85 +501,16 @@
             this.exitToolStripMenuItem.Text = "E&xit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
             // 
-            // settingsToolStripMenuItem1
+            // audioToolStripMenuItem1
             // 
-            this.settingsToolStripMenuItem1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.dualWatchToolStripMenuItem,
-            this.scanToolStripMenuItem,
-            this.regionToolStripMenuItem,
-            this.toolStripMenuItem5,
+            this.audioToolStripMenuItem1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.audioEnabledToolStripMenuItem,
             this.volumeToolStripMenuItem,
-            this.spectrogramToolStripMenuItem,
-            this.toolStripMenuItem10,
-            this.exportChannelsToolStripMenuItem,
-            this.importChannelsToolStripMenuItem});
-            this.settingsToolStripMenuItem1.Name = "settingsToolStripMenuItem1";
-            this.settingsToolStripMenuItem1.Size = new System.Drawing.Size(76, 24);
-            this.settingsToolStripMenuItem1.Text = "&Settings";
-            this.settingsToolStripMenuItem1.DropDownOpening += new System.EventHandler(this.settingsToolStripMenuItem1_DropDownOpening);
-            // 
-            // dualWatchToolStripMenuItem
-            // 
-            this.dualWatchToolStripMenuItem.Enabled = false;
-            this.dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
-            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.dualWatchToolStripMenuItem.Text = "&Dual-Watch";
-            this.dualWatchToolStripMenuItem.Click += new System.EventHandler(this.dualWatchToolStripMenuItem_Click);
-            // 
-            // scanToolStripMenuItem
-            // 
-            this.scanToolStripMenuItem.Enabled = false;
-            this.scanToolStripMenuItem.Name = "scanToolStripMenuItem";
-            this.scanToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.scanToolStripMenuItem.Text = "&Scan";
-            this.scanToolStripMenuItem.Click += new System.EventHandler(this.scanToolStripMenuItem_Click);
-            // 
-            // regionToolStripMenuItem
-            // 
-            this.regionToolStripMenuItem.Enabled = false;
-            this.regionToolStripMenuItem.Name = "regionToolStripMenuItem";
-            this.regionToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.regionToolStripMenuItem.Text = "&Regions";
-            // 
-            // toolStripMenuItem5
-            // 
-            this.toolStripMenuItem5.Name = "toolStripMenuItem5";
-            this.toolStripMenuItem5.Size = new System.Drawing.Size(221, 6);
-            // 
-            // audioEnabledToolStripMenuItem
-            // 
-            this.audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
-            this.audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
-            this.audioEnabledToolStripMenuItem.Click += new System.EventHandler(this.audioEnabledToolStripMenuItem_Click);
-            // 
-            // volumeToolStripMenuItem
-            // 
-            this.volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.volumeToolStripMenuItem.Text = "Audio &Controls...";
-            this.volumeToolStripMenuItem.Click += new System.EventHandler(this.volumeToolStripMenuItem_Click);
-            // 
-            // toolStripMenuItem10
-            // 
-            this.toolStripMenuItem10.Name = "toolStripMenuItem10";
-            this.toolStripMenuItem10.Size = new System.Drawing.Size(221, 6);
-            // 
-            // exportChannelsToolStripMenuItem
-            // 
-            this.exportChannelsToolStripMenuItem.Enabled = false;
-            this.exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
-            this.exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.exportChannelsToolStripMenuItem.Text = "&Export Channels...";
-            this.exportChannelsToolStripMenuItem.Click += new System.EventHandler(this.exportChannelsToolStripMenuItem_Click);
-            // 
-            // importChannelsToolStripMenuItem
-            // 
-            this.importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
-            this.importChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.importChannelsToolStripMenuItem.Text = "&Import Channels...";
-            this.importChannelsToolStripMenuItem.Click += new System.EventHandler(this.importChannelsToolStripMenuItem_Click);
+            this.spectrogramToolStripMenuItem});
+            this.audioToolStripMenuItem1.Name = "audioToolStripMenuItem1";
+            this.audioToolStripMenuItem1.Size = new System.Drawing.Size(63, 24);
+            this.audioToolStripMenuItem1.Text = "A&udio";
+            this.audioToolStripMenuItem1.DropDownOpening += new System.EventHandler(this.settingsToolStripMenuItem1_DropDownOpening);
             // 
             // viewToolStripMenuItem
             // 
@@ -1041,7 +973,7 @@
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
             this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Size = new System.Drawing.Size(669, 653);
+            this.aprsTabPage.Size = new System.Drawing.Size(669, 651);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1106,7 +1038,7 @@
             this.aprsBottomPanel.Controls.Add(this.aprsTextBox);
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 606);
+            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 604);
             this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
             this.aprsBottomPanel.Size = new System.Drawing.Size(669, 47);
@@ -1221,7 +1153,7 @@
             this.mapTabPage.Location = new System.Drawing.Point(4, 4);
             this.mapTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.mapTabPage.Name = "mapTabPage";
-            this.mapTabPage.Size = new System.Drawing.Size(669, 651);
+            this.mapTabPage.Size = new System.Drawing.Size(669, 653);
             this.mapTabPage.TabIndex = 0;
             this.mapTabPage.ToolTipText = "APRS";
             this.mapTabPage.UseVisualStyleBackColor = true;
@@ -1284,7 +1216,7 @@
             this.voiceTabPage.Location = new System.Drawing.Point(4, 4);
             this.voiceTabPage.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.voiceTabPage.Name = "voiceTabPage";
-            this.voiceTabPage.Size = new System.Drawing.Size(669, 651);
+            this.voiceTabPage.Size = new System.Drawing.Size(669, 653);
             this.voiceTabPage.TabIndex = 9;
             this.voiceTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1309,7 +1241,7 @@
             this.voiceHistoryTextBox.Name = "voiceHistoryTextBox";
             this.voiceHistoryTextBox.ReadOnly = true;
             this.voiceHistoryTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.ForcedVertical;
-            this.voiceHistoryTextBox.Size = new System.Drawing.Size(669, 567);
+            this.voiceHistoryTextBox.Size = new System.Drawing.Size(669, 569);
             this.voiceHistoryTextBox.TabIndex = 0;
             this.voiceHistoryTextBox.Text = "";
             // 
@@ -1319,7 +1251,7 @@
             this.voiceBottomPanel.Controls.Add(this.speakTextBox);
             this.voiceBottomPanel.Controls.Add(this.speakButton);
             this.voiceBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.voiceBottomPanel.Location = new System.Drawing.Point(0, 604);
+            this.voiceBottomPanel.Location = new System.Drawing.Point(0, 606);
             this.voiceBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.voiceBottomPanel.Name = "voiceBottomPanel";
             this.voiceBottomPanel.Size = new System.Drawing.Size(669, 47);
@@ -1439,7 +1371,7 @@
             this.mailTabPage.Location = new System.Drawing.Point(4, 4);
             this.mailTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.mailTabPage.Name = "mailTabPage";
-            this.mailTabPage.Size = new System.Drawing.Size(669, 651);
+            this.mailTabPage.Size = new System.Drawing.Size(669, 653);
             this.mailTabPage.TabIndex = 5;
             this.mailTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1458,7 +1390,7 @@
             // mailboxHorizontalSplitContainer.Panel2
             // 
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailPreviewTextBox);
-            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(669, 577);
+            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(669, 579);
             this.mailboxHorizontalSplitContainer.SplitterDistance = 264;
             this.mailboxHorizontalSplitContainer.TabIndex = 7;
             // 
@@ -1647,7 +1579,7 @@
             this.mailPreviewTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.mailPreviewTextBox.Name = "mailPreviewTextBox";
             this.mailPreviewTextBox.ReadOnly = true;
-            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 309);
+            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 311);
             this.mailPreviewTextBox.TabIndex = 0;
             this.mailPreviewTextBox.Text = "";
             // 
@@ -1656,7 +1588,7 @@
             this.mailTransferStatusPanel.BackColor = System.Drawing.Color.Silver;
             this.mailTransferStatusPanel.Controls.Add(this.mailTransferStatusLabel);
             this.mailTransferStatusPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 614);
+            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 616);
             this.mailTransferStatusPanel.Margin = new System.Windows.Forms.Padding(4);
             this.mailTransferStatusPanel.Name = "mailTransferStatusPanel";
             this.mailTransferStatusPanel.Size = new System.Drawing.Size(669, 37);
@@ -1773,7 +1705,7 @@
             this.terminalTabPage.Location = new System.Drawing.Point(4, 4);
             this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTabPage.Name = "terminalTabPage";
-            this.terminalTabPage.Size = new System.Drawing.Size(669, 651);
+            this.terminalTabPage.Size = new System.Drawing.Size(669, 653);
             this.terminalTabPage.TabIndex = 2;
             this.terminalTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1788,7 +1720,7 @@
             this.terminalTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTextBox.Name = "terminalTextBox";
             this.terminalTextBox.ReadOnly = true;
-            this.terminalTextBox.Size = new System.Drawing.Size(669, 568);
+            this.terminalTextBox.Size = new System.Drawing.Size(669, 570);
             this.terminalTextBox.TabIndex = 4;
             this.terminalTextBox.Text = "";
             // 
@@ -1798,7 +1730,7 @@
             this.terminalBottomPanel.Controls.Add(this.terminalInputTextBox);
             this.terminalBottomPanel.Controls.Add(this.terminalSendButton);
             this.terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 605);
+            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 607);
             this.terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.terminalBottomPanel.Name = "terminalBottomPanel";
             this.terminalBottomPanel.Size = new System.Drawing.Size(669, 46);
@@ -1890,7 +1822,7 @@
             this.addressesTabPage.Location = new System.Drawing.Point(4, 4);
             this.addressesTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.addressesTabPage.Name = "addressesTabPage";
-            this.addressesTabPage.Size = new System.Drawing.Size(669, 651);
+            this.addressesTabPage.Size = new System.Drawing.Size(669, 653);
             this.addressesTabPage.TabIndex = 4;
             this.addressesTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1925,7 +1857,7 @@
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 37);
             this.mainAddressBookListView.Margin = new System.Windows.Forms.Padding(4);
             this.mainAddressBookListView.Name = "mainAddressBookListView";
-            this.mainAddressBookListView.Size = new System.Drawing.Size(669, 614);
+            this.mainAddressBookListView.Size = new System.Drawing.Size(669, 616);
             this.mainAddressBookListView.SmallImageList = this.mainImageList;
             this.mainAddressBookListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.mainAddressBookListView.TabIndex = 4;
@@ -2055,7 +1987,7 @@
             this.bbsTabPage.Location = new System.Drawing.Point(4, 4);
             this.bbsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTabPage.Name = "bbsTabPage";
-            this.bbsTabPage.Size = new System.Drawing.Size(669, 651);
+            this.bbsTabPage.Size = new System.Drawing.Size(669, 653);
             this.bbsTabPage.TabIndex = 7;
             this.bbsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -2074,7 +2006,7 @@
             // bbsSplitContainer.Panel2
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
-            this.bbsSplitContainer.Size = new System.Drawing.Size(669, 614);
+            this.bbsSplitContainer.Size = new System.Drawing.Size(669, 616);
             this.bbsSplitContainer.SplitterDistance = 134;
             this.bbsSplitContainer.SplitterWidth = 5;
             this.bbsSplitContainer.TabIndex = 7;
@@ -2138,7 +2070,7 @@
             this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(669, 475);
+            this.bbsTextBox.Size = new System.Drawing.Size(669, 477);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -2201,7 +2133,7 @@
             this.torrentTabPage.Location = new System.Drawing.Point(4, 4);
             this.torrentTabPage.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentTabPage.Name = "torrentTabPage";
-            this.torrentTabPage.Size = new System.Drawing.Size(669, 651);
+            this.torrentTabPage.Size = new System.Drawing.Size(669, 653);
             this.torrentTabPage.TabIndex = 8;
             this.torrentTabPage.UseVisualStyleBackColor = true;
             // 
@@ -2220,7 +2152,7 @@
             // torrentSplitContainer.Panel2
             // 
             this.torrentSplitContainer.Panel2.Controls.Add(this.torrentTabControl);
-            this.torrentSplitContainer.Size = new System.Drawing.Size(669, 614);
+            this.torrentSplitContainer.Size = new System.Drawing.Size(669, 616);
             this.torrentSplitContainer.SplitterDistance = 280;
             this.torrentSplitContainer.TabIndex = 7;
             // 
@@ -2333,7 +2265,7 @@
             this.torrentTabControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentTabControl.Name = "torrentTabControl";
             this.torrentTabControl.SelectedIndex = 0;
-            this.torrentTabControl.Size = new System.Drawing.Size(669, 330);
+            this.torrentTabControl.Size = new System.Drawing.Size(669, 332);
             this.torrentTabControl.TabIndex = 0;
             // 
             // tabPage1
@@ -2343,7 +2275,7 @@
             this.tabPage1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage1.Size = new System.Drawing.Size(661, 301);
+            this.tabPage1.Size = new System.Drawing.Size(661, 303);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Details";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -2359,7 +2291,7 @@
             this.torrentDetailsListView.Location = new System.Drawing.Point(3, 2);
             this.torrentDetailsListView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentDetailsListView.Name = "torrentDetailsListView";
-            this.torrentDetailsListView.Size = new System.Drawing.Size(655, 297);
+            this.torrentDetailsListView.Size = new System.Drawing.Size(655, 299);
             this.torrentDetailsListView.TabIndex = 0;
             this.torrentDetailsListView.UseCompatibleStateImageBehavior = false;
             this.torrentDetailsListView.View = System.Windows.Forms.View.Details;
@@ -2382,7 +2314,7 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(661, 301);
+            this.tabPage2.Size = new System.Drawing.Size(661, 303);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -2477,7 +2409,7 @@
             this.packetsTabPage.Location = new System.Drawing.Point(4, 4);
             this.packetsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.packetsTabPage.Name = "packetsTabPage";
-            this.packetsTabPage.Size = new System.Drawing.Size(669, 651);
+            this.packetsTabPage.Size = new System.Drawing.Size(669, 653);
             this.packetsTabPage.TabIndex = 6;
             this.packetsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -2496,7 +2428,7 @@
             // packetsSplitContainer.Panel2
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
-            this.packetsSplitContainer.Size = new System.Drawing.Size(669, 614);
+            this.packetsSplitContainer.Size = new System.Drawing.Size(669, 616);
             this.packetsSplitContainer.SplitterDistance = 273;
             this.packetsSplitContainer.SplitterWidth = 5;
             this.packetsSplitContainer.TabIndex = 6;
@@ -2596,7 +2528,7 @@
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             this.packetDecodeListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(669, 336);
+            this.packetDecodeListView.Size = new System.Drawing.Size(669, 338);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;
@@ -2672,7 +2604,7 @@
             this.debugTabPage.Location = new System.Drawing.Point(4, 4);
             this.debugTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.debugTabPage.Name = "debugTabPage";
-            this.debugTabPage.Size = new System.Drawing.Size(669, 651);
+            this.debugTabPage.Size = new System.Drawing.Size(669, 653);
             this.debugTabPage.TabIndex = 1;
             this.debugTabPage.ToolTipText = "Debug";
             this.debugTabPage.UseVisualStyleBackColor = true;
@@ -2688,7 +2620,7 @@
             this.debugTextBox.Name = "debugTextBox";
             this.debugTextBox.ReadOnly = true;
             this.debugTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.debugTextBox.Size = new System.Drawing.Size(669, 614);
+            this.debugTextBox.Size = new System.Drawing.Size(669, 616);
             this.debugTextBox.TabIndex = 1;
             this.debugTextBox.WordWrap = false;
             // 
@@ -3177,21 +3109,91 @@
             this.voiceTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.clearHistoryToolStripMenuItem});
             this.voiceTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.voiceTabContextMenuStrip.Size = new System.Drawing.Size(164, 28);
+            this.voiceTabContextMenuStrip.Size = new System.Drawing.Size(211, 56);
             // 
             // clearHistoryToolStripMenuItem
             // 
             this.clearHistoryToolStripMenuItem.Name = "clearHistoryToolStripMenuItem";
-            this.clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
+            this.clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
             this.clearHistoryToolStripMenuItem.Text = "&Clear History";
             this.clearHistoryToolStripMenuItem.Click += new System.EventHandler(this.clearHistoryToolStripMenuItem_Click);
             // 
             // spectrogramToolStripMenuItem
             // 
             this.spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";
-            this.spectrogramToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.spectrogramToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
             this.spectrogramToolStripMenuItem.Text = "Spectrogram...";
             this.spectrogramToolStripMenuItem.Click += new System.EventHandler(this.spectrogramToolStripMenuItem_Click);
+            // 
+            // volumeToolStripMenuItem
+            // 
+            this.volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
+            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
+            this.volumeToolStripMenuItem.Text = "Audio &Controls...";
+            this.volumeToolStripMenuItem.Click += new System.EventHandler(this.volumeToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItem21
+            // 
+            this.toolStripMenuItem21.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.dualWatchToolStripMenuItem,
+            this.scanToolStripMenuItem,
+            this.regionToolStripMenuItem,
+            this.toolStripSeparator1,
+            this.exportChannelsToolStripMenuItem,
+            this.importChannelsToolStripMenuItem});
+            this.toolStripMenuItem21.Name = "toolStripMenuItem21";
+            this.toolStripMenuItem21.Size = new System.Drawing.Size(76, 24);
+            this.toolStripMenuItem21.Text = "&Settings";
+            // 
+            // dualWatchToolStripMenuItem
+            // 
+            this.dualWatchToolStripMenuItem.Enabled = false;
+            this.dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
+            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.dualWatchToolStripMenuItem.Text = "&Dual-Watch";
+            this.dualWatchToolStripMenuItem.Click += new System.EventHandler(this.dualWatchToolStripMenuItem_Click);
+            // 
+            // scanToolStripMenuItem
+            // 
+            this.scanToolStripMenuItem.Enabled = false;
+            this.scanToolStripMenuItem.Name = "scanToolStripMenuItem";
+            this.scanToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.scanToolStripMenuItem.Text = "&Scan";
+            this.scanToolStripMenuItem.Click += new System.EventHandler(this.scanToolStripMenuItem_Click);
+            // 
+            // regionToolStripMenuItem
+            // 
+            this.regionToolStripMenuItem.Enabled = false;
+            this.regionToolStripMenuItem.Name = "regionToolStripMenuItem";
+            this.regionToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.regionToolStripMenuItem.Text = "&Regions";
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(206, 6);
+            // 
+            // exportChannelsToolStripMenuItem
+            // 
+            this.exportChannelsToolStripMenuItem.Enabled = false;
+            this.exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
+            this.exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.exportChannelsToolStripMenuItem.Text = "&Export Channels...";
+            this.exportChannelsToolStripMenuItem.Click += new System.EventHandler(this.exportChannelsToolStripMenuItem_Click);
+            // 
+            // importChannelsToolStripMenuItem
+            // 
+            this.importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
+            this.importChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.importChannelsToolStripMenuItem.Text = "&Import Channels...";
+            this.importChannelsToolStripMenuItem.Click += new System.EventHandler(this.importChannelsToolStripMenuItem_Click);
+            // 
+            // audioEnabledToolStripMenuItem
+            // 
+            this.audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
+            this.audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
+            this.audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
+            this.audioEnabledToolStripMenuItem.Click += new System.EventHandler(this.audioEnabledToolStripMenuItem_Click);
             // 
             // aprsChatControl
             // 
@@ -3211,7 +3213,7 @@
             this.aprsChatControl.Name = "aprsChatControl";
             this.aprsChatControl.ShadowOffset = 2;
             this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
+            this.aprsChatControl.Size = new System.Drawing.Size(669, 530);
             this.aprsChatControl.TabIndex = 5;
             this.aprsChatControl.TextColor = System.Drawing.Color.Black;
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
@@ -3425,11 +3427,7 @@
         private System.Windows.Forms.ColumnHeader columnHeader5;
         private System.Windows.Forms.ColumnHeader columnHeader6;
         private ChatControl aprsChatControl;
-        private System.Windows.Forms.ToolStripMenuItem settingsToolStripMenuItem1;
-        private System.Windows.Forms.ToolStripMenuItem dualWatchToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem scanToolStripMenuItem;
-        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem5;
-        private System.Windows.Forms.ToolStripMenuItem volumeToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem audioToolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem mapToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem terminalToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem mailToolStripMenuItem;
@@ -3475,7 +3473,6 @@
         private System.Windows.Forms.Label missingAprsChannelLabel;
         private System.Windows.Forms.Button aprsSetupButton;
         private System.Windows.Forms.ToolStripMenuItem allChannelsToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem regionToolStripMenuItem;
         private System.Windows.Forms.ListView packetDecodeListView;
         private System.Windows.Forms.ColumnHeader packetDecodeColumnHeader1;
         private System.Windows.Forms.ColumnHeader packetDecodeColumnHeader2;
@@ -3502,14 +3499,11 @@
         private System.Windows.Forms.Label vfo1Label;
         private System.Windows.Forms.ToolStripMenuItem setToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem removeToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem exportChannelsToolStripMenuItem;
         private System.Windows.Forms.SaveFileDialog exportChannelsFileDialog;
-        private System.Windows.Forms.ToolStripMenuItem importChannelsToolStripMenuItem;
         private System.Windows.Forms.OpenFileDialog importChannelFileDialog;
         private System.Windows.Forms.RichTextBox terminalTextBox;
         private System.Windows.Forms.ToolStripMenuItem showCallsignToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem9;
-        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem10;
         private System.Windows.Forms.TabPage bbsTabPage;
         private System.Windows.Forms.ListView bbsListView;
         private System.Windows.Forms.ColumnHeader columnHeader10;
@@ -3602,7 +3596,6 @@
         private System.Windows.Forms.ColumnHeader columnHeader13;
         private System.Windows.Forms.ColumnHeader columnHeader17;
         private TorrentBlocksUserControl torrentBlocksUserControl;
-        private System.Windows.Forms.ToolStripMenuItem audioEnabledToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem voiceToolStripMenuItem;
         private System.Windows.Forms.TabPage voiceTabPage;
         private System.Windows.Forms.Panel panel6;
@@ -3621,7 +3614,16 @@
         private System.Windows.Forms.ToolStripMenuItem morseToolStripMenuItem;
         private System.Windows.Forms.Button cancelVoiceButton;
         private System.Windows.Forms.ToolStripMenuItem checkForUpdatesToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem toolStripMenuItem21;
+        private System.Windows.Forms.ToolStripMenuItem dualWatchToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem scanToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem regionToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
+        private System.Windows.Forms.ToolStripMenuItem exportChannelsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem importChannelsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem volumeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem spectrogramToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem audioEnabledToolStripMenuItem;
     }
 }
 
