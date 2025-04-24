@@ -15,23 +15,21 @@ limitations under the License.
 */
 
 using System;
-using System.Drawing;
+using System.Diagnostics;
 using System.Windows.Forms;
-using FftSharp;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
-using Spectrogram;
 
 namespace HTCommander
 {
-    public partial class RadioVolumeForm : Form, IMMNotificationClient
+    public partial class RadioVolumeForm : Form, IMMNotificationClient, IAudioSessionEventsHandler
     {
         private MMDeviceEnumerator deviceEnumerator = new MMDeviceEnumerator();
         private MainForm parent;
         private Radio radio;
         private MMDevice outputDevice;
         private MMDevice inputDevice;
-        private SpectrogramGenerator sg;
+        private AudioSessionControl sessionControl;
         public bool MicrophoneTransmit = false;
 
         public int Volume { get { return volumeTrackBar.Value; } set { volumeTrackBar.Value = value; } }
@@ -49,12 +47,11 @@ namespace HTCommander
             inputTrackBar.Value = (int)parent.registry.ReadInt("InputAudioVolume", 100);
             inputDevice.AudioEndpointVolume.MasterVolumeLevelScalar = inputTrackBar.Value / 100f;
             UpdateInfo();
-
-            sg = new SpectrogramGenerator(36000, fftSize: 4096, stepSize: 500, maxFreq: 3000);
         }
 
         private void RadioVolumeForm_Load(object sender, EventArgs e)
         {
+
         }
 
         private delegate void AudioEndpointVolumeNotificationDelegate(AudioVolumeNotificationData data);
@@ -213,6 +210,27 @@ namespace HTCommander
         {
             pollTimer.Enabled = Visible;
             if (radio.State == Radio.RadioState.Connected) { radio.GetVolumeLevel(); }
+
+            if (sessionControl == null)
+            {
+                // App scpecific volume control
+                var enumerator = new MMDeviceEnumerator();
+                var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                var sessions = device.AudioSessionManager.Sessions;
+                int currentProcessId = Process.GetCurrentProcess().Id;
+                for (int i = 0; i < sessions.Count; i++)
+                {
+                    var session = sessions[i];
+                    if (session.GetProcessID == currentProcessId)
+                    {
+                        sessionControl = session;
+                        sessionControl.RegisterEventClient(this);
+                        appVolumeTrackBar.Enabled = true;
+                        appVolumeTrackBar.Value = (int)(sessionControl.SimpleAudioVolume.Volume * 100);
+                        break;
+                    }
+                }
+            }
         }
 
         private void squelchTrackBar_Scroll(object sender, EventArgs e)
@@ -281,6 +299,32 @@ namespace HTCommander
         public void ProcessOutputAudioData(byte[] buffer, int bytesRecorded)
         {
             outputAmplitudeHistoryBar.ProcessAudioData(buffer, bytesRecorded);
+        }
+
+        public delegate void OnVolumeChangedDelegate(float volume, bool isMuted);
+        public void OnVolumeChanged(float volume, bool isMuted) {
+            if (InvokeRequired) { Invoke(new OnVolumeChangedDelegate(OnVolumeChanged), volume, isMuted); return; }
+            appVolumeTrackBar.Value = (int)(sessionControl.SimpleAudioVolume.Volume * 100);
+        }
+
+        public void OnDisplayNameChanged(string displayName) { }
+        public void OnIconPathChanged(string iconPath) { }
+        public void OnChannelVolumeChanged(uint channelCount, IntPtr newVolumes, uint channelIndex) { }
+        public void OnGroupingParamChanged(ref Guid groupingId) { }
+        public void OnStateChanged(AudioSessionState state) { }
+
+        public delegate void OnSessionDisconnectedDelegate(AudioSessionDisconnectReason disconnectReason);
+        public void OnSessionDisconnected(AudioSessionDisconnectReason disconnectReason) {
+            if (InvokeRequired) { Invoke(new OnSessionDisconnectedDelegate(OnSessionDisconnected), disconnectReason); return; }
+            appVolumeTrackBar.Enabled = false;
+            appVolumeTrackBar.Value = 0;
+            sessionControl = null;
+        }
+
+        private void appVolumeTrackBar_Scroll(object sender, EventArgs e)
+        {
+            if (sessionControl == null) return;
+            sessionControl.SimpleAudioVolume.Volume = (float)(appVolumeTrackBar.Value / 100F);
         }
     }
 }
