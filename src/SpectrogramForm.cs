@@ -45,6 +45,9 @@ namespace HTCommander
 
             // Load Settings
             maxFrequency = (int)parent.registry.ReadInt("SpecMaxFrequency", 16000);
+            hzToolStripMenuItem.Checked = (maxFrequency == 16000);
+            hzToolStripMenuItem1.Checked = (maxFrequency == 8000);
+            hzToolStripMenuItem2.Checked = (maxFrequency == 4000);
             pbScaleVert.Visible = scaleToolStripMenuItem.Checked = (parent.registry.ReadInt("SpecShowScale", 0) == 1);
             roll = rollToolStripMenuItem.Checked = (parent.registry.ReadInt("SpecRoll", 0) == 1);
             cbFftSize = (int)parent.registry.ReadInt("SpecLarge", 0);

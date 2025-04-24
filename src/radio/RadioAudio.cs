@@ -55,6 +55,20 @@ namespace HTCommander
         private float OutputVolume = 1;
         private float InputVolume = 1;
         private VolumeSampleProvider volumeProvider;
+        public bool Recording { get { return recording != null; } }
+        private WaveFileWriter recording = null;
+
+        public void StartRecording(string filename)
+        {
+            if (recording != null) { recording.Dispose(); recording = null; }
+            recording = new WaveFileWriter(filename, new WaveFormat(32000, 16, 1));
+        }
+
+        public void StopRecording()
+        {
+            recording.Dispose();
+            recording = null;
+        }
 
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
@@ -391,6 +405,7 @@ namespace HTCommander
                 sbcPtr += (int)decodeResult;
                 sbcLen -= (int)decodeResult;
                 try { waveProvider.AddSamples(pcmFrame, 0, (int)written); } catch (Exception) { }
+                if (recording != null) { recording.Write(pcmFrame, 0, (int)written); }
                 if (speechToTextEngine != null) { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, (int)written, currentChannelName); }
                 parent.GotAudioData(pcmFrame, (int)written, currentChannelName);
             }

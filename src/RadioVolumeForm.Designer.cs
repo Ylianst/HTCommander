@@ -40,6 +40,8 @@
             this.label3 = new System.Windows.Forms.Label();
             this.inputComboBox = new System.Windows.Forms.ComboBox();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.label8 = new System.Windows.Forms.Label();
+            this.appVolumeTrackBar = new System.Windows.Forms.TrackBar();
             this.label7 = new System.Windows.Forms.Label();
             this.inputTrackBar = new System.Windows.Forms.TrackBar();
             this.label5 = new System.Windows.Forms.Label();
@@ -50,18 +52,18 @@
             this.microphoneImageList = new System.Windows.Forms.ImageList(this.components);
             this.pollTimer = new System.Windows.Forms.Timer(this.components);
             this.audioButton = new System.Windows.Forms.Button();
-            this.label8 = new System.Windows.Forms.Label();
-            this.appVolumeTrackBar = new System.Windows.Forms.TrackBar();
+            this.recordButton = new System.Windows.Forms.Button();
+            this.saveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.outputAmplitudeHistoryBar = new HTCommander.AmplitudeHistoryBar();
             this.inputAmplitudeHistoryBar = new HTCommander.AmplitudeHistoryBar();
             ((System.ComponentModel.ISupportInitialize)(this.volumeTrackBar)).BeginInit();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.squelchTrackBar)).BeginInit();
             this.groupBox2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.appVolumeTrackBar)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.inputTrackBar)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.outputTrackBar)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.masterVolumeTrackBar)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.appVolumeTrackBar)).BeginInit();
             this.SuspendLayout();
             // 
             // volumeTrackBar
@@ -74,7 +76,7 @@
             this.volumeTrackBar.Maximum = 15;
             this.volumeTrackBar.Name = "volumeTrackBar";
             this.volumeTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.volumeTrackBar.Size = new System.Drawing.Size(56, 183);
+            this.volumeTrackBar.Size = new System.Drawing.Size(56, 170);
             this.volumeTrackBar.TabIndex = 0;
             this.volumeTrackBar.Scroll += new System.EventHandler(this.volumeTrackBar_Scroll);
             // 
@@ -88,7 +90,7 @@
             this.groupBox1.Controls.Add(this.volumeTrackBar);
             this.groupBox1.Location = new System.Drawing.Point(12, 82);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(161, 272);
+            this.groupBox1.Size = new System.Drawing.Size(161, 259);
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Radio";
@@ -112,7 +114,7 @@
             this.squelchTrackBar.Maximum = 9;
             this.squelchTrackBar.Name = "squelchTrackBar";
             this.squelchTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.squelchTrackBar.Size = new System.Drawing.Size(56, 183);
+            this.squelchTrackBar.Size = new System.Drawing.Size(56, 170);
             this.squelchTrackBar.TabIndex = 3;
             this.squelchTrackBar.Scroll += new System.EventHandler(this.squelchTrackBar_Scroll);
             // 
@@ -184,10 +186,35 @@
             this.groupBox2.Controls.Add(this.masterVolumeTrackBar);
             this.groupBox2.Location = new System.Drawing.Point(180, 82);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(292, 272);
+            this.groupBox2.Size = new System.Drawing.Size(292, 259);
             this.groupBox2.TabIndex = 6;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Computer";
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Location = new System.Drawing.Point(86, 33);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(32, 16);
+            this.label8.TabIndex = 10;
+            this.label8.Text = "App";
+            // 
+            // appVolumeTrackBar
+            // 
+            this.appVolumeTrackBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left)));
+            this.appVolumeTrackBar.Enabled = false;
+            this.appVolumeTrackBar.LargeChange = 10;
+            this.appVolumeTrackBar.Location = new System.Drawing.Point(89, 68);
+            this.appVolumeTrackBar.Margin = new System.Windows.Forms.Padding(4);
+            this.appVolumeTrackBar.Maximum = 100;
+            this.appVolumeTrackBar.Name = "appVolumeTrackBar";
+            this.appVolumeTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
+            this.appVolumeTrackBar.Size = new System.Drawing.Size(56, 170);
+            this.appVolumeTrackBar.TabIndex = 9;
+            this.appVolumeTrackBar.TickFrequency = 10;
+            this.appVolumeTrackBar.Scroll += new System.EventHandler(this.appVolumeTrackBar_Scroll);
             // 
             // label7
             // 
@@ -208,7 +235,7 @@
             this.inputTrackBar.Maximum = 100;
             this.inputTrackBar.Name = "inputTrackBar";
             this.inputTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.inputTrackBar.Size = new System.Drawing.Size(56, 183);
+            this.inputTrackBar.Size = new System.Drawing.Size(56, 170);
             this.inputTrackBar.TabIndex = 5;
             this.inputTrackBar.TickFrequency = 10;
             this.inputTrackBar.Value = 100;
@@ -233,7 +260,7 @@
             this.outputTrackBar.Maximum = 100;
             this.outputTrackBar.Name = "outputTrackBar";
             this.outputTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.outputTrackBar.Size = new System.Drawing.Size(56, 183);
+            this.outputTrackBar.Size = new System.Drawing.Size(56, 170);
             this.outputTrackBar.TabIndex = 3;
             this.outputTrackBar.TickFrequency = 10;
             this.outputTrackBar.Value = 100;
@@ -258,7 +285,7 @@
             this.masterVolumeTrackBar.Maximum = 100;
             this.masterVolumeTrackBar.Name = "masterVolumeTrackBar";
             this.masterVolumeTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.masterVolumeTrackBar.Size = new System.Drawing.Size(56, 183);
+            this.masterVolumeTrackBar.Size = new System.Drawing.Size(56, 170);
             this.masterVolumeTrackBar.TabIndex = 0;
             this.masterVolumeTrackBar.TickFrequency = 10;
             this.masterVolumeTrackBar.Scroll += new System.EventHandler(this.masterVolumeTrackBar_Scroll);
@@ -267,7 +294,7 @@
             // 
             this.transmitButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.transmitButton.ImageList = this.microphoneImageList;
-            this.transmitButton.Location = new System.Drawing.Point(478, 274);
+            this.transmitButton.Location = new System.Drawing.Point(478, 261);
             this.transmitButton.Name = "transmitButton";
             this.transmitButton.Size = new System.Drawing.Size(92, 80);
             this.transmitButton.TabIndex = 7;
@@ -286,6 +313,9 @@
             this.microphoneImageList.Images.SetKeyName(2, "Microphone2-48.png");
             this.microphoneImageList.Images.SetKeyName(3, "Speaker-48-Gray.png");
             this.microphoneImageList.Images.SetKeyName(4, "Speaker-48-Blue.png");
+            this.microphoneImageList.Images.SetKeyName(5, "Record-48-BW.png");
+            this.microphoneImageList.Images.SetKeyName(6, "Record-48-Blue.png");
+            this.microphoneImageList.Images.SetKeyName(7, "Record-48-Red.png");
             // 
             // pollTimer
             // 
@@ -303,30 +333,22 @@
             this.audioButton.UseVisualStyleBackColor = true;
             this.audioButton.Click += new System.EventHandler(this.audioButton_Click);
             // 
-            // label8
+            // recordButton
             // 
-            this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(86, 33);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(32, 16);
-            this.label8.TabIndex = 10;
-            this.label8.Text = "App";
+            this.recordButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.recordButton.ImageList = this.microphoneImageList;
+            this.recordButton.Location = new System.Drawing.Point(478, 174);
+            this.recordButton.Name = "recordButton";
+            this.recordButton.Size = new System.Drawing.Size(92, 80);
+            this.recordButton.TabIndex = 9;
+            this.recordButton.UseVisualStyleBackColor = true;
+            this.recordButton.Click += new System.EventHandler(this.recordButton_Click);
             // 
-            // appVolumeTrackBar
+            // saveFileDialog
             // 
-            this.appVolumeTrackBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left)));
-            this.appVolumeTrackBar.Enabled = false;
-            this.appVolumeTrackBar.LargeChange = 10;
-            this.appVolumeTrackBar.Location = new System.Drawing.Point(89, 68);
-            this.appVolumeTrackBar.Margin = new System.Windows.Forms.Padding(4);
-            this.appVolumeTrackBar.Maximum = 100;
-            this.appVolumeTrackBar.Name = "appVolumeTrackBar";
-            this.appVolumeTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.appVolumeTrackBar.Size = new System.Drawing.Size(56, 183);
-            this.appVolumeTrackBar.TabIndex = 9;
-            this.appVolumeTrackBar.TickFrequency = 10;
-            this.appVolumeTrackBar.Scroll += new System.EventHandler(this.appVolumeTrackBar_Scroll);
+            this.saveFileDialog.DefaultExt = "wav";
+            this.saveFileDialog.Filter = "Wave files (*.wav)|*.wav";
+            this.saveFileDialog.Title = "Record Audio";
             // 
             // outputAmplitudeHistoryBar
             // 
@@ -336,7 +358,7 @@
             this.outputAmplitudeHistoryBar.ForeColor = System.Drawing.Color.LimeGreen;
             this.outputAmplitudeHistoryBar.Location = new System.Drawing.Point(184, 84);
             this.outputAmplitudeHistoryBar.Name = "outputAmplitudeHistoryBar";
-            this.outputAmplitudeHistoryBar.Size = new System.Drawing.Size(8, 157);
+            this.outputAmplitudeHistoryBar.Size = new System.Drawing.Size(8, 144);
             this.outputAmplitudeHistoryBar.TabIndex = 8;
             // 
             // inputAmplitudeHistoryBar
@@ -347,14 +369,15 @@
             this.inputAmplitudeHistoryBar.ForeColor = System.Drawing.Color.LimeGreen;
             this.inputAmplitudeHistoryBar.Location = new System.Drawing.Point(253, 84);
             this.inputAmplitudeHistoryBar.Name = "inputAmplitudeHistoryBar";
-            this.inputAmplitudeHistoryBar.Size = new System.Drawing.Size(8, 157);
+            this.inputAmplitudeHistoryBar.Size = new System.Drawing.Size(8, 144);
             this.inputAmplitudeHistoryBar.TabIndex = 7;
             // 
             // RadioVolumeForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(582, 366);
+            this.ClientSize = new System.Drawing.Size(582, 353);
+            this.Controls.Add(this.recordButton);
             this.Controls.Add(this.audioButton);
             this.Controls.Add(this.transmitButton);
             this.Controls.Add(this.groupBox2);
@@ -368,7 +391,7 @@
             this.MaximizeBox = false;
             this.MaximumSize = new System.Drawing.Size(600, 600);
             this.MinimizeBox = false;
-            this.MinimumSize = new System.Drawing.Size(600, 360);
+            this.MinimumSize = new System.Drawing.Size(600, 400);
             this.Name = "RadioVolumeForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Audio Controls";
@@ -380,10 +403,10 @@
             ((System.ComponentModel.ISupportInitialize)(this.squelchTrackBar)).EndInit();
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.appVolumeTrackBar)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.inputTrackBar)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.outputTrackBar)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.masterVolumeTrackBar)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.appVolumeTrackBar)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -414,5 +437,7 @@
         private AmplitudeHistoryBar outputAmplitudeHistoryBar;
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.TrackBar appVolumeTrackBar;
+        private System.Windows.Forms.Button recordButton;
+        private System.Windows.Forms.SaveFileDialog saveFileDialog;
     }
 }

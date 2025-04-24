@@ -42,6 +42,7 @@ namespace HTCommander
             deviceEnumerator.RegisterEndpointNotificationCallback(this);
             LoadAudioDevices();
             transmitButton.Image = microphoneImageList.Images[0];
+            recordButton.Image = microphoneImageList.Images[6];
             outputTrackBar.Value = (int)parent.registry.ReadInt("OutputAudioVolume", 100);
             radio.OutputVolume = SliderToDecibelScaledFloat(outputTrackBar.Value);
             inputTrackBar.Value = (int)parent.registry.ReadInt("InputAudioVolume", 100);
@@ -77,6 +78,7 @@ namespace HTCommander
             {
                 volumeTrackBar.Enabled = true;
                 audioButton.Enabled = true;
+                recordButton.Enabled = parent.AudioEnabled;
                 transmitButton.Enabled = parent.AudioEnabled && parent.allowTransmit;
                 //squelchTrackBar.Enabled = true;
                 if (radio.Settings != null)
@@ -87,6 +89,7 @@ namespace HTCommander
             else
             {
                 audioButton.Enabled = false;
+                recordButton.Enabled = false;
                 transmitButton.Enabled = false;
                 volumeTrackBar.Enabled = false;
                 squelchTrackBar.Enabled = false;
@@ -325,6 +328,30 @@ namespace HTCommander
         {
             if (sessionControl == null) return;
             sessionControl.SimpleAudioVolume.Volume = (float)(appVolumeTrackBar.Value / 100F);
+        }
+
+        private void recordButton_Click(object sender, EventArgs e)
+        {
+            if (parent.radio.Recording == true)
+            {
+                if (MessageBox.Show(this, "Stop Recording?", "Audio") == DialogResult.OK)
+                {
+                    parent.radio.StopRecording();
+                    recordButton.Image = microphoneImageList.Images[6];
+                }
+            }
+            else
+            {
+                if (saveFileDialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    string fileName = saveFileDialog.FileName;
+                    if (fileName != null && fileName.Length > 0)
+                    {
+                        parent.radio.StartRecording(fileName);
+                        recordButton.Image = microphoneImageList.Images[7];
+                    }
+                }
+            }
         }
     }
 }

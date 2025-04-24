@@ -18,6 +18,7 @@ using System;
 using System.IO;
 using System.Net;
 using System.Collections.Generic;
+using NAudio.Wave;
 
 namespace HTCommander
 {
@@ -236,6 +237,10 @@ namespace HTCommander
         public int Volume = -1;
         public bool LoopbackMode = false;
         public string currentChannelName = null;
+
+        public bool Recording { get { return radioAudio.Recording; } }
+        public void StartRecording(string filename) { radioAudio.StartRecording(filename); }
+        public void StopRecording() { radioAudio.StopRecording(); }
 
         private List<FragmentInQueue> TncFragmentQueue = new List<FragmentInQueue>();
         private bool TncFragmentInFlight = false;
