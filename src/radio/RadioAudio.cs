@@ -57,6 +57,7 @@ namespace HTCommander
         private VolumeSampleProvider volumeProvider;
         public bool Recording { get { return recording != null; } }
         private WaveFileWriter recording = null;
+        private MMDevice currentOutputDevice = null;
 
         public void StartRecording(string filename)
         {
@@ -192,25 +193,33 @@ namespace HTCommander
 
         public void SetOutputDevice(string deviceid)
         {
+            MMDevice targetDevice = null;
+            MMDeviceEnumerator enumerator = new MMDeviceEnumerator();
+            if (deviceid != null)
+            {
+                if (deviceid.Length > 0)
+                {
+                    targetDevice = enumerator.GetDevice(deviceid);
+                }
+                else
+                {
+                    targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                }
+                if (targetDevice == null) { Debug("No audio device found."); return; }
+            }
+
+            if (currentOutputDevice == targetDevice) return;
             if (waveOut != null) { waveOut.Stop(); waveOut.Dispose(); waveOut = null; }
             waveProvider = null;
             volumeProvider = null;
-            if (deviceid == null) { return; }
-
-            MMDevice targetDevice;
-            MMDeviceEnumerator enumerator = new MMDeviceEnumerator();
-            if (deviceid.Length > 0) {
-                targetDevice = enumerator.GetDevice(deviceid);
-            } else {
-                targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-            }
-            if (targetDevice == null) { Debug("No audio device found."); return; }
+            if (targetDevice == null) { return; }
 
             // Configure audio output (adjust format based on SBC parameters)
             // These are common A2DP SBC defaults, but the actual device might differ.
             WaveFormat waveFormat = new WaveFormat(32000, 16, 1);
             waveProvider = new BufferedWaveProvider(waveFormat);
             var sampleProvider = waveProvider.ToSampleProvider();
+            currentOutputDevice = targetDevice;
 
             // Wrap with volume control
             volumeProvider = new VolumeSampleProvider(sampleProvider);

@@ -123,10 +123,9 @@ namespace HTCommander
             aprsStack = new AprsStack(this);
             winlinkClient = new WinlinkClient(this);
             voiceEngine = new VoiceEngine(radio);
-            radioVolumeForm = new RadioVolumeForm(this, radio);
             microphone = new Microphone();
             microphone.DataAvailable += Microphone_DataAvailable;
-            microphone.StartListening();
+            radioVolumeForm = new RadioVolumeForm(this, radio);
         }
 
         private void Microphone_DataAvailable(byte[] data, int bytesRecorded)
@@ -487,18 +486,19 @@ namespace HTCommander
             voiceProcessingLabel.Visible = processing;
         }
 
+        
+
         private void Radio_onTextReady(string text, string channel, DateTime time, bool completed)
         {
-            if (text == null) return; // TODO: Handle CPU overload message
             if (this.InvokeRequired) { this.Invoke(new Radio.OnTextReadyHandler(Radio_onTextReady), text, channel, time, completed); return; }
-            if (text.Trim().Length > 0)
+            if ((text == null) || (text.Trim().Length > 0))
             {
                 // Suspend painting
                 //Utils.SendMessage(voiceHistoryTextBox.Handle, Utils.WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
 
                 // Perform update
                 voiceHistoryTextBox.Rtf = voiceHistoryCompleted;
-                RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, time, channel, text.Trim(), completed, false);
+                RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, time, channel, text != null ? text.Trim() : null, completed, false);
                 if (completed) { voiceHistoryCompleted = voiceHistoryTextBox.Rtf; }
 
                 // Resume painting
@@ -519,7 +519,6 @@ namespace HTCommander
                     }
                     catch (Exception) { }
                 }
-
             }
         }
 
@@ -857,6 +856,7 @@ namespace HTCommander
                                 vfo2LastChannelId = -1;
                                 if (registry.ReadInt("Audio", 0) == 1) { radio.AudioEnabled(true); }
                                 radioVolumeForm.UpdateInfo();
+                                if (allowTransmit) { microphone.StartListening(); }
                                 break;
                             case Radio.RadioState.Disconnected:
                                 connectToolStripMenuItem.Enabled = true;
@@ -876,6 +876,7 @@ namespace HTCommander
                                 if (radioChannelForm != null) { radioChannelForm.Close(); radioChannelForm = null; }
                                 radioVolumeForm.UpdateInfo();
                                 if (aprsConfigurationForm != null) { aprsConfigurationForm.Close(); aprsConfigurationForm = null; }
+                                microphone.StopListening();
                                 break;
                             case Radio.RadioState.Connecting:
                                 radioStateLabel.Text = "Connecting";
@@ -2030,6 +2031,10 @@ namespace HTCommander
                     if ((webServerEnabled == false) && (webserver != null)) { webserver.Stop(); webserver = null; }
                     if ((webserver != null) && (webserver.port != webServerPort)) { webserver.Stop(); webserver = null; }
                     if ((webServerEnabled == true) && (webserver == null)) { webserver = new HttpsWebSocketServer(this, webServerPort); webserver.Start(); }
+
+                    // Microphone
+                    if (allowTransmit && (radio.State == RadioState.Connected)) { microphone.StartListening(); } else { microphone.StopListening(); }
+                    radioVolumeForm.UpdateInfo();
 
                     CheckAprsChannel();
                     UpdateTabs();

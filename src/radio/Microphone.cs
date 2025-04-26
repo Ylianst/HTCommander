@@ -1,14 +1,27 @@
-﻿using System;
-using NAudio.CoreAudioApi;
-using System.Text.RegularExpressions;
+﻿/*
+Copyright 2025 Ylian Saint-Hilaire
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+using System;
 using NAudio.Wave;
+using NAudio.CoreAudioApi;
 
 namespace HTCommander.radio
 {
     public class Microphone
     {
-        //private WaveInEvent waveSource = null;
-
         public delegate void DataAvailableHandler(byte[] data, int bytesRecorded);
         public event DataAvailableHandler DataAvailable;
         private WasapiCapture capture = null;
@@ -17,12 +30,14 @@ namespace HTCommander.radio
         public void SetInputDevice(string deviceid)
         {
             var enumerator = new MMDeviceEnumerator();
+            MMDevice targetDevice = null;
 
             if (string.IsNullOrEmpty(deviceid))
             {
-                selectedDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
-                Dispose();
-                StartListening();
+                targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
+                if (targetDevice == selectedDevice) return;
+                selectedDevice = targetDevice;
+                if (capture != null) StartListening();
                 return;
             }
 
@@ -31,24 +46,32 @@ namespace HTCommander.radio
             {
                 if (device.ID.Equals(deviceid, StringComparison.OrdinalIgnoreCase))
                 {
-                    selectedDevice = device;
-                    Dispose();
-                    StartListening();
+                    targetDevice = device;
+                    if (targetDevice == selectedDevice) return;
+                    selectedDevice = targetDevice;
+                    if (capture != null) StartListening();
                     return;
                 }
             }
 
             // Fallback to default device if the specified one is not found
-            selectedDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
-            Dispose();
-            StartListening();
+            targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
+            if (targetDevice == selectedDevice) return;
+            selectedDevice = targetDevice;
+            if (capture != null) StartListening();
         }
 
         public bool StartListening()
         {
             if (selectedDevice == null) { return false; }
 
-            capture = new WasapiCapture(selectedDevice) { ShareMode = AudioClientShareMode.Shared };
+            Dispose();
+            WaveFormat format = new WaveFormat(32000, 16, 1);
+            capture = new WasapiCapture(selectedDevice, true, 1)
+            {
+                ShareMode = AudioClientShareMode.Shared,
+                WaveFormat = format
+            };
             capture.DataAvailable += OnDataAvailable;
             capture.RecordingStopped += OnRecordingStopped;
 
@@ -88,9 +111,6 @@ namespace HTCommander.radio
         {
             if (args.BytesRecorded == 0) return;
             if (DataAvailable != null) { DataAvailable(args.Buffer, args.BytesRecorded); }
-            // args.Buffer contains the raw PCM audio data
-            // args.BytesRecorded tells you how many bytes in the buffer are valid audio data
-            //Console.WriteLine($"Received {args.BytesRecorded} bytes of audio data.");
         }
 
         // --- Event Handler for When Recording Stops ---

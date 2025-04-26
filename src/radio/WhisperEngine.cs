@@ -16,14 +16,14 @@ limitations under the License.
 
 using System;
 using System.IO;
+using System.Text;
+using System.Linq;
 using System.Threading.Tasks;
+using System.Speech.Synthesis;
+using System.Speech.AudioFormat;
 using System.Collections.Generic;
 using NAudio.Wave;
 using Whisper.net;
-using System.Speech.Synthesis;
-using System.Speech.AudioFormat;
-using System.Text;
-using System.Linq;
 
 namespace HTCommander.radio // Use your original namespace
 {
@@ -39,7 +39,6 @@ namespace HTCommander.radio // Use your original namespace
             this.radio = radio;
 
             // Initialize the synthesizer
-            //synthesizer.SetOutputToDefaultAudioDevice();
             synthesizer.SetOutputToAudioStream(audioStream, new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
             try { synthesizer.SelectVoice("Microsoft Zira Desktop"); } catch (Exception) { } // Default to Zira if not specified
             synthesizer.Rate = 0; // Set the rate to 0 for normal speed
@@ -263,10 +262,10 @@ namespace HTCommander.radio // Use your original namespace
                             }
                             catch (Exception ex) { Console.WriteLine(ex.Message); }
                         })
-                                .ContinueWith(task =>
-                                {
-                                    if (task.IsCompleted) { OnWhispeCompleted(); }
-                                }
+                        .ContinueWith(task =>
+                        {
+                            if (task.IsCompleted) { OnWhispeCompleted(); }
+                        }
                         );
                     }
                     catch (Exception ex) { Console.WriteLine(ex.Message); }
@@ -282,7 +281,8 @@ namespace HTCommander.radio // Use your original namespace
                     }
                     else
                     {
-                        if (onTextReady != null) { onTextReady(null, "(CPU Overloaded)", DateTime.MinValue, true); }
+                        lock (ProcessingHolds) { ProcessingHolds.Clear(); }
+                        if (onTextReady != null) { onTextReady(null, "CPU Overloaded, Audio processing skipped.", DateTime.Now, true); }
                     }
                 }
                 if (length == 0)

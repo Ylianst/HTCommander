@@ -52,6 +52,8 @@ namespace HTCommander
             radio.OutputVolume = SliderToDecibelScaledFloat(outputTrackBar.Value);
             inputTrackBar.Value = (int)parent.registry.ReadInt("InputAudioVolume", 100);
             inputDevice.AudioEndpointVolume.MasterVolumeLevelScalar = inputTrackBar.Value / 100f;
+            parent.microphone.SetInputDevice(SelectedInputDeviceId);
+            radio.SetOutputAudioDevice(SelectedOutputDeviceId);
             UpdateInfo();
         }
 
@@ -79,6 +81,8 @@ namespace HTCommander
             pollTimer.Enabled = Visible;
             audioButton.Image = parent.AudioEnabled ? microphoneImageList.Images[4] : microphoneImageList.Images[3];
             outputTrackBar.Value = DecibelScaledFloatToSlider(radio.OutputVolume);
+            inputComboBox.Enabled = inputTrackBar.Enabled = parent.allowTransmit;
+            transmitButton.Visible = parent.allowTransmit;
 
             if (radio.State == Radio.RadioState.Connected)
             {
@@ -116,15 +120,24 @@ namespace HTCommander
             audioButton.Image = parent.AudioEnabled ? microphoneImageList.Images[4] : microphoneImageList.Images[3];
         }
 
-        private delegate void LoadAudioDevicesDelegate();
+        private delegate void LoadAudioDevicesDelegate(bool forceUpdate = false);
 
-        private void LoadAudioDevices()
+        private void LoadAudioDevices(bool forceUpdate = false)
         {
-            if (InvokeRequired) { Invoke(new LoadAudioDevicesDelegate(LoadAudioDevices)); return; }
+            if (InvokeRequired) { Invoke(new LoadAudioDevicesDelegate(LoadAudioDevices), forceUpdate); return; }
+
+            if (forceUpdate)
+            {
+                outputComboBox.Items.Clear();
+                inputComboBox.Items.Clear();
+            }
 
             // Load output devices (playback)
             Dictionary<string, Utils.ComboBoxItem> listDeviceId = new Dictionary<string, Utils.ComboBoxItem>();
-            if (outputComboBox.Items.Count == 0) { outputComboBox.Items.Add(new Utils.ComboBoxItem("", "Default")); }
+            if (outputComboBox.Items.Count == 0) {
+                MMDevice defaultOutputDevice = deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                outputComboBox.Items.Add(new Utils.ComboBoxItem("", "Default (" + FixDeviceName(defaultOutputDevice.FriendlyName) + ")"));
+            }
             foreach (Utils.ComboBoxItem e in outputComboBox.Items) { listDeviceId.Add(e.Value, e); }
             foreach (MMDevice device in deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
             {
@@ -143,7 +156,10 @@ namespace HTCommander
 
             // Load input devices (recording)
             listDeviceId.Clear();
-            if (inputComboBox.Items.Count == 0) { inputComboBox.Items.Add(new Utils.ComboBoxItem("", "Default")); }
+            if (inputComboBox.Items.Count == 0) {
+                MMDevice defaultInputDevice = deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
+                inputComboBox.Items.Add(new Utils.ComboBoxItem("", "Default (" + FixDeviceName(defaultInputDevice.FriendlyName) + ")"));
+            }
             foreach (Utils.ComboBoxItem e in inputComboBox.Items) { listDeviceId.Add(e.Value, e); }
             foreach (MMDevice device in deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
             {
@@ -242,7 +258,7 @@ namespace HTCommander
 
             if (sessionControl == null)
             {
-                // App scpecific volume control
+                // App specific volume control
                 var enumerator = new MMDeviceEnumerator();
                 var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
                 var sessions = device.AudioSessionManager.Sessions;
@@ -303,13 +319,15 @@ namespace HTCommander
 
         void IMMNotificationClient.OnDefaultDeviceChanged(DataFlow dataFlow, Role deviceRole, string defaultDeviceId)
         {
-            if (dataFlow == DataFlow.Render && deviceRole == Role.Multimedia && SelectedOutputDeviceId == "")
+            if (dataFlow == DataFlow.Render && deviceRole == Role.Multimedia)
             {
-                radio.SetOutputAudioDevice("");
+                if (SelectedOutputDeviceId == "") { radio.SetOutputAudioDevice(""); }
+                LoadAudioDevices(true);
             }
-            else if (dataFlow == DataFlow.Capture && deviceRole == Role.Console && SelectedInputDeviceId == "")
+            else if (dataFlow == DataFlow.Capture && deviceRole == Role.Console)
             {
-                parent.microphone.SetInputDevice("");
+                if (SelectedInputDeviceId == "") { parent.microphone.SetInputDevice(""); }
+                LoadAudioDevices(true);
             }
         }
 

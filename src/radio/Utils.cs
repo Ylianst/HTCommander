@@ -34,7 +34,7 @@ namespace HTCommander
         {
             public int Index { get; }
             public string Value { get; }
-            public string Text { get; }
+            public string Text { get; set; }
             public ComboBoxItem(int index, string text) { Index = index; Text = text; }
             public ComboBoxItem(string value, string text) { Value = value; Text = text; }
             public override string ToString() { return Text; }

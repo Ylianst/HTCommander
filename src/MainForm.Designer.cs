@@ -56,7 +56,17 @@
             this.systemTrayToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem4 = new System.Windows.Forms.ToolStripSeparator();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem21 = new System.Windows.Forms.ToolStripMenuItem();
+            this.dualWatchToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.scanToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.regionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.exportChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.importChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.audioToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.audioEnabledToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.volumeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.spectrogramToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.radioToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -97,6 +107,7 @@
             this.radioPictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
+            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsMissingChannelPanel = new System.Windows.Forms.Panel();
             this.aprsSetupButton = new System.Windows.Forms.Button();
@@ -212,6 +223,7 @@
             this.columnHeader13 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader17 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.panel5 = new System.Windows.Forms.Panel();
             this.torrentAddFileButton = new System.Windows.Forms.Button();
             this.torrentMenuPictureBox = new System.Windows.Forms.PictureBox();
@@ -302,18 +314,6 @@
             this.torrentSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.spectrogramToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.volumeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem21 = new System.Windows.Forms.ToolStripMenuItem();
-            this.dualWatchToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.scanToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.regionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
-            this.exportChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.importChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.audioEnabledToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.aprsChatControl = new HTCommander.ChatControl();
-            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -457,7 +457,7 @@
             // connectToolStripMenuItem
             // 
             this.connectToolStripMenuItem.Name = "connectToolStripMenuItem";
-            this.connectToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
+            this.connectToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.connectToolStripMenuItem.Text = "&Connect...";
             this.connectToolStripMenuItem.Click += new System.EventHandler(this.connectToolStripMenuItem_Click);
             // 
@@ -465,19 +465,19 @@
             // 
             this.disconnectToolStripMenuItem.Enabled = false;
             this.disconnectToolStripMenuItem.Name = "disconnectToolStripMenuItem";
-            this.disconnectToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
+            this.disconnectToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.disconnectToolStripMenuItem.Text = "&Disconnect";
             this.disconnectToolStripMenuItem.Click += new System.EventHandler(this.disconnectToolStripMenuItem_Click);
             // 
             // toolStripMenuItem1
             // 
             this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(167, 6);
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(221, 6);
             // 
             // settingsToolStripMenuItem
             // 
             this.settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
-            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
+            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.settingsToolStripMenuItem.Text = "&Settings...";
             this.settingsToolStripMenuItem.Click += new System.EventHandler(this.settingsToolStripMenuItem_Click);
             // 
@@ -485,21 +485,77 @@
             // 
             this.systemTrayToolStripMenuItem.CheckOnClick = true;
             this.systemTrayToolStripMenuItem.Name = "systemTrayToolStripMenuItem";
-            this.systemTrayToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
+            this.systemTrayToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.systemTrayToolStripMenuItem.Text = "System &Tray";
             this.systemTrayToolStripMenuItem.Click += new System.EventHandler(this.systemTrayToolStripMenuItem_Click);
             // 
             // toolStripMenuItem4
             // 
             this.toolStripMenuItem4.Name = "toolStripMenuItem4";
-            this.toolStripMenuItem4.Size = new System.Drawing.Size(167, 6);
+            this.toolStripMenuItem4.Size = new System.Drawing.Size(221, 6);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.exitToolStripMenuItem.Text = "E&xit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItem21
+            // 
+            this.toolStripMenuItem21.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.dualWatchToolStripMenuItem,
+            this.scanToolStripMenuItem,
+            this.regionToolStripMenuItem,
+            this.toolStripSeparator1,
+            this.exportChannelsToolStripMenuItem,
+            this.importChannelsToolStripMenuItem});
+            this.toolStripMenuItem21.Name = "toolStripMenuItem21";
+            this.toolStripMenuItem21.Size = new System.Drawing.Size(76, 24);
+            this.toolStripMenuItem21.Text = "&Settings";
+            // 
+            // dualWatchToolStripMenuItem
+            // 
+            this.dualWatchToolStripMenuItem.Enabled = false;
+            this.dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
+            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.dualWatchToolStripMenuItem.Text = "&Dual-Watch";
+            this.dualWatchToolStripMenuItem.Click += new System.EventHandler(this.dualWatchToolStripMenuItem_Click);
+            // 
+            // scanToolStripMenuItem
+            // 
+            this.scanToolStripMenuItem.Enabled = false;
+            this.scanToolStripMenuItem.Name = "scanToolStripMenuItem";
+            this.scanToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.scanToolStripMenuItem.Text = "&Scan";
+            this.scanToolStripMenuItem.Click += new System.EventHandler(this.scanToolStripMenuItem_Click);
+            // 
+            // regionToolStripMenuItem
+            // 
+            this.regionToolStripMenuItem.Enabled = false;
+            this.regionToolStripMenuItem.Name = "regionToolStripMenuItem";
+            this.regionToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.regionToolStripMenuItem.Text = "&Regions";
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(206, 6);
+            // 
+            // exportChannelsToolStripMenuItem
+            // 
+            this.exportChannelsToolStripMenuItem.Enabled = false;
+            this.exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
+            this.exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.exportChannelsToolStripMenuItem.Text = "&Export Channels...";
+            this.exportChannelsToolStripMenuItem.Click += new System.EventHandler(this.exportChannelsToolStripMenuItem_Click);
+            // 
+            // importChannelsToolStripMenuItem
+            // 
+            this.importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
+            this.importChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            this.importChannelsToolStripMenuItem.Text = "&Import Channels...";
+            this.importChannelsToolStripMenuItem.Click += new System.EventHandler(this.importChannelsToolStripMenuItem_Click);
             // 
             // audioToolStripMenuItem1
             // 
@@ -511,6 +567,27 @@
             this.audioToolStripMenuItem1.Size = new System.Drawing.Size(63, 24);
             this.audioToolStripMenuItem1.Text = "A&udio";
             this.audioToolStripMenuItem1.DropDownOpening += new System.EventHandler(this.settingsToolStripMenuItem1_DropDownOpening);
+            // 
+            // audioEnabledToolStripMenuItem
+            // 
+            this.audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
+            this.audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
+            this.audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
+            this.audioEnabledToolStripMenuItem.Click += new System.EventHandler(this.audioEnabledToolStripMenuItem_Click);
+            // 
+            // volumeToolStripMenuItem
+            // 
+            this.volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
+            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
+            this.volumeToolStripMenuItem.Text = "Audio &Controls...";
+            this.volumeToolStripMenuItem.Click += new System.EventHandler(this.volumeToolStripMenuItem_Click);
+            // 
+            // spectrogramToolStripMenuItem
+            // 
+            this.spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";
+            this.spectrogramToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
+            this.spectrogramToolStripMenuItem.Text = "Spectrogram...";
+            this.spectrogramToolStripMenuItem.Click += new System.EventHandler(this.spectrogramToolStripMenuItem_Click);
             // 
             // viewToolStripMenuItem
             // 
@@ -973,9 +1050,33 @@
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
             this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Size = new System.Drawing.Size(669, 651);
+            this.aprsTabPage.Size = new System.Drawing.Size(669, 653);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
+            // 
+            // aprsChatControl
+            // 
+            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
+            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
+            this.aprsChatControl.CornerRadius = 4;
+            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.aprsChatControl.Images = this.mainImageList;
+            this.aprsChatControl.InterMessageMargin = 12;
+            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
+            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.aprsChatControl.MaxWidth = 300;
+            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
+            this.aprsChatControl.MessageBoxMargin = 10;
+            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
+            this.aprsChatControl.MinWidth = 100;
+            this.aprsChatControl.Name = "aprsChatControl";
+            this.aprsChatControl.ShadowOffset = 2;
+            this.aprsChatControl.SideMargins = 12;
+            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
+            this.aprsChatControl.TabIndex = 5;
+            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
+            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
+            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
             // mainImageList
             // 
@@ -1038,7 +1139,7 @@
             this.aprsBottomPanel.Controls.Add(this.aprsTextBox);
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 604);
+            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 606);
             this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
             this.aprsBottomPanel.Size = new System.Drawing.Size(669, 47);
@@ -2319,6 +2420,16 @@
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
+            // torrentBlocksUserControl
+            // 
+            this.torrentBlocksUserControl.AutoScroll = true;
+            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
+            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 299);
+            this.torrentBlocksUserControl.TabIndex = 0;
+            // 
             // panel5
             // 
             this.panel5.BackColor = System.Drawing.Color.Silver;
@@ -3109,125 +3220,14 @@
             this.voiceTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.clearHistoryToolStripMenuItem});
             this.voiceTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.voiceTabContextMenuStrip.Size = new System.Drawing.Size(211, 56);
+            this.voiceTabContextMenuStrip.Size = new System.Drawing.Size(164, 28);
             // 
             // clearHistoryToolStripMenuItem
             // 
             this.clearHistoryToolStripMenuItem.Name = "clearHistoryToolStripMenuItem";
-            this.clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
             this.clearHistoryToolStripMenuItem.Text = "&Clear History";
             this.clearHistoryToolStripMenuItem.Click += new System.EventHandler(this.clearHistoryToolStripMenuItem_Click);
-            // 
-            // spectrogramToolStripMenuItem
-            // 
-            this.spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";
-            this.spectrogramToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
-            this.spectrogramToolStripMenuItem.Text = "Spectrogram...";
-            this.spectrogramToolStripMenuItem.Click += new System.EventHandler(this.spectrogramToolStripMenuItem_Click);
-            // 
-            // volumeToolStripMenuItem
-            // 
-            this.volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
-            this.volumeToolStripMenuItem.Text = "Audio &Controls...";
-            this.volumeToolStripMenuItem.Click += new System.EventHandler(this.volumeToolStripMenuItem_Click);
-            // 
-            // toolStripMenuItem21
-            // 
-            this.toolStripMenuItem21.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.dualWatchToolStripMenuItem,
-            this.scanToolStripMenuItem,
-            this.regionToolStripMenuItem,
-            this.toolStripSeparator1,
-            this.exportChannelsToolStripMenuItem,
-            this.importChannelsToolStripMenuItem});
-            this.toolStripMenuItem21.Name = "toolStripMenuItem21";
-            this.toolStripMenuItem21.Size = new System.Drawing.Size(76, 24);
-            this.toolStripMenuItem21.Text = "&Settings";
-            // 
-            // dualWatchToolStripMenuItem
-            // 
-            this.dualWatchToolStripMenuItem.Enabled = false;
-            this.dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
-            this.dualWatchToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
-            this.dualWatchToolStripMenuItem.Text = "&Dual-Watch";
-            this.dualWatchToolStripMenuItem.Click += new System.EventHandler(this.dualWatchToolStripMenuItem_Click);
-            // 
-            // scanToolStripMenuItem
-            // 
-            this.scanToolStripMenuItem.Enabled = false;
-            this.scanToolStripMenuItem.Name = "scanToolStripMenuItem";
-            this.scanToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
-            this.scanToolStripMenuItem.Text = "&Scan";
-            this.scanToolStripMenuItem.Click += new System.EventHandler(this.scanToolStripMenuItem_Click);
-            // 
-            // regionToolStripMenuItem
-            // 
-            this.regionToolStripMenuItem.Enabled = false;
-            this.regionToolStripMenuItem.Name = "regionToolStripMenuItem";
-            this.regionToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
-            this.regionToolStripMenuItem.Text = "&Regions";
-            // 
-            // toolStripSeparator1
-            // 
-            this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(206, 6);
-            // 
-            // exportChannelsToolStripMenuItem
-            // 
-            this.exportChannelsToolStripMenuItem.Enabled = false;
-            this.exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
-            this.exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
-            this.exportChannelsToolStripMenuItem.Text = "&Export Channels...";
-            this.exportChannelsToolStripMenuItem.Click += new System.EventHandler(this.exportChannelsToolStripMenuItem_Click);
-            // 
-            // importChannelsToolStripMenuItem
-            // 
-            this.importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
-            this.importChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
-            this.importChannelsToolStripMenuItem.Text = "&Import Channels...";
-            this.importChannelsToolStripMenuItem.Click += new System.EventHandler(this.importChannelsToolStripMenuItem_Click);
-            // 
-            // audioEnabledToolStripMenuItem
-            // 
-            this.audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
-            this.audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
-            this.audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
-            this.audioEnabledToolStripMenuItem.Click += new System.EventHandler(this.audioEnabledToolStripMenuItem_Click);
-            // 
-            // aprsChatControl
-            // 
-            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
-            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
-            this.aprsChatControl.CornerRadius = 4;
-            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.aprsChatControl.Images = this.mainImageList;
-            this.aprsChatControl.InterMessageMargin = 12;
-            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
-            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.aprsChatControl.MaxWidth = 300;
-            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
-            this.aprsChatControl.MessageBoxMargin = 10;
-            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
-            this.aprsChatControl.MinWidth = 100;
-            this.aprsChatControl.Name = "aprsChatControl";
-            this.aprsChatControl.ShadowOffset = 2;
-            this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(669, 530);
-            this.aprsChatControl.TabIndex = 5;
-            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
-            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
-            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
-            // 
-            // torrentBlocksUserControl
-            // 
-            this.torrentBlocksUserControl.AutoScroll = true;
-            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
-            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 297);
-            this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // MainForm
             // 
