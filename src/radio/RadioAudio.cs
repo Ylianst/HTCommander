@@ -16,19 +16,20 @@ limitations under the License.
 
 using System;
 using System.IO;
+using System.Threading;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using InTheHand.Net;
 using InTheHand.Net.Sockets;
 using InTheHand.Net.Bluetooth;
 using NAudio.Wave;
-using HTCommander.radio;
-using System.Threading.Tasks;
-using System.Threading;
 using NAudio.CoreAudioApi;
 using NAudio.Wave.SampleProviders;
-using System.Collections.Concurrent;
+using HTCommander.radio;
+using System.Diagnostics;
 
 namespace HTCommander
 {
@@ -462,10 +463,12 @@ namespace HTCommander
         private bool isTransmitting = false;
         private CancellationTokenSource transmissionTokenSource = null;
         private TaskCompletionSource<bool> newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        private bool PlayInputBack = false;
 
         public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength, bool play)
         {
             // Copy just the relevant slice of PCM data
+            PlayInputBack = play;
             byte[] pcmSlice = new byte[pcmLength];
             Buffer.BlockCopy(pcmInputData, pcmOffset, pcmSlice, 0, pcmLength);
             pcmQueue.Enqueue(pcmSlice);
@@ -474,7 +477,7 @@ namespace HTCommander
             if (isTransmitting) { newDataAvailable.TrySetResult(true); }
 
             StartTransmissionIfNeeded();
-            if (play) { VoiceTransmitCancel = false; PlayPcmBufferAsync(pcmInputData, pcmOffset, pcmLength); }
+            //if (play) { VoiceTransmitCancel = false; PlayPcmBufferAsync(pcmInputData, pcmOffset, pcmLength); }
             return true;
         }
 
@@ -514,34 +517,68 @@ namespace HTCommander
         {
             int pcmOffset = 0;
             int pcmLength = pcmData.Length;
+            int bytesConsumed = 0;
+            Task delayTask;
+            Task signalTask;
+            Task completedTask;
+
+            var stopwatch = Stopwatch.StartNew();
+            long bytesSent = 0;
+
             if (recording != null) { recording.Write(pcmData, 0, pcmData.Length); }
             while ((pcmLength >= pcmInputSizePerFrame) && (!token.IsCancellationRequested))
             {
                 byte[] encodedSbcFrame;
-                int bytesConsumed;
-
                 if (!EncodeSbcFrame(pcmData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed)) break;
+                if (PlayInputBack) { PlayPcmBufferAsync(pcmData, pcmOffset, bytesConsumed); }
 
                 pcmOffset += bytesConsumed;
                 pcmLength -= bytesConsumed;
+
                 byte[] escaped = EscapeBytes(0, encodedSbcFrame, encodedSbcFrame.Length);
+
                 await audioStream.WriteAsync(escaped, 0, escaped.Length);
                 await audioStream.FlushAsync();
 
-                //await Task.Delay(bytesConsumed / 64, token);
-                // Wait for either delay or new data
-                var delayTask = Task.Delay((bytesConsumed / 64) + 100, token);
-                var signalTask = newDataAvailable.Task;
-                var completedTask = await Task.WhenAny(delayTask, signalTask);
-                if (completedTask == signalTask)
+                // Track how much PCM we are sending
+                bytesSent += bytesConsumed;
+
+                // Calculate expected elapsed time
+                double expectedSeconds = (double)bytesSent / 64000.0;
+
+                // Get actual elapsed time
+                double actualSeconds = stopwatch.Elapsed.TotalSeconds;
+
+                if (PlayInputBack && (expectedSeconds > actualSeconds))
                 {
-                    // New data arrived, reset the signal
-                    newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    int sleepTimeMs = (int)((expectedSeconds - actualSeconds) * 1000);
+
+                    // Wait for either delay or new data
+                    delayTask = Task.Delay(sleepTimeMs, token);
+                    signalTask = newDataAvailable.Task;
+                    completedTask = await Task.WhenAny(delayTask, signalTask);
+                    if (completedTask == signalTask)
+                    {
+                        // New data arrived, reset the signal
+                        newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    }
                 }
-                else
-                {
-                    Console.WriteLine("Delay completed, stopping transmission.");
-                }
+            }
+
+            if ((bytesConsumed == 0) || token.IsCancellationRequested || (pcmQueue.Count > 0)) { return; }
+
+            // Wait for either delay or new data
+            delayTask = Task.Delay(100, token);
+            signalTask = newDataAvailable.Task;
+            completedTask = await Task.WhenAny(delayTask, signalTask);
+            if (completedTask == signalTask)
+            {
+                // New data arrived, reset the signal
+                newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+            else
+            {
+                Console.WriteLine("Delay completed, stopping transmission.");
             }
         }
 

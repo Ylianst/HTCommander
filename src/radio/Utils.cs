@@ -338,8 +338,9 @@ namespace HTCommander
                 rtb.SelectionFont = rtb.Font; // Use the control's default font
                 rtb.SelectionColor = rtb.ForeColor; // Use the control's default color
                                                     // Append two newlines: one to end the largeText line, one for spacing
-                rtb.AppendText($"{Environment.NewLine}{Environment.NewLine}");
+                rtb.AppendText($"{Environment.NewLine}");
             }
+            rtb.AppendText($"{Environment.NewLine}");
 
             // --- Clean up ---
             // Dispose of the Font objects we created (good practice)

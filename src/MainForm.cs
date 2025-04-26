@@ -359,7 +359,7 @@ namespace HTCommander
                 StringBuilder sb = new StringBuilder();
 
                 sb.AppendLine("{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\\deflang1033{\\fonttbl{\\f0\\fnil Microsoft Sans Serif;}{\\f1\\fnil\\fcharset0 Microsoft Sans Serif;}}");
-                sb.AppendLine("{\\colortbl ;\\red105\\green105\\blue105;\\red0\\green0\\blue0;}");
+                sb.AppendLine("{\\colortbl ;\\red105\\green105\\blue105;\\red0\\green0\\blue0;\\red255\\green0\\blue0;}");
                 sb.AppendLine("{\\*\\generator Riched20 10.0.26100}\\viewkind4\\uc1 \\pard");
 
                 string[] voiceHistory = File.ReadAllLines(voiceHistoryFileName);
@@ -377,13 +377,25 @@ namespace HTCommander
                         string text = voiceHistory[i].Substring(idx2 + 1);
                         //RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, dateTime, channelName, text.Trim(), true, outbound);
                         sb.AppendLine("\\cf1\\f0\\fs16 " + dateTime.ToString() + " - " + channelName + "\\par");
-                        sb.AppendLine("\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\par");
-                        sb.AppendLine("\\cf2\\fs22 " + text.Trim() + "\\f1\\fs17\\par\\par");
+                        if (text.Length > 0)
+                        {
+                            sb.AppendLine("\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\u8213?\\par");
+                            if (outbound)
+                            {
+                                sb.AppendLine("\\cf3\\fs22 " + text.Trim() + "\\f1\\fs17\\par");
+                            }
+                            else
+                            {
+                                sb.AppendLine("\\cf2\\fs22 " + text.Trim() + "\\f1\\fs17\\par");
+                            }
+                        }
+                        sb.AppendLine("\\par");
                     }
                     catch (Exception) { }
                 }
                 sb.AppendLine("\\cf0\\par");
                 sb.AppendLine("}");
+
                 voiceHistoryCompleted = voiceHistoryTextBox.Rtf = sb.ToString();
                 voiceHistoryTextBox.SelectionStart = voiceHistoryTextBox.Text.Length;
                 voiceHistoryTextBox.ScrollToCaret();
@@ -4463,19 +4475,21 @@ namespace HTCommander
                 {
                     voiceConfirmedChannelName = radio.currentChannelName;
                     RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true, true);
+                    voiceHistoryCompleted = voiceHistoryTextBox.Rtf;
                     if (speakButton.Text == "&Speak") { voiceEngine.Speak(speakTextBox.Text, voice); }
                     if (speakButton.Text == "&Morse") { voiceEngine.Morse(speakTextBox.Text); }
-                    speakTextBox.Clear();
                     logSentVoice(DateTime.Now, radio.currentChannelName, speakTextBox.Text);
+                    speakTextBox.Clear();
                 }
             }
             else
             {
                 RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true, true);
+                voiceHistoryCompleted = voiceHistoryTextBox.Rtf;
                 if (speakButton.Text == "&Speak") { voiceEngine.Speak(speakTextBox.Text, voice); }
                 if (speakButton.Text == "&Morse") { voiceEngine.Morse(speakTextBox.Text); }
-                speakTextBox.Clear();
                 logSentVoice(DateTime.Now, radio.currentChannelName, speakTextBox.Text);
+                speakTextBox.Clear();
             }
         }
 
@@ -4540,5 +4554,6 @@ namespace HTCommander
                 spectrogramForm.Show(this);
             }
         }
+
     }
 }

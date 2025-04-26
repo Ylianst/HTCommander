@@ -30,20 +30,20 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+            System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup17 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup18 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup19 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup20 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -457,7 +457,7 @@
             // connectToolStripMenuItem
             // 
             this.connectToolStripMenuItem.Name = "connectToolStripMenuItem";
-            this.connectToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.connectToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
             this.connectToolStripMenuItem.Text = "&Connect...";
             this.connectToolStripMenuItem.Click += new System.EventHandler(this.connectToolStripMenuItem_Click);
             // 
@@ -465,19 +465,19 @@
             // 
             this.disconnectToolStripMenuItem.Enabled = false;
             this.disconnectToolStripMenuItem.Name = "disconnectToolStripMenuItem";
-            this.disconnectToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.disconnectToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
             this.disconnectToolStripMenuItem.Text = "&Disconnect";
             this.disconnectToolStripMenuItem.Click += new System.EventHandler(this.disconnectToolStripMenuItem_Click);
             // 
             // toolStripMenuItem1
             // 
             this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(221, 6);
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(167, 6);
             // 
             // settingsToolStripMenuItem
             // 
             this.settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
-            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
             this.settingsToolStripMenuItem.Text = "&Settings...";
             this.settingsToolStripMenuItem.Click += new System.EventHandler(this.settingsToolStripMenuItem_Click);
             // 
@@ -485,19 +485,19 @@
             // 
             this.systemTrayToolStripMenuItem.CheckOnClick = true;
             this.systemTrayToolStripMenuItem.Name = "systemTrayToolStripMenuItem";
-            this.systemTrayToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.systemTrayToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
             this.systemTrayToolStripMenuItem.Text = "System &Tray";
             this.systemTrayToolStripMenuItem.Click += new System.EventHandler(this.systemTrayToolStripMenuItem_Click);
             // 
             // toolStripMenuItem4
             // 
             this.toolStripMenuItem4.Name = "toolStripMenuItem4";
-            this.toolStripMenuItem4.Size = new System.Drawing.Size(221, 6);
+            this.toolStripMenuItem4.Size = new System.Drawing.Size(167, 6);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(170, 26);
             this.exitToolStripMenuItem.Text = "E&xit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
             // 
@@ -802,6 +802,7 @@
             this.transmitBarPanel.TabIndex = 7;
             this.transmitBarPanel.Visible = false;
             this.transmitBarPanel.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.transmitBarPanel.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // channelsFlowLayoutPanel
             // 
@@ -860,6 +861,8 @@
             this.connectedPanel.Size = new System.Drawing.Size(205, 151);
             this.connectedPanel.TabIndex = 1;
             this.connectedPanel.Visible = false;
+            this.connectedPanel.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.connectedPanel.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // voiceProcessingLabel
             // 
@@ -874,6 +877,7 @@
             this.voiceProcessingLabel.Text = "●";
             this.voiceProcessingLabel.Visible = false;
             this.voiceProcessingLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.voiceProcessingLabel.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // vfo2StatusLabel
             // 
@@ -889,6 +893,7 @@
             this.vfo2StatusLabel.Text = "VFO2";
             this.vfo2StatusLabel.TextAlign = System.Drawing.ContentAlignment.TopRight;
             this.vfo2StatusLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.vfo2StatusLabel.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // vfo2FreqLabel
             // 
@@ -902,6 +907,7 @@
             this.vfo2FreqLabel.TabIndex = 6;
             this.vfo2FreqLabel.Text = "VFO2";
             this.vfo2FreqLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.vfo2FreqLabel.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // linePanel
             // 
@@ -914,6 +920,8 @@
             this.linePanel.Name = "linePanel";
             this.linePanel.Size = new System.Drawing.Size(175, 2);
             this.linePanel.TabIndex = 5;
+            this.linePanel.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.linePanel.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // vfo1StatusLabel
             // 
@@ -929,6 +937,7 @@
             this.vfo1StatusLabel.Text = "VFO1";
             this.vfo1StatusLabel.TextAlign = System.Drawing.ContentAlignment.TopRight;
             this.vfo1StatusLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.vfo1StatusLabel.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // vfo1FreqLabel
             // 
@@ -942,6 +951,7 @@
             this.vfo1FreqLabel.TabIndex = 3;
             this.vfo1FreqLabel.Text = "VFO1";
             this.vfo1FreqLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.vfo1FreqLabel.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // vfo2Label
             // 
@@ -958,6 +968,7 @@
             this.vfo2Label.Text = "VFO2";
             this.vfo2Label.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.vfo2Label.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.vfo2Label.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // vfo1Label
             // 
@@ -974,6 +985,7 @@
             this.vfo1Label.Text = "VFO1";
             this.vfo1Label.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.vfo1Label.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.vfo1Label.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // radioStateLabel
             // 
@@ -989,6 +1001,8 @@
             this.radioStateLabel.TabIndex = 1;
             this.radioStateLabel.Text = "Disconnected";
             this.radioStateLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.radioStateLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.radioStateLabel.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // connectButton
             // 
@@ -1325,7 +1339,7 @@
             // 
             this.cancelVoiceButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.cancelVoiceButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.cancelVoiceButton.Location = new System.Drawing.Point(493, 514);
+            this.cancelVoiceButton.Location = new System.Drawing.Point(514, 524);
             this.cancelVoiceButton.Margin = new System.Windows.Forms.Padding(4);
             this.cancelVoiceButton.Name = "cancelVoiceButton";
             this.cancelVoiceButton.Size = new System.Drawing.Size(121, 64);
@@ -1492,7 +1506,7 @@
             // 
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailPreviewTextBox);
             this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(669, 579);
-            this.mailboxHorizontalSplitContainer.SplitterDistance = 264;
+            this.mailboxHorizontalSplitContainer.SplitterDistance = 263;
             this.mailboxHorizontalSplitContainer.TabIndex = 7;
             // 
             // mailboxVerticalSplitContainer
@@ -1510,7 +1524,7 @@
             // mailboxVerticalSplitContainer.Panel2
             // 
             this.mailboxVerticalSplitContainer.Panel2.Controls.Add(this.mailboxListView);
-            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(669, 264);
+            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(669, 263);
             this.mailboxVerticalSplitContainer.SplitterDistance = 151;
             this.mailboxVerticalSplitContainer.TabIndex = 6;
             // 
@@ -1525,7 +1539,7 @@
             this.mailBoxesTreeView.Name = "mailBoxesTreeView";
             this.mailBoxesTreeView.SelectedImageIndex = 0;
             this.mailBoxesTreeView.ShowRootLines = false;
-            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 264);
+            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 263);
             this.mailBoxesTreeView.TabIndex = 0;
             this.mailBoxesTreeView.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.mailBoxesTreeView_NodeMouseClick);
             this.mailBoxesTreeView.DragDrop += new System.Windows.Forms.DragEventHandler(this.mailBoxesTreeView_DragDrop);
@@ -1560,7 +1574,7 @@
             this.mailboxListView.Location = new System.Drawing.Point(0, 0);
             this.mailboxListView.Margin = new System.Windows.Forms.Padding(4);
             this.mailboxListView.Name = "mailboxListView";
-            this.mailboxListView.Size = new System.Drawing.Size(514, 264);
+            this.mailboxListView.Size = new System.Drawing.Size(514, 263);
             this.mailboxListView.SmallImageList = this.mainImageList;
             this.mailboxListView.TabIndex = 5;
             this.mailboxListView.UseCompatibleStateImageBehavior = false;
@@ -1680,7 +1694,7 @@
             this.mailPreviewTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.mailPreviewTextBox.Name = "mailPreviewTextBox";
             this.mailPreviewTextBox.ReadOnly = true;
-            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 311);
+            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 312);
             this.mailPreviewTextBox.TabIndex = 0;
             this.mailPreviewTextBox.Text = "";
             // 
@@ -1937,22 +1951,22 @@
             this.mainAddressBookListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainAddressBookListView.FullRowSelect = true;
             this.mainAddressBookListView.GridLines = true;
-            listViewGroup1.Header = "Generic Stations";
-            listViewGroup1.Name = "Generic Stations";
-            listViewGroup2.Header = "APRS Stations";
-            listViewGroup2.Name = "APRS Stations";
-            listViewGroup3.Header = "Terminal Stations";
-            listViewGroup3.Name = "Terminal Stations";
-            listViewGroup4.Header = "BBS";
-            listViewGroup4.Name = "BBS";
-            listViewGroup5.Header = "Winlink Gateways";
-            listViewGroup5.Name = "Winlink Gateways";
+            listViewGroup15.Header = "Generic Stations";
+            listViewGroup15.Name = "Generic Stations";
+            listViewGroup16.Header = "APRS Stations";
+            listViewGroup16.Name = "APRS Stations";
+            listViewGroup17.Header = "Terminal Stations";
+            listViewGroup17.Name = "Terminal Stations";
+            listViewGroup18.Header = "BBS";
+            listViewGroup18.Name = "BBS";
+            listViewGroup19.Header = "Winlink Gateways";
+            listViewGroup19.Name = "Winlink Gateways";
             this.mainAddressBookListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup1,
-            listViewGroup2,
-            listViewGroup3,
-            listViewGroup4,
-            listViewGroup5});
+            listViewGroup15,
+            listViewGroup16,
+            listViewGroup17,
+            listViewGroup18,
+            listViewGroup19});
             this.mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.mainAddressBookListView.HideSelection = false;
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 37);
@@ -2108,7 +2122,7 @@
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
             this.bbsSplitContainer.Size = new System.Drawing.Size(669, 616);
-            this.bbsSplitContainer.SplitterDistance = 134;
+            this.bbsSplitContainer.SplitterDistance = 133;
             this.bbsSplitContainer.SplitterWidth = 5;
             this.bbsSplitContainer.TabIndex = 7;
             // 
@@ -2122,22 +2136,22 @@
             this.bbsListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.bbsListView.FullRowSelect = true;
             this.bbsListView.GridLines = true;
-            listViewGroup6.Header = "Generic Stations";
-            listViewGroup6.Name = "Generic Stations";
-            listViewGroup7.Header = "APRS Stations";
-            listViewGroup7.Name = "APRS Stations";
-            listViewGroup8.Header = "Terminal Stations";
-            listViewGroup8.Name = "Terminal Stations";
+            listViewGroup1.Header = "Generic Stations";
+            listViewGroup1.Name = "Generic Stations";
+            listViewGroup2.Header = "APRS Stations";
+            listViewGroup2.Name = "APRS Stations";
+            listViewGroup3.Header = "Terminal Stations";
+            listViewGroup3.Name = "Terminal Stations";
             this.bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup6,
-            listViewGroup7,
-            listViewGroup8});
+            listViewGroup1,
+            listViewGroup2,
+            listViewGroup3});
             this.bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.bbsListView.HideSelection = false;
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
             this.bbsListView.Margin = new System.Windows.Forms.Padding(4);
             this.bbsListView.Name = "bbsListView";
-            this.bbsListView.Size = new System.Drawing.Size(669, 134);
+            this.bbsListView.Size = new System.Drawing.Size(669, 133);
             this.bbsListView.SmallImageList = this.mainImageList;
             this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.bbsListView.TabIndex = 6;
@@ -2171,7 +2185,7 @@
             this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(669, 477);
+            this.bbsTextBox.Size = new System.Drawing.Size(669, 478);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -2254,7 +2268,7 @@
             // 
             this.torrentSplitContainer.Panel2.Controls.Add(this.torrentTabControl);
             this.torrentSplitContainer.Size = new System.Drawing.Size(669, 616);
-            this.torrentSplitContainer.SplitterDistance = 280;
+            this.torrentSplitContainer.SplitterDistance = 279;
             this.torrentSplitContainer.TabIndex = 7;
             // 
             // torrentListView
@@ -2271,7 +2285,7 @@
             this.torrentListView.Location = new System.Drawing.Point(0, 0);
             this.torrentListView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentListView.Name = "torrentListView";
-            this.torrentListView.Size = new System.Drawing.Size(669, 280);
+            this.torrentListView.Size = new System.Drawing.Size(669, 279);
             this.torrentListView.SmallImageList = this.mainImageList;
             this.torrentListView.TabIndex = 0;
             this.torrentListView.UseCompatibleStateImageBehavior = false;
@@ -2366,7 +2380,7 @@
             this.torrentTabControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentTabControl.Name = "torrentTabControl";
             this.torrentTabControl.SelectedIndex = 0;
-            this.torrentTabControl.Size = new System.Drawing.Size(669, 332);
+            this.torrentTabControl.Size = new System.Drawing.Size(669, 333);
             this.torrentTabControl.TabIndex = 0;
             // 
             // tabPage1
@@ -2376,7 +2390,7 @@
             this.tabPage1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage1.Size = new System.Drawing.Size(661, 303);
+            this.tabPage1.Size = new System.Drawing.Size(661, 304);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Details";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -2392,7 +2406,7 @@
             this.torrentDetailsListView.Location = new System.Drawing.Point(3, 2);
             this.torrentDetailsListView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentDetailsListView.Name = "torrentDetailsListView";
-            this.torrentDetailsListView.Size = new System.Drawing.Size(655, 299);
+            this.torrentDetailsListView.Size = new System.Drawing.Size(655, 300);
             this.torrentDetailsListView.TabIndex = 0;
             this.torrentDetailsListView.UseCompatibleStateImageBehavior = false;
             this.torrentDetailsListView.View = System.Windows.Forms.View.Details;
@@ -2415,7 +2429,7 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(661, 303);
+            this.tabPage2.Size = new System.Drawing.Size(661, 302);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -2427,7 +2441,7 @@
             this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
             this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 299);
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 298);
             this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // panel5
@@ -2540,7 +2554,7 @@
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
             this.packetsSplitContainer.Size = new System.Drawing.Size(669, 616);
-            this.packetsSplitContainer.SplitterDistance = 273;
+            this.packetsSplitContainer.SplitterDistance = 272;
             this.packetsSplitContainer.SplitterWidth = 5;
             this.packetsSplitContainer.TabIndex = 6;
             // 
@@ -2559,7 +2573,7 @@
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
             this.packetsListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetsListView.Name = "packetsListView";
-            this.packetsListView.Size = new System.Drawing.Size(669, 273);
+            this.packetsListView.Size = new System.Drawing.Size(669, 272);
             this.packetsListView.SmallImageList = this.mainImageList;
             this.packetsListView.TabIndex = 5;
             this.packetsListView.UseCompatibleStateImageBehavior = false;
@@ -2615,31 +2629,31 @@
             this.packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.packetDecodeListView.FullRowSelect = true;
             this.packetDecodeListView.GridLines = true;
-            listViewGroup9.Header = "Metadata";
-            listViewGroup9.Name = "packetDecodeMetadataListViewGroup";
-            listViewGroup10.Header = "AX.25 Header";
-            listViewGroup10.Name = "packetDecodeHeaderListViewGroup";
-            listViewGroup11.Header = "AX.25 Data";
-            listViewGroup11.Name = "packetDecodeDataListViewGroup";
-            listViewGroup12.Header = "APRS";
-            listViewGroup12.Name = "packetDecodeAprsListViewGroup";
-            listViewGroup13.Header = "Position";
-            listViewGroup13.Name = "packetDecodePositionListViewGroup";
-            listViewGroup14.Header = "Decompression";
-            listViewGroup14.Name = "packetDecodeDecompressionListViewGroup";
+            listViewGroup4.Header = "Metadata";
+            listViewGroup4.Name = "packetDecodeMetadataListViewGroup";
+            listViewGroup5.Header = "AX.25 Header";
+            listViewGroup5.Name = "packetDecodeHeaderListViewGroup";
+            listViewGroup6.Header = "AX.25 Data";
+            listViewGroup6.Name = "packetDecodeDataListViewGroup";
+            listViewGroup7.Header = "APRS";
+            listViewGroup7.Name = "packetDecodeAprsListViewGroup";
+            listViewGroup8.Header = "Position";
+            listViewGroup8.Name = "packetDecodePositionListViewGroup";
+            listViewGroup20.Header = "Decompression";
+            listViewGroup20.Name = "packetDecodeDecompressionListViewGroup";
             this.packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup9,
-            listViewGroup10,
-            listViewGroup11,
-            listViewGroup12,
-            listViewGroup13,
-            listViewGroup14});
+            listViewGroup4,
+            listViewGroup5,
+            listViewGroup6,
+            listViewGroup7,
+            listViewGroup8,
+            listViewGroup20});
             this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.packetDecodeListView.HideSelection = false;
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             this.packetDecodeListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(669, 338);
+            this.packetDecodeListView.Size = new System.Drawing.Size(669, 339);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;
