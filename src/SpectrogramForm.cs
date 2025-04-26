@@ -31,6 +31,7 @@ namespace HTCommander
         private int heightDiff = 0;
         private bool roll = false;
         private int maxFrequency = 16000;
+        private bool drawMicrophone = false;
         public readonly int SampleRate = 2;
         public double AmplitudeFrac { get; private set; }
         public double TotalSamples { get; private set; }
@@ -99,8 +100,10 @@ namespace HTCommander
             }
         }
 
-        public void AddAudioData(byte[] Buffer, int BytesRecorded)
+        public void AddAudioData(byte[] Buffer, int BytesRecorded, bool fromMicrophone)
         {
+            if (drawMicrophone != fromMicrophone) return;
+            if (amplitudeHistoryBar.Visible) { amplitudeHistoryBar.ProcessAudioData(Buffer, BytesRecorded); }
             int bytesPerSample = 2;
             int newSampleCount = BytesRecorded / bytesPerSample;
             double[] buffer = new double[newSampleCount];
@@ -216,6 +219,20 @@ namespace HTCommander
             spec.Colormap = cmaps[(int)m.Tag];
             foreach (ToolStripMenuItem n in colorsToolStripMenuItem.DropDownItems) { n.Checked = (n == m); }
             parent.registry.WriteString("SpecColor", spec.Colormap.Name);
+        }
+
+        private void radioToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            radioToolStripMenuItem.Checked = true;
+            microphoneToolStripMenuItem.Checked = false;
+            drawMicrophone = false;
+        }
+
+        private void microphoneToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            radioToolStripMenuItem.Checked = false;
+            microphoneToolStripMenuItem.Checked = true;
+            drawMicrophone = true;
         }
     }
 }

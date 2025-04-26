@@ -111,7 +111,11 @@ namespace HTCommander
                 string selectedId = selected.Value;
                 MMDevice selectedDevice = GetDeviceById(selectedId, DataFlow.Render);
                 masterVolumeTrackBar.Value = (int)(selectedDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
-                if (outputDevice != null) { masterMuteButton.ImageIndex = outputDevice.AudioEndpointVolume.Mute ? 0 : 1; } else { masterMuteButton.ImageIndex = 0; }
+                try
+                {
+                    if (outputDevice != null) { masterMuteButton.ImageIndex = outputDevice.AudioEndpointVolume.Mute ? 0 : 1; } else { masterMuteButton.ImageIndex = 0; }
+                }
+                catch (Exception) { }
             }
         }
 
@@ -152,7 +156,13 @@ namespace HTCommander
             // Select the user selected output device
             SelectedOutputDeviceId = SetSelectedDevice(outputComboBox, SelectedOutputDeviceId);
             parent.registry.WriteString("OutputAudioDevice", SelectedOutputDeviceId);
-            outputDevice = GetDeviceById(SelectedOutputDeviceId, DataFlow.Render);
+            MMDevice xoutputDevice = GetDeviceById(SelectedOutputDeviceId, DataFlow.Render);
+            if (xoutputDevice != outputDevice)
+            {
+                if (outputDevice != null) { outputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnVolumeNotification; }
+                outputDevice = xoutputDevice;
+                outputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnVolumeNotification;
+            }
 
             // Load input devices (recording)
             listDeviceId.Clear();
@@ -174,7 +184,13 @@ namespace HTCommander
             // Select the user selected output device
             SelectedInputDeviceId = SetSelectedDevice(inputComboBox, SelectedInputDeviceId);
             parent.registry.WriteString("InputAudioDevice", SelectedInputDeviceId);
-            inputDevice = GetDeviceById(SelectedInputDeviceId, DataFlow.Capture);
+            MMDevice xinputDevice = GetDeviceById(SelectedInputDeviceId, DataFlow.Capture);
+            if (xinputDevice != inputDevice)
+            {
+                if (inputDevice != null) { inputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnInputVolumeNotification; }
+                inputDevice = xoutputDevice;
+                inputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnInputVolumeNotification;
+            }
         }
 
         private string SetSelectedDevice(ComboBox comboBox, string deviceId)

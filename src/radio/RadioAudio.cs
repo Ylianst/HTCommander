@@ -28,6 +28,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using NAudio.CoreAudioApi;
 using NAudio.Wave.SampleProviders;
+using System.Collections.Concurrent;
 
 namespace HTCommander
 {
@@ -445,7 +446,7 @@ namespace HTCommander
             return 0;
         }
 
-        private bool VoiceTransmit = false;
+        //private bool VoiceTransmit = false;
         private bool VoiceTransmitCancel = false;
         public delegate void VoiceTransmitStateHandler(RadioAudio sender, bool transmitting);
         public event VoiceTransmitStateHandler OnVoiceTransmitStateChanged;
@@ -453,17 +454,108 @@ namespace HTCommander
         public void CancelVoiceTransmit() {
             waveProvider.ClearBuffer();
             VoiceTransmitCancel = true;
+            transmissionTokenSource?.Cancel();
         }
+
+        // Fields
+        private ConcurrentQueue<byte[]> pcmQueue = new ConcurrentQueue<byte[]>();
+        private bool isTransmitting = false;
+        private CancellationTokenSource transmissionTokenSource = null;
+        private TaskCompletionSource<bool> newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength, bool play)
         {
-            if (VoiceTransmit == true) return false;
+            // Copy just the relevant slice of PCM data
+            byte[] pcmSlice = new byte[pcmLength];
+            Buffer.BlockCopy(pcmInputData, pcmOffset, pcmSlice, 0, pcmLength);
+            pcmQueue.Enqueue(pcmSlice);
+
+            // Signal that new data is available
+            if (isTransmitting) { newDataAvailable.TrySetResult(true); }
+
+            StartTransmissionIfNeeded();
+            if (play) { VoiceTransmitCancel = false; PlayPcmBufferAsync(pcmInputData, pcmOffset, pcmLength); }
+            return true;
+        }
+
+        private void StartTransmissionIfNeeded()
+        {
+            if (isTransmitting) return;
+
+            Console.WriteLine("Starting voice transmission...");
+
+            isTransmitting = true;
+            transmissionTokenSource = new CancellationTokenSource();
+            CancellationToken token = transmissionTokenSource.Token;
+            Task.Run(async () =>
+            {
+                if (OnVoiceTransmitStateChanged != null) { OnVoiceTransmitStateChanged(this, true); }
+                try
+                {
+                    while (!token.IsCancellationRequested)
+                    {
+                        if (pcmQueue.TryDequeue(out var pcmData)) { await ProcessPcmDataAsync(pcmData, token); } else { break; }
+                    }
+                    // Send end audio frame
+                    isTransmitting = false;
+                    byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
+                    await audioStream.WriteAsync(endAudio, 0, endAudio.Length);
+                    await audioStream.FlushAsync();
+                }
+                finally
+                {
+                    if (OnVoiceTransmitStateChanged != null) { OnVoiceTransmitStateChanged(this, false); }
+                    Console.WriteLine("Voice transmission stopped.");
+                }
+            }, token);
+        }
+
+        private async Task ProcessPcmDataAsync(byte[] pcmData, CancellationToken token)
+        {
+            int pcmOffset = 0;
+            int pcmLength = pcmData.Length;
+            if (recording != null) { recording.Write(pcmData, 0, pcmData.Length); }
+            while ((pcmLength >= pcmInputSizePerFrame) && (!token.IsCancellationRequested))
+            {
+                byte[] encodedSbcFrame;
+                int bytesConsumed;
+
+                if (!EncodeSbcFrame(pcmData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed)) break;
+
+                pcmOffset += bytesConsumed;
+                pcmLength -= bytesConsumed;
+                byte[] escaped = EscapeBytes(0, encodedSbcFrame, encodedSbcFrame.Length);
+                await audioStream.WriteAsync(escaped, 0, escaped.Length);
+                await audioStream.FlushAsync();
+
+                //await Task.Delay(bytesConsumed / 64, token);
+                // Wait for either delay or new data
+                var delayTask = Task.Delay((bytesConsumed / 64) + 100, token);
+                var signalTask = newDataAvailable.Task;
+                var completedTask = await Task.WhenAny(delayTask, signalTask);
+                if (completedTask == signalTask)
+                {
+                    // New data arrived, reset the signal
+                    newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+                else
+                {
+                    Console.WriteLine("Delay completed, stopping transmission.");
+                }
+            }
+        }
+
+        /*
+        public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength, bool play)
+        {
+            if (VoiceTransmit == true) { return false; }
             Task.Run(() =>
             {
                 VoiceTransmit = true;
                 VoiceTransmitCancel = false;
                 if (OnVoiceTransmitStateChanged != null) { OnVoiceTransmitStateChanged(this, true); }
 
+                if (recording != null) { recording.Write(pcmInputData, pcmOffset, pcmLength); }
                 if (play) { PlayPcmBufferAsync(pcmInputData, pcmOffset, pcmLength); }
 
                 byte[] encodedSbcFrame;
@@ -499,6 +591,7 @@ namespace HTCommander
             });
             return true;
         }
+        */
 
         public void PlayPcmBufferAsync(byte[] pcmInputData, int pcmOffset, int pcmLength)
         {

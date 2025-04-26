@@ -67,11 +67,9 @@ namespace HTCommander.radio
 
             Dispose();
             WaveFormat format = new WaveFormat(32000, 16, 1);
-            capture = new WasapiCapture(selectedDevice, true, 1)
-            {
-                ShareMode = AudioClientShareMode.Shared,
-                WaveFormat = format
-            };
+            capture = new WasapiCapture(selectedDevice, true, 1) { ShareMode = AudioClientShareMode.Shared, WaveFormat = format };
+            capture.ShareMode = AudioClientShareMode.Shared;
+            capture.WaveFormat = format;
             capture.DataAvailable += OnDataAvailable;
             capture.RecordingStopped += OnRecordingStopped;
 

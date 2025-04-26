@@ -131,13 +131,17 @@ namespace HTCommander
         private void Microphone_DataAvailable(byte[] data, int bytesRecorded)
         {
             radioVolumeForm.ProcessInputAudioData(data, bytesRecorded);
-            if (radioVolumeForm.MicrophoneTransmit) { radio.TransmitVoice(data, 0, bytesRecorded, false); }
+            if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, bytesRecorded, true); }
+            if (radioVolumeForm.MicrophoneTransmit) {
+                radio.TransmitVoice(data, 0, bytesRecorded, false);
+                if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, bytesRecorded, false); }
+            }
         }
 
         private void RadioAudio_DataAvailable(Radio radio, byte[] data, int bytesRecorded, string channelName)
         {
             radioVolumeForm.ProcessOutputAudioData(data, bytesRecorded);
-            if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, bytesRecorded); }
+            if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, bytesRecorded, false); }
         }
 
         private void cancelVoiceButton_Click(object sender, EventArgs e)

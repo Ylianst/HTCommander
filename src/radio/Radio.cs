@@ -493,7 +493,7 @@ namespace HTCommander
 
         public void Disconnect() { Disconnect(null, RadioState.Disconnected); }
 
-        public async void Connect(string macAddress)
+        public void Connect(string macAddress)
         {
             if (state == RadioState.Connected || state == RadioState.Connecting) return;
             UpdateState(RadioState.Connecting);
