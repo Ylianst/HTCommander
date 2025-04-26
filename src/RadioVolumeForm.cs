@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Forms;
 using NAudio.CoreAudioApi;
@@ -30,6 +31,8 @@ namespace HTCommander
         private MMDevice outputDevice;
         private MMDevice inputDevice;
         private AudioSessionControl sessionControl;
+        private string SelectedOutputDeviceId = "";
+        private string SelectedInputDeviceId = "";
         public bool MicrophoneTransmit = false;
 
         public int Volume { get { return volumeTrackBar.Value; } set { volumeTrackBar.Value = value; } }
@@ -39,6 +42,8 @@ namespace HTCommander
             InitializeComponent();
             this.parent = parent;
             this.radio = radio;
+            SelectedOutputDeviceId = parent.registry.ReadString("OutputAudioDevice", "");
+            SelectedInputDeviceId = parent.registry.ReadString("InputAudioDevice", "");
             deviceEnumerator.RegisterEndpointNotificationCallback(this);
             LoadAudioDevices();
             transmitButton.Image = microphoneImageList.Images[0];
@@ -52,7 +57,7 @@ namespace HTCommander
 
         private void RadioVolumeForm_Load(object sender, EventArgs e)
         {
-
+            pollTimer_Tick(this, null);
         }
 
         private delegate void AudioEndpointVolumeNotificationDelegate(AudioVolumeNotificationData data);
@@ -60,6 +65,7 @@ namespace HTCommander
         {
             if (InvokeRequired) { Invoke(new AudioEndpointVolumeNotificationDelegate(AudioEndpointVolume_OnVolumeNotification), data); return; }
             masterVolumeTrackBar.Value = (int)(outputDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
+            masterMuteButton.ImageIndex = outputDevice.AudioEndpointVolume.Mute ? 0 : 1;
         }
         private void AudioEndpointVolume_OnInputVolumeNotification(AudioVolumeNotificationData data)
         {
@@ -101,6 +107,7 @@ namespace HTCommander
                 string selectedId = selected.Value;
                 MMDevice selectedDevice = GetDeviceById(selectedId, DataFlow.Render);
                 masterVolumeTrackBar.Value = (int)(selectedDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
+                if (outputDevice != null) { masterMuteButton.ImageIndex = outputDevice.AudioEndpointVolume.Mute ? 0 : 1; } else { masterMuteButton.ImageIndex = 0; }
             }
         }
 
@@ -116,62 +123,81 @@ namespace HTCommander
             if (InvokeRequired) { Invoke(new LoadAudioDevicesDelegate(LoadAudioDevices)); return; }
 
             // Load output devices (playback)
-            outputComboBox.Items.Clear();
-            outputComboBox.Items.Add(new Utils.ComboBoxItem(null, "Default"));
-            foreach (var device in deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
+            Dictionary<string, Utils.ComboBoxItem> listDeviceId = new Dictionary<string, Utils.ComboBoxItem>();
+            if (outputComboBox.Items.Count == 0) { outputComboBox.Items.Add(new Utils.ComboBoxItem("", "Default")); }
+            foreach (Utils.ComboBoxItem e in outputComboBox.Items) { listDeviceId.Add(e.Value, e); }
+            foreach (MMDevice device in deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
             {
-                outputComboBox.Items.Add(new Utils.ComboBoxItem(device.ID, FixDeviceName(device.FriendlyName)));
+                if (listDeviceId.ContainsKey(device.ID)) {
+                    listDeviceId.Remove(device.ID);
+                } else {
+                    outputComboBox.Items.Add(new Utils.ComboBoxItem(device.ID, FixDeviceName(device.FriendlyName)));
+                }
             }
+            foreach (Utils.ComboBoxItem e in listDeviceId.Values) { if (e.Value != "") { outputComboBox.Items.Remove(e); } }
 
-            // Select default output device
-            outputDevice = deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
-            SetSelectedDevice(outputComboBox, outputDevice.ID);
+            // Select the user selected output device
+            SelectedOutputDeviceId = SetSelectedDevice(outputComboBox, SelectedOutputDeviceId);
+            parent.registry.WriteString("OutputAudioDevice", SelectedOutputDeviceId);
+            outputDevice = GetDeviceById(SelectedOutputDeviceId, DataFlow.Render);
 
             // Load input devices (recording)
-            inputComboBox.Items.Clear();
-            inputComboBox.Items.Add(new Utils.ComboBoxItem(null, "Default"));
-            foreach (var device in deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
+            listDeviceId.Clear();
+            if (inputComboBox.Items.Count == 0) { inputComboBox.Items.Add(new Utils.ComboBoxItem("", "Default")); }
+            foreach (Utils.ComboBoxItem e in inputComboBox.Items) { listDeviceId.Add(e.Value, e); }
+            foreach (MMDevice device in deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
             {
-                inputComboBox.Items.Add(new Utils.ComboBoxItem(device.ID, FixDeviceName(device.FriendlyName)));
+                if (listDeviceId.ContainsKey(device.ID)) {
+                    listDeviceId.Remove(device.ID);
+                } else {
+                    inputComboBox.Items.Add(new Utils.ComboBoxItem(device.ID, FixDeviceName(device.FriendlyName)));
+                }
             }
+            foreach (Utils.ComboBoxItem e in listDeviceId.Values) { if (e.Value != "") { inputComboBox.Items.Remove(e); } }
 
-            // Select default input device
-            inputDevice = deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
-            SetSelectedDevice(inputComboBox, inputDevice.ID);
+            // Select the user selected output device
+            SelectedInputDeviceId = SetSelectedDevice(inputComboBox, SelectedInputDeviceId);
+            parent.registry.WriteString("InputAudioDevice", SelectedInputDeviceId);
+            inputDevice = GetDeviceById(SelectedInputDeviceId, DataFlow.Capture);
         }
 
-        private void SetSelectedDevice(ComboBox comboBox, string deviceId)
+        private string SetSelectedDevice(ComboBox comboBox, string deviceId)
         {
-            if (deviceId == null) { comboBox.SelectedIndex = 0; }
             for (int i = 0; i < comboBox.Items.Count; i++)
             {
-                if (((Utils.ComboBoxItem)comboBox.Items[i]).Value == deviceId) { comboBox.SelectedIndex = i; break; }
+                if (((Utils.ComboBoxItem)comboBox.Items[i]).Value == deviceId) { comboBox.SelectedIndex = i; return deviceId; }
             }
+            comboBox.SelectedIndex = 0;
+            return "";
         }
 
         private void outputComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (outputDevice != null) { outputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnVolumeNotification; }
             Utils.ComboBoxItem selected = (Utils.ComboBoxItem)outputComboBox.SelectedItem;
-            string selectedId = selected.Value;
-            outputDevice = GetDeviceById(selectedId, DataFlow.Render);
+            if (SelectedOutputDeviceId == selected.Value) return; // No change
+            if (outputDevice != null) { outputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnVolumeNotification; }
+            SelectedOutputDeviceId = selected.Value;
+            outputDevice = GetDeviceById(SelectedOutputDeviceId, DataFlow.Render);
             outputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnVolumeNotification;
-            parent.registry.WriteString("OutputAudioDevice", selectedId == null ? "" : selectedId);
+            parent.registry.WriteString("OutputAudioDevice", SelectedOutputDeviceId);
+            radio.SetOutputAudioDevice(outputDevice.ID);
         }
 
         private void inputComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (inputDevice != null) { inputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnInputVolumeNotification; }
             Utils.ComboBoxItem selected = (Utils.ComboBoxItem)inputComboBox.SelectedItem;
-            string selectedId = selected.Value;
-            inputDevice = GetDeviceById(selectedId, DataFlow.Capture);
+            if (SelectedInputDeviceId == selected.Value) return; // No change
+            if (inputDevice != null) { inputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnInputVolumeNotification; }
+            SelectedInputDeviceId = selected.Value;
+            inputDevice = GetDeviceById(SelectedInputDeviceId, DataFlow.Capture);
             inputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnInputVolumeNotification;
-            parent.registry.WriteString("InputAudioDevice", selectedId == null ? "" : selectedId);
+            parent.registry.WriteString("InputAudioDevice", SelectedInputDeviceId);
+            parent.microphone.SetInputDevice(inputDevice.ID);
         }
 
         private MMDevice GetDeviceById(string id, DataFlow flow)
         {
-            if (id == null) return deviceEnumerator.GetDefaultAudioEndpoint(flow, Role.Console);
+            if (id == "") return deviceEnumerator.GetDefaultAudioEndpoint(flow, Role.Console);
             foreach (var device in deviceEnumerator.EnumerateAudioEndPoints(flow, DeviceState.Active)) { if (device.ID == id) return device; }
             return null;
         }
@@ -230,6 +256,8 @@ namespace HTCommander
                         sessionControl.RegisterEventClient(this);
                         appVolumeTrackBar.Enabled = true;
                         appVolumeTrackBar.Value = (int)(sessionControl.SimpleAudioVolume.Volume * 100);
+                        appMuteButton.Enabled = true;
+                        appMuteButton.ImageIndex = sessionControl.SimpleAudioVolume.Mute ? 0 : 1;
                         break;
                     }
                 }
@@ -249,7 +277,7 @@ namespace HTCommander
         private void masterVolumeTrackBar_Scroll(object sender, EventArgs e)
         {
             float volume = masterVolumeTrackBar.Value / 100f;
-            outputDevice.AudioEndpointVolume.MasterVolumeLevelScalar = volume;
+            if (outputDevice != null) { outputDevice.AudioEndpointVolume.MasterVolumeLevelScalar = volume; }
         }
 
         private string FixDeviceName(string name) { return name.Replace("(R)", "®"); }
@@ -275,7 +303,14 @@ namespace HTCommander
 
         void IMMNotificationClient.OnDefaultDeviceChanged(DataFlow dataFlow, Role deviceRole, string defaultDeviceId)
         {
-            LoadAudioDevices();
+            if (dataFlow == DataFlow.Render && deviceRole == Role.Multimedia && SelectedOutputDeviceId == "")
+            {
+                radio.SetOutputAudioDevice("");
+            }
+            else if (dataFlow == DataFlow.Capture && deviceRole == Role.Console && SelectedInputDeviceId == "")
+            {
+                parent.microphone.SetInputDevice("");
+            }
         }
 
         void IMMNotificationClient.OnDeviceStateChanged(string deviceId, DeviceState newState)
@@ -285,7 +320,7 @@ namespace HTCommander
 
         void IMMNotificationClient.OnPropertyValueChanged(string deviceId, PropertyKey key)
         {
-            LoadAudioDevices();
+            // NOP
         }
 
         private void inputTrackBar_Scroll(object sender, EventArgs e)
@@ -308,6 +343,7 @@ namespace HTCommander
         public void OnVolumeChanged(float volume, bool isMuted) {
             if (InvokeRequired) { Invoke(new OnVolumeChangedDelegate(OnVolumeChanged), volume, isMuted); return; }
             appVolumeTrackBar.Value = (int)(sessionControl.SimpleAudioVolume.Volume * 100);
+            appMuteButton.ImageIndex = sessionControl.SimpleAudioVolume.Mute ? 0 : 1;
         }
 
         public void OnDisplayNameChanged(string displayName) { }
@@ -321,6 +357,8 @@ namespace HTCommander
             if (InvokeRequired) { Invoke(new OnSessionDisconnectedDelegate(OnSessionDisconnected), disconnectReason); return; }
             appVolumeTrackBar.Enabled = false;
             appVolumeTrackBar.Value = 0;
+            appMuteButton.Enabled = false;
+            appMuteButton.ImageIndex = 0;
             sessionControl = null;
         }
 
@@ -352,6 +390,19 @@ namespace HTCommander
                     }
                 }
             }
+        }
+
+        private void masterMuteButton_Click(object sender, EventArgs e)
+        {
+            outputDevice.AudioEndpointVolume.Mute = !outputDevice.AudioEndpointVolume.Mute;
+            masterMuteButton.ImageIndex = outputDevice.AudioEndpointVolume.Mute ? 0 : 1;
+        }
+
+        private void appMuteButton_Click(object sender, EventArgs e)
+        {
+            if (sessionControl == null) return;
+            sessionControl.SimpleAudioVolume.Mute = !sessionControl.SimpleAudioVolume.Mute;
+            appMuteButton.ImageIndex = sessionControl.SimpleAudioVolume.Mute ? 0 : 1;
         }
     }
 }

@@ -1,49 +1,86 @@
 ﻿using System;
+using NAudio.CoreAudioApi;
+using System.Text.RegularExpressions;
 using NAudio.Wave;
 
 namespace HTCommander.radio
 {
     public class Microphone
     {
-        private WaveInEvent waveSource = null;
+        //private WaveInEvent waveSource = null;
 
         public delegate void DataAvailableHandler(byte[] data, int bytesRecorded);
         public event DataAvailableHandler DataAvailable;
+        private WasapiCapture capture = null;
+        private MMDevice selectedDevice = null;
+
+        public void SetInputDevice(string deviceid)
+        {
+            var enumerator = new MMDeviceEnumerator();
+
+            if (string.IsNullOrEmpty(deviceid))
+            {
+                selectedDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
+                Dispose();
+                StartListening();
+                return;
+            }
+
+            var devices = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
+            foreach (var device in devices)
+            {
+                if (device.ID.Equals(deviceid, StringComparison.OrdinalIgnoreCase))
+                {
+                    selectedDevice = device;
+                    Dispose();
+                    StartListening();
+                    return;
+                }
+            }
+
+            // Fallback to default device if the specified one is not found
+            selectedDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
+            Dispose();
+            StartListening();
+        }
 
         public bool StartListening()
         {
-            if (waveSource != null) return false;
+            if (selectedDevice == null) { return false; }
 
-            waveSource = new WaveInEvent
-            {
-                DeviceNumber = 0, // 0 is usually the default input device
-                WaveFormat = new WaveFormat(32000, 16, 1),
-                // How often to raise the DataAvailable event (e.g., every 100ms)
-                // Smaller buffer sizes mean lower latency but more frequent events.
-                BufferMilliseconds = 80
-            };
-
-            waveSource.DataAvailable += OnDataAvailable;
-            waveSource.RecordingStopped += OnRecordingStopped;
+            capture = new WasapiCapture(selectedDevice) { ShareMode = AudioClientShareMode.Shared };
+            capture.DataAvailable += OnDataAvailable;
+            capture.RecordingStopped += OnRecordingStopped;
 
             try
             {
-                waveSource.StartRecording();
+                capture.StartRecording();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error starting recording: {ex.Message}");
-                Dispose(); // Clean up if start failed
+                Dispose();
                 return false;
             }
+
             return true;
+        }
+
+        private void Dispose()
+        {
+            if (capture != null)
+            {
+                capture.DataAvailable -= OnDataAvailable;
+                capture.RecordingStopped -= OnRecordingStopped;
+                capture.Dispose();
+                capture = null;
+            }
         }
 
         public bool StopListening()
         {
-            if (waveSource == null) return false;
-            waveSource?.StopRecording();
-            // The actual stop confirmation and cleanup happens in OnRecordingStopped
+            if (capture == null) return false;
+            Dispose();
             return true;
         }
 
@@ -63,15 +100,5 @@ namespace HTCommander.radio
             Dispose();
         }
 
-        // --- Resource Cleanup ---
-        private void Dispose()
-        {
-            if (waveSource == null) return;
-            waveSource.DataAvailable -= OnDataAvailable;
-            waveSource.RecordingStopped -= OnRecordingStopped;
-            waveSource.Dispose();
-            waveSource = null;
-            Console.WriteLine("WaveSource disposed.");
-        }
     }
 }

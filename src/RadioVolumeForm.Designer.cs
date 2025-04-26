@@ -54,6 +54,9 @@
             this.audioButton = new System.Windows.Forms.Button();
             this.recordButton = new System.Windows.Forms.Button();
             this.saveFileDialog = new System.Windows.Forms.SaveFileDialog();
+            this.muteImageList = new System.Windows.Forms.ImageList(this.components);
+            this.masterMuteButton = new System.Windows.Forms.Button();
+            this.appMuteButton = new System.Windows.Forms.Button();
             this.outputAmplitudeHistoryBar = new HTCommander.AmplitudeHistoryBar();
             this.inputAmplitudeHistoryBar = new HTCommander.AmplitudeHistoryBar();
             ((System.ComponentModel.ISupportInitialize)(this.volumeTrackBar)).BeginInit();
@@ -174,6 +177,8 @@
             this.groupBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox2.Controls.Add(this.appMuteButton);
+            this.groupBox2.Controls.Add(this.masterMuteButton);
             this.groupBox2.Controls.Add(this.label8);
             this.groupBox2.Controls.Add(this.appVolumeTrackBar);
             this.groupBox2.Controls.Add(this.outputAmplitudeHistoryBar);
@@ -211,7 +216,7 @@
             this.appVolumeTrackBar.Maximum = 100;
             this.appVolumeTrackBar.Name = "appVolumeTrackBar";
             this.appVolumeTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.appVolumeTrackBar.Size = new System.Drawing.Size(56, 170);
+            this.appVolumeTrackBar.Size = new System.Drawing.Size(56, 160);
             this.appVolumeTrackBar.TabIndex = 9;
             this.appVolumeTrackBar.TickFrequency = 10;
             this.appVolumeTrackBar.Scroll += new System.EventHandler(this.appVolumeTrackBar_Scroll);
@@ -285,7 +290,7 @@
             this.masterVolumeTrackBar.Maximum = 100;
             this.masterVolumeTrackBar.Name = "masterVolumeTrackBar";
             this.masterVolumeTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.masterVolumeTrackBar.Size = new System.Drawing.Size(56, 170);
+            this.masterVolumeTrackBar.Size = new System.Drawing.Size(56, 160);
             this.masterVolumeTrackBar.TabIndex = 0;
             this.masterVolumeTrackBar.TickFrequency = 10;
             this.masterVolumeTrackBar.Scroll += new System.EventHandler(this.masterVolumeTrackBar_Scroll);
@@ -349,6 +354,38 @@
             this.saveFileDialog.DefaultExt = "wav";
             this.saveFileDialog.Filter = "Wave files (*.wav)|*.wav";
             this.saveFileDialog.Title = "Record Audio";
+            // 
+            // muteImageList
+            // 
+            this.muteImageList.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("muteImageList.ImageStream")));
+            this.muteImageList.TransparentColor = System.Drawing.Color.Transparent;
+            this.muteImageList.Images.SetKeyName(0, "Mute-24.png");
+            this.muteImageList.Images.SetKeyName(1, "NotMute-24.png");
+            // 
+            // masterMuteButton
+            // 
+            this.masterMuteButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.masterMuteButton.ImageIndex = 1;
+            this.masterMuteButton.ImageList = this.muteImageList;
+            this.masterMuteButton.Location = new System.Drawing.Point(22, 223);
+            this.masterMuteButton.Name = "masterMuteButton";
+            this.masterMuteButton.Size = new System.Drawing.Size(36, 32);
+            this.masterMuteButton.TabIndex = 11;
+            this.masterMuteButton.UseVisualStyleBackColor = true;
+            this.masterMuteButton.Click += new System.EventHandler(this.masterMuteButton_Click);
+            // 
+            // appMuteButton
+            // 
+            this.appMuteButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.appMuteButton.Enabled = false;
+            this.appMuteButton.ImageIndex = 0;
+            this.appMuteButton.ImageList = this.muteImageList;
+            this.appMuteButton.Location = new System.Drawing.Point(85, 223);
+            this.appMuteButton.Name = "appMuteButton";
+            this.appMuteButton.Size = new System.Drawing.Size(36, 32);
+            this.appMuteButton.TabIndex = 12;
+            this.appMuteButton.UseVisualStyleBackColor = true;
+            this.appMuteButton.Click += new System.EventHandler(this.appMuteButton_Click);
             // 
             // outputAmplitudeHistoryBar
             // 
@@ -439,5 +476,8 @@
         private System.Windows.Forms.TrackBar appVolumeTrackBar;
         private System.Windows.Forms.Button recordButton;
         private System.Windows.Forms.SaveFileDialog saveFileDialog;
+        private System.Windows.Forms.ImageList muteImageList;
+        private System.Windows.Forms.Button masterMuteButton;
+        private System.Windows.Forms.Button appMuteButton;
     }
 }

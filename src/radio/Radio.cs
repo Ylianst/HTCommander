@@ -435,6 +435,8 @@ namespace HTCommander
 
         public delegate void OnProcessingVoiceHandler(bool listening, bool processing);
         public event OnProcessingVoiceHandler onProcessingVoice;
+
+        public void SetOutputAudioDevice(string deviceid) { if (radioAudio != null) { radioAudio.SetOutputDevice(deviceid); } }
         public bool AudioState { get { return radioAudio.IsAudioEnabled; } }
         public float OutputVolume { get { return radioAudio.Volume; } set { radioAudio.Volume = value; } }
         public bool AudioToTextState { get { return radioAudio.speechToText; } }
