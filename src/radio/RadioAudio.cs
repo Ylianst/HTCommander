@@ -471,6 +471,7 @@ namespace HTCommander
         {
             // Copy just the relevant slice of PCM data
             PlayInputBack = play;
+            VoiceTransmitCancel = false;
             byte[] pcmSlice = new byte[pcmLength];
             Buffer.BlockCopy(pcmInputData, pcmOffset, pcmSlice, 0, pcmLength);
             pcmQueue.Enqueue(pcmSlice);

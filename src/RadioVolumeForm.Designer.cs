@@ -45,12 +45,12 @@
             this.masterMuteButton = new System.Windows.Forms.Button();
             this.label8 = new System.Windows.Forms.Label();
             this.appVolumeTrackBar = new System.Windows.Forms.TrackBar();
-            this.label7 = new System.Windows.Forms.Label();
-            this.inputTrackBar = new System.Windows.Forms.TrackBar();
             this.label5 = new System.Windows.Forms.Label();
             this.outputTrackBar = new System.Windows.Forms.TrackBar();
             this.label6 = new System.Windows.Forms.Label();
             this.masterVolumeTrackBar = new System.Windows.Forms.TrackBar();
+            this.label7 = new System.Windows.Forms.Label();
+            this.inputTrackBar = new System.Windows.Forms.TrackBar();
             this.transmitButton = new System.Windows.Forms.Button();
             this.microphoneImageList = new System.Windows.Forms.ImageList(this.components);
             this.pollTimer = new System.Windows.Forms.Timer(this.components);
@@ -58,8 +58,8 @@
             this.recordButton = new System.Windows.Forms.Button();
             this.saveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
-            this.inputBoostTrackBar = new System.Windows.Forms.TrackBar();
             this.label9 = new System.Windows.Forms.Label();
+            this.inputBoostTrackBar = new System.Windows.Forms.TrackBar();
             this.outputGraphButton = new System.Windows.Forms.Button();
             this.inputGraphButton = new System.Windows.Forms.Button();
             this.inputAmplitudeHistoryBar = new HTCommander.AmplitudeHistoryBar();
@@ -69,9 +69,9 @@
             ((System.ComponentModel.ISupportInitialize)(this.squelchTrackBar)).BeginInit();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.appVolumeTrackBar)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.inputTrackBar)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.outputTrackBar)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.masterVolumeTrackBar)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.inputTrackBar)).BeginInit();
             this.groupBox3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.inputBoostTrackBar)).BeginInit();
             this.SuspendLayout();
@@ -256,31 +256,6 @@
             this.appVolumeTrackBar.TickFrequency = 10;
             this.appVolumeTrackBar.Scroll += new System.EventHandler(this.appVolumeTrackBar_Scroll);
             // 
-            // label7
-            // 
-            this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(23, 27);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(35, 16);
-            this.label7.TabIndex = 6;
-            this.label7.Text = "Input";
-            // 
-            // inputTrackBar
-            // 
-            this.inputTrackBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left)));
-            this.inputTrackBar.LargeChange = 10;
-            this.inputTrackBar.Location = new System.Drawing.Point(26, 68);
-            this.inputTrackBar.Margin = new System.Windows.Forms.Padding(4);
-            this.inputTrackBar.Maximum = 100;
-            this.inputTrackBar.Name = "inputTrackBar";
-            this.inputTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.inputTrackBar.Size = new System.Drawing.Size(56, 170);
-            this.inputTrackBar.TabIndex = 27;
-            this.inputTrackBar.TickFrequency = 10;
-            this.inputTrackBar.Value = 100;
-            this.inputTrackBar.Scroll += new System.EventHandler(this.inputTrackBar_Scroll);
-            // 
             // label5
             // 
             this.label5.AutoSize = true;
@@ -329,6 +304,31 @@
             this.masterVolumeTrackBar.TabIndex = 22;
             this.masterVolumeTrackBar.TickFrequency = 10;
             this.masterVolumeTrackBar.Scroll += new System.EventHandler(this.masterVolumeTrackBar_Scroll);
+            // 
+            // label7
+            // 
+            this.label7.AutoSize = true;
+            this.label7.Location = new System.Drawing.Point(23, 27);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(35, 16);
+            this.label7.TabIndex = 6;
+            this.label7.Text = "Input";
+            // 
+            // inputTrackBar
+            // 
+            this.inputTrackBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left)));
+            this.inputTrackBar.LargeChange = 10;
+            this.inputTrackBar.Location = new System.Drawing.Point(26, 68);
+            this.inputTrackBar.Margin = new System.Windows.Forms.Padding(4);
+            this.inputTrackBar.Maximum = 100;
+            this.inputTrackBar.Name = "inputTrackBar";
+            this.inputTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
+            this.inputTrackBar.Size = new System.Drawing.Size(56, 170);
+            this.inputTrackBar.TabIndex = 27;
+            this.inputTrackBar.TickFrequency = 10;
+            this.inputTrackBar.Value = 100;
+            this.inputTrackBar.Scroll += new System.EventHandler(this.inputTrackBar_Scroll);
             // 
             // transmitButton
             // 
@@ -407,6 +407,15 @@
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Input";
             // 
+            // label9
+            // 
+            this.label9.AutoSize = true;
+            this.label9.Location = new System.Drawing.Point(92, 27);
+            this.label9.Name = "label9";
+            this.label9.Size = new System.Drawing.Size(42, 16);
+            this.label9.TabIndex = 9;
+            this.label9.Text = "Boost";
+            // 
             // inputBoostTrackBar
             // 
             this.inputBoostTrackBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -420,18 +429,9 @@
             this.inputBoostTrackBar.TabIndex = 28;
             this.inputBoostTrackBar.Scroll += new System.EventHandler(this.inputBoostTrackBar_Scroll);
             // 
-            // label9
-            // 
-            this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(92, 27);
-            this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(42, 16);
-            this.label9.TabIndex = 9;
-            this.label9.Text = "Boost";
-            // 
             // outputGraphButton
             // 
-            this.outputGraphButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.outputGraphButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.outputGraphButton.Image = ((System.Drawing.Image)(resources.GetObject("outputGraphButton.Image")));
             this.outputGraphButton.Location = new System.Drawing.Point(613, 12);
             this.outputGraphButton.Name = "outputGraphButton";
@@ -442,7 +442,7 @@
             // 
             // inputGraphButton
             // 
-            this.inputGraphButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.inputGraphButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.inputGraphButton.Image = ((System.Drawing.Image)(resources.GetObject("inputGraphButton.Image")));
             this.inputGraphButton.Location = new System.Drawing.Point(613, 42);
             this.inputGraphButton.Name = "inputGraphButton";
@@ -493,7 +493,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(4);
             this.MaximizeBox = false;
-            this.MaximumSize = new System.Drawing.Size(965, 600);
+            this.MaximumSize = new System.Drawing.Size(687, 600);
             this.MinimizeBox = false;
             this.MinimumSize = new System.Drawing.Size(665, 400);
             this.Name = "RadioVolumeForm";
@@ -508,9 +508,9 @@
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.appVolumeTrackBar)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.inputTrackBar)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.outputTrackBar)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.masterVolumeTrackBar)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.inputTrackBar)).EndInit();
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.inputBoostTrackBar)).EndInit();

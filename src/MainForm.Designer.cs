@@ -402,16 +402,17 @@
             this.mainStatusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.mainToolStripStatusLabel,
             this.batteryToolStripStatusLabel});
-            this.mainStatusStrip.Location = new System.Drawing.Point(0, 556);
+            this.mainStatusStrip.Location = new System.Drawing.Point(0, 689);
             this.mainStatusStrip.Name = "mainStatusStrip";
-            this.mainStatusStrip.Size = new System.Drawing.Size(813, 22);
+            this.mainStatusStrip.Padding = new System.Windows.Forms.Padding(1, 0, 19, 0);
+            this.mainStatusStrip.Size = new System.Drawing.Size(1084, 22);
             this.mainStatusStrip.TabIndex = 0;
             this.mainStatusStrip.Text = "statusStrip1";
             // 
             // mainToolStripStatusLabel
             // 
             this.mainToolStripStatusLabel.Name = "mainToolStripStatusLabel";
-            this.mainToolStripStatusLabel.Size = new System.Drawing.Size(798, 16);
+            this.mainToolStripStatusLabel.Size = new System.Drawing.Size(1064, 16);
             this.mainToolStripStatusLabel.Spring = true;
             // 
             // batteryToolStripStatusLabel
@@ -433,8 +434,8 @@
             this.aboutToolStripMenuItem});
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             this.mainMenuStrip.Name = "mainMenuStrip";
-            this.mainMenuStrip.Padding = new System.Windows.Forms.Padding(4, 2, 0, 2);
-            this.mainMenuStrip.Size = new System.Drawing.Size(813, 28);
+            this.mainMenuStrip.Padding = new System.Windows.Forms.Padding(5, 2, 0, 2);
+            this.mainMenuStrip.Size = new System.Drawing.Size(1084, 28);
             this.mainMenuStrip.TabIndex = 1;
             this.mainMenuStrip.Text = "menuStrip1";
             this.mainMenuStrip.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.mainMenuStrip_ItemClicked);
@@ -782,8 +783,9 @@
             this.radioPanel.Controls.Add(this.radioPictureBox);
             this.radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
             this.radioPanel.Location = new System.Drawing.Point(0, 28);
+            this.radioPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.radioPanel.Name = "radioPanel";
-            this.radioPanel.Size = new System.Drawing.Size(280, 528);
+            this.radioPanel.Size = new System.Drawing.Size(372, 661);
             this.radioPanel.TabIndex = 2;
             this.radioPanel.SizeChanged += new System.EventHandler(this.radioPanel_SizeChanged);
             this.radioPanel.Click += new System.EventHandler(this.radioPictureBox_Click);
@@ -793,10 +795,10 @@
             // transmitBarPanel
             // 
             this.transmitBarPanel.BackColor = System.Drawing.Color.Red;
-            this.transmitBarPanel.Location = new System.Drawing.Point(63, 265);
-            this.transmitBarPanel.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.transmitBarPanel.Location = new System.Drawing.Point(84, 326);
+            this.transmitBarPanel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.transmitBarPanel.Name = "transmitBarPanel";
-            this.transmitBarPanel.Size = new System.Drawing.Size(154, 6);
+            this.transmitBarPanel.Size = new System.Drawing.Size(205, 7);
             this.transmitBarPanel.TabIndex = 7;
             this.transmitBarPanel.Visible = false;
             this.transmitBarPanel.Click += new System.EventHandler(this.radioPictureBox_Click);
@@ -806,18 +808,20 @@
             // 
             this.channelsFlowLayoutPanel.BackColor = System.Drawing.Color.DarkKhaki;
             this.channelsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 388);
+            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 489);
+            this.channelsFlowLayoutPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.channelsFlowLayoutPanel.Name = "channelsFlowLayoutPanel";
-            this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(276, 68);
+            this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(368, 84);
             this.channelsFlowLayoutPanel.TabIndex = 2;
             this.channelsFlowLayoutPanel.Visible = false;
             // 
             // checkBluetoothButton
             // 
             this.checkBluetoothButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 456);
+            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 573);
+            this.checkBluetoothButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.checkBluetoothButton.Name = "checkBluetoothButton";
-            this.checkBluetoothButton.Size = new System.Drawing.Size(276, 34);
+            this.checkBluetoothButton.Size = new System.Drawing.Size(368, 42);
             this.checkBluetoothButton.TabIndex = 3;
             this.checkBluetoothButton.Text = "Check Bluetooth";
             this.checkBluetoothButton.UseVisualStyleBackColor = true;
@@ -830,10 +834,11 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.rssiProgressBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
             this.rssiProgressBar.ForeColor = System.Drawing.Color.Black;
-            this.rssiProgressBar.Location = new System.Drawing.Point(63, 265);
+            this.rssiProgressBar.Location = new System.Drawing.Point(84, 326);
+            this.rssiProgressBar.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.rssiProgressBar.Maximum = 15;
             this.rssiProgressBar.Name = "rssiProgressBar";
-            this.rssiProgressBar.Size = new System.Drawing.Size(154, 6);
+            this.rssiProgressBar.Size = new System.Drawing.Size(205, 7);
             this.rssiProgressBar.Step = 1;
             this.rssiProgressBar.Style = System.Windows.Forms.ProgressBarStyle.Continuous;
             this.rssiProgressBar.TabIndex = 0;
@@ -850,9 +855,10 @@
             this.connectedPanel.Controls.Add(this.vfo1FreqLabel);
             this.connectedPanel.Controls.Add(this.vfo2Label);
             this.connectedPanel.Controls.Add(this.vfo1Label);
-            this.connectedPanel.Location = new System.Drawing.Point(63, 140);
+            this.connectedPanel.Location = new System.Drawing.Point(84, 172);
+            this.connectedPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.connectedPanel.Name = "connectedPanel";
-            this.connectedPanel.Size = new System.Drawing.Size(154, 123);
+            this.connectedPanel.Size = new System.Drawing.Size(205, 151);
             this.connectedPanel.TabIndex = 1;
             this.connectedPanel.Visible = false;
             this.connectedPanel.Click += new System.EventHandler(this.radioPictureBox_Click);
@@ -863,9 +869,10 @@
             this.voiceProcessingLabel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
             this.voiceProcessingLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.voiceProcessingLabel.ForeColor = System.Drawing.Color.LightGray;
-            this.voiceProcessingLabel.Location = new System.Drawing.Point(3, 105);
+            this.voiceProcessingLabel.Location = new System.Drawing.Point(4, 129);
+            this.voiceProcessingLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.voiceProcessingLabel.Name = "voiceProcessingLabel";
-            this.voiceProcessingLabel.Size = new System.Drawing.Size(10, 15);
+            this.voiceProcessingLabel.Size = new System.Drawing.Size(13, 18);
             this.voiceProcessingLabel.TabIndex = 8;
             this.voiceProcessingLabel.Text = "●";
             this.voiceProcessingLabel.Visible = false;
@@ -878,9 +885,10 @@
             this.vfo2StatusLabel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
             this.vfo2StatusLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.vfo2StatusLabel.ForeColor = System.Drawing.Color.LightGray;
-            this.vfo2StatusLabel.Location = new System.Drawing.Point(71, 87);
+            this.vfo2StatusLabel.Location = new System.Drawing.Point(95, 107);
+            this.vfo2StatusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.vfo2StatusLabel.Name = "vfo2StatusLabel";
-            this.vfo2StatusLabel.Size = new System.Drawing.Size(80, 15);
+            this.vfo2StatusLabel.Size = new System.Drawing.Size(107, 18);
             this.vfo2StatusLabel.TabIndex = 7;
             this.vfo2StatusLabel.Text = "VFO2";
             this.vfo2StatusLabel.TextAlign = System.Drawing.ContentAlignment.TopRight;
@@ -892,9 +900,10 @@
             this.vfo2FreqLabel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
             this.vfo2FreqLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.vfo2FreqLabel.ForeColor = System.Drawing.Color.LightGray;
-            this.vfo2FreqLabel.Location = new System.Drawing.Point(3, 87);
+            this.vfo2FreqLabel.Location = new System.Drawing.Point(4, 107);
+            this.vfo2FreqLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.vfo2FreqLabel.Name = "vfo2FreqLabel";
-            this.vfo2FreqLabel.Size = new System.Drawing.Size(88, 15);
+            this.vfo2FreqLabel.Size = new System.Drawing.Size(117, 18);
             this.vfo2FreqLabel.TabIndex = 6;
             this.vfo2FreqLabel.Text = "VFO2";
             this.vfo2FreqLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
@@ -906,9 +915,10 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.linePanel.BackColor = System.Drawing.Color.LightGray;
             this.linePanel.ForeColor = System.Drawing.Color.LightGray;
-            this.linePanel.Location = new System.Drawing.Point(11, 51);
+            this.linePanel.Location = new System.Drawing.Point(15, 63);
+            this.linePanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.linePanel.Name = "linePanel";
-            this.linePanel.Size = new System.Drawing.Size(131, 2);
+            this.linePanel.Size = new System.Drawing.Size(175, 2);
             this.linePanel.TabIndex = 5;
             this.linePanel.Click += new System.EventHandler(this.radioPictureBox_Click);
             this.linePanel.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
@@ -919,9 +929,10 @@
             this.vfo1StatusLabel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
             this.vfo1StatusLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.vfo1StatusLabel.ForeColor = System.Drawing.Color.LightGray;
-            this.vfo1StatusLabel.Location = new System.Drawing.Point(74, 33);
+            this.vfo1StatusLabel.Location = new System.Drawing.Point(99, 41);
+            this.vfo1StatusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.vfo1StatusLabel.Name = "vfo1StatusLabel";
-            this.vfo1StatusLabel.Size = new System.Drawing.Size(77, 15);
+            this.vfo1StatusLabel.Size = new System.Drawing.Size(103, 18);
             this.vfo1StatusLabel.TabIndex = 4;
             this.vfo1StatusLabel.Text = "VFO1";
             this.vfo1StatusLabel.TextAlign = System.Drawing.ContentAlignment.TopRight;
@@ -933,9 +944,10 @@
             this.vfo1FreqLabel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
             this.vfo1FreqLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.vfo1FreqLabel.ForeColor = System.Drawing.Color.LightGray;
-            this.vfo1FreqLabel.Location = new System.Drawing.Point(3, 33);
+            this.vfo1FreqLabel.Location = new System.Drawing.Point(4, 41);
+            this.vfo1FreqLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.vfo1FreqLabel.Name = "vfo1FreqLabel";
-            this.vfo1FreqLabel.Size = new System.Drawing.Size(88, 15);
+            this.vfo1FreqLabel.Size = new System.Drawing.Size(117, 18);
             this.vfo1FreqLabel.TabIndex = 3;
             this.vfo1FreqLabel.Text = "VFO1";
             this.vfo1FreqLabel.Click += new System.EventHandler(this.radioPictureBox_Click);
@@ -948,9 +960,10 @@
             this.vfo2Label.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
             this.vfo2Label.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.vfo2Label.ForeColor = System.Drawing.Color.LightGray;
-            this.vfo2Label.Location = new System.Drawing.Point(3, 54);
+            this.vfo2Label.Location = new System.Drawing.Point(4, 66);
+            this.vfo2Label.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.vfo2Label.Name = "vfo2Label";
-            this.vfo2Label.Size = new System.Drawing.Size(148, 33);
+            this.vfo2Label.Size = new System.Drawing.Size(197, 41);
             this.vfo2Label.TabIndex = 2;
             this.vfo2Label.Text = "VFO2";
             this.vfo2Label.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -964,9 +977,10 @@
             this.vfo1Label.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
             this.vfo1Label.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.vfo1Label.ForeColor = System.Drawing.Color.LightGray;
-            this.vfo1Label.Location = new System.Drawing.Point(3, 0);
+            this.vfo1Label.Location = new System.Drawing.Point(4, 0);
+            this.vfo1Label.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.vfo1Label.Name = "vfo1Label";
-            this.vfo1Label.Size = new System.Drawing.Size(148, 33);
+            this.vfo1Label.Size = new System.Drawing.Size(197, 41);
             this.vfo1Label.TabIndex = 1;
             this.vfo1Label.Text = "VFO1";
             this.vfo1Label.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -980,9 +994,10 @@
             this.radioStateLabel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
             this.radioStateLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.radioStateLabel.ForeColor = System.Drawing.Color.LightGray;
-            this.radioStateLabel.Location = new System.Drawing.Point(63, 140);
+            this.radioStateLabel.Location = new System.Drawing.Point(84, 172);
+            this.radioStateLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.radioStateLabel.Name = "radioStateLabel";
-            this.radioStateLabel.Size = new System.Drawing.Size(154, 130);
+            this.radioStateLabel.Size = new System.Drawing.Size(205, 160);
             this.radioStateLabel.TabIndex = 1;
             this.radioStateLabel.Text = "Disconnected";
             this.radioStateLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -992,9 +1007,10 @@
             // connectButton
             // 
             this.connectButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.connectButton.Location = new System.Drawing.Point(0, 490);
+            this.connectButton.Location = new System.Drawing.Point(0, 615);
+            this.connectButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.connectButton.Name = "connectButton";
-            this.connectButton.Size = new System.Drawing.Size(276, 34);
+            this.connectButton.Size = new System.Drawing.Size(368, 42);
             this.connectButton.TabIndex = 0;
             this.connectButton.Text = "Connect";
             this.connectButton.UseVisualStyleBackColor = true;
@@ -1003,9 +1019,10 @@
             // radioPictureBox
             // 
             this.radioPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("radioPictureBox.Image")));
-            this.radioPictureBox.Location = new System.Drawing.Point(8, -2);
+            this.radioPictureBox.Location = new System.Drawing.Point(11, -2);
+            this.radioPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.radioPictureBox.Name = "radioPictureBox";
-            this.radioPictureBox.Size = new System.Drawing.Size(256, 551);
+            this.radioPictureBox.Size = new System.Drawing.Size(341, 678);
             this.radioPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.radioPictureBox.TabIndex = 0;
             this.radioPictureBox.TabStop = false;
@@ -1029,11 +1046,12 @@
             this.mainTabControl.Controls.Add(this.debugTabPage);
             this.mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTabControl.ImageList = this.tabsImageList;
-            this.mainTabControl.Location = new System.Drawing.Point(280, 28);
+            this.mainTabControl.Location = new System.Drawing.Point(372, 28);
+            this.mainTabControl.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mainTabControl.Multiline = true;
             this.mainTabControl.Name = "mainTabControl";
             this.mainTabControl.SelectedIndex = 0;
-            this.mainTabControl.Size = new System.Drawing.Size(533, 528);
+            this.mainTabControl.Size = new System.Drawing.Size(712, 661);
             this.mainTabControl.TabIndex = 3;
             // 
             // aprsTabPage
@@ -1044,8 +1062,9 @@
             this.aprsTabPage.Controls.Add(this.aprsTopPanel);
             this.aprsTabPage.ImageIndex = 3;
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
+            this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Size = new System.Drawing.Size(490, 520);
+            this.aprsTabPage.Size = new System.Drawing.Size(669, 653);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1057,8 +1076,8 @@
             this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.aprsChatControl.Images = this.mainImageList;
             this.aprsChatControl.InterMessageMargin = 12;
-            this.aprsChatControl.Location = new System.Drawing.Point(0, 60);
-            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
+            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.aprsChatControl.MaxWidth = 300;
             this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
             this.aprsChatControl.MessageBoxMargin = 10;
@@ -1067,7 +1086,7 @@
             this.aprsChatControl.Name = "aprsChatControl";
             this.aprsChatControl.ShadowOffset = 2;
             this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(490, 422);
+            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
             this.aprsChatControl.TabIndex = 5;
             this.aprsChatControl.TextColor = System.Drawing.Color.Black;
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
@@ -1095,18 +1114,20 @@
             this.aprsMissingChannelPanel.Controls.Add(this.aprsSetupButton);
             this.aprsMissingChannelPanel.Controls.Add(this.missingAprsChannelLabel);
             this.aprsMissingChannelPanel.Dock = System.Windows.Forms.DockStyle.Top;
-            this.aprsMissingChannelPanel.Location = new System.Drawing.Point(0, 30);
+            this.aprsMissingChannelPanel.Location = new System.Drawing.Point(0, 37);
+            this.aprsMissingChannelPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.aprsMissingChannelPanel.Name = "aprsMissingChannelPanel";
-            this.aprsMissingChannelPanel.Size = new System.Drawing.Size(490, 30);
+            this.aprsMissingChannelPanel.Size = new System.Drawing.Size(669, 37);
             this.aprsMissingChannelPanel.TabIndex = 6;
             this.aprsMissingChannelPanel.Visible = false;
             // 
             // aprsSetupButton
             // 
             this.aprsSetupButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.aprsSetupButton.Location = new System.Drawing.Point(412, 4);
+            this.aprsSetupButton.Location = new System.Drawing.Point(565, 5);
+            this.aprsSetupButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.aprsSetupButton.Name = "aprsSetupButton";
-            this.aprsSetupButton.Size = new System.Drawing.Size(75, 23);
+            this.aprsSetupButton.Size = new System.Drawing.Size(100, 28);
             this.aprsSetupButton.TabIndex = 8;
             this.aprsSetupButton.Text = "Setup";
             this.aprsSetupButton.UseVisualStyleBackColor = true;
@@ -1118,7 +1139,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.missingAprsChannelLabel.AutoSize = true;
             this.missingAprsChannelLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.missingAprsChannelLabel.Location = new System.Drawing.Point(5, 7);
+            this.missingAprsChannelLabel.Location = new System.Drawing.Point(7, 9);
+            this.missingAprsChannelLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.missingAprsChannelLabel.Name = "missingAprsChannelLabel";
             this.missingAprsChannelLabel.Size = new System.Drawing.Size(410, 20);
             this.missingAprsChannelLabel.TabIndex = 7;
@@ -1131,9 +1153,10 @@
             this.aprsBottomPanel.Controls.Add(this.aprsTextBox);
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 482);
+            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 606);
+            this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
-            this.aprsBottomPanel.Size = new System.Drawing.Size(490, 38);
+            this.aprsBottomPanel.Size = new System.Drawing.Size(669, 47);
             this.aprsBottomPanel.TabIndex = 4;
             // 
             // aprsDestinationComboBox
@@ -1146,10 +1169,11 @@
             "ALL",
             "QST",
             "CQ"});
-            this.aprsDestinationComboBox.Location = new System.Drawing.Point(5, 6);
+            this.aprsDestinationComboBox.Location = new System.Drawing.Point(7, 7);
+            this.aprsDestinationComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.aprsDestinationComboBox.MaxLength = 9;
             this.aprsDestinationComboBox.Name = "aprsDestinationComboBox";
-            this.aprsDestinationComboBox.Size = new System.Drawing.Size(111, 33);
+            this.aprsDestinationComboBox.Size = new System.Drawing.Size(147, 33);
             this.aprsDestinationComboBox.TabIndex = 7;
             this.aprsDestinationComboBox.SelectionChangeCommitted += new System.EventHandler(this.aprsDestinationComboBox_SelectionChangeCommitted);
             this.aprsDestinationComboBox.TextChanged += new System.EventHandler(this.aprsDestinationComboBox_TextChanged);
@@ -1161,10 +1185,11 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.aprsTextBox.Enabled = false;
             this.aprsTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.aprsTextBox.Location = new System.Drawing.Point(122, 7);
+            this.aprsTextBox.Location = new System.Drawing.Point(163, 9);
+            this.aprsTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.aprsTextBox.MaxLength = 67;
             this.aprsTextBox.Name = "aprsTextBox";
-            this.aprsTextBox.Size = new System.Drawing.Size(284, 30);
+            this.aprsTextBox.Size = new System.Drawing.Size(393, 30);
             this.aprsTextBox.TabIndex = 1;
             this.aprsTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.aprsTextBox_KeyPress);
             // 
@@ -1172,9 +1197,10 @@
             // 
             this.aprsSendButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.aprsSendButton.Enabled = false;
-            this.aprsSendButton.Location = new System.Drawing.Point(412, 5);
+            this.aprsSendButton.Location = new System.Drawing.Point(565, 6);
+            this.aprsSendButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.aprsSendButton.Name = "aprsSendButton";
-            this.aprsSendButton.Size = new System.Drawing.Size(75, 28);
+            this.aprsSendButton.Size = new System.Drawing.Size(100, 34);
             this.aprsSendButton.TabIndex = 0;
             this.aprsSendButton.Text = "&Send";
             this.aprsSendButton.UseVisualStyleBackColor = true;
@@ -1188,8 +1214,9 @@
             this.aprsTopPanel.Controls.Add(this.aprsTitleLabel);
             this.aprsTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.aprsTopPanel.Location = new System.Drawing.Point(0, 0);
+            this.aprsTopPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.aprsTopPanel.Name = "aprsTopPanel";
-            this.aprsTopPanel.Size = new System.Drawing.Size(490, 30);
+            this.aprsTopPanel.Size = new System.Drawing.Size(669, 37);
             this.aprsTopPanel.TabIndex = 2;
             // 
             // aprsRouteComboBox
@@ -1197,9 +1224,10 @@
             this.aprsRouteComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.aprsRouteComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.aprsRouteComboBox.FormattingEnabled = true;
-            this.aprsRouteComboBox.Location = new System.Drawing.Point(366, 5);
+            this.aprsRouteComboBox.Location = new System.Drawing.Point(504, 6);
+            this.aprsRouteComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.aprsRouteComboBox.Name = "aprsRouteComboBox";
-            this.aprsRouteComboBox.Size = new System.Drawing.Size(94, 21);
+            this.aprsRouteComboBox.Size = new System.Drawing.Size(124, 24);
             this.aprsRouteComboBox.TabIndex = 3;
             this.aprsRouteComboBox.Visible = false;
             this.aprsRouteComboBox.SelectionChangeCommitted += new System.EventHandler(this.aprsRouteComboBox_SelectionChangeCommitted);
@@ -1208,9 +1236,10 @@
             // 
             this.aprsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.aprsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("aprsMenuPictureBox.Image")));
-            this.aprsMenuPictureBox.Location = new System.Drawing.Point(466, 5);
+            this.aprsMenuPictureBox.Location = new System.Drawing.Point(637, 6);
+            this.aprsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.aprsMenuPictureBox.Name = "aprsMenuPictureBox";
-            this.aprsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.aprsMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.aprsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.aprsMenuPictureBox.TabIndex = 2;
             this.aprsMenuPictureBox.TabStop = false;
@@ -1222,7 +1251,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.aprsTitleLabel.AutoSize = true;
             this.aprsTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.aprsTitleLabel.Location = new System.Drawing.Point(5, 5);
+            this.aprsTitleLabel.Location = new System.Drawing.Point(7, 6);
+            this.aprsTitleLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.aprsTitleLabel.Name = "aprsTitleLabel";
             this.aprsTitleLabel.Size = new System.Drawing.Size(66, 25);
             this.aprsTitleLabel.TabIndex = 0;
@@ -1236,8 +1266,9 @@
             this.mapTabPage.Controls.Add(this.mapTopPanel);
             this.mapTabPage.ImageIndex = 1;
             this.mapTabPage.Location = new System.Drawing.Point(4, 4);
+            this.mapTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mapTabPage.Name = "mapTabPage";
-            this.mapTabPage.Size = new System.Drawing.Size(491, 529);
+            this.mapTabPage.Size = new System.Drawing.Size(668, 642);
             this.mapTabPage.TabIndex = 0;
             this.mapTabPage.ToolTipText = "APRS";
             this.mapTabPage.UseVisualStyleBackColor = true;
@@ -1245,9 +1276,10 @@
             // mapZoomOutButton
             // 
             this.mapZoomOutButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.mapZoomOutButton.Location = new System.Drawing.Point(3, 76);
+            this.mapZoomOutButton.Location = new System.Drawing.Point(4, 94);
+            this.mapZoomOutButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mapZoomOutButton.Name = "mapZoomOutButton";
-            this.mapZoomOutButton.Size = new System.Drawing.Size(42, 34);
+            this.mapZoomOutButton.Size = new System.Drawing.Size(56, 42);
             this.mapZoomOutButton.TabIndex = 5;
             this.mapZoomOutButton.Text = "-";
             this.mapZoomOutButton.UseVisualStyleBackColor = true;
@@ -1256,9 +1288,10 @@
             // mapZoomInbutton
             // 
             this.mapZoomInbutton.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.mapZoomInbutton.Location = new System.Drawing.Point(3, 36);
+            this.mapZoomInbutton.Location = new System.Drawing.Point(4, 44);
+            this.mapZoomInbutton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mapZoomInbutton.Name = "mapZoomInbutton";
-            this.mapZoomInbutton.Size = new System.Drawing.Size(42, 34);
+            this.mapZoomInbutton.Size = new System.Drawing.Size(56, 42);
             this.mapZoomInbutton.TabIndex = 4;
             this.mapZoomInbutton.Text = "+";
             this.mapZoomInbutton.UseVisualStyleBackColor = true;
@@ -1270,8 +1303,9 @@
             this.mapTopPanel.Controls.Add(this.mapTopLabel);
             this.mapTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.mapTopPanel.Location = new System.Drawing.Point(0, 0);
+            this.mapTopPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mapTopPanel.Name = "mapTopPanel";
-            this.mapTopPanel.Size = new System.Drawing.Size(491, 30);
+            this.mapTopPanel.Size = new System.Drawing.Size(668, 37);
             this.mapTopPanel.TabIndex = 3;
             // 
             // mapTopLabel
@@ -1280,7 +1314,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.mapTopLabel.AutoSize = true;
             this.mapTopLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.mapTopLabel.Location = new System.Drawing.Point(5, 5);
+            this.mapTopLabel.Location = new System.Drawing.Point(7, 6);
+            this.mapTopLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.mapTopLabel.Name = "mapTopLabel";
             this.mapTopLabel.Size = new System.Drawing.Size(51, 25);
             this.mapTopLabel.TabIndex = 0;
@@ -1294,9 +1329,9 @@
             this.voiceTabPage.Controls.Add(this.panel6);
             this.voiceTabPage.ImageIndex = 9;
             this.voiceTabPage.Location = new System.Drawing.Point(4, 4);
-            this.voiceTabPage.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.voiceTabPage.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.voiceTabPage.Name = "voiceTabPage";
-            this.voiceTabPage.Size = new System.Drawing.Size(491, 529);
+            this.voiceTabPage.Size = new System.Drawing.Size(669, 653);
             this.voiceTabPage.TabIndex = 9;
             this.voiceTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1304,9 +1339,10 @@
             // 
             this.cancelVoiceButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.cancelVoiceButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.cancelVoiceButton.Location = new System.Drawing.Point(386, 424);
+            this.cancelVoiceButton.Location = new System.Drawing.Point(508, 533);
+            this.cancelVoiceButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.cancelVoiceButton.Name = "cancelVoiceButton";
-            this.cancelVoiceButton.Size = new System.Drawing.Size(91, 52);
+            this.cancelVoiceButton.Size = new System.Drawing.Size(121, 64);
             this.cancelVoiceButton.TabIndex = 6;
             this.cancelVoiceButton.Text = "Cancel";
             this.cancelVoiceButton.UseVisualStyleBackColor = true;
@@ -1315,12 +1351,12 @@
             // voiceHistoryTextBox
             // 
             this.voiceHistoryTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.voiceHistoryTextBox.Location = new System.Drawing.Point(0, 30);
-            this.voiceHistoryTextBox.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.voiceHistoryTextBox.Location = new System.Drawing.Point(0, 37);
+            this.voiceHistoryTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.voiceHistoryTextBox.Name = "voiceHistoryTextBox";
             this.voiceHistoryTextBox.ReadOnly = true;
             this.voiceHistoryTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.ForcedVertical;
-            this.voiceHistoryTextBox.Size = new System.Drawing.Size(491, 461);
+            this.voiceHistoryTextBox.Size = new System.Drawing.Size(669, 569);
             this.voiceHistoryTextBox.TabIndex = 0;
             this.voiceHistoryTextBox.Text = "";
             // 
@@ -1330,9 +1366,10 @@
             this.voiceBottomPanel.Controls.Add(this.speakTextBox);
             this.voiceBottomPanel.Controls.Add(this.speakButton);
             this.voiceBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.voiceBottomPanel.Location = new System.Drawing.Point(0, 491);
+            this.voiceBottomPanel.Location = new System.Drawing.Point(0, 606);
+            this.voiceBottomPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.voiceBottomPanel.Name = "voiceBottomPanel";
-            this.voiceBottomPanel.Size = new System.Drawing.Size(491, 38);
+            this.voiceBottomPanel.Size = new System.Drawing.Size(669, 47);
             this.voiceBottomPanel.TabIndex = 5;
             // 
             // speakTextBox
@@ -1341,10 +1378,11 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.speakTextBox.Enabled = false;
             this.speakTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.speakTextBox.Location = new System.Drawing.Point(7, 7);
+            this.speakTextBox.Location = new System.Drawing.Point(9, 9);
+            this.speakTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.speakTextBox.MaxLength = 1000;
             this.speakTextBox.Name = "speakTextBox";
-            this.speakTextBox.Size = new System.Drawing.Size(400, 30);
+            this.speakTextBox.Size = new System.Drawing.Size(546, 30);
             this.speakTextBox.TabIndex = 1;
             this.speakTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.speakTextBox_KeyPress);
             // 
@@ -1353,9 +1391,10 @@
             this.speakButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.speakButton.ContextMenuStrip = this.speakContextMenuStrip;
             this.speakButton.Enabled = false;
-            this.speakButton.Location = new System.Drawing.Point(413, 5);
+            this.speakButton.Location = new System.Drawing.Point(565, 6);
+            this.speakButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.speakButton.Name = "speakButton";
-            this.speakButton.Size = new System.Drawing.Size(75, 28);
+            this.speakButton.Size = new System.Drawing.Size(100, 34);
             this.speakButton.TabIndex = 0;
             this.speakButton.Text = "&Speak";
             this.speakButton.UseVisualStyleBackColor = true;
@@ -1394,17 +1433,19 @@
             this.panel6.Controls.Add(this.label6);
             this.panel6.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel6.Location = new System.Drawing.Point(0, 0);
+            this.panel6.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.panel6.Name = "panel6";
-            this.panel6.Size = new System.Drawing.Size(491, 30);
+            this.panel6.Size = new System.Drawing.Size(669, 37);
             this.panel6.TabIndex = 2;
             // 
             // voiceEnableButton
             // 
             this.voiceEnableButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.voiceEnableButton.Enabled = false;
-            this.voiceEnableButton.Location = new System.Drawing.Point(386, 3);
+            this.voiceEnableButton.Location = new System.Drawing.Point(529, 4);
+            this.voiceEnableButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.voiceEnableButton.Name = "voiceEnableButton";
-            this.voiceEnableButton.Size = new System.Drawing.Size(75, 23);
+            this.voiceEnableButton.Size = new System.Drawing.Size(100, 28);
             this.voiceEnableButton.TabIndex = 6;
             this.voiceEnableButton.Text = "&Enable";
             this.voiceEnableButton.UseVisualStyleBackColor = true;
@@ -1414,9 +1455,10 @@
             // 
             this.voiceMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.voiceMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("voiceMenuPictureBox.Image")));
-            this.voiceMenuPictureBox.Location = new System.Drawing.Point(467, 5);
+            this.voiceMenuPictureBox.Location = new System.Drawing.Point(637, 6);
+            this.voiceMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.voiceMenuPictureBox.Name = "voiceMenuPictureBox";
-            this.voiceMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.voiceMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.voiceMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.voiceMenuPictureBox.TabIndex = 3;
             this.voiceMenuPictureBox.TabStop = false;
@@ -1428,7 +1470,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.label6.AutoSize = true;
             this.label6.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label6.Location = new System.Drawing.Point(3, 5);
+            this.label6.Location = new System.Drawing.Point(4, 6);
+            this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(62, 25);
             this.label6.TabIndex = 1;
@@ -1441,16 +1484,17 @@
             this.mailTabPage.Controls.Add(this.panel2);
             this.mailTabPage.ImageIndex = 5;
             this.mailTabPage.Location = new System.Drawing.Point(4, 4);
+            this.mailTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mailTabPage.Name = "mailTabPage";
-            this.mailTabPage.Size = new System.Drawing.Size(491, 529);
+            this.mailTabPage.Size = new System.Drawing.Size(668, 642);
             this.mailTabPage.TabIndex = 5;
             this.mailTabPage.UseVisualStyleBackColor = true;
             // 
             // mailboxHorizontalSplitContainer
             // 
             this.mailboxHorizontalSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.mailboxHorizontalSplitContainer.Location = new System.Drawing.Point(0, 30);
-            this.mailboxHorizontalSplitContainer.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.mailboxHorizontalSplitContainer.Location = new System.Drawing.Point(0, 37);
+            this.mailboxHorizontalSplitContainer.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.mailboxHorizontalSplitContainer.Name = "mailboxHorizontalSplitContainer";
             this.mailboxHorizontalSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -1461,9 +1505,8 @@
             // mailboxHorizontalSplitContainer.Panel2
             // 
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailPreviewTextBox);
-            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(491, 469);
-            this.mailboxHorizontalSplitContainer.SplitterDistance = 212;
-            this.mailboxHorizontalSplitContainer.SplitterWidth = 3;
+            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(668, 568);
+            this.mailboxHorizontalSplitContainer.SplitterDistance = 256;
             this.mailboxHorizontalSplitContainer.TabIndex = 7;
             // 
             // mailboxVerticalSplitContainer
@@ -1471,7 +1514,7 @@
             this.mailboxVerticalSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mailboxVerticalSplitContainer.FixedPanel = System.Windows.Forms.FixedPanel.Panel1;
             this.mailboxVerticalSplitContainer.Location = new System.Drawing.Point(0, 0);
-            this.mailboxVerticalSplitContainer.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.mailboxVerticalSplitContainer.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.mailboxVerticalSplitContainer.Name = "mailboxVerticalSplitContainer";
             // 
             // mailboxVerticalSplitContainer.Panel1
@@ -1481,9 +1524,8 @@
             // mailboxVerticalSplitContainer.Panel2
             // 
             this.mailboxVerticalSplitContainer.Panel2.Controls.Add(this.mailboxListView);
-            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(491, 212);
+            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(668, 256);
             this.mailboxVerticalSplitContainer.SplitterDistance = 151;
-            this.mailboxVerticalSplitContainer.SplitterWidth = 3;
             this.mailboxVerticalSplitContainer.TabIndex = 6;
             // 
             // mailBoxesTreeView
@@ -1493,11 +1535,11 @@
             this.mailBoxesTreeView.ImageIndex = 0;
             this.mailBoxesTreeView.ImageList = this.mailBoxImageList;
             this.mailBoxesTreeView.Location = new System.Drawing.Point(0, 0);
-            this.mailBoxesTreeView.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.mailBoxesTreeView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.mailBoxesTreeView.Name = "mailBoxesTreeView";
             this.mailBoxesTreeView.SelectedImageIndex = 0;
             this.mailBoxesTreeView.ShowRootLines = false;
-            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 212);
+            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 256);
             this.mailBoxesTreeView.TabIndex = 0;
             this.mailBoxesTreeView.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.mailBoxesTreeView_NodeMouseClick);
             this.mailBoxesTreeView.DragDrop += new System.Windows.Forms.DragEventHandler(this.mailBoxesTreeView_DragDrop);
@@ -1530,8 +1572,9 @@
             this.mailboxListView.GridLines = true;
             this.mailboxListView.HideSelection = false;
             this.mailboxListView.Location = new System.Drawing.Point(0, 0);
+            this.mailboxListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mailboxListView.Name = "mailboxListView";
-            this.mailboxListView.Size = new System.Drawing.Size(337, 212);
+            this.mailboxListView.Size = new System.Drawing.Size(513, 256);
             this.mailboxListView.SmallImageList = this.mainImageList;
             this.mailboxListView.TabIndex = 5;
             this.mailboxListView.UseCompatibleStateImageBehavior = false;
@@ -1648,10 +1691,10 @@
             this.mailPreviewTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.mailPreviewTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mailPreviewTextBox.Location = new System.Drawing.Point(0, 0);
-            this.mailPreviewTextBox.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.mailPreviewTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.mailPreviewTextBox.Name = "mailPreviewTextBox";
             this.mailPreviewTextBox.ReadOnly = true;
-            this.mailPreviewTextBox.Size = new System.Drawing.Size(491, 254);
+            this.mailPreviewTextBox.Size = new System.Drawing.Size(668, 308);
             this.mailPreviewTextBox.TabIndex = 0;
             this.mailPreviewTextBox.Text = "";
             // 
@@ -1660,9 +1703,10 @@
             this.mailTransferStatusPanel.BackColor = System.Drawing.Color.Silver;
             this.mailTransferStatusPanel.Controls.Add(this.mailTransferStatusLabel);
             this.mailTransferStatusPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 499);
+            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 605);
+            this.mailTransferStatusPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mailTransferStatusPanel.Name = "mailTransferStatusPanel";
-            this.mailTransferStatusPanel.Size = new System.Drawing.Size(491, 30);
+            this.mailTransferStatusPanel.Size = new System.Drawing.Size(668, 37);
             this.mailTransferStatusPanel.TabIndex = 8;
             this.mailTransferStatusPanel.Visible = false;
             // 
@@ -1671,9 +1715,10 @@
             this.mailTransferStatusLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.mailTransferStatusLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.mailTransferStatusLabel.Location = new System.Drawing.Point(3, 5);
+            this.mailTransferStatusLabel.Location = new System.Drawing.Point(4, 6);
+            this.mailTransferStatusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.mailTransferStatusLabel.Name = "mailTransferStatusLabel";
-            this.mailTransferStatusLabel.Size = new System.Drawing.Size(484, 20);
+            this.mailTransferStatusLabel.Size = new System.Drawing.Size(658, 25);
             this.mailTransferStatusLabel.TabIndex = 1;
             this.mailTransferStatusLabel.Text = "Disconnected";
             // 
@@ -1686,16 +1731,18 @@
             this.panel2.Controls.Add(this.mailTitleLabel);
             this.panel2.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel2.Location = new System.Drawing.Point(0, 0);
+            this.panel2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(491, 30);
+            this.panel2.Size = new System.Drawing.Size(668, 37);
             this.panel2.TabIndex = 2;
             // 
             // newMailButton
             // 
             this.newMailButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.newMailButton.Location = new System.Drawing.Point(304, 3);
+            this.newMailButton.Location = new System.Drawing.Point(418, 4);
+            this.newMailButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.newMailButton.Name = "newMailButton";
-            this.newMailButton.Size = new System.Drawing.Size(75, 23);
+            this.newMailButton.Size = new System.Drawing.Size(100, 28);
             this.newMailButton.TabIndex = 6;
             this.newMailButton.Text = "&New Mail";
             this.newMailButton.UseVisualStyleBackColor = true;
@@ -1705,9 +1752,10 @@
             // 
             this.mailConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.mailConnectButton.Enabled = false;
-            this.mailConnectButton.Location = new System.Drawing.Point(385, 3);
+            this.mailConnectButton.Location = new System.Drawing.Point(526, 4);
+            this.mailConnectButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mailConnectButton.Name = "mailConnectButton";
-            this.mailConnectButton.Size = new System.Drawing.Size(75, 23);
+            this.mailConnectButton.Size = new System.Drawing.Size(100, 28);
             this.mailConnectButton.TabIndex = 5;
             this.mailConnectButton.Text = "&Connect";
             this.mailConnectButton.UseVisualStyleBackColor = true;
@@ -1718,9 +1766,10 @@
             this.mailMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.mailMenuPictureBox.ContextMenuStrip = this.stationsTabContextMenuStrip;
             this.mailMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("mailMenuPictureBox.Image")));
-            this.mailMenuPictureBox.Location = new System.Drawing.Point(467, 5);
+            this.mailMenuPictureBox.Location = new System.Drawing.Point(636, 6);
+            this.mailMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mailMenuPictureBox.Name = "mailMenuPictureBox";
-            this.mailMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.mailMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.mailMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.mailMenuPictureBox.TabIndex = 4;
             this.mailMenuPictureBox.TabStop = false;
@@ -1755,7 +1804,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.mailTitleLabel.AutoSize = true;
             this.mailTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.mailTitleLabel.Location = new System.Drawing.Point(3, 5);
+            this.mailTitleLabel.Location = new System.Drawing.Point(4, 6);
+            this.mailTitleLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.mailTitleLabel.Name = "mailTitleLabel";
             this.mailTitleLabel.Size = new System.Drawing.Size(48, 25);
             this.mailTitleLabel.TabIndex = 1;
@@ -1768,8 +1818,9 @@
             this.terminalTabPage.Controls.Add(this.terminalTopPanel);
             this.terminalTabPage.ImageKey = "terminal-32.png";
             this.terminalTabPage.Location = new System.Drawing.Point(4, 4);
+            this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.terminalTabPage.Name = "terminalTabPage";
-            this.terminalTabPage.Size = new System.Drawing.Size(491, 529);
+            this.terminalTabPage.Size = new System.Drawing.Size(668, 642);
             this.terminalTabPage.TabIndex = 2;
             this.terminalTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1780,10 +1831,11 @@
             this.terminalTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
             this.terminalTextBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold);
             this.terminalTextBox.ForeColor = System.Drawing.Color.Gainsboro;
-            this.terminalTextBox.Location = new System.Drawing.Point(0, 30);
+            this.terminalTextBox.Location = new System.Drawing.Point(0, 37);
+            this.terminalTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.terminalTextBox.Name = "terminalTextBox";
             this.terminalTextBox.ReadOnly = true;
-            this.terminalTextBox.Size = new System.Drawing.Size(491, 462);
+            this.terminalTextBox.Size = new System.Drawing.Size(668, 559);
             this.terminalTextBox.TabIndex = 4;
             this.terminalTextBox.Text = "";
             // 
@@ -1793,9 +1845,10 @@
             this.terminalBottomPanel.Controls.Add(this.terminalInputTextBox);
             this.terminalBottomPanel.Controls.Add(this.terminalSendButton);
             this.terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 492);
+            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 596);
+            this.terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.terminalBottomPanel.Name = "terminalBottomPanel";
-            this.terminalBottomPanel.Size = new System.Drawing.Size(491, 37);
+            this.terminalBottomPanel.Size = new System.Drawing.Size(668, 46);
             this.terminalBottomPanel.TabIndex = 3;
             // 
             // terminalInputTextBox
@@ -1804,9 +1857,10 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.terminalInputTextBox.Enabled = false;
             this.terminalInputTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.terminalInputTextBox.Location = new System.Drawing.Point(7, 6);
+            this.terminalInputTextBox.Location = new System.Drawing.Point(9, 7);
+            this.terminalInputTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.terminalInputTextBox.Name = "terminalInputTextBox";
-            this.terminalInputTextBox.Size = new System.Drawing.Size(400, 30);
+            this.terminalInputTextBox.Size = new System.Drawing.Size(545, 30);
             this.terminalInputTextBox.TabIndex = 1;
             this.terminalInputTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.terminalInputTextBox_KeyPress);
             // 
@@ -1814,9 +1868,10 @@
             // 
             this.terminalSendButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.terminalSendButton.Enabled = false;
-            this.terminalSendButton.Location = new System.Drawing.Point(413, 4);
+            this.terminalSendButton.Location = new System.Drawing.Point(564, 5);
+            this.terminalSendButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.terminalSendButton.Name = "terminalSendButton";
-            this.terminalSendButton.Size = new System.Drawing.Size(75, 28);
+            this.terminalSendButton.Size = new System.Drawing.Size(100, 34);
             this.terminalSendButton.TabIndex = 0;
             this.terminalSendButton.Text = "&Send";
             this.terminalSendButton.UseVisualStyleBackColor = true;
@@ -1830,17 +1885,19 @@
             this.terminalTopPanel.Controls.Add(this.terminalTitleLabel);
             this.terminalTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.terminalTopPanel.Location = new System.Drawing.Point(0, 0);
+            this.terminalTopPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.terminalTopPanel.Name = "terminalTopPanel";
-            this.terminalTopPanel.Size = new System.Drawing.Size(491, 30);
+            this.terminalTopPanel.Size = new System.Drawing.Size(668, 37);
             this.terminalTopPanel.TabIndex = 1;
             // 
             // terminalConnectButton
             // 
             this.terminalConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.terminalConnectButton.Enabled = false;
-            this.terminalConnectButton.Location = new System.Drawing.Point(385, 3);
+            this.terminalConnectButton.Location = new System.Drawing.Point(526, 4);
+            this.terminalConnectButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.terminalConnectButton.Name = "terminalConnectButton";
-            this.terminalConnectButton.Size = new System.Drawing.Size(75, 23);
+            this.terminalConnectButton.Size = new System.Drawing.Size(100, 28);
             this.terminalConnectButton.TabIndex = 4;
             this.terminalConnectButton.Text = "&Connect";
             this.terminalConnectButton.UseVisualStyleBackColor = true;
@@ -1850,9 +1907,10 @@
             // 
             this.terminalMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.terminalMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("terminalMenuPictureBox.Image")));
-            this.terminalMenuPictureBox.Location = new System.Drawing.Point(467, 5);
+            this.terminalMenuPictureBox.Location = new System.Drawing.Point(636, 6);
+            this.terminalMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.terminalMenuPictureBox.Name = "terminalMenuPictureBox";
-            this.terminalMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.terminalMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.terminalMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.terminalMenuPictureBox.TabIndex = 3;
             this.terminalMenuPictureBox.TabStop = false;
@@ -1864,7 +1922,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.terminalTitleLabel.AutoSize = true;
             this.terminalTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.terminalTitleLabel.Location = new System.Drawing.Point(3, 5);
+            this.terminalTitleLabel.Location = new System.Drawing.Point(4, 6);
+            this.terminalTitleLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.terminalTitleLabel.Name = "terminalTitleLabel";
             this.terminalTitleLabel.Size = new System.Drawing.Size(88, 25);
             this.terminalTitleLabel.TabIndex = 1;
@@ -1876,8 +1935,9 @@
             this.addressesTabPage.Controls.Add(this.panel1);
             this.addressesTabPage.ImageIndex = 4;
             this.addressesTabPage.Location = new System.Drawing.Point(4, 4);
+            this.addressesTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.addressesTabPage.Name = "addressesTabPage";
-            this.addressesTabPage.Size = new System.Drawing.Size(491, 529);
+            this.addressesTabPage.Size = new System.Drawing.Size(668, 642);
             this.addressesTabPage.TabIndex = 4;
             this.addressesTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1909,9 +1969,10 @@
             listViewGroup5});
             this.mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.mainAddressBookListView.HideSelection = false;
-            this.mainAddressBookListView.Location = new System.Drawing.Point(0, 30);
+            this.mainAddressBookListView.Location = new System.Drawing.Point(0, 37);
+            this.mainAddressBookListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mainAddressBookListView.Name = "mainAddressBookListView";
-            this.mainAddressBookListView.Size = new System.Drawing.Size(491, 499);
+            this.mainAddressBookListView.Size = new System.Drawing.Size(668, 605);
             this.mainAddressBookListView.SmallImageList = this.mainImageList;
             this.mainAddressBookListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.mainAddressBookListView.TabIndex = 4;
@@ -1976,8 +2037,9 @@
             this.panel1.Controls.Add(this.label1);
             this.panel1.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel1.Location = new System.Drawing.Point(0, 0);
+            this.panel1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(491, 30);
+            this.panel1.Size = new System.Drawing.Size(668, 37);
             this.panel1.TabIndex = 3;
             // 
             // stationsMenuPictureBox
@@ -1985,9 +2047,10 @@
             this.stationsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.stationsMenuPictureBox.ContextMenuStrip = this.stationsTabContextMenuStrip;
             this.stationsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("stationsMenuPictureBox.Image")));
-            this.stationsMenuPictureBox.Location = new System.Drawing.Point(467, 5);
+            this.stationsMenuPictureBox.Location = new System.Drawing.Point(636, 6);
+            this.stationsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.stationsMenuPictureBox.Name = "stationsMenuPictureBox";
-            this.stationsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.stationsMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.stationsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.stationsMenuPictureBox.TabIndex = 3;
             this.stationsMenuPictureBox.TabStop = false;
@@ -1996,9 +2059,10 @@
             // addStationButton
             // 
             this.addStationButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.addStationButton.Location = new System.Drawing.Point(304, 3);
+            this.addStationButton.Location = new System.Drawing.Point(418, 4);
+            this.addStationButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.addStationButton.Name = "addStationButton";
-            this.addStationButton.Size = new System.Drawing.Size(75, 23);
+            this.addStationButton.Size = new System.Drawing.Size(100, 28);
             this.addStationButton.TabIndex = 2;
             this.addStationButton.Text = "&Add";
             this.addStationButton.UseVisualStyleBackColor = true;
@@ -2008,9 +2072,10 @@
             // 
             this.removeStationButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.removeStationButton.Enabled = false;
-            this.removeStationButton.Location = new System.Drawing.Point(385, 3);
+            this.removeStationButton.Location = new System.Drawing.Point(526, 4);
+            this.removeStationButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.removeStationButton.Name = "removeStationButton";
-            this.removeStationButton.Size = new System.Drawing.Size(75, 23);
+            this.removeStationButton.Size = new System.Drawing.Size(100, 28);
             this.removeStationButton.TabIndex = 1;
             this.removeStationButton.Text = "&Remove";
             this.removeStationButton.UseVisualStyleBackColor = true;
@@ -2022,7 +2087,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(5, 5);
+            this.label1.Location = new System.Drawing.Point(7, 6);
+            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(135, 25);
             this.label1.TabIndex = 0;
@@ -2034,15 +2100,17 @@
             this.bbsTabPage.Controls.Add(this.panel4);
             this.bbsTabPage.ImageIndex = 8;
             this.bbsTabPage.Location = new System.Drawing.Point(4, 4);
+            this.bbsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.bbsTabPage.Name = "bbsTabPage";
-            this.bbsTabPage.Size = new System.Drawing.Size(491, 529);
+            this.bbsTabPage.Size = new System.Drawing.Size(668, 642);
             this.bbsTabPage.TabIndex = 7;
             this.bbsTabPage.UseVisualStyleBackColor = true;
             // 
             // bbsSplitContainer
             // 
             this.bbsSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.bbsSplitContainer.Location = new System.Drawing.Point(0, 30);
+            this.bbsSplitContainer.Location = new System.Drawing.Point(0, 37);
+            this.bbsSplitContainer.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.bbsSplitContainer.Name = "bbsSplitContainer";
             this.bbsSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -2053,8 +2121,9 @@
             // bbsSplitContainer.Panel2
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
-            this.bbsSplitContainer.Size = new System.Drawing.Size(491, 499);
-            this.bbsSplitContainer.SplitterDistance = 107;
+            this.bbsSplitContainer.Size = new System.Drawing.Size(668, 605);
+            this.bbsSplitContainer.SplitterDistance = 129;
+            this.bbsSplitContainer.SplitterWidth = 5;
             this.bbsSplitContainer.TabIndex = 7;
             // 
             // bbsListView
@@ -2080,8 +2149,9 @@
             this.bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.bbsListView.HideSelection = false;
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
+            this.bbsListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.bbsListView.Name = "bbsListView";
-            this.bbsListView.Size = new System.Drawing.Size(491, 107);
+            this.bbsListView.Size = new System.Drawing.Size(668, 129);
             this.bbsListView.SmallImageList = this.mainImageList;
             this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.bbsListView.TabIndex = 6;
@@ -2112,9 +2182,10 @@
             this.bbsTextBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold);
             this.bbsTextBox.ForeColor = System.Drawing.Color.Gainsboro;
             this.bbsTextBox.Location = new System.Drawing.Point(0, 0);
+            this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(491, 388);
+            this.bbsTextBox.Size = new System.Drawing.Size(668, 471);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -2126,17 +2197,19 @@
             this.panel4.Controls.Add(this.label3);
             this.panel4.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel4.Location = new System.Drawing.Point(0, 0);
+            this.panel4.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.panel4.Name = "panel4";
-            this.panel4.Size = new System.Drawing.Size(491, 30);
+            this.panel4.Size = new System.Drawing.Size(668, 37);
             this.panel4.TabIndex = 5;
             // 
             // bbsMenuPictureBox
             // 
             this.bbsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.bbsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("bbsMenuPictureBox.Image")));
-            this.bbsMenuPictureBox.Location = new System.Drawing.Point(467, 5);
+            this.bbsMenuPictureBox.Location = new System.Drawing.Point(636, 6);
+            this.bbsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.bbsMenuPictureBox.Name = "bbsMenuPictureBox";
-            this.bbsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.bbsMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.bbsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.bbsMenuPictureBox.TabIndex = 4;
             this.bbsMenuPictureBox.TabStop = false;
@@ -2145,9 +2218,10 @@
             // bbsConnectButton
             // 
             this.bbsConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.bbsConnectButton.Location = new System.Drawing.Point(385, 3);
+            this.bbsConnectButton.Location = new System.Drawing.Point(526, 4);
+            this.bbsConnectButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.bbsConnectButton.Name = "bbsConnectButton";
-            this.bbsConnectButton.Size = new System.Drawing.Size(75, 23);
+            this.bbsConnectButton.Size = new System.Drawing.Size(100, 28);
             this.bbsConnectButton.TabIndex = 2;
             this.bbsConnectButton.Text = "&Activate";
             this.bbsConnectButton.UseVisualStyleBackColor = true;
@@ -2159,7 +2233,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label3.Location = new System.Drawing.Point(5, 5);
+            this.label3.Location = new System.Drawing.Point(7, 6);
+            this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(52, 25);
             this.label3.TabIndex = 0;
@@ -2171,17 +2246,17 @@
             this.torrentTabPage.Controls.Add(this.panel5);
             this.torrentTabPage.ImageIndex = 7;
             this.torrentTabPage.Location = new System.Drawing.Point(4, 4);
-            this.torrentTabPage.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.torrentTabPage.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentTabPage.Name = "torrentTabPage";
-            this.torrentTabPage.Size = new System.Drawing.Size(491, 529);
+            this.torrentTabPage.Size = new System.Drawing.Size(668, 642);
             this.torrentTabPage.TabIndex = 8;
             this.torrentTabPage.UseVisualStyleBackColor = true;
             // 
             // torrentSplitContainer
             // 
             this.torrentSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentSplitContainer.Location = new System.Drawing.Point(0, 30);
-            this.torrentSplitContainer.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.torrentSplitContainer.Location = new System.Drawing.Point(0, 37);
+            this.torrentSplitContainer.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentSplitContainer.Name = "torrentSplitContainer";
             this.torrentSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -2192,9 +2267,8 @@
             // torrentSplitContainer.Panel2
             // 
             this.torrentSplitContainer.Panel2.Controls.Add(this.torrentTabControl);
-            this.torrentSplitContainer.Size = new System.Drawing.Size(491, 499);
-            this.torrentSplitContainer.SplitterDistance = 225;
-            this.torrentSplitContainer.SplitterWidth = 3;
+            this.torrentSplitContainer.Size = new System.Drawing.Size(668, 605);
+            this.torrentSplitContainer.SplitterDistance = 272;
             this.torrentSplitContainer.TabIndex = 7;
             // 
             // torrentListView
@@ -2209,9 +2283,9 @@
             this.torrentListView.FullRowSelect = true;
             this.torrentListView.HideSelection = false;
             this.torrentListView.Location = new System.Drawing.Point(0, 0);
-            this.torrentListView.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.torrentListView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentListView.Name = "torrentListView";
-            this.torrentListView.Size = new System.Drawing.Size(491, 225);
+            this.torrentListView.Size = new System.Drawing.Size(668, 272);
             this.torrentListView.SmallImageList = this.mainImageList;
             this.torrentListView.TabIndex = 0;
             this.torrentListView.UseCompatibleStateImageBehavior = false;
@@ -2303,20 +2377,20 @@
             this.torrentTabControl.Controls.Add(this.tabPage2);
             this.torrentTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.torrentTabControl.Location = new System.Drawing.Point(0, 0);
-            this.torrentTabControl.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.torrentTabControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentTabControl.Name = "torrentTabControl";
             this.torrentTabControl.SelectedIndex = 0;
-            this.torrentTabControl.Size = new System.Drawing.Size(491, 271);
+            this.torrentTabControl.Size = new System.Drawing.Size(668, 329);
             this.torrentTabControl.TabIndex = 0;
             // 
             // tabPage1
             // 
             this.tabPage1.Controls.Add(this.torrentDetailsListView);
-            this.tabPage1.Location = new System.Drawing.Point(4, 22);
-            this.tabPage1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.tabPage1.Location = new System.Drawing.Point(4, 25);
+            this.tabPage1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage1.Name = "tabPage1";
-            this.tabPage1.Padding = new System.Windows.Forms.Padding(2, 2, 2, 2);
-            this.tabPage1.Size = new System.Drawing.Size(483, 245);
+            this.tabPage1.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.tabPage1.Size = new System.Drawing.Size(660, 300);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Details";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -2329,10 +2403,10 @@
             this.torrentDetailsListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.torrentDetailsListView.FullRowSelect = true;
             this.torrentDetailsListView.HideSelection = false;
-            this.torrentDetailsListView.Location = new System.Drawing.Point(2, 2);
-            this.torrentDetailsListView.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.torrentDetailsListView.Location = new System.Drawing.Point(3, 2);
+            this.torrentDetailsListView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentDetailsListView.Name = "torrentDetailsListView";
-            this.torrentDetailsListView.Size = new System.Drawing.Size(479, 241);
+            this.torrentDetailsListView.Size = new System.Drawing.Size(654, 296);
             this.torrentDetailsListView.TabIndex = 0;
             this.torrentDetailsListView.UseCompatibleStateImageBehavior = false;
             this.torrentDetailsListView.View = System.Windows.Forms.View.Details;
@@ -2351,11 +2425,11 @@
             // tabPage2
             // 
             this.tabPage2.Controls.Add(this.torrentBlocksUserControl);
-            this.tabPage2.Location = new System.Drawing.Point(4, 22);
-            this.tabPage2.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.tabPage2.Location = new System.Drawing.Point(4, 25);
+            this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
-            this.tabPage2.Padding = new System.Windows.Forms.Padding(2, 2, 2, 2);
-            this.tabPage2.Size = new System.Drawing.Size(494, 244);
+            this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.tabPage2.Size = new System.Drawing.Size(647, 305);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -2364,10 +2438,10 @@
             // 
             this.torrentBlocksUserControl.AutoScroll = true;
             this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentBlocksUserControl.Location = new System.Drawing.Point(2, 2);
-            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
+            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(490, 240);
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(641, 301);
             this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // panel5
@@ -2379,16 +2453,18 @@
             this.panel5.Controls.Add(this.label4);
             this.panel5.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel5.Location = new System.Drawing.Point(0, 0);
+            this.panel5.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.panel5.Name = "panel5";
-            this.panel5.Size = new System.Drawing.Size(491, 30);
+            this.panel5.Size = new System.Drawing.Size(668, 37);
             this.panel5.TabIndex = 6;
             // 
             // torrentAddFileButton
             // 
             this.torrentAddFileButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.torrentAddFileButton.Location = new System.Drawing.Point(305, 3);
+            this.torrentAddFileButton.Location = new System.Drawing.Point(420, 4);
+            this.torrentAddFileButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.torrentAddFileButton.Name = "torrentAddFileButton";
-            this.torrentAddFileButton.Size = new System.Drawing.Size(75, 23);
+            this.torrentAddFileButton.Size = new System.Drawing.Size(100, 28);
             this.torrentAddFileButton.TabIndex = 5;
             this.torrentAddFileButton.Text = "Add &File...";
             this.torrentAddFileButton.UseVisualStyleBackColor = true;
@@ -2399,9 +2475,10 @@
             this.torrentMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.torrentMenuPictureBox.ContextMenuStrip = this.torrentTabContextMenuStrip;
             this.torrentMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("torrentMenuPictureBox.Image")));
-            this.torrentMenuPictureBox.Location = new System.Drawing.Point(467, 5);
+            this.torrentMenuPictureBox.Location = new System.Drawing.Point(636, 6);
+            this.torrentMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.torrentMenuPictureBox.Name = "torrentMenuPictureBox";
-            this.torrentMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.torrentMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.torrentMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.torrentMenuPictureBox.TabIndex = 4;
             this.torrentMenuPictureBox.TabStop = false;
@@ -2427,9 +2504,10 @@
             // torrentConnectButton
             // 
             this.torrentConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.torrentConnectButton.Location = new System.Drawing.Point(385, 3);
+            this.torrentConnectButton.Location = new System.Drawing.Point(526, 4);
+            this.torrentConnectButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.torrentConnectButton.Name = "torrentConnectButton";
-            this.torrentConnectButton.Size = new System.Drawing.Size(75, 23);
+            this.torrentConnectButton.Size = new System.Drawing.Size(100, 28);
             this.torrentConnectButton.TabIndex = 2;
             this.torrentConnectButton.Text = "&Activate";
             this.torrentConnectButton.UseVisualStyleBackColor = true;
@@ -2441,7 +2519,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.label4.AutoSize = true;
             this.label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label4.Location = new System.Drawing.Point(5, 5);
+            this.label4.Location = new System.Drawing.Point(7, 6);
+            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(75, 25);
             this.label4.TabIndex = 0;
@@ -2453,15 +2532,17 @@
             this.packetsTabPage.Controls.Add(this.panel3);
             this.packetsTabPage.ImageIndex = 6;
             this.packetsTabPage.Location = new System.Drawing.Point(4, 4);
+            this.packetsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.packetsTabPage.Name = "packetsTabPage";
-            this.packetsTabPage.Size = new System.Drawing.Size(491, 529);
+            this.packetsTabPage.Size = new System.Drawing.Size(668, 642);
             this.packetsTabPage.TabIndex = 6;
             this.packetsTabPage.UseVisualStyleBackColor = true;
             // 
             // packetsSplitContainer
             // 
             this.packetsSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.packetsSplitContainer.Location = new System.Drawing.Point(0, 30);
+            this.packetsSplitContainer.Location = new System.Drawing.Point(0, 37);
+            this.packetsSplitContainer.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.packetsSplitContainer.Name = "packetsSplitContainer";
             this.packetsSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -2472,8 +2553,9 @@
             // packetsSplitContainer.Panel2
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
-            this.packetsSplitContainer.Size = new System.Drawing.Size(491, 499);
-            this.packetsSplitContainer.SplitterDistance = 220;
+            this.packetsSplitContainer.Size = new System.Drawing.Size(668, 605);
+            this.packetsSplitContainer.SplitterDistance = 266;
+            this.packetsSplitContainer.SplitterWidth = 5;
             this.packetsSplitContainer.TabIndex = 6;
             // 
             // packetsListView
@@ -2489,8 +2571,9 @@
             this.packetsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.packetsListView.HideSelection = false;
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
+            this.packetsListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.packetsListView.Name = "packetsListView";
-            this.packetsListView.Size = new System.Drawing.Size(491, 220);
+            this.packetsListView.Size = new System.Drawing.Size(668, 266);
             this.packetsListView.SmallImageList = this.mainImageList;
             this.packetsListView.TabIndex = 5;
             this.packetsListView.UseCompatibleStateImageBehavior = false;
@@ -2568,8 +2651,9 @@
             this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.packetDecodeListView.HideSelection = false;
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
+            this.packetDecodeListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(491, 275);
+            this.packetDecodeListView.Size = new System.Drawing.Size(668, 334);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;
@@ -2606,17 +2690,19 @@
             this.panel3.Controls.Add(this.label5);
             this.panel3.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel3.Location = new System.Drawing.Point(0, 0);
+            this.panel3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.panel3.Name = "panel3";
-            this.panel3.Size = new System.Drawing.Size(491, 30);
+            this.panel3.Size = new System.Drawing.Size(668, 37);
             this.panel3.TabIndex = 3;
             // 
             // packetsMenuPictureBox
             // 
             this.packetsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.packetsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("packetsMenuPictureBox.Image")));
-            this.packetsMenuPictureBox.Location = new System.Drawing.Point(467, 5);
+            this.packetsMenuPictureBox.Location = new System.Drawing.Point(636, 6);
+            this.packetsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.packetsMenuPictureBox.Name = "packetsMenuPictureBox";
-            this.packetsMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.packetsMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.packetsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.packetsMenuPictureBox.TabIndex = 2;
             this.packetsMenuPictureBox.TabStop = false;
@@ -2628,7 +2714,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.label5.AutoSize = true;
             this.label5.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label5.Location = new System.Drawing.Point(5, 5);
+            this.label5.Location = new System.Drawing.Point(7, 6);
+            this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(147, 25);
             this.label5.TabIndex = 0;
@@ -2640,8 +2727,9 @@
             this.debugTabPage.Controls.Add(this.debugControlsPanel);
             this.debugTabPage.ImageIndex = 0;
             this.debugTabPage.Location = new System.Drawing.Point(4, 4);
+            this.debugTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.debugTabPage.Name = "debugTabPage";
-            this.debugTabPage.Size = new System.Drawing.Size(491, 529);
+            this.debugTabPage.Size = new System.Drawing.Size(668, 642);
             this.debugTabPage.TabIndex = 1;
             this.debugTabPage.ToolTipText = "Debug";
             this.debugTabPage.UseVisualStyleBackColor = true;
@@ -2651,13 +2739,13 @@
             this.debugTextBox.BackColor = System.Drawing.Color.LightGray;
             this.debugTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.debugTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.debugTextBox.Location = new System.Drawing.Point(0, 30);
+            this.debugTextBox.Location = new System.Drawing.Point(0, 37);
             this.debugTextBox.Margin = new System.Windows.Forms.Padding(0);
             this.debugTextBox.Multiline = true;
             this.debugTextBox.Name = "debugTextBox";
             this.debugTextBox.ReadOnly = true;
             this.debugTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.debugTextBox.Size = new System.Drawing.Size(491, 499);
+            this.debugTextBox.Size = new System.Drawing.Size(668, 605);
             this.debugTextBox.TabIndex = 1;
             this.debugTextBox.WordWrap = false;
             // 
@@ -2668,17 +2756,19 @@
             this.debugControlsPanel.Controls.Add(this.label2);
             this.debugControlsPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.debugControlsPanel.Location = new System.Drawing.Point(0, 0);
+            this.debugControlsPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.debugControlsPanel.Name = "debugControlsPanel";
-            this.debugControlsPanel.Size = new System.Drawing.Size(491, 30);
+            this.debugControlsPanel.Size = new System.Drawing.Size(668, 37);
             this.debugControlsPanel.TabIndex = 0;
             // 
             // debugMenuPictureBox
             // 
             this.debugMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.debugMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("debugMenuPictureBox.Image")));
-            this.debugMenuPictureBox.Location = new System.Drawing.Point(467, 5);
+            this.debugMenuPictureBox.Location = new System.Drawing.Point(636, 6);
+            this.debugMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.debugMenuPictureBox.Name = "debugMenuPictureBox";
-            this.debugMenuPictureBox.Size = new System.Drawing.Size(20, 20);
+            this.debugMenuPictureBox.Size = new System.Drawing.Size(27, 25);
             this.debugMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.debugMenuPictureBox.TabIndex = 3;
             this.debugMenuPictureBox.TabStop = false;
@@ -2690,7 +2780,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.Location = new System.Drawing.Point(3, 5);
+            this.label2.Location = new System.Drawing.Point(4, 6);
+            this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(164, 25);
             this.label2.TabIndex = 1;
@@ -3154,16 +3245,17 @@
             // 
             // MainForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(813, 578);
+            this.ClientSize = new System.Drawing.Size(1084, 711);
             this.Controls.Add(this.mainTabControl);
             this.Controls.Add(this.radioPanel);
             this.Controls.Add(this.mainStatusStrip);
             this.Controls.Add(this.mainMenuStrip);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.mainMenuStrip;
-            this.MinimumSize = new System.Drawing.Size(829, 617);
+            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.MinimumSize = new System.Drawing.Size(1099, 749);
             this.Name = "MainForm";
             this.Text = "Handi-Talkie Commander";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainForm_FormClosing);
