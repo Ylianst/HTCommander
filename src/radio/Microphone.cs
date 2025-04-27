@@ -35,7 +35,7 @@ namespace HTCommander.radio
 
             if (string.IsNullOrEmpty(deviceid))
             {
-                targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
+                try { targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console); } catch (Exception) { }
                 if (targetDevice == selectedDevice) return;
                 selectedDevice = targetDevice;
                 if (capture != null) StartListening();
@@ -56,7 +56,7 @@ namespace HTCommander.radio
             }
 
             // Fallback to default device if the specified one is not found
-            targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
+            try { targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console); } catch (Exception) { }
             if (targetDevice == selectedDevice) return;
             selectedDevice = targetDevice;
             if (capture != null) StartListening();

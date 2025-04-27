@@ -205,7 +205,7 @@ namespace HTCommander
                 }
                 else
                 {
-                    targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                    try { targetDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia); } catch (Exception) { }
                 }
                 if (targetDevice == null) { Debug("No audio device found."); return; }
             }
