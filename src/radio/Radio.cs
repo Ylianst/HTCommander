@@ -575,10 +575,7 @@ namespace HTCommander
 
         public void SetSquelchLevel(int level)
         {
-            RadioSettings newSettings = new RadioSettings(Settings);
-            newSettings.squelch_level = level;
-            WriteSettings(newSettings.ToByteArray());
-            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_SETTINGS, null);
+            WriteSettings(Settings.ToByteArray(Settings.channel_a, Settings.channel_b, Settings.double_channel, Settings.scan, level));
         }
 
         public void SetBssSettings(RadioBssSettings bss)

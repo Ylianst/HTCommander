@@ -91,7 +91,7 @@ namespace HTCommander
                 audioButton.Enabled = true;
                 recordButton.Enabled = parent.AudioEnabled;
                 transmitButton.Enabled = parent.AudioEnabled && parent.allowTransmit;
-                //squelchTrackBar.Enabled = true;
+                squelchTrackBar.Enabled = true;
                 if (radio.Settings != null)
                 {
                     squelchTrackBar.Value = radio.Settings.squelch_level;
