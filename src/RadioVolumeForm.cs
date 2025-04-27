@@ -66,13 +66,13 @@ namespace HTCommander
         private delegate void AudioEndpointVolumeNotificationDelegate(AudioVolumeNotificationData data);
         private void AudioEndpointVolume_OnVolumeNotification(AudioVolumeNotificationData data)
         {
-            if (InvokeRequired) { Invoke(new AudioEndpointVolumeNotificationDelegate(AudioEndpointVolume_OnVolumeNotification), data); return; }
+            if (InvokeRequired) { BeginInvoke(new AudioEndpointVolumeNotificationDelegate(AudioEndpointVolume_OnVolumeNotification), data); return; }
             masterVolumeTrackBar.Value = (int)(outputDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
             masterMuteButton.ImageIndex = outputDevice.AudioEndpointVolume.Mute ? 0 : 1;
         }
         private void AudioEndpointVolume_OnInputVolumeNotification(AudioVolumeNotificationData data)
         {
-            if (InvokeRequired) { Invoke(new AudioEndpointVolumeNotificationDelegate(AudioEndpointVolume_OnInputVolumeNotification), data); return; }
+            if (InvokeRequired) { BeginInvoke(new AudioEndpointVolumeNotificationDelegate(AudioEndpointVolume_OnInputVolumeNotification), data); return; }
             inputTrackBar.Value = (int)(inputDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
         }
 
@@ -126,7 +126,7 @@ namespace HTCommander
 
         private void LoadAudioDevices(bool forceUpdate = false)
         {
-            if (InvokeRequired) { Invoke(new LoadAudioDevicesDelegate(LoadAudioDevices), forceUpdate); return; }
+            if (InvokeRequired) { BeginInvoke(new LoadAudioDevicesDelegate(LoadAudioDevices), forceUpdate); return; }
 
             if (forceUpdate)
             {
@@ -215,24 +215,44 @@ namespace HTCommander
         {
             Utils.ComboBoxItem selected = (Utils.ComboBoxItem)outputComboBox.SelectedItem;
             if (SelectedOutputDeviceId == selected.Value) return; // No change
-            if (outputDevice != null) { outputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnVolumeNotification; }
-            SelectedOutputDeviceId = selected.Value;
-            outputDevice = GetDeviceById(SelectedOutputDeviceId, DataFlow.Render);
-            outputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnVolumeNotification;
-            parent.registry.WriteString("OutputAudioDevice", SelectedOutputDeviceId);
-            radio.SetOutputAudioDevice(outputDevice.ID);
+            MMDevice xoutputDevice = GetDeviceById(selected.Value, DataFlow.Render);
+            if (xoutputDevice.ID == outputDevice.ID)
+            {
+                SelectedOutputDeviceId = selected.Value;
+                parent.registry.WriteString("OutputAudioDevice", SelectedOutputDeviceId);
+                radio.SetOutputAudioDevice(outputDevice.ID);
+            }
+            else
+            {
+                if (outputDevice != null) { outputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnVolumeNotification; }
+                SelectedOutputDeviceId = selected.Value;
+                outputDevice = xoutputDevice;
+                outputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnVolumeNotification;
+                parent.registry.WriteString("OutputAudioDevice", SelectedOutputDeviceId);
+                radio.SetOutputAudioDevice(outputDevice.ID);
+            }
         }
 
         private void inputComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             Utils.ComboBoxItem selected = (Utils.ComboBoxItem)inputComboBox.SelectedItem;
             if (SelectedInputDeviceId == selected.Value) return; // No change
-            if (inputDevice != null) { inputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnInputVolumeNotification; }
-            SelectedInputDeviceId = selected.Value;
-            inputDevice = GetDeviceById(SelectedInputDeviceId, DataFlow.Capture);
-            inputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnInputVolumeNotification;
-            parent.registry.WriteString("InputAudioDevice", SelectedInputDeviceId);
-            parent.microphone.SetInputDevice(inputDevice.ID);
+            MMDevice xinputDevice = GetDeviceById(SelectedInputDeviceId, DataFlow.Capture);
+            if (xinputDevice.ID == inputDevice.ID)
+            {
+                SelectedInputDeviceId = selected.Value;
+                parent.registry.WriteString("InputAudioDevice", SelectedInputDeviceId);
+                parent.microphone.SetInputDevice(inputDevice.ID);
+            }
+            else
+            {
+                if (inputDevice != null) { inputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnInputVolumeNotification; }
+                SelectedInputDeviceId = selected.Value;
+                inputDevice = xinputDevice;
+                inputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnInputVolumeNotification;
+                parent.registry.WriteString("InputAudioDevice", SelectedInputDeviceId);
+                parent.microphone.SetInputDevice(inputDevice.ID);
+            }
         }
 
         private MMDevice GetDeviceById(string id, DataFlow flow)
@@ -393,7 +413,7 @@ namespace HTCommander
         public delegate void OnVolumeChangedDelegate(float volume, bool isMuted);
         public void OnVolumeChanged(float volume, bool isMuted)
         {
-            if (InvokeRequired) { Invoke(new OnVolumeChangedDelegate(OnVolumeChanged), volume, isMuted); return; }
+            if (InvokeRequired) { BeginInvoke(new OnVolumeChangedDelegate(OnVolumeChanged), volume, isMuted); return; }
             appVolumeTrackBar.Value = (int)(sessionControl.SimpleAudioVolume.Volume * 100);
             appMuteButton.ImageIndex = sessionControl.SimpleAudioVolume.Mute ? 0 : 1;
         }
@@ -407,7 +427,7 @@ namespace HTCommander
         public delegate void OnSessionDisconnectedDelegate(AudioSessionDisconnectReason disconnectReason);
         public void OnSessionDisconnected(AudioSessionDisconnectReason disconnectReason)
         {
-            if (InvokeRequired) { Invoke(new OnSessionDisconnectedDelegate(OnSessionDisconnected), disconnectReason); return; }
+            if (InvokeRequired) { BeginInvoke(new OnSessionDisconnectedDelegate(OnSessionDisconnected), disconnectReason); return; }
             appVolumeTrackBar.Enabled = false;
             appVolumeTrackBar.Value = 0;
             appMuteButton.Enabled = false;

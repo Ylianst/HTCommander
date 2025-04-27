@@ -30,6 +30,8 @@ namespace HTCommander.radio
 
         public void SetInputDevice(string deviceid)
         {
+            if ((selectedDevice != null) && (selectedDevice.ID == deviceid)) return;
+
             var enumerator = new MMDeviceEnumerator();
             MMDevice targetDevice = null;
 

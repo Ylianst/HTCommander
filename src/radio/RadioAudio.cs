@@ -88,22 +88,26 @@ namespace HTCommander
 
         public bool IsAudioEnabled { get { return running; } }
 
-        private static byte[] UnescapeBytes(byte[] b)
+        private static unsafe int UnescapeBytesInPlace(byte[] buffer)
         {
-            var outList = new List<byte>();
-            int i = 0;
-            while (i < b.Length)
+            if (buffer == null || buffer.Length == 0) return 0;
+            fixed (byte* pBuffer = buffer)
             {
-                if (b[i] == 0x7d)
+                byte* src = pBuffer;
+                byte* dst = pBuffer;
+                byte* end = pBuffer + buffer.Length;
+                while (src < end)
                 {
-                    i++;
-                    // Make sure we don't go out of bounds
-                    if (i < b.Length) { outList.Add((byte)(b[i] ^ 0x20)); } else { break; }
+                    if (*src == 0x7d) // Escape byte
+                    {
+                        src++;
+                        if (src < end) { *dst = (byte)(*src ^ 0x20); dst++; } else { break; }
+                    }
+                    else { *dst = *src; dst++; }
+                    src++;
                 }
-                else { outList.Add(b[i]); }
-                i++;
+                return (int)(dst - pBuffer); // New length after unescaping
             }
-            return outList.ToArray();
         }
 
         private static byte[] EscapeBytes(byte cmd, byte[] b, int len)
@@ -159,9 +163,18 @@ namespace HTCommander
                 Array.Copy(buffer, (int)startPosition + 1, extractedData, 0, extractedData.Length);
 
                 // Create a new MemoryStream with the data after the second 0x7e
-                MemoryStream remainingStream = new MemoryStream();
-                if (endPosition + 1 < buffer.Length) { remainingStream.Write(buffer, (int)endPosition + 1, buffer.Length - (int)endPosition - 1); }
-                inputStream = remainingStream;
+                if (endPosition + 1 == buffer.Length)
+                {
+                    // Exactly one frame found, reset the stream
+                    inputStream.SetLength(0);
+                }
+                else
+                {
+                    // Create a new MemoryStream with the remaining data
+                    MemoryStream remainingStream = new MemoryStream();
+                    if (endPosition + 1 < buffer.Length) { remainingStream.Write(buffer, (int)endPosition + 1, buffer.Length - (int)endPosition - 1); }
+                    inputStream = remainingStream;
+                }
             }
             else
             {
@@ -184,7 +197,7 @@ namespace HTCommander
         public void Start(string mac)
         {
             if (running) return;
-            StartAsync(mac);
+            Task.Run(() => { StartAsync(mac); });
         }
 
         public float Volume
@@ -195,6 +208,8 @@ namespace HTCommander
 
         public void SetOutputDevice(string deviceid)
         {
+            if ((currentOutputDevice != null) && (currentOutputDevice.ID == deviceid)) { return; }
+
             MMDevice targetDevice = null;
             MMDeviceEnumerator enumerator = new MMDeviceEnumerator();
             if (deviceid != null)
@@ -210,7 +225,6 @@ namespace HTCommander
                 if (targetDevice == null) { Debug("No audio device found."); return; }
             }
 
-            if (currentOutputDevice == targetDevice) return;
             if (waveOut != null) { waveOut.Stop(); waveOut.Dispose(); waveOut = null; }
             waveProvider = null;
             volumeProvider = null;
@@ -301,13 +315,13 @@ namespace HTCommander
                         int bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
                         if (bytesRead > 0)
                         {
-                            accumulator.Write(receiveBuffer, 0, bytesRead);
-                            byte[] buffer = accumulator.GetBuffer();
                             byte[] frame;
+                            accumulator.Write(receiveBuffer, 0, bytesRead);
                             while ((frame = ExtractData(ref accumulator)) != null)
                             {
-                                byte[] uframe = UnescapeBytes(frame);
-                                switch (uframe[0])
+                                int uframeLength = UnescapeBytesInPlace(frame);
+                                if (uframeLength == 0) break;
+                                switch (frame[0])
                                 {
                                     case 0x00: // Audio normal
                                     case 0x03: // Audio odd
@@ -332,8 +346,8 @@ namespace HTCommander
                                             speechToTextEngine = null;
                                             if (onProcessingVoice != null) { onProcessingVoice(false, false); }
                                         }
-                                        DecodeSbcFrame(uframe, 1, uframe.Length - 1);
-                                        maxVoiceDecodeTime += (uframe.Length - 1);
+                                        DecodeSbcFrame(frame, 1, uframeLength - 1);
+                                        maxVoiceDecodeTime += (uframeLength - 1);
                                         if ((speechToTextEngine != null) && (maxVoiceDecodeTime > 19200000)) // 5 minutes (32k * 2 * 60 & 5)
                                         {
                                             speechToTextEngine.ResetVoiceSegment();
@@ -341,7 +355,7 @@ namespace HTCommander
                                         }
                                         break;
                                     case 0x01: // Audio end
-                                        //Debug("Command: 0x01, Audio End, Size: " + uframe.Length);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
+                                        //Debug("Command: 0x01, Audio End, Size: " + uframeLength);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
                                         if (speechToTextEngine != null)
                                         {
                                             speechToTextEngine.ResetVoiceSegment();
@@ -349,10 +363,10 @@ namespace HTCommander
                                         }
                                         break;
                                     case 0x02: // Audio ACK
-                                        //Debug("Command: 0x02, Audio Ack, Size: " + uframe.Length);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
+                                        //Debug("Command: 0x02, Audio Ack, Size: " + uframeLength);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
                                         break;
                                     default:
-                                        Debug($"Unknown command: {uframe[0]}");
+                                        Debug($"Unknown command: {frame[0]}");
                                         break;
                                 }
                             }
@@ -425,24 +439,25 @@ namespace HTCommander
             GCHandle pcmHandle = GCHandle.Alloc(pcmFrame, GCHandleType.Pinned);
             IntPtr decodeResult, pcmPtr = pcmHandle.AddrOfPinnedObject();
             UIntPtr written, pcmLen = (UIntPtr)pcmFrame.Length;
+            int totalWritten = 0;
 
             // Decode the SBC frame
             while ((decodeResult = LibSbc.sbc_decode(ref sbcContext, sbcPtr, sbcLen, pcmPtr, pcmLen, out written)).ToInt64() > 0)
             {
+                totalWritten += (int)written;
                 sbcPtr += (int)decodeResult;
                 sbcLen -= (int)decodeResult;
-                if (waveProvider != null) {
-                    try {
-                        waveProvider.AddSamples(pcmFrame, 0, (int)written);
-                    } catch (Exception) {
-                        SetOutputDevice(null);
-                    }
-                }
-                if (recording != null) { recording.Write(pcmFrame, 0, (int)written); }
-                if (speechToTextEngine != null) { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, (int)written, currentChannelName); }
-                parent.GotAudioData(pcmFrame, 0, (int)written, currentChannelName, false);
+                pcmPtr += (int)written;
+                pcmLen -= (int)written;
             }
 
+            // Make use of the PCM data
+            if (waveProvider != null) { try { waveProvider.AddSamples(pcmFrame, 0, totalWritten); } catch (Exception) { SetOutputDevice(null); } }
+            if (recording != null) { recording.Write(pcmFrame, 0, totalWritten); }
+            if (speechToTextEngine != null) { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, totalWritten, currentChannelName); }
+            parent.GotAudioData(pcmFrame, 0, totalWritten, currentChannelName, false);
+
+            // Clean up
             pcmHandle.Free();
             sbcHandle.Free();
             return 0;

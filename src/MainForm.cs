@@ -481,7 +481,7 @@ namespace HTCommander
         private delegate void UpdateAvailableHandler(float currentVersion, float onlineVersion, string url);
         public void UpdateAvailable(float currentVersion, float onlineVersion, string url)
         {
-            if (this.InvokeRequired) { this.Invoke(new UpdateAvailableHandler(UpdateAvailable), currentVersion, onlineVersion, url); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new UpdateAvailableHandler(UpdateAvailable), currentVersion, onlineVersion, url); return; }
 
             // Display update dialog
             SelfUpdateForm updateForm = new SelfUpdateForm();
@@ -493,14 +493,14 @@ namespace HTCommander
 
         private void Radio_OnVoiceTransmitStateChanged(Radio sender, bool transmitting)
         {
-            if (this.InvokeRequired) { this.Invoke(new Radio.VoiceTransmitStateHandler(Radio_OnVoiceTransmitStateChanged), sender, transmitting); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new Radio.VoiceTransmitStateHandler(Radio_OnVoiceTransmitStateChanged), sender, transmitting); return; }
             cancelVoiceButton.Visible = transmitting;
             speakButton.Enabled = !transmitting;
         }
 
         private void Radio_onProcessingVoice(bool listening, bool processing)
         {
-            if (this.InvokeRequired) { this.Invoke(new Radio.OnProcessingVoiceHandler(Radio_onProcessingVoice), listening, processing); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new Radio.OnProcessingVoiceHandler(Radio_onProcessingVoice), listening, processing); return; }
             voiceProcessingLabel.Visible = processing;
         }
 
@@ -508,7 +508,7 @@ namespace HTCommander
 
         private void Radio_onTextReady(string text, string channel, DateTime time, bool completed)
         {
-            if (this.InvokeRequired) { this.Invoke(new Radio.OnTextReadyHandler(Radio_onTextReady), text, channel, time, completed); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new Radio.OnTextReadyHandler(Radio_onTextReady), text, channel, time, completed); return; }
             if ((text == null) || (text.Trim().Length > 0))
             {
                 // Suspend painting
@@ -542,7 +542,7 @@ namespace HTCommander
 
         private void Session_StateChanged(AX25Session sender, AX25Session.ConnectionState state)
         {
-            if (this.InvokeRequired) { this.Invoke(new AX25Session.StateChangedHandler(Session_StateChanged), sender, state); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new AX25Session.StateChangedHandler(Session_StateChanged), sender, state); return; }
 
             DebugTrace("AX25 " + state.ToString());
             if ((activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal))
@@ -687,7 +687,7 @@ namespace HTCommander
 
         private void Radio_OnChannelClear(Radio sender)
         {
-            if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_OnChannelClear(sender); })); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new Action(() => { Radio_OnChannelClear(sender); })); return; }
 
             DebugTrace("Channel is clear");
             if ((activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.Torrent))
@@ -698,7 +698,7 @@ namespace HTCommander
 
         private void Radio_OnDataFrame(Radio sender, TncDataFragment frame)
         {
-            if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_OnDataFrame(sender, frame); })); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new Action(() => { Radio_OnDataFrame(sender, frame); })); return; }
 
             // Add to the packet capture tab
             ListViewItem l = new ListViewItem(new string[] { frame.time.ToShortTimeString(), frame.channel_name, FragmentToShortString(frame) });
@@ -858,7 +858,7 @@ namespace HTCommander
 
         private void Radio_InfoUpdate(Radio sender, Radio.RadioUpdateNotification msg)
         {
-            if (this.InvokeRequired) { this.Invoke(new RadioInfoUpdateHandler(Radio_InfoUpdate), sender, msg); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new RadioInfoUpdateHandler(Radio_InfoUpdate), sender, msg); return; }
             try
             {
                 switch (msg)
@@ -981,7 +981,7 @@ namespace HTCommander
         private void UpdateRadioDisplay()
         {
             if (this.Disposing || this.IsDisposed) return;
-            if (this.InvokeRequired) { this.Invoke(new EmptyFuncHandler(UpdateRadioDisplay)); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new EmptyFuncHandler(UpdateRadioDisplay)); return; }
 
             if (radio.Settings == null) return;
 
@@ -1205,7 +1205,7 @@ namespace HTCommander
         {
             try
             {
-                if (this.InvokeRequired) { this.Invoke(new Action(() => { Radio_DebugMessage(sender, msg); })); return; }
+                if (this.InvokeRequired) { this.BeginInvoke(new Action(() => { Radio_DebugMessage(sender, msg); })); return; }
                 DebugTrace(msg);
             }
             catch (Exception) { }
@@ -1215,7 +1215,7 @@ namespace HTCommander
         {
             try
             {
-                if (this.InvokeRequired) { this.Invoke(new Action(() => { Debug(msg); })); return; }
+                if (this.InvokeRequired) { this.BeginInvoke(new Action(() => { Debug(msg); })); return; }
                 DebugTrace(msg);
             }
             catch (Exception) { }
@@ -1331,7 +1331,7 @@ namespace HTCommander
         public delegate void AppendTerminalStringHandler(bool outgoing, string from, string to, string message);
         public void AppendTerminalString(bool outgoing, string from, string to, string message)
         {
-            if (this.InvokeRequired) { this.Invoke(new AppendTerminalStringHandler(AppendTerminalString), outgoing, from, to, message); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new AppendTerminalStringHandler(AppendTerminalString), outgoing, from, to, message); return; }
 
             TerminalText terminalText = new TerminalText(outgoing, from, to, message);
             terminalTexts.Add(terminalText);
@@ -1848,7 +1848,7 @@ namespace HTCommander
         public void UpdateInfo()
         {
             if (this.Disposing || this.IsDisposed) return;
-            if (this.InvokeRequired) { this.Invoke(new EmptyFuncHandler(UpdateInfo)); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new EmptyFuncHandler(UpdateInfo)); return; }
 
             radioStateLabel.Visible = (radio.State != Radio.RadioState.Connected);
             if (radio.State != Radio.RadioState.Connected)
@@ -3502,7 +3502,7 @@ namespace HTCommander
 
         public void UpdateBbsStats(BBS.StationStats stats)
         {
-            if (this.InvokeRequired) { this.Invoke(new UpdateBbsStatsHandler(UpdateBbsStats), stats); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new UpdateBbsStatsHandler(UpdateBbsStats), stats); return; }
 
             ListViewItem l;
             if (stats.listViewItem == null)
@@ -3539,7 +3539,7 @@ namespace HTCommander
         public delegate void AddBbsTrafficHandler(string callsign, bool outgoing, string text);
         public void AddBbsTraffic(string callsign, bool outgoing, string text)
         {
-            if (this.InvokeRequired) { this.Invoke(new AddBbsTrafficHandler(AddBbsTraffic), callsign, outgoing, text); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new AddBbsTrafficHandler(AddBbsTraffic), callsign, outgoing, text); return; }
 
             if (bbsTextBox.Text.Length != 0) { bbsTextBox.AppendText(Environment.NewLine); }
             if (outgoing) { AppendBbsText(callsign + " < ", Color.Green); } else { AppendBbsText(callsign + " > ", Color.Green); }
@@ -3551,7 +3551,7 @@ namespace HTCommander
         public delegate void AddBbsControlMessageHandler(string text);
         public void AddBbsControlMessage(string text)
         {
-            if (this.InvokeRequired) { this.Invoke(new AddBbsControlMessageHandler(AddBbsControlMessage), text); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new AddBbsControlMessageHandler(AddBbsControlMessage), text); return; }
             if (bbsTextBox.Text.Length != 0) { bbsTextBox.AppendText(Environment.NewLine); }
             AppendBbsText(text, Color.Yellow);
             bbsTextBox.SelectionStart = bbsTextBox.Text.Length;
@@ -3575,7 +3575,7 @@ namespace HTCommander
         public delegate void MailStateMessageHandler(string msg);
         public void MailStateMessage(string msg)
         {
-            if (this.InvokeRequired) { this.Invoke(new MailStateMessageHandler(MailStateMessage), msg); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new MailStateMessageHandler(MailStateMessage), msg); return; }
             mailTransferStatusPanel.Visible = (msg != null);
             if (msg != null) { mailTransferStatusLabel.Text = msg; } else { mailTransferStatusLabel.Text = ""; }
             ;
@@ -4397,7 +4397,7 @@ namespace HTCommander
         public delegate void UpdateTorrentHandler(TorrentFile file);
         public void updateTorrent(TorrentFile file)
         {
-            if (this.InvokeRequired) { this.Invoke(new UpdateTorrentHandler(updateTorrent), file); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new UpdateTorrentHandler(updateTorrent), file); return; }
 
             // Update a single torrent file
             if (file.ListViewItem != null)
@@ -4419,7 +4419,7 @@ namespace HTCommander
 
         public void updateTorrentList()
         {
-            if (this.InvokeRequired) { this.Invoke(new MethodInvoker(updateTorrentList)); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new MethodInvoker(updateTorrentList)); return; }
 
             // Update the entire torrent list
             foreach (TorrentFile file in torrent.Files) { updateTorrent(file); }

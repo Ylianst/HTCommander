@@ -28,7 +28,7 @@ namespace HTCommander
         private delegate void AddBbsTrafficHandler(string callsign, bool outgoing, string text);
         public void AddBbsTraffic(string callsign, bool outgoing, string text)
         {
-            if (this.InvokeRequired) { this.Invoke(new AddBbsTrafficHandler(AddBbsTraffic), callsign, outgoing, text); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new AddBbsTrafficHandler(AddBbsTraffic), callsign, outgoing, text); return; }
             if (mainTextBox.Text.Length != 0) { mainTextBox.AppendText(Environment.NewLine); }
             if (outgoing) { AppendBbsText(callsign + " < ", Color.Green); } else { AppendBbsText(callsign + " > ", Color.Green); }
             AppendBbsText(text, outgoing ? Color.CornflowerBlue : Color.Gainsboro);
@@ -40,7 +40,7 @@ namespace HTCommander
         public void AddBbsControlMessage(string text)
         {
             if (text == null) return;
-            if (this.InvokeRequired) { this.Invoke(new AddBbsControlMessageHandler(AddBbsControlMessage), text); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new AddBbsControlMessageHandler(AddBbsControlMessage), text); return; }
             if (mainTextBox.Text.Length != 0) { mainTextBox.AppendText(Environment.NewLine); }
             AppendBbsText(text, Color.Yellow);
             mainTextBox.SelectionStart = mainTextBox.Text.Length;

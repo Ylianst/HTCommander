@@ -728,7 +728,7 @@ namespace HTCommander
                                     if ((fragment.channel_id == -1) && (HtStatus != null))
                                     {
                                         fragment.channel_id = HtStatus.curr_ch_id;
-                                        if ((Channels != null) && (Channels[HtStatus.curr_ch_id] != null))
+                                        if ((Channels != null) && (Channels.Length < HtStatus.curr_ch_id) && (Channels[HtStatus.curr_ch_id] != null))
                                         {
                                             if (Channels[HtStatus.curr_ch_id].name_str.Length > 0)
                                             {
