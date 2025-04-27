@@ -439,7 +439,7 @@ namespace HTCommander
                 }
                 if (recording != null) { recording.Write(pcmFrame, 0, (int)written); }
                 if (speechToTextEngine != null) { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, (int)written, currentChannelName); }
-                parent.GotAudioData(pcmFrame, (int)written, currentChannelName);
+                parent.GotAudioData(pcmFrame, 0, (int)written, currentChannelName, false);
             }
 
             pcmHandle.Free();
@@ -499,8 +499,7 @@ namespace HTCommander
                     {
                         if (pcmQueue.TryDequeue(out var pcmData)) { await ProcessPcmDataAsync(pcmData, token); } else { break; }
                     }
-                    // Send end audio frame
-                    isTransmitting = false;
+                    //// Send end audio frame
                     byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
                     await audioStream.WriteAsync(endAudio, 0, endAudio.Length);
                     await audioStream.FlushAsync();
@@ -509,6 +508,7 @@ namespace HTCommander
                 {
                     if (OnVoiceTransmitStateChanged != null) { OnVoiceTransmitStateChanged(this, false); }
                     Console.WriteLine("Voice transmission stopped.");
+                    isTransmitting = false;
                 }
             }, token);
         }
@@ -530,15 +530,17 @@ namespace HTCommander
             {
                 byte[] encodedSbcFrame;
                 if (!EncodeSbcFrame(pcmData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed)) break;
-                if (PlayInputBack) { PlayPcmBufferAsync(pcmData, pcmOffset, bytesConsumed); }
 
-                pcmOffset += bytesConsumed;
-                pcmLength -= bytesConsumed;
-
+                // Send the audio frame to the radio
                 byte[] escaped = EscapeBytes(0, encodedSbcFrame, encodedSbcFrame.Length);
-
                 await audioStream.WriteAsync(escaped, 0, escaped.Length);
                 await audioStream.FlushAsync();
+
+                // Do extra processing if needed
+                if (PlayInputBack) { PlayPcmBufferAsync(pcmData, pcmOffset, bytesConsumed); }
+                parent.GotAudioData(pcmData, pcmOffset, bytesConsumed, currentChannelName, true);
+                pcmOffset += bytesConsumed;
+                pcmLength -= bytesConsumed;
 
                 // Track how much PCM we are sending
                 bytesSent += bytesConsumed;
@@ -565,7 +567,10 @@ namespace HTCommander
                 }
             }
 
-            if ((bytesConsumed == 0) || token.IsCancellationRequested || (pcmQueue.Count > 0)) { return; }
+            if ((bytesConsumed == 0) || token.IsCancellationRequested || (pcmQueue.Count > 0) || PlayInputBack) {
+                Console.WriteLine("No transmit delay.");
+                return;
+            }
 
             // Wait for either delay or new data
             delayTask = Task.Delay(100, token);
@@ -574,6 +579,7 @@ namespace HTCommander
             if (completedTask == signalTask)
             {
                 // New data arrived, reset the signal
+                Console.WriteLine("New data arrived.");
                 newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             }
             else

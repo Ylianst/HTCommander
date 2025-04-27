@@ -26,6 +26,8 @@ using aprsparser;
 using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
 using HTCommander.radio;
+using NAudio.Wave;
+
 
 #if !__MonoCS__
 using GMap.NET.MapProviders;
@@ -131,17 +133,17 @@ namespace HTCommander
         private void Microphone_DataAvailable(byte[] data, int bytesRecorded)
         {
             radioVolumeForm.ProcessInputAudioData(data, bytesRecorded);
-            if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, bytesRecorded, true); }
+            if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, 0,bytesRecorded, true); }
             if (radioVolumeForm.MicrophoneTransmit) {
                 radio.TransmitVoice(data, 0, bytesRecorded, false);
-                if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, bytesRecorded, false); }
+                //if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, 0,bytesRecorded, false); }
             }
         }
 
-        private void RadioAudio_DataAvailable(Radio radio, byte[] data, int bytesRecorded, string channelName)
+        private void RadioAudio_DataAvailable(Radio radio, byte[] data, int offset, int bytesRecorded, string channelName, bool transmit)
         {
-            radioVolumeForm.ProcessOutputAudioData(data, bytesRecorded);
-            if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, bytesRecorded, false); }
+            if (transmit == false) { radioVolumeForm.ProcessOutputAudioData(data, bytesRecorded); }
+            if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, offset, bytesRecorded, false); }
         }
 
         private void cancelVoiceButton_Click(object sender, EventArgs e)
@@ -4084,6 +4086,10 @@ namespace HTCommander
                 {
                     e.Effect = DragDropEffects.Copy;
                 }
+                else if ((files.Length == 1) && (files[0].ToLower().EndsWith(".wav") && allowTransmit && (radio.State == RadioState.Connected)))
+                {
+                    e.Effect = DragDropEffects.Copy;
+                }
                 else
                 {
                     e.Effect = DragDropEffects.None;
@@ -4099,6 +4105,16 @@ namespace HTCommander
                 if ((files.Length == 1) && (files[0].ToLower().EndsWith(".csv")))
                 {
                     importChannels(files[0]);
+                }
+                else if ((files.Length == 1) && (files[0].ToLower().EndsWith(".wav")))
+                {
+                    // Transmit the wav file
+                    using (var reader = new WaveFileReader(files[0]))
+                    {
+                        var buffer = new byte[reader.Length];
+                        int bytesRead = reader.Read(buffer, 0, buffer.Length);
+                        radio.TransmitVoice(buffer, 0, bytesRead, true);
+                    }
                 }
             }
         }
@@ -4552,6 +4568,21 @@ namespace HTCommander
             {
                 spectrogramForm = new SpectrogramForm(this);
                 spectrogramForm.Show(this);
+            }
+        }
+
+        public void showAudioGraph(bool input)
+        {
+            if (spectrogramForm != null)
+            {
+                spectrogramForm.Focus();
+                spectrogramForm.SetGraphMicrophone(input);
+            }
+            else
+            {
+                spectrogramForm = new SpectrogramForm(this);
+                spectrogramForm.Show(this);
+                spectrogramForm.SetGraphMicrophone(input);
             }
         }
 

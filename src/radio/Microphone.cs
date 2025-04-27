@@ -26,6 +26,7 @@ namespace HTCommander.radio
         public event DataAvailableHandler DataAvailable;
         private WasapiCapture capture = null;
         private MMDevice selectedDevice = null;
+        public float Boost = 0;
 
         public void SetInputDevice(string deviceid)
         {
@@ -108,6 +109,7 @@ namespace HTCommander.radio
         private void OnDataAvailable(object sender, WaveInEventArgs args)
         {
             if (args.BytesRecorded == 0) return;
+            BoostVolume(args.Buffer, args.BytesRecorded, Boost);
             if (DataAvailable != null) { DataAvailable(args.Buffer, args.BytesRecorded); }
         }
 
@@ -116,6 +118,23 @@ namespace HTCommander.radio
         {
             if (args.Exception != null) { Console.WriteLine($"An error occurred during recording: {args.Exception.Message}"); }
             Dispose();
+        }
+
+        private void BoostVolume(byte[] buffer, int bytesRecorded, float volume)
+        {
+            if (volume <= 0) return;
+            for (int i = 0; i < bytesRecorded; i += 2)
+            {
+                short sample = (short)(buffer[i] | (buffer[i + 1] << 8));
+                int boosted = (int)(sample * volume);
+
+                // Clamp to prevent clipping
+                if (boosted > short.MaxValue) boosted = short.MaxValue;
+                if (boosted < short.MinValue) boosted = short.MinValue;
+
+                buffer[i] = (byte)(boosted & 0xFF);
+                buffer[i + 1] = (byte)((boosted >> 8) & 0xFF);
+            }
         }
 
     }

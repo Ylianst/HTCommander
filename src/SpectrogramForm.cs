@@ -100,7 +100,7 @@ namespace HTCommander
             }
         }
 
-        public void AddAudioData(byte[] Buffer, int BytesRecorded, bool fromMicrophone)
+        public void AddAudioData(byte[] Buffer, int offset, int BytesRecorded, bool fromMicrophone)
         {
             if (drawMicrophone != fromMicrophone) return;
             if (amplitudeHistoryBar.Visible) { amplitudeHistoryBar.ProcessAudioData(Buffer, BytesRecorded); }
@@ -110,7 +110,7 @@ namespace HTCommander
             double peak = 0;
             for (int i = 0; i < newSampleCount; i++)
             {
-                buffer[i] = BitConverter.ToInt16(Buffer, i * bytesPerSample);
+                buffer[i] = BitConverter.ToInt16(Buffer, offset + (i * bytesPerSample));
                 peak = Math.Max(peak, buffer[i]);
             }
             lock (audio) { audio.AddRange(buffer); }
@@ -233,6 +233,18 @@ namespace HTCommander
             radioToolStripMenuItem.Checked = false;
             microphoneToolStripMenuItem.Checked = true;
             drawMicrophone = true;
+        }
+
+        public void SetGraphMicrophone(bool enabled)
+        {
+            if (enabled)
+            {
+                microphoneToolStripMenuItem_Click(null, null);
+            }
+            else
+            {
+                radioToolStripMenuItem_Click(null, null);
+            }
         }
     }
 }

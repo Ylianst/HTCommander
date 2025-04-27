@@ -405,12 +405,12 @@ namespace HTCommander
             Update(RadioUpdateNotification.State);
         }
 
-        public delegate void OnAudioDataAvailableHandler(Radio sender, byte[] data, int len, string channelName);
+        public delegate void OnAudioDataAvailableHandler(Radio sender, byte[] data, int offset, int len, string channelName, bool transmit);
         public event OnAudioDataAvailableHandler OnAudioDataAvailable;
 
-        public void GotAudioData(byte[] data, int len, string channelName)
+        public void GotAudioData(byte[] data, int offset, int len, string channelName, bool transmit)
         {
-            if (OnAudioDataAvailable != null) { OnAudioDataAvailable(this, data, len, channelName); }
+            if (OnAudioDataAvailable != null) { OnAudioDataAvailable(this, data, offset, len, channelName, transmit); }
         }
 
         public delegate void DebugMessageHandler(Radio sender, string msg);

@@ -55,6 +55,7 @@ namespace HTCommander
             parent.microphone.SetInputDevice(SelectedInputDeviceId);
             radio.SetOutputAudioDevice(SelectedOutputDeviceId);
             UpdateInfo();
+            parent.microphone.Boost = inputBoostTrackBar.Value = (int)parent.registry.ReadInt("InputAudioBoost", 0);
         }
 
         private void RadioVolumeForm_Load(object sender, EventArgs e)
@@ -81,7 +82,7 @@ namespace HTCommander
             pollTimer.Enabled = Visible;
             audioButton.Image = parent.AudioEnabled ? microphoneImageList.Images[4] : microphoneImageList.Images[3];
             outputTrackBar.Value = DecibelScaledFloatToSlider(radio.OutputVolume);
-            inputComboBox.Enabled = inputTrackBar.Enabled = parent.allowTransmit;
+            inputGraphButton.Enabled = inputComboBox.Enabled = inputTrackBar.Enabled = inputBoostTrackBar.Enabled = parent.allowTransmit;
             transmitButton.Visible = parent.allowTransmit;
 
             if (radio.State == Radio.RadioState.Connected)
@@ -188,7 +189,7 @@ namespace HTCommander
             if (xinputDevice != inputDevice)
             {
                 if (inputDevice != null) { inputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnInputVolumeNotification; }
-                inputDevice = xoutputDevice;
+                inputDevice = xinputDevice;
                 inputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnInputVolumeNotification;
             }
         }
@@ -437,6 +438,22 @@ namespace HTCommander
             if (sessionControl == null) return;
             sessionControl.SimpleAudioVolume.Mute = !sessionControl.SimpleAudioVolume.Mute;
             appMuteButton.ImageIndex = sessionControl.SimpleAudioVolume.Mute ? 0 : 1;
+        }
+
+        private void inputBoostTrackBar_Scroll(object sender, EventArgs e)
+        {
+            parent.microphone.Boost = inputBoostTrackBar.Value;
+            parent.registry.WriteInt("InputAudioBoost", inputBoostTrackBar.Value);
+        }
+
+        private void outputGraphButton_Click(object sender, EventArgs e)
+        {
+            parent.showAudioGraph(false);
+        }
+
+        private void inputGraphButton_Click(object sender, EventArgs e)
+        {
+            parent.showAudioGraph(true);
         }
     }
 }
