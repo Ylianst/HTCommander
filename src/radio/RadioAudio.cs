@@ -139,41 +139,39 @@ namespace HTCommander
             long endPosition = -1;
 
             // Read the entire stream into a byte array for easier processing
-            byte[] buffer = inputStream.ToArray();
+            byte[] buffer = inputStream.GetBuffer();
+            int bufferLength = (int)inputStream.Length;
 
             // Find the first occurrence of 0x7e
-            for (int i = 0; i < buffer.Length; i++) { if (buffer[i] == 0x7e) { startPosition = i; break; } }
+            for (int i = 0; i < bufferLength; i++) { if (buffer[i] == 0x7e) { startPosition = i; break; } }
 
             // No start marker found, return null
             if (startPosition == -1) { inputStream.Position = 0; return null; }
 
             // We found the end of the previous frame, move to next frame
-            if ((startPosition < (buffer.Length - 1)) && (buffer[startPosition + 1] == 0x7e)) { startPosition++; }
+            if ((startPosition < (bufferLength - 1)) && (buffer[startPosition + 1] == 0x7e)) { startPosition++; }
 
             // If a start marker is found, look for the next 0x7e
-            if (startPosition != -1) { for (int i = (int)startPosition + 1; i < buffer.Length; i++) { if (buffer[i] == 0x7e) { endPosition = i; break; } } }
+            if (startPosition != -1) { for (int i = (int)startPosition + 1; i < bufferLength; i++) { if (buffer[i] == 0x7e) { endPosition = i; break; } } }
 
             // If both start and end markers are found
             if (startPosition != -1 && endPosition != -1 && endPosition > startPosition)
             {
                 // Extract the data between the markers
-                //extractedData = buffer.Skip((int)startPosition + 1).Take((int)(endPosition - startPosition - 1)).ToArray();
-
                 extractedData = new byte[(int)(endPosition - startPosition - 1)];
                 Array.Copy(buffer, (int)startPosition + 1, extractedData, 0, extractedData.Length);
 
                 // Create a new MemoryStream with the data after the second 0x7e
-                if (endPosition + 1 == buffer.Length)
+                if (endPosition + 1 == bufferLength)
                 {
                     // Exactly one frame found, reset the stream
                     inputStream.SetLength(0);
                 }
                 else
                 {
-                    // Create a new MemoryStream with the remaining data
-                    MemoryStream remainingStream = new MemoryStream();
-                    if (endPosition + 1 < buffer.Length) { remainingStream.Write(buffer, (int)endPosition + 1, buffer.Length - (int)endPosition - 1); }
-                    inputStream = remainingStream;
+                    // Move the remaining data to the beginning of the buffer
+                    Array.Copy(buffer, endPosition + 1, buffer, 0, bufferLength - (int)endPosition - 1);
+                    inputStream.SetLength(bufferLength - (int)endPosition - 1);
                 }
             }
             else
