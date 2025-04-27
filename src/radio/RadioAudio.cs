@@ -240,6 +240,7 @@ namespace HTCommander
             BluetoothAddress address = BluetoothAddress.Parse(mac);
             BluetoothEndPoint remoteEndPoint = new BluetoothEndPoint(address, rfcommServiceUuid, 2);
             connectionClient = new BluetoothClient();
+            connectionClient.Client.SendBufferSize = 1024; // Limit the outgoing buffer.
 
             // Connect to the remote endpoint asynchronously
             Debug("Attempting to connect...");
@@ -464,6 +465,7 @@ namespace HTCommander
         private CancellationTokenSource transmissionTokenSource = null;
         private TaskCompletionSource<bool> newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         private bool PlayInputBack = false;
+        private byte[] ReminderTransmitPcmAudio = null;
 
         public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength, bool play)
         {
@@ -497,9 +499,26 @@ namespace HTCommander
                 {
                     while (!token.IsCancellationRequested)
                     {
-                        if (pcmQueue.TryDequeue(out var pcmData)) { await ProcessPcmDataAsync(pcmData, token); } else { break; }
+                        if (pcmQueue.TryDequeue(out var pcmData))
+                        {
+                            await ProcessPcmDataAsync(pcmData, token);
+                        }
+                        else
+                        {
+                            // Wait for up to 100ms for more data. If none arrives, exit the loop.
+                            Task delayTask = Task.Delay(100, token);
+                            Task signalTask = newDataAvailable.Task;
+                            Task completedTask = await Task.WhenAny(delayTask, signalTask);
+                            if (completedTask == signalTask)
+                            {
+                                // New data arrived, reset the signal
+                                newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                            }
+                            else { break; }
+                        }
                     }
-                    //// Send end audio frame
+                    // Send end audio frame
+                    ReminderTransmitPcmAudio = null;
                     byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
                     await audioStream.WriteAsync(endAudio, 0, endAudio.Length);
                     await audioStream.FlushAsync();
@@ -517,19 +536,23 @@ namespace HTCommander
         {
             int pcmOffset = 0;
             int pcmLength = pcmData.Length;
-            int bytesConsumed = 0;
-            Task delayTask;
-            Task signalTask;
-            Task completedTask;
 
-            var stopwatch = Stopwatch.StartNew();
-            long bytesSent = 0;
+            if (ReminderTransmitPcmAudio != null)
+            {
+                // If there are remaining bytes from the previous call, copy them to the beginning of the buffer
+                byte[] pcmData2 = new byte[ReminderTransmitPcmAudio.Length + pcmLength];
+                Buffer.BlockCopy(ReminderTransmitPcmAudio, 0, pcmData2, 0, ReminderTransmitPcmAudio.Length);
+                Buffer.BlockCopy(pcmData, 0, pcmData2, ReminderTransmitPcmAudio.Length, pcmLength);
+                pcmData = pcmData2;
+                pcmLength = pcmData2.Length;
+                ReminderTransmitPcmAudio = null;
+            }
 
-            if (recording != null) { recording.Write(pcmData, 0, pcmData.Length); }
             while ((pcmLength >= pcmInputSizePerFrame) && (!token.IsCancellationRequested))
             {
+                int bytesConsumed = 0;
                 byte[] encodedSbcFrame;
-                if (!EncodeSbcFrame(pcmData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed)) break;
+                if (!EncodeSbcFrame(pcmData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed)) { break; }
 
                 // Send the audio frame to the radio
                 byte[] escaped = EscapeBytes(0, encodedSbcFrame, encodedSbcFrame.Length);
@@ -537,104 +560,20 @@ namespace HTCommander
                 await audioStream.FlushAsync();
 
                 // Do extra processing if needed
+                if (recording != null) { recording.Write(pcmData, pcmOffset, bytesConsumed); }
                 if (PlayInputBack) { PlayPcmBufferAsync(pcmData, pcmOffset, bytesConsumed); }
                 parent.GotAudioData(pcmData, pcmOffset, bytesConsumed, currentChannelName, true);
                 pcmOffset += bytesConsumed;
                 pcmLength -= bytesConsumed;
-
-                // Track how much PCM we are sending
-                bytesSent += bytesConsumed;
-
-                // Calculate expected elapsed time
-                double expectedSeconds = (double)bytesSent / 64000.0;
-
-                // Get actual elapsed time
-                double actualSeconds = stopwatch.Elapsed.TotalSeconds;
-
-                if (PlayInputBack && (expectedSeconds > actualSeconds))
-                {
-                    int sleepTimeMs = (int)((expectedSeconds - actualSeconds) * 1000);
-
-                    // Wait for either delay or new data
-                    delayTask = Task.Delay(sleepTimeMs, token);
-                    signalTask = newDataAvailable.Task;
-                    completedTask = await Task.WhenAny(delayTask, signalTask);
-                    if (completedTask == signalTask)
-                    {
-                        // New data arrived, reset the signal
-                        newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                    }
-                }
             }
 
-            if ((bytesConsumed == 0) || token.IsCancellationRequested || (pcmQueue.Count > 0) || PlayInputBack) {
-                Console.WriteLine("No transmit delay.");
-                return;
-            }
-
-            // Wait for either delay or new data
-            delayTask = Task.Delay(100, token);
-            signalTask = newDataAvailable.Task;
-            completedTask = await Task.WhenAny(delayTask, signalTask);
-            if (completedTask == signalTask)
+            // If there are remaining bytes, keep them for the next call
+            if (pcmLength != 0)
             {
-                // New data arrived, reset the signal
-                Console.WriteLine("New data arrived.");
-                newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            }
-            else
-            {
-                Console.WriteLine("Delay completed, stopping transmission.");
+                ReminderTransmitPcmAudio = new byte[pcmLength];
+                Buffer.BlockCopy(pcmData, pcmOffset, ReminderTransmitPcmAudio, 0, pcmLength);
             }
         }
-
-        /*
-        public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength, bool play)
-        {
-            if (VoiceTransmit == true) { return false; }
-            Task.Run(() =>
-            {
-                VoiceTransmit = true;
-                VoiceTransmitCancel = false;
-                if (OnVoiceTransmitStateChanged != null) { OnVoiceTransmitStateChanged(this, true); }
-
-                if (recording != null) { recording.Write(pcmInputData, pcmOffset, pcmLength); }
-                if (play) { PlayPcmBufferAsync(pcmInputData, pcmOffset, pcmLength); }
-
-                byte[] encodedSbcFrame;
-                int bytesConsumed;
-                int totalPcmLength = pcmLength;
-                while ((pcmLength >= pcmInputSizePerFrame) && (VoiceTransmitCancel == false))
-                {
-                    // Process the PCM data in chunks, Encode PCM to SBC
-                    if (!EncodeSbcFrame(pcmInputData, pcmOffset, pcmLength, out encodedSbcFrame, out bytesConsumed)) break;
-                    pcmOffset += bytesConsumed;
-                    pcmLength -= bytesConsumed;
-
-                    // Escape the SBC frame
-                    byte[] escaped = EscapeBytes(0, encodedSbcFrame, encodedSbcFrame.Length);
-
-                    // Send the SBC frame over Bluetooth
-                    audioStream.WriteAsync(escaped, 0, escaped.Length);
-                    audioStream.FlushAsync();
-
-                    // Hold off for a bit to allow the audio to play
-                    Thread.Sleep(bytesConsumed / 64);
-                    if (VoiceTransmitCancel) break;
-                }
-
-                // Send end audio frame
-                byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
-                audioStream.WriteAsync(endAudio, 0, endAudio.Length);
-                audioStream.FlushAsync();
-
-                // We are done
-                VoiceTransmit = false;
-                if (OnVoiceTransmitStateChanged != null) { OnVoiceTransmitStateChanged(this, false); }
-            });
-            return true;
-        }
-        */
 
         public void PlayPcmBufferAsync(byte[] pcmInputData, int pcmOffset, int pcmLength)
         {
