@@ -1071,7 +1071,7 @@ namespace HTCommander
                 }
                 if (radio.Settings.scan == true)
                 {
-                    if ((radio.HtStatus != null) && (radio.Channels[radio.HtStatus.curr_ch_id] != null))
+                    if ((radio.HtStatus != null) && (radio.Channels != null) && (radio.Channels.Length > radio.HtStatus.curr_ch_id) && (radio.Channels[radio.HtStatus.curr_ch_id] != null))
                     {
                         if (radio.Channels[radio.HtStatus.curr_ch_id] == channelA)
                         {

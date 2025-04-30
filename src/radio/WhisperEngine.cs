@@ -708,7 +708,7 @@ namespace HTCommander.radio // Use your original namespace
             if (bestMatchLength >= MinMatchLength)
             {
                 // --- Found a reliable match - Use probability at midpoint ---
-                Console.WriteLine($"Found match length: {bestMatchLength}, ExistingMatchIdx: [{bestMatchStartIdxExisting}-{bestMatchEndIdxExisting}], NewMatchStartIdx: {bestMatchStartIdxNew}");
+                //Console.WriteLine($"Found match length: {bestMatchLength}, ExistingMatchIdx: [{bestMatchStartIdxExisting}-{bestMatchEndIdxExisting}], NewMatchStartIdx: {bestMatchStartIdxNew}");
 
                 // Calculate the index corresponding to the midpoint of the matched sequence
                 int midMatchIdxRelative = bestMatchLength / 2;
@@ -719,7 +719,7 @@ namespace HTCommander.radio // Use your original namespace
                 WhisperToken tokenMidExisting = existingTokens[midIndexExisting];
                 WhisperToken tokenMidNew = adjustedNewTokens[midIndexNew];
 
-                Console.WriteLine($"Midpoint Compare: Existing='{tokenMidExisting}' vs New='{tokenMidNew}'");
+                //Console.WriteLine($"Midpoint Compare: Existing='{tokenMidExisting}' vs New='{tokenMidNew}'");
 
                 // Decide based on probability
                 if (tokenMidExisting.Probability >= tokenMidNew.Probability)
@@ -727,14 +727,14 @@ namespace HTCommander.radio // Use your original namespace
                     // Prefer the existing token's version at the midpoint
                     splitIndexExisting = midIndexExisting; // Take existing up to and including this token
                     splitIndexNew = midIndexNew + 1;       // Start new list *after* the corresponding midpoint token
-                    Console.WriteLine($"Decision: Prefer Existing (P={tokenMidExisting.Probability:F3} >= P={tokenMidNew.Probability:F3}). Split after existing idx {splitIndexExisting}, start new idx {splitIndexNew}");
+                    //Console.WriteLine($"Decision: Prefer Existing (P={tokenMidExisting.Probability:F3} >= P={tokenMidNew.Probability:F3}). Split after existing idx {splitIndexExisting}, start new idx {splitIndexNew}");
                 }
                 else
                 {
                     // Prefer the new token's version at the midpoint
                     splitIndexExisting = midIndexExisting - 1; // Take existing up to the token *before* the midpoint
                     splitIndexNew = midIndexNew;               // Start new list *at* the midpoint token
-                    Console.WriteLine($"Decision: Prefer New (P={tokenMidNew.Probability:F3} > P={tokenMidExisting.Probability:F3}). Split after existing idx {splitIndexExisting}, start new idx {splitIndexNew}");
+                    //Console.WriteLine($"Decision: Prefer New (P={tokenMidNew.Probability:F3} > P={tokenMidExisting.Probability:F3}). Split after existing idx {splitIndexExisting}, start new idx {splitIndexNew}");
                 }
 
                 // --- Sanity checks for indices ---
@@ -754,7 +754,7 @@ namespace HTCommander.radio // Use your original namespace
                 }
                 float fallbackMidpointTime = estimatedOverlapStartTime + (estimatedOverlapEndTime - estimatedOverlapStartTime) / 2.0f;
 
-                Console.WriteLine($"No reliable match found. Using fallback time midpoint: {fallbackMidpointTime:F2}s");
+                //Console.WriteLine($"No reliable match found. Using fallback time midpoint: {fallbackMidpointTime:F2}s");
 
                 // Find the index right BEFORE the midpoint time in existingTokens
                 splitIndexExisting = existingTokens.FindLastIndex(t => t.Start < fallbackMidpointTime); // Use .Start
@@ -764,7 +764,7 @@ namespace HTCommander.radio // Use your original namespace
                 splitIndexNew = adjustedNewTokens.FindIndex(t => t.Start >= fallbackMidpointTime); // Use .Start
                 if (splitIndexNew == -1) splitIndexNew = adjustedNewTokens.Count; // Take none if midpoint is after the last token starts
 
-                Console.WriteLine($"Fallback split: Take existing up to index {splitIndexExisting}, start new from index {splitIndexNew}");
+                //Console.WriteLine($"Fallback split: Take existing up to index {splitIndexExisting}, start new from index {splitIndexNew}");
             }
 
             // --- Perform the Merge ---
@@ -784,7 +784,7 @@ namespace HTCommander.radio // Use your original namespace
                 // Check if current token starts before previous one *started* (more robust than checking against previous End)
                 if (mergedTokens[k].Start < mergedTokens[k - 1].Start + 0.01f) // Added small tolerance
                 {
-                    Console.WriteLine($"Warning: Timestamp monotonicity violation at index {k}: {mergedTokens[k - 1]} followed by {mergedTokens[k]}");
+                    //Console.WriteLine($"Warning: Timestamp monotonicity violation at index {k}: {mergedTokens[k - 1]} followed by {mergedTokens[k]}");
                     // Simple fix: Adjust Start time if it overlaps significantly with previous *End* time
                     if (mergedTokens[k].Start < mergedTokens[k - 1].End)
                     {
@@ -794,7 +794,7 @@ namespace HTCommander.radio // Use your original namespace
                 // Ensure End >= Start
                 if (mergedTokens[k].End < mergedTokens[k].Start)
                 {
-                    Console.WriteLine($"Warning: Correcting End time for token at index {k}: {mergedTokens[k]}");
+                    //Console.WriteLine($"Warning: Correcting End time for token at index {k}: {mergedTokens[k]}");
                     mergedTokens[k].End = mergedTokens[k].Start;
                 }
             }
