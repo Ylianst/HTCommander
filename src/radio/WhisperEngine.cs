@@ -225,7 +225,7 @@ namespace HTCommander.radio // Use your original namespace
                 if (audioBufferLength < 5000) { audioBufferLength = 0; }
             }
 
-            if ((audioBufferLength > 0) && ((audioBufferLength > (audioBuffer.Length - 1024)) || (length == 0)))
+            if ((audioBufferLength > 0) && ((audioBufferLength > (audioBuffer.Length - 16384)) || (length == 0)))
             {
                 // Resample the audio from 32kHz to 16kHz
                 int originalAudioBufferLength = audioBufferLength;
@@ -344,7 +344,7 @@ namespace HTCommander.radio // Use your original namespace
                     try
                     {
                         Task.Run(() => {
-                            try{ _processor.Process(p.holdAudioBuffer); } catch (Exception ex) { Console.WriteLine(ex.Message); }
+                            try{ if (_processor != null) { _processor.Process(p.holdAudioBuffer); } } catch (Exception ex) { Console.WriteLine(ex.Message); }
                         })
                         .ContinueWith(task => { if (task.IsCompleted) { OnWhispeCompleted(); } });
                     }

@@ -459,9 +459,15 @@ namespace HTCommander
             }
 
             // Make use of the PCM data
-            if (waveProvider != null) { try { waveProvider.AddSamples(pcmFrame, 0, totalWritten); } catch (Exception) { SetOutputDevice(null); } }
-            if (recording != null) { recording.Write(pcmFrame, 0, totalWritten); }
-            if (speechToTextEngine != null) { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, totalWritten, currentChannelName); }
+            if (waveProvider != null) {
+                try { waveProvider.AddSamples(pcmFrame, 0, totalWritten); } catch (Exception ex) { SetOutputDevice(null); Debug("WaveProvider AddSamples: " + ex.ToString()); }
+            }
+            if (recording != null) {
+                try { recording.Write(pcmFrame, 0, totalWritten); } catch (Exception ex) { Debug("Recording Write Error: " + ex.ToString()); }
+            }
+            if (speechToTextEngine != null) {
+                try { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, totalWritten, currentChannelName); } catch (Exception ex) { Debug("ProcessAudioChunk Error: " + ex.ToString()); }
+            }
             parent.GotAudioData(pcmFrame, 0, totalWritten, currentChannelName, false);
 
             // Clean up
@@ -583,9 +589,13 @@ namespace HTCommander
                 await audioStream.FlushAsync();
 
                 // Do extra processing if needed
-                if (recording != null) { recording.Write(pcmData, pcmOffset, bytesConsumed); }
-                if (PlayInputBack) { PlayPcmBufferAsync(pcmData, pcmOffset, bytesConsumed); }
-                parent.GotAudioData(pcmData, pcmOffset, bytesConsumed, currentChannelName, true);
+                if (recording != null) {
+                    try { recording.Write(pcmData, pcmOffset, bytesConsumed); } catch (Exception ex) { Debug("Recording Write error: " + ex.Message); }
+                }
+                if (PlayInputBack) {
+                    try { PlayPcmBufferAsync(pcmData, pcmOffset, bytesConsumed); } catch (Exception ex) { Debug("PlayPcmBufferAsync error: " + ex.Message); }
+                }
+                try { parent.GotAudioData(pcmData, pcmOffset, bytesConsumed, currentChannelName, true); } catch (Exception ex) { Debug("GotAudioData error: " + ex.Message); }
 
                 pcmOffset += bytesConsumed;
                 pcmLength -= bytesConsumed;
