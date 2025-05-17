@@ -1,2 +1,2 @@
-version=0.26
-filename=HTCommander-0.26.msi
+version=0.27
+filename=HTCommander-0.27.msi

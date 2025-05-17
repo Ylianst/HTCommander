@@ -303,6 +303,7 @@ namespace HTCommander
             List<TorrentFile> torrentFiles = TorrentFile.ReadTorrentFiles();
             foreach (TorrentFile torrentFile in torrentFiles) { AddTorrent(torrentFile); }
 
+            /*
             // Read the packets file
             string[] lines = null;
             try { lines = File.ReadAllLines(Path.Combine(appDataPath, "packets.ptcap")); } catch (Exception) { }
@@ -353,6 +354,7 @@ namespace HTCommander
                     catch (Exception) { }
                 }
             }
+            */
 
             // Read the voice history file
             string voiceHistoryFileName = Path.Combine(appDataPath, "voiceHistory.txt");

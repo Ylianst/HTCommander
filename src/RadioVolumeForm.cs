@@ -197,7 +197,7 @@ namespace HTCommander
             {
                 if (inputDevice != null) { inputDevice.AudioEndpointVolume.OnVolumeNotification -= AudioEndpointVolume_OnInputVolumeNotification; }
                 inputDevice = xinputDevice;
-                inputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnInputVolumeNotification;
+                if (inputDevice != null) { inputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnInputVolumeNotification; }
             }
         }
 

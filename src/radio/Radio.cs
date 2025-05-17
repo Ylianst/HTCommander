@@ -725,28 +725,25 @@ namespace HTCommander
                                 case RadioNotification.DATA_RXD:
                                     Debug("RawData: " + Utils.BytesToHex(value));
                                     TncDataFragment fragment = new TncDataFragment(value);
-                                    if ((fragment.channel_id == -1) && (HtStatus != null))
+                                    if ((fragment.channel_id == -1) && (HtStatus != null)) { fragment.channel_id = HtStatus.curr_ch_id; }
+                                    if ((fragment.channel_id >= 0) && (Channels != null) && (fragment.channel_id < Channels.Length) && (Channels[fragment.channel_id] != null))
                                     {
-                                        fragment.channel_id = HtStatus.curr_ch_id;
-                                        if ((Channels != null) && (Channels.Length < HtStatus.curr_ch_id) && (Channels[HtStatus.curr_ch_id] != null))
+                                        if (Channels[fragment.channel_id].name_str.Length > 0)
                                         {
-                                            if (Channels[HtStatus.curr_ch_id].name_str.Length > 0)
-                                            {
-                                                fragment.channel_name = Channels[HtStatus.curr_ch_id].name_str.Replace(",", "");
-                                            }
-                                            else if (Channels[HtStatus.curr_ch_id].rx_freq != 0)
-                                            {
-                                                fragment.channel_name = (((double)Channels[HtStatus.curr_ch_id].rx_freq) / 1000000) + " Mhz";
-                                            }
-                                            else
-                                            {
-                                                fragment.channel_name = (HtStatus.curr_ch_id + 1).ToString();
-                                            }
+                                            fragment.channel_name = Channels[fragment.channel_id].name_str.Replace(",", "");
+                                        }
+                                        else if (Channels[fragment.channel_id].rx_freq != 0)
+                                        {
+                                            fragment.channel_name = (((double)Channels[fragment.channel_id].rx_freq) / 1000000) + " Mhz";
                                         }
                                         else
                                         {
-                                            fragment.channel_name = (HtStatus.curr_ch_id + 1).ToString();
+                                            fragment.channel_name = (fragment.channel_id + 1).ToString();
                                         }
+                                    }
+                                    else
+                                    {
+                                        fragment.channel_name = (fragment.channel_id + 1).ToString();
                                     }
 
                                     Debug($"DataFragment, FragId={fragment.fragment_id}, IsFinal={fragment.final_fragment}, ChannelId={fragment.channel_id}, DataLen={fragment.data.Length}");
