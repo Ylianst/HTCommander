@@ -303,7 +303,6 @@ namespace HTCommander
             List<TorrentFile> torrentFiles = TorrentFile.ReadTorrentFiles();
             foreach (TorrentFile torrentFile in torrentFiles) { AddTorrent(torrentFile); }
 
-            /*
             // Read the packets file
             string[] lines = null;
             try { lines = File.ReadAllLines(Path.Combine(appDataPath, "packets.ptcap")); } catch (Exception) { }
@@ -354,7 +353,6 @@ namespace HTCommander
                     catch (Exception) { }
                 }
             }
-            */
 
             // Read the voice history file
             string voiceHistoryFileName = Path.Combine(appDataPath, "voiceHistory.txt");
@@ -408,7 +406,7 @@ namespace HTCommander
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
 
             // Open the packet write file
-            AprsFile = File.Open(Path.Combine(appDataPath, "packets.ptcap"), FileMode.Append, FileAccess.Write);
+            try { AprsFile = File.Open(Path.Combine(appDataPath, "packets.ptcap"), FileMode.Append, FileAccess.Write); } catch (Exception) { }
             aprsChatControl.UpdateMessages(true);
 
             debugTextBox.Clear();
