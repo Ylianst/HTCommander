@@ -27,7 +27,7 @@
             height: calc(100vh - 56px); /* Full viewport height below navbar */
             padding-right: 6px;
             padding-left: 6px;
-            background-color: #f8f9fa; /* Light background */
+            background-color: #ddd; /* Light background */
             border-right: 1px solid #dee2e6; /* Add a right border */
             z-index: 1001; /* Ensure left column is above content if needed */
         }
@@ -145,6 +145,14 @@
                 height: calc(100vh - 104px); /* Ensure it fills the tab-pane area */
             }
 
+            /* Adjust xterm.js terminal within tab2_content */
+            #tab4_content #status {
+                height: calc(100vh - 104px); /* Ensure it fills the tab-pane area */
+                overflow: auto;
+                display: flex;
+                flex-direction: column-reverse;
+            }
+
         #status {
             min-height: 100px; /* Give the status div some height */
             font-family: monospace;
@@ -191,6 +199,7 @@
                             About
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdownAbout">
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#sendCommandModal" id="menuSendCommand">Send Command...</a></li>
                             <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#aboutModal">About...</a></li>
                         </ul>
                     </li>
@@ -200,6 +209,9 @@
     </nav>
     <div class="left-column">
         <img src="images/radio.png" alt="Radio Device">
+        <div class="d-grid gap-2" style="position: absolute; bottom: 10px; width: calc(100% - 12px);">
+            <button id="leftColumnConnectButton" class="btn btn-success" style="display: none;">Connect</button>
+        </div>
     </div>
 
     <div class="main-content-area">
@@ -227,29 +239,16 @@
                             </div>
                             ...
                         </div>
+
                         <div class="tab-pane" id="tab4_content" role="tabpanel" aria-labelledby="tab4-icon">
                             <div class="card-header bg-primary text-white">
                                 <h1 class="h3 mb-0">Debug</h1>
                             </div>
-                            <p class="lead">This page attempts to connect to a Bluetooth radio device using the Web Bluetooth API.</p>
-
-                            <div class="mb-3">
-                                <button id="connectButton" class="btn btn-success me-2">Connect to Radio Device</button>
-                                <button id="disconnectButton" class="btn btn-danger" disabled>Disconnect</button>
+                            <div id="status" class="bg-light p-3 border rounded">
+                                <p class="text-muted mb-0">Status: Not Connected</p>
                             </div>
-
-                            <div class="mb-4">
-                                <h2 class="h5">Connection Status & Logs</h2>
-                                <div id="status" class="bg-light p-3 border rounded">
-                                    <p class="text-muted mb-0">Status: Not Connected</p>
-                                </div>
-                            </div>
-
-                            <h2 class="h5">Send Command (Hex String)</h2>
-                            <textarea id="commandInput" class="form-control mb-2" rows="3"
-                                      placeholder="Enter hex string to send (e.g., 01020304)"></textarea>
-                            <button id="sendCommandButton" class="btn btn-primary" disabled>Send Command</button>
                         </div>
+
                         <!--
                         <div class="tab-pane fade" id="tab5_content" role="tabpanel" aria-labelledby="tab5-icon">
                             <h3>Tab 5 Content (Empty)</h3>
@@ -331,6 +330,27 @@
         </div>
     </div>
 
+    <div class="modal fade" id="sendCommandModal" tabindex="-1" aria-labelledby="sendCommandModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="sendCommandModalLabel">Send Hex Command</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="modalCommandInput" class="form-label">Hex String:</label>
+                        <textarea class="form-control" id="modalCommandInput" rows="3" placeholder="Enter hex string (e.g., 01020304)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="modalSendCommandButton">Send Command</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <script>
@@ -344,16 +364,18 @@
         let indicateCharacteristic = null;
         let gattServer = null;
 
-        const connectButton = document.getElementById('connectButton');
-        const disconnectButton = document.getElementById('disconnectButton');
-        const sendCommandButton = document.getElementById('sendCommandButton');
-        const commandInput = document.getElementById('commandInput');
         const statusDiv = document.getElementById('status');
         const tabTwoButton = document.getElementById('tab2-icon');
+        const leftColumnConnectButton = document.getElementById('leftColumnConnectButton');
 
-        // Get menu bar elements - these IDs are still valid
+        // Get menu bar elements
         const menuConnect = document.getElementById('menuConnect');
         const menuDisconnect = document.getElementById('menuDisconnect');
+        // NEW: Get the modal elements
+        const sendCommandModal = new bootstrap.Modal(document.getElementById('sendCommandModal'));
+        const modalCommandInput = document.getElementById('modalCommandInput');
+        const modalSendCommandButton = document.getElementById('modalSendCommandButton');
+        const menuSendCommand = document.getElementById('menuSendCommand'); // Reference to the new menu item
 
         // Initialize xterm.js terminal
         var xtermfit = new FitAddon.FitAddon();
@@ -367,7 +389,7 @@
 
         function log(message, type = 'info') {
             const entry = document.createElement('p');
-            let textColorClass = 'text-info'; // Default for 'info'
+            let textColorClass = 'text-dark'; // Default for 'info'
             if (type === 'error') {
                 textColorClass = 'text-danger fw-bold';
             } else if (type === 'success') {
@@ -377,7 +399,7 @@
             }
             entry.className = `log-entry ${textColorClass} mb-0`; // mb-0 for no margin-bottom
             entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            statusDiv.appendChild(entry);
+            statusDiv.insertBefore(entry, statusDiv.firstChild);
             statusDiv.scrollTop = statusDiv.scrollHeight; // Auto-scroll
             console.log(`[${type.toUpperCase()}] ${message}`);
         }
@@ -420,9 +442,11 @@
                 log(`Device selected: ${bluetoothDevice.name || bluetoothDevice.id}`, 'success');
                 bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
 
-                connectButton.disabled = true;
-                // For Bootstrap dropdowns, use the 'disabled' class on the 'dropdown-item'
+                // Update button states
                 menuConnect.classList.add('disabled');
+                leftColumnConnectButton.style.display = 'none'; // Hide when connecting/connected
+                menuSendCommand.classList.add('disabled'); // NEW: Disable send command option during connection setup
+
                 log('Connecting to GATT Server...');
                 gattServer = await bluetoothDevice.gatt.connect();
                 log('Connected to GATT Server.', 'success');
@@ -444,10 +468,9 @@
                 indicateCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
                 log('Notifications started.', 'success');
 
-                disconnectButton.disabled = false;
-                // For Bootstrap dropdowns, use the 'disabled' class on the 'dropdown-item'
                 menuDisconnect.classList.remove('disabled');
-                sendCommandButton.disabled = false;
+                modalSendCommandButton.disabled = false; // NEW: Enable modal send command button
+                menuSendCommand.classList.remove('disabled'); // NEW: Enable send command option in menu
                 log('Device connected and ready.', 'success');
 
             } catch (error) {
@@ -456,11 +479,11 @@
                     log("No device matching the specified service UUID was found. Ensure the device is powered on and advertising.", "error");
                 }
                 console.error('Connection failed:', error);
-                connectButton.disabled = false;
                 menuConnect.classList.remove('disabled');
-                disconnectButton.disabled = true;
                 menuDisconnect.classList.add('disabled');
-                sendCommandButton.disabled = true;
+                modalSendCommandButton.disabled = true; // NEW: Disable modal send command button
+                menuSendCommand.classList.add('disabled'); // NEW: Disable send command option in menu
+                leftColumnConnectButton.style.display = 'block'; // Show on disconnection/error
             }
         }
 
@@ -483,15 +506,11 @@
             xterm.focus(); // Focus the terminal for input
         }
 
-        connectButton.addEventListener('click', initiateConnect);
-        disconnectButton.addEventListener('click', initiateDisconnect);
         tabTwoButton.addEventListener('click', terminalDisplayed);
+        leftColumnConnectButton.addEventListener('click', initiateConnect);
 
-        // Menu bar event listeners - These are now standard Bootstrap dropdown items
-        // You can still use your existing JS for disabling/enabling them,
-        // as the 'disabled' class will prevent the click event on the link itself.
+        // Menu bar event listeners
         menuConnect.addEventListener('click', (event) => {
-            // Prevent default only if it's disabled, otherwise let Bootstrap handle dropdown toggle
             if (menuConnect.classList.contains('disabled')) {
                 event.preventDefault();
             } else {
@@ -500,7 +519,6 @@
         });
 
         menuDisconnect.addEventListener('click', (event) => {
-            // Prevent default only if it's disabled
             if (menuDisconnect.classList.contains('disabled')) {
                 event.preventDefault();
             } else {
@@ -510,11 +528,11 @@
 
         function onDisconnected() {
             log('Device disconnected.', 'info');
-            connectButton.disabled = false;
             menuConnect.classList.remove('disabled');
-            disconnectButton.disabled = true;
             menuDisconnect.classList.add('disabled');
-            sendCommandButton.disabled = true;
+            modalSendCommandButton.disabled = true; // NEW: Disable modal send command button
+            menuSendCommand.classList.add('disabled'); // NEW: Disable send command option in menu
+            leftColumnConnectButton.style.display = 'block';
 
             if (indicateCharacteristic) {
                 indicateCharacteristic.removeEventListener('characteristicvaluechanged', handleNotifications);
@@ -536,12 +554,13 @@
             // log(`Parsed message: ${JSON.stringify(radioMessage)}`);
         }
 
-        sendCommandButton.addEventListener('click', async () => {
+        // NEW: Event listener for the modal's send command button
+        modalSendCommandButton.addEventListener('click', async () => {
             if (!writeCharacteristic) {
                 log('Write characteristic not available.', 'error');
                 return;
             }
-            const hexCommand = commandInput.value.trim().replace(/\s/g, ''); // remove spaces
+            const hexCommand = modalCommandInput.value.trim().replace(/\s/g, ''); // remove spaces
             if (!hexCommand) {
                 log('Command input is empty.', 'error');
                 return;
@@ -554,6 +573,8 @@
 
                 await writeCharacteristic.writeValueWithResponse(dataToSend); // Or writeValueWithoutResponse
                 log('Command sent successfully.', 'success');
+                sendCommandModal.hide(); // Hide the modal after sending
+                modalCommandInput.value = ''; // Clear the input after sending
 
             } catch (error) {
                 log(`Error sending command: ${error.message}`, 'error');
@@ -573,6 +594,15 @@
                     });
             });
         }
+
+        // Initial state when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+                leftColumnConnectButton.style.display = 'block'; // Show connect button if not connected initially
+                menuSendCommand.classList.add('disabled'); // NEW: Disable send command option on initial load if not connected
+                modalSendCommandButton.disabled = true; // NEW: Disable modal send command button on initial load if not connected
+            }
+        });
     </script>
 </body>
 </html>
