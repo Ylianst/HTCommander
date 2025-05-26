@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handi-Talky Commander</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#007bff" />
+    <link rel="stylesheet" href="xterm/xterm.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="xterm/xterm.js"></script>
+    <script src="xterm/addon-fit.js"></script>
+    <style>
+        /* Custom styles for layout */
+        body {
+            background-color: #f8f9fa; /* Light gray background */
+            padding-top: 56px; /* Adjusted for Bootstrap navbar height */
+            overflow-x: hidden; /* Prevent horizontal scrollbar from layout shifts */
+        }
+
+        .left-column {
+            width: 232px; /* Fixed width */
+            position: fixed; /* Fixed positioning */
+            top: 56px; /* Adjust top to be below the new Bootstrap navbar height */
+            left: 0; /* Stick to the left */
+            height: calc(100vh - 56px); /* Full viewport height below navbar */
+            padding-right: 6px;
+            padding-left: 6px;
+            background-color: #f8f9fa; /* Light background */
+            border-right: 1px solid #dee2e6; /* Add a right border */
+            z-index: 1001; /* Ensure left column is above content if needed */
+        }
+
+            .left-column img {
+                width: 100%; /* Make image fill the column width */
+                height: auto; /* Maintain aspect ratio */
+                max-height: 550px; /* Limit the maximum height */
+                display: block; /* Remove any extra spacing */
+                margin-top: 0;
+                margin-bottom: 15px;
+            }
+
+        /* --- Main content area (right of left-column) --- */
+        .main-content-area {
+            position: fixed;
+            margin-left: 232px; /* Match left column width */
+            display: flex; /* Use flexbox to arrange content and tabs side-by-side */
+            height: calc(100vh - 56px); /* Occupy remaining height below navbar */
+            width: calc(100vw - 232px);
+            overflow: hidden; /* Hide overflow on the main container */
+        }
+
+        /* Styles for the right-side vertical tabs */
+        .vertical-tabs-container {
+            width: 60px; /* Fixed width for icon tabs column */
+            flex-shrink: 0; /* Prevent it from shrinking */
+            background-color: #e9ecef; /* Light gray background for tabs */
+            border-left: 1px solid #dee2e6; /* Separator from content */
+            padding-top: 0;
+        }
+
+            .vertical-tabs-container .nav-pills { /* Target the nav-pills inside */
+                display: flex;
+                flex-direction: column; /* Stack tabs vertically */
+                height: 100%; /* Make nav-pills fill the container height */
+            }
+
+            .vertical-tabs-container .nav-link {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 10px 0;
+                margin-bottom: 0; /* No margin between icons */
+                color: #495057; /* Default icon color */
+                border: none; /* Remove default button border */
+                background-color: transparent; /* Remove default button background */
+                border-radius: 0; /* No border-radius for a flush look */
+                transition: all 0.2s ease-in-out;
+                height: 60px; /* Fixed height for each icon tab */
+                width: 100%; /* Make link fill its container */
+            }
+
+                .vertical-tabs-container .nav-link:hover {
+                    color: #0056b3; /* Darker blue on hover */
+                    background-color: #f0f0f0;
+                }
+
+                .vertical-tabs-container .nav-link.active {
+                    color: #007bff; /* Active icon color */
+                    background-color: #ffffff; /* White background for active tab */
+                    border-right: 3px solid #007bff; /* Highlight active tab */
+                    font-weight: bold;
+                }
+
+                .vertical-tabs-container .nav-link i {
+                    font-size: 1.5rem; /* Icon size */
+                    margin-bottom: 3px; /* Spacing between icon and text */
+                }
+
+                .vertical-tabs-container .nav-link span {
+                    font-size: 0.75rem; /* Text label size */
+                    text-align: center;
+                    line-height: 1; /* Ensure text sits correctly */
+                }
+
+        /* Styles for the tab content area */
+        .tab-content-area {
+            flex-grow: 1; /* Allow content area to take remaining space */
+            padding: 0; /* No padding here, padding will be inside the card-body */
+            display: flex; /* Make it a flex container for the card */
+            flex-direction: column; /* Stack card elements vertically */
+        }
+
+        .tab-card {
+            flex-grow: 1; /* Make the card fill the available height */
+            border: none; /* Remove default card border */
+            border-radius: 0; /* Remove card border radius */
+            display: flex; /* Make card a flex container */
+            flex-direction: column; /* Stack card header and body */
+            overflow: hidden; /* Hide overflow on the card itself */
+        }
+
+            .tab-card .card-header {
+                border-top-left-radius: 0; /* Remove top-left border radius */
+                border-top-right-radius: 0; /* Remove top-right border radius */
+                flex-shrink: 0; /* Prevent header from shrinking */
+            }
+
+            .tab-card .card-body {
+                flex-grow: 1; /* Allow card-body to take all remaining space */
+                padding: 0px; /* Add padding here for content within the tab pane */
+                overflow-y: hidden; /* Disable scrolling for the tab content area */
+            }
+
+        #tab2_content {
+            background-color: #333333; /* Dark gray */
+            color: #ffffff; /* Set text color to white for better contrast */
+            height: 100%; /* Ensure it fills the tab-pane area */
+        }
+
+            /* Adjust xterm.js terminal within tab2_content */
+            #tab2_content #terminal {
+                height: calc(100vh - 104px); /* Ensure it fills the tab-pane area */
+            }
+
+        #status {
+            min-height: 100px; /* Give the status div some height */
+            font-family: monospace;
+            font-size: 0.875em; /* Smaller font for logs */
+            /* Removed overflow-y: auto; from here because card-body handles it */
+        }
+
+        .log-entry {
+            padding-bottom: 0.25rem;
+            margin-bottom: 0.25rem;
+            border-bottom: 1px dotted #dee2e6; /* Light border for log entries */
+        }
+
+            .log-entry:last-child {
+                border-bottom: none;
+            }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Handi-Talky Commander</a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNavDropdown">
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            File
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" id="menuConnect">Connect</a></li>
+                            <li><a class="dropdown-item" href="#" id="menuDisconnect">Disconnect</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Settings</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownAbout" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            About
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownAbout">
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#aboutModal">About...</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="left-column">
+        <img src="images/radio.png" alt="Radio Device">
+    </div>
+
+    <div class="main-content-area">
+        <div class="tab-content-area">
+            <div class="card shadow-sm tab-card">
+                <div class="card-body">
+                    <div class="tab-content" id="myTabContent">
+                        <div class="tab-pane show active" id="tab1_content" role="tabpanel" aria-labelledby="tab1-icon">
+                            <div class="card-header bg-primary text-white">
+                                <h1 class="h3 mb-0">APRS</h1>
+                            </div>
+                            ...
+                        </div>
+
+                        <div class="tab-pane" id="tab2_content" role="tabpanel" aria-labelledby="tab2-icon">
+                            <div class="card-header bg-primary text-white">
+                                <h1 class="h3 mb-0">Terminal</h1>
+                            </div>
+                            <div id="terminal"></div>
+                        </div>
+
+                        <div class="tab-pane" id="tab3_content" role="tabpanel" aria-labelledby="tab3-icon">
+                            <div class="card-header bg-primary text-white">
+                                <h1 class="h3 mb-0">Packets</h1>
+                            </div>
+                            ...
+                        </div>
+                        <div class="tab-pane" id="tab4_content" role="tabpanel" aria-labelledby="tab4-icon">
+                            <div class="card-header bg-primary text-white">
+                                <h1 class="h3 mb-0">Debug</h1>
+                            </div>
+                            <p class="lead">This page attempts to connect to a Bluetooth radio device using the Web Bluetooth API.</p>
+
+                            <div class="mb-3">
+                                <button id="connectButton" class="btn btn-success me-2">Connect to Radio Device</button>
+                                <button id="disconnectButton" class="btn btn-danger" disabled>Disconnect</button>
+                            </div>
+
+                            <div class="mb-4">
+                                <h2 class="h5">Connection Status & Logs</h2>
+                                <div id="status" class="bg-light p-3 border rounded">
+                                    <p class="text-muted mb-0">Status: Not Connected</p>
+                                </div>
+                            </div>
+
+                            <h2 class="h5">Send Command (Hex String)</h2>
+                            <textarea id="commandInput" class="form-control mb-2" rows="3"
+                                      placeholder="Enter hex string to send (e.g., 01020304)"></textarea>
+                            <button id="sendCommandButton" class="btn btn-primary" disabled>Send Command</button>
+                        </div>
+                        <!--
+                        <div class="tab-pane fade" id="tab5_content" role="tabpanel" aria-labelledby="tab5-icon">
+                            <h3>Tab 5 Content (Empty)</h3>
+                            <p>General radio settings content.</p>
+                        </div>
+                        <div class="tab-pane fade" id="tab6_content" role="tabpanel" aria-labelledby="tab6-icon">
+                            <h3>Tab 6 Content (Empty)</h3>
+                            <p>CTCSS/DCS tone settings.</p>
+                        </div>
+                        <div class="tab-pane fade" id="tab7_content" role="tabpanel" aria-labelledby="tab7-icon">
+                            <h3>Tab 7 Content (Empty)</h3>
+                            <p>Memory management for radio.</p>
+                        </div>
+                        <div class="tab-pane fade" id="tab8_content" role="tabpanel" aria-labelledby="tab8-icon">
+                            <h3>Tab 8 Content (Empty)</h3>
+                            <p>Advanced radio configurations.</p>
+                        </div>
+                        -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="vertical-tabs-container">
+            <nav class="nav nav-pills flex-column" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                <button class="nav-link active" id="tab1-icon" data-bs-toggle="pill" data-bs-target="#tab1_content" type="button" role="tab" aria-controls="tab1_content" aria-selected="true">
+                    <i class="fas fa-comments"></i> <span>APRS</span>
+                </button>
+                <button class="nav-link" id="tab2-icon" data-bs-toggle="pill" data-bs-target="#tab2_content" type="button" role="tab" aria-controls="tab2_content" aria-selected="false">
+                    <i class="fas fa-terminal"></i> <span>Terminal</span>
+                </button>
+                <button class="nav-link" id="tab3-icon" data-bs-toggle="pill" data-bs-target="#tab3_content" type="button" role="tab" aria-controls="tab3_content" aria-selected="false">
+                    <i class="fas fa-list"></i> <span>Packets</span>
+                </button>
+                <button class="nav-link" id="tab4-icon" data-bs-toggle="pill" data-bs-target="#tab4_content" type="button" role="tab" aria-controls="tab4_content" aria-selected="false">
+                    <i class="fas fa-server"></i> <span>Debug</span>
+                </button>
+                <!--
+                <button class="nav-link" id="tab5-icon" data-bs-toggle="pill" data-bs-target="#tab5_content" type="button" role="tab" aria-controls="tab5_content" aria-selected="false">
+                    <i class="fas fa-sliders-h"></i> <span>Debug</span>
+                </button>
+                <button class="nav-link" id="tab6-icon" data-bs-toggle="pill" data-bs-target="#tab6_content" type="button" role="tab" aria-controls="tab6_content" aria-selected="false">
+                    <i class="fas fa-microphone-lines"></i> <span>Tones</span>
+                </button>
+                <button class="nav-link" id="tab7-icon" data-bs-toggle="pill" data-bs-target="#tab7_content" type="button" role="tab" aria-controls="tab7_content" aria-selected="false">
+                    <i class="fas fa-memory"></i> <span>Memory</span>
+                </button>
+                <button class="nav-link" id="tab8-icon" data-bs-toggle="pill" data-bs-target="#tab8_content" type="button" role="tab" aria-controls="tab8_content" aria-selected="false">
+                    <i class="fas fa-cogs"></i> <span>Advanced</span>
+                </button>
+                -->
+            </nav>
+        </div>
+    </div>
+
+    <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="aboutModalLabel">Handi-Talky Commander</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        <strong>Version:</strong> 0.1<br>
+                        <strong>Developed by:</strong> Ylian Saint-Hilaire, KK7VZT<br>
+                        <strong>License:</strong> Open Source, Apache 2.0 License<br>
+                        <strong>Site:</strong> <a href="https://github.com/Ylianst/HTCommander" target="_blank">github.com/Ylianst/HTCommander</a>
+                    </p>
+                    <p>
+                        Based on BenLink by Kyle Husmann, KC3SLD<br>
+                        <a href="https://github.com/khusmann/benlink" target="_blank">github.com/khusmann/benlink</a>
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+    <script>
+        const RADIO_SERVICE_UUID = "00001100-d102-11e1-9b23-00025b00a5a5";
+        const RADIO_WRITE_UUID = "00001101-d102-11e1-9b23-00025b00a5a5";
+        const RADIO_INDICATE_UUID = "00001102-d102-11e1-9b23-00025b00a5a5";
+
+        let bluetoothDevice = null;
+        let radioService = null;
+        let writeCharacteristic = null;
+        let indicateCharacteristic = null;
+        let gattServer = null;
+
+        const connectButton = document.getElementById('connectButton');
+        const disconnectButton = document.getElementById('disconnectButton');
+        const sendCommandButton = document.getElementById('sendCommandButton');
+        const commandInput = document.getElementById('commandInput');
+        const statusDiv = document.getElementById('status');
+        const tabTwoButton = document.getElementById('tab2-icon');
+
+        // Get menu bar elements - these IDs are still valid
+        const menuConnect = document.getElementById('menuConnect');
+        const menuDisconnect = document.getElementById('menuDisconnect');
+
+        // Initialize xterm.js terminal
+        var xtermfit = new FitAddon.FitAddon();
+        var xterm = new Terminal();
+        xterm.loadAddon(xtermfit);
+        xterm.open(document.getElementById('terminal'));
+        xterm.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m $ ');
+        //setTimeout(function () { xtermfit.fit(); }, 10)
+
+        window.onresize = function () { xtermfit.fit(); }
+
+        function log(message, type = 'info') {
+            const entry = document.createElement('p');
+            let textColorClass = 'text-info'; // Default for 'info'
+            if (type === 'error') {
+                textColorClass = 'text-danger fw-bold';
+            } else if (type === 'success') {
+                textColorClass = 'text-success fw-bold';
+            } else if (type === 'data') {
+                textColorClass = 'text-secondary fst-italic';
+            }
+            entry.className = `log-entry ${textColorClass} mb-0`; // mb-0 for no margin-bottom
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            statusDiv.appendChild(entry);
+            statusDiv.scrollTop = statusDiv.scrollHeight; // Auto-scroll
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function clearLogs() {
+            statusDiv.innerHTML = '';
+        }
+
+        function hexStringToUint8Array(hexString) {
+            if (hexString.length % 2 !== 0) {
+                log("Hex string must have an even number of digits.", 'error');
+                throw new Error("Hex string must have an even number of digits.");
+            }
+            const byteArray = new Uint8Array(hexString.length / 2);
+            for (let i = 0; i < byteArray.length; i++) {
+                byteArray[i] = parseInt(hexString.substr(i * 2, 2), 16);
+            }
+            return byteArray;
+        }
+
+        function arrayBufferToHexString(buffer) {
+            return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+        }
+
+        // Centralized connect/disconnect logic to be called from both buttons and menu
+        async function initiateConnect() {
+            clearLogs();
+            if (!navigator.bluetooth) {
+                log('Web Bluetooth API is not available in this browser!', 'error');
+                return;
+            }
+
+            try {
+                log('Requesting Bluetooth Device...');
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'UV-PRO' }],
+                    optionalServices: [RADIO_SERVICE_UUID]
+                });
+
+                log(`Device selected: ${bluetoothDevice.name || bluetoothDevice.id}`, 'success');
+                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+                connectButton.disabled = true;
+                // For Bootstrap dropdowns, use the 'disabled' class on the 'dropdown-item'
+                menuConnect.classList.add('disabled');
+                log('Connecting to GATT Server...');
+                gattServer = await bluetoothDevice.gatt.connect();
+                log('Connected to GATT Server.', 'success');
+
+                log(`Getting Radio Service (UUID: ${RADIO_SERVICE_UUID})...`);
+                radioService = await gattServer.getPrimaryService(RADIO_SERVICE_UUID);
+                log('Radio Service obtained.', 'success');
+
+                log(`Getting Write Characteristic (UUID: ${RADIO_WRITE_UUID})...`);
+                writeCharacteristic = await radioService.getCharacteristic(RADIO_WRITE_UUID);
+                log('Write Characteristic obtained.', 'success');
+
+                log(`Getting Indicate Characteristic (UUID: ${RADIO_INDICATE_UUID})...`);
+                indicateCharacteristic = await radioService.getCharacteristic(RADIO_INDICATE_UUID);
+                log('Indicate Characteristic obtained.', 'success');
+
+                log('Starting notifications for Indicate Characteristic...');
+                await indicateCharacteristic.startNotifications();
+                indicateCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+                log('Notifications started.', 'success');
+
+                disconnectButton.disabled = false;
+                // For Bootstrap dropdowns, use the 'disabled' class on the 'dropdown-item'
+                menuDisconnect.classList.remove('disabled');
+                sendCommandButton.disabled = false;
+                log('Device connected and ready.', 'success');
+
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                if (error.name === "NotFoundError") {
+                    log("No device matching the specified service UUID was found. Ensure the device is powered on and advertising.", "error");
+                }
+                console.error('Connection failed:', error);
+                connectButton.disabled = false;
+                menuConnect.classList.remove('disabled');
+                disconnectButton.disabled = true;
+                menuDisconnect.classList.add('disabled');
+                sendCommandButton.disabled = true;
+            }
+        }
+
+        async function initiateDisconnect() {
+            if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+                log('Device not connected.', 'info');
+                return;
+            }
+            try {
+                log('Disconnecting from device...');
+                await bluetoothDevice.gatt.disconnect();
+                // onDisconnected will be called automatically
+            } catch (error) {
+                log(`Error during disconnection: ${error.message}`, 'error');
+            }
+        }
+
+        function terminalDisplayed() {
+            xtermfit.fit(); // Ensure the terminal fits the container
+            xterm.focus(); // Focus the terminal for input
+        }
+
+        connectButton.addEventListener('click', initiateConnect);
+        disconnectButton.addEventListener('click', initiateDisconnect);
+        tabTwoButton.addEventListener('click', terminalDisplayed);
+
+        // Menu bar event listeners - These are now standard Bootstrap dropdown items
+        // You can still use your existing JS for disabling/enabling them,
+        // as the 'disabled' class will prevent the click event on the link itself.
+        menuConnect.addEventListener('click', (event) => {
+            // Prevent default only if it's disabled, otherwise let Bootstrap handle dropdown toggle
+            if (menuConnect.classList.contains('disabled')) {
+                event.preventDefault();
+            } else {
+                initiateConnect();
+            }
+        });
+
+        menuDisconnect.addEventListener('click', (event) => {
+            // Prevent default only if it's disabled
+            if (menuDisconnect.classList.contains('disabled')) {
+                event.preventDefault();
+            } else {
+                initiateDisconnect();
+            }
+        });
+
+        function onDisconnected() {
+            log('Device disconnected.', 'info');
+            connectButton.disabled = false;
+            menuConnect.classList.remove('disabled');
+            disconnectButton.disabled = true;
+            menuDisconnect.classList.add('disabled');
+            sendCommandButton.disabled = true;
+
+            if (indicateCharacteristic) {
+                indicateCharacteristic.removeEventListener('characteristicvaluechanged', handleNotifications);
+            }
+
+            bluetoothDevice = null;
+            radioService = null;
+            writeCharacteristic = null;
+            indicateCharacteristic = null;
+            gattServer = null;
+        }
+
+        function handleNotifications(event) {
+            const value = event.target.value; // This is a DataView
+            const receivedData = value.buffer; // Get the ArrayBuffer
+            log(`Notification received: ${arrayBufferToHexString(receivedData)}`, 'data');
+            // TODO: Implement your protocol's message parsing here
+            // e.g., const radioMessage = radio_message_from_protocol_js(new Uint8Array(receivedData));
+            // log(`Parsed message: ${JSON.stringify(radioMessage)}`);
+        }
+
+        sendCommandButton.addEventListener('click', async () => {
+            if (!writeCharacteristic) {
+                log('Write characteristic not available.', 'error');
+                return;
+            }
+            const hexCommand = commandInput.value.trim().replace(/\s/g, ''); // remove spaces
+            if (!hexCommand) {
+                log('Command input is empty.', 'error');
+                return;
+            }
+
+            try {
+                const dataToSend = hexStringToUint8Array(hexCommand);
+                log(`Sending command (hex): ${hexCommand}`, 'info');
+                // log(`Sending command (bytes): ${dataToSend}`);
+
+                await writeCharacteristic.writeValueWithResponse(dataToSend); // Or writeValueWithoutResponse
+                log('Command sent successfully.', 'success');
+
+            } catch (error) {
+                log(`Error sending command: ${error.message}`, 'error');
+                console.error('Send command error:', error);
+            }
+        });
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
