@@ -6,11 +6,9 @@
     <title>Handi-Talky Commander</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#007bff" />
-    <link rel="stylesheet" href="xterm/xterm.css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="xterm/xterm.js"></script>
-    <script src="xterm/addon-fit.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
         /* Custom styles for layout */
         body {
@@ -140,18 +138,40 @@
             height: 100%; /* Ensure it fills the tab-pane area */
         }
 
-            /* Adjust xterm.js terminal within tab2_content */
-            #tab2_content #terminal {
-                height: calc(100vh - 104px); /* Ensure it fills the tab-pane area */
-            }
+        /* Adjust aprs within tab1_content */
+        #tab1_content #aprs {
+            height: calc(100vh - 104px - 58px); /* Adjusted for input bar height (58px approx) */
+            overflow: auto;
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 6px;
+        }
 
-            /* Adjust xterm.js terminal within tab2_content */
-            #tab4_content #status {
-                height: calc(100vh - 104px); /* Ensure it fills the tab-pane area */
-                overflow: auto;
-                display: flex;
-                flex-direction: column-reverse;
-            }
+        /* Adjust terminal within tab2_content */
+        #tab2_content #terminal {
+            height: calc(100vh - 104px); /* Ensure it fills the tab-pane area */
+            padding: 6px; /* Add some padding for better readability */
+            font-family: monospace;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: auto;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        /* Adjust status within tab4_content */
+        #tab4_content #status {
+            height: calc(100vh - 104px); /* Ensure it fills the tab-pane area */
+            overflow: auto;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        /* NEW: Styles for the map container */
+        #tab_map_content #mapid {
+            height: calc(100vh - 104px); /* Fill the remaining height */
+            width: 100%;
+        }
 
         #status {
             min-height: 100px; /* Give the status div some height */
@@ -161,14 +181,112 @@
         }
 
         .log-entry {
-            padding-bottom: 0.25rem;
-            margin-bottom: 0.25rem;
-            border-bottom: 1px dotted #dee2e6; /* Light border for log entries */
+            padding-bottom: 0;
         }
 
-            .log-entry:last-child {
-                border-bottom: none;
+        .aprs-in-callsign {
+            color: #222;
+            align-self: flex-start; /* If using flexbox for chat container, aligns to the right */
+        }
+
+        .aprs-out-callsign {
+            color: #222;
+            align-self: flex-end; /* If using flexbox for chat container, aligns to the right */
+        }
+
+        .aprs-out-entry {
+            background-color: #007bff; /* A common vibrant blue */
+            color: white;
+            padding: 10px 15px; /* Top/bottom padding, left/right padding */
+            border-radius: 10px; /* Adjust for more or less roundness */
+            margin-bottom: 10px; /* Space between bubbles */
+            max-width: 85%; /* Prevents bubble from taking full width */
+            align-self: flex-end; /* If using flexbox for chat container, aligns to the right */
+            word-wrap: break-word; /* Ensures long words break */
+            /* Or for modern browsers: */
+            overflow-wrap: break-word;
+        }
+
+        .aprs-in-entry {
+            background-color: #007bff; /* A common vibrant blue */
+            color: white;
+            padding: 10px 15px; /* Top/bottom padding, left/right padding */
+            border-radius: 10px; /* Adjust for more or less roundness */
+            margin-bottom: 10px; /* Space between bubbles */
+            max-width: 85%; /* Prevents bubble from taking full width */
+            align-self: flex-start; /* If using flexbox for chat container, aligns to the right */
+            word-wrap: break-word; /* Ensures long words break */
+            /* Or for modern browsers: */
+            overflow-wrap: break-word;
+        }
+
+        /* Styles for the APRS input bar */
+        #aprs-input-bar {
+            padding: 10px;
+            background-color: #e9ecef; /* Light gray background */
+            border-top: 1px solid #dee2e6; /* Separator from content */
+            flex-shrink: 0; /* Prevent it from shrinking */
+        }
+
+        /* NEW: Styles for Packets tab split view */
+        #tab3_content {
+            height: calc(100vh - 56px); /* Full height below header */
+            overflow: hidden; /* Hide overflow from inner containers */
+        }
+
+        .packet-list-container {
+            flex-grow: 1; /* Allow list to grow */
+            overflow-y: auto; /* Scroll for list */
+            background-color: #f0f0f0;
+            padding: 6px;
+        }
+
+        .packet-details-container {
+            flex-grow: 1; /* Allow details to grow */
+            overflow-y: auto; /* Scroll for details */
+            background-color: #e9ecef;
+            padding: 6px;
+        }
+
+        .resizer {
+            height: 8px; /* Height of the draggable divider */
+            background-color: #ced4da;
+            cursor: ns-resize; /* North-South resize cursor */
+            border-top: 1px solid #dee2e6;
+            border-bottom: 1px solid #dee2e6;
+            flex-shrink: 0; /* Prevent resizer from shrinking */
+        }
+
+        .packet-list-container ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .packet-list-container li {
+            padding: 2px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+            .packet-list-container li:hover {
+                background-color: #e2e6ea;
             }
+
+            .packet-list-container li.active {
+                background-color: #007bff;
+                color: white;
+            }
+
+        .packet-details-container pre {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            min-height: 100px; /* Ensure it's visible even with no content */
+            white-space: pre-wrap; /* Wrap text in pre */
+            word-break: break-all; /* Break long words */
+        }
     </style>
 </head>
 <body>
@@ -223,7 +341,18 @@
                             <div class="card-header bg-primary text-white">
                                 <h1 class="h3 mb-0">APRS</h1>
                             </div>
-                            ...
+                            <div id="aprs"></div>
+                            <div class="input-group" id="aprs-input-bar">
+                                <input type="text" class="form-control" placeholder="Type APRS message..." id="aprsMessageInput">
+                                <button class="btn btn-primary" type="button" id="sendAprsButton">Send</button>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="tab_map_content" role="tabpanel" aria-labelledby="tab_map-icon">
+                            <div class="card-header bg-primary text-white">
+                                <h1 class="h3 mb-0">Map</h1>
+                            </div>
+                            <div id="mapid"></div>
                         </div>
 
                         <div class="tab-pane" id="tab2_content" role="tabpanel" aria-labelledby="tab2-icon">
@@ -237,7 +366,14 @@
                             <div class="card-header bg-primary text-white">
                                 <h1 class="h3 mb-0">Packets</h1>
                             </div>
-                            ...
+                            <div class="packet-list-container" style="height: 50%;">
+                                <ul id="packetList">
+                                </ul>
+                            </div>
+                            <div class="resizer"></div>
+                            <div class="packet-details-container" style="height: 50%;">
+                                <pre id="packetDetails">Select a packet to see its details.</pre>
+                            </div>
                         </div>
 
                         <div class="tab-pane" id="tab4_content" role="tabpanel" aria-labelledby="tab4-icon">
@@ -249,24 +385,6 @@
                             </div>
                         </div>
 
-                        <!--
-                        <div class="tab-pane fade" id="tab5_content" role="tabpanel" aria-labelledby="tab5-icon">
-                            <h3>Tab 5 Content (Empty)</h3>
-                            <p>General radio settings content.</p>
-                        </div>
-                        <div class="tab-pane fade" id="tab6_content" role="tabpanel" aria-labelledby="tab6-icon">
-                            <h3>Tab 6 Content (Empty)</h3>
-                            <p>CTCSS/DCS tone settings.</p>
-                        </div>
-                        <div class="tab-pane fade" id="tab7_content" role="tabpanel" aria-labelledby="tab7-icon">
-                            <h3>Tab 7 Content (Empty)</h3>
-                            <p>Memory management for radio.</p>
-                        </div>
-                        <div class="tab-pane fade" id="tab8_content" role="tabpanel" aria-labelledby="tab8-icon">
-                            <h3>Tab 8 Content (Empty)</h3>
-                            <p>Advanced radio configurations.</p>
-                        </div>
-                        -->
                     </div>
                 </div>
             </div>
@@ -277,6 +395,9 @@
                 <button class="nav-link active" id="tab1-icon" data-bs-toggle="pill" data-bs-target="#tab1_content" type="button" role="tab" aria-controls="tab1_content" aria-selected="true">
                     <i class="fas fa-comments"></i> <span>APRS</span>
                 </button>
+                <button class="nav-link" id="tab_map-icon" data-bs-toggle="pill" data-bs-target="#tab_map_content" type="button" role="tab" aria-controls="tab_map_content" aria-selected="false">
+                    <i class="fas fa-map-marked-alt"></i> <span>Map</span>
+                </button>
                 <button class="nav-link" id="tab2-icon" data-bs-toggle="pill" data-bs-target="#tab2_content" type="button" role="tab" aria-controls="tab2_content" aria-selected="false">
                     <i class="fas fa-terminal"></i> <span>Terminal</span>
                 </button>
@@ -286,20 +407,6 @@
                 <button class="nav-link" id="tab4-icon" data-bs-toggle="pill" data-bs-target="#tab4_content" type="button" role="tab" aria-controls="tab4_content" aria-selected="false">
                     <i class="fas fa-server"></i> <span>Debug</span>
                 </button>
-                <!--
-                <button class="nav-link" id="tab5-icon" data-bs-toggle="pill" data-bs-target="#tab5_content" type="button" role="tab" aria-controls="tab5_content" aria-selected="false">
-                    <i class="fas fa-sliders-h"></i> <span>Debug</span>
-                </button>
-                <button class="nav-link" id="tab6-icon" data-bs-toggle="pill" data-bs-target="#tab6_content" type="button" role="tab" aria-controls="tab6_content" aria-selected="false">
-                    <i class="fas fa-microphone-lines"></i> <span>Tones</span>
-                </button>
-                <button class="nav-link" id="tab7-icon" data-bs-toggle="pill" data-bs-target="#tab7_content" type="button" role="tab" aria-controls="tab7_content" aria-selected="false">
-                    <i class="fas fa-memory"></i> <span>Memory</span>
-                </button>
-                <button class="nav-link" id="tab8-icon" data-bs-toggle="pill" data-bs-target="#tab8_content" type="button" role="tab" aria-controls="tab8_content" aria-selected="false">
-                    <i class="fas fa-cogs"></i> <span>Advanced</span>
-                </button>
-                -->
             </nav>
         </div>
     </div>
@@ -352,6 +459,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
         const RADIO_SERVICE_UUID = "00001100-d102-11e1-9b23-00025b00a5a5";
@@ -364,7 +472,9 @@
         let indicateCharacteristic = null;
         let gattServer = null;
 
+        const aprsDiv = document.getElementById('aprs');
         const statusDiv = document.getElementById('status');
+        const terminalDiv = document.getElementById('terminal');
         const tabTwoButton = document.getElementById('tab2-icon');
         const leftColumnConnectButton = document.getElementById('leftColumnConnectButton');
 
@@ -377,15 +487,66 @@
         const modalSendCommandButton = document.getElementById('modalSendCommandButton');
         const menuSendCommand = document.getElementById('menuSendCommand'); // Reference to the new menu item
 
-        // Initialize xterm.js terminal
-        var xtermfit = new FitAddon.FitAddon();
-        var xterm = new Terminal();
-        xterm.loadAddon(xtermfit);
-        xterm.open(document.getElementById('terminal'));
-        xterm.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m $ ');
-        //setTimeout(function () { xtermfit.fit(); }, 10)
+        // NEW: Get APRS input elements
+        const aprsMessageInput = document.getElementById('aprsMessageInput');
+        const sendAprsButton = document.getElementById('sendAprsButton');
 
-        window.onresize = function () { xtermfit.fit(); }
+        // Leaflet Map variable
+        let mymap = null;
+        const mapTabButton = document.getElementById('tab_map-icon');
+
+        // NEW: Packet Tab Elements
+        const packetListContainer = document.querySelector('.packet-list-container');
+        const packetDetailsContainer = document.querySelector('.packet-details-container');
+        const resizer = document.querySelector('.resizer');
+        const packetList = document.getElementById('packetList');
+        const packetDetails = document.getElementById('packetDetails');
+        let packets = []; // Array to store packet objects
+
+        aprsData("KK7VZT-6", "This is sample text1", "inbound");
+        aprsData("KK7VZT-7", "This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2x", "outbound");
+        aprsData("KK7VZT-6", "This is sample text1", "inbound");
+        aprsData("KK7VZT-5", "This is sample text1", "inbound");
+
+        terminalData(null, "Connecting...", "status");
+        terminalData("KK7VZT-6", "This is sample text1", "inbound");
+        terminalData("KK7VZT-7", "This is sample text2", "outbound");
+        terminalData("KK7VZT-6", "This is sample text3", "inbound");
+        terminalData("KK7VZT-7", "This is sample text4", "outbound");
+        terminalData(null, "Disconnected.", "status");
+
+        var lastOutBoundAprsCallsign = null;
+        function aprsData(callsign, message, type = 'status') {
+            if ((callsign != null) && (type == "inbound") && (lastOutBoundAprsCallsign != callsign)) {
+                lastOutBoundAprsCallsign = callsign;
+                const ecallsign = document.createElement('div');
+                ecallsign.className = 'aprs-in-callsign';
+                if (type === 'outbound') { ecallsign.className = 'aprs-out-callsign'; }
+                ecallsign.textContent = callsign;
+                aprsDiv.insertBefore(ecallsign, aprsDiv.firstChild);
+            }
+            const entry = document.createElement('div');
+            entry.className = 'aprs-in-entry';
+            if (type === 'outbound') { entry.className = 'aprs-out-entry'; }
+            entry.textContent = `${message}`;
+            aprsDiv.insertBefore(entry, aprsDiv.firstChild);
+            aprsDiv.scrollTop = aprsDiv.scrollHeight; // Auto-scroll
+        }
+
+        function terminalData(callsign, message, type = 'status') {
+            const entry = document.createElement('p');
+            let textColorClass = 'text-white'; // Default for 'info'
+            if (type === 'status') {
+                textColorClass = 'text-warning fw-bold';
+            } else if (type === 'outbound') {
+                textColorClass = 'text-light fw-bold';
+            }
+            entry.className = `log-entry ${textColorClass} mb-0`; // mb-0 for no margin-bottom
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            //console.log(terminalDiv.childElementCount);
+            terminalDiv.insertBefore(entry, terminalDiv.firstChild);
+            terminalDiv.scrollTop = statusDiv.scrollHeight; // Auto-scroll
+        }
 
         function log(message, type = 'info') {
             const entry = document.createElement('p');
@@ -401,7 +562,7 @@
             entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             statusDiv.insertBefore(entry, statusDiv.firstChild);
             statusDiv.scrollTop = statusDiv.scrollHeight; // Auto-scroll
-            console.log(`[${type.toUpperCase()}] ${message}`);
+            //console.log(`[${type.toUpperCase()}] ${message}`);
         }
 
         function clearLogs() {
@@ -446,6 +607,8 @@
                 menuConnect.classList.add('disabled');
                 leftColumnConnectButton.style.display = 'none'; // Hide when connecting/connected
                 menuSendCommand.classList.add('disabled'); // NEW: Disable send command option during connection setup
+                sendAprsButton.disabled = true; // Disable APRS send button during connection setup
+
 
                 log('Connecting to GATT Server...');
                 gattServer = await bluetoothDevice.gatt.connect();
@@ -471,6 +634,7 @@
                 menuDisconnect.classList.remove('disabled');
                 modalSendCommandButton.disabled = false; // NEW: Enable modal send command button
                 menuSendCommand.classList.remove('disabled'); // NEW: Enable send command option in menu
+                sendAprsButton.disabled = false; // Enable APRS send button on successful connection
                 log('Device connected and ready.', 'success');
 
             } catch (error) {
@@ -483,6 +647,7 @@
                 menuDisconnect.classList.add('disabled');
                 modalSendCommandButton.disabled = true; // NEW: Disable modal send command button
                 menuSendCommand.classList.add('disabled'); // NEW: Disable send command option in menu
+                sendAprsButton.disabled = true; // Disable APRS send button on connection error
                 leftColumnConnectButton.style.display = 'block'; // Show on disconnection/error
             }
         }
@@ -501,12 +666,6 @@
             }
         }
 
-        function terminalDisplayed() {
-            xtermfit.fit(); // Ensure the terminal fits the container
-            xterm.focus(); // Focus the terminal for input
-        }
-
-        tabTwoButton.addEventListener('click', terminalDisplayed);
         leftColumnConnectButton.addEventListener('click', initiateConnect);
 
         // Menu bar event listeners
@@ -532,6 +691,7 @@
             menuDisconnect.classList.add('disabled');
             modalSendCommandButton.disabled = true; // NEW: Disable modal send command button
             menuSendCommand.classList.add('disabled'); // NEW: Disable send command option in menu
+            sendAprsButton.disabled = true; // Disable APRS send button on disconnect
             leftColumnConnectButton.style.display = 'block';
 
             if (indicateCharacteristic) {
@@ -582,8 +742,137 @@
             }
         });
 
+        // NEW: Event listener for the APRS send button
+        sendAprsButton.addEventListener('click', async () => {
+            if (!writeCharacteristic) {
+                log('Write characteristic not available. Connect to send APRS messages.', 'error');
+                return;
+            }
+            const aprsMessage = aprsMessageInput.value.trim();
+            if (!aprsMessage) {
+                log('APRS message input is empty.', 'error');
+                return;
+            }
+
+            try {
+                // Here, you would convert your APRS message into the appropriate hex command
+                // This is a placeholder for your specific radio's APRS message format.
+                // For demonstration, let's just log the message as if it were sent.
+                log(`Attempting to send APRS message: "${aprsMessage}"`, 'info');
+                // Replace this with actual Bluetooth write operation:
+                // const aprsCommandBytes = convertAprsMessageToBytes(aprsMessage);
+                // await writeCharacteristic.writeValueWithResponse(aprsCommandBytes);
+
+                aprsData("YOU", aprsMessage, "outbound"); // Simulate sending and add to chat
+                log('APRS message simulated sent.', 'success');
+                aprsMessageInput.value = ''; // Clear the input after sending
+
+            } catch (error) {
+                log(`Error sending APRS message: ${error.message}`, 'error');
+                console.error('Send APRS message error:', error);
+            }
+        });
+
+        // Leaflet Map Initialization
+        function initializeMap() {
+            if (mymap !== null) {
+                // If map already exists, invalidate its size to re-render
+                mymap.invalidateSize();
+                return;
+            }
+            // Use Tualatin, Oregon coordinates as the default view
+            mymap = L.map('mapid').setView([45.385, -122.753], 13); // Latitude, Longitude, Zoom level
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(mymap);
+
+            // Example marker
+            L.marker([45.385, -122.753]).addTo(mymap)
+                .bindPopup('Tualatin, Oregon (Initial Location)')
+                .openPopup();
+        }
+
+        // Event listener for when the Map tab is shown
+        mapTabButton.addEventListener('shown.bs.tab', function (event) {
+            initializeMap();
+        });
+
+
+        // NEW: Packet Tab JavaScript
+        function addPacket(time, summary, details) {
+            const packetIndex = packets.length;
+            packets.push({ time, summary, details });
+
+            const listItem = document.createElement('li');
+            listItem.textContent = `${time} - ${summary}`;
+            listItem.setAttribute('data-index', packetIndex);
+            listItem.addEventListener('click', () => {
+                // Remove active class from previous item
+                const currentActive = packetList.querySelector('li.active');
+                if (currentActive) {
+                    currentActive.classList.remove('active');
+                }
+                // Add active class to clicked item
+                listItem.classList.add('active');
+                packetDetails.textContent = packets[packetIndex].details;
+            });
+            packetList.prepend(listItem); // Add new packets at the top
+        }
+
+        // Sample packets
+        addPacket(new Date().toLocaleTimeString(), "Packet 1: Position Report", "Detailed info for Packet 1: \n- Lat: 45.385\n- Lon: -122.753\n- Speed: 0 mph\n- Course: 0\n- Symbol: /O\n- Comment: Home QTH\n- Raw: !DDMM.MMN/DDDMM.MMW>comment");
+        addPacket(new Date().toLocaleTimeString(), "Packet 2: Weather Data", "Detailed info for Packet 2: \n- Temperature: 72F\n- Humidity: 60%\n- Wind: 5mph from NW\n- Raw: _DDMM.MMN/DDDMM.MMW_PHG7200/W80/F60/C270");
+        addPacket(new Date().toLocaleTimeString(), "Packet 3: Message to CALL", "Detailed info for Packet 3: \n- To: CALL\n- Message: Hello from HT Commander!\n- Raw: CALL>APRS:Hello from HT Commander!");
+        addPacket(new Date().toLocaleTimeString(), "Packet 4: Status Report", "Detailed info for Packet 4: \n- Status: On Air\n- Raw: >STATUS:On Air");
+        addPacket(new Date().toLocaleTimeString(), "Packet 5: Unknown Type", "Detailed info for Packet 5: \n- Raw Data: 1A2B3C4D5E6F7890");
+
+        // Resizer functionality
+        let isResizing = false;
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'ns-resize'; // Change cursor while dragging
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+
+            const cardBody = packetListContainer.parentElement; // Get the .card-body
+            const cardBodyRect = cardBody.getBoundingClientRect();
+            const newHeight = e.clientY - cardBodyRect.top; // Mouse Y relative to card-body top
+
+            // Calculate heights ensuring minimums and maximums
+            const totalHeight = cardBodyRect.height;
+            const resizerHeight = resizer.offsetHeight;
+            const minPacketListHeight = 50; // Minimum height for packet list
+            const minPacketDetailsHeight = 50; // Minimum height for packet details
+
+            let calculatedListHeight = newHeight - resizerHeight / 2; // Adjust for resizer center
+
+            if (calculatedListHeight < minPacketListHeight) {
+                calculatedListHeight = minPacketListHeight;
+            }
+
+            const calculatedDetailsHeight = totalHeight - calculatedListHeight - resizerHeight;
+            if (calculatedDetailsHeight < minPacketDetailsHeight) {
+                calculatedListHeight = totalHeight - minPacketDetailsHeight - resizerHeight;
+                if (calculatedListHeight < minPacketListHeight) {
+                    calculatedListHeight = minPacketListHeight; // Ensure list doesn't go below min either
+                }
+            }
+
+            packetListContainer.style.height = `${calculatedListHeight}px`;
+            packetDetailsContainer.style.height = `${totalHeight - calculatedListHeight - resizerHeight}px`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            isResizing = false;
+            document.body.style.cursor = 'default'; // Reset cursor
+        });
+
+
         // Register Service Worker
-        if ('serviceWorker' in navigator) {
+        if (('serviceWorker' in navigator) && (location.origin != "file://")) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
                     .then(registration => {
@@ -601,6 +890,7 @@
                 leftColumnConnectButton.style.display = 'block'; // Show connect button if not connected initially
                 menuSendCommand.classList.add('disabled'); // NEW: Disable send command option on initial load if not connected
                 modalSendCommandButton.disabled = true; // NEW: Disable modal send command button on initial load if not connected
+                sendAprsButton.disabled = true; // Disable APRS send button on initial load if not connected
             }
         });
     </script>
