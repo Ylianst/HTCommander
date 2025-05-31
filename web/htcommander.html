@@ -17,6 +17,7 @@
             overflow-x: hidden; /* Prevent horizontal scrollbar from layout shifts */
         }
 
+        /* --- Left column (visible on large screens and up) --- */
         .left-column {
             width: 232px; /* Fixed width */
             position: fixed; /* Fixed positioning */
@@ -42,11 +43,18 @@
         /* --- Main content area (right of left-column) --- */
         .main-content-area {
             position: fixed;
-            margin-left: 232px; /* Match left column width */
+            margin-left: 0; /* Default for small screens */
             display: flex; /* Use flexbox to arrange content and tabs side-by-side */
             height: calc(100vh - 56px); /* Occupy remaining height below navbar */
-            width: calc(100vw - 232px);
+            width: 100vw; /* Default for small screens */
             overflow: hidden; /* Hide overflow on the main container */
+        }
+
+        @media (min-width: 992px) { /* Apply on large screens and up */
+            .main-content-area {
+                margin-left: 232px; /* Match left column width */
+                width: calc(100vw - 232px);
+            }
         }
 
         /* Styles for the right-side vertical tabs */
@@ -167,7 +175,7 @@
             flex-direction: column-reverse;
         }
 
-        /* NEW: Styles for the map container */
+        /* Styles for the map container */
         #tab_map_content #mapid {
             height: calc(100vh - 104px); /* Fill the remaining height */
             width: 100%;
@@ -287,7 +295,26 @@
             white-space: pre-wrap; /* Wrap text in pre */
             word-break: break-all; /* Break long words */
         }
-    </style>
+    
+/* Overlay style for small screens when radio panel is shown */
+.left-column.overlay-visible {
+    display: block !important;
+    position: absolute;
+    top: 56px;
+    left: 0;
+    width: 232px;
+    height: calc(100vh - 56px);
+    z-index: 2000;
+    background-color: #ddd;
+    border-right: 1px solid #dee2e6;
+}
+
+/* Always keep left column fixed width on all screen sizes */
+.left-column {
+    width: 232px;
+}
+
+</style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
@@ -325,13 +352,12 @@
             </div>
         </div>
     </nav>
-    <div class="left-column">
+    <div class="left-column d-none d-lg-block" id="leftColumn">
         <img src="images/radio.png" alt="Radio Device">
         <div class="d-grid gap-2" style="position: absolute; bottom: 10px; width: calc(100% - 12px);">
             <button id="leftColumnConnectButton" class="btn btn-success" style="display: none;">Connect</button>
         </div>
     </div>
-
     <div class="main-content-area">
         <div class="tab-content-area">
             <div class="card shadow-sm tab-card">
@@ -407,7 +433,10 @@
                 <button class="nav-link" id="tab4-icon" data-bs-toggle="pill" data-bs-target="#tab4_content" type="button" role="tab" aria-controls="tab4_content" aria-selected="false">
                     <i class="fas fa-server"></i> <span>Debug</span>
                 </button>
-            </nav>
+                <button class="nav-link d-lg-none" id="radio-toggle-button" type="button">
+                    <i class="fas fa-broadcast-tower"></i> <span>Radio</span>
+                </button>
+        </nav>
         </div>
     </div>
 
@@ -481,7 +510,6 @@
         // Get menu bar elements
         const menuConnect = document.getElementById('menuConnect');
         const menuDisconnect = document.getElementById('menuDisconnect');
-        // NEW: Get the modal elements
         const sendCommandModal = new bootstrap.Modal(document.getElementById('sendCommandModal'));
         const modalCommandInput = document.getElementById('modalCommandInput');
         const modalSendCommandButton = document.getElementById('modalSendCommandButton');
@@ -884,14 +912,64 @@
             });
         }
 
+        // Function to update connect button visibility based on screen size and connection status
+        function updateConnectButtonVisibility() {
+            const isLargeScreen = window.innerWidth >= 992; // Bootstrap's 'lg' breakpoint
+
+            if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+                if (isLargeScreen) {
+                    leftColumnConnectButton.style.display = 'block';
+                } else {
+                    leftColumnConnectButton.style.display = 'none';
+                }
+            } else {
+                leftColumnConnectButton.style.display = 'none';
+            }
+        }
+
+        // Radio toggle logic for small screens
+        const radioToggleButton = document.getElementById('radio-toggle-button');
+        const leftColumn = document.getElementById('leftColumn');
+
+        // Show Connect button when overlay is active and not connected
+        function updateConnectButtonVisibilityInOverlay() {
+            const isConnected = bluetoothDevice && bluetoothDevice.gatt && bluetoothDevice.gatt.connected;
+            if (!isConnected && leftColumn.classList.contains('overlay-visible')) {
+                leftColumnConnectButton.style.display = 'block';
+            } else if (!isConnected && window.innerWidth >= 992) {
+                leftColumnConnectButton.style.display = 'block';
+            } else {
+                leftColumnConnectButton.style.display = 'none';
+            }
+        }
+
+        radioToggleButton.addEventListener('click', () => {
+            leftColumn.classList.toggle('overlay-visible');
+            updateConnectButtonVisibilityInOverlay();
+        });
+
+        window.addEventListener('resize', () => {
+            manageRadioPanel();
+            updateConnectButtonVisibilityInOverlay();
+        });
+        document.addEventListener('DOMContentLoaded', updateConnectButtonVisibilityInOverlay);
+
+        // Automatically remove overlay-visible class on large screens
+        function manageRadioPanel() {
+            if (window.innerWidth >= 992) {
+                leftColumn.classList.remove('overlay-visible');
+            }
+        }
+
+        window.addEventListener('resize', manageRadioPanel);
+        document.addEventListener('DOMContentLoaded', manageRadioPanel);
+
         // Initial state when the page loads
         document.addEventListener('DOMContentLoaded', () => {
-            if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
-                leftColumnConnectButton.style.display = 'block'; // Show connect button if not connected initially
-                menuSendCommand.classList.add('disabled'); // NEW: Disable send command option on initial load if not connected
-                modalSendCommandButton.disabled = true; // NEW: Disable modal send command button on initial load if not connected
-                sendAprsButton.disabled = true; // Disable APRS send button on initial load if not connected
-            }
+            updateConnectButtonVisibility(); // Set initial visibility
+            menuSendCommand.classList.add('disabled');
+            modalSendCommandButton.disabled = true;
+            sendAprsButton.disabled = true;
         });
     </script>
 </body>
