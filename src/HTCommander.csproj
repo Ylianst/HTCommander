@@ -223,6 +223,12 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="RadioPositionForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="RadioPositionForm.Designer.cs">
+      <DependentUpon>RadioPositionForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="RadioSelectorForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -405,6 +411,9 @@
     <EmbeddedResource Include="PacketCaptureViewerForm.resx">
       <DependentUpon>PacketCaptureViewerForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="RadioPositionForm.resx">
+      <DependentUpon>RadioPositionForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="RadioSelectorForm.resx">
       <DependentUpon>RadioSelectorForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -510,6 +519,8 @@
     <None Include="images\Terminal.png" />
     <None Include="images\Paring.png" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="webx\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

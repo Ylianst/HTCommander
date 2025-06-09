@@ -28,7 +28,6 @@ using static HTCommander.AX25Packet;
 using HTCommander.radio;
 using NAudio.Wave;
 
-
 #if !__MonoCS__
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
@@ -49,6 +48,7 @@ namespace HTCommander
         public RadioBssSettingsForm radioBssSettingsForm = null;
         public RadioChannelForm radioChannelForm = null;
         public RadioVolumeForm radioVolumeForm = null;
+        public RadioPositionForm radioPositionForm = null;
         public AprsDetailsForm aprsDetailsForm = null;
         public BTActivateForm bluetoothActivateForm = null;
         public SpectrogramForm spectrogramForm = null;
@@ -892,6 +892,7 @@ namespace HTCommander
                                 if (radioSettingsForm != null) { radioSettingsForm.Close(); radioSettingsForm = null; }
                                 if (radioBssSettingsForm != null) { radioBssSettingsForm.Close(); radioBssSettingsForm = null; }
                                 if (radioChannelForm != null) { radioChannelForm.Close(); radioChannelForm = null; }
+                                if (radioPositionForm != null) { radioPositionForm.Close(); radioPositionForm = null; }
                                 radioVolumeForm.UpdateInfo();
                                 if (aprsConfigurationForm != null) { aprsConfigurationForm.Close(); aprsConfigurationForm = null; }
                                 microphone.StopListening();
@@ -1870,6 +1871,7 @@ namespace HTCommander
             batteryTimer.Enabled = (radio.State == Radio.RadioState.Connected);
             connectToolStripMenuItem.Enabled = connectButton.Visible = (radio.State != Radio.RadioState.Connected && radio.State != Radio.RadioState.Connecting && devices != null && devices.Length > 0);
             radioInformationToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
+            radioPositionToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected) && (radio.Info != null) && (radio.Info.soft_ver >= 133); // Check Version 0.8.5 or better
             radioStatusToolStripMenuItem.Enabled = ((radio.State == Radio.RadioState.Connected) && (radio.HtStatus != null));
             if (radio.State != Radio.RadioState.Connected) { connectedPanel.Visible = false; }
             exportStationsToolStripMenuItem.Enabled = (stations.Count > 0);
@@ -4586,5 +4588,17 @@ namespace HTCommander
             }
         }
 
+        private void radioPositionToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (radioPositionForm != null)
+            {
+                radioPositionForm.Focus();
+            }
+            else
+            {
+                radioPositionForm = new RadioPositionForm(this, radio);
+                radioPositionForm.Show(this);
+            }
+        }
     }
 }

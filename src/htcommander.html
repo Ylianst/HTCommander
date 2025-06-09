@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handi-Talky Commander</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#007bff" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <style>
+        /* Custom styles for layout */
+        body {
+            background-color: #f8f9fa; /* Light gray background */
+            padding-top: 56px; /* Adjusted for Bootstrap navbar height */
+            overflow-x: hidden; /* Prevent horizontal scrollbar from layout shifts */
+        }
+
+        /* --- Left column (visible on large screens and up) --- */
+        .left-column {
+            width: 232px; /* Fixed width */
+            position: fixed; /* Fixed positioning */
+            top: 56px; /* Adjust top to be below the new Bootstrap navbar height */
+            left: 0; /* Stick to the left */
+            height: calc(100vh - 56px); /* Full viewport height below navbar */
+            padding-right: 6px;
+            padding-left: 6px;
+            background-color: #ddd; /* Light background */
+            border-right: 1px solid #dee2e6; /* Add a right border */
+            z-index: 1001; /* Ensure left column is above content if needed */
+        }
+
+            .left-column img {
+                width: 100%; /* Make image fill the column width */
+                height: auto; /* Maintain aspect ratio */
+                max-height: 550px; /* Limit the maximum height */
+                display: block; /* Remove any extra spacing */
+                margin-top: 0;
+                margin-bottom: 15px;
+            }
+
+        /* --- Main content area (right of left-column) --- */
+        .main-content-area {
+            position: fixed;
+            margin-left: 0; /* Default for small screens */
+            display: flex; /* Use flexbox to arrange content and tabs side-by-side */
+            height: calc(100vh - 56px); /* Occupy remaining height below navbar */
+            width: 100vw; /* Default for small screens */
+            overflow: hidden; /* Hide overflow on the main container */
+        }
+
+        @media (min-width: 992px) { /* Apply on large screens and up */
+            .main-content-area {
+                margin-left: 232px; /* Match left column width */
+                width: calc(100vw - 232px);
+            }
+        }
+
+        /* Styles for the right-side vertical tabs */
+        .vertical-tabs-container {
+            width: 60px; /* Fixed width for icon tabs column */
+            flex-shrink: 0; /* Prevent it from shrinking */
+            background-color: #e9ecef; /* Light gray background for tabs */
+            border-left: 1px solid #dee2e6; /* Separator from content */
+            padding-top: 0;
+        }
+
+            .vertical-tabs-container .nav-pills { /* Target the nav-pills inside */
+                display: flex;
+                flex-direction: column; /* Stack tabs vertically */
+                height: 100%; /* Make nav-pills fill the container height */
+            }
+
+            .vertical-tabs-container .nav-link {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 10px 0;
+                margin-bottom: 0; /* No margin between icons */
+                color: #495057; /* Default icon color */
+                border: none; /* Remove default button border */
+                background-color: transparent; /* Remove default button background */
+                border-radius: 0; /* No border-radius for a flush look */
+                transition: all 0.2s ease-in-out;
+                height: 60px; /* Fixed height for each icon tab */
+                width: 100%; /* Make link fill its container */
+            }
+
+                .vertical-tabs-container .nav-link:hover {
+                    color: #0056b3; /* Darker blue on hover */
+                    background-color: #f0f0f0;
+                }
+
+                .vertical-tabs-container .nav-link.active {
+                    color: #007bff; /* Active icon color */
+                    background-color: #ffffff; /* White background for active tab */
+                    border-right: 3px solid #007bff; /* Highlight active tab */
+                    font-weight: bold;
+                }
+
+                .vertical-tabs-container .nav-link i {
+                    font-size: 1.5rem; /* Icon size */
+                    margin-bottom: 3px; /* Spacing between icon and text */
+                }
+
+                .vertical-tabs-container .nav-link span {
+                    font-size: 0.75rem; /* Text label size */
+                    text-align: center;
+                    line-height: 1; /* Ensure text sits correctly */
+                }
+
+        /* Styles for the tab content area */
+        .tab-content-area {
+            flex-grow: 1; /* Allow content area to take remaining space */
+            padding: 0; /* No padding here, padding will be inside the card-body */
+            display: flex; /* Make it a flex container for the card */
+            flex-direction: column; /* Stack card elements vertically */
+        }
+
+        .tab-card {
+            flex-grow: 1; /* Make the card fill the available height */
+            border: none; /* Remove default card border */
+            border-radius: 0; /* Remove card border radius */
+            display: flex; /* Make card a flex container */
+            flex-direction: column; /* Stack card header and body */
+            overflow: hidden; /* Hide overflow on the card itself */
+        }
+
+            .tab-card .card-header {
+                border-top-left-radius: 0; /* Remove top-left border radius */
+                border-top-right-radius: 0; /* Remove top-right border radius */
+                flex-shrink: 0; /* Prevent header from shrinking */
+            }
+
+            .tab-card .card-body {
+                flex-grow: 1; /* Allow card-body to take all remaining space */
+                padding: 0px; /* Add padding here for content within the tab pane */
+                overflow-y: hidden; /* Disable scrolling for the tab content area */
+            }
+
+        #tab2_content {
+            background-color: #333333; /* Dark gray */
+            color: #ffffff; /* Set text color to white for better contrast */
+            height: 100%; /* Ensure it fills the tab-pane area */
+        }
+
+        /* Adjust aprs within tab1_content */
+        #tab1_content #aprs {
+            height: calc(100vh - 104px - 58px); /* Adjusted for input bar height (58px approx) */
+            overflow: auto;
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 6px;
+        }
+
+        /* Adjust terminal within tab2_content */
+        #tab2_content #terminal {
+            height: calc(100vh - 104px); /* Ensure it fills the tab-pane area */
+            padding: 6px; /* Add some padding for better readability */
+            font-family: monospace;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: auto;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        /* Adjust status within tab4_content */
+        #tab4_content #status {
+            height: calc(100vh - 104px); /* Ensure it fills the tab-pane area */
+            overflow: auto;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        /* Styles for the map container */
+        #tab_map_content #mapid {
+            height: calc(100vh - 104px); /* Fill the remaining height */
+            width: 100%;
+        }
+
+        #status {
+            min-height: 100px; /* Give the status div some height */
+            font-family: monospace;
+            font-size: 0.875em; /* Smaller font for logs */
+            /* Removed overflow-y: auto; from here because card-body handles it */
+        }
+
+        .log-entry {
+            padding-bottom: 0;
+        }
+
+        .aprs-in-callsign {
+            color: #222;
+            align-self: flex-start; /* If using flexbox for chat container, aligns to the right */
+        }
+
+        .aprs-out-callsign {
+            color: #222;
+            align-self: flex-end; /* If using flexbox for chat container, aligns to the right */
+        }
+
+        .aprs-out-entry {
+            background-color: #007bff; /* A common vibrant blue */
+            color: white;
+            padding: 10px 15px; /* Top/bottom padding, left/right padding */
+            border-radius: 10px; /* Adjust for more or less roundness */
+            margin-bottom: 10px; /* Space between bubbles */
+            max-width: 85%; /* Prevents bubble from taking full width */
+            align-self: flex-end; /* If using flexbox for chat container, aligns to the right */
+            word-wrap: break-word; /* Ensures long words break */
+            /* Or for modern browsers: */
+            overflow-wrap: break-word;
+        }
+
+        .aprs-in-entry {
+            background-color: #007bff; /* A common vibrant blue */
+            color: white;
+            padding: 10px 15px; /* Top/bottom padding, left/right padding */
+            border-radius: 10px; /* Adjust for more or less roundness */
+            margin-bottom: 10px; /* Space between bubbles */
+            max-width: 85%; /* Prevents bubble from taking full width */
+            align-self: flex-start; /* If using flexbox for chat container, aligns to the right */
+            word-wrap: break-word; /* Ensures long words break */
+            /* Or for modern browsers: */
+            overflow-wrap: break-word;
+        }
+
+        /* Styles for the APRS input bar */
+        #aprs-input-bar {
+            padding: 10px;
+            background-color: #e9ecef; /* Light gray background */
+            border-top: 1px solid #dee2e6; /* Separator from content */
+            flex-shrink: 0; /* Prevent it from shrinking */
+        }
+
+        /* NEW: Styles for Packets tab split view */
+        #tab3_content {
+            height: calc(100vh - 56px); /* Full height below header */
+            overflow: hidden; /* Hide overflow from inner containers */
+        }
+
+        .packet-list-container {
+            flex-grow: 1; /* Allow list to grow */
+            overflow-y: auto; /* Scroll for list */
+            background-color: #f0f0f0;
+            padding: 6px;
+        }
+
+        .packet-details-container {
+            flex-grow: 1; /* Allow details to grow */
+            overflow-y: auto; /* Scroll for details */
+            background-color: #e9ecef;
+            padding: 6px;
+        }
+
+        .resizer {
+            height: 8px; /* Height of the draggable divider */
+            background-color: #ced4da;
+            cursor: ns-resize; /* North-South resize cursor */
+            border-top: 1px solid #dee2e6;
+            border-bottom: 1px solid #dee2e6;
+            flex-shrink: 0; /* Prevent resizer from shrinking */
+        }
+
+        .packet-list-container ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .packet-list-container li {
+            padding: 2px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+            .packet-list-container li:hover {
+                background-color: #e2e6ea;
+            }
+
+            .packet-list-container li.active {
+                background-color: #007bff;
+                color: white;
+            }
+
+        .packet-details-container pre {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            min-height: 100px; /* Ensure it's visible even with no content */
+            white-space: pre-wrap; /* Wrap text in pre */
+            word-break: break-all; /* Break long words */
+        }
+    
+/* Overlay style for small screens when radio panel is shown */
+.left-column.overlay-visible {
+    display: block !important;
+    position: absolute;
+    top: 56px;
+    left: 0;
+    width: 232px;
+    height: calc(100vh - 56px);
+    z-index: 2000;
+    background-color: #ddd;
+    border-right: 1px solid #dee2e6;
+}
+
+/* Always keep left column fixed width on all screen sizes */
+.left-column {
+    width: 232px;
+}
+
+</style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Handi-Talky Commander</a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNavDropdown">
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            File
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" id="menuConnect">Connect</a></li>
+                            <li><a class="dropdown-item" href="#" id="menuDisconnect">Disconnect</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Settings</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownAbout" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            About
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownAbout">
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#sendCommandModal" id="menuSendCommand">Send Command...</a></li>
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#aboutModal">About...</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="left-column d-none d-lg-block" id="leftColumn">
+        <img src="images/radio.png" alt="Radio Device">
+        <div class="d-grid gap-2" style="position: absolute; bottom: 10px; width: calc(100% - 12px);">
+            <button id="leftColumnConnectButton" class="btn btn-success" style="display: none;">Connect</button>
+        </div>
+    </div>
+    <div class="main-content-area">
+        <div class="tab-content-area">
+            <div class="card shadow-sm tab-card">
+                <div class="card-body">
+                    <div class="tab-content" id="myTabContent">
+                        <div class="tab-pane show active" id="tab1_content" role="tabpanel" aria-labelledby="tab1-icon">
+                            <div class="card-header bg-primary text-white">
+                                <h1 class="h3 mb-0">APRS</h1>
+                            </div>
+                            <div id="aprs"></div>
+                            <div class="input-group" id="aprs-input-bar">
+                                <input type="text" class="form-control" placeholder="Type APRS message..." id="aprsMessageInput">
+                                <button class="btn btn-primary" type="button" id="sendAprsButton">Send</button>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="tab_map_content" role="tabpanel" aria-labelledby="tab_map-icon">
+                            <div class="card-header bg-primary text-white">
+                                <h1 class="h3 mb-0">Map</h1>
+                            </div>
+                            <div id="mapid"></div>
+                        </div>
+
+                        <div class="tab-pane" id="tab2_content" role="tabpanel" aria-labelledby="tab2-icon">
+                            <div class="card-header bg-primary text-white">
+                                <h1 class="h3 mb-0">Terminal</h1>
+                            </div>
+                            <div id="terminal"></div>
+                        </div>
+
+                        <div class="tab-pane" id="tab3_content" role="tabpanel" aria-labelledby="tab3-icon">
+                            <div class="card-header bg-primary text-white">
+                                <h1 class="h3 mb-0">Packets</h1>
+                            </div>
+                            <div class="packet-list-container" style="height: 50%;">
+                                <ul id="packetList">
+                                </ul>
+                            </div>
+                            <div class="resizer"></div>
+                            <div class="packet-details-container" style="height: 50%;">
+                                <pre id="packetDetails">Select a packet to see its details.</pre>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="tab4_content" role="tabpanel" aria-labelledby="tab4-icon">
+                            <div class="card-header bg-primary text-white">
+                                <h1 class="h3 mb-0">Debug</h1>
+                            </div>
+                            <div id="status" class="bg-light p-3 border rounded">
+                                <p class="text-muted mb-0">Status: Not Connected</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="vertical-tabs-container">
+            <nav class="nav nav-pills flex-column" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                <button class="nav-link active" id="tab1-icon" data-bs-toggle="pill" data-bs-target="#tab1_content" type="button" role="tab" aria-controls="tab1_content" aria-selected="true">
+                    <i class="fas fa-comments"></i> <span>APRS</span>
+                </button>
+                <button class="nav-link" id="tab_map-icon" data-bs-toggle="pill" data-bs-target="#tab_map_content" type="button" role="tab" aria-controls="tab_map_content" aria-selected="false">
+                    <i class="fas fa-map-marked-alt"></i> <span>Map</span>
+                </button>
+                <button class="nav-link" id="tab2-icon" data-bs-toggle="pill" data-bs-target="#tab2_content" type="button" role="tab" aria-controls="tab2_content" aria-selected="false">
+                    <i class="fas fa-terminal"></i> <span>Terminal</span>
+                </button>
+                <button class="nav-link" id="tab3-icon" data-bs-toggle="pill" data-bs-target="#tab3_content" type="button" role="tab" aria-controls="tab3_content" aria-selected="false">
+                    <i class="fas fa-list"></i> <span>Packets</span>
+                </button>
+                <button class="nav-link" id="tab4-icon" data-bs-toggle="pill" data-bs-target="#tab4_content" type="button" role="tab" aria-controls="tab4_content" aria-selected="false">
+                    <i class="fas fa-server"></i> <span>Debug</span>
+                </button>
+                <button class="nav-link d-lg-none" id="radio-toggle-button" type="button">
+                    <i class="fas fa-broadcast-tower"></i> <span>Radio</span>
+                </button>
+        </nav>
+        </div>
+    </div>
+
+    <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="aboutModalLabel">Handi-Talky Commander</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        <strong>Version:</strong> 0.1<br>
+                        <strong>Developed by:</strong> Ylian Saint-Hilaire, KK7VZT<br>
+                        <strong>License:</strong> Open Source, Apache 2.0 License<br>
+                        <strong>Site:</strong> <a href="https://github.com/Ylianst/HTCommander" target="_blank">github.com/Ylianst/HTCommander</a>
+                    </p>
+                    <p>
+                        Based on BenLink by Kyle Husmann, KC3SLD<br>
+                        <a href="https://github.com/khusmann/benlink" target="_blank">github.com/khusmann/benlink</a>
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="sendCommandModal" tabindex="-1" aria-labelledby="sendCommandModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="sendCommandModalLabel">Send Hex Command</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="modalCommandInput" class="form-label">Hex String:</label>
+                        <textarea class="form-control" id="modalCommandInput" rows="3" placeholder="Enter hex string (e.g., 01020304)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="modalSendCommandButton">Send Command</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        const RADIO_SERVICE_UUID = "00001100-d102-11e1-9b23-00025b00a5a5";
+        const RADIO_WRITE_UUID = "00001101-d102-11e1-9b23-00025b00a5a5";
+        const RADIO_INDICATE_UUID = "00001102-d102-11e1-9b23-00025b00a5a5";
+
+        let bluetoothDevice = null;
+        let radioService = null;
+        let writeCharacteristic = null;
+        let indicateCharacteristic = null;
+        let gattServer = null;
+
+        const aprsDiv = document.getElementById('aprs');
+        const statusDiv = document.getElementById('status');
+        const terminalDiv = document.getElementById('terminal');
+        const tabTwoButton = document.getElementById('tab2-icon');
+        const leftColumnConnectButton = document.getElementById('leftColumnConnectButton');
+
+        // Get menu bar elements
+        const menuConnect = document.getElementById('menuConnect');
+        const menuDisconnect = document.getElementById('menuDisconnect');
+        const sendCommandModal = new bootstrap.Modal(document.getElementById('sendCommandModal'));
+        const modalCommandInput = document.getElementById('modalCommandInput');
+        const modalSendCommandButton = document.getElementById('modalSendCommandButton');
+        const menuSendCommand = document.getElementById('menuSendCommand'); // Reference to the new menu item
+
+        // NEW: Get APRS input elements
+        const aprsMessageInput = document.getElementById('aprsMessageInput');
+        const sendAprsButton = document.getElementById('sendAprsButton');
+
+        // Leaflet Map variable
+        let mymap = null;
+        const mapTabButton = document.getElementById('tab_map-icon');
+
+        // NEW: Packet Tab Elements
+        const packetListContainer = document.querySelector('.packet-list-container');
+        const packetDetailsContainer = document.querySelector('.packet-details-container');
+        const resizer = document.querySelector('.resizer');
+        const packetList = document.getElementById('packetList');
+        const packetDetails = document.getElementById('packetDetails');
+        let packets = []; // Array to store packet objects
+
+        aprsData("KK7VZT-6", "This is sample text1", "inbound");
+        aprsData("KK7VZT-7", "This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2 This is sample text2x", "outbound");
+        aprsData("KK7VZT-6", "This is sample text1", "inbound");
+        aprsData("KK7VZT-5", "This is sample text1", "inbound");
+
+        terminalData(null, "Connecting...", "status");
+        terminalData("KK7VZT-6", "This is sample text1", "inbound");
+        terminalData("KK7VZT-7", "This is sample text2", "outbound");
+        terminalData("KK7VZT-6", "This is sample text3", "inbound");
+        terminalData("KK7VZT-7", "This is sample text4", "outbound");
+        terminalData(null, "Disconnected.", "status");
+
+        var lastOutBoundAprsCallsign = null;
+        function aprsData(callsign, message, type = 'status') {
+            if ((callsign != null) && (type == "inbound") && (lastOutBoundAprsCallsign != callsign)) {
+                lastOutBoundAprsCallsign = callsign;
+                const ecallsign = document.createElement('div');
+                ecallsign.className = 'aprs-in-callsign';
+                if (type === 'outbound') { ecallsign.className = 'aprs-out-callsign'; }
+                ecallsign.textContent = callsign;
+                aprsDiv.insertBefore(ecallsign, aprsDiv.firstChild);
+            }
+            const entry = document.createElement('div');
+            entry.className = 'aprs-in-entry';
+            if (type === 'outbound') { entry.className = 'aprs-out-entry'; }
+            entry.textContent = `${message}`;
+            aprsDiv.insertBefore(entry, aprsDiv.firstChild);
+            aprsDiv.scrollTop = aprsDiv.scrollHeight; // Auto-scroll
+        }
+
+        function terminalData(callsign, message, type = 'status') {
+            const entry = document.createElement('p');
+            let textColorClass = 'text-white'; // Default for 'info'
+            if (type === 'status') {
+                textColorClass = 'text-warning fw-bold';
+            } else if (type === 'outbound') {
+                textColorClass = 'text-light fw-bold';
+            }
+            entry.className = `log-entry ${textColorClass} mb-0`; // mb-0 for no margin-bottom
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            //console.log(terminalDiv.childElementCount);
+            terminalDiv.insertBefore(entry, terminalDiv.firstChild);
+            terminalDiv.scrollTop = statusDiv.scrollHeight; // Auto-scroll
+        }
+
+        function log(message, type = 'info') {
+            const entry = document.createElement('p');
+            let textColorClass = 'text-dark'; // Default for 'info'
+            if (type === 'error') {
+                textColorClass = 'text-danger fw-bold';
+            } else if (type === 'success') {
+                textColorClass = 'text-success fw-bold';
+            } else if (type === 'data') {
+                textColorClass = 'text-secondary fst-italic';
+            }
+            entry.className = `log-entry ${textColorClass} mb-0`; // mb-0 for no margin-bottom
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            statusDiv.insertBefore(entry, statusDiv.firstChild);
+            statusDiv.scrollTop = statusDiv.scrollHeight; // Auto-scroll
+            //console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function clearLogs() {
+            statusDiv.innerHTML = '';
+        }
+
+        function hexStringToUint8Array(hexString) {
+            if (hexString.length % 2 !== 0) {
+                log("Hex string must have an even number of digits.", 'error');
+                throw new Error("Hex string must have an even number of digits.");
+            }
+            const byteArray = new Uint8Array(hexString.length / 2);
+            for (let i = 0; i < byteArray.length; i++) {
+                byteArray[i] = parseInt(hexString.substr(i * 2, 2), 16);
+            }
+            return byteArray;
+        }
+
+        function arrayBufferToHexString(buffer) {
+            return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+        }
+
+        // Centralized connect/disconnect logic to be called from both buttons and menu
+        async function initiateConnect() {
+            clearLogs();
+            if (!navigator.bluetooth) {
+                log('Web Bluetooth API is not available in this browser!', 'error');
+                return;
+            }
+
+            try {
+                log('Requesting Bluetooth Device...');
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'UV-PRO' }],
+                    optionalServices: [RADIO_SERVICE_UUID]
+                });
+
+                log(`Device selected: ${bluetoothDevice.name || bluetoothDevice.id}`, 'success');
+                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+                // Update button states
+                menuConnect.classList.add('disabled');
+                leftColumnConnectButton.style.display = 'none'; // Hide when connecting/connected
+                menuSendCommand.classList.add('disabled'); // NEW: Disable send command option during connection setup
+                sendAprsButton.disabled = true; // Disable APRS send button during connection setup
+
+
+                log('Connecting to GATT Server...');
+                gattServer = await bluetoothDevice.gatt.connect();
+                log('Connected to GATT Server.', 'success');
+
+                log(`Getting Radio Service (UUID: ${RADIO_SERVICE_UUID})...`);
+                radioService = await gattServer.getPrimaryService(RADIO_SERVICE_UUID);
+                log('Radio Service obtained.', 'success');
+
+                log(`Getting Write Characteristic (UUID: ${RADIO_WRITE_UUID})...`);
+                writeCharacteristic = await radioService.getCharacteristic(RADIO_WRITE_UUID);
+                log('Write Characteristic obtained.', 'success');
+
+                log(`Getting Indicate Characteristic (UUID: ${RADIO_INDICATE_UUID})...`);
+                indicateCharacteristic = await radioService.getCharacteristic(RADIO_INDICATE_UUID);
+                log('Indicate Characteristic obtained.', 'success');
+
+                log('Starting notifications for Indicate Characteristic...');
+                await indicateCharacteristic.startNotifications();
+                indicateCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+                log('Notifications started.', 'success');
+
+                menuDisconnect.classList.remove('disabled');
+                modalSendCommandButton.disabled = false; // NEW: Enable modal send command button
+                menuSendCommand.classList.remove('disabled'); // NEW: Enable send command option in menu
+                sendAprsButton.disabled = false; // Enable APRS send button on successful connection
+                log('Device connected and ready.', 'success');
+
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                if (error.name === "NotFoundError") {
+                    log("No device matching the specified service UUID was found. Ensure the device is powered on and advertising.", "error");
+                }
+                console.error('Connection failed:', error);
+                menuConnect.classList.remove('disabled');
+                menuDisconnect.classList.add('disabled');
+                modalSendCommandButton.disabled = true; // NEW: Disable modal send command button
+                menuSendCommand.classList.add('disabled'); // NEW: Disable send command option in menu
+                sendAprsButton.disabled = true; // Disable APRS send button on connection error
+                leftColumnConnectButton.style.display = 'block'; // Show on disconnection/error
+            }
+        }
+
+        async function initiateDisconnect() {
+            if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+                log('Device not connected.', 'info');
+                return;
+            }
+            try {
+                log('Disconnecting from device...');
+                await bluetoothDevice.gatt.disconnect();
+                // onDisconnected will be called automatically
+            } catch (error) {
+                log(`Error during disconnection: ${error.message}`, 'error');
+            }
+        }
+
+        leftColumnConnectButton.addEventListener('click', initiateConnect);
+
+        // Menu bar event listeners
+        menuConnect.addEventListener('click', (event) => {
+            if (menuConnect.classList.contains('disabled')) {
+                event.preventDefault();
+            } else {
+                initiateConnect();
+            }
+        });
+
+        menuDisconnect.addEventListener('click', (event) => {
+            if (menuDisconnect.classList.contains('disabled')) {
+                event.preventDefault();
+            } else {
+                initiateDisconnect();
+            }
+        });
+
+        function onDisconnected() {
+            log('Device disconnected.', 'info');
+            menuConnect.classList.remove('disabled');
+            menuDisconnect.classList.add('disabled');
+            modalSendCommandButton.disabled = true; // NEW: Disable modal send command button
+            menuSendCommand.classList.add('disabled'); // NEW: Disable send command option in menu
+            sendAprsButton.disabled = true; // Disable APRS send button on disconnect
+            leftColumnConnectButton.style.display = 'block';
+
+            if (indicateCharacteristic) {
+                indicateCharacteristic.removeEventListener('characteristicvaluechanged', handleNotifications);
+            }
+
+            bluetoothDevice = null;
+            radioService = null;
+            writeCharacteristic = null;
+            indicateCharacteristic = null;
+            gattServer = null;
+        }
+
+        function handleNotifications(event) {
+            const value = event.target.value; // This is a DataView
+            const receivedData = value.buffer; // Get the ArrayBuffer
+            log(`Notification received: ${arrayBufferToHexString(receivedData)}`, 'data');
+            // TODO: Implement your protocol's message parsing here
+            // e.g., const radioMessage = radio_message_from_protocol_js(new Uint8Array(receivedData));
+            // log(`Parsed message: ${JSON.stringify(radioMessage)}`);
+        }
+
+        // NEW: Event listener for the modal's send command button
+        modalSendCommandButton.addEventListener('click', async () => {
+            if (!writeCharacteristic) {
+                log('Write characteristic not available.', 'error');
+                return;
+            }
+            const hexCommand = modalCommandInput.value.trim().replace(/\s/g, ''); // remove spaces
+            if (!hexCommand) {
+                log('Command input is empty.', 'error');
+                return;
+            }
+
+            try {
+                const dataToSend = hexStringToUint8Array(hexCommand);
+                log(`Sending command (hex): ${hexCommand}`, 'info');
+                // log(`Sending command (bytes): ${dataToSend}`);
+
+                await writeCharacteristic.writeValueWithResponse(dataToSend); // Or writeValueWithoutResponse
+                log('Command sent successfully.', 'success');
+                sendCommandModal.hide(); // Hide the modal after sending
+                modalCommandInput.value = ''; // Clear the input after sending
+
+            } catch (error) {
+                log(`Error sending command: ${error.message}`, 'error');
+                console.error('Send command error:', error);
+            }
+        });
+
+        // NEW: Event listener for the APRS send button
+        sendAprsButton.addEventListener('click', async () => {
+            if (!writeCharacteristic) {
+                log('Write characteristic not available. Connect to send APRS messages.', 'error');
+                return;
+            }
+            const aprsMessage = aprsMessageInput.value.trim();
+            if (!aprsMessage) {
+                log('APRS message input is empty.', 'error');
+                return;
+            }
+
+            try {
+                // Here, you would convert your APRS message into the appropriate hex command
+                // This is a placeholder for your specific radio's APRS message format.
+                // For demonstration, let's just log the message as if it were sent.
+                log(`Attempting to send APRS message: "${aprsMessage}"`, 'info');
+                // Replace this with actual Bluetooth write operation:
+                // const aprsCommandBytes = convertAprsMessageToBytes(aprsMessage);
+                // await writeCharacteristic.writeValueWithResponse(aprsCommandBytes);
+
+                aprsData("YOU", aprsMessage, "outbound"); // Simulate sending and add to chat
+                log('APRS message simulated sent.', 'success');
+                aprsMessageInput.value = ''; // Clear the input after sending
+
+            } catch (error) {
+                log(`Error sending APRS message: ${error.message}`, 'error');
+                console.error('Send APRS message error:', error);
+            }
+        });
+
+        // Leaflet Map Initialization
+        function initializeMap() {
+            if (mymap !== null) {
+                // If map already exists, invalidate its size to re-render
+                mymap.invalidateSize();
+                return;
+            }
+            // Use Tualatin, Oregon coordinates as the default view
+            mymap = L.map('mapid').setView([45.385, -122.753], 13); // Latitude, Longitude, Zoom level
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(mymap);
+
+            // Example marker
+            L.marker([45.385, -122.753]).addTo(mymap)
+                .bindPopup('Tualatin, Oregon (Initial Location)')
+                .openPopup();
+        }
+
+        // Event listener for when the Map tab is shown
+        mapTabButton.addEventListener('shown.bs.tab', function (event) {
+            initializeMap();
+        });
+
+
+        // NEW: Packet Tab JavaScript
+        function addPacket(time, summary, details) {
+            const packetIndex = packets.length;
+            packets.push({ time, summary, details });
+
+            const listItem = document.createElement('li');
+            listItem.textContent = `${time} - ${summary}`;
+            listItem.setAttribute('data-index', packetIndex);
+            listItem.addEventListener('click', () => {
+                // Remove active class from previous item
+                const currentActive = packetList.querySelector('li.active');
+                if (currentActive) {
+                    currentActive.classList.remove('active');
+                }
+                // Add active class to clicked item
+                listItem.classList.add('active');
+                packetDetails.textContent = packets[packetIndex].details;
+            });
+            packetList.prepend(listItem); // Add new packets at the top
+        }
+
+        // Sample packets
+        addPacket(new Date().toLocaleTimeString(), "Packet 1: Position Report", "Detailed info for Packet 1: \n- Lat: 45.385\n- Lon: -122.753\n- Speed: 0 mph\n- Course: 0\n- Symbol: /O\n- Comment: Home QTH\n- Raw: !DDMM.MMN/DDDMM.MMW>comment");
+        addPacket(new Date().toLocaleTimeString(), "Packet 2: Weather Data", "Detailed info for Packet 2: \n- Temperature: 72F\n- Humidity: 60%\n- Wind: 5mph from NW\n- Raw: _DDMM.MMN/DDDMM.MMW_PHG7200/W80/F60/C270");
+        addPacket(new Date().toLocaleTimeString(), "Packet 3: Message to CALL", "Detailed info for Packet 3: \n- To: CALL\n- Message: Hello from HT Commander!\n- Raw: CALL>APRS:Hello from HT Commander!");
+        addPacket(new Date().toLocaleTimeString(), "Packet 4: Status Report", "Detailed info for Packet 4: \n- Status: On Air\n- Raw: >STATUS:On Air");
+        addPacket(new Date().toLocaleTimeString(), "Packet 5: Unknown Type", "Detailed info for Packet 5: \n- Raw Data: 1A2B3C4D5E6F7890");
+
+        // Resizer functionality
+        let isResizing = false;
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'ns-resize'; // Change cursor while dragging
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+
+            const cardBody = packetListContainer.parentElement; // Get the .card-body
+            const cardBodyRect = cardBody.getBoundingClientRect();
+            const newHeight = e.clientY - cardBodyRect.top; // Mouse Y relative to card-body top
+
+            // Calculate heights ensuring minimums and maximums
+            const totalHeight = cardBodyRect.height;
+            const resizerHeight = resizer.offsetHeight;
+            const minPacketListHeight = 50; // Minimum height for packet list
+            const minPacketDetailsHeight = 50; // Minimum height for packet details
+
+            let calculatedListHeight = newHeight - resizerHeight / 2; // Adjust for resizer center
+
+            if (calculatedListHeight < minPacketListHeight) {
+                calculatedListHeight = minPacketListHeight;
+            }
+
+            const calculatedDetailsHeight = totalHeight - calculatedListHeight - resizerHeight;
+            if (calculatedDetailsHeight < minPacketDetailsHeight) {
+                calculatedListHeight = totalHeight - minPacketDetailsHeight - resizerHeight;
+                if (calculatedListHeight < minPacketListHeight) {
+                    calculatedListHeight = minPacketListHeight; // Ensure list doesn't go below min either
+                }
+            }
+
+            packetListContainer.style.height = `${calculatedListHeight}px`;
+            packetDetailsContainer.style.height = `${totalHeight - calculatedListHeight - resizerHeight}px`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            isResizing = false;
+            document.body.style.cursor = 'default'; // Reset cursor
+        });
+
+
+        // Register Service Worker
+        if (('serviceWorker' in navigator) && (location.origin != "file://")) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+
+        // Function to update connect button visibility based on screen size and connection status
+        function updateConnectButtonVisibility() {
+            const isLargeScreen = window.innerWidth >= 992; // Bootstrap's 'lg' breakpoint
+
+            if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+                if (isLargeScreen) {
+                    leftColumnConnectButton.style.display = 'block';
+                } else {
+                    leftColumnConnectButton.style.display = 'none';
+                }
+            } else {
+                leftColumnConnectButton.style.display = 'none';
+            }
+        }
+
+        // Radio toggle logic for small screens
+        const radioToggleButton = document.getElementById('radio-toggle-button');
+        const leftColumn = document.getElementById('leftColumn');
+
+        // Show Connect button when overlay is active and not connected
+        function updateConnectButtonVisibilityInOverlay() {
+            const isConnected = bluetoothDevice && bluetoothDevice.gatt && bluetoothDevice.gatt.connected;
+            if (!isConnected && leftColumn.classList.contains('overlay-visible')) {
+                leftColumnConnectButton.style.display = 'block';
+            } else if (!isConnected && window.innerWidth >= 992) {
+                leftColumnConnectButton.style.display = 'block';
+            } else {
+                leftColumnConnectButton.style.display = 'none';
+            }
+        }
+
+        radioToggleButton.addEventListener('click', () => {
+            leftColumn.classList.toggle('overlay-visible');
+            updateConnectButtonVisibilityInOverlay();
+        });
+
+        window.addEventListener('resize', () => {
+            manageRadioPanel();
+            updateConnectButtonVisibilityInOverlay();
+        });
+        document.addEventListener('DOMContentLoaded', updateConnectButtonVisibilityInOverlay);
+
+        // Automatically remove overlay-visible class on large screens
+        function manageRadioPanel() {
+            if (window.innerWidth >= 992) {
+                leftColumn.classList.remove('overlay-visible');
+            }
+        }
+
+        window.addEventListener('resize', manageRadioPanel);
+        document.addEventListener('DOMContentLoaded', manageRadioPanel);
+
+        // Initial state when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            updateConnectButtonVisibility(); // Set initial visibility
+            menuSendCommand.classList.add('disabled');
+            modalSendCommandButton.disabled = true;
+            sendAprsButton.disabled = true;
+        });
+    </script>
+</body>
+</html>

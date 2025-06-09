@@ -126,7 +126,8 @@ namespace HTCommander
             GET_APRS_PATH = 72,
             READ_REGION_NAME = 73,
             SET_DEV_ID = 74,
-            GET_PF_ACTIONS = 75
+            GET_PF_ACTIONS = 75,
+            GET_POSITION = 76
         }
 
         private enum RadioExtendedCommand : int
@@ -565,6 +566,11 @@ namespace HTCommander
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_VOLUME, null);
         }
 
+        public void GetPosition()
+        {
+            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_POSITION, null);
+        }
+
         public void SetVolumeLevel(int level)
         {
             if ((level < 0) || (level > 15)) return;
@@ -879,6 +885,9 @@ namespace HTCommander
                             if (value[4] != 0) { Debug("WRITE_SETTINGS ERROR: " + Utils.BytesToHex(value)); }
                             break;
                         case RadioBasicCommand.SET_REGION:
+                            break;
+                        case RadioBasicCommand.GET_POSITION:
+                            Debug("Position Replay: " + Utils.BytesToHex(value));
                             break;
                         default:
                             Debug("Unexpected Basic Command Status: " + cmd);

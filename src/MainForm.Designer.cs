@@ -85,6 +85,7 @@
             this.radioStatusToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.radioSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.radioBSSSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.radioPositionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
             this.checkForUpdatesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
@@ -710,6 +711,7 @@
             this.radioStatusToolStripMenuItem,
             this.radioSettingsToolStripMenuItem,
             this.radioBSSSettingsToolStripMenuItem,
+            this.radioPositionToolStripMenuItem,
             this.toolStripMenuItem2,
             this.checkForUpdatesToolStripMenuItem,
             this.aboutToolStripMenuItem1});
@@ -748,6 +750,14 @@
             this.radioBSSSettingsToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
             this.radioBSSSettingsToolStripMenuItem.Text = "Radio BSS Settings...";
             this.radioBSSSettingsToolStripMenuItem.Click += new System.EventHandler(this.radioBSSSettingsToolStripMenuItem_Click);
+            // 
+            // radioPositionToolStripMenuItem
+            // 
+            this.radioPositionToolStripMenuItem.Enabled = false;
+            this.radioPositionToolStripMenuItem.Name = "radioPositionToolStripMenuItem";
+            this.radioPositionToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
+            this.radioPositionToolStripMenuItem.Text = "Radio Position...";
+            this.radioPositionToolStripMenuItem.Click += new System.EventHandler(this.radioPositionToolStripMenuItem_Click);
             // 
             // toolStripMenuItem2
             // 
@@ -2429,7 +2439,7 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(660, 300);
+            this.tabPage2.Size = new System.Drawing.Size(661, 307);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -2441,7 +2451,7 @@
             this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
             this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(654, 296);
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 303);
             this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // panel5
@@ -3638,6 +3648,7 @@
         private System.Windows.Forms.ToolStripMenuItem volumeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem spectrogramToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem audioEnabledToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem radioPositionToolStripMenuItem;
     }
 }
 
