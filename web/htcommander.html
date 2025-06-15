@@ -353,6 +353,9 @@
         </div>
     </nav>
     <div class="left-column d-none d-lg-block" id="leftColumn">
+        <div id="rssi" style="position: absolute; z-index: 1000; top: 220px; left: 56px; right: 50px; height: 4px">
+            <div id="rssi2" style="width:0%; height:4px; background-color: white"></div>
+        </div>
         <img src="images/radio.png" alt="Radio Device">
         <div class="d-grid gap-2" style="position: absolute; bottom: 10px; width: calc(100% - 12px);">
             <button id="leftColumnConnectButton" class="btn btn-success" style="display: none;">Connect</button>
@@ -436,7 +439,7 @@
                 <button class="nav-link d-lg-none" id="radio-toggle-button" type="button">
                     <i class="fas fa-broadcast-tower"></i> <span>Radio</span>
                 </button>
-        </nav>
+            </nav>
         </div>
     </div>
 
@@ -489,6 +492,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="radio.js"></script>
 
     <script>
         const RADIO_SERVICE_UUID = "00001100-d102-11e1-9b23-00025b00a5a5";
@@ -501,11 +505,16 @@
         let indicateCharacteristic = null;
         let gattServer = null;
 
+        var radioDevInfo = null;
+        var radioHtStatus = null;
+        var radioChannels = null;
+
         const aprsDiv = document.getElementById('aprs');
         const statusDiv = document.getElementById('status');
         const terminalDiv = document.getElementById('terminal');
         const tabTwoButton = document.getElementById('tab2-icon');
         const leftColumnConnectButton = document.getElementById('leftColumnConnectButton');
+        const rssiDiv = document.getElementById('rssi2');
 
         // Get menu bar elements
         const menuConnect = document.getElementById('menuConnect');
@@ -665,6 +674,9 @@
                 sendAprsButton.disabled = false; // Enable APRS send button on successful connection
                 log('Device connected and ready.', 'success');
 
+                // Send commands to subscribe to events & get initial state
+                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
+
             } catch (error) {
                 log(`Error: ${error.message}`, 'error');
                 if (error.name === "NotFoundError") {
@@ -678,6 +690,11 @@
                 sendAprsButton.disabled = true; // Disable APRS send button on connection error
                 leftColumnConnectButton.style.display = 'block'; // Show on disconnection/error
             }
+        }
+
+        function SendCommand(group, cmd, data)
+        {
+            writeCharacteristic.writeValueWithResponse(new Uint8Array([0, group, 0, cmd, data]));
         }
 
         async function initiateDisconnect() {
@@ -731,12 +748,50 @@
             writeCharacteristic = null;
             indicateCharacteristic = null;
             gattServer = null;
+
+            radioDevInfo = null;
+            radioHtStatus = null;
+            radioChannels = null;
         }
 
         function handleNotifications(event) {
             const value = event.target.value; // This is a DataView
-            const receivedData = value.buffer; // Get the ArrayBuffer
-            log(`Notification received: ${arrayBufferToHexString(receivedData)}`, 'data');
+            const receivedData = new Uint8Array(value.buffer)
+            const group = (receivedData[0] << 8) + receivedData[1];
+            const cmd = ((receivedData[2] & 0x7F) << 8) + receivedData[3];
+            switch (group) {
+                case RadioCommandGroup.BASIC:
+                    switch (cmd) {
+                        case RadioBasicCommand.GET_DEV_INFO:
+                            radioDevInfo = new RadioDevInfo(receivedData);
+                            log(`Firmware: ${radioDevInfo.soft_ver_str}`);
+                            log(`Channel count: ${radioDevInfo.channel_count}`);
+                            radioChannels = Array(radioDevInfo.channel_count);
+                            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, 1);
+                            break;
+                        case RadioBasicCommand.EVENT_NOTIFICATION:
+                            switch (receivedData[4]) {
+                                case RadioNotification.HT_STATUS_CHANGED:
+                                    radioHtStatus = new RadioHtStatus(receivedData);
+                                    rssiDiv.style['width'] = ((radioHtStatus.rssi * 100) / 15) + '%';
+                                    break;
+                                default:
+                                    log(`Unknown Event: ${receivedData[4]}`, 'data');
+                                    break;
+                            }
+                            break;
+                        default:
+                            log(`Group: ${group}, Cmd: ${cmd}`);
+                            log(`Notification received: ${arrayBufferToHexString(value.buffer)}`, 'data');
+                            break;
+                    }
+                    break;
+                case RadioCommandGroup.EXTENDED:
+                    log(`Group: ${group}, Cmd: ${cmd}`);
+                    log(`Notification received: ${arrayBufferToHexString(value.buffer)}`, 'data');
+                    break;
+            }
+
             // TODO: Implement your protocol's message parsing here
             // e.g., const radioMessage = radio_message_from_protocol_js(new Uint8Array(receivedData));
             // log(`Parsed message: ${JSON.stringify(radioMessage)}`);
