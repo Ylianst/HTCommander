@@ -296,23 +296,46 @@
             word-break: break-all; /* Break long words */
         }
     
-/* Overlay style for small screens when radio panel is shown */
-.left-column.overlay-visible {
-    display: block !important;
-    position: absolute;
-    top: 56px;
-    left: 0;
-    width: 232px;
-    height: calc(100vh - 56px);
-    z-index: 2000;
-    background-color: #ddd;
-    border-right: 1px solid #dee2e6;
-}
+        /* Overlay style for small screens when radio panel is shown */
+        .left-column.overlay-visible {
+            display: block !important;
+            position: absolute;
+            top: 56px;
+            left: 0;
+            width: 232px;
+            height: calc(100vh - 56px);
+            z-index: 2000;
+            background-color: #ddd;
+            border-right: 1px solid #dee2e6;
+        }
 
-/* Always keep left column fixed width on all screen sizes */
-.left-column {
-    width: 232px;
-}
+        /* Always keep left column fixed width on all screen sizes */
+        .left-column {
+            width: 232px;
+        }
+
+        #radioChannels {
+            position: absolute;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            z-index: 1001;
+            bottom: 0px;
+            left: 0px;
+            right: 0px;
+            top: 250px;
+            background-color: #BDB76B
+        }
+
+        .channelBox {
+            display: flex;
+            border-style: solid;
+            border-width: 1px;
+            width: 33.33%;
+            height: 30px;
+            font-size: 10px;
+            align-items: center;
+            justify-content: center;
+        }
 
 </style>
 </head>
@@ -352,7 +375,13 @@
             </div>
         </div>
     </nav>
-    <div class="left-column d-none d-lg-block" id="leftColumn">
+    <div class="left-column d-none d-lg-block" id="leftColumn" style="z-index: 100">
+        <div id="radioChannels" class="radioChannels" style="display: none">
+            
+        </div>
+        <div id="radioStatus" style="position: absolute; z-index: 1000; top: 160px; left: 56px; right: 50px; text-align: center; color: lightgray">
+            Disconnected
+        </div>
         <div id="rssi" style="position: absolute; z-index: 1000; top: 220px; left: 56px; right: 50px; height: 4px">
             <div id="rssi2" style="width:0%; height:4px; background-color: white"></div>
         </div>
@@ -514,8 +543,12 @@
         const terminalDiv = document.getElementById('terminal');
         const tabTwoButton = document.getElementById('tab2-icon');
         const leftColumnConnectButton = document.getElementById('leftColumnConnectButton');
-        const rssiDiv = document.getElementById('rssi2');
 
+        // Radio panel
+        const radioStatusDiv = document.getElementById('radioStatus');
+        const rssiDiv = document.getElementById('rssi2');
+        const radioChannelsDiv = document.getElementById('radioChannels');
+        
         // Get menu bar elements
         const menuConnect = document.getElementById('menuConnect');
         const menuDisconnect = document.getElementById('menuDisconnect');
@@ -645,7 +678,7 @@
                 leftColumnConnectButton.style.display = 'none'; // Hide when connecting/connected
                 menuSendCommand.classList.add('disabled'); // NEW: Disable send command option during connection setup
                 sendAprsButton.disabled = true; // Disable APRS send button during connection setup
-
+                radioStatusDiv.textContent = 'Connecting...';
 
                 log('Connecting to GATT Server...');
                 gattServer = await bluetoothDevice.gatt.connect();
@@ -672,7 +705,9 @@
                 modalSendCommandButton.disabled = false; // NEW: Enable modal send command button
                 menuSendCommand.classList.remove('disabled'); // NEW: Enable send command option in menu
                 sendAprsButton.disabled = false; // Enable APRS send button on successful connection
+                radioChannelsDiv.style.display = 'flex';
                 log('Device connected and ready.', 'success');
+                radioStatusDiv.textContent = '';
 
                 // Send commands to subscribe to events & get initial state
                 SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
@@ -692,9 +727,18 @@
             }
         }
 
+        const bluetoothCommandQueue = new BluetoothCommandQueue();
+
+        function writeToCharacteristic(data) {
+            return bluetoothCommandQueue.enqueue(() => {
+                const buffer = new Uint8Array(data).buffer;
+                return writeCharacteristic.writeValueWithResponse(buffer);
+            });
+        }
+
         function SendCommand(group, cmd, data)
         {
-            writeCharacteristic.writeValueWithResponse(new Uint8Array([0, group, 0, cmd, data]));
+            writeToCharacteristic(new Uint8Array([0, group, 0, cmd, data]));
         }
 
         async function initiateDisconnect() {
@@ -730,6 +774,7 @@
             }
         });
 
+        // Disconnect
         function onDisconnected() {
             log('Device disconnected.', 'info');
             menuConnect.classList.remove('disabled');
@@ -738,6 +783,9 @@
             menuSendCommand.classList.add('disabled'); // NEW: Disable send command option in menu
             sendAprsButton.disabled = true; // Disable APRS send button on disconnect
             leftColumnConnectButton.style.display = 'block';
+            rssiDiv.style['width'] = '0%';
+            radioStatusDiv.textContent = 'Disconnected';
+            radioChannelsDiv.style.display = 'none';
 
             if (indicateCharacteristic) {
                 indicateCharacteristic.removeEventListener('characteristicvaluechanged', handleNotifications);
@@ -767,13 +815,20 @@
                             log(`Firmware: ${radioDevInfo.soft_ver_str}`);
                             log(`Channel count: ${radioDevInfo.channel_count}`);
                             radioChannels = Array(radioDevInfo.channel_count);
-                            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, 1);
+                            //SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, 1);
+                            // Fetch all channels
+                            for (var i = 0; i < radioDevInfo.channel_count; i++) { SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_RF_CH, i); }
+                            break;
+                        case RadioBasicCommand.READ_RF_CH:
+                            var channel = new RadioChannelInfo(receivedData);
+                            radioChannels[channel.channel_id] = channel;
+                            if (channel.channel_id == (radioDevInfo.channel_count - 1)) { updateChannels(); }
                             break;
                         case RadioBasicCommand.EVENT_NOTIFICATION:
                             switch (receivedData[4]) {
                                 case RadioNotification.HT_STATUS_CHANGED:
                                     radioHtStatus = new RadioHtStatus(receivedData);
-                                    rssiDiv.style['width'] = ((radioHtStatus.rssi * 100) / 15) + '%';
+                                    rssiDiv.style['width'] = ((radioHtStatus.rssi * 100) / 15) + '%'; // Change RSSI bar
                                     break;
                                 default:
                                     log(`Unknown Event: ${receivedData[4]}`, 'data');
@@ -795,6 +850,27 @@
             // TODO: Implement your protocol's message parsing here
             // e.g., const radioMessage = radio_message_from_protocol_js(new Uint8Array(receivedData));
             // log(`Parsed message: ${JSON.stringify(radioMessage)}`);
+        }
+
+        function updateChannels() {
+            var html = '';
+            for (var i = 0; i < radioChannels.length; i++) {
+                var channel = radioChannels[i];
+                html += `<div class="channelBox">${channel.name_str}</div>`;
+            }
+            radioChannelsDiv.innerHTML = html;
+        }
+
+        updateChannelsEx();
+        function updateChannelsEx() {
+            radioChannelsDiv.style.display = 'flex';
+            //document.querySelector('.channelBox').style.height = '10px';
+            var html = '';
+            for (var i = 0; i < 30; i++) {
+                html += `<div class="channelBox">Sample ${i}</div>`;
+            }
+            radioChannelsDiv.innerHTML = html;
+            document.querySelectorAll('.channelBox').forEach(el => el.style.height = '20px');
         }
 
         // NEW: Event listener for the modal's send command button
@@ -999,7 +1075,8 @@
         }
 
         radioToggleButton.addEventListener('click', () => {
-            leftColumn.classList.toggle('overlay-visible');
+            const isRadioVisible = leftColumn.classList.toggle('overlay-visible');
+            radioToggleButton.style['background-color'] = isRadioVisible ? 'gold' : null;
             updateConnectButtonVisibilityInOverlay();
         });
 

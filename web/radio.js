@@ -335,5 +335,132 @@ class RadioDevInfo {
 }
 
 const Utils = {
-    getShort: (byteArray, offset) => { return (byteArray[offset] << 8) | (byteArray[offset + 1]); }
+    getInt: (arr, offset) => { return ((arr[offset] & 0x3F) << 24) | (arr[offset + 1] << 16) | (arr[offset + 2] << 8) | arr[offset + 3]; },
+    setInt: (arr, offset, value) => { arr[offset] = (value >> 24) & 0x3F; arr[offset + 1] = (value >> 16) & 0xFF; arr[offset + 2] = (value >> 8) & 0xFF; arr[offset + 3] = value & 0xFF; },
+    getShort: (arr, offset) => { return (arr[offset] << 8) | arr[offset + 1]; },
+    setShort: (arr, offset, value) => { arr[offset] = (value >> 8) & 0xFF; arr[offset + 1] = value & 0xFF; }
 };
+
+class BluetoothCommandQueue {
+    constructor() {
+        this.queue = [];
+        this.executing = false;
+    }
+
+    enqueue(commandFn) {
+        return new Promise((resolve, reject) => {
+            this.queue.push(() => commandFn().then(resolve).catch(reject));
+            this.runNext();
+        });
+    }
+
+    async runNext() {
+        if (this.executing || this.queue.length === 0) return;
+
+        this.executing = true;
+        const command = this.queue.shift();
+        try {
+            await command();
+        } finally {
+            this.executing = false;
+            this.runNext();
+        }
+    }
+}
+
+// RadioChannelInfo class
+class RadioChannelInfo {
+    constructor(msg = null) {
+        if (msg) {
+            this.channel_id = msg[5];
+            this.tx_mod = (msg[6] >> 6);
+            this.tx_freq = Utils.getInt(msg, 6) & 0x3FFFFFFF;
+            this.rx_mod = (msg[10] >> 6);
+            this.rx_freq = Utils.getInt(msg, 10) & 0x3FFFFFFF;
+            this.tx_sub_audio = Utils.getShort(msg, 14);
+            this.rx_sub_audio = Utils.getShort(msg, 16);
+
+            const flags1 = msg[18];
+            this.scan = !!(flags1 & 0x80);
+            this.tx_at_max_power = !!(flags1 & 0x40);
+            this.talk_around = !!(flags1 & 0x20);
+            this.bandwidth = (flags1 & 0x10) ? RadioBandwidthType.WIDE : RadioBandwidthType.NARROW;
+            this.pre_de_emph_bypass = !!(flags1 & 0x08);
+            this.sign = !!(flags1 & 0x04);
+            this.tx_at_med_power = !!(flags1 & 0x02);
+            this.tx_disable = !!(flags1 & 0x01);
+
+            const flags2 = msg[19];
+            this.fixed_freq = !!(flags2 & 0x80);
+            this.fixed_bandwidth = !!(flags2 & 0x40);
+            this.fixed_tx_power = !!(flags2 & 0x20);
+            this.mute = !!(flags2 & 0x10);
+
+            const nameBytes = msg.slice(20, 30);
+            this.name_str = new TextDecoder().decode(nameBytes).replace(/\0.*$/, '').trim();
+        }
+    }
+
+    clone() {
+        const copy = new RadioChannelInfo();
+        Object.assign(copy, this);
+        return copy;
+    }
+
+    equals(other) {
+        return other &&
+            this.channel_id === other.channel_id &&
+            this.tx_mod === other.tx_mod &&
+            this.tx_freq === other.tx_freq &&
+            this.rx_mod === other.rx_mod &&
+            this.rx_freq === other.rx_freq &&
+            this.tx_sub_audio === other.tx_sub_audio &&
+            this.rx_sub_audio === other.rx_sub_audio &&
+            this.scan === other.scan &&
+            this.tx_at_max_power === other.tx_at_max_power &&
+            this.talk_around === other.talk_around &&
+            this.bandwidth === other.bandwidth &&
+            this.pre_de_emph_bypass === other.pre_de_emph_bypass &&
+            this.sign === other.sign &&
+            this.tx_at_med_power === other.tx_at_med_power &&
+            this.tx_disable === other.tx_disable &&
+            this.fixed_freq === other.fixed_freq &&
+            this.fixed_bandwidth === other.fixed_bandwidth &&
+            this.fixed_tx_power === other.fixed_tx_power &&
+            this.mute === other.mute &&
+            this.name_str === other.name_str;
+    }
+
+    toByteArray() {
+        const r = new Uint8Array(30);
+        r[0] = this.channel_id;
+
+        Utils.setInt(r, 1, this.tx_freq);
+        r[1] |= (this.tx_mod & 0x03) << 6;
+
+        Utils.setInt(r, 5, this.rx_freq);
+        r[5] |= (this.rx_mod & 0x03) << 6;
+
+        Utils.setShort(r, 9, this.tx_sub_audio);
+        Utils.setShort(r, 11, this.rx_sub_audio);
+
+        if (this.scan) r[13] |= 0x80;
+        if (this.tx_at_max_power) r[13] |= 0x40;
+        if (this.talk_around) r[13] |= 0x20;
+        if (this.bandwidth === RadioBandwidthType.WIDE) r[13] |= 0x10;
+        if (this.pre_de_emph_bypass) r[13] |= 0x08;
+        if (this.sign) r[13] |= 0x04;
+        if (this.tx_at_med_power) r[13] |= 0x02;
+        if (this.tx_disable) r[13] |= 0x01;
+
+        if (this.fixed_freq) r[14] |= 0x80;
+        if (this.fixed_bandwidth) r[14] |= 0x40;
+        if (this.fixed_tx_power) r[14] |= 0x20;
+        if (this.mute) r[14] |= 0x10;
+
+        const nameBytes = new TextEncoder().encode(this.name_str);
+        r.set(nameBytes.slice(0, 10), 15);
+
+        return r;
+    }
+}
