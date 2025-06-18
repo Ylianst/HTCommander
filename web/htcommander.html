@@ -299,7 +299,7 @@
         /* Overlay style for small screens when radio panel is shown */
         .left-column.overlay-visible {
             display: block !important;
-            position: absolute;
+            position: fixed;
             top: 56px;
             left: 0;
             width: 232px;
@@ -311,6 +311,7 @@
 
         /* Always keep left column fixed width on all screen sizes */
         .left-column {
+            position: fixed;
             width: 232px;
         }
 
@@ -322,8 +323,7 @@
             bottom: 0px;
             left: 0px;
             right: 0px;
-            top: 250px;
-            background-color: #BDB76B
+            background-color: #6D693E;
         }
 
         .channelBox {
@@ -335,8 +335,13 @@
             font-size: 10px;
             align-items: center;
             justify-content: center;
+            background-color: #BDB76B;
+            transition: background-color 0.3s ease;
         }
 
+            .channelBox:hover {
+                background-color: #D3CC78;
+            }
 </style>
 </head>
 <body>
@@ -376,8 +381,10 @@
         </div>
     </nav>
     <div class="left-column d-none d-lg-block" id="leftColumn" style="z-index: 100">
+        <div class="d-grid gap-2" style="position: absolute; bottom: 10px; width: calc(100% - 12px)">
+            <button id="leftColumnConnectButton" class="btn btn-success" style="display: none;">Connect</button>
+        </div>
         <div id="radioChannels" class="radioChannels" style="display: none">
-            
         </div>
         <div id="radioStatus" style="position: absolute; z-index: 1000; top: 160px; left: 56px; right: 50px; text-align: center; color: lightgray">
             Disconnected
@@ -386,9 +393,6 @@
             <div id="rssi2" style="width:0%; height:4px; background-color: white"></div>
         </div>
         <img src="images/radio.png" alt="Radio Device">
-        <div class="d-grid gap-2" style="position: absolute; bottom: 10px; width: calc(100% - 12px);">
-            <button id="leftColumnConnectButton" class="btn btn-success" style="display: none;">Connect</button>
-        </div>
     </div>
     <div class="main-content-area">
         <div class="tab-content-area">
@@ -545,6 +549,7 @@
         const leftColumnConnectButton = document.getElementById('leftColumnConnectButton');
 
         // Radio panel
+        const leftColumnDiv = document.getElementById('leftColumn');
         const radioStatusDiv = document.getElementById('radioStatus');
         const rssiDiv = document.getElementById('rssi2');
         const radioChannelsDiv = document.getElementById('radioChannels');
@@ -707,7 +712,6 @@
                 sendAprsButton.disabled = false; // Enable APRS send button on successful connection
                 radioChannelsDiv.style.display = 'flex';
                 log('Device connected and ready.', 'success');
-                radioStatusDiv.textContent = '';
 
                 // Send commands to subscribe to events & get initial state
                 SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
@@ -786,6 +790,7 @@
             rssiDiv.style['width'] = '0%';
             radioStatusDiv.textContent = 'Disconnected';
             radioChannelsDiv.style.display = 'none';
+            radioChannelsDiv.innerHTML = null;
 
             if (indicateCharacteristic) {
                 indicateCharacteristic.removeEventListener('characteristicvaluechanged', handleNotifications);
@@ -853,24 +858,26 @@
         }
 
         function updateChannels() {
-            var html = '';
+            var html = '', channelCount = 0;
+            radioStatusDiv.textContent = '';
             for (var i = 0; i < radioChannels.length; i++) {
                 var channel = radioChannels[i];
-                html += `<div class="channelBox">${channel.name_str}</div>`;
+                var channelName = channel.name_str;
+                if ((channelName == "") || (channelName == null)) {
+                    channelName = null;
+                    //channelName = "Channel " + (channel.channel_id + 1);
+                }
+                if (channelName != null) {
+                    html += `<div id="channel${i}" onclick="selectChannel(${i})" class="channelBox">${channelName}</div>`;
+                    channelCount++;
+                }
             }
             radioChannelsDiv.innerHTML = html;
+            //radioChannelsDiv.style.height = channelBoxMaxHeight;
         }
 
-        updateChannelsEx();
-        function updateChannelsEx() {
-            radioChannelsDiv.style.display = 'flex';
-            //document.querySelector('.channelBox').style.height = '10px';
-            var html = '';
-            for (var i = 0; i < 30; i++) {
-                html += `<div class="channelBox">Sample ${i}</div>`;
-            }
-            radioChannelsDiv.innerHTML = html;
-            document.querySelectorAll('.channelBox').forEach(el => el.style.height = '20px');
+        function selectChannel(c) {
+            log(`Select Channel: ${c}`);
         }
 
         // NEW: Event listener for the modal's send command button
@@ -894,7 +901,6 @@
                 log('Command sent successfully.', 'success');
                 sendCommandModal.hide(); // Hide the modal after sending
                 modalCommandInput.value = ''; // Clear the input after sending
-
             } catch (error) {
                 log(`Error sending command: ${error.message}`, 'error');
                 console.error('Send command error:', error);
@@ -1088,9 +1094,9 @@
 
         // Automatically remove overlay-visible class on large screens
         function manageRadioPanel() {
-            if (window.innerWidth >= 992) {
-                leftColumn.classList.remove('overlay-visible');
-            }
+            if (window.innerWidth >= 992) { leftColumn.classList.remove('overlay-visible'); }
+            const isRadioVisible = leftColumn.classList.contains('overlay-visible');
+            radioToggleButton.style['background-color'] = isRadioVisible ? 'gold' : null;
         }
 
         window.addEventListener('resize', manageRadioPanel);
