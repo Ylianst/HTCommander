@@ -520,8 +520,6 @@
     <None Include="images\Terminal.png" />
     <None Include="images\Paring.png" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="webx\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
