@@ -375,6 +375,7 @@ namespace HTCommander
         private void clearButton_Click(object sender, EventArgs e)
         {
             nameTextBox.Text = "";
+            freqTextBox.Text = "0";
             advReceiveFreqTextBox.Text = "0";
             advTransmitFreqTextBox.Text = "0";
             muteCheckBox.Checked = disableTransmitCheckBox.Checked = false;

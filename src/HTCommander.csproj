@@ -283,6 +283,7 @@
     <Compile Include="radio\MorseCodeEngine.cs" />
     <Compile Include="radio\RadioAudio.cs" />
     <Compile Include="radio\RadioBluetoothWin.cs" />
+    <Compile Include="radio\RadioPosition.cs" />
     <Compile Include="radio\WhisperEngine.cs" />
     <Compile Include="radio\WinLinkMail.cs" />
     <Compile Include="radio\WinLinkUtils.cs" />

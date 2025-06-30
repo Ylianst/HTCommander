@@ -14,10 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+using GMap.NET;
+using HTCommander.radio;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Collections.Generic;
 
 namespace HTCommander
 {
@@ -164,7 +166,9 @@ namespace HTCommander
             RADIO_STATUS_CHANGED = 8,
             USER_ACTION = 9,
             SYSTEM_EVENT = 10,
-            BSS_SETTINGS_CHANGED = 11
+            BSS_SETTINGS_CHANGED = 11,
+            DATA_TXD = 12,
+            POSITION_CHANGE = 13
         }
 
         public enum RadioChannelType : int
@@ -212,7 +216,7 @@ namespace HTCommander
             AccessDenied = 8
         }
 
-        private enum RadioCommandState : int
+        public enum RadioCommandState : int
         {
             SUCCESS,
             NOT_SUPPORTED,
@@ -229,6 +233,7 @@ namespace HTCommander
         public RadioHtStatus HtStatus = null;
         public RadioSettings Settings = null;
         public RadioBssSettings BssSettings = null;
+        public RadioPosition Position = null;
         public bool PacketTrace = false;
         public int BatteryLevel = -1;
         public float BatteryVoltage = -1;
@@ -241,6 +246,7 @@ namespace HTCommander
         public bool Recording { get { return radioAudio.Recording; } }
         public void StartRecording(string filename) { radioAudio.StartRecording(filename); }
         public void StopRecording() { radioAudio.StopRecording(); }
+
 
         private List<FragmentInQueue> TncFragmentQueue = new List<FragmentInQueue>();
         private bool TncFragmentInFlight = false;
@@ -358,6 +364,26 @@ namespace HTCommander
             return true;
         }
 
+        private bool gpsEnabled = false;
+        private int gpsLock = 2; // 0 == GPS is locked, other values indicate the GPS is not locked
+        public void GpsEnabled(bool enabled)
+        {
+            if (gpsEnabled == enabled) return;
+            gpsEnabled = enabled;
+            if (state == RadioState.Connected)
+            {
+                gpsLock = 2;
+                if (gpsEnabled)
+                {
+                    SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.POSITION_CHANGE);
+                }
+                else
+                {
+                    SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.CANCEL_NOTIFICATION, (int)RadioNotification.POSITION_CHANGE);
+                }
+            }
+        }
+
         private TncDataFragment frameAccumulator = null;
         private RadioBluetoothWin radioTransport;
 
@@ -435,6 +461,9 @@ namespace HTCommander
 
         public delegate void OnProcessingVoiceHandler(bool listening, bool processing);
         public event OnProcessingVoiceHandler onProcessingVoice;
+
+        public delegate void OnPositionUpdate(Radio sender, RadioPosition position);
+        public event OnPositionUpdate onPositionUpdate;
 
         public void SetOutputAudioDevice(string deviceid) { if (radioAudio != null) { radioAudio.SetOutputDevice(deviceid); } }
         public bool AudioState { get { return radioAudio.IsAudioEnabled; } }
@@ -602,9 +631,9 @@ namespace HTCommander
 
         public bool IsOnMuteChannel()
         {
-            if ((state != RadioState.Connected) || (Channels == null) || (HtStatus == null)) return false;
-            if (HtStatus.curr_ch_id >= Channels.Length) return false;
-            if (Channels[HtStatus.curr_ch_id] == null) return false;
+            if ((state != RadioState.Connected) || (Channels == null) || (HtStatus == null)) return true;
+            if (HtStatus.curr_ch_id >= Channels.Length) return true;
+            if (Channels[HtStatus.curr_ch_id] == null) return true;
             return Channels[HtStatus.curr_ch_id].mute;
         }
 
@@ -632,7 +661,8 @@ namespace HTCommander
                             UpdateState(RadioState.Connected);
                             // Register for notifications
                             // OK: 1, 8  - BAD:0,2,3,4,5,6,16,0x0F,0xFF
-                            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, 1);
+                            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.HT_STATUS_CHANGED);
+                            if (gpsEnabled) { SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.POSITION_CHANGE); }
                             break;
                         case RadioBasicCommand.READ_RF_CH:
                             RadioChannelInfo c = new RadioChannelInfo(value);
@@ -777,6 +807,13 @@ namespace HTCommander
                                     Settings = new RadioSettings(value);
                                     Update(RadioUpdateNotification.Settings);
                                     break;
+                                case RadioNotification.POSITION_CHANGE:
+                                    value[4] = 0; // Set status to success
+                                    Position = new RadioPosition(value);
+                                    if (gpsLock > 0) { gpsLock--; } // Decrease the GPS lock counter
+                                    Position.Locked = (gpsLock == 0);
+                                    if (onPositionUpdate != null) { onPositionUpdate(this, Position); }
+                                    break;
                                 default:
                                     Debug($"Event: " + Utils.BytesToHex(value));
                                     break;
@@ -886,7 +923,8 @@ namespace HTCommander
                         case RadioBasicCommand.SET_REGION:
                             break;
                         case RadioBasicCommand.GET_POSITION:
-                            Debug("Position Replay: " + Utils.BytesToHex(value));
+                            Position = new RadioPosition(value);
+                            if (onPositionUpdate != null) { onPositionUpdate(this, Position); }
                             break;
                         default:
                             Debug("Unexpected Basic Command Status: " + cmd);

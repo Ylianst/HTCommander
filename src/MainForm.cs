@@ -27,6 +27,8 @@ using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
 using HTCommander.radio;
 using NAudio.Wave;
+using static GMap.NET.Entity.OpenStreetMapRouteEntity;
+
 
 #if !__MonoCS__
 using GMap.NET.MapProviders;
@@ -173,6 +175,7 @@ namespace HTCommander
             radio.onProcessingVoice += Radio_onProcessingVoice;
             radio.OnVoiceTransmitStateChanged += Radio_OnVoiceTransmitStateChanged;
             radio.OnAudioDataAvailable += RadioAudio_DataAvailable;
+            radio.onPositionUpdate += Radio_onPositionUpdate;
             mainTabControl.SelectedTab = aprsTabPage;
 
 #if !__MonoCS__
@@ -281,6 +284,8 @@ namespace HTCommander
             showDetailsToolStripMenuItem.Checked = (registry.ReadInt("ViewTorrentDetails", 1) == 1);
             torrentSplitContainer.Panel2Collapsed = !showDetailsToolStripMenuItem.Checked;
             audioEnabledToolStripMenuItem.Checked = (registry.ReadInt("Audio", 0) == 1);
+            gPSEnabledToolStripMenuItem.Checked = (registry.ReadInt("GpsEnabled", 0) == 1);
+            radio.GpsEnabled(gPSEnabledToolStripMenuItem.Checked);
 
             showPreviewToolStripMenuItem.Checked = (registry.ReadInt("MailViewPreview", 1) == 1);
             mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
@@ -477,6 +482,44 @@ namespace HTCommander
             }
         }
 
+        private void Radio_onPositionUpdate(Radio sender, RadioPosition position)
+        {
+            if (this.InvokeRequired) { this.BeginInvoke(new Radio.OnPositionUpdate(Radio_onPositionUpdate), sender, position); return; }
+            if (radioPositionForm != null) { radioPositionForm.UpdatePosition(position); }
+            UpdateGpsStatusDisplay();
+
+            if (position.Status == Radio.RadioCommandState.SUCCESS)
+            {
+                foreach (GMarkerGoogle m in mapMarkersOverlay.Markers)
+                {
+                    if (m.ToolTipText == "Self") { m.Position = new PointLatLng(position.Latitude, position.Longitude); return; }
+                }
+                GMarkerGoogle marker = new GMarkerGoogle(new PointLatLng(position.Latitude, position.Longitude), GMarkerGoogleType.blue_dot);
+                marker.ToolTipText = "Self";
+                marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
+                mapMarkersOverlay.Markers.Add(marker);
+                centerToGpsButton.Enabled = true;
+            }
+        }
+
+        private void UpdateGpsStatusDisplay()
+        {
+            if ((radio.State == RadioState.Connected) && gPSEnabledToolStripMenuItem.Checked)
+            {
+                if (radio.Position == null)
+                {
+                    gpsStatusLabel.Text = "";
+                }
+                else
+                {
+                    if (radio.Position.IsGpsLocked()) { gpsStatusLabel.Text = "GPS Lock"; } else { gpsStatusLabel.Text = "No GPS Lock"; }
+                }
+            }
+            else
+            {
+                gpsStatusLabel.Text = "";
+            }
+        }
 
         private delegate void UpdateAvailableHandler(float currentVersion, float onlineVersion, string url);
         public void UpdateAvailable(float currentVersion, float onlineVersion, string url)
@@ -896,6 +939,12 @@ namespace HTCommander
                                 radioVolumeForm.UpdateInfo();
                                 if (aprsConfigurationForm != null) { aprsConfigurationForm.Close(); aprsConfigurationForm = null; }
                                 microphone.StopListening();
+
+                                // Remove self location
+                                GMarkerGoogle selfMarker = null;
+                                foreach (GMarkerGoogle m in mapMarkersOverlay.Markers) { if (m.ToolTipText == "Self") { selfMarker = m; } }
+                                mapMarkersOverlay.Markers.Remove(selfMarker);
+                                centerToGpsButton.Enabled = false;
                                 break;
                             case Radio.RadioState.Connecting:
                                 radioStateLabel.Text = "Connecting";
@@ -983,7 +1032,7 @@ namespace HTCommander
         {
             if (this.Disposing || this.IsDisposed) return;
             if (this.InvokeRequired) { this.BeginInvoke(new EmptyFuncHandler(UpdateRadioDisplay)); return; }
-
+            UpdateGpsStatusDisplay();
             if (radio.Settings == null) return;
 
             /*
@@ -1871,7 +1920,7 @@ namespace HTCommander
             batteryTimer.Enabled = (radio.State == Radio.RadioState.Connected);
             connectToolStripMenuItem.Enabled = connectButton.Visible = (radio.State != Radio.RadioState.Connected && radio.State != Radio.RadioState.Connecting && devices != null && devices.Length > 0);
             radioInformationToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected);
-            radioPositionToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected) && (radio.Info != null) && (radio.Info.soft_ver >= 133); // Check Version 0.8.5 or better
+            radioPositionToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected) && (radio.Info != null) && (radio.Info.soft_ver >= 133) && gPSEnabledToolStripMenuItem.Checked; // Check Version 0.8.5 or better
             radioStatusToolStripMenuItem.Enabled = ((radio.State == Radio.RadioState.Connected) && (radio.HtStatus != null));
             if (radio.State != Radio.RadioState.Connected) { connectedPanel.Visible = false; }
             exportStationsToolStripMenuItem.Enabled = (stations.Count > 0);
@@ -4596,8 +4645,54 @@ namespace HTCommander
             }
             else
             {
-                radioPositionForm = new RadioPositionForm(this, radio);
-                radioPositionForm.Show(this);
+                if (gPSEnabledToolStripMenuItem.Checked)
+                {
+                    radioPositionForm = new RadioPositionForm(this, radio);
+                    radioPositionForm.Show(this);
+                }
+            }
+        }
+
+        private void gPSEnabledToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            registry.WriteInt("GpsEnabled", gPSEnabledToolStripMenuItem.Checked ? 1 : 0);
+            radio.GpsEnabled(gPSEnabledToolStripMenuItem.Checked);
+            if ((radioPositionForm != null) && (gPSEnabledToolStripMenuItem.Checked == false)) { radioPositionForm.Close(); }
+            UpdateGpsStatusDisplay();
+            UpdateInfo();
+
+            if (gPSEnabledToolStripMenuItem.Checked == false)
+            {
+                // Remove self location
+                GMarkerGoogle selfMarker = null;
+                foreach (GMarkerGoogle m in mapMarkersOverlay.Markers) { if (m.ToolTipText == "Self") { selfMarker = m; } }
+                mapMarkersOverlay.Markers.Remove(selfMarker);
+                centerToGpsButton.Enabled = false;
+            }
+        }
+
+        private void gpsLockTimer_Tick(object sender, EventArgs e)
+        {
+            UpdateGpsStatusDisplay();
+        }
+
+        private void centerToGpsButton_Click(object sender, EventArgs e)
+        {
+            if ((radio.Position != null) && (radio.Position.Status == RadioCommandState.SUCCESS))
+            {
+                mapControl.Position = new GMap.NET.PointLatLng(radio.Position.Latitude, radio.Position.Longitude);
+            }
+        }
+
+        private void gpsStatusLabel_Click(object sender, EventArgs e)
+        {
+            if (gpsStatusLabel.Text == "")
+            {
+                radioPictureBox_Click(this, null);
+            }
+            else
+            {
+                radioPositionToolStripMenuItem_Click(this, null);
             }
         }
     }

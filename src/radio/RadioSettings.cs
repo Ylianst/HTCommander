@@ -15,7 +15,6 @@ limitations under the License.
 */
 
 using System;
-using Windows.Phone.System.Power;
 
 namespace HTCommander
 {
