@@ -22,6 +22,7 @@ namespace HTCommander
 {
     public class RadioChannelInfo
     {
+        public byte[] raw;
         public int channel_id;
         public RadioModulationType tx_mod;
         public int tx_freq;
@@ -47,6 +48,7 @@ namespace HTCommander
 
         public RadioChannelInfo(byte[] msg)
         {
+            raw = msg;
             channel_id = msg[5];
             tx_mod = (RadioModulationType)(msg[6] >> 6);
             tx_freq = Utils.GetInt(msg, 6) & 0x3FFFFFFF;

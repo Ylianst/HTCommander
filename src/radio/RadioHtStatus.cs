@@ -21,6 +21,8 @@ namespace HTCommander
 {
     public class RadioHtStatus
     {
+        public byte[] raw;
+
         // 2 first bytes
         public bool is_power_on;
         public bool is_in_tx;
@@ -44,6 +46,8 @@ namespace HTCommander
 
         public RadioHtStatus(byte[] msg)
         {
+            raw = msg;
+
             // Two first bytes
             is_power_on = (msg[5] & 0x80) != 0;
             is_in_tx = (msg[5] & 0x40) != 0;

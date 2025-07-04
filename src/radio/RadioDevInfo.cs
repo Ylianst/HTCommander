@@ -18,6 +18,7 @@ namespace HTCommander
 {
     public class RadioDevInfo
     {
+        public byte[] raw;
         public int vendor_id;
         public int product_id;
         public int hw_ver;
@@ -38,6 +39,7 @@ namespace HTCommander
 
         public RadioDevInfo(byte[] msg)
         {
+            raw = msg;
             vendor_id = msg[5];
             product_id = Utils.GetShort(msg, 6);
             hw_ver = msg[8];

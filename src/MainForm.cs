@@ -176,6 +176,7 @@ namespace HTCommander
             radio.OnVoiceTransmitStateChanged += Radio_OnVoiceTransmitStateChanged;
             radio.OnAudioDataAvailable += RadioAudio_DataAvailable;
             radio.onPositionUpdate += Radio_onPositionUpdate;
+            radio.onRawCommand += Radio_onRawCommand;
             mainTabControl.SelectedTab = aprsTabPage;
 
 #if !__MonoCS__
@@ -480,6 +481,11 @@ namespace HTCommander
                     SelfUpdateForm.CheckForUpdate(this);
                 }
             }
+        }
+
+        private void Radio_onRawCommand(Radio sender, byte[] cmd)
+        {
+            if (webserver != null) { webserver.BroadcastBinary(cmd); }
         }
 
         private void Radio_onPositionUpdate(Radio sender, RadioPosition position)
@@ -910,6 +916,7 @@ namespace HTCommander
                         switch (radio.State)
                         {
                             case Radio.RadioState.Connected:
+                                if (webserver != null) { webserver.BroadcastString("connected"); }
                                 connectToolStripMenuItem.Enabled = false;
                                 disconnectToolStripMenuItem.Enabled = true;
                                 radioStateLabel.Text = "Connected";
@@ -920,6 +927,7 @@ namespace HTCommander
                                 if (allowTransmit) { microphone.StartListening(); }
                                 break;
                             case Radio.RadioState.Disconnected:
+                                if (webserver != null) { webserver.BroadcastString("disconnected"); }
                                 connectToolStripMenuItem.Enabled = true;
                                 disconnectToolStripMenuItem.Enabled = false;
                                 radioStateLabel.Text = "Disconnected";
@@ -947,6 +955,7 @@ namespace HTCommander
                                 centerToGpsButton.Enabled = false;
                                 break;
                             case Radio.RadioState.Connecting:
+                                if (webserver != null) { webserver.BroadcastString("connecting"); }
                                 radioStateLabel.Text = "Connecting";
                                 break;
                             case Radio.RadioState.MultiRadioSelect:
@@ -1248,7 +1257,7 @@ namespace HTCommander
                 byte[] buf = UTF8Encoding.UTF8.GetBytes(DateTime.Now.ToString() + ": " + msg + Environment.NewLine);
                 try { debugFile.Write(buf, 0, buf.Length); } catch (Exception) { }
             }
-            if (webserver != null) { webserver.BroadcastString(msg); }
+            if (webserver != null) { webserver.BroadcastString("log:" + msg); }
         }
 
         private void Radio_DebugMessage(Radio sender, string msg)
@@ -1277,7 +1286,7 @@ namespace HTCommander
             Application.Exit();
         }
 
-        private void connectToolStripMenuItem_Click(object sender, EventArgs e)
+        public void connectToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (devices == null || devices.Length == 0) return;
             if (devices.Length == 1)

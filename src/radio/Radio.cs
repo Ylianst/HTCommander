@@ -465,6 +465,9 @@ namespace HTCommander
         public delegate void OnPositionUpdate(Radio sender, RadioPosition position);
         public event OnPositionUpdate onPositionUpdate;
 
+        public delegate void OnRawCommandHandler(Radio sender, byte[] cmd);
+        public event OnRawCommandHandler onRawCommand;
+
         public void SetOutputAudioDevice(string deviceid) { if (radioAudio != null) { radioAudio.SetOutputDevice(deviceid); } }
         public bool AudioState { get { return radioAudio.IsAudioEnabled; } }
         public float OutputVolume { get { return radioAudio.Volume; } set { radioAudio.Volume = value; } }
@@ -647,6 +650,7 @@ namespace HTCommander
             else { Program.BlockBoxEvent("-----> " + Utils.BytesToHex(value)); }
             int r = Utils.GetInt(value, 0);
             RadioCommandGroup group = (RadioCommandGroup)Utils.GetShort(value, 0);
+            if (onRawCommand != null) { onRawCommand(this, value); }
 
             switch (group)
             {
@@ -707,12 +711,12 @@ namespace HTCommander
                             switch (notify)
                             {
                                 case RadioNotification.HT_STATUS_CHANGED:
-                                    int oldRegion = -1;
-                                    if (HtStatus != null) { oldRegion = HtStatus.curr_region; }
+                                    int oldRegion2 = -1;
+                                    if (HtStatus != null) { oldRegion2 = HtStatus.curr_region; }
                                     HtStatus = new RadioHtStatus(value);
                                     Update(RadioUpdateNotification.HtStatus);
                                     if (HtStatus == null) return;
-                                    if (oldRegion != HtStatus.curr_region)
+                                    if (oldRegion2 != HtStatus.curr_region)
                                     {
                                         Update(RadioUpdateNotification.RegionChange);
                                         if (Channels != null) { for (int i = 0; i < Channels.Length; i++) { Channels[i] = null; } }
@@ -926,6 +930,54 @@ namespace HTCommander
                             Position = new RadioPosition(value);
                             if (onPositionUpdate != null) { onPositionUpdate(this, Position); }
                             break;
+                        case RadioBasicCommand.GET_HT_STATUS:
+                            int oldRegion = -1;
+                            if (HtStatus != null) { oldRegion = HtStatus.curr_region; }
+                            HtStatus = new RadioHtStatus(value);
+                            Update(RadioUpdateNotification.HtStatus);
+                            if (HtStatus == null) return;
+                            if (oldRegion != HtStatus.curr_region)
+                            {
+                                Update(RadioUpdateNotification.RegionChange);
+                                if (Channels != null) { for (int i = 0; i < Channels.Length; i++) { Channels[i] = null; } }
+                                Update(RadioUpdateNotification.ChannelInfo);
+                                UpdateChannels();
+                            }
+
+                            // Set channel name
+                            if (HtStatus.curr_ch_id >= 254)
+                            {
+                                currentChannelName = radioAudio.currentChannelName = "NOAA";
+                            }
+                            else if ((Channels != null) && (Channels.Length > HtStatus.curr_ch_id) && (Channels[HtStatus.curr_ch_id] != null))
+                            {
+                                currentChannelName = radioAudio.currentChannelName = Channels[HtStatus.curr_ch_id].name_str;
+                            }
+                            else
+                            {
+                                currentChannelName = radioAudio.currentChannelName = string.Empty;
+                            }
+
+                            //Debug($"inRX={HtStatus.is_in_rx}, inTX={HtStatus.is_in_tx}, RSSI={HtStatus.rssi}");
+                            ClearTransmitQueue();
+                            channelFree = IsTncFree();
+                            if (channelFree && (TncFragmentInFlight == false) && (TncFragmentQueue.Count > 0)) // We are clear to send a packet
+                            {
+                                // Send more data
+                                channelFree = false;
+                                TncFragmentInFlight = true;
+                                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
+                            }
+                            else if (TncFragmentInFlight && HtStatus.is_in_rx)
+                            {
+                                // The data we sent needs to be sent again
+                                TncFragmentInFlight = false;
+                            }
+
+                            // Used to call back when the channel is clear
+                            ChannelState(channelFree);
+
+                            break;
                         default:
                             Debug("Unexpected Basic Command Status: " + cmd);
                             Debug(Utils.BytesToHex(value));
@@ -946,6 +998,25 @@ namespace HTCommander
                     Debug("Unexpected Command Group: " + group);
                     break;
             }
+        }
+
+        public void SendRawCommand(byte[] rawcmd)
+        {
+            byte[] data = new byte[rawcmd.Length - 4];
+            Array.Copy(rawcmd, 4, data, 0, rawcmd.Length - 4);
+            RadioCommandGroup group = (RadioCommandGroup)Utils.GetShort(rawcmd, 0);
+            RadioBasicCommand cmd = (RadioBasicCommand)Utils.GetShort(rawcmd, 2);
+
+            // If this is a cached command, send the respond now without going thru the radio
+            if ((onRawCommand != null) && (group == RadioCommandGroup.BASIC))
+            {
+                if ((cmd == RadioBasicCommand.GET_DEV_INFO) && (Info != null)) { onRawCommand(this, Info.raw); return; }
+                if ((cmd == RadioBasicCommand.READ_SETTINGS) && (Settings != null)) { onRawCommand(this, Settings.rawData); return; }
+                if ((cmd == RadioBasicCommand.GET_HT_STATUS) && (HtStatus != null)) { onRawCommand(this, HtStatus.raw); return; }
+                if ((cmd == RadioBasicCommand.READ_RF_CH) && (Channels != null)) { if ((Channels.Length > rawcmd[4]) && (Channels[rawcmd[4]] != null)) { onRawCommand(this, Channels[rawcmd[4]].raw); return; } }
+            }
+
+            SendCommand(group, cmd, data);
         }
 
         private void SendCommand(RadioCommandGroup group, RadioBasicCommand cmd, byte data)

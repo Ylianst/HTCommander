@@ -21,7 +21,7 @@ namespace HTCommander
 
     public class RadioSettings
     {
-        private byte[] rawData;
+        public byte[] rawData;
         public int channel_a;
         public int channel_b;
         public bool scan;
