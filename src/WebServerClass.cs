@@ -349,7 +349,14 @@ namespace HTCommander
                         if (result.Count < 5) continue;
                         byte[] receivedData = new byte[result.Count];
                         Array.Copy(buffer, 0, receivedData, 0, result.Count);
-                        parent.radio.SendRawCommand(receivedData);
+                        bool forward = true;
+
+                        // Check if we are channel locked, if so, don't allow channel changing.
+                        int group = Utils.GetShort(receivedData, 0);
+                        int cmd = Utils.GetShort(receivedData, 2);
+                        if ((group == 2) && (cmd == 11) && (parent.activeChannelIdLock != -1)) { forward = false; } // WRITE_SETTINGS 
+
+                        if (forward) { parent.radio.SendRawCommand(receivedData); }
                     }
                 }
             }

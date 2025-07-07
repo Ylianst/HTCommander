@@ -238,6 +238,7 @@ namespace HTCommander
             Utils.ComboBoxItem selected = (Utils.ComboBoxItem)inputComboBox.SelectedItem;
             if (SelectedInputDeviceId == selected.Value) return; // No change
             MMDevice xinputDevice = GetDeviceById(SelectedInputDeviceId, DataFlow.Capture);
+            if (xinputDevice == null) return;
             if (xinputDevice.ID == inputDevice.ID)
             {
                 SelectedInputDeviceId = selected.Value;

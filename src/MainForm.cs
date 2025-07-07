@@ -951,7 +951,7 @@ namespace HTCommander
                                 // Remove self location
                                 GMarkerGoogle selfMarker = null;
                                 foreach (GMarkerGoogle m in mapMarkersOverlay.Markers) { if (m.ToolTipText == "Self") { selfMarker = m; } }
-                                mapMarkersOverlay.Markers.Remove(selfMarker);
+                                if (selfMarker != null) { mapMarkersOverlay.Markers.Remove(selfMarker); }
                                 centerToGpsButton.Enabled = false;
                                 break;
                             case Radio.RadioState.Connecting:
