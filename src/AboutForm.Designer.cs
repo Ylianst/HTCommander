@@ -46,9 +46,10 @@
             // closeButton
             // 
             this.closeButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.closeButton.Location = new System.Drawing.Point(416, 250);
+            this.closeButton.Location = new System.Drawing.Point(555, 308);
+            this.closeButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.closeButton.Name = "closeButton";
-            this.closeButton.Size = new System.Drawing.Size(75, 23);
+            this.closeButton.Size = new System.Drawing.Size(100, 28);
             this.closeButton.TabIndex = 0;
             this.closeButton.Text = "Close";
             this.closeButton.UseVisualStyleBackColor = true;
@@ -59,9 +60,10 @@
             this.label1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(203, 12);
+            this.label1.Location = new System.Drawing.Point(271, 15);
+            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(288, 25);
+            this.label1.Size = new System.Drawing.Size(384, 31);
             this.label1.TabIndex = 1;
             this.label1.Text = "Handi-Talkie Commander";
             // 
@@ -72,21 +74,22 @@
             this.mainTextBox.BackColor = System.Drawing.Color.LightGray;
             this.mainTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.mainTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.mainTextBox.Location = new System.Drawing.Point(208, 40);
+            this.mainTextBox.Location = new System.Drawing.Point(277, 49);
+            this.mainTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.mainTextBox.Multiline = true;
             this.mainTextBox.Name = "mainTextBox";
             this.mainTextBox.ReadOnly = true;
-            this.mainTextBox.Size = new System.Drawing.Size(283, 66);
+            this.mainTextBox.Size = new System.Drawing.Size(377, 81);
             this.mainTextBox.TabIndex = 2;
-            this.mainTextBox.Text = "Version {0} - Preview\r\nYlian Saint-Hilaire, KK7VZT\r\nOpen Source, Apache 2.0 Licen" +
-    "se";
+            this.mainTextBox.Text = "Version {0}\r\nYlian Saint-Hilaire, KK7VZT\r\nOpen Source, Apache 2.0 License";
             // 
             // aboutPictureBox
             // 
             this.aboutPictureBox.Image = global::HTCommander.Properties.Resources.About;
-            this.aboutPictureBox.Location = new System.Drawing.Point(12, 12);
+            this.aboutPictureBox.Location = new System.Drawing.Point(16, 15);
+            this.aboutPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.aboutPictureBox.Name = "aboutPictureBox";
-            this.aboutPictureBox.Size = new System.Drawing.Size(185, 240);
+            this.aboutPictureBox.Size = new System.Drawing.Size(247, 295);
             this.aboutPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.aboutPictureBox.TabIndex = 3;
             this.aboutPictureBox.TabStop = false;
@@ -95,9 +98,10 @@
             // 
             this.linkLabel1.AutoSize = true;
             this.linkLabel1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.linkLabel1.Location = new System.Drawing.Point(205, 90);
+            this.linkLabel1.Location = new System.Drawing.Point(273, 111);
+            this.linkLabel1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.linkLabel1.Name = "linkLabel1";
-            this.linkLabel1.Size = new System.Drawing.Size(213, 16);
+            this.linkLabel1.Size = new System.Drawing.Size(264, 20);
             this.linkLabel1.TabIndex = 4;
             this.linkLabel1.TabStop = true;
             this.linkLabel1.Text = "github.com/Ylianst/HTCommander";
@@ -110,11 +114,12 @@
             this.textBox2.BackColor = System.Drawing.Color.LightGray;
             this.textBox2.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.textBox2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox2.Location = new System.Drawing.Point(208, 119);
+            this.textBox2.Location = new System.Drawing.Point(277, 146);
+            this.textBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.textBox2.Multiline = true;
             this.textBox2.Name = "textBox2";
             this.textBox2.ReadOnly = true;
-            this.textBox2.Size = new System.Drawing.Size(283, 34);
+            this.textBox2.Size = new System.Drawing.Size(377, 42);
             this.textBox2.TabIndex = 5;
             this.textBox2.Text = "Based on BenLink by Kyle Husmann, KC3SLD";
             // 
@@ -122,9 +127,10 @@
             // 
             this.linkLabel2.AutoSize = true;
             this.linkLabel2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.linkLabel2.Location = new System.Drawing.Point(205, 137);
+            this.linkLabel2.Location = new System.Drawing.Point(273, 169);
+            this.linkLabel2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.linkLabel2.Name = "linkLabel2";
-            this.linkLabel2.Size = new System.Drawing.Size(184, 16);
+            this.linkLabel2.Size = new System.Drawing.Size(228, 20);
             this.linkLabel2.TabIndex = 6;
             this.linkLabel2.TabStop = true;
             this.linkLabel2.Text = "github.com/khusmann/benlink";
@@ -134,9 +140,10 @@
             // 
             this.linkLabel3.AutoSize = true;
             this.linkLabel3.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.linkLabel3.Location = new System.Drawing.Point(205, 180);
+            this.linkLabel3.Location = new System.Drawing.Point(273, 222);
+            this.linkLabel3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.linkLabel3.Name = "linkLabel3";
-            this.linkLabel3.Size = new System.Drawing.Size(188, 16);
+            this.linkLabel3.Size = new System.Drawing.Size(231, 20);
             this.linkLabel3.TabIndex = 8;
             this.linkLabel3.TabStop = true;
             this.linkLabel3.Text = "github.com/k0qed/aprs-parser";
@@ -149,11 +156,12 @@
             this.textBox3.BackColor = System.Drawing.Color.LightGray;
             this.textBox3.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.textBox3.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox3.Location = new System.Drawing.Point(208, 162);
+            this.textBox3.Location = new System.Drawing.Point(277, 199);
+            this.textBox3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.textBox3.Multiline = true;
             this.textBox3.Name = "textBox3";
             this.textBox3.ReadOnly = true;
-            this.textBox3.Size = new System.Drawing.Size(283, 34);
+            this.textBox3.Size = new System.Drawing.Size(377, 42);
             this.textBox3.TabIndex = 7;
             this.textBox3.Text = "Uses APRS-Parser by Lee, K0QED";
             // 
@@ -161,9 +169,10 @@
             // 
             this.linkLabel4.AutoSize = true;
             this.linkLabel4.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.linkLabel4.Location = new System.Drawing.Point(205, 225);
+            this.linkLabel4.Location = new System.Drawing.Point(273, 277);
+            this.linkLabel4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.linkLabel4.Name = "linkLabel4";
-            this.linkLabel4.Size = new System.Drawing.Size(191, 16);
+            this.linkLabel4.Size = new System.Drawing.Size(236, 20);
             this.linkLabel4.TabIndex = 10;
             this.linkLabel4.TabStop = true;
             this.linkLabel4.Text = "github.com/TheTextAdventurer";
@@ -176,21 +185,22 @@
             this.textBox1.BackColor = System.Drawing.Color.LightGray;
             this.textBox1.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.textBox1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox1.Location = new System.Drawing.Point(208, 207);
+            this.textBox1.Location = new System.Drawing.Point(277, 255);
+            this.textBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.textBox1.Multiline = true;
             this.textBox1.Name = "textBox1";
             this.textBox1.ReadOnly = true;
-            this.textBox1.Size = new System.Drawing.Size(283, 34);
+            this.textBox1.Size = new System.Drawing.Size(377, 42);
             this.textBox1.TabIndex = 9;
             this.textBox1.Text = "Adventurer Text Game";
             // 
             // AboutForm
             // 
             this.AcceptButton = this.closeButton;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.LightGray;
-            this.ClientSize = new System.Drawing.Size(503, 285);
+            this.ClientSize = new System.Drawing.Size(671, 351);
             this.Controls.Add(this.linkLabel4);
             this.Controls.Add(this.textBox1);
             this.Controls.Add(this.linkLabel3);
@@ -204,6 +214,7 @@
             this.Controls.Add(this.closeButton);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "AboutForm";
