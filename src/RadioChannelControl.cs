@@ -57,6 +57,13 @@ namespace HTCommander
         private void showToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (parent != null) { parent.ShowChannelDialog((int)this.Tag); }
+            else
+            {
+                RadioChannelForm f = new RadioChannelForm(null, null, -1);
+                f.channel = channel;
+                f.ReadOnly = true;
+                f.ShowDialog();
+            }
         }
 
         private void channelNameLabel_DoubleClick(object sender, EventArgs e)

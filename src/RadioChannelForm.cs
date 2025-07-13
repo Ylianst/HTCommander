@@ -130,9 +130,9 @@ namespace HTCommander
             {
                 double freq;
                 if (double.TryParse(advReceiveFreqTextBox.Text, out freq) == false) return;
-                c.rx_freq = (int)(freq * 1000000);
+                c.rx_freq = (int)Math.Round(freq * 1000000);
                 if (double.TryParse(advTransmitFreqTextBox.Text, out freq) == false) return;
-                c.tx_freq = (int)(freq * 1000000);
+                c.tx_freq = (int)Math.Round(freq * 1000000);
 
                 if (advPowerComboBox.SelectedIndex == 0) { c.tx_at_max_power = true; c.tx_at_med_power = false; }
                 if (advPowerComboBox.SelectedIndex == 1) { c.tx_at_max_power = false; c.tx_at_med_power = true; }
@@ -157,7 +157,7 @@ namespace HTCommander
             {
                 float freq;
                 if (float.TryParse(freqTextBox.Text, out freq) == false) return;
-                c.rx_freq = c.tx_freq = (int)(freq * 1000000);
+                c.rx_freq = c.tx_freq = (int)Math.Round(freq * 1000000);
 
                 if (powerComboBox.SelectedIndex == 0) { c.tx_at_max_power = true; c.tx_at_med_power = false; }
                 if (powerComboBox.SelectedIndex == 1) { c.tx_at_max_power = false; c.tx_at_med_power = true; }
@@ -186,7 +186,7 @@ namespace HTCommander
             {
                 float f;
                 if (float.TryParse(tone.Split(' ')[0], out f) == false) return -1;
-                return (int)(f * 100);
+                return (int)Math.Round(f * 100);
             }
 
             if (tone.StartsWith("DCS-"))

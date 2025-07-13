@@ -339,7 +339,7 @@ namespace HTCommander
         public RadioChannelInfo GetChannelByFrequency(float freq, RadioModulationType mod)
         {
             if (Channels == null) return null;
-            int xfreq = (int)(freq * 1000000);
+            int xfreq = (int)Math.Round(freq * 1000000);
             for (int i = 0; i < Channels.Length; i++)
             {
                 if ((Channels[i].rx_freq == xfreq) && (Channels[i].tx_freq == xfreq) && (Channels[i].rx_mod == mod) && (Channels[i].tx_mod == mod)) return Channels[i];

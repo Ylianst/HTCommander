@@ -3316,10 +3316,10 @@ namespace HTCommander
             if (r.name_str.Length > 10) { r.name_str = r.name_str.Substring(0, 10); }
 
             double? rxFreqMHz = Utils.TryParseDouble(Utils.GetValue(parts, headers, "Frequency Input"));
-            r.rx_freq = rxFreqMHz.HasValue ? (int)(rxFreqMHz.Value * 1000000) : 0; // Store in Hz
+            r.rx_freq = rxFreqMHz.HasValue ? (int)Math.Round(rxFreqMHz.Value * 1000000) : 0; // Store in Hz
 
             double? txFreqMHz = Utils.TryParseDouble(Utils.GetValue(parts, headers, "Frequency Output"));
-            r.tx_freq = txFreqMHz.HasValue ? (int)(txFreqMHz.Value * 1000000) : 0; // Store in Hz
+            r.tx_freq = txFreqMHz.HasValue ? (int)Math.Round(txFreqMHz.Value * 1000000) : 0; // Store in Hz
             if (r.rx_freq == 0) { r.rx_freq = r.tx_freq; }
             if (r.tx_freq == 0) { r.tx_freq = r.rx_freq; }
             if ((r.tx_freq == 0) && (r.rx_freq == 0)) return null;
@@ -3339,7 +3339,7 @@ namespace HTCommander
 
             if (rx_sub.EndsWith(" PL")) {
                 double? rx_sub_audio = Utils.TryParseDouble(rx_sub.Substring(0, rx_sub.Length - 3));
-                r.rx_sub_audio = rx_sub_audio.HasValue ? (int)(rx_sub_audio.Value * 100) : 0;
+                r.rx_sub_audio = rx_sub_audio.HasValue ? (int)Math.Round(rx_sub_audio.Value * 100) : 0;
             }
             //else if (rx_sub.EndsWith(" DCS")) { r.rx_sub_audio = int.Parse(rx_sub.Substring(0, rx_sub.Length - 4)); }
             //else if (rx_sub.EndsWith(" DPL")) { r.rx_sub_audio = int.Parse(rx_sub.Substring(0, rx_sub.Length - 4)); }
@@ -3347,7 +3347,7 @@ namespace HTCommander
             if (tx_sub.EndsWith(" PL"))
             {
                 double? tx_sub_audio = Utils.TryParseDouble(rx_sub.Substring(0, rx_sub.Length - 3));
-                r.tx_sub_audio = tx_sub_audio.HasValue ? (int)(tx_sub_audio.Value * 100) : 0;
+                r.tx_sub_audio = tx_sub_audio.HasValue ? (int)Math.Round(tx_sub_audio.Value * 100) : 0;
             }
             //else if (tx_sub.EndsWith(" DCS")) { r.tx_sub_audio = int.Parse(tx_sub.Substring(0, tx_sub.Length - 4)); }
             //else if (tx_sub.EndsWith(" DPL")) { r.tx_sub_audio = int.Parse(tx_sub.Substring(0, tx_sub.Length - 4)); }
@@ -3403,7 +3403,7 @@ namespace HTCommander
             r.channel_id = Utils.TryParseInt(Utils.GetValue(parts, headers, "Location")) ?? 0; // Default or handle error
             r.name_str = Utils.GetValue(parts, headers, "Name");
             double? rxFreqMHz = Utils.TryParseDouble(Utils.GetValue(parts, headers, "Frequency"));
-            r.rx_freq = rxFreqMHz.HasValue ? (int)(rxFreqMHz.Value * 1000000) : 0; // Store in Hz
+            r.rx_freq = rxFreqMHz.HasValue ? (int)Math.Round(rxFreqMHz.Value * 1000000) : 0; // Store in Hz
 
             // --- Power Level ---
             r.tx_at_max_power = true; // Default to High
@@ -3427,12 +3427,12 @@ namespace HTCommander
             if (duplexValue.Equals("split", StringComparison.OrdinalIgnoreCase) && offsetMHz.HasValue)
             {
                 // 'Split' means the 'Offset' column *is* the TX frequency in MHz
-                r.tx_freq = (int)(offsetMHz.Value * 1000000);
+                r.tx_freq = (int)Math.Round(offsetMHz.Value * 1000000);
             }
             else if (!string.IsNullOrEmpty(duplexValue) && (duplexValue == "+" || duplexValue == "-") && offsetMHz.HasValue)
             {
                 // Standard duplex offset
-                int offsetHz = (int)(offsetMHz.Value * 1000000);
+                int offsetHz = (int)Math.Round(offsetMHz.Value * 1000000);
                 int duplexSign = (duplexValue == "+") ? 1 : -1;
                 r.tx_freq = r.rx_freq + (duplexSign * offsetHz);
             }
@@ -3450,55 +3450,74 @@ namespace HTCommander
             // Safely get potential tone/code values
             double? rToneFreq = Utils.TryParseDouble(Utils.GetValue(parts, headers, "rToneFreq"));
             double? cToneFreq = Utils.TryParseDouble(Utils.GetValue(parts, headers, "cToneFreq"));
+
+            int rToneFreqValue = 0;
+            int cToneFreqValue = 0;
+            if (rToneFreq.HasValue) rToneFreqValue = (int)Math.Round(rToneFreq.Value * 100);
+            if (cToneFreq.HasValue) cToneFreqValue = (int)Math.Round(cToneFreq.Value * 100);
+
             int? dtcsCode = Utils.TryParseInt(Utils.GetValue(parts, headers, "DtcsCode"));       // Used for TX DTCS
             int? rxDtcsCode = Utils.TryParseInt(Utils.GetValue(parts, headers, "RxDtcsCode"));   // Used for RX DTCS
-            // string dtcsPolarity = GetValue(parts, headers, "DtcsPolarity", "NN"); // Example: Parse if needed
+            string crossMode = Utils.GetValue(parts, headers, "CrossMode");
 
-            if (toneMode.Equals("Cross", StringComparison.OrdinalIgnoreCase))
+            if (toneMode.Equals("Tone", StringComparison.OrdinalIgnoreCase))
             {
-                // Cross mode: Determine whether to use CTCSS or DTCS based on which pair differs
-                bool ctcssDiffers = rToneFreq.HasValue && cToneFreq.HasValue && rToneFreq.Value != cToneFreq.Value;
-                bool dtcsDiffers = dtcsCode.HasValue && rxDtcsCode.HasValue && dtcsCode.Value != rxDtcsCode.Value;
-
-                if (ctcssDiffers) // Prioritize CTCSS if both differ? Or add specific logic if needed.
+                // Standard 'Tone' means TX only. No Rx tone used.
+                r.tx_sub_audio = rToneFreqValue;
+                r.rx_sub_audio = 0;
+            }
+            else if (toneMode.Equals("TSQL", StringComparison.OrdinalIgnoreCase))
+            {
+                // Tone Squelch. Use the same tone for both send and receive.
+                r.tx_sub_audio = rToneFreqValue;
+                r.rx_sub_audio = rToneFreqValue;
+            }
+            else if (toneMode.Equals("Cross", StringComparison.OrdinalIgnoreCase))
+            {
+                if (crossMode.Equals("Tone->Tone", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Use CTCSS tones
-                    r.rx_sub_audio = (int)(rToneFreq.Value * 100); // CHIRP uses 88.5, radio might need 885
-                    r.tx_sub_audio = (int)(cToneFreq.Value * 100); // CHIRP uses 88.5, radio might need 885
-                    Console.WriteLine($"Channel {r.channel_id}: Cross mode detected, using differing CTCSS: RX={r.rx_sub_audio / 10.0}Hz, TX={r.tx_sub_audio / 10.0}Hz");
+                    r.rx_sub_audio = rToneFreqValue;
+                    r.tx_sub_audio = cToneFreqValue;
                 }
-                else if (dtcsDiffers)
+                else if (crossMode.Equals("Tone->", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Use DTCS codes
-                    r.rx_sub_audio = rxDtcsCode.Value; // Use RxDtcsCode for Receive
-                    r.tx_sub_audio = dtcsCode.Value;   // Use DtcsCode for Transmit
-                    Console.WriteLine($"Channel {r.channel_id}: Cross mode detected, using differing DTCS: RX={r.rx_sub_audio:D3}, TX={r.tx_sub_audio:D3}");
+                    r.rx_sub_audio = rToneFreqValue;
+                    r.tx_sub_audio = 0;
+                }
+                else if (crossMode.Equals("->Tone", StringComparison.OrdinalIgnoreCase))
+                {
+                    r.rx_sub_audio = 0;
+                    r.tx_sub_audio = cToneFreqValue;
                 }
                 else
                 {
-                    // Cross mode specified, but neither CTCSS nor DTCS pairs differ.
-                    // This might indicate bad data or only spurious matching values were present.
-                    // Defaulting to no tones. Log a warning.
-                    Console.WriteLine($"Warning: Channel {r.channel_id}: Tone='Cross' but no differing CTCSS or DTCS values found. Setting no tones.");
-                    r.rx_sub_audio = 0;
-                    r.tx_sub_audio = 0;
-                }
-            }
-            else if (toneMode.Equals("Tone", StringComparison.OrdinalIgnoreCase) || toneMode.Equals("TSQL", StringComparison.OrdinalIgnoreCase))
-            {
-                // Standard CTCSS Tone (Transmit only) or TSQL (Transmit and Receive)
-                // Note: TSQL usually implies RX tone = TX tone, but CHIRP allows separate r/cToneFreq
-                if (rToneFreq.HasValue) r.rx_sub_audio = (int)(rToneFreq.Value * 100);
-                if (cToneFreq.HasValue) r.tx_sub_audio = (int)(cToneFreq.Value * 100);
-                // If TSQL and only cToneFreq is given, often RX tone should match TX tone. Add logic if needed.
-                if (toneMode.Equals("TSQL", StringComparison.OrdinalIgnoreCase) && r.rx_sub_audio == 0 && r.tx_sub_audio != 0)
-                {
-                    r.rx_sub_audio = r.tx_sub_audio; // Common TSQL behavior assumption
-                }
-                if (toneMode.Equals("Tone", StringComparison.OrdinalIgnoreCase) && r.rx_sub_audio != 0)
-                {
-                    // Standard 'Tone' usually means TX only. Clear RX if set.
-                    // r.rx_sub_audio = 0; // Uncomment if strict TX-only 'Tone' is desired
+                    // Cross mode: Determine whether to use CTCSS or DTCS based on which pair differs
+                    bool ctcssDiffers = rToneFreq.HasValue && cToneFreq.HasValue && rToneFreq.Value != cToneFreq.Value;
+                    bool dtcsDiffers = dtcsCode.HasValue && rxDtcsCode.HasValue && dtcsCode.Value != rxDtcsCode.Value;
+
+                    if (ctcssDiffers) // Prioritize CTCSS if both differ? Or add specific logic if needed.
+                    {
+                        // Use CTCSS tones
+                        r.rx_sub_audio = (int)Math.Round(rToneFreq.Value * 100); // CHIRP uses 88.5, radio might need 885
+                        r.tx_sub_audio = (int)Math.Round(cToneFreq.Value * 100); // CHIRP uses 88.5, radio might need 885
+                        Console.WriteLine($"Channel {r.channel_id}: Cross mode detected, using differing CTCSS: RX={r.rx_sub_audio / 10.0}Hz, TX={r.tx_sub_audio / 10.0}Hz");
+                    }
+                    else if (dtcsDiffers)
+                    {
+                        // Use DTCS codes
+                        r.rx_sub_audio = rxDtcsCode.Value; // Use RxDtcsCode for Receive
+                        r.tx_sub_audio = dtcsCode.Value;   // Use DtcsCode for Transmit
+                        Console.WriteLine($"Channel {r.channel_id}: Cross mode detected, using differing DTCS: RX={r.rx_sub_audio:D3}, TX={r.tx_sub_audio:D3}");
+                    }
+                    else
+                    {
+                        // Cross mode specified, but neither CTCSS nor DTCS pairs differ.
+                        // This might indicate bad data or only spurious matching values were present.
+                        // Defaulting to no tones. Log a warning.
+                        Console.WriteLine($"Warning: Channel {r.channel_id}: Tone='Cross' but no differing CTCSS or DTCS values found. Setting no tones.");
+                        r.rx_sub_audio = 0;
+                        r.tx_sub_audio = 0;
+                    }
                 }
             }
             else if (toneMode.Equals("DTCS", StringComparison.OrdinalIgnoreCase))
