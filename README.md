@@ -15,6 +15,7 @@ The following radios should work with this application:
 - RadioOddity GA-5WB (untested)
 - Vero VR-N76 (untested)
 - Vero VR-N7500 (untested)
+- Vero VR-N7600 (untested)
 
 ### Features
 
