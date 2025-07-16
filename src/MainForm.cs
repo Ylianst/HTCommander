@@ -3469,75 +3469,60 @@ namespace HTCommander
             else if (toneMode.Equals("TSQL", StringComparison.OrdinalIgnoreCase))
             {
                 // Tone Squelch. Use the same tone for both send and receive.
-                r.tx_sub_audio = rToneFreqValue;
-                r.rx_sub_audio = rToneFreqValue;
+                r.tx_sub_audio = cToneFreqValue;
+                r.rx_sub_audio = cToneFreqValue;
+            }
+            else if (toneMode.Equals("DTCS", StringComparison.OrdinalIgnoreCase))
+            {
+                // Standard DTCS (Digital Tone Coded Squelch)
+                if (dtcsCode.HasValue) { 
+                    r.tx_sub_audio = dtcsCode.Value;
+                    r.rx_sub_audio = dtcsCode.Value;
+                }
             }
             else if (toneMode.Equals("Cross", StringComparison.OrdinalIgnoreCase))
             {
                 if (crossMode.Equals("Tone->Tone", StringComparison.OrdinalIgnoreCase))
                 {
-                    r.rx_sub_audio = rToneFreqValue;
-                    r.tx_sub_audio = cToneFreqValue;
+                    r.tx_sub_audio = rToneFreqValue;
+                    r.rx_sub_audio = cToneFreqValue;
                 }
                 else if (crossMode.Equals("Tone->", StringComparison.OrdinalIgnoreCase))
                 {
-                    r.rx_sub_audio = rToneFreqValue;
                     r.tx_sub_audio = 0;
+                    r.rx_sub_audio = rToneFreqValue;
                 }
                 else if (crossMode.Equals("->Tone", StringComparison.OrdinalIgnoreCase))
                 {
-                    r.rx_sub_audio = 0;
                     r.tx_sub_audio = cToneFreqValue;
+                    r.rx_sub_audio = 0;
                 }
-                else
+                else if (crossMode.Equals("DTCS->DTCS", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Cross mode: Determine whether to use CTCSS or DTCS based on which pair differs
-                    bool ctcssDiffers = rToneFreq.HasValue && cToneFreq.HasValue && rToneFreq.Value != cToneFreq.Value;
-                    bool dtcsDiffers = dtcsCode.HasValue && rxDtcsCode.HasValue && dtcsCode.Value != rxDtcsCode.Value;
-
-                    if (ctcssDiffers) // Prioritize CTCSS if both differ? Or add specific logic if needed.
-                    {
-                        // Use CTCSS tones
-                        r.rx_sub_audio = (int)Math.Round(rToneFreq.Value * 100); // CHIRP uses 88.5, radio might need 885
-                        r.tx_sub_audio = (int)Math.Round(cToneFreq.Value * 100); // CHIRP uses 88.5, radio might need 885
-                        Console.WriteLine($"Channel {r.channel_id}: Cross mode detected, using differing CTCSS: RX={r.rx_sub_audio / 10.0}Hz, TX={r.tx_sub_audio / 10.0}Hz");
-                    }
-                    else if (dtcsDiffers)
-                    {
-                        // Use DTCS codes
-                        r.rx_sub_audio = rxDtcsCode.Value; // Use RxDtcsCode for Receive
-                        r.tx_sub_audio = dtcsCode.Value;   // Use DtcsCode for Transmit
-                        Console.WriteLine($"Channel {r.channel_id}: Cross mode detected, using differing DTCS: RX={r.rx_sub_audio:D3}, TX={r.tx_sub_audio:D3}");
-                    }
-                    else
-                    {
-                        // Cross mode specified, but neither CTCSS nor DTCS pairs differ.
-                        // This might indicate bad data or only spurious matching values were present.
-                        // Defaulting to no tones. Log a warning.
-                        Console.WriteLine($"Warning: Channel {r.channel_id}: Tone='Cross' but no differing CTCSS or DTCS values found. Setting no tones.");
-                        r.rx_sub_audio = 0;
-                        r.tx_sub_audio = 0;
-                    }
-                }
-            }
-            else if (toneMode.Equals("DTCS", StringComparison.OrdinalIgnoreCase))
-            {
-                // Standard DTCS (Digital Tone Coded Squelch)
-                // Uses DtcsCode for TX, RxDtcsCode for RX. If RxDtcsCode is missing, often implies RX = TX.
-                if (dtcsCode.HasValue) r.tx_sub_audio = dtcsCode.Value;
-                if (rxDtcsCode.HasValue)
-                {
+                    if (dtcsCode.HasValue) { r.tx_sub_audio = dtcsCode.Value; }
                     r.rx_sub_audio = rxDtcsCode.Value;
                 }
-                else if (dtcsCode.HasValue)
+                else if (crossMode.Equals("Tone->DTCS", StringComparison.OrdinalIgnoreCase))
                 {
-                    r.rx_sub_audio = dtcsCode.Value; // Assume RX=TX if RxDtcsCode is missing
+                    r.tx_sub_audio = rToneFreqValue;
+                    if (rxDtcsCode.HasValue) { r.rx_sub_audio = rxDtcsCode.Value; }
                 }
-                // Potentially parse and use DtcsPolarity here if your RadioChannelInfo supports it
-                // r.dtcs_polarity = ParseDtcsPolarity(dtcsPolarity);
+                else if (crossMode.Equals("DTCS->Tone", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (dtcsCode.HasValue) { r.tx_sub_audio = dtcsCode.Value; }
+                    r.rx_sub_audio = cToneFreqValue;
+                }
+                else if (crossMode.Equals("DTCS->", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (dtcsCode.HasValue) { r.tx_sub_audio = dtcsCode.Value; }
+                    r.rx_sub_audio = 0;
+                }
+                else if (crossMode.Equals("->DTCS", StringComparison.OrdinalIgnoreCase))
+                {
+                    r.tx_sub_audio = 0;
+                    if (rxDtcsCode.HasValue) { r.rx_sub_audio = rxDtcsCode.Value; }
+                }
             }
-            // Handle other tone modes like Tone->Tone, DTCS->Tone etc. if needed by parsing CrossMode column
-            // else if (toneMode is empty or "None") { // No tones, already defaulted to 0 }
 
             // --- Mode and Bandwidth ---
             string mode = Utils.GetValue(parts, headers, "Mode");
