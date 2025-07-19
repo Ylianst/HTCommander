@@ -29,7 +29,7 @@ Note that that shared secret is a UTF-8 encoded string. The string much be kepts
 The SourceStation is the station encoded in the S25 packet header in the second position, and DestinationStation is the station encoded in the APRS message, but without added training spaces. We when HMAC-SHA256 on this string using the SecretKey, convert it to Base64 and keep the first 6 characters.
 
 ```
-  Token = First 6 characters of Base64(HMAC-SHA256(HashMessage))
+  Token = First 6 characters of Base64(HMAC-SHA256(SecretKey, HashMessage))
 ```
 
 We take the token and insert it into the APRA message as shown above. When receiving a APRS message with an authentication code, we re-computer the token and check against the token that is included in the message. We perform 4 check trying the current minute, the 2 previor minutes and the next minute to see if any of the 4 auth tokens can be made to match. As a result, a message has a 4 minute window to arrive at it's destivation, however the receiver can also check prior minutes if network contidions would delay a message beyond 4 minutes.
