@@ -104,6 +104,7 @@ namespace HTCommander
                 ax25DestTextBox.BackColor = SystemColors.Window;
             }
 
+            if ((stationTypeComboBox.SelectedIndex == 1) && (authCheckBox.Checked) && (authPasswordTextBox.Text.Length == 0)) { ok = false; }
             if ((stationTypeComboBox.SelectedIndex == 2) && (terminalProtocolComboBox.SelectedIndex == 1) && (channelsComboBox.Text.Length == 0)) { ok = false; }
 
             channelsComboBox.BackColor = (channelsComboBox.Text.Length == 0) ? Color.MistyRose : SystemColors.Window;
@@ -196,6 +197,7 @@ namespace HTCommander
                 TerminalProtocol = (StationInfoClass.TerminalProtocols)terminalProtocolComboBox.SelectedIndex,
                 Channel = channelsComboBox.Text,
                 AX25Destination = ax25DestTextBox.Text,
+                AuthPassword = (((StationInfoClass.StationTypes)stationTypeComboBox.SelectedIndex == StationInfoClass.StationTypes.APRS) && authCheckBox.Checked) ? authPasswordTextBox.Text : null
             };
         }
 
@@ -247,6 +249,11 @@ namespace HTCommander
             if (data.StationType == StationInfoClass.StationTypes.APRS) { Text = "APRS Station - " + data.Callsign; }
             if (data.StationType == StationInfoClass.StationTypes.Terminal) { Text = "Terminal Station - " + data.Callsign; }
             if (data.StationType == StationInfoClass.StationTypes.Winlink) { Text = "Winlink Gateway - " + data.Callsign; }
+            if ((data.StationType == StationInfoClass.StationTypes.APRS) && (!string.IsNullOrEmpty(data.AuthPassword)))
+            {
+                authPasswordTextBox.Text = data.AuthPassword;
+                authCheckBox.Checked = true;
+            }
         }
 
         private void ax25DestTextBox_TextChanged(object sender, EventArgs e)
@@ -288,6 +295,17 @@ namespace HTCommander
         private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             System.Diagnostics.Process.Start("https://" + linkLabel1.Text);
+        }
+
+        private void authCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            authPasswordTextBox.Enabled = authCheckBox.Checked;
+            UpdateInfo();
+        }
+
+        private void authPasswordTextBox_TextChanged(object sender, EventArgs e)
+        {
+            UpdateInfo();
         }
     }
 }

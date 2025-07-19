@@ -49,6 +49,7 @@ namespace HTCommander
         public string Channel { get; set; }
         public string AX25Destination { get; set; }
         public bool WaitForConnection { get; set; }
+        public string AuthPassword { get; set; }
 
         public string CallsignNoZero
         {
@@ -74,6 +75,7 @@ namespace HTCommander
                 sb.AppendLine($"TerminalProtocol={(int)station.TerminalProtocol}");
                 sb.AppendLine($"Channel={station.Channel}");
                 sb.AppendLine($"AX25Destination={station.AX25Destination}");
+                sb.AppendLine($"AuthPassword={station.AuthPassword}");
                 sb.AppendLine(); // Separate entries with a blank line
             }
             return sb.ToString();
@@ -112,6 +114,7 @@ namespace HTCommander
                             case "TerminalProtocol": currentStation.TerminalProtocol = (TerminalProtocols)int.Parse(value); break;
                             case "Channel": currentStation.Channel = value; break;
                             case "AX25Destination": currentStation.AX25Destination = value; break;
+                            case "AuthPassword": currentStation.AuthPassword = value; break;
                         }
                     }
                 }

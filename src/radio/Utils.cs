@@ -228,6 +228,15 @@ namespace HTCommander
             }
         }
 
+        public static byte[] ComputeSha256Hash(byte[] rawData)
+        {
+            using (SHA256 sha256Hash = SHA256.Create()) { return sha256Hash.ComputeHash(rawData); }
+        }
+
+        public static byte[] ComputeHmacSha256Hash(byte[] authkey, byte[] data)
+        {
+            using (HMACSHA256 hmac = new HMACSHA256(authkey)) { return hmac.ComputeHash(data); }
+        }
     }
 
     public class RtfBuilder

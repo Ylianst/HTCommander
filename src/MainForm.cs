@@ -28,6 +28,12 @@ using static HTCommander.AX25Packet;
 using HTCommander.radio;
 using NAudio.Wave;
 using static GMap.NET.Entity.OpenStreetMapRouteEntity;
+using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
+using static System.Data.Entity.Infrastructure.Design.Executor;
+using System.Collections;
+
+
+
 
 
 #if !__MonoCS__
@@ -1591,12 +1597,11 @@ namespace HTCommander
             if (aprsChannel < 0) return;
 
             // APRS format
-            string aprsAddr = ":" + aprsDestinationComboBox.Text;
-            while (aprsAddr.Length < 10) { aprsAddr += " "; }
-            aprsAddr += ":";
-
             int msgId = GetNextAprsMessageId();
-            AX25Packet packet = new AX25Packet(GetTransmitAprsRoute(), aprsAddr + aprsTextBox.Text + "{" + msgId, DateTime.Now);
+            DateTime now = DateTime.Now;
+            string aprsMessage = addAprsAuth(callsign + "-" + stationId, aprsDestinationComboBox.Text, aprsTextBox.Text, msgId, now);
+            int authCheck = checkAprsAuth(callsign + "-" + stationId, aprsMessage, now);
+            AX25Packet packet = new AX25Packet(GetTransmitAprsRoute(), aprsMessage, now);
             packet.messageId = msgId;
 
             // Simplified Format, not APRS
@@ -1610,6 +1615,78 @@ namespace HTCommander
             aprsTextBox.Text = "";
         }
 
+        private string addAprsAuth(string srcAddress, string destAddress, string aprsMessage, int msgId, DateTime time)
+        {
+            // APRS Address
+            string aprsAddr = destAddress;
+            while (aprsAddr.Length < 9) { aprsAddr += " "; }
+
+            // Search for a APRS authentication key
+            string authPassword = null;
+            foreach (StationInfoClass station in stations)
+            {
+                if ((station.StationType == StationInfoClass.StationTypes.APRS) && (station.Callsign.CompareTo(destAddress) == 0) && !string.IsNullOrEmpty(station.AuthPassword)) { authPassword = station.AuthPassword; }
+            }
+
+            // If the auth key is not present, send without authentication
+            if (string.IsNullOrEmpty(authPassword)) { return ":" + aprsAddr + ":" + aprsMessage + "{" + msgId; }
+
+            // Compute the current time in minutes
+            DateTime truncated = new DateTime(time.Year, time.Month, time.Day, time.Hour, time.Minute, 0);
+            DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            TimeSpan timeSinceEpoch = time.ToUniversalTime() - unixEpoch;
+            long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes;
+
+            // Compute authentication token
+            byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
+            string x1 = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr + ":" + aprsMessage + "{" + msgId;
+            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr + ":" + aprsMessage + "{" + msgId));
+            string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
+
+            // Add authentication token to APRS message
+            return ":" + aprsAddr + ":" + aprsMessage + "}" + authCodeBase64 + "{" + msgId;
+        }
+
+        private int checkAprsAuth(string srcAddress, string aprsMessage, DateTime time)
+        {
+            // Get the destination address
+            string aprsAddr = aprsMessage.Substring(1, 9);
+            string aprsAddrTrim = aprsAddr.Trim();
+
+            // Search for a APRS authentication key
+            string authPassword = null;
+            foreach (StationInfoClass station in stations)
+            {
+                if ((station.StationType == StationInfoClass.StationTypes.APRS) && (station.Callsign.CompareTo(aprsAddrTrim) == 0) && !string.IsNullOrEmpty(station.AuthPassword)) { authPassword = station.AuthPassword; }
+            }
+
+            // No auth key found
+            if (string.IsNullOrEmpty(authPassword)) return 0;
+
+            string[] msplit1 = aprsMessage.Substring(11).Split('{');
+            string msgId = msplit1[1];
+            if (msplit1.Length != 2) return 0;
+            string[] msplit2 = msplit1[0].Split('}');
+            string authCodeBase64Check = msplit2[1];
+            aprsMessage = msplit2[0];
+
+            // Compute the current time in minutes
+            DateTime truncated = new DateTime(time.Year, time.Month, time.Day, time.Hour, time.Minute, 0);
+            DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            TimeSpan timeSinceEpoch = time.ToUniversalTime() - unixEpoch;
+            long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes - 2;
+            byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
+            string hashMsg = ":" + srcAddress + ":" + aprsAddr + ":" + aprsMessage + "{" + msgId;
+
+            for (long x = minutesSinceEpoch; x < (minutesSinceEpoch + 5); x++)
+            {
+                //string x1 = x + ":" + srcAddress + ":" + aprsAddr + ":" + aprsMessage + "{" + msgId;
+                string authCodeBase64 = Convert.ToBase64String(Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(x + hashMsg))).Substring(0, 6);
+                if (authCodeBase64Check == authCodeBase64) return 2; // Verified authentication
+            }
+
+            return 1; // Bad auth
+        }
 
         public void AddAprsPacket(AX25Packet packet, bool sender)
         {
@@ -1668,6 +1745,13 @@ namespace HTCommander
                     if (sender)
                     {
                         RoutingString = "→ " + aprsPacket.MessageData.Addressee;
+
+                        // If authentication is used, validate it.
+                        if (!string.IsNullOrEmpty(aprsPacket.AuthCode) && (aprsPacket.AuthCode.Length == 6))
+                        {
+                            int auth = checkAprsAuth(callsign + "-" + stationId, packet.dataStr, packet.time);
+                            if (auth == 2) { RoutingString += " ✓"; } else if (auth == 1) { RoutingString += " ❌"; }
+                        }
                     }
                     else
                     {
@@ -1680,6 +1764,12 @@ namespace HTCommander
                         {
                             // Show both sender and destination
                             RoutingString = SenderCallsign + " → " + aprsPacket.MessageData.Addressee;
+                        }
+
+                        // If authentication is used, validate it.
+                        if (!string.IsNullOrEmpty(aprsPacket.AuthCode) && (aprsPacket.AuthCode.Length == 6)) {
+                            int auth = checkAprsAuth(SenderCallsign, packet.dataStr, packet.time);
+                            if (auth == 2) { RoutingString += " ✓"; } else if (auth == 1) { RoutingString += " ❌"; }
                         }
                     }
                     MessageId = aprsPacket.MessageData.SeqId;

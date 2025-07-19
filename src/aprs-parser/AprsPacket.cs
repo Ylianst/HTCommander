@@ -26,6 +26,7 @@ namespace aprsparser
         public bool FromD7 { get; set; }
         public bool FromD700 { get; set; }
         public AX25Packet Packet { get; private set; }
+        public string AuthCode { get; private set; }
 
         public Position Position { get; private set; }
         public DateTime? TimeStamp { get; set; }
@@ -123,6 +124,17 @@ namespace aprsparser
                 else
                 {
                     r.InformationField = dataStr;
+                }
+
+                //parse authcode
+                if (r.InformationField.Length > 0)
+                {
+                    int i = r.InformationField.IndexOf("}");
+                    if ((i >= 0) && (i < r.InformationField.Length + 7) && (r.InformationField[i + 7] == '{'))
+                    {
+                        r.AuthCode = r.InformationField.Substring(i + 1, 6);
+                        r.InformationField = r.InformationField.Substring(0, i) + r.InformationField.Substring(i + 7);
+                    }
                 }
 
                 //parse information field

@@ -71,6 +71,9 @@ namespace HTCommander
                         if (!string.IsNullOrEmpty(aprsPacket.Position.CoordinateSet.Longitude.Nmea)) { addItem("Longitude", aprsPacket.Position.CoordinateSet.Longitude.Nmea); }
                     }
                 }
+                if (!string.IsNullOrEmpty(aprsPacket.AuthCode)) {
+                    addItem("Authentication", aprsPacket.AuthCode);
+                }
             }
         }
 
