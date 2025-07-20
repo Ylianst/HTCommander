@@ -1594,7 +1594,7 @@ namespace HTCommander
             bool authApplied;
             string aprsMessage = addAprsAuth(callsign + "-" + stationId, aprsDestinationComboBox.Text, aprsTextBox.Text, msgId, now, out authApplied);
             //string aprsMessage = addAprsAuthNoMsgId(callsign + "-" + stationId, aprsDestinationComboBox.Text, aprsTextBox.Text, now, out authApplied);
-            AX25Packet.AuthState authCheck = checkAprsAuth(callsign + "-" + stationId, aprsMessage, now);
+            AX25Packet.AuthState authCheck = checkAprsAuth(true, callsign + "-" + stationId, aprsMessage, now);
             AX25Packet packet = new AX25Packet(GetTransmitAprsRoute(), aprsMessage, now);
             packet.authState = authCheck;
             packet.messageId = msgId;
@@ -1676,17 +1676,27 @@ namespace HTCommander
             return ":" + aprsAddr + aprsMessage + "}" + authCodeBase64;
         }
 
-        public AX25Packet.AuthState checkAprsAuth(string srcAddress, string aprsMessage, DateTime time)
+        public AX25Packet.AuthState checkAprsAuth(bool sender, string srcAddress, string aprsMessage, DateTime time)
         {
-            // Get the destination address
+            string keyAddr = null;
             string aprsAddr = aprsMessage.Substring(1, 9);
-            string aprsAddrTrim = aprsAddr.Trim();
+
+            if (sender)
+            {
+                // We are the sender, so get the outbound address auth key
+                keyAddr = aprsAddr.Trim();
+            }
+            else
+            {
+                // We are the receiver, we use the source address auth key
+                keyAddr = srcAddress;
+            }
 
             // Search for a APRS authentication key
             string authPassword = null;
             foreach (StationInfoClass station in stations)
             {
-                if ((station.StationType == StationInfoClass.StationTypes.APRS) && (station.Callsign.CompareTo(aprsAddrTrim) == 0) && !string.IsNullOrEmpty(station.AuthPassword)) { authPassword = station.AuthPassword; }
+                if ((station.StationType == StationInfoClass.StationTypes.APRS) && (station.Callsign.CompareTo(keyAddr) == 0) && !string.IsNullOrEmpty(station.AuthPassword)) { authPassword = station.AuthPassword; }
             }
 
             // No auth key found
@@ -1744,7 +1754,7 @@ namespace HTCommander
                 }
 
                 // Perform authentication check if needed
-                if (packet.authState == AuthState.Unknown) { packet.authState = checkAprsAuth(sender ? (callsign + "-" + stationId) : SenderCallsign, packet.dataStr, packet.time); }
+                if (packet.authState == AuthState.Unknown) { packet.authState = checkAprsAuth(sender, SenderCallsign, packet.dataStr, packet.time); }
 
                 if ((sender == false) && (aprsStack.ProcessIncoming(aprsPacket) == false)) return;
                 MessageType = aprsPacket.DataType;
