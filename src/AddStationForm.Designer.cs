@@ -72,6 +72,7 @@
             this.channelsComboBox2 = new System.Windows.Forms.ComboBox();
             this.label8 = new System.Windows.Forms.Label();
             this.pictureBox4 = new System.Windows.Forms.PictureBox();
+            this.label17 = new System.Windows.Forms.Label();
             this.mainTabControl.SuspendLayout();
             this.stationTabPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
@@ -284,6 +285,7 @@
             // 
             // aprsTabPage
             // 
+            this.aprsTabPage.Controls.Add(this.label17);
             this.aprsTabPage.Controls.Add(this.authCheckBox);
             this.aprsTabPage.Controls.Add(this.label18);
             this.aprsTabPage.Controls.Add(this.authPasswordTextBox);
@@ -302,7 +304,7 @@
             // authCheckBox
             // 
             this.authCheckBox.AutoSize = true;
-            this.authCheckBox.Location = new System.Drawing.Point(129, 106);
+            this.authCheckBox.Location = new System.Drawing.Point(129, 144);
             this.authCheckBox.Name = "authCheckBox";
             this.authCheckBox.Size = new System.Drawing.Size(116, 17);
             this.authCheckBox.TabIndex = 24;
@@ -313,7 +315,7 @@
             // label18
             // 
             this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(10, 132);
+            this.label18.Location = new System.Drawing.Point(10, 170);
             this.label18.Name = "label18";
             this.label18.Size = new System.Drawing.Size(78, 13);
             this.label18.TabIndex = 23;
@@ -324,7 +326,7 @@
             this.authPasswordTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.authPasswordTextBox.Enabled = false;
-            this.authPasswordTextBox.Location = new System.Drawing.Point(129, 129);
+            this.authPasswordTextBox.Location = new System.Drawing.Point(129, 167);
             this.authPasswordTextBox.Name = "authPasswordTextBox";
             this.authPasswordTextBox.PasswordChar = '';
             this.authPasswordTextBox.Size = new System.Drawing.Size(224, 20);
@@ -585,6 +587,16 @@
             this.pictureBox4.TabIndex = 34;
             this.pictureBox4.TabStop = false;
             // 
+            // label17
+            // 
+            this.label17.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.label17.Location = new System.Drawing.Point(9, 107);
+            this.label17.Name = "label17";
+            this.label17.Size = new System.Drawing.Size(343, 22);
+            this.label17.TabIndex = 25;
+            this.label17.Text = "Use the same password on both stations to verify messages.";
+            // 
             // AddStationForm
             // 
             this.AcceptButton = this.nextButton;
@@ -666,5 +678,6 @@
         private System.Windows.Forms.TextBox authPasswordTextBox;
         private System.Windows.Forms.CheckBox authCheckBox;
         private System.Windows.Forms.Label label18;
+        private System.Windows.Forms.Label label17;
     }
 }
