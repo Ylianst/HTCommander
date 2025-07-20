@@ -1754,7 +1754,7 @@ namespace HTCommander
                 }
 
                 // Perform authentication check if needed
-                if (packet.authState == AuthState.Unknown) { packet.authState = checkAprsAuth(sender, SenderCallsign, packet.dataStr, packet.time); }
+                if (packet.authState == AuthState.Unknown) { packet.authState = checkAprsAuth(sender, sender ? (callsign + "-" + stationId) : SenderCallsign, packet.dataStr, packet.time); }
 
                 if ((sender == false) && (aprsStack.ProcessIncoming(aprsPacket) == false)) return;
                 MessageType = aprsPacket.DataType;
