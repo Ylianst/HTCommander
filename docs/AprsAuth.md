@@ -14,19 +14,37 @@ We add a 6 character Base64 encoded token to the message after a } character, so
   :KK7VZT-7 :This is a test}YwwuFt{556
 ```
 
+We keep the message identifier at the end of the message for backward compatibility. Devices that do not support authentication will still receive the message is a somewhat readable form. Also, a typical ACK message looks like this:
+
+```
+  :KK7VZT-6 :ack556
+```
+
+But we will be adding a authentication token at the end of the ACK message like this:
+
+```
+  :KK7VZT-6 :ack556}eL8OYs
+```
+
 To compute the base64 token, we must first hash the shared secret with SHA256.
 
 ```
   SecretKey = SHA256(SharedSecret)
 ```
 
-Note that that shared secret is a UTF-8 encoded string. The string much be kepts in UTF-8 format when hashed. We then compute the current number of minutes since January 1sh 1970 UTC. This gives us a long integer with the current approximate time. We then create a message string that contains the minutes counter, source and destination stations in "CallSign-StationID" format and the message and message ID.
+Note that that shared secret is a UTF-8 encoded string. The string much be kepts in UTF-8 format when hashed. We then compute the current number of minutes since January 1sh 1970 UTC. This gives us a long integer with the current approximate time. We then create a message string that contains the minutes counter, source and destination stations in "CallSign-StationID" format and the message and message ID. For a message that includes a message id, the message we will hash will look like this:
 
 ```
   HashMessage = MinutesUtc + ":" + SourceStation + ":" + DestinationStation + ":" + aprsMessage + "{" + msgId
 ```
 
-The SourceStation is the station encoded in the S25 packet header in the second position, and DestinationStation is the station encoded in the APRS message, but without added training spaces. We when HMAC-SHA256 on this string using the SecretKey, convert it to Base64 and keep the first 6 characters.
+For messages without a message id, we do the same but without the message id:
+
+```
+  HashMessage = MinutesUtc + ":" + SourceStation + ":" + DestinationStation + ":" + aprsMessage
+```
+
+The SourceStation is the station encoded in the AX.25 packet header in the second position, and DestinationStation is the station encoded in the APRS message, but without added training spaces. We when HMAC-SHA256 on this string using the SecretKey, convert it to Base64 and keep the first 6 characters.
 
 ```
   Token = First 6 characters of Base64(HMAC-SHA256(SecretKey, HashMessage))
