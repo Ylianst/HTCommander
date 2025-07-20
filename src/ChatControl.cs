@@ -27,8 +27,10 @@ namespace HTCommander
         public List<ChatMessage> Messages = new List<ChatMessage>();
         public int CornerRadius { get; set; } = 10;
         public Color MessageBoxColor { get { return messageBoxColor; } set { messageBoxColor = value; messageBoxBrush = new SolidBrush(messageBoxColor); } }
+        public Color MessageBoxAuthColor { get { return messageBoxAuthColor; } set { messageBoxAuthColor = value; messageBoxAuthBrush = new SolidBrush(messageBoxAuthColor); } }
+        public Color MessageBoxBadColor { get { return messageBoxBadColor; } set { messageBoxBadColor = value; messageBoxBadBrush = new SolidBrush(messageBoxBadColor); } }
         public Color CallsignTextColor { get { return callsignTextColor; } set { callsignTextColor = value; callsignTextBrush = new SolidBrush(callsignTextColor); } }
-        public Color TextColor { get { return textColor; } set { textColor = value; textBrush = new SolidBrush(textColor); } }
+        public Color TextColor { get { return textColor; } set { textColor = value; } }
         public Font CallsignFont { get; set; } = new Font("Arial", 8);
         public Font MessageFont { get; set; } = new Font("Arial", 10);
         public int MinWidth { get; set; } = 100;
@@ -43,11 +45,14 @@ namespace HTCommander
         private Color callsignTextColor = Color.Gray;
         private Color textColor = Color.Black;
         private Color messageBoxColor = Color.LightBlue;
+        private Color messageBoxAuthColor = Color.LightGreen;
+        private Color messageBoxBadColor = Color.Pink;
         //private Color shadowColor;
         //private Color backColor;
         private Brush callsignTextBrush;
-        private Brush textBrush;
         private Brush messageBoxBrush;
+        private Brush messageBoxAuthBrush;
+        private Brush messageBoxBadBrush;
         private Brush shadowBrush;
         private Brush backBrush;
         private bool resized = false;
@@ -68,8 +73,9 @@ namespace HTCommander
         private void ChatControl_Paint(object sender, PaintEventArgs e)
         {
             if (callsignTextBrush == null) { callsignTextBrush = new SolidBrush(callsignTextColor); }
-            if (textBrush == null) { textBrush = new SolidBrush(TextColor); }
             if (messageBoxBrush == null) { messageBoxBrush = new SolidBrush(MessageBoxColor); }
+            if (messageBoxAuthBrush == null) { messageBoxAuthBrush = new SolidBrush(MessageBoxAuthColor); }
+            if (messageBoxBadBrush == null) { messageBoxBadBrush = new SolidBrush(MessageBoxBadColor); }
             if (shadowBrush == null) { shadowBrush = new SolidBrush(Color.FromArgb(150, 0, 0, 0)); } // Semi-transparent black
             if (backBrush == null) { backBrush = new SolidBrush(this.BackColor); }
 
@@ -221,7 +227,18 @@ namespace HTCommander
                     messageSize.Height + (MessageBoxMargin * 2));
                 using (GraphicsPath messageBoxPath = CreateRoundedRectanglePath(r2, CornerRadius))
                 {
-                    g.FillPath(messageBoxBrush, messageBoxPath);
+                    if (chatMessage.AuthState == AX25Packet.AuthState.Success)
+                    {
+                        g.FillPath(messageBoxAuthBrush, messageBoxPath);
+                    }
+                    else if (chatMessage.AuthState == AX25Packet.AuthState.Failed)
+                    {
+                        g.FillPath(messageBoxBadBrush, messageBoxPath);
+                    }
+                    else
+                    {
+                        g.FillPath(messageBoxBrush, messageBoxPath);
+                    }
                 }
 
                 // Set the click rect
@@ -237,6 +254,7 @@ namespace HTCommander
                     top + timeLineSize.Height + callSignSize.Height + MessageBoxMargin + 2,
                     messageSize.Width,
                     messageSize.Height);
+
                 TextRenderer.DrawText(g, chatMessage.Message, MessageFont, new Point((int)(r3.X), (int)(r3.Y)), textColor, TextFormatFlags.Left | TextFormatFlags.WordBreak);
 
                 // Draw the image
