@@ -129,8 +129,13 @@ namespace aprsparser
                 //parse authcode
                 if (r.InformationField.Length > 0)
                 {
-                    int i = r.InformationField.IndexOf("}");
-                    if ((i >= 0) && (i < r.InformationField.Length + 7) && (r.InformationField[i + 7] == '{'))
+                    int i = r.InformationField.LastIndexOf("}");
+                    if ((i >= 0) && (i == r.InformationField.Length - 7))
+                    {
+                        r.AuthCode = r.InformationField.Substring(i + 1, 6);
+                        r.InformationField = r.InformationField.Substring(0, i);
+                    }
+                    else if ((i >= 0) && (i < r.InformationField.Length - 7) && (r.InformationField[i + 7] == '{'))
                     {
                         r.AuthCode = r.InformationField.Substring(i + 1, 6);
                         r.InformationField = r.InformationField.Substring(0, i) + r.InformationField.Substring(i + 7);
@@ -302,6 +307,8 @@ namespace aprsparser
             {
                 if (s.StartsWith("ACK", StringComparison.OrdinalIgnoreCase))
                 {
+                    int i = s.LastIndexOf("}", StringComparison.Ordinal);
+                    if (i >= 0) { AuthCode = s.Substring(i + 1); s = s.Substring(0, i - 1); }
                     MessageData.MsgType = MessageType.mtAck;
                     MessageData.SeqId = s.Substring(3).Trim();
                     MessageData.MsgText = string.Empty;
@@ -309,6 +316,8 @@ namespace aprsparser
                 }
                 if (s.StartsWith("REJ", StringComparison.OrdinalIgnoreCase))
                 {
+                    int i = s.LastIndexOf("}", StringComparison.Ordinal);
+                    if (i >= 0) { AuthCode = s.Substring(i + 1); s = s.Substring(0, i - 1); }
                     MessageData.MsgType = MessageType.mtRej;
                     MessageData.SeqId = s.Substring(3).Trim();
                     MessageData.MsgText = string.Empty;
@@ -503,8 +512,6 @@ namespace aprsparser
                     Position.Speed = s;
                 }
             }
-
-
         }
 
         private void ParsePosition()
@@ -631,7 +638,6 @@ namespace aprsparser
             //InformationField
             ParseDateTime(InformationField.Substring(0, 7));
             string psr = InformationField.Substring(7);
-
 
             //after parsing position and symbol from the information field 
             //all that can be left is a comment

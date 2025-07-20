@@ -37,6 +37,7 @@ namespace HTCommander
         public bool Visible = true;
         public double Latitude = 0;
         public double Longitude = 0;
+        public AX25Packet.AuthState AuthState = AX25Packet.AuthState.Unknown;
 
         public ChatMessage(string Route, string SenderCallSign, string Message, DateTime Time, bool Sender, int ImageIndex = -1)
         {

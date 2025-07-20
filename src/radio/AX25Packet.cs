@@ -30,6 +30,15 @@ namespace HTCommander
         public int frame_size;
         public bool incoming;
         public bool sent;
+        public AuthState authState = AuthState.Unknown;
+
+        public enum AuthState
+        {
+            Unknown = 0,
+            Failed = 1,
+            Success = 2,
+            None = 3
+        }
 
         // Content of the packet
         public List<AX25Address> addresses;

@@ -16,6 +16,17 @@ namespace HTCommander
         // Contains a record of outgoing messages that needs to be retried until a ACK is received or 3 retries have been completed.
         private List<AprsOutboundMessageRecord> outboundRecords = new List<AprsOutboundMessageRecord>();
 
+        // Search for a APRS authentication key
+        private string GetAuthPassword(string destAddress)
+        {
+            string authPassword = null;
+            foreach (StationInfoClass station in parent.stations)
+            {
+                if ((station.StationType == StationInfoClass.StationTypes.APRS) && (station.Callsign.CompareTo(destAddress) == 0) && !string.IsNullOrEmpty(station.AuthPassword)) { authPassword = station.AuthPassword; }
+            }
+            return authPassword;
+        }
+
         private class AprsInboundMessageRecord
         {
             public AprsInboundMessageRecord(DateTime time, string msgTag) { this.time = time; this.msgTag = msgTag; }
@@ -25,12 +36,13 @@ namespace HTCommander
         }
         private class AprsOutboundMessageRecord
         {
-            public AprsOutboundMessageRecord(DateTime nextRetry, AX25Packet packet, int channelId, int regionId) { this.nextRetry = nextRetry; this.packet = packet; this.channelId = channelId; this.regionId = regionId; }
+            public AprsOutboundMessageRecord(DateTime nextRetry, AX25Packet packet, int channelId, int regionId, bool auth) { this.nextRetry = nextRetry; this.packet = packet; this.channelId = channelId; this.regionId = regionId; this.auth = auth; }
             public DateTime nextRetry;
             public AX25Packet packet;
             public int channelId;
             public int regionId;
             public int retryCount;
+            public bool auth;
         }
 
         public AprsStack(MainForm parent)
@@ -84,9 +96,9 @@ namespace HTCommander
         }
 
         // Called when a packet is sent out
-        public int ProcessOutgoing(AX25Packet packet, int channelId = -1, int regionId = -1)
+        public int ProcessOutgoing(AX25Packet packet, int channelId = -1, int regionId = -1, bool auth = false)
         {
-            AprsOutboundMessageRecord r = new AprsOutboundMessageRecord(DateTime.Now.AddSeconds(5), packet, channelId, regionId);
+            AprsOutboundMessageRecord r = new AprsOutboundMessageRecord(DateTime.Now.AddSeconds(5), packet, channelId, regionId, auth);
             outboundRecords.Add(r);
             int size = parent.radio.TransmitTncData(packet, channelId, regionId); // Transmit the packet the first time
             retryTimer.Start();
@@ -119,12 +131,26 @@ namespace HTCommander
                             addresses.Add(AX25Address.GetAddress(aprs.Packet.addresses[i].address, aprs.Packet.addresses[i].SSID));
                         }
 
-                        // APRS format
-                        string aprsAddr = ":" + aprs.Packet.addresses[1].address;
-                        if (aprs.Packet.addresses[1].SSID > 0) { aprsAddr += "-" + aprs.Packet.addresses[1].SSID; }
-                        while (aprsAddr.Length < 10) { aprsAddr += " "; }
-                        AX25Packet rpacket = new AX25Packet(addresses, aprsAddr + ":ack" + aprs.MessageData.SeqId, DateTime.Now);
-                        parent.radio.TransmitTncData(rpacket, aprs.Packet.channel_id);
+                        if (aprs.Packet.authState == AX25Packet.AuthState.Success)
+                        {
+                            // APRS format with authentication
+                            string aprsAddr = ":" + aprs.Packet.addresses[1].address;
+                            if (aprs.Packet.addresses[1].SSID > 0) { aprsAddr += "-" + aprs.Packet.addresses[1].SSID; }
+                            while (aprsAddr.Length < 10) { aprsAddr += " "; }
+                            bool authApplied = false;
+                            string aprsMsg = parent.addAprsAuthNoMsgId(parent.callsign + "-" + parent.stationId, aprs.Packet.addresses[1].address + "-" + aprs.Packet.addresses[1].SSID, ":ack" + aprs.MessageData.SeqId, DateTime.Now, out authApplied);
+                            AX25Packet rpacket = new AX25Packet(addresses, aprsMsg, DateTime.Now);
+                            parent.radio.TransmitTncData(rpacket, aprs.Packet.channel_id);
+                        }
+                        else
+                        {
+                            // APRS format without authentication
+                            string aprsAddr = ":" + aprs.Packet.addresses[1].address;
+                            if (aprs.Packet.addresses[1].SSID > 0) { aprsAddr += "-" + aprs.Packet.addresses[1].SSID; }
+                            while (aprsAddr.Length < 10) { aprsAddr += " "; }
+                            AX25Packet rpacket = new AX25Packet(addresses, aprsAddr + ":ack" + aprs.MessageData.SeqId, DateTime.Now);
+                            parent.radio.TransmitTncData(rpacket, aprs.Packet.channel_id);
+                        }
                     }
 
                     // Check if we already got this message
@@ -139,7 +165,18 @@ namespace HTCommander
                     {
                         if (r.packet.messageId.ToString() == aprs.MessageData.SeqId) { found = r; break; }
                     }
-                    if (found != null) { outboundRecords.Remove(found); }
+                    if (found != null) {
+                        if (found.auth == false)
+                        {
+                            // The send message has no auth, no remove regardless of ack auth state
+                            outboundRecords.Remove(found);
+                        }
+                        else
+                        {
+                            // The sent message had authentication, so, only remove is the ask also has auth
+                            if (aprs.Packet.authState == AX25Packet.AuthState.Success) { outboundRecords.Remove(found); }
+                        }
+                    }
                 }
             }
             return true;

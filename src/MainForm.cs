@@ -27,15 +27,7 @@ using static HTCommander.Radio;
 using static HTCommander.AX25Packet;
 using HTCommander.radio;
 using NAudio.Wave;
-using static GMap.NET.Entity.OpenStreetMapRouteEntity;
 using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
-using static System.Data.Entity.Infrastructure.Design.Executor;
-using System.Collections;
-
-
-
-
-
 #if !__MonoCS__
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
@@ -1599,9 +1591,12 @@ namespace HTCommander
             // APRS format
             int msgId = GetNextAprsMessageId();
             DateTime now = DateTime.Now;
-            string aprsMessage = addAprsAuth(callsign + "-" + stationId, aprsDestinationComboBox.Text, aprsTextBox.Text, msgId, now);
-            int authCheck = checkAprsAuth(callsign + "-" + stationId, aprsMessage, now);
+            bool authApplied;
+            string aprsMessage = addAprsAuth(callsign + "-" + stationId, aprsDestinationComboBox.Text, aprsTextBox.Text, msgId, now, out authApplied);
+            //string aprsMessage = addAprsAuthNoMsgId(callsign + "-" + stationId, aprsDestinationComboBox.Text, aprsTextBox.Text, now, out authApplied);
+            AX25Packet.AuthState authCheck = checkAprsAuth(callsign + "-" + stationId, aprsMessage, now);
             AX25Packet packet = new AX25Packet(GetTransmitAprsRoute(), aprsMessage, now);
+            packet.authState = authCheck;
             packet.messageId = msgId;
 
             // Simplified Format, not APRS
@@ -1610,12 +1605,12 @@ namespace HTCommander
             //packet.time = DateTime.Now;
 
             //radio.TransmitTncData(packet, aprsChannel, radio.HtStatus.curr_region);
-            aprsStack.ProcessOutgoing(packet, aprsChannel, radio.HtStatus.curr_region);
+            aprsStack.ProcessOutgoing(packet, aprsChannel, radio.HtStatus.curr_region, authApplied);
             AddAprsPacket(packet, true);
             aprsTextBox.Text = "";
         }
 
-        private string addAprsAuth(string srcAddress, string destAddress, string aprsMessage, int msgId, DateTime time)
+        public string addAprsAuth(string srcAddress, string destAddress, string aprsMessage, int msgId, DateTime time, out bool authApplied)
         {
             // APRS Address
             string aprsAddr = destAddress;
@@ -1629,7 +1624,7 @@ namespace HTCommander
             }
 
             // If the auth key is not present, send without authentication
-            if (string.IsNullOrEmpty(authPassword)) { return ":" + aprsAddr + ":" + aprsMessage + "{" + msgId; }
+            if (string.IsNullOrEmpty(authPassword)) { authApplied = false; return ":" + aprsAddr + ":" + aprsMessage + "{" + msgId; }
 
             // Compute the current time in minutes
             DateTime truncated = new DateTime(time.Year, time.Month, time.Day, time.Hour, time.Minute, 0);
@@ -1644,10 +1639,44 @@ namespace HTCommander
             string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
 
             // Add authentication token to APRS message
+            authApplied = true;
             return ":" + aprsAddr + ":" + aprsMessage + "}" + authCodeBase64 + "{" + msgId;
         }
 
-        private int checkAprsAuth(string srcAddress, string aprsMessage, DateTime time)
+        public string addAprsAuthNoMsgId(string srcAddress, string destAddress, string aprsMessage, DateTime time, out bool authApplied)
+        {
+            // APRS Address
+            string aprsAddr = destAddress;
+            while (aprsAddr.Length < 9) { aprsAddr += " "; }
+
+            // Search for a APRS authentication key
+            string authPassword = null;
+            foreach (StationInfoClass station in stations)
+            {
+                if ((station.StationType == StationInfoClass.StationTypes.APRS) && (station.Callsign.CompareTo(destAddress) == 0) && !string.IsNullOrEmpty(station.AuthPassword)) { authPassword = station.AuthPassword; }
+            }
+
+            // If the auth key is not present, send without authentication
+            if (string.IsNullOrEmpty(authPassword)) { authApplied = false; return ":" + aprsAddr + aprsMessage; }
+
+            // Compute the current time in minutes
+            DateTime truncated = new DateTime(time.Year, time.Month, time.Day, time.Hour, time.Minute, 0);
+            DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            TimeSpan timeSinceEpoch = time.ToUniversalTime() - unixEpoch;
+            long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes;
+
+            // Compute authentication token
+            byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
+            string x1 = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr + aprsMessage;
+            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr + aprsMessage));
+            string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
+
+            // Add authentication token to APRS message
+            authApplied = true;
+            return ":" + aprsAddr + aprsMessage + "}" + authCodeBase64;
+        }
+
+        public AX25Packet.AuthState checkAprsAuth(string srcAddress, string aprsMessage, DateTime time)
         {
             // Get the destination address
             string aprsAddr = aprsMessage.Substring(1, 9);
@@ -1661,12 +1690,14 @@ namespace HTCommander
             }
 
             // No auth key found
-            if (string.IsNullOrEmpty(authPassword)) return 0;
+            if (string.IsNullOrEmpty(authPassword)) return AuthState.None;
 
+            string msgId = null;
+            bool msgIdPresent = false;
             string[] msplit1 = aprsMessage.Substring(11).Split('{');
-            string msgId = msplit1[1];
-            if (msplit1.Length != 2) return 0;
+            if (msplit1.Length == 2) { msgIdPresent = true; msgId = msplit1[1]; }
             string[] msplit2 = msplit1[0].Split('}');
+            if (msplit2.Length != 2) return 0;
             string authCodeBase64Check = msplit2[1];
             aprsMessage = msplit2[0];
 
@@ -1676,16 +1707,17 @@ namespace HTCommander
             TimeSpan timeSinceEpoch = time.ToUniversalTime() - unixEpoch;
             long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes - 2;
             byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
-            string hashMsg = ":" + srcAddress + ":" + aprsAddr + ":" + aprsMessage + "{" + msgId;
+            string hashMsg = ":" + srcAddress + ":" + aprsAddr + ":" + aprsMessage;
+            if (msgIdPresent) { hashMsg += "{" + msgId; }
 
             for (long x = minutesSinceEpoch; x < (minutesSinceEpoch + 5); x++)
             {
                 //string x1 = x + ":" + srcAddress + ":" + aprsAddr + ":" + aprsMessage + "{" + msgId;
                 string authCodeBase64 = Convert.ToBase64String(Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(x + hashMsg))).Substring(0, 6);
-                if (authCodeBase64Check == authCodeBase64) return 2; // Verified authentication
+                if (authCodeBase64Check == authCodeBase64) return AuthState.Success; // Verified authentication
             }
 
-            return 1; // Bad auth
+            return AuthState.Failed; // Bad auth
         }
 
         public void AddAprsPacket(AX25Packet packet, bool sender)
@@ -1702,8 +1734,6 @@ namespace HTCommander
             {
                 aprsPacket = AprsPacket.Parse(packet);
                 if (aprsPacket == null) return;
-                if ((sender == false) && (aprsStack.ProcessIncoming(aprsPacket) == false)) return;
-                MessageType = aprsPacket.DataType;
 
                 if (sender == false)
                 {
@@ -1712,6 +1742,12 @@ namespace HTCommander
                     SenderCallsign = SenderAddr.CallSignWithId;
                     if ((aprsPacket.Position != null) && (aprsPacket.Position.CoordinateSet.Latitude.Value != 0) && (aprsPacket.Position.CoordinateSet.Longitude.Value != 0)) { ImageIndex = 3; }
                 }
+
+                // Perform authentication check if needed
+                if (packet.authState == AuthState.Unknown) { packet.authState = checkAprsAuth(sender ? (callsign + "-" + stationId) : SenderCallsign, packet.dataStr, packet.time); }
+
+                if ((sender == false) && (aprsStack.ProcessIncoming(aprsPacket) == false)) return;
+                MessageType = aprsPacket.DataType;
                 if (aprsPacket.DataType == PacketDataType.Message)
                 {
                     bool forSelf = ((aprsPacket.MessageData.Addressee == callsign) || (aprsPacket.MessageData.Addressee == callsign + "-" + stationId));
@@ -1723,7 +1759,9 @@ namespace HTCommander
                             // Look at a message to ack
                             foreach (ChatMessage n in aprsChatControl.Messages)
                             {
-                                if (n.Sender && (n.MessageId == aprsPacket.MessageData.SeqId)) { n.ImageIndex = 0; }
+                                if (n.Sender && (n.MessageId == aprsPacket.MessageData.SeqId)) {
+                                    if ((n.AuthState == AuthState.Unknown) || (n.AuthState == AuthState.Success) && (aprsPacket.Packet.authState == AuthState.Success)) { n.ImageIndex = 0; }
+                                }
                             }
                         }
                         return;
@@ -1735,7 +1773,9 @@ namespace HTCommander
                             // Look at a message to reject
                             foreach (ChatMessage n in aprsChatControl.Messages)
                             {
-                                if (n.Sender && (n.MessageId == aprsPacket.MessageData.SeqId)) { n.ImageIndex = 1; }
+                                if (n.Sender && (n.MessageId == aprsPacket.MessageData.SeqId)) {
+                                    if ((n.AuthState == AuthState.Unknown) || (n.AuthState == AuthState.Success) && (aprsPacket.Packet.authState == AuthState.Success)) { n.ImageIndex = 1; }
+                                }
                             }
                         }
                         return;
@@ -1745,13 +1785,8 @@ namespace HTCommander
                     if (sender)
                     {
                         RoutingString = "→ " + aprsPacket.MessageData.Addressee;
-
-                        // If authentication is used, validate it.
-                        if (!string.IsNullOrEmpty(aprsPacket.AuthCode) && (aprsPacket.AuthCode.Length == 6))
-                        {
-                            int auth = checkAprsAuth(callsign + "-" + stationId, packet.dataStr, packet.time);
-                            if (auth == 2) { RoutingString += " ✓"; } else if (auth == 1) { RoutingString += " ❌"; }
-                        }
+                        if (packet.authState == AuthState.Success) { RoutingString += " ✓"; }
+                        if (packet.authState == AuthState.Failed) { RoutingString += " ❌"; }
                     }
                     else
                     {
@@ -1765,12 +1800,8 @@ namespace HTCommander
                             // Show both sender and destination
                             RoutingString = SenderCallsign + " → " + aprsPacket.MessageData.Addressee;
                         }
-
-                        // If authentication is used, validate it.
-                        if (!string.IsNullOrEmpty(aprsPacket.AuthCode) && (aprsPacket.AuthCode.Length == 6)) {
-                            int auth = checkAprsAuth(SenderCallsign, packet.dataStr, packet.time);
-                            if (auth == 2) { RoutingString += " ✓"; } else if (auth == 1) { RoutingString += " ❌"; }
-                        }
+                        if (packet.authState == AuthState.Success) { RoutingString += " ✓"; }
+                        if (packet.authState == AuthState.Failed) { RoutingString += " ❌"; }
                     }
                     MessageId = aprsPacket.MessageData.SeqId;
                     MessageText = aprsPacket.MessageData.MsgText;
@@ -1821,6 +1852,7 @@ namespace HTCommander
                 c.MessageType = MessageType;
                 c.Visible = showAllMessagesToolStripMenuItem.Checked || (c.MessageType == PacketDataType.Message);
                 c.ImageIndex = ImageIndex;
+                c.AuthState = packet.authState;
 
                 // Check if we already got this message in the last 5 minutes
                 foreach (ChatMessage chatMessage2 in aprsChatControl.Messages)
