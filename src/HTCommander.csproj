@@ -167,6 +167,7 @@
     <Compile Include="CantConnectForm.Designer.cs">
       <DependentUpon>CantConnectForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="CustomTilePrefetcher.cs" />
     <Compile Include="EditBeaconSettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -488,7 +489,7 @@
       <Version>2.1.7</Version>
     </PackageReference>
     <PackageReference Include="InTheHand.Net.Bluetooth">
-      <Version>4.2.1</Version>
+      <Version>4.2.2</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Windows.SDK.Contracts">
       <Version>10.0.26100.1742</Version>

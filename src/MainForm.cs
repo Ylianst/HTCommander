@@ -28,6 +28,8 @@ using static HTCommander.AX25Packet;
 using HTCommander.radio;
 using NAudio.Wave;
 using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
+using System.Threading;
+
 #if !__MonoCS__
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
@@ -206,6 +208,14 @@ namespace HTCommander
             this.mapControl.TabIndex = 0;
             this.mapControl.Zoom = 0D;
             this.mapControl.Dock = DockStyle.Fill;
+
+            // Hook up mouse events
+            this.mapControl.MouseDown += Gmap_MouseDown;
+            this.mapControl.MouseMove += Gmap_MouseMove;
+            this.mapControl.MouseUp += Gmap_MouseUp;
+            this.mapControl.Paint += Gmap_Paint;
+            this.mapControl.OnMapZoomChanged += Gmap_OnMapZoomChanged;
+
             mapTabPage.Controls.Add(this.mapControl);
             mapControl.MapProvider = GMapProviders.OpenStreetMap;
             mapControl.ShowCenter = false;
@@ -289,6 +299,10 @@ namespace HTCommander
             showPreviewToolStripMenuItem.Checked = (registry.ReadInt("MailViewPreview", 1) == 1);
             mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
             checkForUpdatesToolStripMenuItem.Checked = (registry.ReadInt("CheckForUpdates", 1) == 1);
+            offlineModeToolStripMenuItem.Checked = (registry.ReadInt("MapOfflineMode", 0) == 1);
+            cacheAreaToolStripMenuItem.Enabled = !offlineModeToolStripMenuItem.Checked;
+            mapControl.Manager.Mode = offlineModeToolStripMenuItem.Checked ? GMap.NET.AccessMode.CacheOnly : GMap.NET.AccessMode.ServerAndCache;
+            mapTopLabel.Text = offlineModeToolStripMenuItem.Checked ? "Offline Map" : "Map";
 
             // Setup mailboxes
             MailBoxTreeNodes = new TreeNode[MailBoxesNames.Length];
@@ -502,7 +516,7 @@ namespace HTCommander
                 marker.ToolTipText = "Self";
                 marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
                 mapMarkersOverlay.Markers.Add(marker);
-                centerToGpsButton.Enabled = true;
+                centerToGpsButton.Enabled = centerToGPSToolStripMenuItem.Enabled = true;
             }
         }
 
@@ -950,7 +964,7 @@ namespace HTCommander
                                 GMarkerGoogle selfMarker = null;
                                 foreach (GMarkerGoogle m in mapMarkersOverlay.Markers) { if (m.ToolTipText == "Self") { selfMarker = m; } }
                                 if (selfMarker != null) { mapMarkersOverlay.Markers.Remove(selfMarker); }
-                                centerToGpsButton.Enabled = false;
+                                centerToGpsButton.Enabled = centerToGPSToolStripMenuItem.Enabled = false;
                                 break;
                             case Radio.RadioState.Connecting:
                                 if (webserver != null) { webserver.BroadcastString("connecting"); }
@@ -1281,7 +1295,8 @@ namespace HTCommander
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             RealExit = true;
-            Application.Exit();
+            this.Close();
+            //Application.Exit();
         }
 
         public void connectToolStripMenuItem_Click(object sender, EventArgs e)
@@ -4812,7 +4827,7 @@ namespace HTCommander
                 GMarkerGoogle selfMarker = null;
                 foreach (GMarkerGoogle m in mapMarkersOverlay.Markers) { if (m.ToolTipText == "Self") { selfMarker = m; } }
                 mapMarkersOverlay.Markers.Remove(selfMarker);
-                centerToGpsButton.Enabled = false;
+                centerToGpsButton.Enabled = centerToGPSToolStripMenuItem.Enabled = false;
             }
         }
 
@@ -4839,6 +4854,139 @@ namespace HTCommander
             {
                 radioPositionToolStripMenuItem_Click(this, null);
             }
+        }
+
+        private void mapMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
+        {
+            mapTabContextMenuStrip.Show(mapMenuPictureBox, e.Location);
+        }
+
+        private void offlineModeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            registry.WriteInt("MapOfflineMode", offlineModeToolStripMenuItem.Checked ? 1 : 0);
+            mapTopLabel.Text = offlineModeToolStripMenuItem.Checked ? "Offline Map" : "Map";
+            cacheAreaToolStripMenuItem.Enabled = !offlineModeToolStripMenuItem.Checked;
+            if (offlineModeToolStripMenuItem.Checked)
+            {
+                mapControl.Manager.Mode = GMap.NET.AccessMode.CacheOnly;
+            }
+            else
+            {
+                mapControl.Manager.Mode = GMap.NET.AccessMode.ServerAndCache;
+            }
+        }
+
+        private async void cacheAreaToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (prefetcher != null) return;
+
+            var area = mapControl.SelectedArea;
+            if (area.IsEmpty) { MessageBox.Show("Select an area on the map using right-click + drag."); return; }
+            int zoom = (int)mapControl.Zoom;
+            int zoomMin = zoom - 2;
+            int zoomMax = zoom + 3;
+            if (zoomMin < 1) zoomMin = 1;
+            if (zoomMin > 20) zoomMin = 20; // Limit zoom level to max 20
+            if (zoomMax > 20) zoomMax = 20; // Limit zoom level to max 20
+
+            cts = new CancellationTokenSource();
+            prefetcher = new CustomTilePrefetcher();
+            downloadMapLabel.Text = "Downloading...";
+            downloadMapPanel.Visible = true;
+            await prefetcher.PrefetchAsync(
+                mapControl.MapProvider,
+                area,
+                zoomMin, zoomMax,
+                new Progress<(int done, int total)>(p => { downloadMapLabel.Text = $"Downloading {p.done}/{p.total}..."; }),
+                cts.Token);
+            downloadMapPanel.Visible = false;
+            prefetcher = null;
+            cts = null;
+            selectionRect = Rectangle.Empty;
+            mapControl.SelectedArea = RectLatLng.Empty; // Clear selection
+            isSelecting = false;
+            mapControl.ReloadMap();
+            //mapControl.Invalidate(); // Trigger redraw
+        }
+
+        private CancellationTokenSource cts = null;
+        private CustomTilePrefetcher prefetcher = null;
+        private Point startPoint; // mouse down point
+        private Rectangle selectionRect;
+        private bool isSelecting = false;
+
+        private void Gmap_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                startPoint = e.Location;
+                selectionRect = new Rectangle();
+                isSelecting = true;
+                mapControl.Invalidate(); // Trigger redraw
+            }
+        }
+
+        private void Gmap_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (isSelecting)
+            {
+                int width = e.X - startPoint.X;
+                int height = e.Y - startPoint.Y;
+
+                selectionRect = new Rectangle(
+                    Math.Min(e.X, startPoint.X),
+                    Math.Min(e.Y, startPoint.Y),
+                    Math.Abs(width),
+                    Math.Abs(height));
+
+                mapControl.Invalidate(); // Trigger redraw
+            }
+        }
+
+        private void Gmap_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (isSelecting && e.Button == MouseButtons.Right)
+            {
+                isSelecting = false;
+                if (selectionRect.Width > 10 && selectionRect.Height > 10)
+                {
+                    // Convert pixel rectangle to geographic coordinates
+                    PointLatLng p1 = mapControl.FromLocalToLatLng(selectionRect.Left, selectionRect.Top);
+                    PointLatLng p2 = mapControl.FromLocalToLatLng(selectionRect.Right, selectionRect.Bottom);
+
+                    RectLatLng area = RectLatLng.FromLTRB(
+                        Math.Min(p1.Lng, p2.Lng),
+                        Math.Max(p1.Lat, p2.Lat),
+                        Math.Max(p1.Lng, p2.Lng),
+                        Math.Min(p1.Lat, p2.Lat));
+
+                    mapControl.SelectedArea = area;
+                    //MessageBox.Show($"Selected Area:\nLat: {area.Top}, {area.Bottom}\nLng: {area.Left}, {area.Right}");
+                }
+
+                mapControl.Invalidate(); // Final redraw
+            }
+        }
+
+        private void Gmap_Paint(object sender, PaintEventArgs e)
+        {
+            if (isSelecting && selectionRect != Rectangle.Empty)
+            {
+                using (Pen pen = new Pen(Color.Red, 2))
+                {
+                    pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                    e.Graphics.DrawRectangle(pen, selectionRect);
+                }
+            }
+        }
+        private void Gmap_OnMapZoomChanged()
+        {
+            mapTopLabel.Text = offlineModeToolStripMenuItem.Checked ? "Offline Map" : "Map";
+        }
+
+        private void cancelMapDownloadButton_Click(object sender, EventArgs e)
+        {
+            cts?.Cancel();
         }
     }
 }
