@@ -29,6 +29,9 @@ using HTCommander.radio;
 using NAudio.Wave;
 using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
 using System.Threading;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
+using static GMap.NET.Entity.OpenStreetMapRouteEntity;
+
 
 #if !__MonoCS__
 using GMap.NET.MapProviders;
@@ -96,10 +99,10 @@ namespace HTCommander
         public string voice = null;
         public string voiceConfirmedChannelName;
         public string voiceHistoryCompleted = "";
-#if !__MonoCS__
         public List<MapLocationForm> mapLocationForms = new List<MapLocationForm>();
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
-#endif
+        public Dictionary<string, GMapRoute> mapRoutes = new Dictionary<string, GMapRoute>();
+        public int mapFilterMinutes = 0;
 
         // Mailboxes
         public int SelectedMailbox = 0;
@@ -303,6 +306,9 @@ namespace HTCommander
             cacheAreaToolStripMenuItem.Enabled = !offlineModeToolStripMenuItem.Checked;
             mapControl.Manager.Mode = offlineModeToolStripMenuItem.Checked ? GMap.NET.AccessMode.CacheOnly : GMap.NET.AccessMode.ServerAndCache;
             mapTopLabel.Text = offlineModeToolStripMenuItem.Checked ? "Offline Map" : "Map";
+            showTracksToolStripMenuItem.Checked = (registry.ReadInt("MapShowTracks", 1) == 1);
+            mapFilterMinutes = (int)registry.ReadInt("MapTimeFilter", 0);
+            foreach (ToolStripMenuItem i in showMarkersToolStripMenuItem.DropDownItems) { i.Checked = (int.Parse((string)((ToolStripMenuItem)i).Tag) == mapFilterMinutes); }
 
             // Setup mailboxes
             MailBoxTreeNodes = new TreeNode[MailBoxesNames.Length];
@@ -508,12 +514,17 @@ namespace HTCommander
 
             if (position.Status == Radio.RadioCommandState.SUCCESS)
             {
-                foreach (GMarkerGoogle m in mapMarkersOverlay.Markers)
+                foreach (GMapMarker m in mapMarkersOverlay.Markers)
                 {
-                    if (m.ToolTipText == "Self") { m.Position = new PointLatLng(position.Latitude, position.Longitude); return; }
+                    if (m.ToolTipText == "Self") {
+                        m.Tag = DateTime.Now;
+                        m.Position = new PointLatLng(position.Latitude, position.Longitude);
+                        return;
+                    }
                 }
-                GMarkerGoogle marker = new GMarkerGoogle(new PointLatLng(position.Latitude, position.Longitude), GMarkerGoogleType.blue_dot);
+                GMapMarker marker = new GMarkerGoogle(new PointLatLng(position.Latitude, position.Longitude), GMarkerGoogleType.blue_dot);
                 marker.ToolTipText = "Self";
+                marker.Tag = DateTime.Now;
                 marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
                 mapMarkersOverlay.Markers.Add(marker);
                 centerToGpsButton.Enabled = centerToGPSToolStripMenuItem.Enabled = true;
@@ -961,8 +972,8 @@ namespace HTCommander
                                 microphone.StopListening();
 
                                 // Remove self location
-                                GMarkerGoogle selfMarker = null;
-                                foreach (GMarkerGoogle m in mapMarkersOverlay.Markers) { if (m.ToolTipText == "Self") { selfMarker = m; } }
+                                GMapMarker selfMarker = null;
+                                foreach (GMapMarker m in mapMarkersOverlay.Markers) { if (m.ToolTipText == "Self") { selfMarker = m; } }
                                 if (selfMarker != null) { mapMarkersOverlay.Markers.Remove(selfMarker); }
                                 centerToGpsButton.Enabled = centerToGPSToolStripMenuItem.Enabled = false;
                                 break;
@@ -1332,6 +1343,7 @@ namespace HTCommander
         private void batteryTimer_Tick(object sender, EventArgs e)
         {
             if (radio.State == Radio.RadioState.Connected) { radio.GetBatteryLevelAtPercentage(); }
+            UpdateMapMarkers();
         }
 
         private void radioStatusToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1904,15 +1916,13 @@ namespace HTCommander
                     }
                 }
 
-#if !__MonoCS__
                 // Add or move the map marker
                 if ((c.ImageIndex == 3) && (aprsPacket != null))
                 {
                     c.Latitude = aprsPacket.Position.CoordinateSet.Latitude.Value;
                     c.Longitude = aprsPacket.Position.CoordinateSet.Longitude.Value;
-                    AddMapMarker(packet.addresses[1].CallSignWithId, aprsPacket.Position.CoordinateSet.Latitude.Value, aprsPacket.Position.CoordinateSet.Longitude.Value);
+                    AddMapMarker(packet.addresses[1].CallSignWithId, aprsPacket.Position.CoordinateSet.Latitude.Value, aprsPacket.Position.CoordinateSet.Longitude.Value, packet.time);
                 }
-#endif
             }
         }
 
@@ -2462,23 +2472,18 @@ namespace HTCommander
 
         private void mapZoomInbutton_Click(object sender, EventArgs e)
         {
-#if !__MonoCS__
             mapControl.Zoom = Math.Max(mapControl.Zoom + 1, mapControl.MinZoom);
             mapControl.Update();
             mapControl.Refresh();
-#endif
         }
 
         private void mapZoomOutButton_Click(object sender, EventArgs e)
         {
-#if !__MonoCS__
             mapControl.Zoom = Math.Min(mapControl.Zoom - 1, mapControl.MaxZoom);
             mapControl.Update();
             mapControl.Refresh();
-#endif
         }
 
-#if !__MonoCS__
         private void mapControl_OnMapZoomChanged()
         {
             registry.WriteString("MapZoom", mapControl.Zoom.ToString());
@@ -2489,32 +2494,67 @@ namespace HTCommander
             registry.WriteString("MapLatitude", mapControl.Position.Lat.ToString());
             registry.WriteString("MapLongetude", mapControl.Position.Lng.ToString());
         }
-#endif
 
-        private void AddMapMarker(string callsign, double lat, double lng)
+        private void AddMapMarker(string callsign, double lat, double lng, DateTime time)
         {
-#if !__MonoCS__
-            foreach (GMarkerGoogle m in mapMarkersOverlay.Markers)
+            GMapRoute route = null;
+            if (mapRoutes.ContainsKey(callsign))
             {
-                if (m.ToolTipText == callsign) { m.Position = new PointLatLng(lat, lng); return; }
+                route = mapRoutes[callsign];
             }
-            GMarkerGoogle marker = new GMarkerGoogle(new PointLatLng(lat, lng), GMarkerGoogleType.red_dot);
-            marker.ToolTipText = callsign;
+            else
+            {
+                route = new GMapRoute(callsign) { Stroke = new Pen(callsign == "Self" ? Color.Blue : Color.Red, 1) };
+                mapRoutes.Add(callsign, route);
+                mapMarkersOverlay.Routes.Add(route);
+            }
+
+            if (route.Points.Count == 0)
+            {
+                // Add the first point
+                route.Points.Add(new PointLatLng(lat, lng));
+            }
+            else
+            {
+                PointLatLng lastPoint = route.Points.Last();
+                if ((lastPoint.Lat != lat) || (lastPoint.Lng != lng))
+                {
+                    // Add only if the last point is different
+                    route.Points.Add(new PointLatLng(lat, lng));
+                }
+            }
+            route.Tag = time;
+            route.IsVisible = showTracksToolStripMenuItem.Checked && ((mapFilterMinutes == 0) || (DateTime.Now.CompareTo(time.AddMinutes(mapFilterMinutes)) <= 0));
+
+            foreach (GMapMarker m in mapMarkersOverlay.Markers)
+            {
+                if (m.ToolTipText.StartsWith("\r\n" + callsign + "\r\n"))
+                {
+                    m.IsVisible = ((mapFilterMinutes == 0) || (DateTime.Now.CompareTo(time.AddMinutes(mapFilterMinutes)) <= 0));
+                    m.Position = new PointLatLng(lat, lng);
+                    m.Tag = time;
+                    return;
+                }
+            }
+
+            //GMarkerGoogle marker = new GMarkerGoogle(new PointLatLng(lat, lng), GMarkerGoogleType.red_dot);
+            GMapMarker marker = new GMarkerGoogle(new PointLatLng(lat, lng), GMarkerGoogleType.red_small);
+            marker.Tag = time;
+            marker.ToolTipText = "\r\n" + callsign + "\r\n" + time.ToString();
             marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
+            marker.ToolTip.TextPadding  = new Size(4, 8);
+            marker.IsVisible = ((mapFilterMinutes == 0) || (DateTime.Now.CompareTo(time.AddMinutes(mapFilterMinutes)) <= 0));
             mapMarkersOverlay.Markers.Add(marker);
-#endif
         }
 
         private void RemoveMapMarker(string callsign)
         {
-#if !__MonoCS__
-            GMarkerGoogle marker = null;
-            foreach (GMarkerGoogle m in mapMarkersOverlay.Markers)
+            GMapMarker marker = null;
+            foreach (GMapMarker m in mapMarkersOverlay.Markers)
             {
                 if (m.ToolTipText == callsign) { marker = m; break; }
             }
             mapMarkersOverlay.Markers.Remove(marker);
-#endif
         }
 
         private void packetsListView_Resize(object sender, EventArgs e)
@@ -2730,7 +2770,6 @@ namespace HTCommander
 
         private void showLocationToolStripMenuItem_Click(object sender, EventArgs e)
         {
-#if !__MonoCS__
             if ((selectedAprsMessage == null) || ((selectedAprsMessage.Latitude == 0) && (selectedAprsMessage.Longitude == 0))) return;
             foreach (MapLocationForm form in mapLocationForms)
             {
@@ -2738,12 +2777,11 @@ namespace HTCommander
             }
             MapLocationForm mapForm = new MapLocationForm(this, selectedAprsMessage.Route);
             mapForm.SetPosition(selectedAprsMessage.Latitude, selectedAprsMessage.Longitude);
-            List<GMarkerGoogle> markers = new List<GMarkerGoogle>();
-            foreach (GMarkerGoogle marker in mapMarkersOverlay.Markers) { markers.Add(marker); }
+            List<GMapMarker> markers = new List<GMapMarker>();
+            foreach (GMapMarker marker in mapMarkersOverlay.Markers) { markers.Add(marker); }
             mapForm.SetMarkers(markers.ToArray());
             mapLocationForms.Add(mapForm);
             mapForm.Show();
-#endif
         }
 
         private void aprsMsgContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
@@ -4824,8 +4862,8 @@ namespace HTCommander
             if (gPSEnabledToolStripMenuItem.Checked == false)
             {
                 // Remove self location
-                GMarkerGoogle selfMarker = null;
-                foreach (GMarkerGoogle m in mapMarkersOverlay.Markers) { if (m.ToolTipText == "Self") { selfMarker = m; } }
+                GMapMarker selfMarker = null;
+                foreach (GMapMarker m in mapMarkersOverlay.Markers) { if (m.ToolTipText == "Self") { selfMarker = m; } }
                 mapMarkersOverlay.Markers.Remove(selfMarker);
                 centerToGpsButton.Enabled = centerToGPSToolStripMenuItem.Enabled = false;
             }
@@ -4987,6 +5025,48 @@ namespace HTCommander
         private void cancelMapDownloadButton_Click(object sender, EventArgs e)
         {
             cts?.Cancel();
+        }
+
+        private void requestPositionToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (aprsChannel < 0) return;
+
+            // APRS format
+            AX25Packet packet = new AX25Packet(GetTransmitAprsRoute(), callsign + "-" + stationId + ":?APRSP", DateTime.Now);
+
+            //radio.TransmitTncData(packet, aprsChannel, radio.HtStatus.curr_region);
+            aprsStack.ProcessOutgoing(packet, aprsChannel, radio.HtStatus.curr_region, false);
+            AddAprsPacket(packet, true);
+        }
+
+        private void showTracksToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            registry.WriteInt("MapShowTracks", showTracksToolStripMenuItem.Checked ? 1 : 0);
+            foreach (GMapRoute route in mapRoutes.Values)
+            {
+                route.IsVisible = showTracksToolStripMenuItem.Checked;
+            }
+        }
+
+        private void allToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            foreach (ToolStripMenuItem i in showMarkersToolStripMenuItem.DropDownItems) { i.Checked = (i == sender); }
+            mapFilterMinutes = int.Parse((string)((ToolStripMenuItem)sender).Tag);
+            registry.WriteInt("MapTimeFilter", mapFilterMinutes);
+            UpdateMapMarkers();
+        }
+
+        private void UpdateMapMarkers()
+        {
+            DateTime now = DateTime.Now;
+            foreach (GMapMarker m in mapMarkersOverlay.Markers)
+            {
+                m.IsVisible = ((mapFilterMinutes == 0) || (now.CompareTo(((DateTime)m.Tag).AddMinutes(mapFilterMinutes)) <= 0));
+            }
+            foreach (GMapRoute r in mapMarkersOverlay.Routes)
+            {
+                r.IsVisible = ((mapFilterMinutes == 0) || (now.CompareTo(((DateTime)r.Tag).AddMinutes(mapFilterMinutes)) <= 0));
+            }
         }
     }
 }

@@ -15,12 +15,11 @@ limitations under the License.
 */
 
 using System;
+using System.Drawing;
 using System.Windows.Forms;
-#if !__MonoCS__
+using GMap.NET;
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
-using GMap.NET.WindowsForms.Markers;
-#endif
 
 namespace HTCommander
 {
@@ -29,29 +28,22 @@ namespace HTCommander
         private MainForm parent = null;
         private string callsign = null;
         public string Callsign { get { return callsign; } }
-#if !__MonoCS__
-        public GMapOverlay mapMarkersOverlay = new GMapOverlay("Markers");
-#endif
+        public GMapOverlay mapMarkersOverlay = new GMapOverlay("SmallMapMarkers");
 
         public void SetPosition(double lat, double lng)
         {
-#if !__MonoCS__
             mapControl.Position = new GMap.NET.PointLatLng(lat, lng);
             mapControl.Update();
             mapControl.Refresh();
-#endif
         }
 
-#if !__MonoCS__
-        public void SetMarkers(GMarkerGoogle[] markers)
+        public void SetMarkers(GMapMarker[] markers)
         {
-            foreach (GMarkerGoogle marker in markers) { mapMarkersOverlay.Markers.Add(marker); }
+            foreach (GMapMarker marker in markers) { mapMarkersOverlay.Markers.Add(marker); }
         }
-#endif
 
         public MapLocationForm(MainForm parent, string callsign)
         {
-#if !__MonoCS__
             this.parent = parent;
             this.callsign = callsign;
             InitializeComponent();
@@ -76,7 +68,7 @@ namespace HTCommander
             this.mapControl.MinZoom = 2;
             this.mapControl.MouseWheelZoomEnabled = true;
             this.mapControl.MouseWheelZoomType = GMap.NET.MouseWheelZoomType.MousePositionAndCenter;
-            this.mapControl.Name = "mapControl";
+            this.mapControl.Name = "smallMapControl";
             this.mapControl.NegativeMode = false;
             this.mapControl.PolygonsEnabled = true;
             this.mapControl.RetryLoadTile = 0;
@@ -103,32 +95,34 @@ namespace HTCommander
             mapControl.Zoom = 10;
             mapControl.Update();
             mapControl.Refresh();
-#endif
+
+            // Create the route
+            if (parent.mapRoutes.ContainsKey(callsign))
+            {
+                GMapRoute route = parent.mapRoutes[callsign];
+                GMapRoute route2 = new GMapRoute(callsign) { Stroke = new Pen(callsign == "Self" ? Color.Blue : Color.Red, 1) };
+                foreach (PointLatLng p in route.Points) { route2.Points.Add(p); }
+                mapMarkersOverlay.Routes.Add(route2);
+            }
         }
 
         private void mapZoomInbutton_Click(object sender, EventArgs e)
         {
-#if !__MonoCS__
             mapControl.Zoom = Math.Max(mapControl.Zoom + 1, mapControl.MinZoom);
             mapControl.Update();
             mapControl.Refresh();
-#endif
         }
 
         private void mapZoomOutButton_Click(object sender, EventArgs e)
         {
-#if !__MonoCS__
             mapControl.Zoom = Math.Min(mapControl.Zoom - 1, mapControl.MaxZoom);
             mapControl.Update();
             mapControl.Refresh();
-#endif
         }
 
         private void MapLocationForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-#if !__MonoCS__
             parent.mapLocationForms.Remove(this);
-#endif
         }
     }
 }
