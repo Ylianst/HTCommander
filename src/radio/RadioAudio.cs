@@ -215,7 +215,7 @@ namespace HTCommander
 
         public void SetOutputDevice(string deviceid)
         {
-            if ((currentOutputDevice != null) && (currentOutputDevice.ID == deviceid)) { return; }
+            try { if ((currentOutputDevice != null) && (currentOutputDevice.ID == deviceid)) { return; } } catch (Exception) { }
 
             MMDevice targetDevice = null;
             MMDeviceEnumerator enumerator = new MMDeviceEnumerator();
