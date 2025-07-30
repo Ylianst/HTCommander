@@ -63,7 +63,7 @@ namespace HTCommander
         }
 
         // Define the target device name and guids
-        private static readonly string[] TargetDeviceNames = { "UV-PRO", "GA-5WB", "VR-N76", "VR-N7500" };
+        private static readonly string[] TargetDeviceNames = { "UV-PRO", "GA-5WB", "VR-N76", "VR-N7500", "VR-N7600" };
         private class DeviceWriteData { public int expectResponse; public byte[] data; public DeviceWriteData(int expectResponse, byte[] data) { this.expectResponse = expectResponse; this.data = data; } }
         private ConcurrentQueue<DeviceWriteData> _writeQueue = new ConcurrentQueue<DeviceWriteData>();
 
@@ -86,12 +86,10 @@ namespace HTCommander
         public static async Task<string[]> GetDeviceNames()
         {
             List<string> r = new List<string>();
-#if !__MonoCS__
             // Find the devices by name
             var devices = await DeviceInformation.FindAllAsync();
             foreach (var deviceInfo in devices) { if (!r.Contains(deviceInfo.Name)) { r.Add(deviceInfo.Name); } }
             r.Sort();
-#endif
             return r.ToArray();
         }
 
@@ -99,7 +97,6 @@ namespace HTCommander
         {
             // Find the devices by name
             List<Radio.CompatibleDevice> compatibleDevices = new List<Radio.CompatibleDevice>();
-#if !__MonoCS__
             var devices = await DeviceInformation.FindAllAsync();
             List<string> macs = new List<string>();
             foreach (var deviceInfo in devices)
@@ -130,7 +127,6 @@ namespace HTCommander
                     }
                 }
             }
-#endif
             return compatibleDevices.ToArray();
         }
 
