@@ -180,7 +180,7 @@ namespace HTCommander
             BluetoothAddress address = BluetoothAddress.Parse(mac);
             //BluetoothEndPoint remoteEndPoint = new BluetoothEndPoint(address, rfcommServiceUuid, 0);
             // Connect to the remote endpoint asynchronously
-            int retry = 3;
+            int retry = 5;
             while (retry > 0)
             {
                 try
