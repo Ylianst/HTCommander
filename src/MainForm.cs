@@ -14,31 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using System;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Drawing;
-using System.Windows.Forms;
-using System.Globalization;
-using System.Collections.Generic;
 using aprsparser;
-using static HTCommander.Radio;
-using static HTCommander.AX25Packet;
-using HTCommander.radio;
-using NAudio.Wave;
-using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
-using System.Threading;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
-using static GMap.NET.Entity.OpenStreetMapRouteEntity;
-
-
-#if !__MonoCS__
+using GMap.NET;
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
 using GMap.NET.WindowsForms.Markers;
-using GMap.NET;
-#endif
+using HTCommander.radio;
+using NAudio.Wave;
+using System;
+using System.Collections.Generic;
+using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
+using System.Diagnostics;
+using System.Drawing;
+using System.Globalization;
+using System.IO;
+using System.IO.Pipes;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static HTCommander.AX25Packet;
+using static HTCommander.Radio;
 
 namespace HTCommander
 {
@@ -121,7 +118,12 @@ namespace HTCommander
 
         public MainForm(string[] args)
         {
-            foreach (string arg in args) { if (string.Compare(arg, "-preview", true) == 0) { previewMode = true; } }
+            bool multiInstance = false;
+            foreach (string arg in args) {
+                if (string.Compare(arg, "-preview", true) == 0) { previewMode = true; }
+                if (string.Compare(arg, "-multiinstance", true) == 0) { multiInstance = true; }
+            }
+            if (multiInstance == false) { StartPipeServer(); }
 
             g_MainForm = this;
             InitializeComponent();
@@ -133,6 +135,22 @@ namespace HTCommander
             microphone = new Microphone();
             microphone.DataAvailable += Microphone_DataAvailable;
             radioVolumeForm = new RadioVolumeForm(this, radio);
+        }
+        private void StartPipeServer()
+        {
+            Task.Run(() =>
+            {
+                while (true)
+                {
+                    using (var server = new NamedPipeServerStream(Program.PipeName))
+                    using (var reader = new StreamReader(server))
+                    {
+                        server.WaitForConnection();
+                        var message = reader.ReadLine();
+                        if (message == "show") { showToolStripMenuItem_Click(this, null); }
+                    }
+                }
+            });
         }
 
         private void Microphone_DataAvailable(byte[] data, int bytesRecorded)
@@ -218,6 +236,7 @@ namespace HTCommander
             this.mapControl.MouseUp += Gmap_MouseUp;
             this.mapControl.Paint += Gmap_Paint;
             this.mapControl.OnMapZoomChanged += Gmap_OnMapZoomChanged;
+            this.mapControl.OnMarkerDoubleClick += MapControl_OnMarkerDoubleClick;
 
             mapTabPage.Controls.Add(this.mapControl);
             mapControl.MapProvider = GMapProviders.OpenStreetMap;
@@ -309,6 +328,7 @@ namespace HTCommander
             showTracksToolStripMenuItem.Checked = (registry.ReadInt("MapShowTracks", 1) == 1);
             mapFilterMinutes = (int)registry.ReadInt("MapTimeFilter", 0);
             foreach (ToolStripMenuItem i in showMarkersToolStripMenuItem.DropDownItems) { i.Checked = (int.Parse((string)((ToolStripMenuItem)i).Tag) == mapFilterMinutes); }
+            largeMarkersToolStripMenuItem.Checked = (registry.ReadInt("MapLargeMarkers", 1) == 1);
 
             // Setup mailboxes
             MailBoxTreeNodes = new TreeNode[MailBoxesNames.Length];
@@ -498,6 +518,18 @@ namespace HTCommander
                     registry.WriteString("LastUpdateCheck", DateTime.Now.ToString());
                     SelfUpdateForm.CheckForUpdate(this);
                 }
+            }
+        }
+
+        private void MapControl_OnMarkerDoubleClick(GMapMarker item, MouseEventArgs e)
+        {
+            string[] s = item.ToolTipText.Replace("\r\n","\r").Split('\r');
+            if (s.Length >= 3)
+            {
+                aprsDestinationComboBox.Text = s[1].Trim();
+                mainTabControl.SelectedIndex = 0; // Switch to APRS tab
+                aprsTextBox.Clear();
+                aprsTextBox.Focus();
             }
         }
 
@@ -1308,6 +1340,7 @@ namespace HTCommander
             RealExit = true;
             this.Close();
             //Application.Exit();
+            //Process.GetCurrentProcess().Kill(); // Force exit
         }
 
         public void connectToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1325,6 +1358,7 @@ namespace HTCommander
                 if (selectorForm.ShowDialog(this) == DialogResult.OK)
                 {
                     radio.Connect(selectorForm.SelectedMac);
+                    launchAnotherInstanceToolStripMenuItem.Visible = true;
                 }
             }
         }
@@ -2538,7 +2572,7 @@ namespace HTCommander
             }
 
             //GMarkerGoogle marker = new GMarkerGoogle(new PointLatLng(lat, lng), GMarkerGoogleType.red_dot);
-            GMapMarker marker = new GMarkerGoogle(new PointLatLng(lat, lng), GMarkerGoogleType.red_small);
+            GMapMarker marker = new GMarkerGoogle(new PointLatLng(lat, lng), largeMarkersToolStripMenuItem.Checked ? GMarkerGoogleType.red_dot : GMarkerGoogleType.red_small);
             marker.Tag = time;
             marker.ToolTipText = "\r\n" + callsign + "\r\n" + time.ToString();
             marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
@@ -3833,7 +3867,10 @@ namespace HTCommander
         private void exitToolStripMenuItem1_Click(object sender, EventArgs e)
         {
             RealExit = true;
-            Application.Exit();
+            this.Close();
+            //Application.Exit();
+            //Process.GetCurrentProcess().Kill(); // Force exit
+
         }
 
         private void notifyIcon_MouseClick(object sender, MouseEventArgs e)
@@ -4312,6 +4349,7 @@ namespace HTCommander
 
         private void showToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            if (this.InvokeRequired) { this.BeginInvoke(new MethodInvoker(() => showToolStripMenuItem_Click(sender, e))); return; }
             if (this.Visible == false) { this.Visible = true; this.Focus(); }
         }
 
@@ -5067,6 +5105,51 @@ namespace HTCommander
             {
                 r.IsVisible = ((mapFilterMinutes == 0) || (now.CompareTo(((DateTime)r.Tag).AddMinutes(mapFilterMinutes)) <= 0));
             }
+        }
+
+        private void launchAnotherInstanceToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                Process.Start(Application.ExecutablePath, "-multiinstance");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to start new instance: " + ex.Message);
+            }
+        }
+
+        private void largeMarkersToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            registry.WriteInt("MapLargeMarkers", largeMarkersToolStripMenuItem.Checked ? 1 : 0);
+
+
+            List<GMapMarker> markersToReplace = new List<GMapMarker>();
+            foreach (GMarkerGoogle m in mapMarkersOverlay.Markers)
+            {
+                GMarkerGoogleType t = m.Type;
+                if (largeMarkersToolStripMenuItem.Checked)
+                {
+                    if (t == GMarkerGoogleType.red_small) t = GMarkerGoogleType.red_dot;
+                    if (t == GMarkerGoogleType.blue_small) t = GMarkerGoogleType.blue_dot;
+                    if (t == GMarkerGoogleType.green_small) t = GMarkerGoogleType.green_dot;
+                }
+                else
+                {
+                    if (t == GMarkerGoogleType.red_dot) t = GMarkerGoogleType.red_small;
+                    if (t == GMarkerGoogleType.blue_dot) t = GMarkerGoogleType.blue_small;
+                    if (t == GMarkerGoogleType.green_dot) t = GMarkerGoogleType.green_small;
+                }
+                GMarkerGoogle marker = new GMarkerGoogle(m.Position, t);
+                marker.Tag = m.Tag;
+                marker.ToolTipText = m.ToolTipText;
+                marker.ToolTipMode = m.ToolTipMode;
+                marker.ToolTip.TextPadding = m.ToolTip.TextPadding;
+                marker.IsVisible = m.IsVisible; // Preserve visibility
+                markersToReplace.Add(marker);
+            }
+            mapMarkersOverlay.Markers.Clear();
+            foreach (GMarkerGoogle marker in markersToReplace) { mapMarkersOverlay.Markers.Add(marker); }
         }
     }
 }

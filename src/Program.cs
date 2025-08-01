@@ -17,17 +17,19 @@ limitations under the License.
 using System;
 using System.IO;
 using System.Text;
+using System.IO.Pipes;
+using System.Threading;
 using System.Diagnostics;
 using System.Windows.Forms;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using HTCommander.radio;
 
 namespace HTCommander
 {
     internal static class Program
     {
         private static List<string> BlackBoxEvents = new List<string>();
+        public static string PipeName = "HtCommander-DB346020-4700-4026-A8D1-E05AE4F62A05-pipe";
 
         /// <summary>
         /// The main entry point for the application.
@@ -35,8 +37,38 @@ namespace HTCommander
         [STAThread]
         static void Main(string[] args)
         {
-            string x = WinlinkSecurity.GenerateChallenge();
+            bool isNewInstance;
+            string mutexName = "HtCommander-DB346020-4700-4026-A8D1-E05AE4F62A05";
 
+            bool multiInstance = false;
+            foreach (string arg in args)
+            {
+                if (string.Compare(arg, "-multiinstance", true) == 0) { multiInstance = true; }
+            }
+
+            if (multiInstance == true)
+            {
+                MainEx(args);
+            }
+            else
+            {
+                using (Mutex mutex = new Mutex(true, mutexName, out isNewInstance))
+                {
+                    if (isNewInstance)
+                    {
+                        MainEx(args);
+                    }
+                    else
+                    {
+                        // Another instance is already running
+                        BringExistingInstanceToFront();
+                    }
+                }
+            }
+        }
+        static void MainEx(string[] args)
+        {
+            // No other instance running
             Application.ThreadException += new System.Threading.ThreadExceptionEventHandler(ExceptionSink);
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(UnhandledExceptionEventSink);
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
@@ -51,6 +83,25 @@ namespace HTCommander
             catch (Exception ex)
             {
                 Debug("--- HTCommander Exception ---\r\n" + DateTime.Now + ", Version: " + GetFileVersion() + "\r\nException:\r\n" + ex.ToString() + "\r\n\r\n\r\n");
+            }
+        }
+
+        private static void BringExistingInstanceToFront()
+        {
+            // Send "show" command to the main instance
+            try
+            {
+                using (var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out))
+                using (var writer = new StreamWriter(client))
+                {
+                    client.Connect(1000); // Wait up to 1s
+                    writer.WriteLine("show");
+                    writer.Flush();
+                }
+            }
+            catch
+            {
+                MessageBox.Show("Could not contact the running instance.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
