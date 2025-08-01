@@ -325,10 +325,6 @@
             this.clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.gpsLockTimer = new System.Windows.Forms.Timer(this.components);
             this.mapTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.centerToGPSToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.offlineModeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.cacheAreaToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.showTracksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showMarkersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.allToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.lastHourToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -336,6 +332,10 @@
             this.last24HoursToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.lastWeekToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.lastMonthToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.offlineModeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.centerToGPSToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.cacheAreaToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.showTracksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.largeMarkersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsChatControl = new HTCommander.ChatControl();
             this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
@@ -1137,7 +1137,7 @@
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
             this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Size = new System.Drawing.Size(669, 653);
+            this.aprsTabPage.Size = new System.Drawing.Size(669, 651);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1202,7 +1202,7 @@
             this.aprsBottomPanel.Controls.Add(this.aprsTextBox);
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 606);
+            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 604);
             this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
             this.aprsBottomPanel.Size = new System.Drawing.Size(669, 47);
@@ -3131,7 +3131,7 @@
             this.toolStripMenuItem17,
             this.clearPacketsToolStripMenuItem});
             this.packetsContextMenuStrip.Name = "packetsContextMenuStrip";
-            this.packetsContextMenuStrip.Size = new System.Drawing.Size(217, 112);
+            this.packetsContextMenuStrip.Size = new System.Drawing.Size(217, 140);
             this.packetsContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.packetsContextMenuStrip_Opening);
             // 
             // showPacketDecodeToolStripMenuItem
@@ -3383,37 +3383,6 @@
             this.mapTabContextMenuStrip.Name = "mapTabContextMenuStrip";
             this.mapTabContextMenuStrip.Size = new System.Drawing.Size(215, 148);
             // 
-            // centerToGPSToolStripMenuItem
-            // 
-            this.centerToGPSToolStripMenuItem.Enabled = false;
-            this.centerToGPSToolStripMenuItem.Name = "centerToGPSToolStripMenuItem";
-            this.centerToGPSToolStripMenuItem.Size = new System.Drawing.Size(214, 24);
-            this.centerToGPSToolStripMenuItem.Text = "Center to &GPS";
-            this.centerToGPSToolStripMenuItem.Click += new System.EventHandler(this.centerToGpsButton_Click);
-            // 
-            // offlineModeToolStripMenuItem
-            // 
-            this.offlineModeToolStripMenuItem.CheckOnClick = true;
-            this.offlineModeToolStripMenuItem.Name = "offlineModeToolStripMenuItem";
-            this.offlineModeToolStripMenuItem.Size = new System.Drawing.Size(214, 24);
-            this.offlineModeToolStripMenuItem.Text = "&Offline Mode";
-            this.offlineModeToolStripMenuItem.Click += new System.EventHandler(this.offlineModeToolStripMenuItem_Click);
-            // 
-            // cacheAreaToolStripMenuItem
-            // 
-            this.cacheAreaToolStripMenuItem.Name = "cacheAreaToolStripMenuItem";
-            this.cacheAreaToolStripMenuItem.Size = new System.Drawing.Size(214, 24);
-            this.cacheAreaToolStripMenuItem.Text = "&Cache Selected Area";
-            this.cacheAreaToolStripMenuItem.Click += new System.EventHandler(this.cacheAreaToolStripMenuItem_Click);
-            // 
-            // showTracksToolStripMenuItem
-            // 
-            this.showTracksToolStripMenuItem.CheckOnClick = true;
-            this.showTracksToolStripMenuItem.Name = "showTracksToolStripMenuItem";
-            this.showTracksToolStripMenuItem.Size = new System.Drawing.Size(214, 24);
-            this.showTracksToolStripMenuItem.Text = "&Show Tracks";
-            this.showTracksToolStripMenuItem.Click += new System.EventHandler(this.showTracksToolStripMenuItem_Click);
-            // 
             // showMarkersToolStripMenuItem
             // 
             this.showMarkersToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
@@ -3432,7 +3401,7 @@
             this.allToolStripMenuItem.Checked = true;
             this.allToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             this.allToolStripMenuItem.Name = "allToolStripMenuItem";
-            this.allToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.allToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.allToolStripMenuItem.Tag = "0";
             this.allToolStripMenuItem.Text = "All";
             this.allToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
@@ -3440,7 +3409,7 @@
             // lastHourToolStripMenuItem
             // 
             this.lastHourToolStripMenuItem.Name = "lastHourToolStripMenuItem";
-            this.lastHourToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.lastHourToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.lastHourToolStripMenuItem.Tag = "60";
             this.lastHourToolStripMenuItem.Text = "Last Hour";
             this.lastHourToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
@@ -3448,7 +3417,7 @@
             // last4HoursToolStripMenuItem
             // 
             this.last4HoursToolStripMenuItem.Name = "last4HoursToolStripMenuItem";
-            this.last4HoursToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.last4HoursToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.last4HoursToolStripMenuItem.Tag = "240";
             this.last4HoursToolStripMenuItem.Text = "Last 4 hours";
             this.last4HoursToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
@@ -3456,7 +3425,7 @@
             // last24HoursToolStripMenuItem
             // 
             this.last24HoursToolStripMenuItem.Name = "last24HoursToolStripMenuItem";
-            this.last24HoursToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.last24HoursToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.last24HoursToolStripMenuItem.Tag = "1440";
             this.last24HoursToolStripMenuItem.Text = "Last 24 hours";
             this.last24HoursToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
@@ -3464,7 +3433,7 @@
             // lastWeekToolStripMenuItem
             // 
             this.lastWeekToolStripMenuItem.Name = "lastWeekToolStripMenuItem";
-            this.lastWeekToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.lastWeekToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.lastWeekToolStripMenuItem.Tag = "10080";
             this.lastWeekToolStripMenuItem.Text = "Last week";
             this.lastWeekToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
@@ -3472,10 +3441,41 @@
             // lastMonthToolStripMenuItem
             // 
             this.lastMonthToolStripMenuItem.Name = "lastMonthToolStripMenuItem";
-            this.lastMonthToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.lastMonthToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.lastMonthToolStripMenuItem.Tag = "43200";
             this.lastMonthToolStripMenuItem.Text = "Last Month";
             this.lastMonthToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
+            // 
+            // offlineModeToolStripMenuItem
+            // 
+            this.offlineModeToolStripMenuItem.CheckOnClick = true;
+            this.offlineModeToolStripMenuItem.Name = "offlineModeToolStripMenuItem";
+            this.offlineModeToolStripMenuItem.Size = new System.Drawing.Size(214, 24);
+            this.offlineModeToolStripMenuItem.Text = "&Offline Mode";
+            this.offlineModeToolStripMenuItem.Click += new System.EventHandler(this.offlineModeToolStripMenuItem_Click);
+            // 
+            // centerToGPSToolStripMenuItem
+            // 
+            this.centerToGPSToolStripMenuItem.Enabled = false;
+            this.centerToGPSToolStripMenuItem.Name = "centerToGPSToolStripMenuItem";
+            this.centerToGPSToolStripMenuItem.Size = new System.Drawing.Size(214, 24);
+            this.centerToGPSToolStripMenuItem.Text = "Center to &GPS";
+            this.centerToGPSToolStripMenuItem.Click += new System.EventHandler(this.centerToGpsButton_Click);
+            // 
+            // cacheAreaToolStripMenuItem
+            // 
+            this.cacheAreaToolStripMenuItem.Name = "cacheAreaToolStripMenuItem";
+            this.cacheAreaToolStripMenuItem.Size = new System.Drawing.Size(214, 24);
+            this.cacheAreaToolStripMenuItem.Text = "&Cache Selected Area";
+            this.cacheAreaToolStripMenuItem.Click += new System.EventHandler(this.cacheAreaToolStripMenuItem_Click);
+            // 
+            // showTracksToolStripMenuItem
+            // 
+            this.showTracksToolStripMenuItem.CheckOnClick = true;
+            this.showTracksToolStripMenuItem.Name = "showTracksToolStripMenuItem";
+            this.showTracksToolStripMenuItem.Size = new System.Drawing.Size(214, 24);
+            this.showTracksToolStripMenuItem.Text = "&Show Tracks";
+            this.showTracksToolStripMenuItem.Click += new System.EventHandler(this.showTracksToolStripMenuItem_Click);
             // 
             // largeMarkersToolStripMenuItem
             // 
@@ -3505,7 +3505,7 @@
             this.aprsChatControl.Name = "aprsChatControl";
             this.aprsChatControl.ShadowOffset = 2;
             this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
+            this.aprsChatControl.Size = new System.Drawing.Size(669, 530);
             this.aprsChatControl.TabIndex = 5;
             this.aprsChatControl.TextColor = System.Drawing.Color.Black;
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);

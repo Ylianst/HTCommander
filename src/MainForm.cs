@@ -200,7 +200,6 @@ namespace HTCommander
             radio.onRawCommand += Radio_onRawCommand;
             mainTabControl.SelectedTab = aprsTabPage;
 
-#if !__MonoCS__
             // 
             // mapControl
             // 
@@ -260,10 +259,6 @@ namespace HTCommander
             mapControl.Update();
             mapControl.Refresh();
             mapToolStripMenuItem.Checked = (registry.ReadInt("ViewMap", 0) == 1);
-#else
-            mapToolStripMenuItem.Checked = false;
-            mapToolStripMenuItem.Visible = false;
-#endif
 
             string debugFileName = registry.ReadString("DebugFile", null);
             try
@@ -355,6 +350,7 @@ namespace HTCommander
                 // If the packet file is big, load only the first 200 packets
                 int i = 0;
                 if (lines.Length > 5000) { i = lines.Length - 5000; }
+                List<ListViewItem> listViewItems = new List<ListViewItem>();
                 for (; i < lines.Length; i++)
                 {
                     try
@@ -387,15 +383,23 @@ namespace HTCommander
                         fragment.time = t;
                         fragment.channel_name = cn;
                         fragment.incoming = incoming;
-                        Radio_OnDataFrame(radio, fragment);
+                        Radio_OnDataFrame(null, fragment);
                         if ((incoming == false) && (cn == "APRS"))
                         {
                             AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
                             if (packet != null) { AddAprsPacket(packet, true); }
                         }
+
+                        // Add to the packet capture tab
+                        ListViewItem l = new ListViewItem(new string[] { fragment.time.ToShortTimeString(), fragment.channel_name, FragmentToShortString(fragment) });
+                        l.ImageIndex = fragment.incoming ? 5 : 4;
+                        l.Tag = fragment;
+                        listViewItems.Add(l);
                     }
                     catch (Exception) { }
                 }
+                listViewItems.Sort((a, b) => DateTime.Compare(((TncDataFragment)b.Tag).time, ((TncDataFragment)a.Tag).time));
+                packetsListView.Items.AddRange(listViewItems.ToArray());
             }
 
             // Read the voice history file
@@ -475,25 +479,6 @@ namespace HTCommander
             voiceModel = registry.ReadString("VoiceModel", null);
             voice = registry.ReadString("Voice", null);
 
-#if __MonoCS__
-            mainTabControl.Alignment = TabAlignment.Top;
-            aprsTabPage.ImageIndex = -1;
-            aprsTabPage.Text = "APRS";
-            mapTabPage.ImageIndex = -1;
-            mapTabPage.Text = "Map";
-            terminalTabPage.ImageIndex = -1;
-            terminalTabPage.Text = "Terminal";
-            mailTabPage.ImageIndex = -1;
-            mailTabPage.Text = "Mail";
-            addressesTabPage.ImageIndex = -1;
-            addressesTabPage.Text = "Contacts";
-            bbsTabPage.ImageIndex = -1;
-            bbsTabPage.Text = "BBS";
-            packetsTabPage.ImageIndex = -1;
-            packetsTabPage.Text = "Packets";
-            debugTabPage.ImageIndex = -1;
-            debugTabPage.Text = "Debug";
-#endif
             this.ResumeLayout();
             UpdateInfo();
             UpdateTabs();
@@ -804,19 +789,22 @@ namespace HTCommander
         {
             if (this.InvokeRequired) { this.BeginInvoke(new Action(() => { Radio_OnDataFrame(sender, frame); })); return; }
 
-            // Add to the packet capture tab
-            ListViewItem l = new ListViewItem(new string[] { frame.time.ToShortTimeString(), frame.channel_name, FragmentToShortString(frame) });
-            l.ImageIndex = frame.incoming ? 5 : 4;
-            l.Tag = frame;
-            packetsListView.Items.Add(l);
-
-            // Write frame data to file
-            if (AprsFile != null)
+            if (sender != null)
             {
-                byte[] bytes = UTF8Encoding.Default.GetBytes(frame.time.Ticks + "," + (frame.incoming ? "1" : "0") + "," + frame.ToString() + "\r\n");
-                AprsFile.Write(bytes, 0, bytes.Length);
+                // Add to the packet capture tab
+                ListViewItem l = new ListViewItem(new string[] { frame.time.ToShortTimeString(), frame.channel_name, FragmentToShortString(frame) });
+                l.ImageIndex = frame.incoming ? 5 : 4;
+                l.Tag = frame;
+                packetsListView.Items.Insert(0, l);
+
+                // Write frame data to file
+                if (AprsFile != null)
+                {
+                    byte[] bytes = UTF8Encoding.Default.GetBytes(frame.time.Ticks + "," + (frame.incoming ? "1" : "0") + "," + frame.ToString() + "\r\n");
+                    AprsFile.Write(bytes, 0, bytes.Length);
+                }
+                if (frame.incoming == false) return;
             }
-            if (frame.incoming == false) return;
 
             //DebugTrace("Packet: " + frame.ToHex());
 
@@ -2401,10 +2389,8 @@ namespace HTCommander
 
             mainTabControl.TabPages.Clear();
             mainTabControl.TabPages.Add(aprsTabPage);
-#if !__MonoCS__
             if (mapToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(mapTabPage); }
             registry.WriteInt("ViewMap", mapToolStripMenuItem.Checked ? 1 : 0);
-#endif
             if (voiceToolStripMenuItem.Checked && voiceToolStripMenuItem.Enabled) {
                 mainTabControl.TabPages.Add(voiceTabPage);
             }

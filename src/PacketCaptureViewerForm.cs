@@ -16,6 +16,7 @@ limitations under the License.
 
 using aprsparser;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
@@ -54,10 +55,8 @@ namespace HTCommander
             try { lines = File.ReadAllLines(filename); } catch (Exception) { }
             if (lines != null)
             {
-                // If the packet file is big, load only the first 200 packets
-                int i = 0;
-                if (lines.Length > 200) { i = lines.Length - 200; }
-                for (; i < lines.Length; i++)
+                List<ListViewItem> items = new List<ListViewItem>(lines.Length);
+                for (int i = 0; i < lines.Length; i++)
                 {
                     // Reac the packets
                     string[] s = lines[i].Split(',');
@@ -89,8 +88,11 @@ namespace HTCommander
                     ListViewItem l = new ListViewItem(new string[] { fragment.time.ToShortTimeString(), fragment.channel_name, parent.FragmentToShortString(fragment) });
                     l.ImageIndex = fragment.incoming ? 5 : 4;
                     l.Tag = fragment;
-                    packetsListView.Items.Add(l);
+                    items.Add(l);
                 }
+
+                items.Sort((a, b) => DateTime.Compare(((TncDataFragment)b.Tag).time, ((TncDataFragment)a.Tag).time));
+                packetsListView.Items.AddRange(items.ToArray());
             }
         }
 
