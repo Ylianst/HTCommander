@@ -15,13 +15,15 @@ limitations under the License.
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
+using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
-using System.Net.WebSockets;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
+using System.Web;
+using Windows.Storage.Streams;
 
 namespace HTCommander
 {
@@ -388,10 +390,119 @@ namespace HTCommander
             }
         }
 
-        private string[] allowedLocalPaths = new string[4] { "index.html", "sw.js", "radio.js", "images/radio.png" };
-
         private void HandleHttpRequest(HttpListenerContext context)
         {
+            try
+            {
+                // Get the requested URL path
+                string urlPath = context.Request.Url.AbsolutePath;
+                if (urlPath == "/") { urlPath = "/index.html"; }
+
+                // Decode URL and normalize it
+                string relativePath = HttpUtility.UrlDecode(urlPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+
+                // Security check: prevent path traversal
+                if (relativePath.Contains(".."))
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    using (var writer = new StreamWriter(context.Response.OutputStream))
+                    {
+                        writer.Write("400 - Bad Request");
+                    }
+                    return;
+                }
+
+                // Base path to /web under the executable
+                string basePath = Path.Combine(AppContext.BaseDirectory, "web");
+
+                // Full path to the requested file
+                string filePath = Path.Combine(basePath, relativePath);
+
+                // Ensure the full path is still inside /web directory
+                if (!filePath.StartsWith(basePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                    using (var writer = new StreamWriter(context.Response.OutputStream))
+                    {
+                        writer.Write("403 - Forbidden");
+                    }
+                    return;
+                }
+
+                // Check if file exists
+                if (File.Exists(filePath))
+                {
+                    byte[] fileBytes = File.ReadAllBytes(filePath);
+                    string mimeType = GetMimeType(filePath);
+
+                    if (urlPath == "/index.html")
+                    {
+                        string html = UTF8Encoding.UTF8.GetString(fileBytes);
+                        html = html.Replace("var websocketMode = false;", "var websocketMode = true;");
+                        fileBytes = UTF8Encoding.UTF8.GetBytes(html);
+                    }
+
+                    context.Response.ContentType = mimeType;
+                    context.Response.ContentLength64 = fileBytes.Length;
+                    context.Response.StatusCode = (int)HttpStatusCode.OK;
+                    context.Response.OutputStream.Write(fileBytes, 0, fileBytes.Length);
+                }
+                else
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                    using (var writer = new StreamWriter(context.Response.OutputStream))
+                    {
+                        writer.Write("404 - File Not Found");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                using (var writer = new StreamWriter(context.Response.OutputStream))
+                {
+                    writer.Write("500 - Internal Server Error\n" + ex.Message);
+                }
+            }
+            finally
+            {
+                context.Response.OutputStream.Close();
+            }
+        }
+
+        private string GetMimeType(string filePath)
+        {
+            string extension = Path.GetExtension(filePath).ToLowerInvariant();
+
+            switch (extension)
+            {
+                case ".html":
+                case ".htm":
+                    return "text/html";
+                case ".css":
+                    return "text/css";
+                case ".js":
+                    return "application/javascript";
+                case ".json":
+                    return "application/json";
+                case ".png":
+                    return "image/png";
+                case ".jpg":
+                case ".jpeg":
+                    return "image/jpeg";
+                case ".gif":
+                    return "image/gif";
+                case ".svg":
+                    return "image/svg+xml";
+                default:
+                    return "application/octet-stream";
+            }
+        }
+
+        /*
+        private void HandleHttpRequest(HttpListenerContext context)
+        {
+            string selfFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             string localpath = context.Request.Url.LocalPath;
             if (localpath.Length > 0) { localpath = localpath.Substring(1); }
             if (localpath == "") { localpath = "index.html"; }
@@ -432,6 +543,7 @@ namespace HTCommander
             }
             context.Response.Close();
         }
+        */
 
         public void BroadcastString(string data)
         {

@@ -21,7 +21,25 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_0EA5929A5AF04CDDB2ED962833166530"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_0F5EF28FC60347909698592FC8ECDE8A"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_0FA758A9A0AC403EB3BC45102C9DCAF0"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_1208722896084404AF09C267CB4DC155"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -118,6 +136,12 @@
         "Entry"
         {
         "MsmKey" = "8:_32DD17EC1C0D407B8EDE9520D9848423"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_3DB5A30877AF41CB8DB6527E4AAA2F59"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -261,6 +285,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_72D357449D3F4037838E6DA37B93265B"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_7705793B1BCC170634DBDB7DB612BA90"
         "OwnerKey" = "8:_DE19E4126E620951FC78C20C040CF6AB"
         "MsmSig" = "8:_UNDEFINED"
@@ -286,6 +316,12 @@
         "Entry"
         {
         "MsmKey" = "8:_82CCB973C74D4A189B3189651C0D216F"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_84EB7275A09343CFB2413691D464621B"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -393,6 +429,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_B68ED87BDDE748EF9A9D9A69EEE998B7"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_BFAEA77CAEAAEA52E0F22F937476A52F"
         "OwnerKey" = "8:_578E6EAEA744BC656650EB06119B5B15"
         "MsmSig" = "8:_UNDEFINED"
@@ -412,6 +454,12 @@
         "Entry"
         {
         "MsmKey" = "8:_D04CF678D09D4108B92735B5FF28682C"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_D36304BD7F6640C6830913E4AB022D2E"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -865,12 +913,72 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0EA5929A5AF04CDDB2ED962833166530"
+            {
+            "SourcePath" = "8:..\\src\\bin\\x64\\Debug\\web\\icons\\icon-256x256.png"
+            "TargetName" = "8:icon-256x256.png"
+            "Tag" = "8:"
+            "Folder" = "8:_FCF7F2A9B53349AD8BC425FF128FA021"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0F5EF28FC60347909698592FC8ECDE8A"
             {
             "SourcePath" = "8:..\\src\\bin\\x64\\Debug\\runtimes\\win-x64\\ggml-cpu-whisper.dll"
             "TargetName" = "8:ggml-cpu-whisper.dll"
             "Tag" = "8:"
             "Folder" = "8:_8FA4D3E8EDB3435DB537A463609B28F3"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0FA758A9A0AC403EB3BC45102C9DCAF0"
+            {
+            "SourcePath" = "8:..\\src\\bin\\x64\\Debug\\web\\images\\radio.png"
+            "TargetName" = "8:radio.png"
+            "Tag" = "8:"
+            "Folder" = "8:_70992BA9D4C54D56BFB65129E4375F70"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_1208722896084404AF09C267CB4DC155"
+            {
+            "SourcePath" = "8:..\\src\\bin\\x64\\Debug\\web\\sw.js"
+            "TargetName" = "8:sw.js"
+            "Tag" = "8:"
+            "Folder" = "8:_13341AF664114084B09D44660FB916F5"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -1168,6 +1276,26 @@
             "TargetName" = "8:brolib_x64.dll"
             "Tag" = "8:"
             "Folder" = "8:_3D83ABEF4B1742DE879C2628E60AF7E6"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_3DB5A30877AF41CB8DB6527E4AAA2F59"
+            {
+            "SourcePath" = "8:..\\src\\bin\\x64\\Debug\\web\\icons\\icon-192x192.png"
+            "TargetName" = "8:icon-192x192.png"
+            "Tag" = "8:"
+            "Folder" = "8:_FCF7F2A9B53349AD8BC425FF128FA021"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -1656,6 +1784,26 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_72D357449D3F4037838E6DA37B93265B"
+            {
+            "SourcePath" = "8:..\\src\\bin\\x64\\Debug\\web\\favicon.ico"
+            "TargetName" = "8:favicon.ico"
+            "Tag" = "8:"
+            "Folder" = "8:_13341AF664114084B09D44660FB916F5"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_7705793B1BCC170634DBDB7DB612BA90"
             {
             "AssemblyRegister" = "3:1"
@@ -1744,6 +1892,26 @@
             "TargetName" = "8:libsbc.dll"
             "Tag" = "8:"
             "Folder" = "8:_D931246451AF4E3487C6B4B47B8F4F0F"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_84EB7275A09343CFB2413691D464621B"
+            {
+            "SourcePath" = "8:..\\src\\bin\\x64\\Debug\\web\\radio.js"
+            "TargetName" = "8:radio.js"
+            "Tag" = "8:"
+            "Folder" = "8:_13341AF664114084B09D44660FB916F5"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -2148,6 +2316,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_B68ED87BDDE748EF9A9D9A69EEE998B7"
+            {
+            "SourcePath" = "8:..\\src\\bin\\x64\\Debug\\web\\index.html"
+            "TargetName" = "8:index.html"
+            "Tag" = "8:"
+            "Folder" = "8:_13341AF664114084B09D44660FB916F5"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_BFAEA77CAEAAEA52E0F22F937476A52F"
             {
             "AssemblyRegister" = "3:1"
@@ -2247,6 +2435,26 @@
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_D931246451AF4E3487C6B4B47B8F4F0F"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D36304BD7F6640C6830913E4AB022D2E"
+            {
+            "SourcePath" = "8:..\\src\\bin\\x64\\Debug\\web\\manifest.json"
+            "TargetName" = "8:manifest.json"
+            "Tag" = "8:"
+            "Folder" = "8:_13341AF664114084B09D44660FB916F5"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -2638,6 +2846,39 @@
                     "Property" = "8:_B2ECC0ABCBEB4C0292DDE370C64A5DC9"
                         "Folders"
                         {
+                        }
+                    }
+                    "{9EF0B969-E518-4E46-987F-47570745A589}:_13341AF664114084B09D44660FB916F5"
+                    {
+                    "Name" = "8:web"
+                    "AlwaysCreate" = "11:FALSE"
+                    "Condition" = "8:"
+                    "Transitive" = "11:FALSE"
+                    "Property" = "8:_C93F29683FB74C4783DB3D7197205352"
+                        "Folders"
+                        {
+                            "{9EF0B969-E518-4E46-987F-47570745A589}:_70992BA9D4C54D56BFB65129E4375F70"
+                            {
+                            "Name" = "8:images"
+                            "AlwaysCreate" = "11:FALSE"
+                            "Condition" = "8:"
+                            "Transitive" = "11:FALSE"
+                            "Property" = "8:_763E40290DB545E3976CD4E4B550233D"
+                                "Folders"
+                                {
+                                }
+                            }
+                            "{9EF0B969-E518-4E46-987F-47570745A589}:_FCF7F2A9B53349AD8BC425FF128FA021"
+                            {
+                            "Name" = "8:icons"
+                            "AlwaysCreate" = "11:FALSE"
+                            "Condition" = "8:"
+                            "Transitive" = "11:FALSE"
+                            "Property" = "8:_D31370D850BB44C88F278FA525817883"
+                                "Folders"
+                                {
+                                }
+                            }
                         }
                     }
                     "{9EF0B969-E518-4E46-987F-47570745A589}:_78C0C17A337E4C99AC37510E9B58A558"

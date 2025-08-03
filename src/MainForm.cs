@@ -471,6 +471,7 @@ namespace HTCommander
                 webserver = new HttpsWebSocketServer(this, webServerPort);
                 webserver.Start();
             }
+            toolStripMenuItem2.Visible = localWebSiteToolStripMenuItem.Visible = (webserver != null);
             allowTransmit = (registry.ReadInt("AllowTransmit", 0) == 1);
             Loading = false;
 
@@ -1141,12 +1142,12 @@ namespace HTCommander
                     if (channelA.name_str.Length > 0)
                     {
                         vfo1Label.Text = channelA.name_str;
-                        vfo1FreqLabel.Text = (((float)channelA.rx_freq) / 1000000).ToString("F3") + "Mhz";
+                        vfo1FreqLabel.Text = (((float)channelA.rx_freq) / 1000000).ToString("F3") + " MHz";
                     }
                     else if (channelA.rx_freq > 0)
                     {
                         vfo1Label.Text = ((double)channelA.rx_freq / 1000000).ToString("F3");
-                        vfo1FreqLabel.Text = "Mhz";
+                        vfo1FreqLabel.Text = " MHz";
                     }
                     else
                     {
@@ -1217,7 +1218,7 @@ namespace HTCommander
                     else if (channelB.rx_freq != 0)
                     {
                         vfo2Label.Text = (((float)channelB.rx_freq) / 1000000).ToString("F3");
-                        vfo2FreqLabel.Text = "MHz";
+                        vfo2FreqLabel.Text = " MHz";
                     }
                     else
                     {
@@ -2288,6 +2289,7 @@ namespace HTCommander
                     if ((webServerEnabled == false) && (webserver != null)) { webserver.Stop(); webserver = null; }
                     if ((webserver != null) && (webserver.port != webServerPort)) { webserver.Stop(); webserver = null; }
                     if ((webServerEnabled == true) && (webserver == null)) { webserver = new HttpsWebSocketServer(this, webServerPort); webserver.Start(); }
+                    toolStripMenuItem2.Visible = localWebSiteToolStripMenuItem.Visible = (webserver != null);
 
                     // Microphone
                     if (allowTransmit && (radio.State == RadioState.Connected)) { microphone.StartListening(); } else { microphone.StopListening(); }
@@ -5136,6 +5138,11 @@ namespace HTCommander
             }
             mapMarkersOverlay.Markers.Clear();
             foreach (GMarkerGoogle marker in markersToReplace) { mapMarkersOverlay.Markers.Add(marker); }
+        }
+
+        private void localWebSiteToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (webserver != null) { System.Diagnostics.Process.Start("http://localhost:" + webServerPort); }
         }
     }
 }
