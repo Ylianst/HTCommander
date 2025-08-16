@@ -1111,8 +1111,11 @@ namespace HTCommander
             else
             {
                 // Simulate receiving the frame we just sent
-                fragment.incoming = true;
-                if (OnDataFrame != null) { OnDataFrame(this, fragment); }
+                TncDataFragment fragment2 = new TncDataFragment(true, 0, outboundData, channelId, regionId);
+                fragment2.incoming = true;
+                fragment2.time = t;
+                if (fragmentChannelName != null) { fragment2.channel_name = fragmentChannelName; } else { fragment2.channel_name = packet.channel_name; }
+                if (OnDataFrame != null) { OnDataFrame(this, fragment2); }
             }
 
             return outboundData.Length;

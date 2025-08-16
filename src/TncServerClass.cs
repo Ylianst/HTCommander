@@ -14,6 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Protocol: AGW Packet Engine (AGWPE) TCP API
+// Reference: https://www.on7lds.net/42/sites/default/files/AGWPEAPI.HTM
+
 using System;
 using System.IO;
 using System.Net;
@@ -345,15 +348,31 @@ namespace HTCommander
             }
         }
 
-        public void Broadcast(byte[] data)
+        public void BroadcastFrame(TncDataFragment frame)
         {
+            AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
+            if ((p == null) || (p.addresses.Count < 2)) return; // Invalid packet, ignore
+            DateTime now = DateTime.Now;
+            string str = "1:Fm " + p.addresses[1].CallSignWithId + " To " + p.addresses[0].CallSignWithId + " <UI pid=" + p.pid + " Len=" + p.data.Length + " >[" + now.Hour + ":" + now.Minute + ":" + now.Second + "]\r" + p.dataStr;
+            if (!str.EndsWith("\r") && !str.EndsWith("\n")) { str += "\r"; }
+            AgwpeFrame aframe = new AgwpeFrame()
+            {
+                Port = 0,
+                DataKind = 0x55, // 'U',
+                CallFrom = p.addresses[1].CallSignWithId,
+                CallTo = p.addresses[0].CallSignWithId,
+                DataLen = (uint)p.data.Length,
+                Data = ASCIIEncoding.ASCII.GetBytes(str)
+            };
+            BroadcastFrame(aframe);
+        }
+
+        public void BroadcastFrame(AgwpeFrame frame)
+        {
+            var data = frame.ToBytes();
             foreach (var client in _clients.Values)
             {
-                if (client.SendMonitoringFrames)
-                {
-                    // Only send to clients that want monitoring frames
-                    client.EnqueueSend(data);
-                }
+                if (client.SendMonitoringFrames) { client.EnqueueSend(data); }
             }
         }
 
@@ -430,7 +449,7 @@ namespace HTCommander
                     break;
 
                 case 'X': // Disconnect / un-register
-                    HandleUnregister(clientId, frame);
+                    OnDebugMessage($"TNC client unregistered.");
                     break;
 
                 case 'D': // Data frame from app
@@ -443,6 +462,10 @@ namespace HTCommander
 
                 case 'U': // UI (unproto) frame
                     HandleUnproto(clientId, frame);
+                    break;
+
+                case 'M': // Send UNPROTO Information (from client to radio)
+                    HandleSendUnproto(clientId, frame);
                     break;
 
                 case 'm': // Toggle monitoring frames
@@ -458,6 +481,7 @@ namespace HTCommander
                     break;
             }
         }
+
         private void SendFrame(Guid clientId, AgwpeFrame frame)
         {
             if (_clients.TryGetValue(clientId, out var client))
@@ -491,23 +515,13 @@ namespace HTCommander
             OnDebugMessage($"TNC client requested channel info");
 
             // Example reply with dummy values
-            var channelInfo = Encoding.ASCII.GetBytes("CH1: Dummy TNC\r\n");
+            var channelInfo = Encoding.UTF8.GetBytes("1;Port1 Handi-Talky Commander;");
             var reply = new AgwpeFrame
             {
-                Port = frame.Port,
                 DataKind = (byte)'G',
-                CallFrom = "AGWPE",
-                CallTo = frame.CallFrom,
                 Data = channelInfo
             };
             SendFrame(clientId, reply);
-        }
-
-        private void HandleUnregister(Guid clientId, AgwpeFrame frame)
-        {
-            OnDebugMessage($"TNC client unregistered.");
-            // Optionally disconnect them
-            //if (_clients.TryGetValue(clientId, out var client)) { client.Disconnect(); }
         }
 
         private void HandleDataFrame(Guid clientId, AgwpeFrame frame)
@@ -555,7 +569,30 @@ namespace HTCommander
                 CallTo = frame.CallTo,
                 Data = frame.Data
             };
-            Broadcast(broadcast.ToBytes());
+            //Broadcast(broadcast.ToBytes());
+        }
+
+        private void HandleSendUnproto(Guid clientId, AgwpeFrame frame)
+        {
+            OnDebugMessage($"TNC M frame (Send UNPROTO) from {frame.CallFrom} to {frame.CallTo}, {frame.DataLen} bytes");
+            if (parent.radio.State != Radio.RadioState.Connected) return;
+            try
+            {
+                // Construct AX25Packet for UNPROTO (UI) frame
+                var addresses = new System.Collections.Generic.List<AX25Address>
+                {
+                    AX25Address.GetAddress(frame.CallTo),
+                    AX25Address.GetAddress(frame.CallFrom)
+                };
+                var packet = new AX25Packet(addresses, frame.Data, DateTime.Now);
+                packet.channel_id = parent.radio.HtStatus.curr_ch_id;
+                packet.channel_name = parent.radio.currentChannelName;
+                parent.radio.TransmitTncData(packet); // Send to radio
+            }
+            catch (Exception ex)
+            {
+                OnDebugMessage($"TNC error sending UNPROTO frame to radio: {ex.Message}");
+            }
         }
 
         internal void RemoveClient(Guid clientId)

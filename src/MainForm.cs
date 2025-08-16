@@ -817,6 +817,9 @@ namespace HTCommander
                     AprsFile.Write(bytes, 0, bytes.Length);
                 }
                 if (frame.incoming == false) return;
+
+                // If the TNC server is enabled, broadcast the frame
+                if (tncserver != null) { tncserver.BroadcastFrame(frame); }
             }
 
             //DebugTrace("Packet: " + frame.ToHex());
