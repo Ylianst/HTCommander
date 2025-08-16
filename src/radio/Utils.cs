@@ -87,6 +87,19 @@ namespace HTCommander
             return Result.ToString();
         }
 
+        public static string BytesToHex(byte[] Bytes, int offset, int length)
+        {
+            if (Bytes == null) return "";
+            StringBuilder Result = new StringBuilder(length * 2);
+            string HexAlphabet = "0123456789ABCDEF";
+            for (int i = offset; i < length + offset; i++)
+            {
+                Result.Append(HexAlphabet[(int)(Bytes[i] >> 4)]);
+                Result.Append(HexAlphabet[(int)(Bytes[i] & 0xF)]);
+            }
+            return Result.ToString();
+        }
+
         public static byte[] HexStringToByteArray(string Hex)
         {
             byte[] Bytes = new byte[Hex.Length / 2];

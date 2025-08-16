@@ -82,6 +82,9 @@ namespace HTCommander
         public HttpsWebSocketServer webserver;
         public bool webServerEnabled = false;
         public int webServerPort = 8080;
+        public TncSocketServer tncserver;
+        public bool tncServerEnabled = false;
+        public int tncServerPort = 8000;
         public List<TerminalText> terminalTexts = new List<TerminalText>();
         public BBS bbs;
         public Torrent torrent;
@@ -462,6 +465,15 @@ namespace HTCommander
 
             // Setup all context menus
             mainAddressBookListView_SelectedIndexChanged(this, null);
+
+            // Setup the TNC server if configured
+            tncServerEnabled = (registry.ReadInt("tncServerEnabled", 0) != 0);
+            tncServerPort = (int)registry.ReadInt("tncServerPort", 0);
+            if (tncServerEnabled && (tncServerPort > 0))
+            {
+                tncserver = new TncSocketServer(this, tncServerPort);
+                tncserver.Start();
+            }
 
             // Setup the HTTP server if configured
             webServerEnabled = (registry.ReadInt("webServerEnabled", 0) != 0);
@@ -2252,6 +2264,8 @@ namespace HTCommander
                 settingsForm.WinlinkPassword = winlinkPassword;
                 settingsForm.WebServerEnabled = webServerEnabled;
                 settingsForm.WebServerPort = webServerPort;
+                settingsForm.TncServerEnabled = tncServerEnabled;
+                settingsForm.TncServerPort = tncServerPort;
                 settingsForm.VoiceLanguage = voiceLanguage;
                 settingsForm.VoiceModel = voiceModel;
                 settingsForm.Voice = voice;
@@ -2265,6 +2279,8 @@ namespace HTCommander
                     winlinkPassword = settingsForm.WinlinkPassword;
                     webServerEnabled = settingsForm.WebServerEnabled;
                     webServerPort = settingsForm.WebServerPort;
+                    tncServerEnabled = settingsForm.TncServerEnabled;
+                    tncServerPort = settingsForm.TncServerPort;
                     voiceLanguage = settingsForm.VoiceLanguage;
                     voiceModel = settingsForm.VoiceModel;
                     voice = settingsForm.Voice;
@@ -2273,6 +2289,8 @@ namespace HTCommander
                     registry.WriteInt("AllowTransmit", allowTransmit ? 1 : 0);
                     registry.WriteInt("webServerEnabled", webServerEnabled ? 1 : 0);
                     registry.WriteInt("webServerPort", webServerPort);
+                    registry.WriteInt("tncServerEnabled", tncServerEnabled ? 1 : 0);
+                    registry.WriteInt("tncServerPort", tncServerPort);
                     registry.WriteString("VoiceLanguage", voiceLanguage);
                     registry.WriteString("VoiceModel", voiceModel);
                     registry.WriteString("Voice", voice);
@@ -2290,6 +2308,11 @@ namespace HTCommander
                     if ((webserver != null) && (webserver.port != webServerPort)) { webserver.Stop(); webserver = null; }
                     if ((webServerEnabled == true) && (webserver == null)) { webserver = new HttpsWebSocketServer(this, webServerPort); webserver.Start(); }
                     toolStripMenuItem2.Visible = localWebSiteToolStripMenuItem.Visible = (webserver != null);
+
+                    // TNC Server
+                    if ((tncServerEnabled == false) && (tncserver != null)) { tncserver.Stop(); tncserver = null; }
+                    if ((tncserver != null) && (tncserver.Port != tncServerPort)) { tncserver.Stop(); tncserver = null; }
+                    if ((tncServerEnabled == true) && (tncserver == null)) { tncserver = new TncSocketServer(this, tncServerPort); tncserver.Start(); }
 
                     // Microphone
                     if (allowTransmit && (radio.State == RadioState.Connected)) { microphone.StartListening(); } else { microphone.StopListening(); }

@@ -80,7 +80,7 @@ namespace HTCommander
 
         public static bool CheckBluetooth()
         {
-            return (BluetoothRadio.Default != null);
+            try { return (BluetoothRadio.Default != null); } catch (Exception) { return false; }
         }
 
         public static async Task<string[]> GetDeviceNames()

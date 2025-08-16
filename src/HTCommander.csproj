@@ -354,6 +354,7 @@
     <Compile Include="TorrentBlocksUserControl.Designer.cs">
       <DependentUpon>TorrentBlocksUserControl.cs</DependentUpon>
     </Compile>
+    <Compile Include="TncServerClass.cs" />
     <Compile Include="WebServerClass.cs" />
     <Compile Include="WinlinkClient.cs" />
     <EmbeddedResource Include="AboutForm.resx">

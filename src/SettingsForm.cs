@@ -38,6 +38,8 @@ namespace HTCommander
         public string WinlinkPassword { get { return winlinkPasswordTextBox.Text; } set { winlinkPasswordTextBox.Text = value; } }
         public bool WebServerEnabled { get { return webServerEnabledCheckBox.Checked; } set { webServerEnabledCheckBox.Checked = value; } }
         public int WebServerPort { get { return (int)webPortNumericUpDown.Value; } set { if (value > 0) { webPortNumericUpDown.Value = value; } else { webPortNumericUpDown.Value = 8080; }; } }
+        public bool TncServerEnabled { get { return tncServerEnabledCheckBox.Checked; } set { tncServerEnabledCheckBox.Checked = value; } }
+        public int TncServerPort { get { return (int)tncPortNumericUpDown.Value; } set { if (value > 0) { tncPortNumericUpDown.Value = value; } else { tncPortNumericUpDown.Value = 8000; }; } }
 
         public string VoiceLanguage {
             get { Utils.ComboBoxItem selected = (Utils.ComboBoxItem)languageComboBox.SelectedItem; return selected.Value; }
@@ -213,6 +215,7 @@ namespace HTCommander
             allowTransmitCheckBox.Enabled = (callsignTextBox.Text.Length >= 3);
             if (allowTransmitCheckBox.Enabled == false) { allowTransmitCheckBox.Checked = false; }
             webPortNumericUpDown.Enabled = webServerEnabledCheckBox.Checked;
+            tncPortNumericUpDown.Enabled = tncServerEnabledCheckBox.Checked;
 
             if (callsignTextBox.Text.Length > 0)
             {
@@ -452,6 +455,11 @@ namespace HTCommander
             }
 
             return -1;
+        }
+
+        private void tncServerEnabledCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdateInfo();
         }
     }
 }
