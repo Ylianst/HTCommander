@@ -15,32 +15,107 @@ limitations under the License.
 */
 
 using System;
-using System.Collections.Concurrent;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Net.Sockets;
+using System.Linq;
+using System.Text;
 using System.Threading;
+using System.Net.Sockets;
 using System.Threading.Tasks;
-using System.Windows.Forms;
+using System.Collections.Concurrent;
 
 namespace HTCommander
 {
+    /// <summary>
+    /// Represents the 36-byte AGW PE API frame header.
+    /// </summary>
+    public class AgwpeFrame
+    {
+        public byte Port { get; set; }
+        public byte[] Reserved1 { get; set; } = new byte[3];
+        public byte DataKind { get; set; }
+        public byte Reserved2 { get; set; }
+        public byte PID { get; set; }
+        public byte Reserved3 { get; set; }
+        public string CallFrom { get; set; }
+        public string CallTo { get; set; }
+        public uint DataLen { get; set; }
+        public uint User { get; set; }
+        public byte[] Data { get; set; } = Array.Empty<byte>();
+
+        public static async Task<AgwpeFrame> ReadAsync(NetworkStream stream, CancellationToken ct)
+        {
+            byte[] header = new byte[36];
+            int read = 0;
+            while (read < header.Length)
+            {
+                int n = await stream.ReadAsync(header, read, header.Length - read, ct);
+                if (n == 0) throw new IOException("Disconnected");
+                read += n;
+            }
+
+            var frame = new AgwpeFrame
+            {
+                Port = header[0],
+                Reserved1 = header.Skip(1).Take(3).ToArray(),
+                DataKind = header[4],
+                Reserved2 = header[5],
+                PID = header[6],
+                Reserved3 = header[7],
+                CallFrom = Encoding.ASCII.GetString(header, 8, 10).TrimEnd('\0', ' '),
+                CallTo = Encoding.ASCII.GetString(header, 18, 10).TrimEnd('\0', ' '),
+                DataLen = BitConverter.ToUInt32(header, 28),
+                User = BitConverter.ToUInt32(header, 32)
+            };
+
+            if (frame.DataLen > 0)
+            {
+                frame.Data = new byte[frame.DataLen];
+                int offset = 0;
+                while (offset < frame.Data.Length)
+                {
+                    int n = await stream.ReadAsync(frame.Data, offset, (int)frame.DataLen - offset, ct);
+                    if (n == 0) throw new IOException("Disconnected before payload complete");
+                    offset += n;
+                }
+            }
+
+            return frame;
+        }
+
+        public byte[] ToBytes()
+        {
+            byte[] buffer = new byte[36 + (Data?.Length ?? 0)];
+            buffer[0] = Port;
+            Array.Copy(Reserved1, 0, buffer, 1, 3);
+            buffer[4] = DataKind;
+            buffer[5] = Reserved2;
+            buffer[6] = PID;
+            buffer[7] = Reserved3;
+
+            Encoding.ASCII.GetBytes((CallFrom ?? "").PadRight(10, '\0'), 0, 10, buffer, 8);
+            Encoding.ASCII.GetBytes((CallTo ?? "").PadRight(10, '\0'), 0, 10, buffer, 18);
+
+            BitConverter.GetBytes(Data?.Length ?? 0).CopyTo(buffer, 28);
+            BitConverter.GetBytes(User).CopyTo(buffer, 32);
+
+            if (Data != null && Data.Length > 0)
+                Array.Copy(Data, 0, buffer, 36, Data.Length);
+
+            return buffer;
+        }
+    }
+
+
     /// <summary>
     /// Manages the send/receive logic for a single connected TCP client.
     /// Handles message framing (4-byte length prefix) and queued sending.
     /// </summary>
     public class TcpClientHandler : IDisposable
     {
-        // KISS protocol special characters
-        private const byte FEND = 0xC0;  // Frame End
-        private const byte FESC = 0xDB;  // Frame Escape
-        private const byte TFEND = 0xDC; // Transposed Frame End
-        private const byte TFESC = 0xDD; // Transposed Frame Escape
-
         private readonly TcpClient _client;
         private readonly NetworkStream _stream;
-        private readonly TncSocketServer _server; // Reference to the parent server
+        private readonly TncSocketServer _server;
         private readonly ConcurrentQueue<byte[]> _sendQueue = new ConcurrentQueue<byte[]>();
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private readonly Task _sendTask;
@@ -48,6 +123,8 @@ namespace HTCommander
 
         public Guid Id { get; }
         public IPEndPoint EndPoint => (IPEndPoint)_client.Client.RemoteEndPoint;
+
+        public bool SendMonitoringFrames = false;
 
         public TcpClientHandler(TcpClient client, TncSocketServer server)
         {
@@ -62,7 +139,7 @@ namespace HTCommander
         }
 
         /// <summary>
-        /// Enqueues a raw data frame (pre-KISS-encoding) to be sent to this client.
+        /// Enqueues a message to be sent to this client.
         /// </summary>
         public void EnqueueSend(byte[] data)
         {
@@ -70,7 +147,7 @@ namespace HTCommander
         }
 
         /// <summary>
-        /// Encodes raw data into a KISS frame and sends it.
+        /// Processes the send queue, sending messages one by one.
         /// </summary>
         private async Task ProcessSendQueueAsync()
         {
@@ -80,20 +157,22 @@ namespace HTCommander
                 {
                     if (_sendQueue.TryDequeue(out var data))
                     {
-                        // Encode the raw data into a valid KISS frame with delimiters and escaping.
-                        byte[] kissFrame = EncodeKissFrame(data);
-
-                        // Write the KISS frame to the stream.
-                        await _stream.WriteAsync(kissFrame, 0, kissFrame.Length, _cts.Token);
+                        await _stream.WriteAsync(data, 0, data.Length, _cts.Token);
                     }
                     else
                     {
-                        // Wait a bit if the queue is empty to avoid busy-waiting.
                         await Task.Delay(50, _cts.Token);
                     }
                 }
-                catch (OperationCanceledException) { break; }
-                catch (IOException) { Disconnect(); break; }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (IOException)
+                {
+                    Disconnect();
+                    break;
+                }
                 catch (Exception ex)
                 {
                     _server.OnDebugMessage($"TNC error sending to {Id}: {ex.Message}");
@@ -104,152 +183,34 @@ namespace HTCommander
         }
 
         /// <summary>
-        /// Listens for incoming data, assembling and decoding KISS frames.
-        /// This handles partial frames received over multiple TCP packets.
+        /// Listens for incoming data from the client.
         /// </summary>
         private async Task ReceiveLoopAsync()
         {
-            // Buffer to hold data read from the stream.
-            var readBuffer = new byte[1024];
-            // Buffer to build a single KISS frame. Using MemoryStream for efficiency.
-            var frameBuffer = new MemoryStream();
-
             while (!_cts.Token.IsCancellationRequested)
             {
                 try
                 {
-                    int bytesRead = await _stream.ReadAsync(readBuffer, 0, readBuffer.Length, _cts.Token);
-                    if (bytesRead == 0)
-                    {
-                        // Client disconnected gracefully.
-                        break;
-                    }
+                    var frame = await AgwpeFrame.ReadAsync(_stream, _cts.Token);
 
-                    // 00000000580000004B4B37565A5400000000000000000000000000000000000000000000000000006D00000000000000000000000000000000000000000000000000000000000000000000004700000000000000000000000000000000000000000000000000000000000000
-                    _server.OnDebugMessage($"TNC data received: {Utils.BytesToHex(readBuffer, 0, bytesRead)}");
-
-                    // Process each byte received.
-                    for (int i = 0; i < bytesRead; i++)
-                    {
-                        byte currentByte = readBuffer[i];
-
-                        if (currentByte == FEND)
-                        {
-                            // A FEND byte signifies the end of a frame.
-                            // If the buffer has data, process it as a complete frame.
-                            if (frameBuffer.Length > 0)
-                            {
-                                ProcessKissFrame(frameBuffer.ToArray());
-                                // Reset the buffer for the next frame.
-                                frameBuffer.SetLength(0);
-                                frameBuffer.Position = 0;
-                            }
-                            // Multiple FENDs in a row are ignored (they are just delimiters).
-                        }
-                        else
-                        {
-                            // Not a delimiter, so add the byte to our frame buffer.
-                            frameBuffer.WriteByte(currentByte);
-                        }
-                    }
+                    _server.OnAgwpeFrameReceived(Id, frame);
                 }
-                catch (OperationCanceledException) { break; }
-                catch (IOException) { break; }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (IOException)
+                {
+                    break; // disconnected
+                }
                 catch (Exception ex)
                 {
                     _server.OnDebugMessage($"TNC error receiving from {Id}: {ex.Message}");
                     break;
                 }
             }
+
             Disconnect();
-        }
-
-        /// <summary>
-        /// Decodes a received KISS frame (un-escaping special characters)
-        /// and passes it to the server.
-        /// </summary>
-        /// <param name="frameData">The raw bytes received between FEND delimiters.</param>
-        private void ProcessKissFrame(byte[] frameData)
-        {
-            if (frameData == null || frameData.Length == 0) return;
-
-            var decodedFrame = new MemoryStream();
-            bool isEscaped = false;
-
-            foreach (byte b in frameData)
-            {
-                if (isEscaped)
-                {
-                    if (b == TFEND)
-                    {
-                        decodedFrame.WriteByte(FEND);
-                    }
-                    else if (b == TFESC)
-                    {
-                        decodedFrame.WriteByte(FESC);
-                    }
-                    // Any other byte following an escape is a protocol error,
-                    // but we can be lenient and just append it.
-                    else
-                    {
-                        // Optional: Log protocol error.
-                        // _server.OnDebugMessage($"KISS protocol error: Invalid escape sequence from {Id}");
-                        decodedFrame.WriteByte(b);
-                    }
-                    isEscaped = false;
-                }
-                else if (b == FESC)
-                {
-                    isEscaped = true;
-                }
-                else
-                {
-                    decodedFrame.WriteByte(b);
-                }
-            }
-
-            string hexMessage = Utils.BytesToHex(decodedFrame.ToArray());
-            _server.OnDebugMessage($"TNC frame received: {hexMessage}");
-
-            _server.OnMessageReceived(Id, decodedFrame.ToArray());
-        }
-
-        /// <summary>
-        /// Encodes a raw data packet into a KISS-compliant frame, adding delimiters
-        /// and escaping special characters.
-        /// </summary>
-        /// <param name="rawData">The raw command and data to be sent.</param>
-        /// <returns>A fully-formed KISS frame ready for transmission.</returns>
-        private byte[] EncodeKissFrame(byte[] rawData)
-        {
-            var encodedFrame = new MemoryStream();
-
-            // Start with a FEND delimiter.
-            encodedFrame.WriteByte(FEND);
-
-            // Add data, escaping special characters as needed.
-            foreach (byte b in rawData)
-            {
-                if (b == FEND)
-                {
-                    encodedFrame.WriteByte(FESC);
-                    encodedFrame.WriteByte(TFEND);
-                }
-                else if (b == FESC)
-                {
-                    encodedFrame.WriteByte(FESC);
-                    encodedFrame.WriteByte(TFESC);
-                }
-                else
-                {
-                    encodedFrame.WriteByte(b);
-                }
-            }
-
-            // End with a FEND delimiter.
-            encodedFrame.WriteByte(FEND);
-
-            return encodedFrame.ToArray();
         }
 
         /// <summary>
@@ -278,7 +239,6 @@ namespace HTCommander
     /// </summary>
     public class TncSocketServer
     {
-        // Events to communicate with the MainForm without a direct reference
         public event Action<Guid> ClientConnected;
         public event Action<Guid> ClientDisconnected;
         public event Action<Guid, byte[]> MessageReceived;
@@ -335,12 +295,8 @@ namespace HTCommander
                 OnDebugMessage($"TNC error waiting for server task: {ex.Message}");
             }
 
-            // Disconnect all clients
             var clientList = _clients.Values.ToList();
-            foreach (var client in clientList)
-            {
-                client.Dispose();
-            }
+            foreach (var client in clientList) { client.Dispose(); }
 
             _clients.Clear();
             _cts.Dispose();
@@ -373,11 +329,11 @@ namespace HTCommander
             }
             catch (SocketException ex) when (ex.SocketErrorCode == SocketError.Interrupted)
             {
-                // This is expected when _listener.Stop() is called.
+                // Expected when _listener.Stop() is called.
             }
             catch (OperationCanceledException)
             {
-                // This is expected when the cancellation token is triggered.
+                // Expected when the cancellation token is triggered.
             }
             catch (Exception ex)
             {
@@ -389,36 +345,217 @@ namespace HTCommander
             }
         }
 
-        /// <summary>
-        /// Broadcasts a message to all connected clients.
-        /// </summary>
         public void Broadcast(byte[] data)
         {
             foreach (var client in _clients.Values)
             {
-                client.EnqueueSend(data);
+                if (client.SendMonitoringFrames)
+                {
+                    // Only send to clients that want monitoring frames
+                    client.EnqueueSend(data);
+                }
             }
         }
 
         internal void OnDebugMessage(string message) { parent.Debug(message); }
 
+        /// <summary>
+        /// Handles the raw byte message received from a client and processes it as an AGW frame.
+        /// </summary>
         internal void OnMessageReceived(Guid clientId, byte[] message)
         {
-            if (message == null || message.Length == 0) { return; }
+            if (message == null || message.Length < 36)
+            {
+                OnDebugMessage("TNC Received an invalid or empty message.");
+                return;
+            }
 
-            MessageReceived?.Invoke(clientId, message);
+            try
+            {
+                // Parse directly into AgwpeFrame
+                // No Parse() method exists, use ReadAsync instead normally,
+                // but here we can just log that this path shouldn't be used anymore
+                OnDebugMessage("TNC OnMessageReceived should not be used directly with AGW frames.");
+            }
+            catch (Exception ex)
+            {
+                OnDebugMessage($"TNC Error parsing AGW frame: {ex.Message}");
+            }
+        }
 
-            string hexMessage = Utils.BytesToHex(message);
-            //string textMessage = Encoding.UTF8.GetString(message);
-            OnDebugMessage($"TNC received: {hexMessage}");
+        /// <summary>
+        /// Sends an AGW frame back to a specific client.
+        /// </summary>
+        private void SendToClient(Guid clientId, byte[] data)
+        {
+            if (_clients.TryGetValue(clientId, out var clientHandler))
+            {
+                clientHandler.EnqueueSend(data);
+                OnDebugMessage($"TNC sent AGW response to client {clientId}.");
+            }
+            else
+            {
+                OnDebugMessage($"TNC Failed to find client {clientId} to send response.");
+            }
+        }
 
-            // Example of parsing binary data, assuming you have a `Utils` class
-            // if (message.Length >= 4)
-            // {
-            //     int group = Utils.GetShort(message, 0);
-            //     int cmd = Utils.GetShort(message, 2);
-            //     _parent.radio.SendRawCommand(message);
-            // }
+        internal void OnAgwpeFrameReceived(Guid clientId, AgwpeFrame frame)
+        {
+            //OnDebugMessage($"TNC received frame: Kind={(char)frame.DataKind} From={frame.CallFrom} To={frame.CallTo} Len={frame.DataLen}");
+            ProcessAgwCommand(clientId, frame);
+        }
+
+        private void SendFrameToClient(Guid clientId, AgwpeFrame frame)
+        {
+            if (_clients.TryGetValue(clientId, out var client))
+            {
+                client.EnqueueSend(frame.ToBytes());
+            }
+        }
+
+        /// <summary>
+        /// Processes a parsed AGW command frame and returns a response.
+        /// This is the core logic for the TNC side of the API.
+        /// </summary>
+        internal void ProcessAgwCommand(Guid clientId, AgwpeFrame frame)
+        {
+            switch ((char)frame.DataKind)
+            {
+                case 'R': // Register application
+                    HandleRegister(clientId, frame);
+                    break;
+
+                case 'G': // Get channel info
+                    HandleGetChannel(clientId, frame);
+                    break;
+
+                case 'X': // Disconnect / un-register
+                    HandleUnregister(clientId, frame);
+                    break;
+
+                case 'D': // Data frame from app
+                    HandleDataFrame(clientId, frame);
+                    break;
+
+                case 'K': // Connect request
+                    HandleConnectRequest(clientId, frame);
+                    break;
+
+                case 'U': // UI (unproto) frame
+                    HandleUnproto(clientId, frame);
+                    break;
+
+                case 'm': // Toggle monitoring frames
+                    if (_clients.TryGetValue(clientId, out TcpClientHandler clientHandler))
+                    {
+                        clientHandler.SendMonitoringFrames = !clientHandler.SendMonitoringFrames;
+                        if (clientHandler.SendMonitoringFrames) OnDebugMessage($"TNC enable monitoring frames");
+                        else OnDebugMessage($"TNC disable monitoring frames");
+                    }
+                    break;
+                default:
+                    OnDebugMessage($"TNC unknown data kind '{(char)frame.DataKind}' (0x{frame.DataKind:X2})");
+                    break;
+            }
+        }
+        private void SendFrame(Guid clientId, AgwpeFrame frame)
+        {
+            if (_clients.TryGetValue(clientId, out var client))
+            {
+                client.EnqueueSend(frame.ToBytes());
+            }
+        }
+
+        // -----------------------------
+        // Handlers
+        // -----------------------------
+
+        private void HandleRegister(Guid clientId, AgwpeFrame frame)
+        {
+            OnDebugMessage($"TNC client registered, CallFrom={frame.CallFrom}");
+
+            // Example reply: echo back registration ok
+            var reply = new AgwpeFrame
+            {
+                Port = frame.Port,
+                DataKind = (byte)'R',
+                CallFrom = frame.CallFrom,
+                CallTo = "AGWPE",
+                Data = Array.Empty<byte>()
+            };
+            SendFrame(clientId, reply);
+        }
+
+        private void HandleGetChannel(Guid clientId, AgwpeFrame frame)
+        {
+            OnDebugMessage($"TNC client requested channel info");
+
+            // Example reply with dummy values
+            var channelInfo = Encoding.ASCII.GetBytes("CH1: Dummy TNC\r\n");
+            var reply = new AgwpeFrame
+            {
+                Port = frame.Port,
+                DataKind = (byte)'G',
+                CallFrom = "AGWPE",
+                CallTo = frame.CallFrom,
+                Data = channelInfo
+            };
+            SendFrame(clientId, reply);
+        }
+
+        private void HandleUnregister(Guid clientId, AgwpeFrame frame)
+        {
+            OnDebugMessage($"TNC client unregistered.");
+            // Optionally disconnect them
+            //if (_clients.TryGetValue(clientId, out var client)) { client.Disconnect(); }
+        }
+
+        private void HandleDataFrame(Guid clientId, AgwpeFrame frame)
+        {
+            OnDebugMessage($"TNC data frame from {frame.CallFrom} to {frame.CallTo}, {frame.DataLen} bytes.");
+
+            // Echo back as an example
+            var reply = new AgwpeFrame
+            {
+                Port = frame.Port,
+                DataKind = (byte)'d', // response data frame
+                CallFrom = frame.CallTo,
+                CallTo = frame.CallFrom,
+                Data = frame.Data
+            };
+            SendFrame(clientId, reply);
+        }
+
+        private void HandleConnectRequest(Guid clientId, AgwpeFrame frame)
+        {
+            OnDebugMessage($"TNC connect request from {frame.CallFrom} to {frame.CallTo}");
+
+            // Example: always accept
+            var reply = new AgwpeFrame
+            {
+                Port = frame.Port,
+                DataKind = (byte)'C', // Connect accepted
+                CallFrom = frame.CallTo,
+                CallTo = frame.CallFrom,
+                Data = Array.Empty<byte>()
+            };
+            SendFrame(clientId, reply);
+        }
+
+        private void HandleUnproto(Guid clientId, AgwpeFrame frame)
+        {
+            OnDebugMessage($"TNC UI frame from {frame.CallFrom} to {frame.CallTo}, {frame.DataLen} bytes");
+
+            // Example: broadcast to all clients
+            var broadcast = new AgwpeFrame
+            {
+                Port = frame.Port,
+                DataKind = (byte)'U',
+                CallFrom = frame.CallFrom,
+                CallTo = frame.CallTo,
+                Data = frame.Data
+            };
+            Broadcast(broadcast.ToBytes());
         }
 
         internal void RemoveClient(Guid clientId)
@@ -427,7 +564,6 @@ namespace HTCommander
             {
                 OnDebugMessage($"TNC client disconnected: {clientId}");
                 ClientDisconnected?.Invoke(clientId);
-                // The handler's Dispose method will be called, cleaning up the TcpClient
             }
         }
     }
