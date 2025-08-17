@@ -3316,8 +3316,11 @@ namespace HTCommander
                 return false;
             }
 
-            session.CallSignOverride = null;
-            session.StationIdOverride = -1;
+            if (station.StationType != StationInfoClass.StationTypes.AGWPE)
+            {
+                session.CallSignOverride = null;
+                session.StationIdOverride = -1;
+            }
             activeStationLock = station;
             activeChannelIdLock = channelIdLock;
 
@@ -3334,7 +3337,7 @@ namespace HTCommander
             {
                 List<AX25Address> addresses = new List<AX25Address>();
                 addresses.Add(AX25Address.GetAddress(station.Callsign));
-                addresses.Add(AX25Address.GetAddress(callsign, stationId));
+                addresses.Add(AX25Address.GetAddress(session.SessionCallsign, session.SessionStationId));
                 session.Connect(addresses);
             }
 

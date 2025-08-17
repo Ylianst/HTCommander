@@ -623,6 +623,11 @@ namespace HTCommander
                         SessionFrom = frame.CallFrom;
                         SessionTo = frame.CallTo;
 
+                        // Override the source station ID
+                        AX25Address addr = AX25Address.GetAddress(SessionFrom);
+                        parent.session.CallSignOverride = addr.address;
+                        parent.session.StationIdOverride = addr.SSID;
+
                         // Lock the station to the current channel
                         StationInfoClass station = new StationInfoClass();
                         station.StationType = StationInfoClass.StationTypes.AGWPE;
