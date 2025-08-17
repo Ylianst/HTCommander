@@ -425,7 +425,7 @@ namespace HTCommander
 
         internal void OnAgwpeFrameReceived(Guid clientId, AgwpeFrame frame)
         {
-            //OnDebugMessage($"AGWPE received frame: Kind={(char)frame.DataKind} From={frame.CallFrom} To={frame.CallTo} Len={frame.DataLen}");
+            OnDebugMessage($"AGWPE received frame: Kind={(char)frame.DataKind} From={frame.CallFrom} To={frame.CallTo} Len={frame.DataLen}");
             ProcessAgwCommand(clientId, frame);
         }
 
@@ -489,28 +489,57 @@ namespace HTCommander
         {
             switch ((char)frame.DataKind)
             {
-                case 'R': // Register application
+                case 'G': // Get channel info
                     {
-                        if (!string.IsNullOrWhiteSpace(frame.CallFrom))
+                        OnDebugMessage($"AGWPE client requested channel info");
+
+                        // Example reply with dummy values
+                        var channelInfo = Encoding.UTF8.GetBytes("1;Port1 Handi-Talky Commander;");
+                        var reply = new AgwpeFrame
                         {
-                            var set = _registeredCallsigns.GetOrAdd(clientId, _ => new HashSet<string>());
-                            lock (set) { set.Add(frame.CallFrom); }
-                            OnDebugMessage($"AGWPE client {clientId} registered callsign '{frame.CallFrom}'");
-                        }
-                        else
-                        {
-                            OnDebugMessage($"AGWPE client {clientId} sent empty registration callsign.");
-                        }
+                            DataKind = (byte)'G',
+                            Data = channelInfo
+                        };
+                        SendFrame(clientId, reply);
                     }
                     break;
-                case 'X': // Disconnect / un-register
+                case 'X': // Register application
+                    {
+                        bool success = false;
+                        if (!string.IsNullOrWhiteSpace(frame.CallFrom))
+                        {
+                            Guid? cid = GetClientIdByCallsign(frame.CallFrom);
+                            if ((cid == null) || (cid == Guid.Empty))
+                            {
+                                var set = _registeredCallsigns.GetOrAdd(clientId, _ => new HashSet<string>());
+                                lock (set) { set.Add(frame.CallFrom); }
+                                OnDebugMessage($"AGWPE client registered callsign '{frame.CallFrom}'");
+                                success = true;
+                            }
+                        }
+                        
+                        // Return confirmation
+                        byte[] data = new byte[1];
+                        data[0] = (byte)(success ? 1 : 0);
+                        AgwpeFrame aframe = new AgwpeFrame()
+                        {
+                            Port = frame.Port,
+                            DataKind = (byte)'X', // Register application
+                            CallFrom = frame.CallFrom,
+                            DataLen = (uint)data.Length,
+                            Data = data
+                        };
+                        SendFrame(clientId, aframe);
+                    }
+                    break;
+                case 'x': // Disconnect / un-register
                     {
                         if (!string.IsNullOrWhiteSpace(frame.CallFrom))
                         {
                             if (_registeredCallsigns.TryGetValue(clientId, out var set))
                             {
                                 lock (set) { set.Remove(frame.CallFrom); }
-                                OnDebugMessage($"AGWPE client {clientId} unregistered callsign '{frame.CallFrom}'");
+                                OnDebugMessage($"AGWPE client unregistered callsign '{frame.CallFrom}'");
                             }
                         }
                     }
@@ -524,15 +553,6 @@ namespace HTCommander
                         }
                     }
                     break;
-
-                case 'K': // Connect request
-                    //HandleConnectRequest(clientId, frame);
-                    break;
-
-                case 'U': // UI (unproto) frame
-                    //HandleUnproto(clientId, frame);
-                    break;
-
                 case 'M': // Send UNPROTO Information (from client to radio)
                     {
                         OnDebugMessage($"AGWPE M frame (Send UNPROTO) from {frame.CallFrom} to {frame.CallTo}, {frame.DataLen} bytes");
@@ -564,7 +584,6 @@ namespace HTCommander
                         SendFrame(clientId, aframe);
                     }
                     break;
-
                 case 'C': // AX25 Session Connect Request
                     {
                         OnDebugMessage($"AGWPE session connect request.");
@@ -577,8 +596,8 @@ namespace HTCommander
                             {
                                 Port = frame.Port,
                                 DataKind = (byte)'d', // disconnect
-                                CallFrom = frame.CallFrom,
-                                CallTo = frame.CallTo
+                                CallFrom = frame.CallTo,
+                                CallTo = frame.CallFrom
                             };
                             SendFrame(clientId, reply);
                             return;
@@ -641,6 +660,22 @@ namespace HTCommander
             {
                 client.EnqueueSend(frame.ToBytes());
             }
+        }
+
+        /// <summary>
+        /// Returns the clientId for a registered callsign, or null if not found.
+        /// </summary>
+        public Guid? GetClientIdByCallsign(string callsign)
+        {
+            foreach (var kvp in _registeredCallsigns)
+            {
+                lock (kvp.Value)
+                {
+                    if (kvp.Value.Contains(callsign))
+                        return kvp.Key;
+                }
+            }
+            return null;
         }
 
         internal void RemoveClient(Guid clientId)
