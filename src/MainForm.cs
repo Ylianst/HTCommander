@@ -684,6 +684,23 @@ namespace HTCommander
                 winlinkClient.ProcessStreamState(session, state);
                 if (state == AX25Session.ConnectionState.DISCONNECTED) { ActiveLockToStation(null); }
             }
+            else if ((tncserver != null) && (activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.TNC))
+            {
+                switch (state)
+                {
+                    case AX25Session.ConnectionState.CONNECTING:
+                        break;
+                    case AX25Session.ConnectionState.CONNECTED:
+                        tncserver.SendSessionConnectToClient(activeStationLock.TncClientId);
+                        break;
+                    case AX25Session.ConnectionState.DISCONNECTING:
+                        tncserver.SendSessionDisconnectToClient(activeStationLock.TncClientId);
+                        break;
+                    case AX25Session.ConnectionState.DISCONNECTED:
+                        tncserver.SendSessionDisconnectToClient(activeStationLock.TncClientId);
+                        break;
+                }
+            }
         }
         private void Session_DataReceivedEvent(AX25Session sender, byte[] data)
         {
@@ -706,6 +723,10 @@ namespace HTCommander
                 else if (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink)
                 {
                     winlinkClient.ProcessStream(session, data);
+                }
+                else if ((tncserver != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.TNC))
+                {
+                    tncserver.SendSessionDataToClient(activeStationLock.TncClientId, data);
                 }
             }
         }
@@ -949,6 +970,14 @@ namespace HTCommander
                         return;
                     }
                 }
+                if (activeStationLock.StationType == StationInfoClass.StationTypes.TNC)
+                {
+                    if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.X25Session) {
+                        AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
+                        if ((p != null) && (p.addresses[0].CallSignWithId == callsign + "-" + stationId)) { session.Receive(p); }
+                        return;
+                    }
+                }
             }
 
             // If this is a AX.25 disconnection frame sent at us and we are already not connected, just ack
@@ -1179,6 +1208,7 @@ namespace HTCommander
                         else if (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink) { vfo1StatusLabel.Text = "WinLink"; }
                         else if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS) { vfo1StatusLabel.Text = "BBS"; }
                         else if (activeStationLock.StationType == StationInfoClass.StationTypes.Torrent) { vfo1StatusLabel.Text = "Torrent"; }
+                        else if (activeStationLock.StationType == StationInfoClass.StationTypes.TNC) { vfo1StatusLabel.Text = "TNC"; }
                     }
                 }
                 else
@@ -3205,10 +3235,12 @@ namespace HTCommander
 
         public bool ActiveLockToStation(StationInfoClass station, int channelIdLock = -1)
         {
+            if (this.InvokeRequired) { return (bool)this.Invoke(new Func<StationInfoClass, int, bool>(ActiveLockToStation), station, channelIdLock); }
+
             if (station == null)
             {
                 radio.SetNextFreeChannelTime(DateTime.MaxValue);
-                if (session.CurrentState != AX25Session.ConnectionState.DISCONNECTED)
+                if (session.CurrentState == AX25Session.ConnectionState.CONNECTED)
                 {
                     session.Disconnect();
                     return false;

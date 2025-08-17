@@ -29,7 +29,8 @@ namespace HTCommander
             Terminal = 2,
             BBS = 3,
             Winlink = 4,
-            Torrent = 5
+            Torrent = 5,
+            TNC = 6
         }
 
         public enum TerminalProtocols : int
@@ -50,6 +51,8 @@ namespace HTCommander
         public string AX25Destination { get; set; }
         public bool WaitForConnection { get; set; }
         public string AuthPassword { get; set; }
+
+        public Guid TncClientId = Guid.Empty; // Used for TNC client connections
 
         public string CallsignNoZero
         {
