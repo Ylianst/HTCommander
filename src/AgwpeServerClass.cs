@@ -119,7 +119,7 @@ namespace HTCommander
     {
         private readonly TcpClient _client;
         private readonly NetworkStream _stream;
-        private readonly TncSocketServer _server;
+        private readonly AgwpeSocketServer _server;
         private readonly ConcurrentQueue<byte[]> _sendQueue = new ConcurrentQueue<byte[]>();
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private readonly Task _sendTask;
@@ -130,7 +130,7 @@ namespace HTCommander
 
         public bool SendMonitoringFrames = false;
 
-        public TcpClientHandler(TcpClient client, TncSocketServer server)
+        public TcpClientHandler(TcpClient client, AgwpeSocketServer server)
         {
             Id = Guid.NewGuid();
             _client = client;
@@ -179,7 +179,7 @@ namespace HTCommander
                 }
                 catch (Exception ex)
                 {
-                    _server.OnDebugMessage($"TNC error sending to {Id}: {ex.Message}");
+                    _server.OnDebugMessage($"AGWPE error sending to {Id}: {ex.Message}");
                     Disconnect();
                     break;
                 }
@@ -209,7 +209,7 @@ namespace HTCommander
                 }
                 catch (Exception ex)
                 {
-                    _server.OnDebugMessage($"TNC error receiving from {Id}: {ex.Message}");
+                    _server.OnDebugMessage($"AGWPE error receiving from {Id}: {ex.Message}");
                     break;
                 }
             }
@@ -241,7 +241,7 @@ namespace HTCommander
     /// <summary>
     /// A TCP server that listens for clients, manages connections, and broadcasts messages.
     /// </summary>
-    public class TncSocketServer
+    public class AgwpeSocketServer
     {
         public event Action<Guid> ClientConnected;
         public event Action<Guid> ClientDisconnected;
@@ -258,7 +258,7 @@ namespace HTCommander
 
         public int Port { get; }
 
-        public TncSocketServer(MainForm parent, int port)
+        public AgwpeSocketServer(MainForm parent, int port)
         {
             this.parent = parent;
             Port = port;
@@ -269,11 +269,11 @@ namespace HTCommander
         {
             if (_serverTask != null && !_serverTask.IsCompleted)
             {
-                OnDebugMessage("TNC server is already running.");
+                OnDebugMessage("AGWPE server is already running.");
                 return;
             }
 
-            OnDebugMessage("TNC server starting...");
+            OnDebugMessage("AGWPE server starting...");
             _cts = new CancellationTokenSource();
             _listener.Start();
             _serverTask = Task.Run(() => AcceptClientsAsync(_cts.Token), _cts.Token);
@@ -283,7 +283,7 @@ namespace HTCommander
         {
             if (_cts == null)
             {
-                OnDebugMessage("TNC server is not running.");
+                OnDebugMessage("AGWPE server is not running.");
                 return;
             }
 
@@ -298,7 +298,7 @@ namespace HTCommander
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                OnDebugMessage($"TNC error waiting for server task: {ex.Message}");
+                OnDebugMessage($"AGWPE error waiting for server task: {ex.Message}");
             }
 
             var clientList = _clients.Values.ToList();
@@ -308,12 +308,12 @@ namespace HTCommander
             _cts.Dispose();
             _cts = null;
             _serverTask = null;
-            OnDebugMessage("TNC server stopped.");
+            OnDebugMessage("AGWPE server stopped.");
         }
 
         private async Task AcceptClientsAsync(CancellationToken cancellationToken)
         {
-            OnDebugMessage($"TNC server started on port {Port}.");
+            OnDebugMessage($"AGWPE server started on port {Port}.");
             try
             {
                 while (!cancellationToken.IsCancellationRequested)
@@ -324,11 +324,11 @@ namespace HTCommander
                     if (_clients.TryAdd(clientHandler.Id, clientHandler))
                     {
                         ClientConnected?.Invoke(clientHandler.Id);
-                        OnDebugMessage($"TNC client connected: {clientHandler.EndPoint}");
+                        OnDebugMessage($"AGWPE client connected: {clientHandler.EndPoint}");
                     }
                     else
                     {
-                        OnDebugMessage($"TNC failed to add client.");
+                        OnDebugMessage($"AGWPE failed to add client.");
                         client.Close();
                     }
                 }
@@ -343,11 +343,11 @@ namespace HTCommander
             }
             catch (Exception ex)
             {
-                OnDebugMessage($"TNC Server accept loop error: {ex.Message}");
+                OnDebugMessage($"AGWPE Server accept loop error: {ex.Message}");
             }
             finally
             {
-                OnDebugMessage("TNC Server is no longer accepting new clients.");
+                OnDebugMessage("AGWPE Server is no longer accepting new clients.");
             }
         }
 
@@ -388,7 +388,7 @@ namespace HTCommander
         {
             if (message == null || message.Length < 36)
             {
-                OnDebugMessage("TNC Received an invalid or empty message.");
+                OnDebugMessage("AGWPE Received an invalid or empty message.");
                 return;
             }
 
@@ -397,11 +397,11 @@ namespace HTCommander
                 // Parse directly into AgwpeFrame
                 // No Parse() method exists, use ReadAsync instead normally,
                 // but here we can just log that this path shouldn't be used anymore
-                OnDebugMessage("TNC OnMessageReceived should not be used directly with AGW frames.");
+                OnDebugMessage("AGWPE OnMessageReceived should not be used directly with AGW frames.");
             }
             catch (Exception ex)
             {
-                OnDebugMessage($"TNC Error parsing AGW frame: {ex.Message}");
+                OnDebugMessage($"AGWPE Error parsing AGW frame: {ex.Message}");
             }
         }
 
@@ -413,17 +413,17 @@ namespace HTCommander
             if (_clients.TryGetValue(clientId, out var clientHandler))
             {
                 clientHandler.EnqueueSend(data);
-                OnDebugMessage($"TNC sent AGW response to client {clientId}.");
+                OnDebugMessage($"AGWPE sent AGW response to client {clientId}.");
             }
             else
             {
-                OnDebugMessage($"TNC Failed to find client {clientId} to send response.");
+                OnDebugMessage($"AGWPE Failed to find client {clientId} to send response.");
             }
         }
 
         internal void OnAgwpeFrameReceived(Guid clientId, AgwpeFrame frame)
         {
-            //OnDebugMessage($"TNC received frame: Kind={(char)frame.DataKind} From={frame.CallFrom} To={frame.CallTo} Len={frame.DataLen}");
+            //OnDebugMessage($"AGWPE received frame: Kind={(char)frame.DataKind} From={frame.CallFrom} To={frame.CallTo} Len={frame.DataLen}");
             ProcessAgwCommand(clientId, frame);
         }
 
@@ -493,7 +493,7 @@ namespace HTCommander
 
                 case 'G': // Get channel info
                     {
-                        OnDebugMessage($"TNC client requested channel info");
+                        OnDebugMessage($"AGWPE client requested channel info");
 
                         // Example reply with dummy values
                         var channelInfo = Encoding.UTF8.GetBytes("1;Port1 Handi-Talky Commander;");
@@ -507,14 +507,14 @@ namespace HTCommander
                     break;
 
                 case 'X': // Disconnect / un-register
-                    OnDebugMessage($"TNC client unregistered.");
+                    OnDebugMessage($"AGWPE client unregistered.");
                     break;
 
                 case 'D': // Data frame from app
                     {
-                        if ((parent.radio.State == Radio.RadioState.Connected) && (parent.activeStationLock != null) && (parent.activeStationLock.StationType == StationInfoClass.StationTypes.TNC) && (parent.session.CurrentState == AX25Session.ConnectionState.CONNECTED))
+                        if ((parent.radio.State == Radio.RadioState.Connected) && (parent.activeStationLock != null) && (parent.activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE) && (parent.session.CurrentState == AX25Session.ConnectionState.CONNECTED))
                         {
-                            OnDebugMessage($"TNC data frame from {frame.CallFrom} to {frame.CallTo}, {frame.DataLen} bytes.");
+                            OnDebugMessage($"AGWPE data frame from {frame.CallFrom} to {frame.CallTo}, {frame.DataLen} bytes.");
                             parent.session.Send(frame.Data);
                         }
                     }
@@ -530,7 +530,7 @@ namespace HTCommander
 
                 case 'M': // Send UNPROTO Information (from client to radio)
                     {
-                        OnDebugMessage($"TNC M frame (Send UNPROTO) from {frame.CallFrom} to {frame.CallTo}, {frame.DataLen} bytes");
+                        OnDebugMessage($"AGWPE M frame (Send UNPROTO) from {frame.CallFrom} to {frame.CallTo}, {frame.DataLen} bytes");
                         if (parent.radio.State != Radio.RadioState.Connected) return;
                         // Construct AX25Packet for UNPROTO (UI) frame
                         var addresses = new System.Collections.Generic.List<AX25Address>
@@ -562,11 +562,11 @@ namespace HTCommander
 
                 case 'C': // AX25 Session Connect Request
                     {
-                        OnDebugMessage($"TNC session connect request.");
+                        OnDebugMessage($"AGWPE session connect request.");
 
                         if ((parent.radio.State != Radio.RadioState.Connected) || (parent.activeStationLock != null))
                         {
-                            OnDebugMessage($"TNC cannot connect, radio is not connected or busy.");
+                            OnDebugMessage($"AGWPE cannot connect, radio is not connected or busy.");
                             // Disconnect
                             var reply = new AgwpeFrame
                             {
@@ -585,19 +585,19 @@ namespace HTCommander
 
                         // Lock the station to the current channel
                         StationInfoClass station = new StationInfoClass();
-                        station.StationType = StationInfoClass.StationTypes.TNC;
+                        station.StationType = StationInfoClass.StationTypes.AGWPE;
                         station.TerminalProtocol = StationInfoClass.TerminalProtocols.X25Session;
                         station.Callsign = frame.CallTo;
-                        station.TncClientId = clientId; // Associate with this TNC client
+                        station.AgwpeClientId = clientId; // Associate with this TNC client
                         parent.ActiveLockToStation(station, parent.radio.Settings.channel_a);
                         break;
                     }
                 case 'd': // AX25 Session Disconnect Request
                     {
-                        OnDebugMessage($"TNC session disconnect request.");
+                        OnDebugMessage($"AGWPE session disconnect request.");
 
                         // Release the station lock
-                        if ((parent.activeStationLock != null) && (parent.activeStationLock.StationType == StationInfoClass.StationTypes.TNC) && (parent.activeStationLock.TncClientId == clientId))
+                        if ((parent.activeStationLock != null) && (parent.activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE) && (parent.activeStationLock.AgwpeClientId == clientId))
                         {
                             // This will also disconnect any AX25 session.
                             parent.ActiveLockToStation(null, -1);
@@ -619,13 +619,13 @@ namespace HTCommander
                         if (_clients.TryGetValue(clientId, out TcpClientHandler clientHandler))
                         {
                             clientHandler.SendMonitoringFrames = !clientHandler.SendMonitoringFrames;
-                            if (clientHandler.SendMonitoringFrames) OnDebugMessage($"TNC enable monitoring frames");
-                            else OnDebugMessage($"TNC disable monitoring frames");
+                            if (clientHandler.SendMonitoringFrames) OnDebugMessage($"AGWPE enable monitoring frames");
+                            else OnDebugMessage($"AGWPE disable monitoring frames");
                         }
                         break;
                     }
                 default:
-                    OnDebugMessage($"TNC unknown data kind '{(char)frame.DataKind}' (0x{frame.DataKind:X2})");
+                    OnDebugMessage($"AGWPE unknown data kind '{(char)frame.DataKind}' (0x{frame.DataKind:X2})");
                     break;
             }
         }
@@ -642,7 +642,7 @@ namespace HTCommander
         {
             if (_clients.TryRemove(clientId, out var clientHandler))
             {
-                OnDebugMessage($"TNC client disconnected: {clientId}");
+                OnDebugMessage($"AGWPE client disconnected: {clientId}");
                 ClientDisconnected?.Invoke(clientId);
             }
         }

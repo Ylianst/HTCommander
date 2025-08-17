@@ -82,9 +82,9 @@ namespace HTCommander
         public HttpsWebSocketServer webserver;
         public bool webServerEnabled = false;
         public int webServerPort = 8080;
-        public TncSocketServer tncserver;
-        public bool tncServerEnabled = false;
-        public int tncServerPort = 8000;
+        public AgwpeSocketServer agwpeServer;
+        public bool agwpeServerEnabled = false;
+        public int agwpeServerPort = 8000;
         public List<TerminalText> terminalTexts = new List<TerminalText>();
         public BBS bbs;
         public Torrent torrent;
@@ -467,12 +467,12 @@ namespace HTCommander
             mainAddressBookListView_SelectedIndexChanged(this, null);
 
             // Setup the TNC server if configured
-            tncServerEnabled = (registry.ReadInt("tncServerEnabled", 0) != 0);
-            tncServerPort = (int)registry.ReadInt("tncServerPort", 0);
-            if (tncServerEnabled && (tncServerPort > 0))
+            agwpeServerEnabled = (registry.ReadInt("agwpeServerEnabled", 0) != 0);
+            agwpeServerPort = (int)registry.ReadInt("agwpeServerPort", 0);
+            if (agwpeServerEnabled && (agwpeServerPort > 0))
             {
-                tncserver = new TncSocketServer(this, tncServerPort);
-                tncserver.Start();
+                agwpeServer = new AgwpeSocketServer(this, agwpeServerPort);
+                agwpeServer.Start();
             }
 
             // Setup the HTTP server if configured
@@ -684,20 +684,20 @@ namespace HTCommander
                 winlinkClient.ProcessStreamState(session, state);
                 if (state == AX25Session.ConnectionState.DISCONNECTED) { ActiveLockToStation(null); }
             }
-            else if ((tncserver != null) && (activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.TNC))
+            else if ((agwpeServer != null) && (activeStationLock != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE))
             {
                 switch (state)
                 {
                     case AX25Session.ConnectionState.CONNECTING:
                         break;
                     case AX25Session.ConnectionState.CONNECTED:
-                        tncserver.SendSessionConnectToClient(activeStationLock.TncClientId);
+                        agwpeServer.SendSessionConnectToClient(activeStationLock.AgwpeClientId);
                         break;
                     case AX25Session.ConnectionState.DISCONNECTING:
-                        tncserver.SendSessionDisconnectToClient(activeStationLock.TncClientId);
+                        agwpeServer.SendSessionDisconnectToClient(activeStationLock.AgwpeClientId);
                         break;
                     case AX25Session.ConnectionState.DISCONNECTED:
-                        tncserver.SendSessionDisconnectToClient(activeStationLock.TncClientId);
+                        agwpeServer.SendSessionDisconnectToClient(activeStationLock.AgwpeClientId);
                         ActiveLockToStation(null, -1);
                         break;
                 }
@@ -725,9 +725,9 @@ namespace HTCommander
                 {
                     winlinkClient.ProcessStream(session, data);
                 }
-                else if ((tncserver != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.TNC))
+                else if ((agwpeServer != null) && (activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE))
                 {
-                    tncserver.SendSessionDataToClient(activeStationLock.TncClientId, data);
+                    agwpeServer.SendSessionDataToClient(activeStationLock.AgwpeClientId, data);
                 }
             }
         }
@@ -841,7 +841,7 @@ namespace HTCommander
                 if (frame.incoming == false) return;
 
                 // If the TNC server is enabled, broadcast the frame
-                if (tncserver != null) { tncserver.BroadcastFrame(frame); }
+                if (agwpeServer != null) { agwpeServer.BroadcastFrame(frame); }
             }
 
             //DebugTrace("Packet: " + frame.ToHex());
@@ -971,7 +971,7 @@ namespace HTCommander
                         return;
                     }
                 }
-                if (activeStationLock.StationType == StationInfoClass.StationTypes.TNC)
+                if (activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE)
                 {
                     if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.X25Session) {
                         AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
@@ -1209,7 +1209,7 @@ namespace HTCommander
                         else if (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink) { vfo1StatusLabel.Text = "WinLink"; }
                         else if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS) { vfo1StatusLabel.Text = "BBS"; }
                         else if (activeStationLock.StationType == StationInfoClass.StationTypes.Torrent) { vfo1StatusLabel.Text = "Torrent"; }
-                        else if (activeStationLock.StationType == StationInfoClass.StationTypes.TNC) { vfo1StatusLabel.Text = "TNC"; }
+                        else if (activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE) { vfo1StatusLabel.Text = "AGWPE"; }
                     }
                 }
                 else
@@ -2298,8 +2298,8 @@ namespace HTCommander
                 settingsForm.WinlinkPassword = winlinkPassword;
                 settingsForm.WebServerEnabled = webServerEnabled;
                 settingsForm.WebServerPort = webServerPort;
-                settingsForm.TncServerEnabled = tncServerEnabled;
-                settingsForm.TncServerPort = tncServerPort;
+                settingsForm.AgwpeServerEnabled = agwpeServerEnabled;
+                settingsForm.AgwpeServerPort = agwpeServerPort;
                 settingsForm.VoiceLanguage = voiceLanguage;
                 settingsForm.VoiceModel = voiceModel;
                 settingsForm.Voice = voice;
@@ -2313,8 +2313,8 @@ namespace HTCommander
                     winlinkPassword = settingsForm.WinlinkPassword;
                     webServerEnabled = settingsForm.WebServerEnabled;
                     webServerPort = settingsForm.WebServerPort;
-                    tncServerEnabled = settingsForm.TncServerEnabled;
-                    tncServerPort = settingsForm.TncServerPort;
+                    agwpeServerEnabled = settingsForm.AgwpeServerEnabled;
+                    agwpeServerPort = settingsForm.AgwpeServerPort;
                     voiceLanguage = settingsForm.VoiceLanguage;
                     voiceModel = settingsForm.VoiceModel;
                     voice = settingsForm.Voice;
@@ -2323,8 +2323,8 @@ namespace HTCommander
                     registry.WriteInt("AllowTransmit", allowTransmit ? 1 : 0);
                     registry.WriteInt("webServerEnabled", webServerEnabled ? 1 : 0);
                     registry.WriteInt("webServerPort", webServerPort);
-                    registry.WriteInt("tncServerEnabled", tncServerEnabled ? 1 : 0);
-                    registry.WriteInt("tncServerPort", tncServerPort);
+                    registry.WriteInt("agwpeServerEnabled", agwpeServerEnabled ? 1 : 0);
+                    registry.WriteInt("agwpeServerPort", agwpeServerPort);
                     registry.WriteString("VoiceLanguage", voiceLanguage);
                     registry.WriteString("VoiceModel", voiceModel);
                     registry.WriteString("Voice", voice);
@@ -2344,9 +2344,9 @@ namespace HTCommander
                     toolStripMenuItem2.Visible = localWebSiteToolStripMenuItem.Visible = (webserver != null);
 
                     // TNC Server
-                    if ((tncServerEnabled == false) && (tncserver != null)) { tncserver.Stop(); tncserver = null; }
-                    if ((tncserver != null) && (tncserver.Port != tncServerPort)) { tncserver.Stop(); tncserver = null; }
-                    if ((tncServerEnabled == true) && (tncserver == null)) { tncserver = new TncSocketServer(this, tncServerPort); tncserver.Start(); }
+                    if ((agwpeServerEnabled == false) && (agwpeServer != null)) { agwpeServer.Stop(); agwpeServer = null; }
+                    if ((agwpeServer != null) && (agwpeServer.Port != agwpeServerPort)) { agwpeServer.Stop(); agwpeServer = null; }
+                    if ((agwpeServerEnabled == true) && (agwpeServer == null)) { agwpeServer = new AgwpeSocketServer(this, agwpeServerPort); agwpeServer.Start(); }
 
                     // Microphone
                     if (allowTransmit && (radio.State == RadioState.Connected)) { microphone.StartListening(); } else { microphone.StopListening(); }

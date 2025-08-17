@@ -75,6 +75,10 @@
             this.label9 = new System.Windows.Forms.Label();
             this.pictureBox4 = new System.Windows.Forms.PictureBox();
             this.webServerTabPage = new System.Windows.Forms.TabPage();
+            this.groupBox7 = new System.Windows.Forms.GroupBox();
+            this.agwpePortNumericUpDown = new System.Windows.Forms.NumericUpDown();
+            this.label13 = new System.Windows.Forms.Label();
+            this.agwpeServerEnabledCheckBox = new System.Windows.Forms.CheckBox();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.webPortNumericUpDown = new System.Windows.Forms.NumericUpDown();
             this.label6 = new System.Windows.Forms.Label();
@@ -83,10 +87,6 @@
             this.pictureBox3 = new System.Windows.Forms.PictureBox();
             this.okButton = new System.Windows.Forms.Button();
             this.cancelButton = new System.Windows.Forms.Button();
-            this.groupBox7 = new System.Windows.Forms.GroupBox();
-            this.tncPortNumericUpDown = new System.Windows.Forms.NumericUpDown();
-            this.label13 = new System.Windows.Forms.Label();
-            this.tncServerEnabledCheckBox = new System.Windows.Forms.CheckBox();
             this.tabControl1.SuspendLayout();
             this.licenseTabPage.SuspendLayout();
             this.groupBox1.SuspendLayout();
@@ -102,11 +102,11 @@
             this.groupBox4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).BeginInit();
             this.webServerTabPage.SuspendLayout();
+            this.groupBox7.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.agwpePortNumericUpDown)).BeginInit();
             this.groupBox3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.webPortNumericUpDown)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
-            this.groupBox7.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.tncPortNumericUpDown)).BeginInit();
             this.SuspendLayout();
             // 
             // tabControl1
@@ -120,7 +120,7 @@
             this.tabControl1.Controls.Add(this.winlinkTabPage);
             this.tabControl1.Controls.Add(this.webServerTabPage);
             this.tabControl1.Location = new System.Drawing.Point(16, 15);
-            this.tabControl1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabControl1.Margin = new System.Windows.Forms.Padding(4);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
             this.tabControl1.Size = new System.Drawing.Size(500, 459);
@@ -133,9 +133,9 @@
             this.licenseTabPage.Controls.Add(this.pictureBox1);
             this.licenseTabPage.Controls.Add(this.label1);
             this.licenseTabPage.Location = new System.Drawing.Point(4, 25);
-            this.licenseTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.licenseTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.licenseTabPage.Name = "licenseTabPage";
-            this.licenseTabPage.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.licenseTabPage.Padding = new System.Windows.Forms.Padding(4);
             this.licenseTabPage.Size = new System.Drawing.Size(492, 430);
             this.licenseTabPage.TabIndex = 0;
             this.licenseTabPage.Text = "License";
@@ -163,9 +163,9 @@
             this.groupBox1.Controls.Add(this.stationIdComboBox);
             this.groupBox1.Controls.Add(this.callsignTextBox);
             this.groupBox1.Location = new System.Drawing.Point(12, 142);
-            this.groupBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox1.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox1.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox1.Size = new System.Drawing.Size(469, 144);
             this.groupBox1.TabIndex = 2;
             this.groupBox1.TabStop = false;
@@ -176,7 +176,7 @@
             this.allowTransmitCheckBox.AutoSize = true;
             this.allowTransmitCheckBox.Enabled = false;
             this.allowTransmitCheckBox.Location = new System.Drawing.Point(12, 110);
-            this.allowTransmitCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.allowTransmitCheckBox.Margin = new System.Windows.Forms.Padding(4);
             this.allowTransmitCheckBox.Name = "allowTransmitCheckBox";
             this.allowTransmitCheckBox.Size = new System.Drawing.Size(219, 20);
             this.allowTransmitCheckBox.TabIndex = 4;
@@ -228,7 +228,7 @@
             "14",
             "15"});
             this.stationIdComboBox.Location = new System.Drawing.Point(372, 60);
-            this.stationIdComboBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.stationIdComboBox.Margin = new System.Windows.Forms.Padding(4);
             this.stationIdComboBox.Name = "stationIdComboBox";
             this.stationIdComboBox.Size = new System.Drawing.Size(88, 38);
             this.stationIdComboBox.TabIndex = 1;
@@ -239,7 +239,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.callsignTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.callsignTextBox.Location = new System.Drawing.Point(8, 60);
-            this.callsignTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.callsignTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.callsignTextBox.MaxLength = 6;
             this.callsignTextBox.Name = "callsignTextBox";
             this.callsignTextBox.Size = new System.Drawing.Size(324, 37);
@@ -252,7 +252,7 @@
             this.pictureBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox1.Image = global::HTCommander.Properties.Resources.Certificate;
             this.pictureBox1.Location = new System.Drawing.Point(397, 10);
-            this.pictureBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox1.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox1.Name = "pictureBox1";
             this.pictureBox1.Size = new System.Drawing.Size(92, 95);
             this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -276,9 +276,9 @@
             this.aprsTabPage.Controls.Add(this.label4);
             this.aprsTabPage.Controls.Add(this.groupBox2);
             this.aprsTabPage.Location = new System.Drawing.Point(4, 25);
-            this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsTabPage.Padding = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Size = new System.Drawing.Size(492, 430);
             this.aprsTabPage.TabIndex = 1;
             this.aprsTabPage.Text = "APRS";
@@ -289,7 +289,7 @@
             this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox2.Image = global::HTCommander.Properties.Resources.MapPoint1;
             this.pictureBox2.Location = new System.Drawing.Point(397, 10);
-            this.pictureBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox2.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox2.Name = "pictureBox2";
             this.pictureBox2.Size = new System.Drawing.Size(92, 95);
             this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -314,9 +314,9 @@
             this.groupBox2.Controls.Add(this.addAprsButton);
             this.groupBox2.Controls.Add(this.deleteAprsButton);
             this.groupBox2.Location = new System.Drawing.Point(8, 108);
-            this.groupBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox2.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox2.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox2.Size = new System.Drawing.Size(473, 197);
             this.groupBox2.TabIndex = 0;
             this.groupBox2.TabStop = false;
@@ -327,7 +327,7 @@
             this.editButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.editButton.Enabled = false;
             this.editButton.Location = new System.Drawing.Point(257, 161);
-            this.editButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.editButton.Margin = new System.Windows.Forms.Padding(4);
             this.editButton.Name = "editButton";
             this.editButton.Size = new System.Drawing.Size(100, 28);
             this.editButton.TabIndex = 4;
@@ -348,7 +348,7 @@
             this.aprsRoutesListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.aprsRoutesListView.HideSelection = false;
             this.aprsRoutesListView.Location = new System.Drawing.Point(8, 23);
-            this.aprsRoutesListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.aprsRoutesListView.Margin = new System.Windows.Forms.Padding(4);
             this.aprsRoutesListView.MultiSelect = false;
             this.aprsRoutesListView.Name = "aprsRoutesListView";
             this.aprsRoutesListView.Size = new System.Drawing.Size(456, 130);
@@ -372,7 +372,7 @@
             // 
             this.addAprsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.addAprsButton.Location = new System.Drawing.Point(149, 161);
-            this.addAprsButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.addAprsButton.Margin = new System.Windows.Forms.Padding(4);
             this.addAprsButton.Name = "addAprsButton";
             this.addAprsButton.Size = new System.Drawing.Size(100, 28);
             this.addAprsButton.TabIndex = 1;
@@ -385,7 +385,7 @@
             this.deleteAprsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.deleteAprsButton.Enabled = false;
             this.deleteAprsButton.Location = new System.Drawing.Point(365, 161);
-            this.deleteAprsButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.deleteAprsButton.Margin = new System.Windows.Forms.Padding(4);
             this.deleteAprsButton.Name = "deleteAprsButton";
             this.deleteAprsButton.Size = new System.Drawing.Size(100, 28);
             this.deleteAprsButton.TabIndex = 0;
@@ -413,9 +413,9 @@
             this.groupBox6.Controls.Add(this.label14);
             this.groupBox6.Controls.Add(this.voicesComboBox);
             this.groupBox6.Location = new System.Drawing.Point(8, 244);
-            this.groupBox6.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox6.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox6.Name = "groupBox6";
-            this.groupBox6.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox6.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox6.Size = new System.Drawing.Size(473, 68);
             this.groupBox6.TabIndex = 8;
             this.groupBox6.TabStop = false;
@@ -458,7 +458,7 @@
             this.pictureBox5.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox5.Image = global::HTCommander.Properties.Resources.Voice;
             this.pictureBox5.Location = new System.Drawing.Point(397, 10);
-            this.pictureBox5.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox5.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox5.Name = "pictureBox5";
             this.pictureBox5.Size = new System.Drawing.Size(92, 95);
             this.pictureBox5.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -486,9 +486,9 @@
             this.groupBox5.Controls.Add(this.downloadButton);
             this.groupBox5.Controls.Add(this.deleteButton);
             this.groupBox5.Location = new System.Drawing.Point(8, 108);
-            this.groupBox5.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox5.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox5.Name = "groupBox5";
-            this.groupBox5.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox5.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox5.Size = new System.Drawing.Size(473, 128);
             this.groupBox5.TabIndex = 4;
             this.groupBox5.TabStop = false;
@@ -498,7 +498,7 @@
             // 
             this.cancelDownloadButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.cancelDownloadButton.Location = new System.Drawing.Point(149, 91);
-            this.cancelDownloadButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.cancelDownloadButton.Margin = new System.Windows.Forms.Padding(4);
             this.cancelDownloadButton.Name = "cancelDownloadButton";
             this.cancelDownloadButton.Size = new System.Drawing.Size(100, 28);
             this.cancelDownloadButton.TabIndex = 9;
@@ -554,7 +554,7 @@
             // 
             this.downloadButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.downloadButton.Location = new System.Drawing.Point(257, 92);
-            this.downloadButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.downloadButton.Margin = new System.Windows.Forms.Padding(4);
             this.downloadButton.Name = "downloadButton";
             this.downloadButton.Size = new System.Drawing.Size(100, 28);
             this.downloadButton.TabIndex = 1;
@@ -567,7 +567,7 @@
             this.deleteButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.deleteButton.Enabled = false;
             this.deleteButton.Location = new System.Drawing.Point(365, 92);
-            this.deleteButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.deleteButton.Margin = new System.Windows.Forms.Padding(4);
             this.deleteButton.Name = "deleteButton";
             this.deleteButton.Size = new System.Drawing.Size(100, 28);
             this.deleteButton.TabIndex = 0;
@@ -610,9 +610,9 @@
             this.groupBox4.Controls.Add(this.label8);
             this.groupBox4.Controls.Add(this.winlinkPasswordTextBox);
             this.groupBox4.Location = new System.Drawing.Point(12, 113);
-            this.groupBox4.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox4.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox4.Name = "groupBox4";
-            this.groupBox4.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox4.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox4.Size = new System.Drawing.Size(469, 159);
             this.groupBox4.TabIndex = 6;
             this.groupBox4.TabStop = false;
@@ -653,7 +653,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.winlinkPasswordTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.winlinkPasswordTextBox.Location = new System.Drawing.Point(8, 110);
-            this.winlinkPasswordTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.winlinkPasswordTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.winlinkPasswordTextBox.MaxLength = 128;
             this.winlinkPasswordTextBox.Name = "winlinkPasswordTextBox";
             this.winlinkPasswordTextBox.PasswordChar = '●';
@@ -677,7 +677,7 @@
             this.pictureBox4.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox4.Image = global::HTCommander.Properties.Resources.Letter;
             this.pictureBox4.Location = new System.Drawing.Point(397, 10);
-            this.pictureBox4.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox4.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox4.Name = "pictureBox4";
             this.pictureBox4.Size = new System.Drawing.Size(92, 95);
             this.pictureBox4.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -691,12 +691,72 @@
             this.webServerTabPage.Controls.Add(this.label5);
             this.webServerTabPage.Controls.Add(this.pictureBox3);
             this.webServerTabPage.Location = new System.Drawing.Point(4, 25);
-            this.webServerTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.webServerTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.webServerTabPage.Name = "webServerTabPage";
             this.webServerTabPage.Size = new System.Drawing.Size(492, 430);
             this.webServerTabPage.TabIndex = 2;
             this.webServerTabPage.Text = "Services";
             this.webServerTabPage.UseVisualStyleBackColor = true;
+            // 
+            // groupBox7
+            // 
+            this.groupBox7.Controls.Add(this.agwpePortNumericUpDown);
+            this.groupBox7.Controls.Add(this.label13);
+            this.groupBox7.Controls.Add(this.agwpeServerEnabledCheckBox);
+            this.groupBox7.Location = new System.Drawing.Point(8, 188);
+            this.groupBox7.Margin = new System.Windows.Forms.Padding(4);
+            this.groupBox7.Name = "groupBox7";
+            this.groupBox7.Padding = new System.Windows.Forms.Padding(4);
+            this.groupBox7.Size = new System.Drawing.Size(473, 70);
+            this.groupBox7.TabIndex = 7;
+            this.groupBox7.TabStop = false;
+            this.groupBox7.Text = "AGWPE Settings";
+            // 
+            // agwpePortNumericUpDown
+            // 
+            this.agwpePortNumericUpDown.Location = new System.Drawing.Point(383, 33);
+            this.agwpePortNumericUpDown.Margin = new System.Windows.Forms.Padding(4);
+            this.agwpePortNumericUpDown.Maximum = new decimal(new int[] {
+            65535,
+            0,
+            0,
+            0});
+            this.agwpePortNumericUpDown.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.agwpePortNumericUpDown.Name = "agwpePortNumericUpDown";
+            this.agwpePortNumericUpDown.Size = new System.Drawing.Size(82, 22);
+            this.agwpePortNumericUpDown.TabIndex = 2;
+            this.agwpePortNumericUpDown.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.agwpePortNumericUpDown.Value = new decimal(new int[] {
+            8000,
+            0,
+            0,
+            0});
+            // 
+            // label13
+            // 
+            this.label13.AutoSize = true;
+            this.label13.Location = new System.Drawing.Point(344, 35);
+            this.label13.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label13.Name = "label13";
+            this.label13.Size = new System.Drawing.Size(31, 16);
+            this.label13.TabIndex = 1;
+            this.label13.Text = "Port";
+            // 
+            // agwpeServerEnabledCheckBox
+            // 
+            this.agwpeServerEnabledCheckBox.AutoSize = true;
+            this.agwpeServerEnabledCheckBox.Location = new System.Drawing.Point(21, 34);
+            this.agwpeServerEnabledCheckBox.Margin = new System.Windows.Forms.Padding(4);
+            this.agwpeServerEnabledCheckBox.Name = "agwpeServerEnabledCheckBox";
+            this.agwpeServerEnabledCheckBox.Size = new System.Drawing.Size(168, 20);
+            this.agwpeServerEnabledCheckBox.TabIndex = 0;
+            this.agwpeServerEnabledCheckBox.Text = "Enable AGWPE Server";
+            this.agwpeServerEnabledCheckBox.UseVisualStyleBackColor = true;
+            this.agwpeServerEnabledCheckBox.CheckedChanged += new System.EventHandler(this.tncServerEnabledCheckBox_CheckedChanged);
             // 
             // groupBox3
             // 
@@ -704,18 +764,18 @@
             this.groupBox3.Controls.Add(this.label6);
             this.groupBox3.Controls.Add(this.webServerEnabledCheckBox);
             this.groupBox3.Location = new System.Drawing.Point(8, 108);
-            this.groupBox3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox3.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.groupBox3.Size = new System.Drawing.Size(473, 102);
+            this.groupBox3.Padding = new System.Windows.Forms.Padding(4);
+            this.groupBox3.Size = new System.Drawing.Size(473, 72);
             this.groupBox3.TabIndex = 6;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Web Server Settings";
             // 
             // webPortNumericUpDown
             // 
-            this.webPortNumericUpDown.Location = new System.Drawing.Point(305, 66);
-            this.webPortNumericUpDown.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.webPortNumericUpDown.Location = new System.Drawing.Point(383, 32);
+            this.webPortNumericUpDown.Margin = new System.Windows.Forms.Padding(4);
             this.webPortNumericUpDown.Maximum = new decimal(new int[] {
             65535,
             0,
@@ -727,8 +787,9 @@
             0,
             0});
             this.webPortNumericUpDown.Name = "webPortNumericUpDown";
-            this.webPortNumericUpDown.Size = new System.Drawing.Size(160, 22);
+            this.webPortNumericUpDown.Size = new System.Drawing.Size(82, 22);
             this.webPortNumericUpDown.TabIndex = 2;
+            this.webPortNumericUpDown.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.webPortNumericUpDown.Value = new decimal(new int[] {
             8080,
             0,
@@ -738,7 +799,7 @@
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(17, 69);
+            this.label6.Location = new System.Drawing.Point(344, 34);
             this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(31, 16);
@@ -749,7 +810,7 @@
             // 
             this.webServerEnabledCheckBox.AutoSize = true;
             this.webServerEnabledCheckBox.Location = new System.Drawing.Point(21, 34);
-            this.webServerEnabledCheckBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.webServerEnabledCheckBox.Margin = new System.Windows.Forms.Padding(4);
             this.webServerEnabledCheckBox.Name = "webServerEnabledCheckBox";
             this.webServerEnabledCheckBox.Size = new System.Drawing.Size(147, 20);
             this.webServerEnabledCheckBox.TabIndex = 0;
@@ -775,7 +836,7 @@
             this.pictureBox3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox3.Image = global::HTCommander.Properties.Resources.webserver;
             this.pictureBox3.Location = new System.Drawing.Point(397, 10);
-            this.pictureBox3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox3.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox3.Name = "pictureBox3";
             this.pictureBox3.Size = new System.Drawing.Size(92, 95);
             this.pictureBox3.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -786,7 +847,7 @@
             // 
             this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.okButton.Location = new System.Drawing.Point(311, 481);
-            this.okButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.okButton.Margin = new System.Windows.Forms.Padding(4);
             this.okButton.Name = "okButton";
             this.okButton.Size = new System.Drawing.Size(100, 28);
             this.okButton.TabIndex = 16;
@@ -799,72 +860,13 @@
             this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
             this.cancelButton.Location = new System.Drawing.Point(411, 481);
-            this.cancelButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.cancelButton.Margin = new System.Windows.Forms.Padding(4);
             this.cancelButton.Name = "cancelButton";
             this.cancelButton.Size = new System.Drawing.Size(100, 28);
             this.cancelButton.TabIndex = 15;
             this.cancelButton.Text = "Cancel";
             this.cancelButton.UseVisualStyleBackColor = true;
             this.cancelButton.Click += new System.EventHandler(this.cancelButton_Click);
-            // 
-            // groupBox7
-            // 
-            this.groupBox7.Controls.Add(this.tncPortNumericUpDown);
-            this.groupBox7.Controls.Add(this.label13);
-            this.groupBox7.Controls.Add(this.tncServerEnabledCheckBox);
-            this.groupBox7.Location = new System.Drawing.Point(8, 218);
-            this.groupBox7.Margin = new System.Windows.Forms.Padding(4);
-            this.groupBox7.Name = "groupBox7";
-            this.groupBox7.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBox7.Size = new System.Drawing.Size(473, 102);
-            this.groupBox7.TabIndex = 7;
-            this.groupBox7.TabStop = false;
-            this.groupBox7.Text = "KISS TNC";
-            // 
-            // tncPortNumericUpDown
-            // 
-            this.tncPortNumericUpDown.Location = new System.Drawing.Point(305, 66);
-            this.tncPortNumericUpDown.Margin = new System.Windows.Forms.Padding(4);
-            this.tncPortNumericUpDown.Maximum = new decimal(new int[] {
-            65535,
-            0,
-            0,
-            0});
-            this.tncPortNumericUpDown.Minimum = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            this.tncPortNumericUpDown.Name = "tncPortNumericUpDown";
-            this.tncPortNumericUpDown.Size = new System.Drawing.Size(160, 22);
-            this.tncPortNumericUpDown.TabIndex = 2;
-            this.tncPortNumericUpDown.Value = new decimal(new int[] {
-            8000,
-            0,
-            0,
-            0});
-            // 
-            // label13
-            // 
-            this.label13.AutoSize = true;
-            this.label13.Location = new System.Drawing.Point(17, 69);
-            this.label13.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label13.Name = "label13";
-            this.label13.Size = new System.Drawing.Size(31, 16);
-            this.label13.TabIndex = 1;
-            this.label13.Text = "Port";
-            // 
-            // tncServerEnabledCheckBox
-            // 
-            this.tncServerEnabledCheckBox.AutoSize = true;
-            this.tncServerEnabledCheckBox.Location = new System.Drawing.Point(21, 34);
-            this.tncServerEnabledCheckBox.Margin = new System.Windows.Forms.Padding(4);
-            this.tncServerEnabledCheckBox.Name = "tncServerEnabledCheckBox";
-            this.tncServerEnabledCheckBox.Size = new System.Drawing.Size(178, 20);
-            this.tncServerEnabledCheckBox.TabIndex = 0;
-            this.tncServerEnabledCheckBox.Text = "Enable KISS TNC Server";
-            this.tncServerEnabledCheckBox.UseVisualStyleBackColor = true;
-            this.tncServerEnabledCheckBox.CheckedChanged += new System.EventHandler(this.tncServerEnabledCheckBox_CheckedChanged);
             // 
             // SettingsForm
             // 
@@ -906,13 +908,13 @@
             this.groupBox4.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).EndInit();
             this.webServerTabPage.ResumeLayout(false);
+            this.groupBox7.ResumeLayout(false);
+            this.groupBox7.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.agwpePortNumericUpDown)).EndInit();
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.webPortNumericUpDown)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).EndInit();
-            this.groupBox7.ResumeLayout(false);
-            this.groupBox7.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.tncPortNumericUpDown)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -973,8 +975,8 @@
         private System.Windows.Forms.ComboBox voicesComboBox;
         private System.Windows.Forms.Button cancelDownloadButton;
         private System.Windows.Forms.GroupBox groupBox7;
-        private System.Windows.Forms.NumericUpDown tncPortNumericUpDown;
+        private System.Windows.Forms.NumericUpDown agwpePortNumericUpDown;
         private System.Windows.Forms.Label label13;
-        private System.Windows.Forms.CheckBox tncServerEnabledCheckBox;
+        private System.Windows.Forms.CheckBox agwpeServerEnabledCheckBox;
     }
 }
