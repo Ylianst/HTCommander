@@ -38,6 +38,13 @@ namespace HTCommander
         public delegate void ErrorHandler(AX25Session sender, string error);
         public event ErrorHandler ErrorEvent;
 
+        public string CallSignOverride = null;
+        public int StationIdOverride = -1; // -1 means use the default station ID
+
+        public string SessionCallsign { get { if (CallSignOverride != null) { return CallSignOverride; } return parent.callsign; } }
+        public int SessionStationId { get { if (StationIdOverride >= 0) { return StationIdOverride; } return parent.stationId; } }
+
+
         private void OnErrorEvent(string error) { Trace("ERROR: " + error); if (ErrorEvent != null) { ErrorEvent(this, error); } }
         private void OnStateChangedEvent(ConnectionState state) { if (StateChanged != null) { StateChanged(this, state); } }
         private void OnUiDataReceivedEvent(byte[] data) { if (UiDataReceivedEvent != null) { UiDataReceivedEvent(this, data); } }
@@ -546,7 +553,7 @@ namespace HTCommander
                 // TODO: Notify we are busy (?)
                 response.addresses = new List<AX25Address>();
                 response.addresses.Add(AX25Address.GetAddress(packet.addresses[1].ToString()));
-                response.addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
+                response.addresses.Add(AX25Address.GetAddress(SessionCallsign, SessionStationId));
                 response.type = FrameType.U_FRAME_DISC;
                 response.command = false;
                 response.pollFinal = true;
@@ -559,7 +566,7 @@ namespace HTCommander
             {
                 response.addresses = new List<AX25Address>();
                 response.addresses.Add(AX25Address.GetAddress(packet.addresses[1].ToString()));
-                response.addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
+                response.addresses.Add(AX25Address.GetAddress(SessionCallsign, SessionStationId));
                 response.command = false;
                 response.pollFinal = true;
 
@@ -578,7 +585,7 @@ namespace HTCommander
                     if (CurrentState != ConnectionState.DISCONNECTED) return false;
                     Addresses = new List<AX25Address>();
                     Addresses.Add(AX25Address.GetAddress(packet.addresses[1].ToString()));
-                    Addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
+                    Addresses.Add(AX25Address.GetAddress(SessionCallsign, SessionStationId));
                     response.addresses = Addresses;
                     _state.ReceiveSequence = 0;
                     _state.SendSequence = 0;
@@ -887,7 +894,7 @@ namespace HTCommander
                 {
                     response.addresses = new List<AX25Address>();
                     response.addresses.Add(AX25Address.GetAddress(packet.addresses[1].ToString()));
-                    response.addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
+                    response.addresses.Add(AX25Address.GetAddress(SessionCallsign, SessionStationId));
                 }
                 EmitPacket(response);
             }

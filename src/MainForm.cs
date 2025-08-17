@@ -703,6 +703,8 @@ namespace HTCommander
                         break;
                     case AX25Session.ConnectionState.DISCONNECTED:
                         agwpeServer.SendSessionDisconnectToClient(activeStationLock.AgwpeClientId);
+                        session.CallSignOverride = null;
+                        session.StationIdOverride = -1;
                         ActiveLockToStation(null, -1);
                         break;
                 }
@@ -981,7 +983,7 @@ namespace HTCommander
                 {
                     if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.X25Session) {
                         AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
-                        if ((p != null) && (p.addresses[0].CallSignWithId == callsign + "-" + stationId)) { session.Receive(p); }
+                        if ((p != null) && (p.addresses[0].CallSignWithId == session.SessionCallsign + "-" + session.SessionStationId)) { session.Receive(p); }
                         return;
                     }
                 }
@@ -1019,17 +1021,9 @@ namespace HTCommander
                             UpdateInfo();
                             UpdateRadioDisplay();
 
-                            /*
-                            // Create a new station lock for this client
-                            StationInfoClass station = new StationInfoClass();
-                            station.Callsign = px.addresses[0].CallSignWithId;
-                            station.StationType = StationInfoClass.StationTypes.AGWPE;
-                            station.TerminalProtocol = StationInfoClass.TerminalProtocols.X25Session;
-                            station.AgwpeClientId = clientid.Value;
-                            ActiveLockToStation(station, frame.channel_id);
-                            */
-
                             DebugTrace("AGWPE connection initiated by " + px.addresses[0].CallSignWithId);
+                            session.CallSignOverride = px.addresses[0].address;
+                            session.StationIdOverride = px.addresses[0].SSID;
                             session.Receive(px);
                         }
                     }
@@ -3322,6 +3316,8 @@ namespace HTCommander
                 return false;
             }
 
+            session.CallSignOverride = null;
+            session.StationIdOverride = -1;
             activeStationLock = station;
             activeChannelIdLock = channelIdLock;
 
