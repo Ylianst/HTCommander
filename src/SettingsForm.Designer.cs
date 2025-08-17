@@ -75,7 +75,6 @@
             this.label9 = new System.Windows.Forms.Label();
             this.pictureBox4 = new System.Windows.Forms.PictureBox();
             this.webServerTabPage = new System.Windows.Forms.TabPage();
-            this.groupBox7 = new System.Windows.Forms.GroupBox();
             this.agwpePortNumericUpDown = new System.Windows.Forms.NumericUpDown();
             this.label13 = new System.Windows.Forms.Label();
             this.agwpeServerEnabledCheckBox = new System.Windows.Forms.CheckBox();
@@ -102,7 +101,6 @@
             this.groupBox4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).BeginInit();
             this.webServerTabPage.SuspendLayout();
-            this.groupBox7.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.agwpePortNumericUpDown)).BeginInit();
             this.groupBox3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.webPortNumericUpDown)).BeginInit();
@@ -686,7 +684,6 @@
             // 
             // webServerTabPage
             // 
-            this.webServerTabPage.Controls.Add(this.groupBox7);
             this.webServerTabPage.Controls.Add(this.groupBox3);
             this.webServerTabPage.Controls.Add(this.label5);
             this.webServerTabPage.Controls.Add(this.pictureBox3);
@@ -698,23 +695,9 @@
             this.webServerTabPage.Text = "Services";
             this.webServerTabPage.UseVisualStyleBackColor = true;
             // 
-            // groupBox7
-            // 
-            this.groupBox7.Controls.Add(this.agwpePortNumericUpDown);
-            this.groupBox7.Controls.Add(this.label13);
-            this.groupBox7.Controls.Add(this.agwpeServerEnabledCheckBox);
-            this.groupBox7.Location = new System.Drawing.Point(8, 188);
-            this.groupBox7.Margin = new System.Windows.Forms.Padding(4);
-            this.groupBox7.Name = "groupBox7";
-            this.groupBox7.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBox7.Size = new System.Drawing.Size(473, 70);
-            this.groupBox7.TabIndex = 7;
-            this.groupBox7.TabStop = false;
-            this.groupBox7.Text = "AGWPE Settings";
-            // 
             // agwpePortNumericUpDown
             // 
-            this.agwpePortNumericUpDown.Location = new System.Drawing.Point(383, 33);
+            this.agwpePortNumericUpDown.Location = new System.Drawing.Point(383, 62);
             this.agwpePortNumericUpDown.Margin = new System.Windows.Forms.Padding(4);
             this.agwpePortNumericUpDown.Maximum = new decimal(new int[] {
             65535,
@@ -739,7 +722,7 @@
             // label13
             // 
             this.label13.AutoSize = true;
-            this.label13.Location = new System.Drawing.Point(344, 35);
+            this.label13.Location = new System.Drawing.Point(344, 64);
             this.label13.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label13.Name = "label13";
             this.label13.Size = new System.Drawing.Size(31, 16);
@@ -749,7 +732,7 @@
             // agwpeServerEnabledCheckBox
             // 
             this.agwpeServerEnabledCheckBox.AutoSize = true;
-            this.agwpeServerEnabledCheckBox.Location = new System.Drawing.Point(21, 34);
+            this.agwpeServerEnabledCheckBox.Location = new System.Drawing.Point(21, 63);
             this.agwpeServerEnabledCheckBox.Margin = new System.Windows.Forms.Padding(4);
             this.agwpeServerEnabledCheckBox.Name = "agwpeServerEnabledCheckBox";
             this.agwpeServerEnabledCheckBox.Size = new System.Drawing.Size(168, 20);
@@ -760,17 +743,20 @@
             // 
             // groupBox3
             // 
+            this.groupBox3.Controls.Add(this.agwpePortNumericUpDown);
+            this.groupBox3.Controls.Add(this.label13);
             this.groupBox3.Controls.Add(this.webPortNumericUpDown);
+            this.groupBox3.Controls.Add(this.agwpeServerEnabledCheckBox);
             this.groupBox3.Controls.Add(this.label6);
             this.groupBox3.Controls.Add(this.webServerEnabledCheckBox);
             this.groupBox3.Location = new System.Drawing.Point(8, 108);
             this.groupBox3.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBox3.Size = new System.Drawing.Size(473, 72);
+            this.groupBox3.Size = new System.Drawing.Size(473, 99);
             this.groupBox3.TabIndex = 6;
             this.groupBox3.TabStop = false;
-            this.groupBox3.Text = "Web Server Settings";
+            this.groupBox3.Text = "Server Settings";
             // 
             // webPortNumericUpDown
             // 
@@ -908,8 +894,6 @@
             this.groupBox4.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).EndInit();
             this.webServerTabPage.ResumeLayout(false);
-            this.groupBox7.ResumeLayout(false);
-            this.groupBox7.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.agwpePortNumericUpDown)).EndInit();
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
@@ -974,7 +958,6 @@
         private System.Windows.Forms.Label label14;
         private System.Windows.Forms.ComboBox voicesComboBox;
         private System.Windows.Forms.Button cancelDownloadButton;
-        private System.Windows.Forms.GroupBox groupBox7;
         private System.Windows.Forms.NumericUpDown agwpePortNumericUpDown;
         private System.Windows.Forms.Label label13;
         private System.Windows.Forms.CheckBox agwpeServerEnabledCheckBox;
