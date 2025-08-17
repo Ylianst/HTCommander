@@ -356,7 +356,7 @@ namespace HTCommander
             AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
             if ((p == null) || (p.addresses.Count < 2) || (p.type != AX25Packet.FrameType.U_FRAME_UI)) return; // Invalid packet, ignore
             DateTime now = DateTime.Now;
-            string str = "1:Fm " + p.addresses[1].CallSignWithId + " To " + p.addresses[0].CallSignWithId + " <UI pid=" + p.pid + " Len=" + p.data.Length + " >[" + now.Hour + ":" + now.Minute + ":" + now.Second + "]\r" + p.dataStr;
+            string str = "1:Fm " + p.addresses[1].CallSignWithId + " To " + p.addresses[0].CallSignWithId + " <UI pid=" + p.pid + " Len=" + p.data.Length + " >[" + now.Hour.ToString("D2") + ":" + now.Minute.ToString("D2") + ":" + now.Second.ToString("D2") + "]\r" + p.dataStr;
             if (!str.EndsWith("\r") && !str.EndsWith("\n")) { str += "\r"; }
             AgwpeFrame aframe = new AgwpeFrame()
             {
@@ -436,8 +436,8 @@ namespace HTCommander
             {
                 Port = 0, // Default port
                 DataKind = (byte)'D', // Data frame
-                CallFrom = SessionFrom,
-                CallTo = SessionTo,
+                CallFrom = SessionTo,
+                CallTo = SessionFrom,
                 DataLen = (uint)data.Length,
                 Data = data
             };
@@ -450,10 +450,10 @@ namespace HTCommander
             var frame = new AgwpeFrame
             {
                 Port = 0, // Default port
-                DataKind = (byte)'d', // Data frame
-                CallFrom = SessionFrom,
-                CallTo = SessionTo,
-                Data = ASCIIEncoding.ASCII.GetBytes("*** CONNECTED With " + parent.session.Addresses[1].CallSignWithId)
+                DataKind = (byte)'C', // Connection
+                CallFrom = SessionTo,
+                CallTo = SessionFrom,
+                Data = ASCIIEncoding.ASCII.GetBytes("*** CONNECTED With " + SessionTo)
             };
             SendFrameToClient(clientId, frame);
         }
@@ -464,9 +464,9 @@ namespace HTCommander
             var frame = new AgwpeFrame
             {
                 Port = 0, // Default port
-                DataKind = (byte)'d', // Data frame
-                CallFrom = SessionFrom,
-                CallTo = SessionTo
+                DataKind = (byte)'d', // Disconnect
+                CallFrom = SessionTo,
+                CallTo = SessionFrom
             };
             SendFrameToClient(clientId, frame);
         }
@@ -545,7 +545,7 @@ namespace HTCommander
 
                         // Return the frame back to the client
                         DateTime now = DateTime.Now;
-                        string str = (frame.Port + 1) + ":Fm " + p.addresses[1].CallSignWithId + " To " + p.addresses[0].CallSignWithId + " <UI pid=" + p.pid + " Len=" + p.data.Length + " >[" + now.Hour + ":" + now.Minute + ":" + now.Second + "]\r" + ASCIIEncoding.ASCII.GetString(frame.Data);
+                        string str = (frame.Port + 1) + ":Fm " + p.addresses[1].CallSignWithId + " To " + p.addresses[0].CallSignWithId + " <UI pid=" + p.pid + " Len=" + p.data.Length + " >[" + now.Hour.ToString("D2") + ":" + now.Minute.ToString("D2") + ":" + now.Second.ToString("D2") + "]\r" + ASCIIEncoding.ASCII.GetString(frame.Data);
                         if (!str.EndsWith("\r") && !str.EndsWith("\n")) { str += "\r"; }
                         AgwpeFrame aframe = new AgwpeFrame()
                         {

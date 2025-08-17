@@ -698,6 +698,7 @@ namespace HTCommander
                         break;
                     case AX25Session.ConnectionState.DISCONNECTED:
                         tncserver.SendSessionDisconnectToClient(activeStationLock.TncClientId);
+                        ActiveLockToStation(null, -1);
                         break;
                 }
             }
