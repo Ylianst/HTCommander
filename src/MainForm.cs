@@ -838,10 +838,11 @@ namespace HTCommander
                     byte[] bytes = UTF8Encoding.Default.GetBytes(frame.time.Ticks + "," + (frame.incoming ? "1" : "0") + "," + frame.ToString() + "\r\n");
                     AprsFile.Write(bytes, 0, bytes.Length);
                 }
-                if (frame.incoming == false) return;
 
                 // If the TNC server is enabled, broadcast the frame
                 if (agwpeServer != null) { agwpeServer.BroadcastFrame(frame); }
+
+                if (frame.incoming == false) return;
             }
 
             //DebugTrace("Packet: " + frame.ToHex());
