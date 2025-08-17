@@ -236,7 +236,10 @@ namespace HTCommander
             deleteButton.Enabled = (modelsComboBox.SelectedIndex != 0) && File.Exists(appDataFilename);
 
             // okButton
-            okButton.Enabled = (downloadButton.Enabled == false);
+            bool ok = true;
+            if (downloadButton.Enabled) { ok = false; } // If the download button is enabled, we cannot proceed.
+            if (webPortNumericUpDown.Enabled && agwpePortNumericUpDown.Enabled && (webPortNumericUpDown.Value == agwpePortNumericUpDown.Value)) { ok = false; }
+            okButton.Enabled = ok;
         }
 
         private void callsignTextBox_TextChanged(object sender, EventArgs e)
@@ -458,6 +461,16 @@ namespace HTCommander
         }
 
         private void tncServerEnabledCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdateInfo();
+        }
+
+        private void agwpePortNumericUpDown_ValueChanged(object sender, EventArgs e)
+        {
+            UpdateInfo();
+        }
+
+        private void webPortNumericUpDown_ValueChanged(object sender, EventArgs e)
         {
             UpdateInfo();
         }

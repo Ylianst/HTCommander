@@ -972,7 +972,7 @@ namespace HTCommander
                         return;
                     }
                 }
-                if (activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE)
+                else if (activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE)
                 {
                     if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.X25Session) {
                         AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
@@ -982,14 +982,40 @@ namespace HTCommander
                 }
             }
 
-            // If this is a AX.25 disconnection frame sent at us and we are already not connected, just ack
-            AX25Packet px = AX25Packet.DecodeAX25Packet(frame);
-            if ((px != null) && (px.addresses.Count >= 2) && (px.addresses[0].CallSignWithId == callsign + "-" + stationId) && (px.type == FrameType.U_FRAME_DISC))
+            if (sender != null)
             {
-                List<AX25Address> addresses = new List<AX25Address>();
-                addresses.Add(AX25Address.GetAddress(px.addresses[1].ToString()));
-                addresses.Add(AX25Address.GetAddress(callsign, stationId));
-                AX25Packet response = new AX25Packet(addresses, 0, 0, true, true, FrameType.U_FRAME_UA, null);
+                // If this is a AX.25 disconnection frame sent at us and we are already not connected, just ack
+                AX25Packet px = AX25Packet.DecodeAX25Packet(frame);
+                if ((px != null) && (px.addresses.Count >= 2) && (px.addresses[0].CallSignWithId == callsign + "-" + stationId) && (px.type == FrameType.U_FRAME_DISC))
+                {
+                    List<AX25Address> addresses = new List<AX25Address>();
+                    addresses.Add(AX25Address.GetAddress(px.addresses[1].ToString()));
+                    addresses.Add(AX25Address.GetAddress(callsign, stationId));
+                    AX25Packet response = new AX25Packet(addresses, 0, 0, true, true, FrameType.U_FRAME_UA, null);
+                }
+                else if ((activeStationLock == null) && (agwpeServer != null) && (agwpeServer.GetRegisteredClientCount() > 0))
+                {
+                    // Check if a packet initiated a AGWPE connection
+                    if ((px != null) && ((px.type == FrameType.U_FRAME_SABM) || (px.type == FrameType.U_FRAME_SABME)))
+                    {
+                        Guid? clientid = agwpeServer.GetClientIdByCallsign(px.addresses[0].CallSignWithId);
+                        if ((clientid != null) && (clientid != Guid.Empty))
+                        {
+                            agwpeServer.SessionFrom = px.addresses[1].CallSignWithId;
+                            agwpeServer.SessionTo = px.addresses[0].CallSignWithId;
+
+                            // Create a new station lock for this client
+                            StationInfoClass station = new StationInfoClass();
+                            station.Callsign = px.addresses[0].CallSignWithId;
+                            station.StationType = StationInfoClass.StationTypes.AGWPE;
+                            station.TerminalProtocol = StationInfoClass.TerminalProtocols.X25Session;
+                            station.AgwpeClientId = clientid.Value;
+                            ActiveLockToStation(station, frame.channel_id);
+                            DebugTrace("AGWPE connection initiated by " + px.addresses[0].CallSignWithId);
+                            session.Receive(px);
+                        }
+                    }
+                }
             }
         }
 

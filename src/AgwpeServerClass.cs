@@ -255,8 +255,8 @@ namespace HTCommander
         private readonly ConcurrentDictionary<Guid, HashSet<string>> _registeredCallsigns = new ConcurrentDictionary<Guid, HashSet<string>>();
         private CancellationTokenSource _cts;
         private Task _serverTask;
-        private string SessionTo = null;
-        private string SessionFrom = null;
+        public string SessionTo = null;
+        public string SessionFrom = null;
 
         public int Port { get; }
 
@@ -676,6 +676,14 @@ namespace HTCommander
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Returns the total number of registered clients.
+        /// </summary>
+        public int GetRegisteredClientCount()
+        {
+            return _registeredCallsigns.Count;
         }
 
         internal void RemoveClient(Guid clientId)
