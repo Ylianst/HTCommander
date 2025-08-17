@@ -2605,7 +2605,7 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(661, 310);
+            this.tabPage2.Size = new System.Drawing.Size(661, 312);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -2617,7 +2617,7 @@
             this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
             this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 306);
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 308);
             this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // panel5
@@ -3033,7 +3033,8 @@
             this.toolStripMenuItem9,
             this.toolStripMenuItem13});
             this.terminalTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(211, 82);
+            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(211, 110);
+            this.terminalTabContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.terminalTabContextMenuStrip_Opening);
             // 
             // showCallsignToolStripMenuItem
             // 

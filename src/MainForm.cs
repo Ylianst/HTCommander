@@ -606,8 +606,6 @@ namespace HTCommander
             voiceProcessingLabel.Visible = processing;
         }
 
-        
-
         private void Radio_onTextReady(string text, string channel, DateTime time, bool completed)
         {
             if (this.InvokeRequired) { this.BeginInvoke(new Radio.OnTextReadyHandler(Radio_onTextReady), text, channel, time, completed); return; }
@@ -691,7 +689,14 @@ namespace HTCommander
                     case AX25Session.ConnectionState.CONNECTING:
                         break;
                     case AX25Session.ConnectionState.CONNECTED:
-                        agwpeServer.SendSessionConnectToClient(activeStationLock.AgwpeClientId);
+                        if (activeStationLock.WaitForConnection)
+                        {
+                            agwpeServer.SendSessionConnectToClientEx(activeStationLock.AgwpeClientId);
+                        }
+                        else
+                        {
+                            agwpeServer.SendSessionConnectToClient(activeStationLock.AgwpeClientId);
+                        }
                         break;
                     case AX25Session.ConnectionState.DISCONNECTING:
                         agwpeServer.SendSessionDisconnectToClient(activeStationLock.AgwpeClientId);
@@ -1001,9 +1006,20 @@ namespace HTCommander
                         Guid? clientid = agwpeServer.GetClientIdByCallsign(px.addresses[0].CallSignWithId);
                         if ((clientid != null) && (clientid != Guid.Empty))
                         {
-                            agwpeServer.SessionFrom = px.addresses[1].CallSignWithId;
-                            agwpeServer.SessionTo = px.addresses[0].CallSignWithId;
+                            agwpeServer.SessionFrom = px.addresses[0].CallSignWithId;
+                            agwpeServer.SessionTo = px.addresses[1].CallSignWithId;
 
+                            activeChannelIdLock = px.channel_id;
+                            StationInfoClass station = new StationInfoClass();
+                            station.WaitForConnection = true;
+                            station.StationType = StationInfoClass.StationTypes.AGWPE;
+                            station.TerminalProtocol = StationInfoClass.TerminalProtocols.X25Session;
+                            station.AgwpeClientId = (Guid)clientid;
+                            activeStationLock = station;
+                            UpdateInfo();
+                            UpdateRadioDisplay();
+
+                            /*
                             // Create a new station lock for this client
                             StationInfoClass station = new StationInfoClass();
                             station.Callsign = px.addresses[0].CallSignWithId;
@@ -1011,6 +1027,8 @@ namespace HTCommander
                             station.TerminalProtocol = StationInfoClass.TerminalProtocols.X25Session;
                             station.AgwpeClientId = clientid.Value;
                             ActiveLockToStation(station, frame.channel_id);
+                            */
+
                             DebugTrace("AGWPE connection initiated by " + px.addresses[0].CallSignWithId);
                             session.Receive(px);
                         }
@@ -5229,6 +5247,11 @@ namespace HTCommander
         private void localWebSiteToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (webserver != null) { System.Diagnostics.Process.Start("http://localhost:" + webServerPort); }
+        }
+
+        private void terminalTabContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+
         }
     }
 }

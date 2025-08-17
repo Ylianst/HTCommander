@@ -446,6 +446,7 @@ namespace HTCommander
             SendFrameToClient(clientId, frame);
         }
 
+        // Signal we connected to another station
         public void SendSessionConnectToClient(Guid clientId)
         {
             // Create an AGWPE frame for the session connection
@@ -456,6 +457,21 @@ namespace HTCommander
                 CallFrom = SessionTo,
                 CallTo = SessionFrom,
                 Data = ASCIIEncoding.ASCII.GetBytes("*** CONNECTED With " + SessionTo)
+            };
+            SendFrameToClient(clientId, frame);
+        }
+
+        // Signal that another station connected to us
+        public void SendSessionConnectToClientEx(Guid clientId)
+        {
+            // Create an AGWPE frame for the session connection
+            var frame = new AgwpeFrame
+            {
+                Port = 0, // Default port
+                DataKind = (byte)'C', // Connection
+                CallFrom = SessionTo,
+                CallTo = SessionFrom,
+                Data = ASCIIEncoding.ASCII.GetBytes("*** CONNECTED To Station " + SessionFrom)
             };
             SendFrameToClient(clientId, frame);
         }
