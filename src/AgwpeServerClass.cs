@@ -19,6 +19,7 @@ limitations under the License.
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -251,6 +252,7 @@ namespace HTCommander
         private readonly MainForm parent;
         private readonly TcpListener _listener;
         private readonly ConcurrentDictionary<Guid, TcpClientHandler> _clients = new ConcurrentDictionary<Guid, TcpClientHandler>();
+        private readonly ConcurrentDictionary<Guid, HashSet<string>> _registeredCallsigns = new ConcurrentDictionary<Guid, HashSet<string>>();
         private CancellationTokenSource _cts;
         private Task _serverTask;
         private string SessionTo = null;
@@ -488,28 +490,31 @@ namespace HTCommander
             switch ((char)frame.DataKind)
             {
                 case 'R': // Register application
-                    //HandleRegister(clientId, frame);
-                    break;
-
-                case 'G': // Get channel info
                     {
-                        OnDebugMessage($"AGWPE client requested channel info");
-
-                        // Example reply with dummy values
-                        var channelInfo = Encoding.UTF8.GetBytes("1;Port1 Handi-Talky Commander;");
-                        var reply = new AgwpeFrame
+                        if (!string.IsNullOrWhiteSpace(frame.CallFrom))
                         {
-                            DataKind = (byte)'G',
-                            Data = channelInfo
-                        };
-                        SendFrame(clientId, reply);
+                            var set = _registeredCallsigns.GetOrAdd(clientId, _ => new HashSet<string>());
+                            lock (set) { set.Add(frame.CallFrom); }
+                            OnDebugMessage($"AGWPE client {clientId} registered callsign '{frame.CallFrom}'");
+                        }
+                        else
+                        {
+                            OnDebugMessage($"AGWPE client {clientId} sent empty registration callsign.");
+                        }
                     }
                     break;
-
                 case 'X': // Disconnect / un-register
-                    OnDebugMessage($"AGWPE client unregistered.");
+                    {
+                        if (!string.IsNullOrWhiteSpace(frame.CallFrom))
+                        {
+                            if (_registeredCallsigns.TryGetValue(clientId, out var set))
+                            {
+                                lock (set) { set.Remove(frame.CallFrom); }
+                                OnDebugMessage($"AGWPE client {clientId} unregistered callsign '{frame.CallFrom}'");
+                            }
+                        }
+                    }
                     break;
-
                 case 'D': // Data frame from app
                     {
                         if ((parent.radio.State == Radio.RadioState.Connected) && (parent.activeStationLock != null) && (parent.activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE) && (parent.session.CurrentState == AX25Session.ConnectionState.CONNECTED))
@@ -640,6 +645,8 @@ namespace HTCommander
 
         internal void RemoveClient(Guid clientId)
         {
+            // Remove all registrations for this client
+            _registeredCallsigns.TryRemove(clientId, out _);
             if (_clients.TryRemove(clientId, out var clientHandler))
             {
                 OnDebugMessage($"AGWPE client disconnected: {clientId}");
