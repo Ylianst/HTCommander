@@ -584,10 +584,25 @@ namespace HTCommander
                     AX25Address.GetAddress(frame.CallTo),
                     AX25Address.GetAddress(frame.CallFrom)
                 };
-                var packet = new AX25Packet(addresses, frame.Data, DateTime.Now);
-                packet.channel_id = parent.radio.HtStatus.curr_ch_id;
-                packet.channel_name = parent.radio.currentChannelName;
-                parent.radio.TransmitTncData(packet); // Send to radio
+                var p = new AX25Packet(addresses, frame.Data, DateTime.Now);
+                p.channel_id = parent.radio.HtStatus.curr_ch_id;
+                p.channel_name = parent.radio.currentChannelName;
+                parent.radio.TransmitTncData(p); // Send to radio
+
+                // Return the frame back to the client
+                DateTime now = DateTime.Now;
+                string str = (frame.Port + 1) + ":Fm " + p.addresses[1].CallSignWithId + " To " + p.addresses[0].CallSignWithId + " <UI pid=" + p.pid + " Len=" + p.data.Length + " >[" + now.Hour + ":" + now.Minute + ":" + now.Second + "]\r" + ASCIIEncoding.ASCII.GetString(frame.Data);
+                if (!str.EndsWith("\r") && !str.EndsWith("\n")) { str += "\r"; }
+                AgwpeFrame aframe = new AgwpeFrame()
+                {
+                    Port = frame.Port,
+                    DataKind = (byte)'T', // Send UNPROTO response
+                    CallFrom = p.addresses[0].CallSignWithId,
+                    CallTo = p.addresses[1].CallSignWithId,
+                    DataLen = (uint)p.data.Length,
+                    Data = ASCIIEncoding.ASCII.GetBytes(str)
+                };
+                BroadcastFrame(aframe);
             }
             catch (Exception ex)
             {
