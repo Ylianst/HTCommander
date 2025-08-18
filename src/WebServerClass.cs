@@ -150,7 +150,7 @@ namespace HTCommander
             this.port = port;
             this.parent = parent;
             _listener = new HttpListener();
-            _listener.Prefixes.Add("http://localhost:" + port + "/");
+            _listener.Prefixes.Add("http://+:" + port + "/");
         }
 
         public void Start()
