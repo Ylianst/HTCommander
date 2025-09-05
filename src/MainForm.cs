@@ -1905,7 +1905,7 @@ namespace HTCommander
                             foreach (ChatMessage n in aprsChatControl.Messages)
                             {
                                 if (n.Sender && (n.MessageId == aprsPacket.MessageData.SeqId)) {
-                                    if ((n.AuthState == AuthState.Unknown) || ((n.AuthState == AuthState.Success) && (aprsPacket.Packet.authState == AuthState.Success))) { n.ImageIndex = 0; }
+                                    if ((n.AuthState == AuthState.Unknown) || ((n.AuthState == AuthState.Success) && (aprsPacket.Packet.authState == AuthState.Success)) || ((n.AuthState == AuthState.None) && (aprsPacket.Packet.authState == AuthState.None))) { n.ImageIndex = 0; }
                                 }
                             }
                         }
@@ -1919,7 +1919,7 @@ namespace HTCommander
                             foreach (ChatMessage n in aprsChatControl.Messages)
                             {
                                 if (n.Sender && (n.MessageId == aprsPacket.MessageData.SeqId)) {
-                                    if ((n.AuthState == AuthState.Unknown) || ((n.AuthState == AuthState.Success) && (aprsPacket.Packet.authState == AuthState.Success))) { n.ImageIndex = 1; }
+                                    if ((n.AuthState == AuthState.Unknown) || ((n.AuthState == AuthState.Success) && (aprsPacket.Packet.authState == AuthState.Success)) || ((n.AuthState == AuthState.None) && (aprsPacket.Packet.authState == AuthState.None))) { n.ImageIndex = 1; }
                                 }
                             }
                         }
