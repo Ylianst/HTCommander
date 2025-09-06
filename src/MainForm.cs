@@ -1764,14 +1764,14 @@ namespace HTCommander
 
             // Compute authentication token
             byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
-            Console.WriteLine("AuthKey: " + Utils.BytesToHex(authKey));
+            //Console.WriteLine("AuthKey: " + Utils.BytesToHex(authKey));
             string x1 = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage + "{" + msgId;
-            Console.WriteLine("Hash: " + x1);
+            //Console.WriteLine("Hash: " + x1);
             byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage + "{" + msgId));
-            Console.WriteLine("authHash (hex): " + Utils.BytesToHex(authCode));
-            Console.WriteLine("authHash (base64): " + Convert.ToBase64String(authCode));
+            //Console.WriteLine("authHash (hex): " + Utils.BytesToHex(authCode));
+            //Console.WriteLine("authHash (base64): " + Convert.ToBase64String(authCode));
             string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
-            Console.WriteLine("authCodeBase64: " + authCodeBase64);
+            //Console.WriteLine("authCodeBase64: " + authCodeBase64);
 
             // Add authentication token to APRS message
             authApplied = true;
@@ -1802,14 +1802,14 @@ namespace HTCommander
 
             // Compute authentication token
             byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
-            Console.WriteLine("AuthKey: " + Utils.BytesToHex(authKey));
+            //Console.WriteLine("AuthKey: " + Utils.BytesToHex(authKey));
             string x1 = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + aprsMessage;
-            Console.WriteLine("Hash: " + x1);
+            //Console.WriteLine("Hash: " + x1);
             byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + aprsMessage));
-            Console.WriteLine("authHash (hex): " + Utils.BytesToHex(authCode));
-            Console.WriteLine("authHash (base64): " + Convert.ToBase64String(authCode));
+            //Console.WriteLine("authHash (hex): " + Utils.BytesToHex(authCode));
+            //Console.WriteLine("authHash (base64): " + Convert.ToBase64String(authCode));
             string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
-            Console.WriteLine("authCodeBase64: " + authCodeBase64);
+            //Console.WriteLine("authCodeBase64: " + authCodeBase64);
 
             // Add authentication token to APRS message
             authApplied = true;

@@ -253,18 +253,7 @@ namespace HTCommander
 
         public static byte[] ComputeHmacSha256Hash(byte[] authkey, byte[] data)
         {
-            string a = Utils.BytesToHex(authkey);
-            string b = Utils.BytesToHex(data);
-            byte[] r;
-            using (HMACSHA256 hmac = new HMACSHA256(authkey)) {
-                r = hmac.ComputeHash(data);
-            }
-            string rs = Utils.BytesToHex(r);
-            Console.WriteLine("HMACSHA256('" + a + "', '" + b + "') = " + rs);
-            return r;
-            
-
-            //using (HMACSHA256 hmac = new HMACSHA256(authkey)) { return hmac.ComputeHash(data); }
+            using (HMACSHA256 hmac = new HMACSHA256(authkey)) { return hmac.ComputeHash(data); }
         }
     }
 
