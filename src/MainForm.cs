@@ -387,11 +387,6 @@ namespace HTCommander
                         fragment.channel_name = cn;
                         fragment.incoming = incoming;
                         Radio_OnDataFrame(null, fragment);
-                        if ((incoming == false) && (cn == "APRS"))
-                        {
-                            AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
-                            if (packet != null) { AddAprsPacket(packet, true); }
-                        }
 
                         // Add to the packet capture tab
                         ListViewItem l = new ListViewItem(new string[] { fragment.time.ToShortTimeString(), fragment.channel_name, FragmentToShortString(fragment) });
@@ -860,7 +855,7 @@ namespace HTCommander
                 AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
                 if ((p != null) && (p.type == FrameType.U_FRAME))
                 {
-                    AddAprsPacket(p, false);
+                    AddAprsPacket(p, !frame.incoming);
                     aprsChatControl.UpdateMessages(false);
                     DebugTrace(frame.time.ToShortTimeString() + " CHANNEL: " + (frame.channel_id + 1) + " X25: " + Utils.BytesToHex(p.data));
                 }
@@ -1769,9 +1764,14 @@ namespace HTCommander
 
             // Compute authentication token
             byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
-            string x1 = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr + ":" + aprsMessage + "{" + msgId;
-            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr + ":" + aprsMessage + "{" + msgId));
+            Console.WriteLine("AuthKey: " + Utils.BytesToHex(authKey));
+            string x1 = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage + "{" + msgId;
+            Console.WriteLine("Hash: " + x1);
+            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage + "{" + msgId));
+            Console.WriteLine("authHash (hex): " + Utils.BytesToHex(authCode));
+            Console.WriteLine("authHash (base64): " + Convert.ToBase64String(authCode));
             string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
+            Console.WriteLine("authCodeBase64: " + authCodeBase64);
 
             // Add authentication token to APRS message
             authApplied = true;
@@ -1802,8 +1802,8 @@ namespace HTCommander
 
             // Compute authentication token
             byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
-            string x1 = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr + aprsMessage;
-            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr + aprsMessage));
+            string x1 = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + aprsMessage;
+            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + aprsMessage));
             string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
 
             // Add authentication token to APRS message
@@ -1852,7 +1852,7 @@ namespace HTCommander
             TimeSpan timeSinceEpoch = time.ToUniversalTime() - unixEpoch;
             long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes - 2;
             byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
-            string hashMsg = ":" + srcAddress + ":" + aprsAddr + ":" + aprsMessage;
+            string hashMsg = ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage;
             if (msgIdPresent) { hashMsg += "{" + msgId; }
 
             for (long x = minutesSinceEpoch; x < (minutesSinceEpoch + 5); x++)

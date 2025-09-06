@@ -102,14 +102,18 @@ namespace HTCommander
 
         public static byte[] HexStringToByteArray(string Hex)
         {
-            if (Hex.Length % 2 != 0) return null;
-            byte[] Bytes = new byte[Hex.Length / 2];
-            int[] HexValue = new int[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F };
-            for (int x = 0, i = 0; i < Hex.Length; i += 2, x += 1)
+            try
             {
-                Bytes[x] = (byte)(HexValue[Char.ToUpper(Hex[i + 0]) - '0'] << 4 | HexValue[Char.ToUpper(Hex[i + 1]) - '0']);
+                if (Hex.Length % 2 != 0) return null;
+                byte[] Bytes = new byte[Hex.Length / 2];
+                int[] HexValue = new int[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F };
+                for (int x = 0, i = 0; i < Hex.Length; i += 2, x += 1)
+                {
+                    Bytes[x] = (byte)(HexValue[Char.ToUpper(Hex[i + 0]) - '0'] << 4 | HexValue[Char.ToUpper(Hex[i + 1]) - '0']);
+                }
+                return Bytes;
             }
-            return Bytes;
+            catch (Exception) { return null; }
         }
 
         public static int GetShort(byte[] d, int p) { return ((int)d[p] << 8) + (int)d[p + 1]; }
@@ -249,7 +253,18 @@ namespace HTCommander
 
         public static byte[] ComputeHmacSha256Hash(byte[] authkey, byte[] data)
         {
-            using (HMACSHA256 hmac = new HMACSHA256(authkey)) { return hmac.ComputeHash(data); }
+            string a = Utils.BytesToHex(authkey);
+            string b = Utils.BytesToHex(data);
+            byte[] r;
+            using (HMACSHA256 hmac = new HMACSHA256(authkey)) {
+                r = hmac.ComputeHash(data);
+            }
+            string rs = Utils.BytesToHex(r);
+            Console.WriteLine("HMACSHA256('" + a + "', '" + b + "') = " + rs);
+            return r;
+            
+
+            //using (HMACSHA256 hmac = new HMACSHA256(authkey)) { return hmac.ComputeHash(data); }
         }
     }
 
