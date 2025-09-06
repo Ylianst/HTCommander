@@ -2000,10 +2000,11 @@ namespace HTCommander
                 c.AuthState = packet.authState;
 
                 // Check if we already got this message in the last 5 minutes
+                // When starting up HTCommander, this packet may already be loaded, so we still process if the packet is the same content and the same time.
                 foreach (ChatMessage chatMessage2 in aprsChatControl.Messages)
                 {
                     AX25Packet packet2 = (AX25Packet)chatMessage2.Tag;
-                    if ((c.Message == chatMessage2.Message) && (packet2.time.AddMinutes(5).CompareTo(packet.time) > 0)) { return; }
+                    if ((c.Message == chatMessage2.Message) && (packet2.time.AddMinutes(5).CompareTo(packet.time) > 0) && (c.Time != packet2.time)) { return; }
                 }
 
                 // Add the message
