@@ -4395,6 +4395,12 @@ namespace HTCommander
             else
             {
                 e.Cancel = false;
+                if (AprsFile != null)
+                {
+                    AprsFile.Flush();
+                    AprsFile.Close();
+                    AprsFile = null;
+                }
             }
         }
 
@@ -5254,11 +5260,6 @@ namespace HTCommander
         private void localWebSiteToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (webserver != null) { System.Diagnostics.Process.Start("http://localhost:" + webServerPort); }
-        }
-
-        private void terminalTabContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-
         }
     }
 }

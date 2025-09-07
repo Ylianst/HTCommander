@@ -56,6 +56,7 @@ namespace HTCommander
             radio.SetOutputAudioDevice(SelectedOutputDeviceId);
             UpdateInfo();
             parent.microphone.Boost = inputBoostTrackBar.Value = (int)parent.registry.ReadInt("InputAudioBoost", 0);
+            spacebarPTTToolStripMenuItem.Checked = (parent.registry.ReadInt("SpacebarPTT", 0) != 0);
         }
 
         private void RadioVolumeForm_Load(object sender, EventArgs e)
@@ -285,7 +286,9 @@ namespace HTCommander
 
         private void transmitButton_MouseLeave(object sender, EventArgs e)
         {
-            transmitButton.Image = microphoneImageList.Images[0];
+            if (spacebarPTTToolStripMenuItem.Checked == false) {
+                transmitButton.Image = microphoneImageList.Images[0];
+            }
         }
 
         private void transmitButton_MouseDown(object sender, MouseEventArgs e)
@@ -493,6 +496,49 @@ namespace HTCommander
         private void inputGraphButton_Click(object sender, EventArgs e)
         {
             parent.showAudioGraph(true);
+        }
+
+        private void closeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Close();
+        }
+
+        private void spacebarPTTToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            parent.registry.WriteInt("SpacebarPTT", spacebarPTTToolStripMenuItem.Checked ? 1 : 0);
+            if (spacebarPTTToolStripMenuItem.Checked == true)
+            {
+                transmitButton.Image = microphoneImageList.Images[1];
+            }
+            else
+            {
+                transmitButton.Image = microphoneImageList.Images[0];
+            }
+        }
+
+        private void RadioVolumeForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (spacebarPTTToolStripMenuItem.Checked && transmitButton.Enabled && (e.KeyCode == Keys.Space))
+            {
+                transmitButton_MouseDown(this, null);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void RadioVolumeForm_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (spacebarPTTToolStripMenuItem.Checked && transmitButton.Enabled && (e.KeyCode == Keys.Space))
+            {
+                transmitButton_MouseUp(this, null);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void RadioVolumeForm_Deactivate(object sender, EventArgs e)
+        {
+            transmitButton_MouseUp(this, null);
         }
     }
 }

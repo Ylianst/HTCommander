@@ -45,6 +45,7 @@
             this.masterMuteButton = new System.Windows.Forms.Button();
             this.label8 = new System.Windows.Forms.Label();
             this.appVolumeTrackBar = new System.Windows.Forms.TrackBar();
+            this.outputAmplitudeHistoryBar = new HTCommander.AmplitudeHistoryBar();
             this.label5 = new System.Windows.Forms.Label();
             this.outputTrackBar = new System.Windows.Forms.TrackBar();
             this.label6 = new System.Windows.Forms.Label();
@@ -59,11 +60,19 @@
             this.saveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.label9 = new System.Windows.Forms.Label();
+            this.inputAmplitudeHistoryBar = new HTCommander.AmplitudeHistoryBar();
             this.inputBoostTrackBar = new System.Windows.Forms.TrackBar();
             this.outputGraphButton = new System.Windows.Forms.Button();
             this.inputGraphButton = new System.Windows.Forms.Button();
-            this.inputAmplitudeHistoryBar = new HTCommander.AmplitudeHistoryBar();
-            this.outputAmplitudeHistoryBar = new HTCommander.AmplitudeHistoryBar();
+            this.menuStrip1 = new System.Windows.Forms.MenuStrip();
+            this.menuStrip2 = new System.Windows.Forms.MenuStrip();
+            this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.closeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.outputAudioGraphToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.inputAudioGraphToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.optionsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.spacebarPTTToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.volumeTrackBar)).BeginInit();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.squelchTrackBar)).BeginInit();
@@ -74,6 +83,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.inputTrackBar)).BeginInit();
             this.groupBox3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.inputBoostTrackBar)).BeginInit();
+            this.menuStrip2.SuspendLayout();
             this.SuspendLayout();
             // 
             // volumeTrackBar
@@ -86,7 +96,7 @@
             this.volumeTrackBar.Maximum = 15;
             this.volumeTrackBar.Name = "volumeTrackBar";
             this.volumeTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.volumeTrackBar.Size = new System.Drawing.Size(56, 170);
+            this.volumeTrackBar.Size = new System.Drawing.Size(56, 166);
             this.volumeTrackBar.TabIndex = 20;
             this.volumeTrackBar.Scroll += new System.EventHandler(this.volumeTrackBar_Scroll);
             // 
@@ -98,9 +108,9 @@
             this.groupBox1.Controls.Add(this.squelchTrackBar);
             this.groupBox1.Controls.Add(this.label1);
             this.groupBox1.Controls.Add(this.volumeTrackBar);
-            this.groupBox1.Location = new System.Drawing.Point(12, 82);
+            this.groupBox1.Location = new System.Drawing.Point(12, 114);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(161, 259);
+            this.groupBox1.Size = new System.Drawing.Size(161, 255);
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Radio";
@@ -124,7 +134,7 @@
             this.squelchTrackBar.Maximum = 9;
             this.squelchTrackBar.Name = "squelchTrackBar";
             this.squelchTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.squelchTrackBar.Size = new System.Drawing.Size(56, 170);
+            this.squelchTrackBar.Size = new System.Drawing.Size(56, 166);
             this.squelchTrackBar.TabIndex = 21;
             this.squelchTrackBar.Scroll += new System.EventHandler(this.squelchTrackBar_Scroll);
             // 
@@ -143,7 +153,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.outputComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.outputComboBox.FormattingEnabled = true;
-            this.outputComboBox.Location = new System.Drawing.Point(74, 12);
+            this.outputComboBox.Location = new System.Drawing.Point(74, 41);
             this.outputComboBox.Name = "outputComboBox";
             this.outputComboBox.Size = new System.Drawing.Size(533, 24);
             this.outputComboBox.TabIndex = 10;
@@ -152,7 +162,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(9, 15);
+            this.label2.Location = new System.Drawing.Point(9, 44);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(45, 16);
             this.label2.TabIndex = 3;
@@ -161,7 +171,7 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(9, 45);
+            this.label3.Location = new System.Drawing.Point(9, 74);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(35, 16);
             this.label3.TabIndex = 5;
@@ -173,7 +183,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.inputComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.inputComboBox.FormattingEnabled = true;
-            this.inputComboBox.Location = new System.Drawing.Point(74, 42);
+            this.inputComboBox.Location = new System.Drawing.Point(74, 71);
             this.inputComboBox.Name = "inputComboBox";
             this.inputComboBox.Size = new System.Drawing.Size(533, 24);
             this.inputComboBox.TabIndex = 12;
@@ -192,9 +202,9 @@
             this.groupBox2.Controls.Add(this.outputTrackBar);
             this.groupBox2.Controls.Add(this.label6);
             this.groupBox2.Controls.Add(this.masterVolumeTrackBar);
-            this.groupBox2.Location = new System.Drawing.Point(180, 82);
+            this.groupBox2.Location = new System.Drawing.Point(180, 114);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(213, 259);
+            this.groupBox2.Size = new System.Drawing.Size(213, 255);
             this.groupBox2.TabIndex = 6;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Output";
@@ -205,7 +215,7 @@
             this.appMuteButton.Enabled = false;
             this.appMuteButton.ImageIndex = 0;
             this.appMuteButton.ImageList = this.muteImageList;
-            this.appMuteButton.Location = new System.Drawing.Point(85, 223);
+            this.appMuteButton.Location = new System.Drawing.Point(85, 219);
             this.appMuteButton.Name = "appMuteButton";
             this.appMuteButton.Size = new System.Drawing.Size(36, 32);
             this.appMuteButton.TabIndex = 25;
@@ -224,7 +234,7 @@
             this.masterMuteButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.masterMuteButton.ImageIndex = 1;
             this.masterMuteButton.ImageList = this.muteImageList;
-            this.masterMuteButton.Location = new System.Drawing.Point(22, 223);
+            this.masterMuteButton.Location = new System.Drawing.Point(22, 219);
             this.masterMuteButton.Name = "masterMuteButton";
             this.masterMuteButton.Size = new System.Drawing.Size(36, 32);
             this.masterMuteButton.TabIndex = 23;
@@ -251,10 +261,21 @@
             this.appVolumeTrackBar.Maximum = 100;
             this.appVolumeTrackBar.Name = "appVolumeTrackBar";
             this.appVolumeTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.appVolumeTrackBar.Size = new System.Drawing.Size(56, 160);
+            this.appVolumeTrackBar.Size = new System.Drawing.Size(56, 156);
             this.appVolumeTrackBar.TabIndex = 24;
             this.appVolumeTrackBar.TickFrequency = 10;
             this.appVolumeTrackBar.Scroll += new System.EventHandler(this.appVolumeTrackBar_Scroll);
+            // 
+            // outputAmplitudeHistoryBar
+            // 
+            this.outputAmplitudeHistoryBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left)));
+            this.outputAmplitudeHistoryBar.BackColor = System.Drawing.Color.Black;
+            this.outputAmplitudeHistoryBar.ForeColor = System.Drawing.Color.LimeGreen;
+            this.outputAmplitudeHistoryBar.Location = new System.Drawing.Point(184, 84);
+            this.outputAmplitudeHistoryBar.Name = "outputAmplitudeHistoryBar";
+            this.outputAmplitudeHistoryBar.Size = new System.Drawing.Size(8, 140);
+            this.outputAmplitudeHistoryBar.TabIndex = 8;
             // 
             // label5
             // 
@@ -275,7 +296,7 @@
             this.outputTrackBar.Maximum = 100;
             this.outputTrackBar.Name = "outputTrackBar";
             this.outputTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.outputTrackBar.Size = new System.Drawing.Size(56, 170);
+            this.outputTrackBar.Size = new System.Drawing.Size(56, 166);
             this.outputTrackBar.TabIndex = 26;
             this.outputTrackBar.TickFrequency = 10;
             this.outputTrackBar.Value = 100;
@@ -300,7 +321,7 @@
             this.masterVolumeTrackBar.Maximum = 100;
             this.masterVolumeTrackBar.Name = "masterVolumeTrackBar";
             this.masterVolumeTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.masterVolumeTrackBar.Size = new System.Drawing.Size(56, 160);
+            this.masterVolumeTrackBar.Size = new System.Drawing.Size(56, 156);
             this.masterVolumeTrackBar.TabIndex = 22;
             this.masterVolumeTrackBar.TickFrequency = 10;
             this.masterVolumeTrackBar.Scroll += new System.EventHandler(this.masterVolumeTrackBar_Scroll);
@@ -324,7 +345,7 @@
             this.inputTrackBar.Maximum = 100;
             this.inputTrackBar.Name = "inputTrackBar";
             this.inputTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.inputTrackBar.Size = new System.Drawing.Size(56, 170);
+            this.inputTrackBar.Size = new System.Drawing.Size(56, 166);
             this.inputTrackBar.TabIndex = 27;
             this.inputTrackBar.TickFrequency = 10;
             this.inputTrackBar.Value = 100;
@@ -334,11 +355,13 @@
             // 
             this.transmitButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.transmitButton.ImageList = this.microphoneImageList;
-            this.transmitButton.Location = new System.Drawing.Point(565, 261);
+            this.transmitButton.Location = new System.Drawing.Point(565, 289);
             this.transmitButton.Name = "transmitButton";
             this.transmitButton.Size = new System.Drawing.Size(92, 80);
             this.transmitButton.TabIndex = 42;
             this.transmitButton.UseVisualStyleBackColor = true;
+            this.transmitButton.KeyDown += new System.Windows.Forms.KeyEventHandler(this.RadioVolumeForm_KeyDown);
+            this.transmitButton.KeyUp += new System.Windows.Forms.KeyEventHandler(this.RadioVolumeForm_KeyUp);
             this.transmitButton.MouseDown += new System.Windows.Forms.MouseEventHandler(this.transmitButton_MouseDown);
             this.transmitButton.MouseEnter += new System.EventHandler(this.transmitButton_MouseEnter);
             this.transmitButton.MouseLeave += new System.EventHandler(this.transmitButton_MouseLeave);
@@ -366,7 +389,7 @@
             // 
             this.audioButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.audioButton.ImageList = this.microphoneImageList;
-            this.audioButton.Location = new System.Drawing.Point(565, 88);
+            this.audioButton.Location = new System.Drawing.Point(565, 115);
             this.audioButton.Name = "audioButton";
             this.audioButton.Size = new System.Drawing.Size(92, 80);
             this.audioButton.TabIndex = 40;
@@ -377,7 +400,7 @@
             // 
             this.recordButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.recordButton.ImageList = this.microphoneImageList;
-            this.recordButton.Location = new System.Drawing.Point(565, 174);
+            this.recordButton.Location = new System.Drawing.Point(565, 201);
             this.recordButton.Name = "recordButton";
             this.recordButton.Size = new System.Drawing.Size(92, 80);
             this.recordButton.TabIndex = 41;
@@ -400,9 +423,9 @@
             this.groupBox3.Controls.Add(this.inputAmplitudeHistoryBar);
             this.groupBox3.Controls.Add(this.inputTrackBar);
             this.groupBox3.Controls.Add(this.inputBoostTrackBar);
-            this.groupBox3.Location = new System.Drawing.Point(399, 82);
+            this.groupBox3.Location = new System.Drawing.Point(399, 114);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new System.Drawing.Size(160, 259);
+            this.groupBox3.Size = new System.Drawing.Size(160, 255);
             this.groupBox3.TabIndex = 10;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Input";
@@ -416,6 +439,17 @@
             this.label9.TabIndex = 9;
             this.label9.Text = "Boost";
             // 
+            // inputAmplitudeHistoryBar
+            // 
+            this.inputAmplitudeHistoryBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left)));
+            this.inputAmplitudeHistoryBar.BackColor = System.Drawing.Color.Black;
+            this.inputAmplitudeHistoryBar.ForeColor = System.Drawing.Color.LimeGreen;
+            this.inputAmplitudeHistoryBar.Location = new System.Drawing.Point(122, 84);
+            this.inputAmplitudeHistoryBar.Name = "inputAmplitudeHistoryBar";
+            this.inputAmplitudeHistoryBar.Size = new System.Drawing.Size(8, 140);
+            this.inputAmplitudeHistoryBar.TabIndex = 7;
+            // 
             // inputBoostTrackBar
             // 
             this.inputBoostTrackBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -425,7 +459,7 @@
             this.inputBoostTrackBar.Margin = new System.Windows.Forms.Padding(4);
             this.inputBoostTrackBar.Name = "inputBoostTrackBar";
             this.inputBoostTrackBar.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.inputBoostTrackBar.Size = new System.Drawing.Size(56, 170);
+            this.inputBoostTrackBar.Size = new System.Drawing.Size(56, 166);
             this.inputBoostTrackBar.TabIndex = 28;
             this.inputBoostTrackBar.Scroll += new System.EventHandler(this.inputBoostTrackBar_Scroll);
             // 
@@ -433,7 +467,7 @@
             // 
             this.outputGraphButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.outputGraphButton.Image = ((System.Drawing.Image)(resources.GetObject("outputGraphButton.Image")));
-            this.outputGraphButton.Location = new System.Drawing.Point(613, 12);
+            this.outputGraphButton.Location = new System.Drawing.Point(613, 41);
             this.outputGraphButton.Name = "outputGraphButton";
             this.outputGraphButton.Size = new System.Drawing.Size(44, 28);
             this.outputGraphButton.TabIndex = 11;
@@ -444,40 +478,94 @@
             // 
             this.inputGraphButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.inputGraphButton.Image = ((System.Drawing.Image)(resources.GetObject("inputGraphButton.Image")));
-            this.inputGraphButton.Location = new System.Drawing.Point(613, 42);
+            this.inputGraphButton.Location = new System.Drawing.Point(613, 71);
             this.inputGraphButton.Name = "inputGraphButton";
             this.inputGraphButton.Size = new System.Drawing.Size(44, 28);
             this.inputGraphButton.TabIndex = 13;
             this.inputGraphButton.UseVisualStyleBackColor = true;
             this.inputGraphButton.Click += new System.EventHandler(this.inputGraphButton_Click);
             // 
-            // inputAmplitudeHistoryBar
+            // menuStrip1
             // 
-            this.inputAmplitudeHistoryBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left)));
-            this.inputAmplitudeHistoryBar.BackColor = System.Drawing.Color.Black;
-            this.inputAmplitudeHistoryBar.ForeColor = System.Drawing.Color.LimeGreen;
-            this.inputAmplitudeHistoryBar.Location = new System.Drawing.Point(122, 84);
-            this.inputAmplitudeHistoryBar.Name = "inputAmplitudeHistoryBar";
-            this.inputAmplitudeHistoryBar.Size = new System.Drawing.Size(8, 144);
-            this.inputAmplitudeHistoryBar.TabIndex = 7;
+            this.menuStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.menuStrip1.Location = new System.Drawing.Point(0, 28);
+            this.menuStrip1.Name = "menuStrip1";
+            this.menuStrip1.Size = new System.Drawing.Size(669, 24);
+            this.menuStrip1.TabIndex = 43;
+            this.menuStrip1.Text = "menuStrip1";
             // 
-            // outputAmplitudeHistoryBar
+            // menuStrip2
             // 
-            this.outputAmplitudeHistoryBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left)));
-            this.outputAmplitudeHistoryBar.BackColor = System.Drawing.Color.Black;
-            this.outputAmplitudeHistoryBar.ForeColor = System.Drawing.Color.LimeGreen;
-            this.outputAmplitudeHistoryBar.Location = new System.Drawing.Point(184, 84);
-            this.outputAmplitudeHistoryBar.Name = "outputAmplitudeHistoryBar";
-            this.outputAmplitudeHistoryBar.Size = new System.Drawing.Size(8, 144);
-            this.outputAmplitudeHistoryBar.TabIndex = 8;
+            this.menuStrip2.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.menuStrip2.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.fileToolStripMenuItem,
+            this.viewToolStripMenuItem,
+            this.optionsToolStripMenuItem});
+            this.menuStrip2.Location = new System.Drawing.Point(0, 0);
+            this.menuStrip2.Name = "menuStrip2";
+            this.menuStrip2.Size = new System.Drawing.Size(669, 28);
+            this.menuStrip2.TabIndex = 44;
+            this.menuStrip2.Text = "menuStrip2";
+            // 
+            // fileToolStripMenuItem
+            // 
+            this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.closeToolStripMenuItem});
+            this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
+            this.fileToolStripMenuItem.Text = "&File";
+            // 
+            // closeToolStripMenuItem
+            // 
+            this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
+            this.closeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.closeToolStripMenuItem.Text = "&Close";
+            this.closeToolStripMenuItem.Click += new System.EventHandler(this.closeToolStripMenuItem_Click);
+            // 
+            // viewToolStripMenuItem
+            // 
+            this.viewToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.outputAudioGraphToolStripMenuItem,
+            this.inputAudioGraphToolStripMenuItem});
+            this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
+            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
+            this.viewToolStripMenuItem.Text = "&View";
+            // 
+            // outputAudioGraphToolStripMenuItem
+            // 
+            this.outputAudioGraphToolStripMenuItem.Name = "outputAudioGraphToolStripMenuItem";
+            this.outputAudioGraphToolStripMenuItem.Size = new System.Drawing.Size(235, 26);
+            this.outputAudioGraphToolStripMenuItem.Text = "&Output Audio Graph...";
+            this.outputAudioGraphToolStripMenuItem.Click += new System.EventHandler(this.outputGraphButton_Click);
+            // 
+            // inputAudioGraphToolStripMenuItem
+            // 
+            this.inputAudioGraphToolStripMenuItem.Name = "inputAudioGraphToolStripMenuItem";
+            this.inputAudioGraphToolStripMenuItem.Size = new System.Drawing.Size(235, 26);
+            this.inputAudioGraphToolStripMenuItem.Text = "&Input Audio Graph...";
+            this.inputAudioGraphToolStripMenuItem.Click += new System.EventHandler(this.inputGraphButton_Click);
+            // 
+            // optionsToolStripMenuItem
+            // 
+            this.optionsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.spacebarPTTToolStripMenuItem});
+            this.optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
+            this.optionsToolStripMenuItem.Size = new System.Drawing.Size(75, 24);
+            this.optionsToolStripMenuItem.Text = "&Options";
+            // 
+            // spacebarPTTToolStripMenuItem
+            // 
+            this.spacebarPTTToolStripMenuItem.CheckOnClick = true;
+            this.spacebarPTTToolStripMenuItem.Name = "spacebarPTTToolStripMenuItem";
+            this.spacebarPTTToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.spacebarPTTToolStripMenuItem.Text = "&Spacebar PTT";
+            this.spacebarPTTToolStripMenuItem.Click += new System.EventHandler(this.spacebarPTTToolStripMenuItem_Click);
             // 
             // RadioVolumeForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(669, 353);
+            this.ClientSize = new System.Drawing.Size(669, 381);
             this.Controls.Add(this.inputGraphButton);
             this.Controls.Add(this.outputGraphButton);
             this.Controls.Add(this.groupBox3);
@@ -490,17 +578,24 @@
             this.Controls.Add(this.label2);
             this.Controls.Add(this.outputComboBox);
             this.Controls.Add(this.groupBox1);
+            this.Controls.Add(this.menuStrip1);
+            this.Controls.Add(this.menuStrip2);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.KeyPreview = true;
+            this.MainMenuStrip = this.menuStrip1;
             this.Margin = new System.Windows.Forms.Padding(4);
             this.MaximizeBox = false;
-            this.MaximumSize = new System.Drawing.Size(687, 600);
+            this.MaximumSize = new System.Drawing.Size(687, 660);
             this.MinimizeBox = false;
-            this.MinimumSize = new System.Drawing.Size(665, 400);
+            this.MinimumSize = new System.Drawing.Size(687, 428);
             this.Name = "RadioVolumeForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Audio Controls";
+            this.Deactivate += new System.EventHandler(this.RadioVolumeForm_Deactivate);
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.RadioVolumeForm_FormClosing);
             this.Load += new System.EventHandler(this.RadioVolumeForm_Load);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.RadioVolumeForm_KeyDown);
+            this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.RadioVolumeForm_KeyUp);
             ((System.ComponentModel.ISupportInitialize)(this.volumeTrackBar)).EndInit();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
@@ -514,6 +609,8 @@
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.inputBoostTrackBar)).EndInit();
+            this.menuStrip2.ResumeLayout(false);
+            this.menuStrip2.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -554,5 +651,14 @@
         private System.Windows.Forms.TrackBar inputBoostTrackBar;
         private System.Windows.Forms.Button outputGraphButton;
         private System.Windows.Forms.Button inputGraphButton;
+        private System.Windows.Forms.MenuStrip menuStrip1;
+        private System.Windows.Forms.MenuStrip menuStrip2;
+        private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem outputAudioGraphToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem inputAudioGraphToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem optionsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem spacebarPTTToolStripMenuItem;
     }
 }
