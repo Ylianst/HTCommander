@@ -239,6 +239,8 @@ namespace HTCommander
             this.mapControl.Paint += Gmap_Paint;
             this.mapControl.OnMapZoomChanged += Gmap_OnMapZoomChanged;
             this.mapControl.OnMarkerDoubleClick += MapControl_OnMarkerDoubleClick;
+            this.mapControl.OnPositionChanged += MapControl_OnPositionChanged;
+            this.mapControl.OnMapZoomChanged += MapControl_OnMapZoomChanged;
 
             mapTabPage.Controls.Add(this.mapControl);
             mapControl.MapProvider = GMapProviders.OpenStreetMap;
@@ -2608,12 +2610,12 @@ namespace HTCommander
             mapControl.Refresh();
         }
 
-        private void mapControl_OnMapZoomChanged()
+        private void MapControl_OnMapZoomChanged()
         {
             registry.WriteString("MapZoom", mapControl.Zoom.ToString());
         }
 
-        private void mapControl_OnPositionChanged(GMap.NET.PointLatLng point)
+        private void MapControl_OnPositionChanged(PointLatLng point)
         {
             registry.WriteString("MapLatitude", mapControl.Position.Lat.ToString());
             registry.WriteString("MapLongetude", mapControl.Position.Lng.ToString());
