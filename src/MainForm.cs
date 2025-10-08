@@ -2657,6 +2657,7 @@ namespace HTCommander
                 if (m.ToolTipText.StartsWith("\r\n" + callsign + "\r\n"))
                 {
                     m.IsVisible = ((mapFilterMinutes == 0) || (DateTime.Now.CompareTo(time.AddMinutes(mapFilterMinutes)) <= 0));
+                    m.ToolTipText = "\r\n" + callsign + "\r\n" + time.ToString();
                     m.Position = new PointLatLng(lat, lng);
                     m.Tag = time;
                     return;
@@ -5208,7 +5209,7 @@ namespace HTCommander
             }
             foreach (GMapRoute r in mapMarkersOverlay.Routes)
             {
-                r.IsVisible = ((mapFilterMinutes == 0) || (now.CompareTo(((DateTime)r.Tag).AddMinutes(mapFilterMinutes)) <= 0));
+                r.IsVisible = showTracksToolStripMenuItem.Checked && ((mapFilterMinutes == 0) || (now.CompareTo(((DateTime)r.Tag).AddMinutes(mapFilterMinutes)) <= 0));
             }
         }
 

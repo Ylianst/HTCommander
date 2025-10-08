@@ -1570,7 +1570,7 @@
         AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAuMC4w
         LCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAAACZTeXN0
         ZW0uV2luZG93cy5Gb3Jtcy5JbWFnZUxpc3RTdHJlYW1lcgEAAAAERGF0YQcCAgAAAAkDAAAADwMAAADG
-        MQAAAk1TRnQBSQFMAgEBCwEAAYgBHwGIAR8BFAEAARQBAAT/ARkBAAj/AUIBTQE2BwABNgMAASgDAAFQ
+        MQAAAk1TRnQBSQFMAgEBCwEAAZABHwGQAR8BFAEAARQBAAT/ARkBAAj/AUIBTQE2BwABNgMAASgDAAFQ
         AwABPAMAAQEBAAEYBQABQAE4VwAD9AOhA3sYfAN9A70D/RIAA/QDoQN7GHwDfQO9A/2HAAPzAyYDRRh7
         A3wDdQMcA3ID/gwAA/MDJgNFGHsDfAN1AxwDcgP+hAADmgNJA+ke/wPJAwAD3wwAA5oDSQPpHv8DyQMA
         A99IAAP4A/Uk9AP1A/gMAANzA4Ih/wPxAzEDxgwAA3MDgiH/A/EDMQPGRQAD0AMLA1ADVx5RA1cDUAML
@@ -2323,7 +2323,7 @@
 </value>
   </data>
   <metadata name="speakContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>1137, 218</value>
+    <value>254, 259</value>
   </metadata>
   <data name="voiceMenuPictureBox.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
@@ -2593,14 +2593,14 @@
 </value>
   </data>
   <metadata name="mailBoxImageList.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>1172, 177</value>
+    <value>248, 218</value>
   </metadata>
   <data name="mailBoxImageList.ImageStream" mimetype="application/x-microsoft.net.object.binary.base64">
     <value>
         AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAuMC4w
         LCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAAACZTeXN0
         ZW0uV2luZG93cy5Gb3Jtcy5JbWFnZUxpc3RTdHJlYW1lcgEAAAAERGF0YQcCAgAAAAkDAAAADwMAAAB4
-        GAAAAk1TRnQBSQFMAgEBCQEAAXgBEQF4AREBFAEAARQBAAT/AQkBAAj/AUIBTQE2AQQGAAE2AQQCAAEo
+        GAAAAk1TRnQBSQFMAgEBCQEAAYABEQGAAREBFAEAARQBAAT/AQkBAAj/AUIBTQE2AQQGAAE2AQQCAAEo
         AwABUAMAATwDAAEBAQABCAUAAcABEhgAAYACAAGAAwACgAEAAYADAAGAAQABgAEAAoACAAPAAQABwAHc
         AcABAAHwAcoBpgEAATMFAAEzAQABMwEAATMBAAIzAgADFgEAAxwBAAMiAQADKQEAA1UBAANNAQADQgEA
         AzkBAAGAAXwB/wEAAlAB/wEAAZMBAAHWAQAB/wHsAcwBAAHGAdYB7wEAAdYC5wEAAZABqQGtAgAB/wEz
@@ -2708,7 +2708,7 @@
 </value>
   </data>
   <metadata name="mailContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>17, 218</value>
+    <value>426, 218</value>
   </metadata>
   <metadata name="stationsTabContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>743, 95</value>
@@ -3785,10 +3785,10 @@
 </value>
   </data>
   <metadata name="torrentContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>225, 218</value>
+    <value>634, 218</value>
   </metadata>
   <metadata name="torrentTabContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>653, 218</value>
+    <value>1062, 218</value>
   </metadata>
   <data name="torrentMenuPictureBox.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
@@ -4605,7 +4605,7 @@
         AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAuMC4w
         LCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAAACZTeXN0
         ZW0uV2luZG93cy5Gb3Jtcy5JbWFnZUxpc3RTdHJlYW1lcgEAAAAERGF0YQcCAgAAAAkDAAAADwMAAAAm
-        nQAAAk1TRnQBSQFMAgEBCgEAARgBIwEYASMBIAEAASABAAT/ARkBAAj/AUIBTQE2BwABNgMAASgDAAGA
+        nQAAAk1TRnQBSQFMAgEBCgEAASABIwEgASMBIAEAASABAAT/ARkBAAj/AUIBTQE2BwABNgMAASgDAAGA
         AwABYAMAAQEBAAEYBgABkE4AA/wD8gLnAeUB3wHeAdoBywHKAccBzwHOAcMD+jkAA/sB6QHmAeUB1QHI
         AcUBxAGtAagBtQGYAZABqQGIAYABnAF6AXMBnQF8AXQBowGJAYIBvQGtAaoB4QHcAdsD+v8AA/YBzgHP
         AcwBtQG/Aa8B6ALnAcMBwgG7AcgBxQG3Ad0B1wHFAeEB4AHPAtwB0wGxAa8BpQLUAdAB2gHYAdI2AAHg
@@ -5318,13 +5318,13 @@
     <value>927, 136</value>
   </metadata>
   <metadata name="bbsTabContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>1153, 136</value>
+    <value>17, 177</value>
   </metadata>
   <metadata name="notifyIcon.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>669, 54</value>
   </metadata>
   <metadata name="notifyContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>17, 177</value>
+    <value>243, 177</value>
   </metadata>
   <data name="notifyIcon.Icon" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
@@ -6072,25 +6072,25 @@
 </value>
   </data>
   <metadata name="mailTabContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>941, 177</value>
+    <value>17, 218</value>
   </metadata>
   <metadata name="backupMailSaveFileDialog.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>705, 177</value>
+    <value>931, 177</value>
   </metadata>
   <metadata name="restoreMailOpenFileDialog.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>234, 177</value>
+    <value>460, 177</value>
   </metadata>
   <metadata name="torrentSaveFileDialog.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>449, 218</value>
+    <value>858, 218</value>
   </metadata>
   <metadata name="voiceTabContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>900, 218</value>
-  </metadata>
-  <metadata name="gpsLockTimer.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>17, 259</value>
   </metadata>
+  <metadata name="gpsLockTimer.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>471, 259</value>
+  </metadata>
   <metadata name="mapTabContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>473, 177</value>
+    <value>699, 177</value>
   </metadata>
   <metadata name="$this.TrayHeight" type="System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
     <value>303</value>

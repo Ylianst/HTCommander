@@ -3435,7 +3435,7 @@
             this.showTracksToolStripMenuItem,
             this.largeMarkersToolStripMenuItem});
             this.mapTabContextMenuStrip.Name = "mapTabContextMenuStrip";
-            this.mapTabContextMenuStrip.Size = new System.Drawing.Size(215, 148);
+            this.mapTabContextMenuStrip.Size = new System.Drawing.Size(215, 176);
             // 
             // showMarkersToolStripMenuItem
             // 
