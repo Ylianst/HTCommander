@@ -309,6 +309,7 @@ namespace HTCommander
             debugToolStripMenuItem.Checked = (registry.ReadInt("ViewDebug", 0) == 1);
             showAllMessagesToolStripMenuItem.Checked = (registry.ReadInt("aprsViewAll", 1) == 1);
             showPacketDecodeToolStripMenuItem.Checked = (registry.ReadInt("showPacketDecode", 0) == 1);
+            terminalTextBox.WordWrap = wordWarpToolStripMenuItem.Checked = registry.ReadInt("TerminalWordWrap", 1) == 1;
             showCallsignToolStripMenuItem.Checked = (registry.ReadInt("TerminalShowCallsign", 1) == 1);
             viewTrafficToolStripMenuItem.Checked = (registry.ReadInt("ViewBbsTraffic", 1) == 1);
             bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
@@ -5283,7 +5284,13 @@ namespace HTCommander
 
         private void localWebSiteToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (webserver != null) { System.Diagnostics.Process.Start("http://localhost:" + webServerPort); }
+            if (webserver != null) { Process.Start("http://localhost:" + webServerPort); }
+        }
+
+        private void wordWarpToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            registry.WriteInt("TerminalWordWrap", wordWarpToolStripMenuItem.Checked ? 1 : 0);
+            terminalTextBox.WordWrap = wordWarpToolStripMenuItem.Checked;
         }
     }
 }

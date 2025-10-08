@@ -30,20 +30,20 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup17 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup18 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup19 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -341,6 +341,7 @@
             this.largeMarkersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsChatControl = new HTCommander.ChatControl();
             this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
+            this.wordWarpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -1155,7 +1156,7 @@
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
             this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Size = new System.Drawing.Size(669, 653);
+            this.aprsTabPage.Size = new System.Drawing.Size(669, 651);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1220,7 +1221,7 @@
             this.aprsBottomPanel.Controls.Add(this.aprsTextBox);
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 606);
+            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 604);
             this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
             this.aprsBottomPanel.Size = new System.Drawing.Size(669, 47);
@@ -1988,6 +1989,7 @@
             this.terminalTextBox.Size = new System.Drawing.Size(669, 570);
             this.terminalTextBox.TabIndex = 4;
             this.terminalTextBox.Text = "";
+            this.terminalTextBox.WordWrap = false;
             // 
             // terminalBottomPanel
             // 
@@ -2101,22 +2103,22 @@
             this.mainAddressBookListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainAddressBookListView.FullRowSelect = true;
             this.mainAddressBookListView.GridLines = true;
-            listViewGroup1.Header = "Generic Stations";
-            listViewGroup1.Name = "Generic Stations";
-            listViewGroup2.Header = "APRS Stations";
-            listViewGroup2.Name = "APRS Stations";
-            listViewGroup3.Header = "Terminal Stations";
-            listViewGroup3.Name = "Terminal Stations";
-            listViewGroup4.Header = "BBS";
-            listViewGroup4.Name = "BBS";
-            listViewGroup5.Header = "Winlink Gateways";
-            listViewGroup5.Name = "Winlink Gateways";
+            listViewGroup9.Header = "Generic Stations";
+            listViewGroup9.Name = "Generic Stations";
+            listViewGroup10.Header = "APRS Stations";
+            listViewGroup10.Name = "APRS Stations";
+            listViewGroup11.Header = "Terminal Stations";
+            listViewGroup11.Name = "Terminal Stations";
+            listViewGroup12.Header = "BBS";
+            listViewGroup12.Name = "BBS";
+            listViewGroup13.Header = "Winlink Gateways";
+            listViewGroup13.Name = "Winlink Gateways";
             this.mainAddressBookListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup1,
-            listViewGroup2,
-            listViewGroup3,
-            listViewGroup4,
-            listViewGroup5});
+            listViewGroup9,
+            listViewGroup10,
+            listViewGroup11,
+            listViewGroup12,
+            listViewGroup13});
             this.mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.mainAddressBookListView.HideSelection = false;
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 37);
@@ -2286,16 +2288,16 @@
             this.bbsListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.bbsListView.FullRowSelect = true;
             this.bbsListView.GridLines = true;
-            listViewGroup6.Header = "Generic Stations";
-            listViewGroup6.Name = "Generic Stations";
-            listViewGroup7.Header = "APRS Stations";
-            listViewGroup7.Name = "APRS Stations";
-            listViewGroup8.Header = "Terminal Stations";
-            listViewGroup8.Name = "Terminal Stations";
+            listViewGroup14.Header = "Generic Stations";
+            listViewGroup14.Name = "Generic Stations";
+            listViewGroup15.Header = "APRS Stations";
+            listViewGroup15.Name = "APRS Stations";
+            listViewGroup16.Header = "Terminal Stations";
+            listViewGroup16.Name = "Terminal Stations";
             this.bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup6,
-            listViewGroup7,
-            listViewGroup8});
+            listViewGroup14,
+            listViewGroup15,
+            listViewGroup16});
             this.bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.bbsListView.HideSelection = false;
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
@@ -2769,25 +2771,25 @@
             this.packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.packetDecodeListView.FullRowSelect = true;
             this.packetDecodeListView.GridLines = true;
-            listViewGroup9.Header = "Metadata";
-            listViewGroup9.Name = "packetDecodeMetadataListViewGroup";
-            listViewGroup10.Header = "AX.25 Header";
-            listViewGroup10.Name = "packetDecodeHeaderListViewGroup";
-            listViewGroup11.Header = "AX.25 Data";
-            listViewGroup11.Name = "packetDecodeDataListViewGroup";
-            listViewGroup12.Header = "APRS";
-            listViewGroup12.Name = "packetDecodeAprsListViewGroup";
-            listViewGroup13.Header = "Position";
-            listViewGroup13.Name = "packetDecodePositionListViewGroup";
-            listViewGroup14.Header = "Decompression";
-            listViewGroup14.Name = "packetDecodeDecompressionListViewGroup";
+            listViewGroup1.Header = "Metadata";
+            listViewGroup1.Name = "packetDecodeMetadataListViewGroup";
+            listViewGroup2.Header = "AX.25 Header";
+            listViewGroup2.Name = "packetDecodeHeaderListViewGroup";
+            listViewGroup3.Header = "AX.25 Data";
+            listViewGroup3.Name = "packetDecodeDataListViewGroup";
+            listViewGroup17.Header = "APRS";
+            listViewGroup17.Name = "packetDecodeAprsListViewGroup";
+            listViewGroup18.Header = "Position";
+            listViewGroup18.Name = "packetDecodePositionListViewGroup";
+            listViewGroup19.Header = "Decompression";
+            listViewGroup19.Name = "packetDecodeDecompressionListViewGroup";
             this.packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup9,
-            listViewGroup10,
-            listViewGroup11,
-            listViewGroup12,
-            listViewGroup13,
-            listViewGroup14});
+            listViewGroup1,
+            listViewGroup2,
+            listViewGroup3,
+            listViewGroup17,
+            listViewGroup18,
+            listViewGroup19});
             this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.packetDecodeListView.HideSelection = false;
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
@@ -2993,11 +2995,12 @@
             this.terminalTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.terminalTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.showCallsignToolStripMenuItem,
+            this.wordWarpToolStripMenuItem,
             this.waitForConnectionToolStripMenuItem,
             this.toolStripMenuItem9,
             this.toolStripMenuItem13});
             this.terminalTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(211, 82);
+            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(211, 134);
             // 
             // showCallsignToolStripMenuItem
             // 
@@ -3419,7 +3422,7 @@
             this.allToolStripMenuItem.Checked = true;
             this.allToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             this.allToolStripMenuItem.Name = "allToolStripMenuItem";
-            this.allToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.allToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.allToolStripMenuItem.Tag = "0";
             this.allToolStripMenuItem.Text = "All";
             this.allToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
@@ -3427,7 +3430,7 @@
             // lastHourToolStripMenuItem
             // 
             this.lastHourToolStripMenuItem.Name = "lastHourToolStripMenuItem";
-            this.lastHourToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.lastHourToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.lastHourToolStripMenuItem.Tag = "60";
             this.lastHourToolStripMenuItem.Text = "Last Hour";
             this.lastHourToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
@@ -3435,7 +3438,7 @@
             // last4HoursToolStripMenuItem
             // 
             this.last4HoursToolStripMenuItem.Name = "last4HoursToolStripMenuItem";
-            this.last4HoursToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.last4HoursToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.last4HoursToolStripMenuItem.Tag = "240";
             this.last4HoursToolStripMenuItem.Text = "Last 4 hours";
             this.last4HoursToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
@@ -3443,7 +3446,7 @@
             // last24HoursToolStripMenuItem
             // 
             this.last24HoursToolStripMenuItem.Name = "last24HoursToolStripMenuItem";
-            this.last24HoursToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.last24HoursToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.last24HoursToolStripMenuItem.Tag = "1440";
             this.last24HoursToolStripMenuItem.Text = "Last 24 hours";
             this.last24HoursToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
@@ -3451,7 +3454,7 @@
             // lastWeekToolStripMenuItem
             // 
             this.lastWeekToolStripMenuItem.Name = "lastWeekToolStripMenuItem";
-            this.lastWeekToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.lastWeekToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.lastWeekToolStripMenuItem.Tag = "10080";
             this.lastWeekToolStripMenuItem.Text = "Last week";
             this.lastWeekToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
@@ -3459,7 +3462,7 @@
             // lastMonthToolStripMenuItem
             // 
             this.lastMonthToolStripMenuItem.Name = "lastMonthToolStripMenuItem";
-            this.lastMonthToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.lastMonthToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.lastMonthToolStripMenuItem.Tag = "43200";
             this.lastMonthToolStripMenuItem.Text = "Last Month";
             this.lastMonthToolStripMenuItem.Click += new System.EventHandler(this.allToolStripMenuItem_Click);
@@ -3523,7 +3526,7 @@
             this.aprsChatControl.Name = "aprsChatControl";
             this.aprsChatControl.ShadowOffset = 2;
             this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
+            this.aprsChatControl.Size = new System.Drawing.Size(669, 530);
             this.aprsChatControl.TabIndex = 5;
             this.aprsChatControl.TextColor = System.Drawing.Color.Black;
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
@@ -3536,8 +3539,16 @@
             this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
             this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 309);
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 308);
             this.torrentBlocksUserControl.TabIndex = 0;
+            // 
+            // wordWarpToolStripMenuItem
+            // 
+            this.wordWarpToolStripMenuItem.CheckOnClick = true;
+            this.wordWarpToolStripMenuItem.Name = "wordWarpToolStripMenuItem";
+            this.wordWarpToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.wordWarpToolStripMenuItem.Text = "W&ord Warp";
+            this.wordWarpToolStripMenuItem.Click += new System.EventHandler(this.wordWarpToolStripMenuItem_Click);
             // 
             // MainForm
             // 
@@ -3966,6 +3977,7 @@
         private System.Windows.Forms.ToolStripMenuItem largeMarkersToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem localWebSiteToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem5;
+        private System.Windows.Forms.ToolStripMenuItem wordWarpToolStripMenuItem;
     }
 }
 
