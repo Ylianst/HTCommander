@@ -19,6 +19,7 @@ using System.Timers;
 using System.Collections.Generic;
 using static HTCommander.AX25Packet;
 using System.Text;
+using System.Linq;
 
 namespace HTCommander
 {
@@ -75,7 +76,12 @@ namespace HTCommander
             {
                 _state.Connection = state;
                 OnStateChangedEvent(state);
-                if (state == ConnectionState.DISCONNECTED) { _state.SendBuffer.Clear(); Addresses = null; sessionState.Clear(); }
+                if (state == ConnectionState.DISCONNECTED) { 
+                    _state.SendBuffer.Clear(); 
+                    _state.ReceiveBuffer.Clear(); 
+                    Addresses = null; 
+                    sessionState.Clear(); 
+                }
             }
         }
 
@@ -91,6 +97,8 @@ namespace HTCommander
             public int GotREJSequenceNum { get; set; } = -1;
             public int GotSREJSequenceNum { get; set; } = -1;
             public List<AX25Packet> SendBuffer { get; set; } = new List<AX25Packet>();
+            // Out-of-order receive buffer for I-frames
+            public Dictionary<byte, AX25Packet> ReceiveBuffer { get; set; } = new Dictionary<byte, AX25Packet>();
         }
         private readonly State _state = new State();
 
@@ -113,6 +121,7 @@ namespace HTCommander
         public List<AX25Address> Addresses = null;
 
         public int SendBufferLength => _state.SendBuffer.Count;
+        public int ReceiveBufferLength => _state.ReceiveBuffer.Count;
 
         public AX25Session(MainForm parent, Radio radio)
         {
@@ -268,6 +277,13 @@ namespace HTCommander
         private int DistanceBetween(byte l, byte f, byte m)
         {
             return (l < f) ? (l + (m - f)) : (l - f);
+        }
+
+        // Check if we have data to send and can piggyback acknowledgment
+        private bool ShouldPiggybackAck()
+        {
+            // If we have unsent packets in the send buffer, we can piggyback the ack
+            return _state.SendBuffer.Count > 0 && _state.SendBuffer.Any(p => !p.sent);
         }
 
         // Send the packets in the out queue.
@@ -593,6 +609,7 @@ namespace HTCommander
                     _state.GotREJSequenceNum = -1;
                     _state.RemoteBusy = false;
                     _state.SendBuffer.Clear();
+                    _state.ReceiveBuffer.Clear();
                     ClearTimer(TimerNames.Connect);
                     ClearTimer(TimerNames.Disconnect);
                     ClearTimer(TimerNames.T1);
@@ -617,6 +634,7 @@ namespace HTCommander
                         _state.RemoteReceiveSequence = 0;
                         _state.GotREJSequenceNum = -1;
                         _state.RemoteBusy = false;
+                        _state.ReceiveBuffer.Clear();
                         ClearTimer(TimerNames.Connect);
                         ClearTimer(TimerNames.Disconnect);
                         ClearTimer(TimerNames.T1);
@@ -690,6 +708,7 @@ namespace HTCommander
                         _state.GotREJSequenceNum = -1;
                         _state.RemoteBusy = false;
                         _state.SendBuffer.Clear();
+                        _state.ReceiveBuffer.Clear();
                         ClearTimer(TimerNames.Connect);
                         ClearTimer(TimerNames.Disconnect);
                         ClearTimer(TimerNames.T1);
@@ -779,7 +798,17 @@ namespace HTCommander
                             response = null;
                         }
                         ReceiveAcknowledgement(packet);
-                        SetTimer(TimerNames.T2);
+                        
+                        // Check if we can piggyback instead of setting T2 timer
+                        if (ShouldPiggybackAck() && (response == null))
+                        {
+                            Trace("Piggybacking ack on outgoing data after RR");
+                            if (!_timers.T2.Enabled) { Drain(false); }
+                        }
+                        else
+                        {
+                            SetTimer(TimerNames.T2);
+                        }
                     }
                     else if (packet.command)
                     {
@@ -838,7 +867,17 @@ namespace HTCommander
                         }
                         ReceiveAcknowledgement(packet);
                         _state.GotREJSequenceNum = packet.nr;
-                        SetTimer(TimerNames.T2);
+                        
+                        // Check if we can piggyback instead of setting T2 timer
+                        if (ShouldPiggybackAck() && (response == null))
+                        {
+                            Trace("Piggybacking ack on outgoing data after REJ");
+                            if (!_timers.T2.Enabled) { Drain(false); }
+                        }
+                        else
+                        {
+                            SetTimer(TimerNames.T2);
+                        }
                     }
                     else
                     {
@@ -852,28 +891,72 @@ namespace HTCommander
                     if (_state.Connection == ConnectionState.CONNECTED)
                     {
                         if (packet.pollFinal) { response.pollFinal = true; }
+                        
                         if (packet.ns == _state.ReceiveSequence)
                         {
+                            // In-sequence packet - process immediately
                             _state.SentREJ = false;
                             _state.ReceiveSequence = (byte)((_state.ReceiveSequence + 1) % (Modulo128 ? 128 : 8));
                             if ((packet.data != null) && (packet.data.Length != 0)) { OnDataReceivedEvent(packet.data); }
-                            response = null;
+                            
+                            // Process any buffered packets that are now in sequence
+                            ProcessBufferedPackets();
+                            
+                            // Check if we can piggyback acknowledgment on outgoing data
+                            if (ShouldPiggybackAck() && (response == null || !response.pollFinal))
+                            {
+                                // We have data to send, let the outgoing I-frames carry the ack
+                                Trace("Piggybacking ack on outgoing data instead of sending RR");
+                                response = null;
+                                // Don't set T2 timer, let Drain handle sending data with piggybacked acks
+                                if (!_timers.T2.Enabled) { Drain(false); }
+                            }
+                            else
+                            {
+                                response = null;
+                                SetTimer(TimerNames.T2);
+                            }
+                        }
+                        else if (IsWithinReceiveWindow(packet.ns) && !_state.ReceiveBuffer.ContainsKey(packet.ns))
+                        {
+                            // Out-of-order packet within receive window - buffer it
+                            Trace("Buffering out-of-order packet NS=" + packet.ns + ", expected=" + _state.ReceiveSequence);
+                            _state.ReceiveBuffer[packet.ns] = packet;
+                            
+                            // Send REJ only if we haven't already sent one
+                            if (!_state.SentREJ)
+                            {
+                                response.type = FrameType.S_FRAME_REJ;
+                                _state.SentREJ = true;
+                            }
+                            else
+                            {
+                                response = null;
+                            }
                         }
                         else if (_state.SentREJ)
                         {
+                            // Already sent REJ, ignore duplicate or old packets
                             response = null;
                         }
                         else if (!_state.SentREJ)
                         {
+                            // Out-of-order packet - send REJ
                             response.type = FrameType.S_FRAME_REJ;
                             _state.SentREJ = true;
                         }
+                        
                         ReceiveAcknowledgement(packet);
 
-                        if ((response == null) || !response.pollFinal)
+                        // Only set T2 timer if we're not piggybacking and don't need immediate response
+                        if ((response == null) && !ShouldPiggybackAck())
                         {
-                            response = null;
                             SetTimer(TimerNames.T2);
+                        }
+                        else if (response != null && response.pollFinal)
+                        {
+                            // Immediate response required due to poll/final bit
+                            // Don't set T2 timer in this case
                         }
                     }
                     else if (packet.command)
@@ -908,5 +991,40 @@ namespace HTCommander
             return true;
         }
 
+        // Process any buffered packets that can now be delivered in sequence
+        private void ProcessBufferedPackets()
+        {
+            byte modulus = (byte)(Modulo128 ? 128 : 8);
+            
+            while (_state.ReceiveBuffer.ContainsKey(_state.ReceiveSequence))
+            {
+                AX25Packet bufferedPacket = _state.ReceiveBuffer[_state.ReceiveSequence];
+                _state.ReceiveBuffer.Remove(_state.ReceiveSequence);
+                
+                Trace("Processing buffered packet NS=" + bufferedPacket.ns);
+                
+                // Deliver the packet data
+                if ((bufferedPacket.data != null) && (bufferedPacket.data.Length != 0))
+                {
+                    OnDataReceivedEvent(bufferedPacket.data);
+                }
+                
+                // Advance the receive sequence
+                _state.ReceiveSequence = (byte)((_state.ReceiveSequence + 1) % modulus);
+            }
+        }
+
+        // Check if a packet sequence number is within the receive window
+        private bool IsWithinReceiveWindow(byte ns)
+        {
+            byte modulus = (byte)(Modulo128 ? 128 : 8);
+            int windowSize = MaxFrames;
+            
+            // Calculate the distance from current receive sequence
+            int distance = DistanceBetween(ns, _state.ReceiveSequence, modulus);
+            
+            // Accept packets within the receive window
+            return distance < windowSize;
+        }
     }
 }
