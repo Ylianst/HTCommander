@@ -103,6 +103,7 @@ namespace HTCommander
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
         public Dictionary<string, GMapRoute> mapRoutes = new Dictionary<string, GMapRoute>();
         public int mapFilterMinutes = 0;
+        public string TerminalLastDone = null;
 
         // Mailboxes
         public int SelectedMailbox = 0;
@@ -718,7 +719,7 @@ namespace HTCommander
                     for (int i = 0; i < dataStrs.Length; i++)
                     {
                         if ((dataStrs[i].Length == 0) && (i == (dataStrs.Length - 1))) continue;
-                        AppendTerminalString(false, session.Addresses[0].ToString(), callsign + "-" + stationId, dataStrs[i]);
+                        AppendTerminalString(false, session.Addresses[0].ToString(), callsign + "-" + stationId, dataStrs[i], i < (dataStrs.Length - 1));
                     }
                 }
                 else if (activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
@@ -1498,13 +1499,15 @@ namespace HTCommander
             public string from;
             public string to;
             public string message;
+            public bool done; // An end of line was received.
 
-            public TerminalText(bool outgoing, string from, string to, string message)
+            public TerminalText(bool outgoing, string from, string to, string message, bool done)
             {
                 this.outgoing = outgoing;
                 this.from = from;
                 this.to = to;
                 this.message = message;
+                this.done = done;
             }
         }
 
@@ -1517,16 +1520,34 @@ namespace HTCommander
             terminalTextBox.ScrollToCaret();
         }
 
-        public delegate void AppendTerminalStringHandler(bool outgoing, string from, string to, string message);
-        public void AppendTerminalString(bool outgoing, string from, string to, string message)
+        public delegate void AppendTerminalStringHandler(bool outgoing, string from, string to, string message, bool done);
+        public void AppendTerminalString(bool outgoing, string from, string to, string message, bool done = true)
         {
-            if (this.InvokeRequired) { this.BeginInvoke(new AppendTerminalStringHandler(AppendTerminalString), outgoing, from, to, message); return; }
+            if (this.InvokeRequired) { this.BeginInvoke(new AppendTerminalStringHandler(AppendTerminalString), outgoing, from, to, message, done); return; }
 
-            TerminalText terminalText = new TerminalText(outgoing, from, to, message);
+            TerminalText terminalText;
+            if (terminalTexts.Count > 0)
+            {
+                terminalText = terminalTexts.Last();
+                if ((terminalText.done == false) && (terminalText.from != null) && (terminalText.to != null) && (terminalText.from == from) && (terminalText.to == to))
+                {
+                    terminalText.message += message;
+                    terminalText.done = done;
+                    terminalTextBox.Rtf = TerminalLastDone;
+                    AppendTerminalString(terminalText);
+                    terminalTextBox.SelectionStart = terminalTextBox.Text.Length;
+                    terminalTextBox.ScrollToCaret();
+                    if (done) { TerminalLastDone = terminalTextBox.Rtf; }
+                    return;
+                }
+            }
+
+            terminalText = new TerminalText(outgoing, from, to, message, done);
             terminalTexts.Add(terminalText);
             AppendTerminalString(terminalText);
             terminalTextBox.SelectionStart = terminalTextBox.Text.Length;
             terminalTextBox.ScrollToCaret();
+            if (done) { TerminalLastDone = terminalTextBox.Rtf; }
         }
 
         public void AppendTerminalString(TerminalText terminalText)
@@ -1557,12 +1578,14 @@ namespace HTCommander
         {
             terminalTexts.Clear();
             terminalTextBox.Clear();
+            TerminalLastDone = null;
         }
 
         private void terminalClearButton_Click(object sender, EventArgs e)
         {
             terminalTexts.Clear();
             terminalTextBox.Clear();
+            TerminalLastDone = null;
         }
 
         private void terminalInputTextBox_KeyPress(object sender, KeyPressEventArgs e)
