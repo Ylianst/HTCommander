@@ -63,7 +63,7 @@ namespace HTCommander
         }
 
         // Define the target device name and guids
-        private static readonly string[] TargetDeviceNames = { "UV-PRO", "GA-5WB", "VR-N76", "VR-N7500", "VR-N7600" };
+        private static readonly string[] TargetDeviceNames = { "UV-PRO", "GA-5WB", "VR-N75", "VR-N76", "VR-N7500", "VR-N7600" };
         private class DeviceWriteData { public int expectResponse; public byte[] data; public DeviceWriteData(int expectResponse, byte[] data) { this.expectResponse = expectResponse; this.data = data; } }
         private ConcurrentQueue<DeviceWriteData> _writeQueue = new ConcurrentQueue<DeviceWriteData>();
 
