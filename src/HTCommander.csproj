@@ -357,6 +357,7 @@
     <Compile Include="AgwpeServerClass.cs" />
     <Compile Include="WebServerClass.cs" />
     <Compile Include="WinlinkClient.cs" />
+    <Compile Include="Yapp.cs" />
     <EmbeddedResource Include="AboutForm.resx">
       <DependentUpon>AboutForm.cs</DependentUpon>
     </EmbeddedResource>

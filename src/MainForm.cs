@@ -90,6 +90,7 @@ namespace HTCommander
         public Torrent torrent;
         public WinlinkClient winlinkClient;
         public AprsStack aprsStack;
+        public YappTransfer yappTransfer;
         public bool Loading = true;
         public MailClientDebugForm mailClientDebugForm = new MailClientDebugForm();
         public string appDataPath;
@@ -505,6 +506,12 @@ namespace HTCommander
             session.UiDataReceivedEvent += Session_UiDataReceivedEvent;
             session.ErrorEvent += Session_ErrorEvent;
 
+            // Setup YAPP file transfer
+            yappTransfer = new YappTransfer(session, this);
+            yappTransfer.ProgressChanged += YappTransfer_ProgressChanged;
+            yappTransfer.TransferComplete += YappTransfer_TransferComplete;
+            yappTransfer.TransferError += YappTransfer_TransferError;
+
             // Check for updates
             if (File.Exists("NoUpdateCheck.txt"))
             {
@@ -722,6 +729,13 @@ namespace HTCommander
             {
                 if (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)
                 {
+                    // Check if this might be YAPP data before processing as text
+                    if (yappTransfer != null && yappTransfer.ProcessIncomingData(data))
+                    {
+                        // Data was processed by YAPP, don't display as text
+                        return;
+                    }
+                    
                     string[] dataStrs = UTF8Encoding.UTF8.GetString(data).Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
                     for (int i = 0; i < dataStrs.Length; i++)
                     {
@@ -1575,6 +1589,7 @@ namespace HTCommander
 
         public void AppendTerminalText(string text, Color color)
         {
+            if (InvokeRequired) { this.BeginInvoke(new Action<string, Color>(AppendTerminalText), text, color); return; }
             terminalTextBox.SelectionStart = terminalTextBox.TextLength;
             terminalTextBox.SelectionLength = 0;
             terminalTextBox.SelectionColor = color;
@@ -3336,6 +3351,13 @@ namespace HTCommander
                     if ((activeStationLock != null) && activeStationLock.WaitForConnection && (activeStationLock.StationType == StationInfoClass.StationTypes.Terminal)) { AppendTerminalString(false, null, null, "Stopped."); }
                     activeStationLock = null;
                     activeChannelIdLock = -1;
+                    
+                    // Stop YAPP receive mode when disconnecting
+                    if (yappTransfer != null && yappTransfer.CurrentState != YappTransfer.YappState.Idle)
+                    {
+                        yappTransfer.CancelTransfer();
+                    }
+                    
                     UpdateInfo();
                     UpdateRadioDisplay();
                     return true;
@@ -3382,6 +3404,10 @@ namespace HTCommander
                 addresses.Add(AX25Address.GetAddress(station.Callsign));
                 addresses.Add(AX25Address.GetAddress(session.SessionCallsign, session.SessionStationId));
                 session.Connect(addresses);
+                
+                // Start YAPP receive mode for terminal sessions
+                string downloadPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "HTCommander Downloads");
+                yappTransfer?.StartReceiveMode(downloadPath);
             }
 
             if (activeStationLock.StationType == StationInfoClass.StationTypes.Torrent)
@@ -5314,17 +5340,17 @@ namespace HTCommander
 
         private void cancelFileTransfer()
         {
-            // TODO: Cancel file transfer
+            yappTransfer?.CancelTransfer();
         }
 
-        private enum TerminalFileTransferStates
+        public enum TerminalFileTransferStates
         {
             Idle,
             Sending,
             Receiving
         }
 
-        private void updateTerminalFileTransferProgress(TerminalFileTransferStates state, string filename, int totalSize, int currentPosition)
+        public void updateTerminalFileTransferProgress(TerminalFileTransferStates state, string filename, int totalSize, int currentPosition)
         {
             if (InvokeRequired) { BeginInvoke(new Action<TerminalFileTransferStates, string, int, int>(updateTerminalFileTransferProgress), state, filename, totalSize, currentPosition); return; }
             terminalFileTransferProgressBar.Maximum = (totalSize > 0) ? totalSize : 1;
@@ -5342,6 +5368,33 @@ namespace HTCommander
                 terminalFileTransferStatusLabel.Text = "File Transfer";
             }
             terminalFileTransferPanel.Visible = (state != TerminalFileTransferStates.Idle);
+        }
+
+        // YAPP event handlers
+        private void YappTransfer_ProgressChanged(object sender, YappProgressEventArgs e)
+        {
+            updateTerminalFileTransferProgress(
+                TerminalFileTransferStates.Receiving,
+                e.Filename,
+                (int)e.FileSize,
+                (int)e.BytesTransferred
+            );
+        }
+
+        private void YappTransfer_TransferComplete(object sender, YappCompleteEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(e.Filename))
+            {
+                AppendTerminalText($"[YAPP] File transfer completed: {e.Filename} ({e.BytesTransferred} bytes)\r\n", Color.Green);
+            }
+            
+            updateTerminalFileTransferProgress(TerminalFileTransferStates.Idle, "", 0, 0);
+        }
+
+        private void YappTransfer_TransferError(object sender, YappErrorEventArgs e)
+        {
+            AppendTerminalText($"[YAPP] Transfer error: {e.Error}\r\n", Color.Red);
+            updateTerminalFileTransferProgress(TerminalFileTransferStates.Idle, "", 0, 0);
         }
     }
 }
