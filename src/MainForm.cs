@@ -123,7 +123,8 @@ namespace HTCommander
         public MainForm(string[] args)
         {
             bool multiInstance = false;
-            foreach (string arg in args) {
+            foreach (string arg in args)
+            {
                 if (string.Compare(arg, "-preview", true) == 0) { previewMode = true; }
                 if (string.Compare(arg, "-multiinstance", true) == 0) { multiInstance = true; }
             }
@@ -160,8 +161,9 @@ namespace HTCommander
         private void Microphone_DataAvailable(byte[] data, int bytesRecorded)
         {
             radioVolumeForm.ProcessInputAudioData(data, bytesRecorded);
-            if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, 0,bytesRecorded, true); }
-            if (radioVolumeForm.MicrophoneTransmit) {
+            if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, 0, bytesRecorded, true); }
+            if (radioVolumeForm.MicrophoneTransmit)
+            {
                 radio.TransmitVoice(data, 0, bytesRecorded, false);
                 //if (spectrogramForm != null) { spectrogramForm.AddAudioData(data, 0,bytesRecorded, false); }
             }
@@ -451,7 +453,8 @@ namespace HTCommander
                 voiceHistoryCompleted = voiceHistoryTextBox.Rtf = sb.ToString();
                 voiceHistoryTextBox.SelectionStart = voiceHistoryTextBox.Text.Length;
                 voiceHistoryTextBox.ScrollToCaret();
-            } catch (Exception) { }
+            }
+            catch (Exception) { }
 
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
 
@@ -508,7 +511,8 @@ namespace HTCommander
                 checkForUpdatesToolStripMenuItem.Visible = false;
                 checkForUpdatesToolStripMenuItem.Checked = false;
             }
-            else if (checkForUpdatesToolStripMenuItem.Checked) {
+            else if (checkForUpdatesToolStripMenuItem.Checked)
+            {
                 string lastUpdateCheck = registry.ReadString("LastUpdateCheck", "");
                 if (string.IsNullOrEmpty(lastUpdateCheck) || (DateTime.Now - DateTime.Parse(lastUpdateCheck)).TotalDays > 1)
                 {
@@ -520,7 +524,7 @@ namespace HTCommander
 
         private void MapControl_OnMarkerDoubleClick(GMapMarker item, MouseEventArgs e)
         {
-            string[] s = item.ToolTipText.Replace("\r\n","\r").Split('\r');
+            string[] s = item.ToolTipText.Replace("\r\n", "\r").Split('\r');
             if (s.Length >= 3)
             {
                 aprsDestinationComboBox.Text = s[1].Trim();
@@ -545,7 +549,8 @@ namespace HTCommander
             {
                 foreach (GMapMarker m in mapMarkersOverlay.Markers)
                 {
-                    if (m.ToolTipText == "Self") {
+                    if (m.ToolTipText == "Self")
+                    {
                         m.Tag = DateTime.Now;
                         m.Position = new PointLatLng(position.Latitude, position.Longitude);
                         return;
@@ -659,6 +664,7 @@ namespace HTCommander
                         break;
                     case AX25Session.ConnectionState.DISCONNECTED:
                         AppendTerminalString(false, null, null, "Disconnected");
+                        cancelFileTransfer();
                         if ((activeStationLock != null) && (activeStationLock.WaitForConnection == false))
                         {
                             // If we are the connecting party and we got disconnected, drop the station lock.
@@ -980,7 +986,8 @@ namespace HTCommander
                 }
                 else if (activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE)
                 {
-                    if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.X25Session) {
+                    if (activeStationLock.TerminalProtocol == StationInfoClass.TerminalProtocols.X25Session)
+                    {
                         AX25Packet p = AX25Packet.DecodeAX25Packet(frame);
                         if ((p != null) && (p.addresses[0].CallSignWithId == session.SessionCallsign + "-" + session.SessionStationId)) { session.Receive(p); }
                         return;
@@ -1935,7 +1942,8 @@ namespace HTCommander
                             // Look at a message to ack
                             foreach (ChatMessage n in aprsChatControl.Messages)
                             {
-                                if (n.Sender && (n.MessageId == aprsPacket.MessageData.SeqId)) {
+                                if (n.Sender && (n.MessageId == aprsPacket.MessageData.SeqId))
+                                {
                                     if ((n.AuthState == AuthState.Unknown) || ((n.AuthState == AuthState.Success) && (aprsPacket.Packet.authState == AuthState.Success)) || ((n.AuthState == AuthState.None) && (aprsPacket.Packet.authState == AuthState.None))) { n.ImageIndex = 0; }
                                 }
                             }
@@ -1949,7 +1957,8 @@ namespace HTCommander
                             // Look at a message to reject
                             foreach (ChatMessage n in aprsChatControl.Messages)
                             {
-                                if (n.Sender && (n.MessageId == aprsPacket.MessageData.SeqId)) {
+                                if (n.Sender && (n.MessageId == aprsPacket.MessageData.SeqId))
+                                {
                                     if ((n.AuthState == AuthState.Unknown) || ((n.AuthState == AuthState.Success) && (aprsPacket.Packet.authState == AuthState.Success)) || ((n.AuthState == AuthState.None) && (aprsPacket.Packet.authState == AuthState.None))) { n.ImageIndex = 1; }
                                 }
                             }
@@ -2521,7 +2530,8 @@ namespace HTCommander
             mainTabControl.TabPages.Add(aprsTabPage);
             if (mapToolStripMenuItem.Checked) { mainTabControl.TabPages.Add(mapTabPage); }
             registry.WriteInt("ViewMap", mapToolStripMenuItem.Checked ? 1 : 0);
-            if (voiceToolStripMenuItem.Checked && voiceToolStripMenuItem.Enabled) {
+            if (voiceToolStripMenuItem.Checked && voiceToolStripMenuItem.Enabled)
+            {
                 mainTabControl.TabPages.Add(voiceTabPage);
             }
             if (mailToolStripMenuItem.Checked && allowTransmit) { mainTabControl.TabPages.Add(mailTabPage); }
@@ -2693,7 +2703,7 @@ namespace HTCommander
             marker.Tag = time;
             marker.ToolTipText = "\r\n" + callsign + "\r\n" + time.ToString();
             marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
-            marker.ToolTip.TextPadding  = new Size(4, 8);
+            marker.ToolTip.TextPadding = new Size(4, 8);
             marker.IsVisible = ((mapFilterMinutes == 0) || (DateTime.Now.CompareTo(time.AddMinutes(mapFilterMinutes)) <= 0));
             mapMarkersOverlay.Markers.Add(marker);
         }
@@ -3680,7 +3690,8 @@ namespace HTCommander
             if (tx_sub.Length == 0) { tx_sub = rx_sub; } // If no TX tone, use RX tone
             if (rx_sub.Length == 0) { rx_sub = tx_sub; } // If no RX tone, use TX tone
 
-            if (rx_sub.EndsWith(" PL")) {
+            if (rx_sub.EndsWith(" PL"))
+            {
                 double? rx_sub_audio = Utils.TryParseDouble(rx_sub.Substring(0, rx_sub.Length - 3));
                 r.rx_sub_audio = rx_sub_audio.HasValue ? (int)Math.Round(rx_sub_audio.Value * 100) : 0;
             }
@@ -3818,7 +3829,8 @@ namespace HTCommander
             else if (toneMode.Equals("DTCS", StringComparison.OrdinalIgnoreCase))
             {
                 // Standard DTCS (Digital Tone Coded Squelch)
-                if (dtcsCode.HasValue) { 
+                if (dtcsCode.HasValue)
+                {
                     r.tx_sub_audio = dtcsCode.Value;
                     r.rx_sub_audio = dtcsCode.Value;
                 }
@@ -4664,7 +4676,8 @@ namespace HTCommander
                 if (!string.IsNullOrEmpty(file.Description)) { addTorrentDetailProperty("Description", file.Description); }
                 if (!string.IsNullOrEmpty(file.Callsign)) { string cs = file.Callsign; if (file.StationId > 0) cs += "-" + file.StationId; addTorrentDetailProperty("Source", cs); }
                 if (file.Size != 0) { addTorrentDetailProperty("File Size", file.Size.ToString() + " bytes"); }
-                if (file.Compression != TorrentFile.TorrentCompression.Unknown) {
+                if (file.Compression != TorrentFile.TorrentCompression.Unknown)
+                {
                     string comp = file.Compression.ToString();
                     if (file.CompressedSize != 0) { comp += ", " + file.CompressedSize.ToString() + " bytes"; }
                     addTorrentDetailProperty("Compression", comp);
@@ -4964,7 +4977,8 @@ namespace HTCommander
             registry.WriteInt("CheckForUpdates", checkForUpdatesToolStripMenuItem.Checked ? 1 : 0);
 
             // Check for updates
-            if (checkForUpdatesToolStripMenuItem.Checked) {
+            if (checkForUpdatesToolStripMenuItem.Checked)
+            {
                 registry.WriteString("LastUpdateCheck", DateTime.Now.ToString());
                 SelfUpdateForm.CheckForUpdate(this);
             }
@@ -5291,6 +5305,43 @@ namespace HTCommander
         {
             registry.WriteInt("TerminalWordWrap", wordWarpToolStripMenuItem.Checked ? 1 : 0);
             terminalTextBox.WordWrap = wordWarpToolStripMenuItem.Checked;
+        }
+
+        private void terminalFileTransferCancelButton_Click(object sender, EventArgs e)
+        {
+            cancelFileTransfer();
+        }
+
+        private void cancelFileTransfer()
+        {
+            // TODO: Cancel file transfer
+        }
+
+        private enum TerminalFileTransferStates
+        {
+            Idle,
+            Sending,
+            Receiving
+        }
+
+        private void updateTerminalFileTransferProgress(TerminalFileTransferStates state, string filename, int totalSize, int currentPosition)
+        {
+            if (InvokeRequired) { BeginInvoke(new Action<TerminalFileTransferStates, string, int, int>(updateTerminalFileTransferProgress), state, filename, totalSize, currentPosition); return; }
+            terminalFileTransferProgressBar.Maximum = (totalSize > 0) ? totalSize : 1;
+            terminalFileTransferProgressBar.Value = (Math.Min(currentPosition, terminalFileTransferProgressBar.Maximum));
+            if (state == TerminalFileTransferStates.Sending)
+            {
+                terminalFileTransferStatusLabel.Text = "Sending: " + filename;
+            }
+            else if (state == TerminalFileTransferStates.Receiving)
+            {
+                terminalFileTransferStatusLabel.Text = "Receiving: " + filename;
+            }
+            else
+            {
+                terminalFileTransferStatusLabel.Text = "File Transfer";
+            }
+            terminalFileTransferPanel.Visible = (state != TerminalFileTransferStates.Idle);
         }
     }
 }
