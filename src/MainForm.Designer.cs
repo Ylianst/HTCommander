@@ -29,21 +29,21 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup17 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup18 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup19 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup20 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -113,7 +113,6 @@
             this.radioPictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
-            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsMissingChannelPanel = new System.Windows.Forms.Panel();
             this.aprsSetupButton = new System.Windows.Forms.Button();
@@ -184,6 +183,10 @@
             this.mailTitleLabel = new System.Windows.Forms.Label();
             this.terminalTabPage = new System.Windows.Forms.TabPage();
             this.terminalTextBox = new System.Windows.Forms.RichTextBox();
+            this.terminalFileTransferPanel = new System.Windows.Forms.Panel();
+            this.terminalFileTransferProgressBar = new System.Windows.Forms.ProgressBar();
+            this.terminalFileTransferStatusLabel = new System.Windows.Forms.Label();
+            this.terminalFileTransferCancelButton = new System.Windows.Forms.Button();
             this.terminalBottomPanel = new System.Windows.Forms.Panel();
             this.terminalInputTextBox = new System.Windows.Forms.TextBox();
             this.terminalSendButton = new System.Windows.Forms.Button();
@@ -236,7 +239,6 @@
             this.columnHeader13 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader17 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.panel5 = new System.Windows.Forms.Panel();
             this.torrentAddFileButton = new System.Windows.Forms.Button();
             this.torrentMenuPictureBox = new System.Windows.Forms.PictureBox();
@@ -342,10 +344,9 @@
             this.cacheAreaToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showTracksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.largeMarkersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.terminalFileTransferPanel = new System.Windows.Forms.Panel();
-            this.terminalFileTransferCancelButton = new System.Windows.Forms.Button();
-            this.terminalFileTransferStatusLabel = new System.Windows.Forms.Label();
-            this.terminalFileTransferProgressBar = new System.Windows.Forms.ProgressBar();
+            this.radio2PictureBox = new System.Windows.Forms.PictureBox();
+            this.aprsChatControl = new HTCommander.ChatControl();
+            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -382,6 +383,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.mailMenuPictureBox)).BeginInit();
             this.stationsTabContextMenuStrip.SuspendLayout();
             this.terminalTabPage.SuspendLayout();
+            this.terminalFileTransferPanel.SuspendLayout();
             this.terminalBottomPanel.SuspendLayout();
             this.terminalTopPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.terminalMenuPictureBox)).BeginInit();
@@ -430,7 +432,7 @@
             this.mailTabContextMenuStrip.SuspendLayout();
             this.voiceTabContextMenuStrip.SuspendLayout();
             this.mapTabContextMenuStrip.SuspendLayout();
-            this.terminalFileTransferPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.radio2PictureBox)).BeginInit();
             this.SuspendLayout();
             // 
             // mainStatusStrip
@@ -860,6 +862,7 @@
             this.radioPanel.Controls.Add(this.connectedPanel);
             this.radioPanel.Controls.Add(this.radioStateLabel);
             this.radioPanel.Controls.Add(this.connectButton);
+            this.radioPanel.Controls.Add(this.radio2PictureBox);
             this.radioPanel.Controls.Add(this.radioPictureBox);
             this.radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
             this.radioPanel.Location = new System.Drawing.Point(0, 28);
@@ -1164,32 +1167,6 @@
             this.aprsTabPage.Size = new System.Drawing.Size(669, 653);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
-            // 
-            // aprsChatControl
-            // 
-            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
-            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
-            this.aprsChatControl.CornerRadius = 4;
-            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.aprsChatControl.Images = this.mainImageList;
-            this.aprsChatControl.InterMessageMargin = 12;
-            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
-            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.aprsChatControl.MaxWidth = 300;
-            this.aprsChatControl.MessageBoxAuthColor = System.Drawing.Color.LightGreen;
-            this.aprsChatControl.MessageBoxBadColor = System.Drawing.Color.Wheat;
-            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
-            this.aprsChatControl.MessageBoxMargin = 10;
-            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
-            this.aprsChatControl.MinWidth = 100;
-            this.aprsChatControl.Name = "aprsChatControl";
-            this.aprsChatControl.ShadowOffset = 2;
-            this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
-            this.aprsChatControl.TabIndex = 5;
-            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
-            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
-            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
             // mainImageList
             // 
@@ -2023,6 +2000,51 @@
             this.terminalTextBox.Text = "";
             this.terminalTextBox.WordWrap = false;
             // 
+            // terminalFileTransferPanel
+            // 
+            this.terminalFileTransferPanel.BackColor = System.Drawing.Color.Silver;
+            this.terminalFileTransferPanel.Controls.Add(this.terminalFileTransferProgressBar);
+            this.terminalFileTransferPanel.Controls.Add(this.terminalFileTransferStatusLabel);
+            this.terminalFileTransferPanel.Controls.Add(this.terminalFileTransferCancelButton);
+            this.terminalFileTransferPanel.Dock = System.Windows.Forms.DockStyle.Top;
+            this.terminalFileTransferPanel.Location = new System.Drawing.Point(0, 37);
+            this.terminalFileTransferPanel.Margin = new System.Windows.Forms.Padding(4);
+            this.terminalFileTransferPanel.Name = "terminalFileTransferPanel";
+            this.terminalFileTransferPanel.Size = new System.Drawing.Size(669, 52);
+            this.terminalFileTransferPanel.TabIndex = 5;
+            this.terminalFileTransferPanel.Visible = false;
+            // 
+            // terminalFileTransferProgressBar
+            // 
+            this.terminalFileTransferProgressBar.Location = new System.Drawing.Point(10, 35);
+            this.terminalFileTransferProgressBar.Name = "terminalFileTransferProgressBar";
+            this.terminalFileTransferProgressBar.Size = new System.Drawing.Size(649, 10);
+            this.terminalFileTransferProgressBar.TabIndex = 6;
+            this.terminalFileTransferProgressBar.Value = 65;
+            // 
+            // terminalFileTransferStatusLabel
+            // 
+            this.terminalFileTransferStatusLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.terminalFileTransferStatusLabel.Location = new System.Drawing.Point(6, 10);
+            this.terminalFileTransferStatusLabel.Name = "terminalFileTransferStatusLabel";
+            this.terminalFileTransferStatusLabel.Size = new System.Drawing.Size(546, 18);
+            this.terminalFileTransferStatusLabel.TabIndex = 5;
+            this.terminalFileTransferStatusLabel.Text = "Downloading";
+            // 
+            // terminalFileTransferCancelButton
+            // 
+            this.terminalFileTransferCancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.terminalFileTransferCancelButton.Enabled = false;
+            this.terminalFileTransferCancelButton.Location = new System.Drawing.Point(559, 4);
+            this.terminalFileTransferCancelButton.Margin = new System.Windows.Forms.Padding(4);
+            this.terminalFileTransferCancelButton.Name = "terminalFileTransferCancelButton";
+            this.terminalFileTransferCancelButton.Size = new System.Drawing.Size(100, 28);
+            this.terminalFileTransferCancelButton.TabIndex = 4;
+            this.terminalFileTransferCancelButton.Text = "C&ancel";
+            this.terminalFileTransferCancelButton.UseVisualStyleBackColor = true;
+            this.terminalFileTransferCancelButton.Click += new System.EventHandler(this.terminalFileTransferCancelButton_Click);
+            // 
             // terminalBottomPanel
             // 
             this.terminalBottomPanel.BackColor = System.Drawing.Color.Silver;
@@ -2135,22 +2157,22 @@
             this.mainAddressBookListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainAddressBookListView.FullRowSelect = true;
             this.mainAddressBookListView.GridLines = true;
-            listViewGroup15.Header = "Generic Stations";
-            listViewGroup15.Name = "Generic Stations";
-            listViewGroup16.Header = "APRS Stations";
-            listViewGroup16.Name = "APRS Stations";
-            listViewGroup17.Header = "Terminal Stations";
-            listViewGroup17.Name = "Terminal Stations";
-            listViewGroup18.Header = "BBS";
-            listViewGroup18.Name = "BBS";
-            listViewGroup19.Header = "Winlink Gateways";
-            listViewGroup19.Name = "Winlink Gateways";
+            listViewGroup1.Header = "Generic Stations";
+            listViewGroup1.Name = "Generic Stations";
+            listViewGroup2.Header = "APRS Stations";
+            listViewGroup2.Name = "APRS Stations";
+            listViewGroup3.Header = "Terminal Stations";
+            listViewGroup3.Name = "Terminal Stations";
+            listViewGroup4.Header = "BBS";
+            listViewGroup4.Name = "BBS";
+            listViewGroup5.Header = "Winlink Gateways";
+            listViewGroup5.Name = "Winlink Gateways";
             this.mainAddressBookListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup15,
-            listViewGroup16,
-            listViewGroup17,
-            listViewGroup18,
-            listViewGroup19});
+            listViewGroup1,
+            listViewGroup2,
+            listViewGroup3,
+            listViewGroup4,
+            listViewGroup5});
             this.mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.mainAddressBookListView.HideSelection = false;
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 37);
@@ -2320,16 +2342,16 @@
             this.bbsListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.bbsListView.FullRowSelect = true;
             this.bbsListView.GridLines = true;
-            listViewGroup1.Header = "Generic Stations";
-            listViewGroup1.Name = "Generic Stations";
-            listViewGroup2.Header = "APRS Stations";
-            listViewGroup2.Name = "APRS Stations";
-            listViewGroup3.Header = "Terminal Stations";
-            listViewGroup3.Name = "Terminal Stations";
+            listViewGroup6.Header = "Generic Stations";
+            listViewGroup6.Name = "Generic Stations";
+            listViewGroup7.Header = "APRS Stations";
+            listViewGroup7.Name = "APRS Stations";
+            listViewGroup8.Header = "Terminal Stations";
+            listViewGroup8.Name = "Terminal Stations";
             this.bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup1,
-            listViewGroup2,
-            listViewGroup3});
+            listViewGroup6,
+            listViewGroup7,
+            listViewGroup8});
             this.bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.bbsListView.HideSelection = false;
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
@@ -2613,20 +2635,10 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(661, 312);
+            this.tabPage2.Size = new System.Drawing.Size(661, 314);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
-            // 
-            // torrentBlocksUserControl
-            // 
-            this.torrentBlocksUserControl.AutoScroll = true;
-            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
-            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 308);
-            this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // panel5
             // 
@@ -2813,25 +2825,25 @@
             this.packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.packetDecodeListView.FullRowSelect = true;
             this.packetDecodeListView.GridLines = true;
-            listViewGroup4.Header = "Metadata";
-            listViewGroup4.Name = "packetDecodeMetadataListViewGroup";
-            listViewGroup5.Header = "AX.25 Header";
-            listViewGroup5.Name = "packetDecodeHeaderListViewGroup";
-            listViewGroup6.Header = "AX.25 Data";
-            listViewGroup6.Name = "packetDecodeDataListViewGroup";
-            listViewGroup7.Header = "APRS";
-            listViewGroup7.Name = "packetDecodeAprsListViewGroup";
-            listViewGroup8.Header = "Position";
-            listViewGroup8.Name = "packetDecodePositionListViewGroup";
-            listViewGroup20.Header = "Decompression";
-            listViewGroup20.Name = "packetDecodeDecompressionListViewGroup";
+            listViewGroup9.Header = "Metadata";
+            listViewGroup9.Name = "packetDecodeMetadataListViewGroup";
+            listViewGroup10.Header = "AX.25 Header";
+            listViewGroup10.Name = "packetDecodeHeaderListViewGroup";
+            listViewGroup11.Header = "AX.25 Data";
+            listViewGroup11.Name = "packetDecodeDataListViewGroup";
+            listViewGroup12.Header = "APRS";
+            listViewGroup12.Name = "packetDecodeAprsListViewGroup";
+            listViewGroup13.Header = "Position";
+            listViewGroup13.Name = "packetDecodePositionListViewGroup";
+            listViewGroup14.Header = "Decompression";
+            listViewGroup14.Name = "packetDecodeDecompressionListViewGroup";
             this.packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup4,
-            listViewGroup5,
-            listViewGroup6,
-            listViewGroup7,
-            listViewGroup8,
-            listViewGroup20});
+            listViewGroup9,
+            listViewGroup10,
+            listViewGroup11,
+            listViewGroup12,
+            listViewGroup13,
+            listViewGroup14});
             this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.packetDecodeListView.HideSelection = false;
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
@@ -3556,50 +3568,57 @@
             this.largeMarkersToolStripMenuItem.Text = "Large Markers";
             this.largeMarkersToolStripMenuItem.Click += new System.EventHandler(this.largeMarkersToolStripMenuItem_Click);
             // 
-            // terminalFileTransferPanel
+            // radio2PictureBox
             // 
-            this.terminalFileTransferPanel.BackColor = System.Drawing.Color.Silver;
-            this.terminalFileTransferPanel.Controls.Add(this.terminalFileTransferProgressBar);
-            this.terminalFileTransferPanel.Controls.Add(this.terminalFileTransferStatusLabel);
-            this.terminalFileTransferPanel.Controls.Add(this.terminalFileTransferCancelButton);
-            this.terminalFileTransferPanel.Dock = System.Windows.Forms.DockStyle.Top;
-            this.terminalFileTransferPanel.Location = new System.Drawing.Point(0, 37);
-            this.terminalFileTransferPanel.Margin = new System.Windows.Forms.Padding(4);
-            this.terminalFileTransferPanel.Name = "terminalFileTransferPanel";
-            this.terminalFileTransferPanel.Size = new System.Drawing.Size(669, 52);
-            this.terminalFileTransferPanel.TabIndex = 5;
-            this.terminalFileTransferPanel.Visible = false;
+            this.radio2PictureBox.Image = ((System.Drawing.Image)(resources.GetObject("radio2PictureBox.Image")));
+            this.radio2PictureBox.Location = new System.Drawing.Point(-34, -19);
+            this.radio2PictureBox.Margin = new System.Windows.Forms.Padding(4);
+            this.radio2PictureBox.Name = "radio2PictureBox";
+            this.radio2PictureBox.Size = new System.Drawing.Size(440, 561);
+            this.radio2PictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.radio2PictureBox.TabIndex = 8;
+            this.radio2PictureBox.TabStop = false;
+            this.radio2PictureBox.Visible = false;
+            this.radio2PictureBox.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.radio2PictureBox.DragDrop += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragDrop);
+            this.radio2PictureBox.DragEnter += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragEnter);
+            this.radio2PictureBox.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
-            // terminalFileTransferCancelButton
+            // aprsChatControl
             // 
-            this.terminalFileTransferCancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalFileTransferCancelButton.Enabled = false;
-            this.terminalFileTransferCancelButton.Location = new System.Drawing.Point(559, 4);
-            this.terminalFileTransferCancelButton.Margin = new System.Windows.Forms.Padding(4);
-            this.terminalFileTransferCancelButton.Name = "terminalFileTransferCancelButton";
-            this.terminalFileTransferCancelButton.Size = new System.Drawing.Size(100, 28);
-            this.terminalFileTransferCancelButton.TabIndex = 4;
-            this.terminalFileTransferCancelButton.Text = "C&ancel";
-            this.terminalFileTransferCancelButton.UseVisualStyleBackColor = true;
-            this.terminalFileTransferCancelButton.Click += new System.EventHandler(this.terminalFileTransferCancelButton_Click);
+            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
+            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
+            this.aprsChatControl.CornerRadius = 4;
+            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.aprsChatControl.Images = this.mainImageList;
+            this.aprsChatControl.InterMessageMargin = 12;
+            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
+            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.aprsChatControl.MaxWidth = 300;
+            this.aprsChatControl.MessageBoxAuthColor = System.Drawing.Color.LightGreen;
+            this.aprsChatControl.MessageBoxBadColor = System.Drawing.Color.Wheat;
+            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
+            this.aprsChatControl.MessageBoxMargin = 10;
+            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
+            this.aprsChatControl.MinWidth = 100;
+            this.aprsChatControl.Name = "aprsChatControl";
+            this.aprsChatControl.ShadowOffset = 2;
+            this.aprsChatControl.SideMargins = 12;
+            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
+            this.aprsChatControl.TabIndex = 5;
+            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
+            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
+            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
-            // terminalFileTransferStatusLabel
+            // torrentBlocksUserControl
             // 
-            this.terminalFileTransferStatusLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalFileTransferStatusLabel.Location = new System.Drawing.Point(6, 10);
-            this.terminalFileTransferStatusLabel.Name = "terminalFileTransferStatusLabel";
-            this.terminalFileTransferStatusLabel.Size = new System.Drawing.Size(546, 18);
-            this.terminalFileTransferStatusLabel.TabIndex = 5;
-            this.terminalFileTransferStatusLabel.Text = "Downloading";
-            // 
-            // terminalFileTransferProgressBar
-            // 
-            this.terminalFileTransferProgressBar.Location = new System.Drawing.Point(10, 35);
-            this.terminalFileTransferProgressBar.Name = "terminalFileTransferProgressBar";
-            this.terminalFileTransferProgressBar.Size = new System.Drawing.Size(649, 10);
-            this.terminalFileTransferProgressBar.TabIndex = 6;
-            this.terminalFileTransferProgressBar.Value = 65;
+            this.torrentBlocksUserControl.AutoScroll = true;
+            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
+            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 310);
+            this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // MainForm
             // 
@@ -3664,6 +3683,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.mailMenuPictureBox)).EndInit();
             this.stationsTabContextMenuStrip.ResumeLayout(false);
             this.terminalTabPage.ResumeLayout(false);
+            this.terminalFileTransferPanel.ResumeLayout(false);
             this.terminalBottomPanel.ResumeLayout(false);
             this.terminalBottomPanel.PerformLayout();
             this.terminalTopPanel.ResumeLayout(false);
@@ -3720,7 +3740,7 @@
             this.mailTabContextMenuStrip.ResumeLayout(false);
             this.voiceTabContextMenuStrip.ResumeLayout(false);
             this.mapTabContextMenuStrip.ResumeLayout(false);
-            this.terminalFileTransferPanel.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.radio2PictureBox)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -4034,6 +4054,7 @@
         private System.Windows.Forms.ProgressBar terminalFileTransferProgressBar;
         private System.Windows.Forms.Label terminalFileTransferStatusLabel;
         private System.Windows.Forms.Button terminalFileTransferCancelButton;
+        private System.Windows.Forms.PictureBox radio2PictureBox;
     }
 }
 

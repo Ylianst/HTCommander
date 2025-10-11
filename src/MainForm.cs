@@ -207,6 +207,9 @@ namespace HTCommander
             radio.onRawCommand += Radio_onRawCommand;
             mainTabControl.SelectedTab = aprsTabPage;
 
+            //radio2PictureBox.Visible = true;
+            //radioPictureBox.Visible = false;
+
             // 
             // mapControl
             // 
@@ -1346,11 +1349,11 @@ namespace HTCommander
                     if ((radio.HtStatus.is_in_rx || radio.HtStatus.is_in_tx) && (radio.HtStatus.curr_ch_id == channelB.channel_id))
                     {
                         vfo1StatusLabel.ForeColor = vfo1FreqLabel.ForeColor = vfo1Label.ForeColor = Color.LightGray;
-                        vfo2StatusLabel.ForeColor = vfo2FreqLabel.ForeColor = vfo2Label.ForeColor = Color.Salmon;
+                        vfo2StatusLabel.ForeColor = vfo2FreqLabel.ForeColor = vfo2Label.ForeColor = Color.FromArgb(221, 211, 0);
                     }
                     else
                     {
-                        vfo1StatusLabel.ForeColor = vfo1FreqLabel.ForeColor = vfo1Label.ForeColor = Color.Salmon;
+                        vfo1StatusLabel.ForeColor = vfo1FreqLabel.ForeColor = vfo1Label.ForeColor = Color.FromArgb(221, 211, 0);
                         vfo2StatusLabel.ForeColor = vfo2FreqLabel.ForeColor = vfo2Label.ForeColor = Color.LightGray;
                     }
                 }
