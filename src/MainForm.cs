@@ -5367,6 +5367,7 @@ namespace HTCommander
             {
                 terminalFileTransferStatusLabel.Text = "File Transfer";
             }
+            if ((terminalFileTransferPanel.Visible == false) && (state != TerminalFileTransferStates.Idle)) { terminalTextBox.ScrollToCaret(); }
             terminalFileTransferPanel.Visible = (state != TerminalFileTransferStates.Idle);
         }
 
