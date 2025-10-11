@@ -85,6 +85,12 @@ namespace HTCommander
         public AgwpeSocketServer agwpeServer;
         public bool agwpeServerEnabled = false;
         public int agwpeServerPort = 8000;
+        public ImapServer imapServer;
+        public bool imapServerEnabled = false;
+        public int imapServerPort = 1143;
+        public SmtpServer smtpServer;
+        public bool smtpServerEnabled = false;
+        public int smtpServerPort = 2525;
         public List<TerminalText> terminalTexts = new List<TerminalText>();
         public BBS bbs;
         public Torrent torrent;
@@ -490,6 +496,25 @@ namespace HTCommander
                 webserver.Start();
             }
             toolStripMenuItem2.Visible = localWebSiteToolStripMenuItem.Visible = (webserver != null);
+
+            // Setup the IMAP server if configured
+            imapServerEnabled = (registry.ReadInt("imapServerEnabled", 0) != 0);
+            imapServerPort = (int)registry.ReadInt("imapServerPort", 1143);
+            if (imapServerEnabled && (imapServerPort > 0))
+            {
+                imapServer = new ImapServer(this, imapServerPort);
+                imapServer.Start();
+            }
+
+            // Setup the SMTP server if configured
+            smtpServerEnabled = (registry.ReadInt("smtpServerEnabled", 0) != 0);
+            smtpServerPort = (int)registry.ReadInt("smtpServerPort", 2525);
+            if (smtpServerEnabled && (smtpServerPort > 0))
+            {
+                smtpServer = new SmtpServer(this, smtpServerPort);
+                smtpServer.Start();
+            }
+
             allowTransmit = (registry.ReadInt("AllowTransmit", 0) == 1);
             Loading = false;
 
