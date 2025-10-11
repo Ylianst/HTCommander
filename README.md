@@ -13,7 +13,7 @@ The following radios should work with this application:
 
 - BTech UV-Pro
 - RadioOddity GA-5WB (untested)
-- Vero VR-N75 (untested)
+- Vero VR-N75
 - Vero VR-N76 (untested)
 - Vero VR-N7500 (untested)
 - Vero VR-N7600
