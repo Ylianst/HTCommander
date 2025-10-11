@@ -3355,11 +3355,8 @@ namespace HTCommander
                     activeStationLock = null;
                     activeChannelIdLock = -1;
                     
-                    // Stop YAPP receive mode when disconnecting
-                    if (yappTransfer != null && yappTransfer.CurrentState != YappTransfer.YappState.Idle)
-                    {
-                        yappTransfer.CancelTransfer();
-                    }
+                    // Reset YAPP state when disconnecting
+                    yappTransfer?.Reset();
                     
                     UpdateInfo();
                     UpdateRadioDisplay();
@@ -5386,17 +5383,12 @@ namespace HTCommander
 
         private void YappTransfer_TransferComplete(object sender, YappCompleteEventArgs e)
         {
-            if (!string.IsNullOrEmpty(e.Filename))
-            {
-                AppendTerminalText($"[YAPP] File transfer completed: {e.Filename} ({e.BytesTransferred} bytes)\r\n", Color.Green);
-            }
-            
             updateTerminalFileTransferProgress(TerminalFileTransferStates.Idle, "", 0, 0);
         }
 
         private void YappTransfer_TransferError(object sender, YappErrorEventArgs e)
         {
-            AppendTerminalText($"[YAPP] Transfer error: {e.Error}\r\n", Color.Red);
+            AppendTerminalString(false, null, null, $"YAPP transfer error: {e.Error}");
             updateTerminalFileTransferProgress(TerminalFileTransferStates.Idle, "", 0, 0);
         }
     }

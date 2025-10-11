@@ -126,7 +126,8 @@ namespace HTCommander
             this.parent = parent ?? throw new ArgumentNullException(nameof(parent));
             
             // Subscribe to session events
-            session.DataReceivedEvent += OnDataReceived;
+            // Note: We do NOT subscribe to DataReceivedEvent here because ProcessIncomingData
+            // is already being called from MainForm, which prevents duplicate packet processing
             session.StateChanged += OnSessionStateChanged;
             
             // Setup timeout timer
@@ -167,7 +168,7 @@ namespace HTCommander
             SetState(YappState.R);
             
             Log("YAPP receive mode activated, waiting for incoming transfers...");
-            parent?.AppendTerminalText($"[YAPP] Ready to receive files in: {this.downloadPath}\r\n", System.Drawing.Color.Blue);
+            //parent?.AppendTerminalText($"[YAPP] Ready to receive files in: {this.downloadPath}\r\n", System.Drawing.Color.Blue);
         }
         
         /// <summary>
@@ -283,10 +284,15 @@ namespace HTCommander
         
         private void OnSessionStateChanged(AX25Session sender, AX25Session.ConnectionState state)
         {
-            if (state == AX25Session.ConnectionState.DISCONNECTED && CurrentState != YappState.Idle)
+            if (state == AX25Session.ConnectionState.DISCONNECTED)
             {
-                OnError("Session disconnected during transfer");
-                CleanupTransfer();
+                if (CurrentState != YappState.Idle)
+                {
+                    Log("Session disconnected during transfer");
+                    //parent?.AppendTerminalText("[YAPP] Session disconnected during transfer\r\n", System.Drawing.Color.Red);
+                }
+                // Always reset YAPP state when session disconnects
+                Reset();
             }
         }
         
@@ -317,6 +323,7 @@ namespace HTCommander
             }
         }
         
+        /*
         private void CheckForIncomingTransfer(byte[] data)
         {
             if (data.Length >= 2 && data[0] == Control.ENQ && data[1] == (byte)PacketType.SI)
@@ -331,6 +338,7 @@ namespace HTCommander
                 parent?.AppendTerminalText("[YAPP] Incoming file transfer request received\r\n", System.Drawing.Color.Green);
             }
         }
+        */
         
         private void ProcessReceiveInitState(byte[] data, byte type)
         {
@@ -344,7 +352,7 @@ namespace HTCommander
                 SetState(YappState.RH);
                 StartTimeout();
                 
-                parent?.AppendTerminalText("[YAPP] Incoming file transfer request received\r\n", System.Drawing.Color.Green);
+                parent?.AppendTerminalString(false, null, null, "Incoming YAPP file transfer request received");
             }
             else if (type == Control.SOH) // HD - Header packet
             {
@@ -624,13 +632,14 @@ namespace HTCommander
             }
             
             SendAckEOF();
-            SetState(YappState.RH); // Back to receive header for potential next file
             
-            // File completed
+            // Notify file completion with specific file details
             string completedFile = Path.Combine(downloadPath, currentFilename);
-            parent?.AppendTerminalText($"[YAPP] File completed: {currentFilename} ({bytesTransferred} bytes)\r\n", System.Drawing.Color.Green);
+            parent?.AppendTerminalString(false, null, null, $"YAPP file completed: {currentFilename} ({bytesTransferred} bytes)");
             
             OnFileComplete();
+            
+            SetState(YappState.RH); // Back to receive header for potential next file
         }
         
         private void ProcessCancelPacket(byte[] data)
@@ -845,19 +854,33 @@ namespace HTCommander
         {
             Log("Transfer completed successfully");
             
+            // Store current mode before cleanup
+            bool wasInReceiveMode = (Mode == YappMode.Receive);
+            
             CleanupTransfer();
             
             // Update UI
             parent?.updateTerminalFileTransferProgress(MainForm.TerminalFileTransferStates.Idle, "", 0, 0);
             
-            OnTransferComplete();
+            // Display overall transfer completion message
+            //parent?.AppendTerminalString(false, null, null, "YAPP transfer completed successfully");
             
-            // Return to waiting for new transfers
-            if (Mode == YappMode.Receive)
+            // Fire the TransferComplete event (for EOT - end of all transfers)
+            TransferComplete?.Invoke(this, new YappCompleteEventArgs
+            {
+                Filename = "",
+                FileSize = 0,
+                BytesTransferred = 0,
+                FilePath = ""
+            });
+            
+            // Return to listening if we were in receive mode
+            if (wasInReceiveMode)
             {
                 SetState(YappState.R);
                 Log("Ready for next file transfer");
             }
+            CurrentState = YappState.Idle;
         }
         
         private void CleanupTransfer()
@@ -877,11 +900,8 @@ namespace HTCommander
                 fileStream = null;
             }
             
-            // Only set to Idle if we're not in receive mode
-            if (Mode != YappMode.Receive)
-            {
-                SetState(YappState.Idle);
-            }
+            // Don't change state here - let the caller decide
+            // This allows better control of state transitions
             
             retryCount = 0;
             currentFilename = null;
@@ -922,22 +942,12 @@ namespace HTCommander
             });
         }
         
-        private void OnTransferComplete()
-        {
-            // Display completion message only once
-            parent?.AppendTerminalText("[YAPP] Transfer completed successfully\r\n", System.Drawing.Color.Green);
-            
-            TransferComplete?.Invoke(this, new YappCompleteEventArgs
-            {
-                Filename = "",
-                FileSize = 0,
-                BytesTransferred = 0,
-                FilePath = ""
-            });
-        }
         
         private void OnError(string error)
         {
+            // Store current mode before cleanup
+            bool wasInReceiveMode = (Mode == YappMode.Receive);
+            
             CleanupTransfer();
             
             TransferError?.Invoke(this, new YappErrorEventArgs
@@ -946,15 +956,35 @@ namespace HTCommander
                 Filename = currentFilename
             });
             
-            // Return to waiting for new transfers if in receive mode
-            if (Mode == YappMode.Receive)
+            // Return to listening if we were in receive mode
+            if (wasInReceiveMode)
             {
                 SetState(YappState.R);
-                Log("Ready for next file transfer");
+                Log("Ready for next file transfer after error");
+            }
+            else
+            {
+                SetState(YappState.Idle);
             }
         }
         
         #endregion
+        
+        /// <summary>
+        /// Reset YAPP state to prepare for a new session
+        /// Called when AX25 session is closed to clean up properly
+        /// </summary>
+        public void Reset()
+        {
+            Log("Resetting YAPP state");
+            
+            CleanupTransfer();
+            SetState(YappState.Idle);
+            Mode = YappMode.None;
+            
+            // Update UI
+            parent?.updateTerminalFileTransferProgress(MainForm.TerminalFileTransferStates.Idle, "", 0, 0);
+        }
         
         public void Dispose()
         {

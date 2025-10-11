@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
@@ -43,7 +44,6 @@
             System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -110,6 +110,7 @@
             this.vfo1Label = new System.Windows.Forms.Label();
             this.radioStateLabel = new System.Windows.Forms.Label();
             this.connectButton = new System.Windows.Forms.Button();
+            this.radio2PictureBox = new System.Windows.Forms.PictureBox();
             this.radioPictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
@@ -344,13 +345,13 @@
             this.cacheAreaToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showTracksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.largeMarkersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.radio2PictureBox = new System.Windows.Forms.PictureBox();
             this.aprsChatControl = new HTCommander.ChatControl();
             this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
             this.connectedPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.radio2PictureBox)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).BeginInit();
             this.mainTabControl.SuspendLayout();
             this.aprsTabPage.SuspendLayout();
@@ -432,7 +433,6 @@
             this.mailTabContextMenuStrip.SuspendLayout();
             this.voiceTabContextMenuStrip.SuspendLayout();
             this.mapTabContextMenuStrip.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.radio2PictureBox)).BeginInit();
             this.SuspendLayout();
             // 
             // mainStatusStrip
@@ -474,7 +474,7 @@
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             this.mainMenuStrip.Name = "mainMenuStrip";
             this.mainMenuStrip.Padding = new System.Windows.Forms.Padding(5, 2, 0, 2);
-            this.mainMenuStrip.Size = new System.Drawing.Size(1084, 28);
+            this.mainMenuStrip.Size = new System.Drawing.Size(1084, 30);
             this.mainMenuStrip.TabIndex = 1;
             this.mainMenuStrip.Text = "menuStrip1";
             this.mainMenuStrip.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.mainMenuStrip_ItemClicked);
@@ -491,7 +491,7 @@
             this.toolStripMenuItem4,
             this.exitToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 26);
             this.fileToolStripMenuItem.Text = "&File";
             // 
             // connectToolStripMenuItem
@@ -560,7 +560,7 @@
             this.exportChannelsToolStripMenuItem,
             this.importChannelsToolStripMenuItem});
             this.toolStripMenuItem21.Name = "toolStripMenuItem21";
-            this.toolStripMenuItem21.Size = new System.Drawing.Size(76, 24);
+            this.toolStripMenuItem21.Size = new System.Drawing.Size(76, 26);
             this.toolStripMenuItem21.Text = "&Settings";
             // 
             // dualWatchToolStripMenuItem
@@ -621,7 +621,7 @@
             this.volumeToolStripMenuItem,
             this.spectrogramToolStripMenuItem});
             this.audioToolStripMenuItem1.Name = "audioToolStripMenuItem1";
-            this.audioToolStripMenuItem1.Size = new System.Drawing.Size(63, 24);
+            this.audioToolStripMenuItem1.Size = new System.Drawing.Size(63, 26);
             this.audioToolStripMenuItem1.Text = "A&udio";
             this.audioToolStripMenuItem1.DropDownOpening += new System.EventHandler(this.settingsToolStripMenuItem1_DropDownOpening);
             // 
@@ -662,7 +662,7 @@
             this.packetsToolStripMenuItem,
             this.debugToolStripMenuItem});
             this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
-            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
+            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 26);
             this.viewToolStripMenuItem.Text = "&View";
             this.viewToolStripMenuItem.DropDownOpening += new System.EventHandler(this.viewToolStripMenuItem_DropDownOpening);
             // 
@@ -774,7 +774,7 @@
             this.checkForUpdatesToolStripMenuItem,
             this.aboutToolStripMenuItem1});
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 26);
             this.aboutToolStripMenuItem.Text = "&About";
             // 
             // radioInformationToolStripMenuItem
@@ -865,10 +865,10 @@
             this.radioPanel.Controls.Add(this.radio2PictureBox);
             this.radioPanel.Controls.Add(this.radioPictureBox);
             this.radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
-            this.radioPanel.Location = new System.Drawing.Point(0, 28);
+            this.radioPanel.Location = new System.Drawing.Point(0, 30);
             this.radioPanel.Margin = new System.Windows.Forms.Padding(4);
             this.radioPanel.Name = "radioPanel";
-            this.radioPanel.Size = new System.Drawing.Size(372, 661);
+            this.radioPanel.Size = new System.Drawing.Size(372, 659);
             this.radioPanel.TabIndex = 2;
             this.radioPanel.SizeChanged += new System.EventHandler(this.radioPanel_SizeChanged);
             this.radioPanel.Click += new System.EventHandler(this.radioPictureBox_Click);
@@ -891,7 +891,7 @@
             // 
             this.channelsFlowLayoutPanel.BackColor = System.Drawing.Color.DarkKhaki;
             this.channelsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 489);
+            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 487);
             this.channelsFlowLayoutPanel.Margin = new System.Windows.Forms.Padding(4);
             this.channelsFlowLayoutPanel.Name = "channelsFlowLayoutPanel";
             this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(368, 84);
@@ -901,7 +901,7 @@
             // checkBluetoothButton
             // 
             this.checkBluetoothButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 573);
+            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 571);
             this.checkBluetoothButton.Margin = new System.Windows.Forms.Padding(4);
             this.checkBluetoothButton.Name = "checkBluetoothButton";
             this.checkBluetoothButton.Size = new System.Drawing.Size(368, 42);
@@ -1107,7 +1107,7 @@
             // connectButton
             // 
             this.connectButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.connectButton.Location = new System.Drawing.Point(0, 615);
+            this.connectButton.Location = new System.Drawing.Point(0, 613);
             this.connectButton.Margin = new System.Windows.Forms.Padding(4);
             this.connectButton.Name = "connectButton";
             this.connectButton.Size = new System.Drawing.Size(368, 42);
@@ -1115,6 +1115,22 @@
             this.connectButton.Text = "Connect";
             this.connectButton.UseVisualStyleBackColor = true;
             this.connectButton.Click += new System.EventHandler(this.connectToolStripMenuItem_Click);
+            // 
+            // radio2PictureBox
+            // 
+            this.radio2PictureBox.Image = ((System.Drawing.Image)(resources.GetObject("radio2PictureBox.Image")));
+            this.radio2PictureBox.Location = new System.Drawing.Point(-34, -19);
+            this.radio2PictureBox.Margin = new System.Windows.Forms.Padding(4);
+            this.radio2PictureBox.Name = "radio2PictureBox";
+            this.radio2PictureBox.Size = new System.Drawing.Size(440, 561);
+            this.radio2PictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.radio2PictureBox.TabIndex = 8;
+            this.radio2PictureBox.TabStop = false;
+            this.radio2PictureBox.Visible = false;
+            this.radio2PictureBox.Click += new System.EventHandler(this.radioPictureBox_Click);
+            this.radio2PictureBox.DragDrop += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragDrop);
+            this.radio2PictureBox.DragEnter += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragEnter);
+            this.radio2PictureBox.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
             // 
             // radioPictureBox
             // 
@@ -1146,12 +1162,12 @@
             this.mainTabControl.Controls.Add(this.debugTabPage);
             this.mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTabControl.ImageList = this.tabsImageList;
-            this.mainTabControl.Location = new System.Drawing.Point(372, 28);
+            this.mainTabControl.Location = new System.Drawing.Point(372, 30);
             this.mainTabControl.Margin = new System.Windows.Forms.Padding(4);
             this.mainTabControl.Multiline = true;
             this.mainTabControl.Name = "mainTabControl";
             this.mainTabControl.SelectedIndex = 0;
-            this.mainTabControl.Size = new System.Drawing.Size(712, 661);
+            this.mainTabControl.Size = new System.Drawing.Size(712, 659);
             this.mainTabControl.TabIndex = 3;
             // 
             // aprsTabPage
@@ -1164,7 +1180,7 @@
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
             this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Size = new System.Drawing.Size(669, 653);
+            this.aprsTabPage.Size = new System.Drawing.Size(669, 651);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1229,7 +1245,7 @@
             this.aprsBottomPanel.Controls.Add(this.aprsTextBox);
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 606);
+            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 604);
             this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
             this.aprsBottomPanel.Size = new System.Drawing.Size(669, 47);
@@ -1980,7 +1996,7 @@
             this.terminalTabPage.Location = new System.Drawing.Point(4, 4);
             this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTabPage.Name = "terminalTabPage";
-            this.terminalTabPage.Size = new System.Drawing.Size(669, 653);
+            this.terminalTabPage.Size = new System.Drawing.Size(669, 651);
             this.terminalTabPage.TabIndex = 2;
             this.terminalTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1995,7 +2011,7 @@
             this.terminalTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTextBox.Name = "terminalTextBox";
             this.terminalTextBox.ReadOnly = true;
-            this.terminalTextBox.Size = new System.Drawing.Size(669, 518);
+            this.terminalTextBox.Size = new System.Drawing.Size(669, 516);
             this.terminalTextBox.TabIndex = 4;
             this.terminalTextBox.Text = "";
             this.terminalTextBox.WordWrap = false;
@@ -2016,6 +2032,8 @@
             // 
             // terminalFileTransferProgressBar
             // 
+            this.terminalFileTransferProgressBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.terminalFileTransferProgressBar.Location = new System.Drawing.Point(10, 35);
             this.terminalFileTransferProgressBar.Name = "terminalFileTransferProgressBar";
             this.terminalFileTransferProgressBar.Size = new System.Drawing.Size(649, 10);
@@ -2051,7 +2069,7 @@
             this.terminalBottomPanel.Controls.Add(this.terminalInputTextBox);
             this.terminalBottomPanel.Controls.Add(this.terminalSendButton);
             this.terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 607);
+            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 605);
             this.terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.terminalBottomPanel.Name = "terminalBottomPanel";
             this.terminalBottomPanel.Size = new System.Drawing.Size(669, 46);
@@ -3568,22 +3586,6 @@
             this.largeMarkersToolStripMenuItem.Text = "Large Markers";
             this.largeMarkersToolStripMenuItem.Click += new System.EventHandler(this.largeMarkersToolStripMenuItem_Click);
             // 
-            // radio2PictureBox
-            // 
-            this.radio2PictureBox.Image = ((System.Drawing.Image)(resources.GetObject("radio2PictureBox.Image")));
-            this.radio2PictureBox.Location = new System.Drawing.Point(-34, -19);
-            this.radio2PictureBox.Margin = new System.Windows.Forms.Padding(4);
-            this.radio2PictureBox.Name = "radio2PictureBox";
-            this.radio2PictureBox.Size = new System.Drawing.Size(440, 561);
-            this.radio2PictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.radio2PictureBox.TabIndex = 8;
-            this.radio2PictureBox.TabStop = false;
-            this.radio2PictureBox.Visible = false;
-            this.radio2PictureBox.Click += new System.EventHandler(this.radioPictureBox_Click);
-            this.radio2PictureBox.DragDrop += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragDrop);
-            this.radio2PictureBox.DragEnter += new System.Windows.Forms.DragEventHandler(this.radioPictureBox_DragEnter);
-            this.radio2PictureBox.DoubleClick += new System.EventHandler(this.radioPictureBox_Click);
-            // 
             // aprsChatControl
             // 
             this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
@@ -3604,7 +3606,7 @@
             this.aprsChatControl.Name = "aprsChatControl";
             this.aprsChatControl.ShadowOffset = 2;
             this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
+            this.aprsChatControl.Size = new System.Drawing.Size(669, 530);
             this.aprsChatControl.TabIndex = 5;
             this.aprsChatControl.TextColor = System.Drawing.Color.Black;
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
@@ -3643,6 +3645,7 @@
             this.mainMenuStrip.PerformLayout();
             this.radioPanel.ResumeLayout(false);
             this.connectedPanel.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.radio2PictureBox)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.radioPictureBox)).EndInit();
             this.mainTabControl.ResumeLayout(false);
             this.aprsTabPage.ResumeLayout(false);
@@ -3740,7 +3743,6 @@
             this.mailTabContextMenuStrip.ResumeLayout(false);
             this.voiceTabContextMenuStrip.ResumeLayout(false);
             this.mapTabContextMenuStrip.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.radio2PictureBox)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 

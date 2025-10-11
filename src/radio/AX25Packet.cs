@@ -142,6 +142,7 @@ namespace HTCommander
             if (addresses.Count < 1) return null;
             bool command = addresses[0].CRBit1;
             bool modulo128 = (addresses[0].CRBit2 == false);
+            if (data.Length < (i + 1)) return null;
 
             // Decode control and pid data.
             int control = data[i++];
