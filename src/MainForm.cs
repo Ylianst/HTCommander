@@ -5414,7 +5414,7 @@ namespace HTCommander
 
         private void YappTransfer_TransferError(object sender, YappErrorEventArgs e)
         {
-            AppendTerminalString(false, null, null, $"YAPP transfer error: {e.Error}");
+            //AppendTerminalString(false, null, null, $"YAPP transfer error: {e.Error}");
             updateTerminalFileTransferProgress(TerminalFileTransferStates.Idle, "", 0, 0);
         }
     }
