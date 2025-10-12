@@ -195,6 +195,13 @@ namespace HTCommander
             return msgId;
         }
 
+        public void SetRadioImage(int radio)
+        {
+            radioPictureBox.Visible = (radio == 0);
+            radio2PictureBox.Visible = (radio == 1);
+            registry.WriteInt("RadioImage", radio);
+        }
+
         private void MainForm_Load(object sender, EventArgs e)
         {
             Program.BlockBoxEvent("MainForm_Load");
@@ -212,9 +219,6 @@ namespace HTCommander
             radio.onPositionUpdate += Radio_onPositionUpdate;
             radio.onRawCommand += Radio_onRawCommand;
             mainTabControl.SelectedTab = aprsTabPage;
-
-            //radio2PictureBox.Visible = true;
-            //radioPictureBox.Visible = false;
 
             // 
             // mapControl
@@ -343,6 +347,7 @@ namespace HTCommander
             mapFilterMinutes = (int)registry.ReadInt("MapTimeFilter", 0);
             foreach (ToolStripMenuItem i in showMarkersToolStripMenuItem.DropDownItems) { i.Checked = (int.Parse((string)((ToolStripMenuItem)i).Tag) == mapFilterMinutes); }
             largeMarkersToolStripMenuItem.Checked = (registry.ReadInt("MapLargeMarkers", 1) == 1);
+            SetRadioImage((int)registry.ReadInt("RadioImage", 0));
 
             // Setup mailboxes
             MailBoxTreeNodes = new TreeNode[MailBoxesNames.Length];
@@ -1101,6 +1106,12 @@ namespace HTCommander
                                 if (registry.ReadInt("Audio", 0) == 1) { radio.AudioEnabled(true); }
                                 radioVolumeForm.UpdateInfo();
                                 if (allowTransmit) { microphone.StartListening(); }
+
+                                // Set the radio image
+                                int radioImage = 0;
+                                if ((radio.Info.vendor_id == 6) && (radio.Info.product_id == 260)) { radioImage = 0; } // BTECH UV-Pro
+                                if ((radio.Info.vendor_id == 1) && (radio.Info.product_id == 261)) { radioImage = 1; } // Vero VR-N75
+                                SetRadioImage(radioImage);
                                 break;
                             case Radio.RadioState.Disconnected:
                                 if (webserver != null) { webserver.BroadcastString("disconnected"); }
