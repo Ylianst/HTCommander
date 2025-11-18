@@ -379,7 +379,6 @@ namespace HTCommander
                                 {
                                     case 0x00: // Audio normal
                                     case 0x03: // Audio odd
-                                        if (parent.IsOnMuteChannel() == true) break;
                                         if (speechToText && (speechToTextEngine == null))
                                         {
                                             speechToTextEngine = new WhisperEngine(voiceModel, voiceLanguage);
@@ -547,22 +546,28 @@ namespace HTCommander
                     // Make use of all accumulated PCM data
                     if (totalWritten > 0)
                     {
-                        if (waveProvider != null)
+                        if (parent.IsOnMuteChannel() == false)
                         {
-                            try { waveProvider.AddSamples(pcmFrame, 0, totalWritten); }
-                            catch (Exception ex) { SetOutputDevice(null); Debug("WaveProvider AddSamples: " + ex.ToString()); }
+                            if (waveProvider != null)
+                            {
+                                try { waveProvider.AddSamples(pcmFrame, 0, totalWritten); }
+                                catch (Exception ex) { SetOutputDevice(null); Debug("WaveProvider AddSamples: " + ex.ToString()); }
+                            }
+                            if (recording != null)
+                            {
+                                try { recording.Write(pcmFrame, 0, totalWritten); }
+                                catch (Exception ex) { Debug("Recording Write Error: " + ex.ToString()); }
+                            }
+                            if (speechToTextEngine != null)
+                            {
+                                try { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, totalWritten, currentChannelName); }
+                                catch (Exception ex) { Debug("ProcessAudioChunk Error: " + ex.ToString()); }
+                            }
+                            parent.GotAudioData(pcmFrame, 0, totalWritten, currentChannelName, false);
                         }
-                        if (recording != null)
-                        {
-                            try { recording.Write(pcmFrame, 0, totalWritten); }
-                            catch (Exception ex) { Debug("Recording Write Error: " + ex.ToString()); }
-                        }
-                        if (speechToTextEngine != null)
-                        {
-                            try { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, totalWritten, currentChannelName); }
-                            catch (Exception ex) { Debug("ProcessAudioChunk Error: " + ex.ToString()); }
-                        }
-                        parent.GotAudioData(pcmFrame, 0, totalWritten, currentChannelName, false);
+
+                        // We need to send the audio into the AFPK1200 and 9600 software modem for decoding
+                        // TODO
                     }
 
                     return 0;
@@ -601,23 +606,29 @@ namespace HTCommander
                     pcmLen -= (int)written;
                 }
 
-                // Make use of the PCM data
-                if (waveProvider != null)
+                if (parent.IsOnMuteChannel() == false)
                 {
-                    try { waveProvider.AddSamples(pcmFrame, 0, totalWritten); }
-                    catch (Exception ex) { SetOutputDevice(null); Debug("WaveProvider AddSamples: " + ex.ToString()); }
+                    // Make use of the PCM data
+                    if (waveProvider != null)
+                    {
+                        try { waveProvider.AddSamples(pcmFrame, 0, totalWritten); }
+                        catch (Exception ex) { SetOutputDevice(null); Debug("WaveProvider AddSamples: " + ex.ToString()); }
+                    }
+                    if (recording != null)
+                    {
+                        try { recording.Write(pcmFrame, 0, totalWritten); }
+                        catch (Exception ex) { Debug("Recording Write Error: " + ex.ToString()); }
+                    }
+                    if (speechToTextEngine != null)
+                    {
+                        try { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, totalWritten, currentChannelName); }
+                        catch (Exception ex) { Debug("ProcessAudioChunk Error: " + ex.ToString()); }
+                    }
+                    parent.GotAudioData(pcmFrame, 0, totalWritten, currentChannelName, false);
                 }
-                if (recording != null)
-                {
-                    try { recording.Write(pcmFrame, 0, totalWritten); }
-                    catch (Exception ex) { Debug("Recording Write Error: " + ex.ToString()); }
-                }
-                if (speechToTextEngine != null)
-                {
-                    try { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, totalWritten, currentChannelName); }
-                    catch (Exception ex) { Debug("ProcessAudioChunk Error: " + ex.ToString()); }
-                }
-                parent.GotAudioData(pcmFrame, 0, totalWritten, currentChannelName, false);
+
+                // We need to send the audio into the AFPK1200 and 9600 software modem for decoding
+                // TODO
 
                 // Clean up
                 pcmHandle.Free();
