@@ -635,6 +635,7 @@ namespace HTCommander
         public bool IsOnMuteChannel()
         {
             if ((state != RadioState.Connected) || (Channels == null) || (HtStatus == null)) return true;
+            if (HtStatus.curr_ch_id == 254) return false; // NOAA channel is never muted
             if (HtStatus.curr_ch_id >= Channels.Length) return true;
             if (Channels[HtStatus.curr_ch_id] == null) return true;
             return Channels[HtStatus.curr_ch_id].mute;

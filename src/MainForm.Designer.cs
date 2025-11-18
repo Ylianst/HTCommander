@@ -862,8 +862,8 @@
             this.radioPanel.Controls.Add(this.connectedPanel);
             this.radioPanel.Controls.Add(this.radioStateLabel);
             this.radioPanel.Controls.Add(this.connectButton);
-            this.radioPanel.Controls.Add(this.radio2PictureBox);
             this.radioPanel.Controls.Add(this.radioPictureBox);
+            this.radioPanel.Controls.Add(this.radio2PictureBox);
             this.radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
             this.radioPanel.Location = new System.Drawing.Point(0, 28);
             this.radioPanel.Margin = new System.Windows.Forms.Padding(4);
@@ -1707,7 +1707,7 @@
             // 
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailPreviewTextBox);
             this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(669, 577);
-            this.mailboxHorizontalSplitContainer.SplitterDistance = 251;
+            this.mailboxHorizontalSplitContainer.SplitterDistance = 250;
             this.mailboxHorizontalSplitContainer.TabIndex = 7;
             // 
             // mailboxVerticalSplitContainer
@@ -1725,7 +1725,7 @@
             // mailboxVerticalSplitContainer.Panel2
             // 
             this.mailboxVerticalSplitContainer.Panel2.Controls.Add(this.mailboxListView);
-            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(669, 251);
+            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(669, 250);
             this.mailboxVerticalSplitContainer.SplitterDistance = 151;
             this.mailboxVerticalSplitContainer.TabIndex = 6;
             // 
@@ -1740,7 +1740,7 @@
             this.mailBoxesTreeView.Name = "mailBoxesTreeView";
             this.mailBoxesTreeView.SelectedImageIndex = 0;
             this.mailBoxesTreeView.ShowRootLines = false;
-            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 251);
+            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 250);
             this.mailBoxesTreeView.TabIndex = 0;
             this.mailBoxesTreeView.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.mailBoxesTreeView_NodeMouseClick);
             this.mailBoxesTreeView.DragDrop += new System.Windows.Forms.DragEventHandler(this.mailBoxesTreeView_DragDrop);
@@ -1775,7 +1775,7 @@
             this.mailboxListView.Location = new System.Drawing.Point(0, 0);
             this.mailboxListView.Margin = new System.Windows.Forms.Padding(4);
             this.mailboxListView.Name = "mailboxListView";
-            this.mailboxListView.Size = new System.Drawing.Size(514, 251);
+            this.mailboxListView.Size = new System.Drawing.Size(514, 250);
             this.mailboxListView.SmallImageList = this.mainImageList;
             this.mailboxListView.TabIndex = 5;
             this.mailboxListView.UseCompatibleStateImageBehavior = false;
@@ -1895,7 +1895,7 @@
             this.mailPreviewTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.mailPreviewTextBox.Name = "mailPreviewTextBox";
             this.mailPreviewTextBox.ReadOnly = true;
-            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 322);
+            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 323);
             this.mailPreviewTextBox.TabIndex = 0;
             this.mailPreviewTextBox.Text = "";
             // 
@@ -2372,7 +2372,7 @@
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
             this.bbsSplitContainer.Size = new System.Drawing.Size(669, 614);
-            this.bbsSplitContainer.SplitterDistance = 120;
+            this.bbsSplitContainer.SplitterDistance = 119;
             this.bbsSplitContainer.SplitterWidth = 5;
             this.bbsSplitContainer.TabIndex = 7;
             // 
@@ -2401,7 +2401,7 @@
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
             this.bbsListView.Margin = new System.Windows.Forms.Padding(4);
             this.bbsListView.Name = "bbsListView";
-            this.bbsListView.Size = new System.Drawing.Size(669, 120);
+            this.bbsListView.Size = new System.Drawing.Size(669, 119);
             this.bbsListView.SmallImageList = this.mainImageList;
             this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.bbsListView.TabIndex = 6;
@@ -2435,7 +2435,7 @@
             this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(669, 489);
+            this.bbsTextBox.Size = new System.Drawing.Size(669, 490);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -2518,7 +2518,7 @@
             // 
             this.torrentSplitContainer.Panel2.Controls.Add(this.torrentTabControl);
             this.torrentSplitContainer.Size = new System.Drawing.Size(669, 614);
-            this.torrentSplitContainer.SplitterDistance = 268;
+            this.torrentSplitContainer.SplitterDistance = 267;
             this.torrentSplitContainer.TabIndex = 7;
             // 
             // torrentListView
@@ -2535,7 +2535,7 @@
             this.torrentListView.Location = new System.Drawing.Point(0, 0);
             this.torrentListView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentListView.Name = "torrentListView";
-            this.torrentListView.Size = new System.Drawing.Size(669, 268);
+            this.torrentListView.Size = new System.Drawing.Size(669, 267);
             this.torrentListView.SmallImageList = this.mainImageList;
             this.torrentListView.TabIndex = 0;
             this.torrentListView.UseCompatibleStateImageBehavior = false;
@@ -2630,7 +2630,7 @@
             this.torrentTabControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentTabControl.Name = "torrentTabControl";
             this.torrentTabControl.SelectedIndex = 0;
-            this.torrentTabControl.Size = new System.Drawing.Size(669, 342);
+            this.torrentTabControl.Size = new System.Drawing.Size(669, 343);
             this.torrentTabControl.TabIndex = 0;
             // 
             // tabPage1
@@ -2640,7 +2640,7 @@
             this.tabPage1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage1.Size = new System.Drawing.Size(661, 313);
+            this.tabPage1.Size = new System.Drawing.Size(661, 314);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Details";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -2656,7 +2656,7 @@
             this.torrentDetailsListView.Location = new System.Drawing.Point(3, 2);
             this.torrentDetailsListView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentDetailsListView.Name = "torrentDetailsListView";
-            this.torrentDetailsListView.Size = new System.Drawing.Size(655, 309);
+            this.torrentDetailsListView.Size = new System.Drawing.Size(655, 310);
             this.torrentDetailsListView.TabIndex = 0;
             this.torrentDetailsListView.UseCompatibleStateImageBehavior = false;
             this.torrentDetailsListView.View = System.Windows.Forms.View.Details;
@@ -2679,7 +2679,7 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(661, 314);
+            this.tabPage2.Size = new System.Drawing.Size(661, 315);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -2691,7 +2691,7 @@
             this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
             this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 310);
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 311);
             this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // panel5
@@ -2804,7 +2804,7 @@
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
             this.packetsSplitContainer.Size = new System.Drawing.Size(669, 614);
-            this.packetsSplitContainer.SplitterDistance = 262;
+            this.packetsSplitContainer.SplitterDistance = 261;
             this.packetsSplitContainer.SplitterWidth = 5;
             this.packetsSplitContainer.TabIndex = 6;
             // 
@@ -2823,7 +2823,7 @@
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
             this.packetsListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetsListView.Name = "packetsListView";
-            this.packetsListView.Size = new System.Drawing.Size(669, 262);
+            this.packetsListView.Size = new System.Drawing.Size(669, 261);
             this.packetsListView.SmallImageList = this.mainImageList;
             this.packetsListView.TabIndex = 5;
             this.packetsListView.UseCompatibleStateImageBehavior = false;
@@ -2903,7 +2903,7 @@
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             this.packetDecodeListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(669, 347);
+            this.packetDecodeListView.Size = new System.Drawing.Size(669, 348);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;

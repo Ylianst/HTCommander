@@ -329,6 +329,14 @@
     <Compile Include="radio\TncDataFragment.cs" />
     <Compile Include="radio\Utils.cs" />
     <Compile Include="RegistryHelperClass.cs" />
+    <Compile Include="sbc\SbcBitStream.cs" />
+    <Compile Include="sbc\SbcDecoder.cs" />
+    <Compile Include="sbc\SbcDecoderTables.cs" />
+    <Compile Include="sbc\SbcEncoder.cs" />
+    <Compile Include="sbc\SbcEncoderTables.cs" />
+    <Compile Include="sbc\SbcEnums.cs" />
+    <Compile Include="sbc\SbcFrame.cs" />
+    <Compile Include="sbc\SbcTables.cs" />
     <Compile Include="SelfUpdateForm.cs">
       <SubType>Form</SubType>
     </Compile>
