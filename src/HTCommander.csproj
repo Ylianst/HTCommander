@@ -15,6 +15,21 @@
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
     <TargetFrameworkProfile />
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -174,6 +189,30 @@
     <Compile Include="EditBeaconSettingsForm.Designer.cs">
       <DependentUpon>EditBeaconSettingsForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="hamlib\AfskDecoder.cs" />
+    <Compile Include="hamlib\AfskEncoder.cs" />
+    <Compile Include="hamlib\AudioBuffer.cs" />
+    <Compile Include="hamlib\AudioConfig.cs" />
+    <Compile Include="hamlib\Ax25Link.cs" />
+    <Compile Include="hamlib\Ax25Pad.cs" />
+    <Compile Include="hamlib\Ax25Pad2.cs" />
+    <Compile Include="hamlib\CorrectionInfo.cs" />
+    <Compile Include="hamlib\Demod9600.cs" />
+    <Compile Include="hamlib\DemodAfsk.cs" />
+    <Compile Include="hamlib\Dsp.cs" />
+    <Compile Include="hamlib\FcsCalc.cs" />
+    <Compile Include="hamlib\Fx25.cs" />
+    <Compile Include="hamlib\Fx25Encode.cs" />
+    <Compile Include="hamlib\Fx25Rec.cs" />
+    <Compile Include="hamlib\Fx25Send.cs" />
+    <Compile Include="hamlib\GenTone.cs" />
+    <Compile Include="hamlib\HdlcRec.cs" />
+    <Compile Include="hamlib\HdlcRec2.cs" />
+    <Compile Include="hamlib\HdlcSend.cs" />
+    <Compile Include="hamlib\IHdlcReceiver.cs" />
+    <Compile Include="hamlib\MultiModem.cs" />
+    <Compile Include="hamlib\ReedSolomonCodec.cs" />
+    <Compile Include="hamlib\WavFile.cs" />
     <Compile Include="ImapServer.cs" />
     <Compile Include="ImportChannelsForm.cs">
       <SubType>Form</SubType>
@@ -533,6 +572,17 @@
     <None Include="images\Terminal.png" />
     <None Include="images\Paring.png" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <BootstrapperPackage Include=".NETFramework,Version=v4.8">
+      <Visible>False</Visible>
+      <ProductName>Microsoft .NET Framework 4.8 %28x86 and x64%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
