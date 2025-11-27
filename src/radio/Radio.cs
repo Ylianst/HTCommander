@@ -18,6 +18,7 @@ using GMap.NET;
 using HamLib;
 using HTCommander.radio;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -243,6 +244,7 @@ namespace HTCommander
         public int Volume = -1;
         public bool LoopbackMode = false;
         public string currentChannelName = null;
+        private TncDataFragment lastHardwarePacketReceived = null;
 
         public bool Recording { get { return radioAudio.Recording; } }
         public void StartRecording(string filename) { radioAudio.StartRecording(filename); }
@@ -400,9 +402,35 @@ namespace HTCommander
             ClearChannelTimer.Enabled = false;
         }
 
+        static bool ByteArrayCompare(byte[] a1, byte[] a2)
+        {
+            return StructuralComparisons.StructuralEqualityComparer.Equals(a1, a2);
+        }
+
         private void RadioAudio_OnSoftModemPacketDecoded(TncDataFragment packet)
         {
+            if ((lastHardwarePacketReceived != null) && (lastHardwarePacketReceived.channel_id == packet.channel_id) && AreDateTimesWithinSeconds(lastHardwarePacketReceived.time, packet.time, 2) && (ByteArrayCompare(lastHardwarePacketReceived.data, packet.data) == true))
+            {
+                // This packet was already received from hardware, ignore it
+                lastHardwarePacketReceived = null;
+                return;
+            }
             if (OnDataFrame != null) { OnDataFrame(this, packet); }
+        }
+
+        public bool AreDateTimesWithinSeconds(DateTime dateTime1, DateTime dateTime2, double seconds)
+        {
+            // 1. Calculate the difference (TimeSpan) between the two DateTimes.
+            TimeSpan difference = dateTime1 - dateTime2;
+
+            // 2. Get the absolute difference (in case dateTime2 is later than dateTime1).
+            TimeSpan absoluteDifference = difference.Duration();
+
+            // 3. Define the threshold as a TimeSpan.
+            TimeSpan threshold = TimeSpan.FromSeconds(seconds);
+
+            // 4. Compare the absolute difference to the threshold.
+            return absoluteDifference <= threshold;
         }
 
         private void RadioAudio_onTextReady(string text, string channel, DateTime time, bool completed)
@@ -814,6 +842,7 @@ namespace HTCommander
                                         frameAccumulator = null;
                                         packet.incoming = true;
                                         packet.time = DateTime.Now;
+                                        lastHardwarePacketReceived = packet;
                                         if (OnDataFrame != null) { OnDataFrame(this, packet); }
                                     }
                                     break;
