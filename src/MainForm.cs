@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using static HTCommander.AX25Packet;
 using static HTCommander.Radio;
+using static HTCommander.TncDataFragment;
 
 namespace HTCommander
 {
@@ -384,16 +385,20 @@ namespace HTCommander
                         if (s.Length < 3) continue;
                         DateTime t = new DateTime(long.Parse(s[0]));
                         bool incoming = (s[1] == "1");
-                        if ((s[2] != "TncFrag") && (s[2] != "TncFrag2")) continue;
+                        if ((s[2] != "TncFrag") && (s[2] != "TncFrag2") && (s[2] != "TncFrag3")) continue;
                         int cid = int.Parse(s[3]);
                         int rid = -1;
                         string cn = cid.ToString();
                         byte[] f;
+                        TncDataFragment.FragmentEncodingType encoding = TncDataFragment.FragmentEncodingType.Unknown;
+                        TncDataFragment.FragmentFrameType frame_type = TncDataFragment.FragmentFrameType.Unknown;
+                        int corrections = -1;
+
                         if (s[2] == "TncFrag")
                         {
                             f = Utils.HexStringToByteArray(s[4]);
                         }
-                        else
+                        else if (s[2] == "TncFrag2")
                         {
                             if (s.Length < 7) continue;
                             rid = 0;
@@ -401,12 +406,26 @@ namespace HTCommander
                             cn = s[5];
                             f = Utils.HexStringToByteArray(s[6]);
                         }
+                        else
+                        {
+                            if (s.Length < 10) continue;
+                            rid = 0;
+                            int.TryParse(s[4], out rid);
+                            cn = s[5];
+                            f = Utils.HexStringToByteArray(s[6]);
+                            encoding = (TncDataFragment.FragmentEncodingType)Enum.Parse(typeof(TncDataFragment.FragmentEncodingType), s[7]);
+                            frame_type = (TncDataFragment.FragmentFrameType)Enum.Parse(typeof(TncDataFragment.FragmentFrameType), s[8]);
+                            corrections = int.Parse(s[9]);
+                        }
 
                         // Process the packets
                         TncDataFragment fragment = new TncDataFragment(true, 0, f, cid, rid);
                         fragment.time = t;
                         fragment.channel_name = cn;
                         fragment.incoming = incoming;
+                        fragment.encoding = encoding;
+                        fragment.frame_type = frame_type;
+                        fragment.corrections = corrections;
                         Radio_OnDataFrame(null, fragment);
 
                         // Add to the packet capture tab
@@ -2848,28 +2867,51 @@ namespace HTCommander
 
         private void packetsListView_SelectedIndexChanged(object sender, EventArgs e)
         {
+            packetDecodeListView.BeginUpdate();
             packetDecodeListView.Items.Clear();
-            if (packetsListView.SelectedItems.Count == 0) return;
+            if (packetsListView.SelectedItems.Count == 0)
+            {
+                packetDecodeListView.EndUpdate();
+                return;
+            }
             ListViewItem l = packetsListView.SelectedItems[0];
-            if (l.Tag == null) return;
+            if (l.Tag == null) {
+                packetDecodeListView.EndUpdate();
+                return;
+            }
             TncDataFragment fragment = (TncDataFragment)l.Tag;
-            if (fragment.channel_id >= 0) { addPacketDecodeLine(0, "Channel", (fragment.incoming ? "Received" : "Sent") + " on " + (fragment.channel_id + 1)); }
-            addPacketDecodeLine(0, "Time", fragment.time.ToString());
+            if (fragment.channel_id >= 0) { addPacketDecodeLine(1, "Channel", (fragment.incoming ? "Received" : "Sent") + " on " + (fragment.channel_id + 1)); }
+            addPacketDecodeLine(1, "Time", fragment.time.ToString());
             if (fragment.data != null)
             {
-                addPacketDecodeLine(0, "Size", fragment.data.Length + " byte" + (fragment.data.Length > 1 ? "s" : ""));
-                addPacketDecodeLine(0, "Data", ASCIIEncoding.ASCII.GetString(fragment.data));
-                addPacketDecodeLine(0, "Data HEX", Utils.BytesToHex(fragment.data));
+                addPacketDecodeLine(1, "Size", fragment.data.Length + " byte" + (fragment.data.Length > 1 ? "s" : ""));
+                addPacketDecodeLine(1, "Data", ASCIIEncoding.ASCII.GetString(fragment.data));
+                addPacketDecodeLine(1, "Data HEX", Utils.BytesToHex(fragment.data));
             }
 
             StringBuilder sb = new StringBuilder();
             AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
             if (packet == null)
             {
-                addPacketDecodeLine(1, "Decode", "AX25 Decoder failed to decode packet.");
+                addPacketDecodeLine(2, "Decode", "AX25 Decoder failed to decode packet.");
             }
             else
             {
+                string encoding = "";
+                if (fragment.encoding == FragmentEncodingType.Loopback) { encoding = "Loopback"; }
+                if (fragment.encoding == FragmentEncodingType.HardwareAfsk1200) { encoding = "Hardware AFSK 1200 baud"; }
+                if (fragment.encoding == FragmentEncodingType.SoftwareAfsk1200) { encoding = "Software AFSK 1200 baud"; }
+                if (fragment.encoding == FragmentEncodingType.SoftwareG3RUH9600) { encoding = "Software G3RUH 9600 baud"; }
+                if (encoding != "")
+                {
+                    if (fragment.frame_type == TncDataFragment.FragmentFrameType.AX25) { encoding += ", AX.25"; }
+                    if (fragment.frame_type == TncDataFragment.FragmentFrameType.FX25) { encoding += ", FX.25"; }
+                    if (fragment.corrections == 0) { encoding += ", No Corrections"; }
+                    if (fragment.corrections == 1) { encoding += ", 1 Correction"; }
+                    if (fragment.corrections > 1) { encoding += ", " + fragment.corrections + " Corrections"; }
+                    addPacketDecodeLine(0, "Encoding", encoding);
+                }
+
                 for (int i = 0; i < packet.addresses.Count; i++)
                 {
                     sb.Clear();
@@ -2879,18 +2921,18 @@ namespace HTCommander
                     sb.Append((addr.CRBit1) ? "X" : "-");
                     sb.Append((addr.CRBit2) ? "X" : "-");
                     sb.Append((addr.CRBit3) ? "X" : "-");
-                    addPacketDecodeLine(1, "Address " + (i + 1), sb.ToString());
+                    addPacketDecodeLine(2, "Address " + (i + 1), sb.ToString());
                 }
-                addPacketDecodeLine(1, "Type", packet.type.ToString().Replace("_", "-"));
+                addPacketDecodeLine(2, "Type", packet.type.ToString().Replace("_", "-"));
                 sb.Clear();
                 sb.Append("NS:" + packet.ns + ", NR:" + packet.nr);
                 if (packet.command) { sb.Append(", Command"); }
                 if (packet.pollFinal) { sb.Append(", PollFinal"); }
                 if (packet.modulo128) { sb.Append(", Modulo128"); }
-                if (sb.Length > 2) { addPacketDecodeLine(1, "Control", sb.ToString()); }
-                if (packet.pid > 0) { addPacketDecodeLine(1, "Protocol ID", packet.pid.ToString()); }
-                if (packet.dataStr != null) { addPacketDecodeLine(2, "Data", packet.dataStr); }
-                if (packet.data != null) { addPacketDecodeLine(2, "Data HEX", Utils.BytesToHex(packet.data)); }
+                if (sb.Length > 2) { addPacketDecodeLine(2, "Control", sb.ToString()); }
+                if (packet.pid > 0) { addPacketDecodeLine(2, "Protocol ID", packet.pid.ToString()); }
+                if (packet.dataStr != null) { addPacketDecodeLine(3, "Data", packet.dataStr); }
+                if (packet.data != null) { addPacketDecodeLine(3, "Data HEX", Utils.BytesToHex(packet.data)); }
 
                 if (packet.pid == 242)
                 {
@@ -2898,10 +2940,10 @@ namespace HTCommander
                     try { decompressedData = Utils.DecompressBrotli(packet.data); } catch { }
                     if (decompressedData != null)
                     {
-                        addPacketDecodeLine(5, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
-                        addPacketDecodeLine(5, "Data HEX", Utils.BytesToHex(decompressedData));
+                        addPacketDecodeLine(6, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
+                        addPacketDecodeLine(6, "Data HEX", Utils.BytesToHex(decompressedData));
                         byte[] deflateBuf = Utils.CompressDeflate(decompressedData);
-                        addPacketDecodeLine(5, "Stats", $"Brotli {decompressedData.Length} --> {packet.data.Length}, Deflate would have been {deflateBuf.Length}");
+                        addPacketDecodeLine(6, "Stats", $"Brotli {decompressedData.Length} --> {packet.data.Length}, Deflate would have been {deflateBuf.Length}");
                     }
                 }
 
@@ -2911,10 +2953,10 @@ namespace HTCommander
                     try { decompressedData = Utils.DecompressDeflate(packet.data); } catch { }
                     if (decompressedData != null)
                     {
-                        addPacketDecodeLine(5, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
-                        addPacketDecodeLine(5, "Data HEX", Utils.BytesToHex(decompressedData));
+                        addPacketDecodeLine(6, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
+                        addPacketDecodeLine(6, "Data HEX", Utils.BytesToHex(decompressedData));
                         byte[] brotliBuf = Utils.CompressBrotli(decompressedData);
-                        addPacketDecodeLine(5, "Stats", $"Deflate {decompressedData.Length} --> {packet.data.Length}, Brotli would have been {brotliBuf.Length}");
+                        addPacketDecodeLine(6, "Stats", $"Deflate {decompressedData.Length} --> {packet.data.Length}, Brotli would have been {brotliBuf.Length}");
                     }
                 }
 
@@ -2923,28 +2965,29 @@ namespace HTCommander
                     AprsPacket aprsPacket = AprsPacket.Parse(packet);
                     if (aprsPacket == null)
                     {
-                        addPacketDecodeLine(3, "Decode", "APRS Decoder failed to decode packet.");
+                        addPacketDecodeLine(4, "Decode", "APRS Decoder failed to decode packet.");
                     }
                     else
                     {
-                        addPacketDecodeLine(3, "Type", aprsPacket.DataType.ToString());
-                        if (aprsPacket.TimeStamp != null) { addPacketDecodeLine(3, "Time Stamp", aprsPacket.TimeStamp.ToString()); }
-                        if (!string.IsNullOrEmpty(aprsPacket.DestCallsign.StationCallsign)) { addPacketDecodeLine(3, "Destination", aprsPacket.DestCallsign.StationCallsign.ToString()); }
-                        if (!string.IsNullOrEmpty(aprsPacket.ThirdPartyHeader)) { addPacketDecodeLine(3, "ThirdParty Header", aprsPacket.ThirdPartyHeader); }
-                        if (!string.IsNullOrEmpty(aprsPacket.InformationField)) { addPacketDecodeLine(3, "Information", aprsPacket.InformationField.ToString()); }
-                        if (!string.IsNullOrEmpty(aprsPacket.Comment)) { addPacketDecodeLine(3, "Comment", aprsPacket.Comment.ToString()); }
-                        if (aprsPacket.SymbolTableIdentifier != 0) { addPacketDecodeLine(3, "Symbol Code", aprsPacket.SymbolTableIdentifier.ToString()); }
+                        addPacketDecodeLine(4, "Type", aprsPacket.DataType.ToString());
+                        if (aprsPacket.TimeStamp != null) { addPacketDecodeLine(4, "Time Stamp", aprsPacket.TimeStamp.ToString()); }
+                        if (!string.IsNullOrEmpty(aprsPacket.DestCallsign.StationCallsign)) { addPacketDecodeLine(4, "Destination", aprsPacket.DestCallsign.StationCallsign.ToString()); }
+                        if (!string.IsNullOrEmpty(aprsPacket.ThirdPartyHeader)) { addPacketDecodeLine(4, "ThirdParty Header", aprsPacket.ThirdPartyHeader); }
+                        if (!string.IsNullOrEmpty(aprsPacket.InformationField)) { addPacketDecodeLine(4, "Information", aprsPacket.InformationField.ToString()); }
+                        if (!string.IsNullOrEmpty(aprsPacket.Comment)) { addPacketDecodeLine(4, "Comment", aprsPacket.Comment.ToString()); }
+                        if (aprsPacket.SymbolTableIdentifier != 0) { addPacketDecodeLine(4, "Symbol Code", aprsPacket.SymbolTableIdentifier.ToString()); }
 
-                        if (aprsPacket.Position.Speed != 0) { addPacketDecodeLine(4, "Speed", aprsPacket.Position.Speed.ToString()); }
-                        if (aprsPacket.Position.Altitude != 0) { addPacketDecodeLine(4, "Altitude", aprsPacket.Position.Altitude.ToString()); }
-                        if (aprsPacket.Position.Ambiguity != 0) { addPacketDecodeLine(4, "Ambiguity", aprsPacket.Position.Ambiguity.ToString()); }
-                        if (aprsPacket.Position.Course != 0) { addPacketDecodeLine(4, "Course", aprsPacket.Position.Course.ToString()); }
-                        if (!string.IsNullOrEmpty(aprsPacket.Position.Gridsquare)) { addPacketDecodeLine(4, "Gridsquare", aprsPacket.Position.Gridsquare.ToString()); }
-                        if (aprsPacket.Position.CoordinateSet.Latitude.Value != 0) { addPacketDecodeLine(4, "Latitude", aprsPacket.Position.CoordinateSet.Latitude.Value.ToString()); }
-                        if (aprsPacket.Position.CoordinateSet.Longitude.Value != 0) { addPacketDecodeLine(4, "Longitude", aprsPacket.Position.CoordinateSet.Longitude.Value.ToString()); }
+                        if (aprsPacket.Position.Speed != 0) { addPacketDecodeLine(5, "Speed", aprsPacket.Position.Speed.ToString()); }
+                        if (aprsPacket.Position.Altitude != 0) { addPacketDecodeLine(5, "Altitude", aprsPacket.Position.Altitude.ToString()); }
+                        if (aprsPacket.Position.Ambiguity != 0) { addPacketDecodeLine(5, "Ambiguity", aprsPacket.Position.Ambiguity.ToString()); }
+                        if (aprsPacket.Position.Course != 0) { addPacketDecodeLine(5, "Course", aprsPacket.Position.Course.ToString()); }
+                        if (!string.IsNullOrEmpty(aprsPacket.Position.Gridsquare)) { addPacketDecodeLine(5, "Gridsquare", aprsPacket.Position.Gridsquare.ToString()); }
+                        if (aprsPacket.Position.CoordinateSet.Latitude.Value != 0) { addPacketDecodeLine(5, "Latitude", aprsPacket.Position.CoordinateSet.Latitude.Value.ToString()); }
+                        if (aprsPacket.Position.CoordinateSet.Longitude.Value != 0) { addPacketDecodeLine(5, "Longitude", aprsPacket.Position.CoordinateSet.Longitude.Value.ToString()); }
                     }
                 }
             }
+            packetDecodeListView.EndUpdate();
         }
 
         private void packetsListContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)

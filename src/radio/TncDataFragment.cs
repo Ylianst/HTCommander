@@ -29,6 +29,25 @@ namespace HTCommander
         public string channel_name;
         public bool incoming;
         public DateTime time;
+        public FragmentEncodingType encoding = FragmentEncodingType.Unknown;
+        public FragmentFrameType frame_type = FragmentFrameType.Unknown;
+        public int corrections = -1;
+
+        public enum FragmentEncodingType
+        {
+            Unknown,
+            Loopback,
+            HardwareAfsk1200,
+            SoftwareAfsk1200,
+            SoftwareG3RUH9600
+        }
+        
+        public enum FragmentFrameType
+        {
+            Unknown,
+            AX25,
+            FX25
+        }
 
         public TncDataFragment(bool is_final_fragment, int fragment_id, byte[] data, int channel_id, int region_id)
         {
@@ -42,7 +61,8 @@ namespace HTCommander
 
         public override string ToString()
         {
-            return "TncFrag2," + channel_id + "," + region_id + "," + channel_name + "," + Utils.BytesToHex(data);
+            //return "TncFrag2," + channel_id + "," + region_id + "," + channel_name + "," + Utils.BytesToHex(data);
+            return "TncFrag3," + channel_id + "," + region_id + "," + channel_name + "," + Utils.BytesToHex(data) + "," + (int)encoding + "," + (int)frame_type + "," + (int)corrections;
         }
 
         public TncDataFragment(byte[] msg)

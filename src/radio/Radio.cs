@@ -765,6 +765,8 @@ namespace HTCommander
                                 case RadioNotification.DATA_RXD:
                                     Debug("RawData: " + Utils.BytesToHex(value));
                                     TncDataFragment fragment = new TncDataFragment(value);
+                                    fragment.encoding = TncDataFragment.FragmentEncodingType.HardwareAfsk1200;
+                                    fragment.corrections = 0;
                                     if ((fragment.channel_id == -1) && (HtStatus != null)) { fragment.channel_id = HtStatus.curr_ch_id; }
                                     if ((fragment.channel_id >= 0) && (Channels != null) && (fragment.channel_id < Channels.Length) && (Channels[fragment.channel_id] != null))
                                     {
@@ -1115,6 +1117,7 @@ namespace HTCommander
                 TncDataFragment fragment2 = new TncDataFragment(true, 0, outboundData, channelId, regionId);
                 fragment2.incoming = true;
                 fragment2.time = t;
+                fragment2.encoding = TncDataFragment.FragmentEncodingType.Loopback;
                 if (fragmentChannelName != null) { fragment2.channel_name = fragmentChannelName; } else { fragment2.channel_name = packet.channel_name; }
                 if (OnDataFrame != null) { OnDataFrame(this, fragment2); }
             }
