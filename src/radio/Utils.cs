@@ -40,6 +40,50 @@ namespace HTCommander
             public override string ToString() { return Text; }
         }
 
+        public static Dictionary<byte, byte[]> DecodeShortBinaryMessage(byte[] data)
+        {
+            var result = new Dictionary<byte, byte[]>();
+
+            if (data == null || data.Length == 0)
+                return result;
+
+            int index = 0;
+
+            // Ignore the leading 01 if present
+            if (data[0] == 0x01)
+                index = 1;
+
+            while (index < data.Length)
+            {
+                // Need at least length + key
+                if (index + 1 >= data.Length)
+                    break; // malformed, return what is parsed so far
+
+                byte length = data[index];
+                byte key = data[index + 1];
+
+                // Length must allow key(1) + value(?)
+                if (length < 1)
+                    break; // malformed
+
+                int valueLen = length - 1;
+
+                // Check if we have enough bytes for value
+                if (index + 2 + valueLen > data.Length)
+                    break; // malformed
+
+                byte[] value = new byte[valueLen];
+                Array.Copy(data, index + 2, value, 0, valueLen);
+
+                result[key] = value;
+
+                // Move index to next block
+                index += (2 + valueLen);
+            }
+
+            return result;
+        }
+
         [DllImport("user32.dll")]
         public static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 

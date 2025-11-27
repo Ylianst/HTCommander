@@ -2894,101 +2894,123 @@ namespace HTCommander
                 addPacketDecodeLine(1, "Data HEX", Utils.BytesToHex(fragment.data));
             }
 
-            StringBuilder sb = new StringBuilder();
-            AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
-            if (packet == null)
+            if ((fragment.data.Length > 3) && (fragment.data[0] == 1))
             {
-                addPacketDecodeLine(2, "Decode", "AX25 Decoder failed to decode packet.");
+                // This is the short binary protocol format.
+                // Examples:
+                //   01 07204B4B37565A54
+                //   01 07204B4B37565A54 0121 062468656C6C6F 072514C72DC7CDF0
+                //   20 = K7VZT        (Callsign)
+                //   21 = true         (Message Type = Position Report?)
+                //   24 = hello        (Message)
+                //   25 = 14C72DC7CDF0 (GPS Position?)
+                Dictionary<byte, byte[]> decodedMessage = Utils.DecodeShortBinaryMessage(fragment.data);
+                foreach (var item in decodedMessage)
+                {
+                    if (item.Key == 20) { addPacketDecodeLine(7, "Callsign", UTF8Encoding.UTF8.GetString(item.Value)); }
+                    else if (item.Key == 24) { addPacketDecodeLine(7, "Message", UTF8Encoding.UTF8.GetString(item.Value)); }
+                    else addPacketDecodeLine(7, $"Key: {item.Key}", Utils.BytesToHex(item.Value));
+                }
             }
             else
             {
-                string encoding = "";
-                if (fragment.encoding == FragmentEncodingType.Loopback) { encoding = "Loopback"; }
-                if (fragment.encoding == FragmentEncodingType.HardwareAfsk1200) { encoding = "Hardware AFSK 1200 baud"; }
-                if (fragment.encoding == FragmentEncodingType.SoftwareAfsk1200) { encoding = "Software AFSK 1200 baud"; }
-                if (fragment.encoding == FragmentEncodingType.SoftwareG3RUH9600) { encoding = "Software G3RUH 9600 baud"; }
-                if (encoding != "")
+                // Try normal AX.25 packet format
+                StringBuilder sb = new StringBuilder();
+                AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
+                if (packet == null)
                 {
-                    if (fragment.frame_type == TncDataFragment.FragmentFrameType.AX25) { encoding += ", AX.25"; }
-                    if (fragment.frame_type == TncDataFragment.FragmentFrameType.FX25) { encoding += ", FX.25"; }
-                    if (fragment.corrections == 0) { encoding += ", No Corrections"; }
-                    if (fragment.corrections == 1) { encoding += ", 1 Correction"; }
-                    if (fragment.corrections > 1) { encoding += ", " + fragment.corrections + " Corrections"; }
-                    addPacketDecodeLine(0, "Encoding", encoding);
+                    addPacketDecodeLine(2, "Decode", "AX25 Decoder failed to decode packet.");
                 }
-
-                for (int i = 0; i < packet.addresses.Count; i++)
+                else
                 {
+                    string encoding = "";
+                    if (fragment.encoding == FragmentEncodingType.Loopback) { encoding = "Loopback"; }
+                    if (fragment.encoding == FragmentEncodingType.HardwareAfsk1200) { encoding = "Hardware AFSK 1200 baud"; }
+                    if (fragment.encoding == FragmentEncodingType.SoftwareAfsk1200) { encoding = "Software AFSK 1200 baud"; }
+                    if (fragment.encoding == FragmentEncodingType.SoftwareG3RUH9600) { encoding = "Software G3RUH 9600 baud"; }
+                    if (encoding != "")
+                    {
+                        if (fragment.frame_type == TncDataFragment.FragmentFrameType.AX25) { encoding += ", AX.25"; }
+                        if (fragment.frame_type == TncDataFragment.FragmentFrameType.FX25) { encoding += ", FX.25"; }
+                        if (fragment.corrections == 0) { encoding += ", No Corrections"; }
+                        if (fragment.corrections == 1) { encoding += ", 1 Correction"; }
+                        if (fragment.corrections > 1) { encoding += ", " + fragment.corrections + " Corrections"; }
+                        addPacketDecodeLine(0, "Encoding", encoding);
+                    }
+
+                    for (int i = 0; i < packet.addresses.Count; i++)
+                    {
+                        sb.Clear();
+                        AX25Address addr = packet.addresses[i];
+                        sb.Append(addr.CallSignWithId);
+                        sb.Append("  ");
+                        sb.Append((addr.CRBit1) ? "X" : "-");
+                        sb.Append((addr.CRBit2) ? "X" : "-");
+                        sb.Append((addr.CRBit3) ? "X" : "-");
+                        addPacketDecodeLine(2, "Address " + (i + 1), sb.ToString());
+                    }
+                    addPacketDecodeLine(2, "Type", packet.type.ToString().Replace("_", "-"));
                     sb.Clear();
-                    AX25Address addr = packet.addresses[i];
-                    sb.Append(addr.CallSignWithId);
-                    sb.Append("  ");
-                    sb.Append((addr.CRBit1) ? "X" : "-");
-                    sb.Append((addr.CRBit2) ? "X" : "-");
-                    sb.Append((addr.CRBit3) ? "X" : "-");
-                    addPacketDecodeLine(2, "Address " + (i + 1), sb.ToString());
-                }
-                addPacketDecodeLine(2, "Type", packet.type.ToString().Replace("_", "-"));
-                sb.Clear();
-                sb.Append("NS:" + packet.ns + ", NR:" + packet.nr);
-                if (packet.command) { sb.Append(", Command"); }
-                if (packet.pollFinal) { sb.Append(", PollFinal"); }
-                if (packet.modulo128) { sb.Append(", Modulo128"); }
-                if (sb.Length > 2) { addPacketDecodeLine(2, "Control", sb.ToString()); }
-                if (packet.pid > 0) { addPacketDecodeLine(2, "Protocol ID", packet.pid.ToString()); }
-                if (packet.dataStr != null) { addPacketDecodeLine(3, "Data", packet.dataStr); }
-                if (packet.data != null) { addPacketDecodeLine(3, "Data HEX", Utils.BytesToHex(packet.data)); }
+                    sb.Append("NS:" + packet.ns + ", NR:" + packet.nr);
+                    if (packet.command) { sb.Append(", Command"); }
+                    if (packet.pollFinal) { sb.Append(", PollFinal"); }
+                    if (packet.modulo128) { sb.Append(", Modulo128"); }
+                    if (sb.Length > 2) { addPacketDecodeLine(2, "Control", sb.ToString()); }
+                    if (packet.pid > 0) { addPacketDecodeLine(2, "Protocol ID", packet.pid.ToString()); }
+                    if (packet.dataStr != null) { addPacketDecodeLine(3, "Data", packet.dataStr); }
+                    if (packet.data != null) { addPacketDecodeLine(3, "Data HEX", Utils.BytesToHex(packet.data)); }
 
-                if (packet.pid == 242)
-                {
-                    byte[] decompressedData = null;
-                    try { decompressedData = Utils.DecompressBrotli(packet.data); } catch { }
-                    if (decompressedData != null)
+                    if (packet.pid == 242)
                     {
-                        addPacketDecodeLine(6, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
-                        addPacketDecodeLine(6, "Data HEX", Utils.BytesToHex(decompressedData));
-                        byte[] deflateBuf = Utils.CompressDeflate(decompressedData);
-                        addPacketDecodeLine(6, "Stats", $"Brotli {decompressedData.Length} --> {packet.data.Length}, Deflate would have been {deflateBuf.Length}");
+                        byte[] decompressedData = null;
+                        try { decompressedData = Utils.DecompressBrotli(packet.data); } catch { }
+                        if (decompressedData != null)
+                        {
+                            addPacketDecodeLine(6, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
+                            addPacketDecodeLine(6, "Data HEX", Utils.BytesToHex(decompressedData));
+                            byte[] deflateBuf = Utils.CompressDeflate(decompressedData);
+                            addPacketDecodeLine(6, "Stats", $"Brotli {decompressedData.Length} --> {packet.data.Length}, Deflate would have been {deflateBuf.Length}");
+                        }
                     }
-                }
 
-                if (packet.pid == 243)
-                {
-                    byte[] decompressedData = null;
-                    try { decompressedData = Utils.DecompressDeflate(packet.data); } catch { }
-                    if (decompressedData != null)
+                    if (packet.pid == 243)
                     {
-                        addPacketDecodeLine(6, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
-                        addPacketDecodeLine(6, "Data HEX", Utils.BytesToHex(decompressedData));
-                        byte[] brotliBuf = Utils.CompressBrotli(decompressedData);
-                        addPacketDecodeLine(6, "Stats", $"Deflate {decompressedData.Length} --> {packet.data.Length}, Brotli would have been {brotliBuf.Length}");
+                        byte[] decompressedData = null;
+                        try { decompressedData = Utils.DecompressDeflate(packet.data); } catch { }
+                        if (decompressedData != null)
+                        {
+                            addPacketDecodeLine(6, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
+                            addPacketDecodeLine(6, "Data HEX", Utils.BytesToHex(decompressedData));
+                            byte[] brotliBuf = Utils.CompressBrotli(decompressedData);
+                            addPacketDecodeLine(6, "Stats", $"Deflate {decompressedData.Length} --> {packet.data.Length}, Brotli would have been {brotliBuf.Length}");
+                        }
                     }
-                }
 
-                if ((packet.type == AX25Packet.FrameType.U_FRAME) && (packet.pid == 240))
-                {
-                    AprsPacket aprsPacket = AprsPacket.Parse(packet);
-                    if (aprsPacket == null)
+                    if ((packet.type == AX25Packet.FrameType.U_FRAME) && (packet.pid == 240))
                     {
-                        addPacketDecodeLine(4, "Decode", "APRS Decoder failed to decode packet.");
-                    }
-                    else
-                    {
-                        addPacketDecodeLine(4, "Type", aprsPacket.DataType.ToString());
-                        if (aprsPacket.TimeStamp != null) { addPacketDecodeLine(4, "Time Stamp", aprsPacket.TimeStamp.ToString()); }
-                        if (!string.IsNullOrEmpty(aprsPacket.DestCallsign.StationCallsign)) { addPacketDecodeLine(4, "Destination", aprsPacket.DestCallsign.StationCallsign.ToString()); }
-                        if (!string.IsNullOrEmpty(aprsPacket.ThirdPartyHeader)) { addPacketDecodeLine(4, "ThirdParty Header", aprsPacket.ThirdPartyHeader); }
-                        if (!string.IsNullOrEmpty(aprsPacket.InformationField)) { addPacketDecodeLine(4, "Information", aprsPacket.InformationField.ToString()); }
-                        if (!string.IsNullOrEmpty(aprsPacket.Comment)) { addPacketDecodeLine(4, "Comment", aprsPacket.Comment.ToString()); }
-                        if (aprsPacket.SymbolTableIdentifier != 0) { addPacketDecodeLine(4, "Symbol Code", aprsPacket.SymbolTableIdentifier.ToString()); }
+                        AprsPacket aprsPacket = AprsPacket.Parse(packet);
+                        if (aprsPacket == null)
+                        {
+                            addPacketDecodeLine(4, "Decode", "APRS Decoder failed to decode packet.");
+                        }
+                        else
+                        {
+                            addPacketDecodeLine(4, "Type", aprsPacket.DataType.ToString());
+                            if (aprsPacket.TimeStamp != null) { addPacketDecodeLine(4, "Time Stamp", aprsPacket.TimeStamp.ToString()); }
+                            if (!string.IsNullOrEmpty(aprsPacket.DestCallsign.StationCallsign)) { addPacketDecodeLine(4, "Destination", aprsPacket.DestCallsign.StationCallsign.ToString()); }
+                            if (!string.IsNullOrEmpty(aprsPacket.ThirdPartyHeader)) { addPacketDecodeLine(4, "ThirdParty Header", aprsPacket.ThirdPartyHeader); }
+                            if (!string.IsNullOrEmpty(aprsPacket.InformationField)) { addPacketDecodeLine(4, "Information", aprsPacket.InformationField.ToString()); }
+                            if (!string.IsNullOrEmpty(aprsPacket.Comment)) { addPacketDecodeLine(4, "Comment", aprsPacket.Comment.ToString()); }
+                            if (aprsPacket.SymbolTableIdentifier != 0) { addPacketDecodeLine(4, "Symbol Code", aprsPacket.SymbolTableIdentifier.ToString()); }
 
-                        if (aprsPacket.Position.Speed != 0) { addPacketDecodeLine(5, "Speed", aprsPacket.Position.Speed.ToString()); }
-                        if (aprsPacket.Position.Altitude != 0) { addPacketDecodeLine(5, "Altitude", aprsPacket.Position.Altitude.ToString()); }
-                        if (aprsPacket.Position.Ambiguity != 0) { addPacketDecodeLine(5, "Ambiguity", aprsPacket.Position.Ambiguity.ToString()); }
-                        if (aprsPacket.Position.Course != 0) { addPacketDecodeLine(5, "Course", aprsPacket.Position.Course.ToString()); }
-                        if (!string.IsNullOrEmpty(aprsPacket.Position.Gridsquare)) { addPacketDecodeLine(5, "Gridsquare", aprsPacket.Position.Gridsquare.ToString()); }
-                        if (aprsPacket.Position.CoordinateSet.Latitude.Value != 0) { addPacketDecodeLine(5, "Latitude", aprsPacket.Position.CoordinateSet.Latitude.Value.ToString()); }
-                        if (aprsPacket.Position.CoordinateSet.Longitude.Value != 0) { addPacketDecodeLine(5, "Longitude", aprsPacket.Position.CoordinateSet.Longitude.Value.ToString()); }
+                            if (aprsPacket.Position.Speed != 0) { addPacketDecodeLine(5, "Speed", aprsPacket.Position.Speed.ToString()); }
+                            if (aprsPacket.Position.Altitude != 0) { addPacketDecodeLine(5, "Altitude", aprsPacket.Position.Altitude.ToString()); }
+                            if (aprsPacket.Position.Ambiguity != 0) { addPacketDecodeLine(5, "Ambiguity", aprsPacket.Position.Ambiguity.ToString()); }
+                            if (aprsPacket.Position.Course != 0) { addPacketDecodeLine(5, "Course", aprsPacket.Position.Course.ToString()); }
+                            if (!string.IsNullOrEmpty(aprsPacket.Position.Gridsquare)) { addPacketDecodeLine(5, "Gridsquare", aprsPacket.Position.Gridsquare.ToString()); }
+                            if (aprsPacket.Position.CoordinateSet.Latitude.Value != 0) { addPacketDecodeLine(5, "Latitude", aprsPacket.Position.CoordinateSet.Latitude.Value.ToString()); }
+                            if (aprsPacket.Position.CoordinateSet.Longitude.Value != 0) { addPacketDecodeLine(5, "Longitude", aprsPacket.Position.CoordinateSet.Longitude.Value.ToString()); }
+                        }
                     }
                 }
             }
