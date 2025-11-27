@@ -14,20 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using System;
-using System.IO;
-using System.Threading;
-using System.Net.Sockets;
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
-using InTheHand.Net;
-using InTheHand.Net.Sockets;
-using InTheHand.Net.Bluetooth;
-using NAudio.Wave;
-using NAudio.CoreAudioApi;
-using NAudio.Wave.SampleProviders;
 using HTCommander.radio;
+using InTheHand.Net;
+using InTheHand.Net.Bluetooth;
+using InTheHand.Net.Sockets;
+using NAudio.CoreAudioApi;
+using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
+using System;
+using System.Collections.Concurrent;
+using System.IO;
+using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+using static HTCommander.RadioAudio;
 
 namespace HTCommander
 {
@@ -49,7 +50,7 @@ namespace HTCommander
         private SbcFrame sbcEncoderFrame;
 
         // Flag to switch between implementations (true = use C# SBC, false = use LibSbc)
-        public bool UseManagedSbc { get; set; } = false;
+        public bool UseManagedSbc { get; set; } = true;
 
         private WasapiOut waveOut = null;
         private byte[] pcmFrame = new byte[16000];
@@ -72,6 +73,8 @@ namespace HTCommander
         private MMDevice currentOutputDevice = null;
 
         // Software modem (AFSK decoder) fields
+        public SoftwareModemModeType SoftwareModemMode { get { return _softwareModemMode; } }
+        private SoftwareModemModeType _softwareModemMode = SoftwareModemModeType.Disabled;
         private HamLib.DemodAfsk softModemDemodulator = null;
         private HamLib.HdlcRec2 softModemHdlcReceiver = null;
         private HamLib.DemodulatorState softModemDemodState = null;
@@ -109,69 +112,92 @@ namespace HTCommander
         public RadioAudio(Radio radio) 
         { 
             parent = radio;
-            InitializeSoftModem();
+            InitializeSoftModem(SoftwareModemModeType.Afsk1200);
         }
 
         private void Debug(string msg) { if (OnDebugMessage != null) { OnDebugMessage(msg); } }
 
+        public enum SoftwareModemModeType
+        {
+            Disabled,
+            Afsk1200,
+            G3RUH9600,
+        }
+
         /// <summary>
         /// Initialize the software modem (AFSK decoder) for real-time packet decoding
         /// </summary>
-        private void InitializeSoftModem()
+        private void InitializeSoftModem(SoftwareModemModeType mode)
         {
-            try
+            if (mode == SoftwareModemModeType.Disabled)
             {
-                // Initialize FX.25 subsystem
-                HamLib.Fx25.Init(0); // Debug level 0 = errors only
-
-                // Setup audio configuration for 32kHz, 16-bit, mono (matches PCM from SBC decoder)
-                softModemAudioConfig = new HamLib.AudioConfig();
-                softModemAudioConfig.Devices[0].Defined = true;
-                softModemAudioConfig.Devices[0].SamplesPerSec = 32000;
-                softModemAudioConfig.Devices[0].BitsPerSample = 16;
-                softModemAudioConfig.Devices[0].NumChannels = 1;
-
-                // Configure for AFSK 1200 baud
-                softModemAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
-                softModemAudioConfig.Channels[0].ModemType = HamLib.ModemType.Afsk;
-                softModemAudioConfig.Channels[0].MarkFreq = 1200;
-                softModemAudioConfig.Channels[0].SpaceFreq = 2200;
-                softModemAudioConfig.Channels[0].Baud = 1200;
-                softModemAudioConfig.Channels[0].NumSubchan = 1;
-
-                // Create HDLC receiver with frame event handler
-                softModemHdlcReceiver = new HamLib.HdlcRec2();
-                softModemHdlcReceiver.FrameReceived += SoftModemHdlcReceiver_FrameReceived;
-                softModemHdlcReceiver.Init(softModemAudioConfig);
-
-                // Create FX.25 receiver with MultiModem wrapper for frame processing
-                var fx25MultiModem = new Fx25MultiModemWrapper(this);
-                softModemFx25Receiver = new HamLib.Fx25Rec(fx25MultiModem);
-
-                // Create bridge that feeds bits to both HDLC and FX.25 receivers
-                softModemBridge = new HdlcFx25Bridge(softModemHdlcReceiver, softModemFx25Receiver);
-
-                // Create and initialize AFSK demodulator with the bridge
-                softModemDemodulator = new HamLib.DemodAfsk(softModemBridge);
-                softModemDemodState = new HamLib.DemodulatorState();
-                softModemDemodulator.Init(
-                    32000,  // Sample rate
-                    1200,   // Baud rate
-                    1200,   // Mark frequency
-                    2200,   // Space frequency
-                    'A',    // Profile
-                    softModemDemodState
-                );
-
-                softModemInitialized = true;
-                fx25Initialized = true;
-                Debug("Software modem (AFSK 1200 decoder with FX.25 support) initialized successfully");
-            }
-            catch (Exception ex)
-            {
-                Debug($"Error initializing software modem: {ex.Message}");
+                _softwareModemMode = mode;
                 softModemInitialized = false;
                 fx25Initialized = false;
+                return;
+            }
+            if (mode == SoftwareModemModeType.Afsk1200)
+            {
+                try
+                {
+                    // Initialize FX.25 subsystem
+                    HamLib.Fx25.Init(0); // Debug level 0 = errors only
+
+                    // Setup audio configuration for 32kHz, 16-bit, mono (matches PCM from SBC decoder)
+                    softModemAudioConfig = new HamLib.AudioConfig();
+                    softModemAudioConfig.Devices[0].Defined = true;
+                    softModemAudioConfig.Devices[0].SamplesPerSec = 32000;
+                    softModemAudioConfig.Devices[0].BitsPerSample = 16;
+                    softModemAudioConfig.Devices[0].NumChannels = 1;
+
+                    // Configure for AFSK 1200 baud
+                    softModemAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
+                    softModemAudioConfig.Channels[0].ModemType = HamLib.ModemType.Afsk;
+                    softModemAudioConfig.Channels[0].MarkFreq = 1200;
+                    softModemAudioConfig.Channels[0].SpaceFreq = 2200;
+                    softModemAudioConfig.Channels[0].Baud = 1200;
+                    softModemAudioConfig.Channels[0].NumSubchan = 1;
+
+                    // Create HDLC receiver with frame event handler
+                    softModemHdlcReceiver = new HamLib.HdlcRec2();
+                    softModemHdlcReceiver.FrameReceived += SoftModemHdlcReceiver_FrameReceived;
+                    softModemHdlcReceiver.Init(softModemAudioConfig);
+
+                    // Create FX.25 receiver with MultiModem wrapper for frame processing
+                    var fx25MultiModem = new Fx25MultiModemWrapper(this);
+                    softModemFx25Receiver = new HamLib.Fx25Rec(fx25MultiModem);
+
+                    // Create bridge that feeds bits to both HDLC and FX.25 receivers
+                    softModemBridge = new HdlcFx25Bridge(softModemHdlcReceiver, softModemFx25Receiver);
+
+                    // Create and initialize AFSK demodulator with the bridge
+                    softModemDemodulator = new HamLib.DemodAfsk(softModemBridge);
+                    softModemDemodState = new HamLib.DemodulatorState();
+                    softModemDemodulator.Init(
+                        32000,  // Sample rate
+                        1200,   // Baud rate
+                        1200,   // Mark frequency
+                        2200,   // Space frequency
+                        'A',    // Profile
+                        softModemDemodState
+                    );
+
+                    _softwareModemMode = mode;
+                    softModemInitialized = true;
+                    fx25Initialized = true;
+                    Debug("Software modem (AFSK 1200 decoder with FX.25 support) initialized successfully");
+                }
+                catch (Exception ex)
+                {
+                    Debug($"Error initializing software modem: {ex.Message}");
+                    _softwareModemMode = SoftwareModemModeType.Disabled;
+                    softModemInitialized = false;
+                    fx25Initialized = false;
+                }
+            }
+            if (mode == SoftwareModemModeType.G3RUH9600)
+            {
+                // TODO: Implement G3RUH 9600 baud software modem initialization
             }
         }
 
