@@ -39,7 +39,8 @@ namespace HTCommander
             Loopback,
             HardwareAfsk1200,
             SoftwareAfsk1200,
-            SoftwareG3RUH9600
+            SoftwareG3RUH9600,
+            SoftwareModem
         }
         
         public enum FragmentFrameType

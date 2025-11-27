@@ -1120,12 +1120,12 @@ namespace HTCommander
             TncDataFragment fragment = new TncDataFragment(true, 0, outboundData, channelId, regionId);
             fragment.incoming = false;
             fragment.time = t;
-            fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200; // TEST
+            fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareModem; // TEST
             fragment.frame_type = TncDataFragment.FragmentFrameType.FX25;
             if (fragmentChannelName != null) { fragment.channel_name = fragmentChannelName; } else { fragment.channel_name = packet.channel_name; }
             if (OnDataFrame != null) { OnDataFrame(this, fragment); }
 
-            if (LoopbackMode == true)
+            if (LoopbackMode)
             {
                 // Simulate receiving the frame we just sent (Loopback)
                 TncDataFragment fragment2 = new TncDataFragment(true, 0, outboundData, channelId, regionId);
@@ -1135,7 +1135,7 @@ namespace HTCommander
                 if (fragmentChannelName != null) { fragment2.channel_name = fragmentChannelName; } else { fragment2.channel_name = packet.channel_name; }
                 if (OnDataFrame != null) { OnDataFrame(this, fragment2); }
             }
-            else if (fragment.encoding == TncDataFragment.FragmentEncodingType.SoftwareAfsk1200)
+            else if (fragment.encoding == TncDataFragment.FragmentEncodingType.SoftwareModem)
             {
                 // Send the packet using software TNC
                 radioAudio.TransmitPacket(fragment);

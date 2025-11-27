@@ -2894,6 +2894,22 @@ namespace HTCommander
                 addPacketDecodeLine(1, "Data HEX", Utils.BytesToHex(fragment.data));
             }
 
+            string encoding = "";
+            if (fragment.encoding == FragmentEncodingType.Loopback) { encoding = "Loopback"; }
+            if (fragment.encoding == FragmentEncodingType.HardwareAfsk1200) { encoding = "Hardware AFSK 1200 baud"; }
+            if (fragment.encoding == FragmentEncodingType.SoftwareAfsk1200) { encoding = "Software AFSK 1200 baud"; }
+            if (fragment.encoding == FragmentEncodingType.SoftwareG3RUH9600) { encoding = "Software G3RUH 9600 baud"; }
+            if (fragment.encoding == FragmentEncodingType.SoftwareModem) { encoding = "Software Modem"; }
+            if (encoding != "")
+            {
+                if (fragment.frame_type == TncDataFragment.FragmentFrameType.AX25) { encoding += ", AX.25"; }
+                if (fragment.frame_type == TncDataFragment.FragmentFrameType.FX25) { encoding += ", FX.25"; }
+                if (fragment.corrections == 0) { encoding += ", No Corrections"; }
+                if (fragment.corrections == 1) { encoding += ", 1 Correction"; }
+                if (fragment.corrections > 1) { encoding += ", " + fragment.corrections + " Corrections"; }
+                addPacketDecodeLine(0, "Encoding", encoding);
+            }
+
             if ((fragment.data.Length > 3) && (fragment.data[0] == 1))
             {
                 // This is the short binary protocol format.
@@ -2907,8 +2923,8 @@ namespace HTCommander
                 Dictionary<byte, byte[]> decodedMessage = Utils.DecodeShortBinaryMessage(fragment.data);
                 foreach (var item in decodedMessage)
                 {
-                    if (item.Key == 20) { addPacketDecodeLine(7, "Callsign", UTF8Encoding.UTF8.GetString(item.Value)); }
-                    else if (item.Key == 24) { addPacketDecodeLine(7, "Message", UTF8Encoding.UTF8.GetString(item.Value)); }
+                    if (item.Key == 0x20) { addPacketDecodeLine(7, "Callsign", UTF8Encoding.UTF8.GetString(item.Value)); }
+                    else if (item.Key == 0x24) { addPacketDecodeLine(7, "Message", UTF8Encoding.UTF8.GetString(item.Value)); }
                     else addPacketDecodeLine(7, $"Key: {item.Key}", Utils.BytesToHex(item.Value));
                 }
             }
@@ -2923,21 +2939,6 @@ namespace HTCommander
                 }
                 else
                 {
-                    string encoding = "";
-                    if (fragment.encoding == FragmentEncodingType.Loopback) { encoding = "Loopback"; }
-                    if (fragment.encoding == FragmentEncodingType.HardwareAfsk1200) { encoding = "Hardware AFSK 1200 baud"; }
-                    if (fragment.encoding == FragmentEncodingType.SoftwareAfsk1200) { encoding = "Software AFSK 1200 baud"; }
-                    if (fragment.encoding == FragmentEncodingType.SoftwareG3RUH9600) { encoding = "Software G3RUH 9600 baud"; }
-                    if (encoding != "")
-                    {
-                        if (fragment.frame_type == TncDataFragment.FragmentFrameType.AX25) { encoding += ", AX.25"; }
-                        if (fragment.frame_type == TncDataFragment.FragmentFrameType.FX25) { encoding += ", FX.25"; }
-                        if (fragment.corrections == 0) { encoding += ", No Corrections"; }
-                        if (fragment.corrections == 1) { encoding += ", 1 Correction"; }
-                        if (fragment.corrections > 1) { encoding += ", " + fragment.corrections + " Corrections"; }
-                        addPacketDecodeLine(0, "Encoding", encoding);
-                    }
-
                     for (int i = 0; i < packet.addresses.Count; i++)
                     {
                         sb.Clear();
