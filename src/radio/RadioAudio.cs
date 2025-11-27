@@ -71,6 +71,13 @@ namespace HTCommander
         private WaveFileWriter recording = null;
         private MMDevice currentOutputDevice = null;
 
+        // Software modem (AFSK decoder) fields
+        private HamLib.DemodAfsk softModemDemodulator = null;
+        private HamLib.HdlcRec2 softModemHdlcReceiver = null;
+        private HamLib.DemodulatorState softModemDemodState = null;
+        private HamLib.AudioConfig softModemAudioConfig = null;
+        private bool softModemInitialized = false;
+
         public void StartRecording(string filename)
         {
             if (recording != null) { recording.Dispose(); recording = null; }
@@ -91,10 +98,126 @@ namespace HTCommander
         public event OnTextReadyHandler onTextReady;
         public delegate void OnProcessingVoiceHandler(bool listening, bool processing);
         public event OnProcessingVoiceHandler onProcessingVoice;
+        public delegate void OnSoftModemPacketDecodedHandler(TncDataFragment fragment);
+        public event OnSoftModemPacketDecodedHandler OnSoftModemPacketDecoded;
 
-        public RadioAudio(Radio radio) { parent = radio; }
+        public RadioAudio(Radio radio) 
+        { 
+            parent = radio;
+            InitializeSoftModem();
+        }
 
         private void Debug(string msg) { if (OnDebugMessage != null) { OnDebugMessage(msg); } }
+
+        /// <summary>
+        /// Initialize the software modem (AFSK decoder) for real-time packet decoding
+        /// </summary>
+        private void InitializeSoftModem()
+        {
+            try
+            {
+                // Setup audio configuration for 32kHz, 16-bit, mono (matches PCM from SBC decoder)
+                softModemAudioConfig = new HamLib.AudioConfig();
+                softModemAudioConfig.Devices[0].Defined = true;
+                softModemAudioConfig.Devices[0].SamplesPerSec = 32000;
+                softModemAudioConfig.Devices[0].BitsPerSample = 16;
+                softModemAudioConfig.Devices[0].NumChannels = 1;
+
+                // Configure for AFSK 1200 baud
+                softModemAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
+                softModemAudioConfig.Channels[0].ModemType = HamLib.ModemType.Afsk;
+                softModemAudioConfig.Channels[0].MarkFreq = 1200;
+                softModemAudioConfig.Channels[0].SpaceFreq = 2200;
+                softModemAudioConfig.Channels[0].Baud = 1200;
+                softModemAudioConfig.Channels[0].NumSubchan = 1;
+
+                // Create HDLC receiver with frame event handler
+                softModemHdlcReceiver = new HamLib.HdlcRec2();
+                softModemHdlcReceiver.FrameReceived += SoftModemHdlcReceiver_FrameReceived;
+                softModemHdlcReceiver.Init(softModemAudioConfig);
+
+                // Create and initialize AFSK demodulator
+                softModemDemodulator = new HamLib.DemodAfsk(softModemHdlcReceiver);
+                softModemDemodState = new HamLib.DemodulatorState();
+                softModemDemodulator.Init(
+                    32000,  // Sample rate
+                    1200,   // Baud rate
+                    1200,   // Mark frequency
+                    2200,   // Space frequency
+                    'A',    // Profile
+                    softModemDemodState
+                );
+
+                softModemInitialized = true;
+                Debug("Software modem (AFSK 1200 decoder) initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                Debug($"Error initializing software modem: {ex.Message}");
+                softModemInitialized = false;
+            }
+        }
+
+        /// <summary>
+        /// Event handler for frames decoded by the software modem
+        /// </summary>
+        private void SoftModemHdlcReceiver_FrameReceived(object sender, HamLib.FrameReceivedEventArgs e)
+        {
+            try
+            {
+                if (e.FrameLength > 0)
+                {
+                    // Notify listeners that a packet was decoded
+                    if (OnSoftModemPacketDecoded != null)
+                    {
+                        byte[] frameData = new byte[e.FrameLength];
+                        Array.Copy(e.Frame, frameData, e.FrameLength);
+                        TncDataFragment fragment = new TncDataFragment(true, 0, frameData, parent.HtStatus.curr_ch_id, parent.HtStatus.curr_region);
+                        fragment.incoming = true;
+                        fragment.channel_name = currentChannelName;
+                        fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200;
+                        fragment.frame_type = TncDataFragment.FragmentFrameType.AX25;
+                        fragment.corrections = 0; // TODO
+                        fragment.time = DateTime.Now;
+                        OnSoftModemPacketDecoded(fragment);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug($"Error processing decoded frame: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Reset the software modem decoder state (call when radio loses signal)
+        /// </summary>
+        public void ResetSoftModem()
+        {
+            if (!softModemInitialized) return;
+
+            try
+            {
+                // Reinitialize the demodulator to reset its state
+                if (softModemDemodulator != null && softModemDemodState != null)
+                {
+                    softModemDemodulator.Init(
+                        32000,  // Sample rate
+                        1200,   // Baud rate
+                        1200,   // Mark frequency
+                        2200,   // Space frequency
+                        'A',    // Profile
+                        softModemDemodState
+                    );
+                }
+
+                Debug("Software modem reset successfully");
+            }
+            catch (Exception ex)
+            {
+                Debug($"Error resetting software modem: {ex.Message}");
+            }
+        }
 
         public bool IsAudioEnabled { get { return running; } }
 
@@ -566,8 +689,8 @@ namespace HTCommander
                             parent.GotAudioData(pcmFrame, 0, totalWritten, currentChannelName, false);
                         }
 
-                        // We need to send the audio into the AFPK1200 and 9600 software modem for decoding
-                        // TODO
+                        // We need to send the audio into the AFPK1200 or 9600 software modem for decoding
+                        SoftModemPcmFrame(pcmFrame, 0, totalWritten, currentChannelName);
                     }
 
                     return 0;
@@ -627,8 +750,8 @@ namespace HTCommander
                     parent.GotAudioData(pcmFrame, 0, totalWritten, currentChannelName, false);
                 }
 
-                // We need to send the audio into the AFPK1200 and 9600 software modem for decoding
-                // TODO
+                // We need to send the audio into the AFPK1200 or 9600 software modem for decoding
+                SoftModemPcmFrame(pcmFrame, 0, totalWritten, currentChannelName);
 
                 // Clean up
                 pcmHandle.Free();
@@ -968,6 +1091,44 @@ namespace HTCommander
             Console.WriteLine($"  Subbands      : {subbands}");
             Console.WriteLine($"  Bitpool         : {bitpool}");
             Console.WriteLine($"  CRC    : 0x{crc:X2}");
+        }
+
+        /// <summary>
+        /// Handle 32k, 16bit, Mono PCM frames for software modem decoding
+        /// Processes PCM audio samples through the AFSK decoder for real-time packet detection
+        /// </summary>
+        /// <param name="data">PCM audio data buffer (16-bit samples)</param>
+        /// <param name="offset">Starting offset in the buffer</param>
+        /// <param name="len">Length of data to process</param>
+        /// <param name="channelName">Name of the current channel</param>
+        public void SoftModemPcmFrame(byte[] data, int offset, int len, string channelName)
+        {
+            if (!softModemInitialized || softModemDemodulator == null || softModemDemodState == null)
+            {
+                return;
+            }
+
+            try
+            {
+                // Convert byte array to 16-bit samples and feed to demodulator
+                // PCM data is 16-bit signed samples (little-endian)
+                int chan = 0;      // Channel number
+                int subchan = 0;   // Subchannel number
+
+                // Process each 16-bit sample
+                for (int i = offset; i < offset + len - 1; i += 2)
+                {
+                    // Extract 16-bit sample (little-endian)
+                    short sample = (short)(data[i] | (data[i + 1] << 8));
+
+                    // Feed sample to demodulator
+                    softModemDemodulator.ProcessSample(chan, subchan, sample, softModemDemodState);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug($"Error in SoftModemPcmFrame: {ex.Message}");
+            }
         }
     }
 }

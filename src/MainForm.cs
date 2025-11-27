@@ -140,6 +140,11 @@ namespace HTCommander
 
             g_MainForm = this;
             InitializeComponent();
+            
+            // Enable double buffering for packetDecodeListView to prevent flickering
+            typeof(ListView).InvokeMember("DoubleBuffered",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
+                null, packetDecodeListView, new object[] { true });
             bbs = new BBS(this);
             torrent = new Torrent(this);
             aprsStack = new AprsStack(this);

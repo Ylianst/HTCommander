@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 using GMap.NET;
+using HamLib;
 using HTCommander.radio;
 using System;
 using System.Collections.Generic;
@@ -393,9 +394,15 @@ namespace HTCommander
             radioAudio.OnAudioStateChanged += RadioAudio_OnAudioStateChanged;
             radioAudio.onProcessingVoice += RadioAudio_onProcessingVoice;
             radioAudio.onTextReady += RadioAudio_onTextReady;
+            radioAudio.OnSoftModemPacketDecoded += RadioAudio_OnSoftModemPacketDecoded;
             radioAudio.OnVoiceTransmitStateChanged += RadioAudio_OnVoiceTransmitStateChanged;
             ClearChannelTimer.Elapsed += ClearFrequencyTimer_Elapsed;
             ClearChannelTimer.Enabled = false;
+        }
+
+        private void RadioAudio_OnSoftModemPacketDecoded(TncDataFragment packet)
+        {
+            if (OnDataFrame != null) { OnDataFrame(this, packet); }
         }
 
         private void RadioAudio_onTextReady(string text, string channel, DateTime time, bool completed)

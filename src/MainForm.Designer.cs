@@ -115,6 +115,7 @@
             this.radio2PictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
+            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsMissingChannelPanel = new System.Windows.Forms.Panel();
             this.aprsSetupButton = new System.Windows.Forms.Button();
@@ -241,6 +242,7 @@
             this.columnHeader13 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader17 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.panel5 = new System.Windows.Forms.Panel();
             this.torrentAddFileButton = new System.Windows.Forms.Button();
             this.torrentMenuPictureBox = new System.Windows.Forms.PictureBox();
@@ -346,8 +348,6 @@
             this.cacheAreaToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showTracksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.largeMarkersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.aprsChatControl = new HTCommander.ChatControl();
-            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -475,7 +475,7 @@
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             this.mainMenuStrip.Name = "mainMenuStrip";
             this.mainMenuStrip.Padding = new System.Windows.Forms.Padding(5, 2, 0, 2);
-            this.mainMenuStrip.Size = new System.Drawing.Size(1084, 30);
+            this.mainMenuStrip.Size = new System.Drawing.Size(1084, 28);
             this.mainMenuStrip.TabIndex = 1;
             this.mainMenuStrip.Text = "menuStrip1";
             this.mainMenuStrip.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.mainMenuStrip_ItemClicked);
@@ -492,7 +492,7 @@
             this.toolStripMenuItem4,
             this.exitToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 26);
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
             this.fileToolStripMenuItem.Text = "&File";
             // 
             // connectToolStripMenuItem
@@ -561,7 +561,7 @@
             this.exportChannelsToolStripMenuItem,
             this.importChannelsToolStripMenuItem});
             this.toolStripMenuItem21.Name = "toolStripMenuItem21";
-            this.toolStripMenuItem21.Size = new System.Drawing.Size(76, 26);
+            this.toolStripMenuItem21.Size = new System.Drawing.Size(76, 24);
             this.toolStripMenuItem21.Text = "&Settings";
             // 
             // dualWatchToolStripMenuItem
@@ -622,7 +622,7 @@
             this.volumeToolStripMenuItem,
             this.spectrogramToolStripMenuItem});
             this.audioToolStripMenuItem1.Name = "audioToolStripMenuItem1";
-            this.audioToolStripMenuItem1.Size = new System.Drawing.Size(63, 26);
+            this.audioToolStripMenuItem1.Size = new System.Drawing.Size(63, 24);
             this.audioToolStripMenuItem1.Text = "A&udio";
             this.audioToolStripMenuItem1.DropDownOpening += new System.EventHandler(this.settingsToolStripMenuItem1_DropDownOpening);
             // 
@@ -663,7 +663,7 @@
             this.packetsToolStripMenuItem,
             this.debugToolStripMenuItem});
             this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
-            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 26);
+            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
             this.viewToolStripMenuItem.Text = "&View";
             this.viewToolStripMenuItem.DropDownOpening += new System.EventHandler(this.viewToolStripMenuItem_DropDownOpening);
             // 
@@ -775,7 +775,7 @@
             this.checkForUpdatesToolStripMenuItem,
             this.aboutToolStripMenuItem1});
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 26);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
             this.aboutToolStripMenuItem.Text = "&About";
             // 
             // radioInformationToolStripMenuItem
@@ -866,10 +866,10 @@
             this.radioPanel.Controls.Add(this.radioPictureBox);
             this.radioPanel.Controls.Add(this.radio2PictureBox);
             this.radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
-            this.radioPanel.Location = new System.Drawing.Point(0, 30);
+            this.radioPanel.Location = new System.Drawing.Point(0, 28);
             this.radioPanel.Margin = new System.Windows.Forms.Padding(4);
             this.radioPanel.Name = "radioPanel";
-            this.radioPanel.Size = new System.Drawing.Size(372, 659);
+            this.radioPanel.Size = new System.Drawing.Size(372, 661);
             this.radioPanel.TabIndex = 2;
             this.radioPanel.SizeChanged += new System.EventHandler(this.radioPanel_SizeChanged);
             this.radioPanel.Click += new System.EventHandler(this.radioPictureBox_Click);
@@ -892,7 +892,7 @@
             // 
             this.channelsFlowLayoutPanel.BackColor = System.Drawing.Color.DarkKhaki;
             this.channelsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 487);
+            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 489);
             this.channelsFlowLayoutPanel.Margin = new System.Windows.Forms.Padding(4);
             this.channelsFlowLayoutPanel.Name = "channelsFlowLayoutPanel";
             this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(368, 84);
@@ -902,7 +902,7 @@
             // checkBluetoothButton
             // 
             this.checkBluetoothButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 571);
+            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 573);
             this.checkBluetoothButton.Margin = new System.Windows.Forms.Padding(4);
             this.checkBluetoothButton.Name = "checkBluetoothButton";
             this.checkBluetoothButton.Size = new System.Drawing.Size(368, 42);
@@ -1108,7 +1108,7 @@
             // connectButton
             // 
             this.connectButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.connectButton.Location = new System.Drawing.Point(0, 613);
+            this.connectButton.Location = new System.Drawing.Point(0, 615);
             this.connectButton.Margin = new System.Windows.Forms.Padding(4);
             this.connectButton.Name = "connectButton";
             this.connectButton.Size = new System.Drawing.Size(368, 42);
@@ -1163,12 +1163,12 @@
             this.mainTabControl.Controls.Add(this.debugTabPage);
             this.mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTabControl.ImageList = this.tabsImageList;
-            this.mainTabControl.Location = new System.Drawing.Point(372, 30);
+            this.mainTabControl.Location = new System.Drawing.Point(372, 28);
             this.mainTabControl.Margin = new System.Windows.Forms.Padding(4);
             this.mainTabControl.Multiline = true;
             this.mainTabControl.Name = "mainTabControl";
             this.mainTabControl.SelectedIndex = 0;
-            this.mainTabControl.Size = new System.Drawing.Size(712, 659);
+            this.mainTabControl.Size = new System.Drawing.Size(712, 661);
             this.mainTabControl.TabIndex = 3;
             // 
             // aprsTabPage
@@ -1181,9 +1181,35 @@
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
             this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Size = new System.Drawing.Size(669, 651);
+            this.aprsTabPage.Size = new System.Drawing.Size(669, 653);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
+            // 
+            // aprsChatControl
+            // 
+            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
+            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
+            this.aprsChatControl.CornerRadius = 4;
+            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.aprsChatControl.Images = this.mainImageList;
+            this.aprsChatControl.InterMessageMargin = 12;
+            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
+            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.aprsChatControl.MaxWidth = 300;
+            this.aprsChatControl.MessageBoxAuthColor = System.Drawing.Color.LightGreen;
+            this.aprsChatControl.MessageBoxBadColor = System.Drawing.Color.Wheat;
+            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
+            this.aprsChatControl.MessageBoxMargin = 10;
+            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
+            this.aprsChatControl.MinWidth = 100;
+            this.aprsChatControl.Name = "aprsChatControl";
+            this.aprsChatControl.ShadowOffset = 2;
+            this.aprsChatControl.SideMargins = 12;
+            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
+            this.aprsChatControl.TabIndex = 5;
+            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
+            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
+            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
             // mainImageList
             // 
@@ -1246,7 +1272,7 @@
             this.aprsBottomPanel.Controls.Add(this.aprsTextBox);
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 604);
+            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 606);
             this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
             this.aprsBottomPanel.Size = new System.Drawing.Size(669, 47);
@@ -2347,7 +2373,7 @@
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
             this.bbsSplitContainer.Size = new System.Drawing.Size(669, 614);
-            this.bbsSplitContainer.SplitterDistance = 118;
+            this.bbsSplitContainer.SplitterDistance = 117;
             this.bbsSplitContainer.SplitterWidth = 5;
             this.bbsSplitContainer.TabIndex = 7;
             // 
@@ -2376,7 +2402,7 @@
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
             this.bbsListView.Margin = new System.Windows.Forms.Padding(4);
             this.bbsListView.Name = "bbsListView";
-            this.bbsListView.Size = new System.Drawing.Size(669, 118);
+            this.bbsListView.Size = new System.Drawing.Size(669, 117);
             this.bbsListView.SmallImageList = this.mainImageList;
             this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.bbsListView.TabIndex = 6;
@@ -2410,7 +2436,7 @@
             this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(669, 491);
+            this.bbsTextBox.Size = new System.Drawing.Size(669, 492);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -2659,6 +2685,16 @@
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
+            // torrentBlocksUserControl
+            // 
+            this.torrentBlocksUserControl.AutoScroll = true;
+            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
+            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 310);
+            this.torrentBlocksUserControl.TabIndex = 0;
+            // 
             // panel5
             // 
             this.panel5.BackColor = System.Drawing.Color.Silver;
@@ -2749,7 +2785,7 @@
             this.packetsTabPage.Location = new System.Drawing.Point(4, 4);
             this.packetsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.packetsTabPage.Name = "packetsTabPage";
-            this.packetsTabPage.Size = new System.Drawing.Size(669, 651);
+            this.packetsTabPage.Size = new System.Drawing.Size(669, 653);
             this.packetsTabPage.TabIndex = 6;
             this.packetsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -2768,7 +2804,7 @@
             // packetsSplitContainer.Panel2
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
-            this.packetsSplitContainer.Size = new System.Drawing.Size(669, 614);
+            this.packetsSplitContainer.Size = new System.Drawing.Size(669, 616);
             this.packetsSplitContainer.SplitterDistance = 261;
             this.packetsSplitContainer.SplitterWidth = 5;
             this.packetsSplitContainer.TabIndex = 6;
@@ -2871,7 +2907,7 @@
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             this.packetDecodeListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(669, 348);
+            this.packetDecodeListView.Size = new System.Drawing.Size(669, 350);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;
@@ -3589,42 +3625,6 @@
             this.largeMarkersToolStripMenuItem.Size = new System.Drawing.Size(214, 24);
             this.largeMarkersToolStripMenuItem.Text = "Large Markers";
             this.largeMarkersToolStripMenuItem.Click += new System.EventHandler(this.largeMarkersToolStripMenuItem_Click);
-            // 
-            // aprsChatControl
-            // 
-            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
-            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
-            this.aprsChatControl.CornerRadius = 4;
-            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.aprsChatControl.Images = this.mainImageList;
-            this.aprsChatControl.InterMessageMargin = 12;
-            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
-            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.aprsChatControl.MaxWidth = 300;
-            this.aprsChatControl.MessageBoxAuthColor = System.Drawing.Color.LightGreen;
-            this.aprsChatControl.MessageBoxBadColor = System.Drawing.Color.Wheat;
-            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
-            this.aprsChatControl.MessageBoxMargin = 10;
-            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
-            this.aprsChatControl.MinWidth = 100;
-            this.aprsChatControl.Name = "aprsChatControl";
-            this.aprsChatControl.ShadowOffset = 2;
-            this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(669, 530);
-            this.aprsChatControl.TabIndex = 5;
-            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
-            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
-            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
-            // 
-            // torrentBlocksUserControl
-            // 
-            this.torrentBlocksUserControl.AutoScroll = true;
-            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
-            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 310);
-            this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // MainForm
             // 
