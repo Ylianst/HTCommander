@@ -49,7 +49,7 @@ namespace HTCommander
         private SbcFrame sbcEncoderFrame;
 
         // Flag to switch between implementations (true = use C# SBC, false = use LibSbc)
-        public bool UseManagedSbc { get; set; } = true;
+        public bool UseManagedSbc { get; set; } = false;
 
         private WasapiOut waveOut = null;
         private byte[] pcmFrame = new byte[16000];
@@ -77,6 +77,11 @@ namespace HTCommander
         private HamLib.DemodulatorState softModemDemodState = null;
         private HamLib.AudioConfig softModemAudioConfig = null;
         private bool softModemInitialized = false;
+
+        // FX.25 decoder fields
+        private HamLib.Fx25Rec softModemFx25Receiver = null;
+        private bool fx25Initialized = false;
+        private HdlcFx25Bridge softModemBridge = null;
 
         public void StartRecording(string filename)
         {
@@ -116,6 +121,9 @@ namespace HTCommander
         {
             try
             {
+                // Initialize FX.25 subsystem
+                HamLib.Fx25.Init(0); // Debug level 0 = errors only
+
                 // Setup audio configuration for 32kHz, 16-bit, mono (matches PCM from SBC decoder)
                 softModemAudioConfig = new HamLib.AudioConfig();
                 softModemAudioConfig.Devices[0].Defined = true;
@@ -136,8 +144,15 @@ namespace HTCommander
                 softModemHdlcReceiver.FrameReceived += SoftModemHdlcReceiver_FrameReceived;
                 softModemHdlcReceiver.Init(softModemAudioConfig);
 
-                // Create and initialize AFSK demodulator
-                softModemDemodulator = new HamLib.DemodAfsk(softModemHdlcReceiver);
+                // Create FX.25 receiver with MultiModem wrapper for frame processing
+                var fx25MultiModem = new Fx25MultiModemWrapper(this);
+                softModemFx25Receiver = new HamLib.Fx25Rec(fx25MultiModem);
+
+                // Create bridge that feeds bits to both HDLC and FX.25 receivers
+                softModemBridge = new HdlcFx25Bridge(softModemHdlcReceiver, softModemFx25Receiver);
+
+                // Create and initialize AFSK demodulator with the bridge
+                softModemDemodulator = new HamLib.DemodAfsk(softModemBridge);
                 softModemDemodState = new HamLib.DemodulatorState();
                 softModemDemodulator.Init(
                     32000,  // Sample rate
@@ -149,12 +164,14 @@ namespace HTCommander
                 );
 
                 softModemInitialized = true;
-                Debug("Software modem (AFSK 1200 decoder) initialized successfully");
+                fx25Initialized = true;
+                Debug("Software modem (AFSK 1200 decoder with FX.25 support) initialized successfully");
             }
             catch (Exception ex)
             {
                 Debug($"Error initializing software modem: {ex.Message}");
                 softModemInitialized = false;
+                fx25Initialized = false;
             }
         }
 
@@ -165,22 +182,59 @@ namespace HTCommander
         {
             try
             {
-                if (e.FrameLength > 0)
+                // Notify listeners that a packet was decoded
+                if (OnSoftModemPacketDecoded != null)
                 {
-                    // Notify listeners that a packet was decoded
-                    if (OnSoftModemPacketDecoded != null)
+                    byte[] frameData = new byte[e.FrameLength];
+                    Array.Copy(e.Frame, frameData, e.FrameLength);
+                    TncDataFragment fragment = new TncDataFragment(true, 0, frameData, parent.HtStatus.curr_ch_id, parent.HtStatus.curr_region);
+                    fragment.incoming = true;
+                    fragment.channel_name = currentChannelName;
+                    fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200;
+                    fragment.time = DateTime.Now;
+
+                    // Determine frame type and corrections based on FEC type
+                    if (e.CorrectionInfo != null)
                     {
-                        byte[] frameData = new byte[e.FrameLength];
-                        Array.Copy(e.Frame, frameData, e.FrameLength);
-                        TncDataFragment fragment = new TncDataFragment(true, 0, frameData, parent.HtStatus.curr_ch_id, parent.HtStatus.curr_region);
-                        fragment.incoming = true;
-                        fragment.channel_name = currentChannelName;
-                        fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200;
-                        fragment.frame_type = TncDataFragment.FragmentFrameType.AX25;
-                        fragment.corrections = 0; // TODO
-                        fragment.time = DateTime.Now;
-                        OnSoftModemPacketDecoded(fragment);
+                        if (e.CorrectionInfo.FecType == HamLib.FecType.Fx25)
+                        {
+                            // FX.25 frame with forward error correction
+                            fragment.frame_type = TncDataFragment.FragmentFrameType.FX25;
+                            
+                            // For FX.25, use the number of RS symbols corrected
+                            // Each symbol is 8 bits, so this represents bytes corrected
+                            if (e.CorrectionInfo.RsSymbolsCorrected >= 0)
+                            {
+                                fragment.corrections = e.CorrectionInfo.RsSymbolsCorrected;
+                            }
+                            else
+                            {
+                                fragment.corrections = 0;
+                            }
+                        }
+                        else
+                        {
+                            // Regular AX.25 frame (possibly with bit-flip corrections)
+                            fragment.frame_type = TncDataFragment.FragmentFrameType.AX25;
+                            
+                            // For regular HDLC, use number of bits corrected
+                            if (e.CorrectionInfo.CorrectedBitPositions != null)
+                            {
+                                fragment.corrections = e.CorrectionInfo.CorrectedBitPositions.Count;
+                            }
+                            else
+                            {
+                                fragment.corrections = 0;
+                            }
+                        }
                     }
+                    else
+                    {
+                        fragment.frame_type = TncDataFragment.FragmentFrameType.AX25;
+                        fragment.corrections = 0;
+                    }
+
+                    OnSoftModemPacketDecoded(fragment);
                 }
             }
             catch (Exception ex)
@@ -216,6 +270,98 @@ namespace HTCommander
             catch (Exception ex)
             {
                 Debug($"Error resetting software modem: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Bridge class that feeds bits to both HDLC and FX.25 receivers
+        /// </summary>
+        private class HdlcFx25Bridge : HamLib.IHdlcReceiver
+        {
+            private HamLib.IHdlcReceiver _hdlcReceiver;
+            private HamLib.Fx25Rec _fx25Receiver;
+
+            public HdlcFx25Bridge(HamLib.IHdlcReceiver hdlcReceiver, HamLib.Fx25Rec fx25Receiver)
+            {
+                _hdlcReceiver = hdlcReceiver;
+                _fx25Receiver = fx25Receiver;
+            }
+
+            public void RecBit(int chan, int subchan, int slice, int raw, bool isScrambled, int notUsedRemove)
+            {
+                // Feed bit to HDLC receiver for standard AX.25 decoding
+                _hdlcReceiver.RecBit(chan, subchan, slice, raw, isScrambled, notUsedRemove);
+
+                // Also feed to FX.25 receiver for correlation tag detection
+                // FX.25 needs the decoded bit (after NRZI), not raw bit
+                // The HDLC receiver will do NRZI decoding, but we need to do it here too for FX.25
+                // For simplicity, FX.25 will do its own NRZI internally via the bit stream
+                _fx25Receiver.RecBit(chan, subchan, slice, raw);
+            }
+
+            public void DcdChange(int chan, int subchan, int slice, bool dcdOn)
+            {
+                // Forward DCD change to HDLC receiver
+                _hdlcReceiver.DcdChange(chan, subchan, slice, dcdOn);
+            }
+        }
+
+        /// <summary>
+        /// Wrapper for MultiModem to process FX.25 frames from Fx25Rec
+        /// </summary>
+        private class Fx25MultiModemWrapper : HamLib.MultiModem
+        {
+            private RadioAudio _parent;
+
+            public Fx25MultiModemWrapper(RadioAudio parent)
+            {
+                _parent = parent;
+                
+                // Subscribe to the PacketReady event
+                this.PacketReady += OnPacketReady;
+            }
+
+            private void OnPacketReady(object sender, HamLib.PacketReadyEventArgs e)
+            {
+                // This is called by Fx25Rec when a valid FX.25 frame is decoded
+                try
+                {
+                    if (_parent.OnSoftModemPacketDecoded != null && e.Packet != null)
+                    {
+                        // Get the frame data from the packet
+                        byte[] frameData = e.Packet.GetInfo(out int frameLen);
+                        if (frameData == null || frameLen == 0)
+                        {
+                            // Try to pack the whole packet if no info field
+                            frameData = new byte[2048];
+                            frameLen = e.Packet.Pack(frameData);
+                        }
+                        
+                        TncDataFragment fragment = new TncDataFragment(true, 0, frameData, 
+                            _parent.parent.HtStatus.curr_ch_id, _parent.parent.HtStatus.curr_region);
+                        fragment.incoming = true;
+                        fragment.channel_name = _parent.currentChannelName;
+                        fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200;
+                        fragment.frame_type = TncDataFragment.FragmentFrameType.FX25;
+                        fragment.time = DateTime.Now;
+
+                        // For FX.25, use the number of RS symbols corrected
+                        if (e.CorrectionInfo != null && e.CorrectionInfo.RsSymbolsCorrected >= 0)
+                        {
+                            fragment.corrections = e.CorrectionInfo.RsSymbolsCorrected;
+                        }
+                        else
+                        {
+                            fragment.corrections = 0;
+                        }
+
+                        _parent.OnSoftModemPacketDecoded(fragment);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _parent.Debug($"Error processing FX.25 decoded frame: {ex.Message}");
+                }
             }
         }
 
@@ -894,13 +1040,289 @@ namespace HTCommander
             transmissionTokenSource?.Cancel();
         }
 
-        // Fields
+        // Voice transmission fields
         private ConcurrentQueue<byte[]> pcmQueue = new ConcurrentQueue<byte[]>();
         private bool isTransmitting = false;
         private CancellationTokenSource transmissionTokenSource = null;
         private TaskCompletionSource<bool> newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         private bool PlayInputBack = false;
         private byte[] ReminderTransmitPcmAudio = null;
+
+        // Packet transmission fields
+        private ConcurrentQueue<TncDataFragment> packetQueue = new ConcurrentQueue<TncDataFragment>();
+        private bool isTransmittingPacket = false;
+        private Task packetTransmitTask = null;
+        private HamLib.AudioConfig packetAudioConfig = null;
+        private HamLib.GenTone packetGenTone = null;
+        private HamLib.AudioBuffer packetAudioBuffer = null;
+        private HamLib.HdlcSend packetHdlcSend = null;
+        private HamLib.Fx25Send packetFx25Send = null;
+
+        /// <summary>
+        /// Transmit a packet (AX.25 or FX.25)
+        /// If the radio is busy, the packet is queued for transmission
+        /// </summary>
+        /// <param name="fragment">The packet data to transmit</param>
+        public void TransmitPacket(TncDataFragment fragment)
+        {
+            if (fragment == null || fragment.data == null || fragment.data.Length == 0)
+            {
+                Debug("TransmitPacket: Invalid fragment");
+                return;
+            }
+
+            // Queue the packet
+            packetQueue.Enqueue(fragment);
+
+            // Start the packet transmitter if not already running
+            if (!isTransmittingPacket)
+            {
+                StartPacketTransmitter();
+            }
+        }
+
+        /// <summary>
+        /// Initialize packet transmission components
+        /// </summary>
+        private void InitializePacketTransmitter()
+        {
+            if (packetAudioConfig != null)
+                return; // Already initialized
+
+            try
+            {
+                // Initialize FX.25 if not already done
+                if (!fx25Initialized)
+                {
+                    HamLib.Fx25.Init(0);
+                    fx25Initialized = true;
+                }
+
+                // Set up audio configuration for AFSK 1200 baud (32kHz to match radio)
+                packetAudioConfig = new HamLib.AudioConfig();
+                packetAudioConfig.Devices[0].Defined = true;
+                packetAudioConfig.Devices[0].SamplesPerSec = 32000; // Match radio sample rate
+                packetAudioConfig.Devices[0].BitsPerSample = 16;
+                packetAudioConfig.Devices[0].NumChannels = 1;
+
+                packetAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
+                packetAudioConfig.Channels[0].ModemType = HamLib.ModemType.Afsk;
+                packetAudioConfig.Channels[0].MarkFreq = 1200;
+                packetAudioConfig.Channels[0].SpaceFreq = 2200;
+                packetAudioConfig.Channels[0].Baud = 1200;
+                packetAudioConfig.Channels[0].Txdelay = 30; // 300ms preamble
+                packetAudioConfig.Channels[0].Txtail = 10;  // 100ms postamble
+
+                // Create audio buffer
+                packetAudioBuffer = new HamLib.AudioBuffer(HamLib.AudioConfig.MaxAudioDevices);
+
+                // Create tone generator
+                packetGenTone = new HamLib.GenTone(packetAudioBuffer);
+                packetGenTone.Init(packetAudioConfig, 50); // 50% amplitude
+
+                // Create HDLC sender
+                packetHdlcSend = new HamLib.HdlcSend(packetGenTone, packetAudioConfig);
+
+                // Create FX.25 sender
+                packetFx25Send = new HamLib.Fx25Send();
+                packetFx25Send.Init(packetGenTone);
+
+                Debug("Packet transmitter initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                Debug($"Error initializing packet transmitter: {ex.Message}");
+                packetAudioConfig = null;
+            }
+        }
+
+        /// <summary>
+        /// Start the packet transmitter background task
+        /// </summary>
+        private void StartPacketTransmitter()
+        {
+            if (isTransmittingPacket || packetTransmitTask != null)
+                return;
+
+            isTransmittingPacket = true;
+
+            packetTransmitTask = Task.Run(async () =>
+            {
+                while (isTransmittingPacket)
+                {
+                    if (packetQueue.TryDequeue(out TncDataFragment fragment))
+                    {
+                        await TransmitPacketAsync(fragment);
+                    }
+                    else
+                    {
+                        // Wait a bit for more packets
+                        await Task.Delay(50);
+
+                        // If still no packets, exit
+                        if (packetQueue.IsEmpty)
+                        {
+                            isTransmittingPacket = false;
+                            break;
+                        }
+                    }
+                }
+
+                packetTransmitTask = null;
+            });
+        }
+
+        /// <summary>
+        /// Transmit a single packet
+        /// </summary>
+        private async Task TransmitPacketAsync(TncDataFragment fragment)
+        {
+            WaveFileWriter debugWavWriter = null;
+            try
+            {
+                // Initialize if needed
+                InitializePacketTransmitter();
+
+                if (packetAudioConfig == null || packetGenTone == null || packetAudioBuffer == null)
+                {
+                    Debug("Packet transmitter not initialized");
+                    return;
+                }
+
+                int chan = 0;
+
+                // Clear audio buffer
+                packetAudioBuffer.ClearAll();
+
+                // Generate preamble flags (txdelay)
+                int txdelayFlags = packetAudioConfig.Channels[chan].Txdelay;
+                packetHdlcSend.SendFlags(chan, txdelayFlags, false, null);
+
+                // Determine if we should use FX.25 encoding
+                bool useFx25 = (fragment.frame_type == TncDataFragment.FragmentFrameType.FX25);
+
+                if (useFx25)
+                {
+                    // Use FX.25 encoding with forward error correction
+                    int fxMode = 32; // FX.25 mode with 4 bytes of FEC (16, 32 and 64 are valid)
+                    packetFx25Send.SendFrame(chan, fragment.data, fragment.data.Length, fxMode);
+                    Debug($"Transmitting FX.25 packet ({fragment.data.Length} bytes with FEC)");
+                }
+                else
+                {
+                    // Use standard AX.25 HDLC encoding
+                    packetHdlcSend.SendFrame(chan, fragment.data, fragment.data.Length, false);
+                    Debug($"Transmitting AX.25 packet ({fragment.data.Length} bytes)");
+                }
+
+                // Generate postamble flags (txtail)
+                int txtailFlags = packetAudioConfig.Channels[chan].Txtail;
+                packetHdlcSend.SendFlags(chan, txtailFlags, true, (device) => { });
+
+                // Get the generated audio samples
+                short[] samples = packetAudioBuffer.GetAndClear(0);
+                if (samples != null && samples.Length > 0)
+                {
+                    // Convert 16-bit samples to byte array
+                    byte[] pcmData = new byte[samples.Length * 2];
+                    Buffer.BlockCopy(samples, 0, pcmData, 0, pcmData.Length);
+                    TransmitVoice(pcmData, 0, pcmData.Length, false);
+                    Debug($"Transmitted packet: {samples.Length} samples, {pcmData.Length} bytes PCM");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug($"Error transmitting packet: {ex.Message}");
+            }
+            finally
+            {
+                if (debugWavWriter != null)
+                {
+                    try { debugWavWriter.Dispose(); }
+                    catch (Exception) { }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Transmit packet audio data through the radio
+        /// </summary>
+        /// <param name="pcmData">PCM audio data to transmit</param>
+        /// <param name="playLocally">If true, plays the audio through the local audio device</param>
+        private async Task TransmitPacketAudioAsync(byte[] pcmData, bool playLocally)
+        {
+            if (audioStream == null || !running)
+            {
+                Debug("Cannot transmit packet: radio not connected");
+                return;
+            }
+
+            try
+            {
+                // Encode and send the PCM data in chunks
+                int offset = 0;
+                int length = pcmData.Length;
+
+                while (offset < length)
+                {
+                    int chunkSize = Math.Min(pcmInputSizePerFrame, length - offset);
+                    
+                    // Need at least one full frame to encode
+                    if (chunkSize < pcmInputSizePerFrame && offset + chunkSize < length)
+                    {
+                        // Wait for more data or pad
+                        chunkSize = pcmInputSizePerFrame;
+                    }
+
+                    if (chunkSize >= pcmInputSizePerFrame)
+                    {
+                        byte[] encodedSbcFrame;
+                        int bytesConsumed;
+                        
+                        if (EncodeSbcFrame(pcmData, offset, chunkSize, out encodedSbcFrame, out bytesConsumed))
+                        {
+                            // Send the audio frame to the radio
+                            byte[] escaped = EscapeBytes(0, encodedSbcFrame, encodedSbcFrame.Length);
+                            await audioStream.WriteAsync(escaped, 0, escaped.Length);
+                            await audioStream.FlushAsync();
+                            
+                            // Play locally if requested
+                            if (playLocally && waveProvider != null)
+                            {
+                                try
+                                {
+                                    // Play the transmitted PCM audio through the local audio device
+                                    PlayPcmBufferAsync(pcmData, offset, bytesConsumed);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug($"Error playing packet audio locally: {ex.Message}");
+                                }
+                            }
+
+                            offset += bytesConsumed;
+                        }
+                        else
+                        {
+                            Debug("Failed to encode SBC frame for packet");
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        // End of data
+                        break;
+                    }
+
+                    // Small delay to avoid overwhelming the radio
+                    await Task.Delay(10);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug($"Error transmitting packet audio: {ex.Message}");
+            }
+        }
 
         public bool TransmitVoice(byte[] pcmInputData, int pcmOffset, int pcmLength, bool play)
         {
@@ -1096,6 +1518,7 @@ namespace HTCommander
         /// <summary>
         /// Handle 32k, 16bit, Mono PCM frames for software modem decoding
         /// Processes PCM audio samples through the AFSK decoder for real-time packet detection
+        /// Includes support for both standard AX.25 and FX.25 frames
         /// </summary>
         /// <param name="data">PCM audio data buffer (16-bit samples)</param>
         /// <param name="offset">Starting offset in the buffer</param>
@@ -1121,8 +1544,11 @@ namespace HTCommander
                     // Extract 16-bit sample (little-endian)
                     short sample = (short)(data[i] | (data[i + 1] << 8));
 
-                    // Feed sample to demodulator
+                    // Feed sample to demodulator (handles AFSK demodulation and HDLC frame extraction)
                     softModemDemodulator.ProcessSample(chan, subchan, sample, softModemDemodState);
+
+                    // Note: FX.25 bit processing is now handled internally by the demodulator
+                    // The demodulator feeds decoded bits to both the HDLC receiver and FX.25 receiver
                 }
             }
             catch (Exception ex)

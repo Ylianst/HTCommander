@@ -70,6 +70,14 @@ namespace HamLib
 
             _numberOfBitsSent[chan] = 0;
 
+            // If the frame buffer is not large enough to hold the FCS, expand it
+            if (fbuf.Length < (flen + 2))
+            {
+                byte[] fbuf2 = new byte[flen + 2];
+                Array.Copy(fbuf, fbuf2, flen);
+                fbuf = fbuf2;
+            }
+
             ushort fcs = FcsCalc.Calculate(fbuf, flen);
             fbuf[flen++] = (byte)(fcs & 0xff);
             fbuf[flen++] = (byte)((fcs >> 8) & 0xff);
