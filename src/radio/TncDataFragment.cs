@@ -40,6 +40,8 @@ namespace HTCommander
             HardwareAfsk1200,
             SoftwareAfsk1200,
             SoftwareG3RUH9600,
+            SoftwarePsk2400,
+            SoftwarePsk4800,
             SoftwareModem
         }
         

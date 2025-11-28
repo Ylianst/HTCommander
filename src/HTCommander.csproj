@@ -199,6 +199,7 @@
     <Compile Include="hamlib\CorrectionInfo.cs" />
     <Compile Include="hamlib\Demod9600.cs" />
     <Compile Include="hamlib\DemodAfsk.cs" />
+    <Compile Include="hamlib\DemodPsk.cs" />
     <Compile Include="hamlib\Dsp.cs" />
     <Compile Include="hamlib\FcsCalc.cs" />
     <Compile Include="hamlib\Fx25.cs" />

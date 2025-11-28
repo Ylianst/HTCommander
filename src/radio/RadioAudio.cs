@@ -76,6 +76,8 @@ namespace HTCommander
         public SoftwareModemModeType SoftwareModemMode { get { return _softwareModemMode; } }
         private SoftwareModemModeType _softwareModemMode = SoftwareModemModeType.Disabled;
         private HamLib.DemodAfsk softModemDemodulator = null;
+        private HamLib.DemodPsk softModemPskDemodulator = null;
+        private HamLib.PskDemodulatorState softModemPskDemodState = null;
         private HamLib.HdlcRec2 softModemHdlcReceiver = null;
         private HamLib.DemodulatorState softModemDemodState = null;
         private HamLib.AudioConfig softModemAudioConfig = null;
@@ -85,6 +87,9 @@ namespace HTCommander
         private HamLib.Fx25Rec softModemFx25Receiver = null;
         private bool fx25Initialized = false;
         private HdlcFx25Bridge softModemBridge = null;
+
+        // 9600 baud modem fields
+        private HamLib.Demod9600.Demod9600State softModem9600State = null;
 
         public void StartRecording(string filename)
         {
@@ -112,7 +117,9 @@ namespace HTCommander
         public RadioAudio(Radio radio) 
         { 
             parent = radio;
-            InitializeSoftModem(SoftwareModemModeType.Afsk1200);
+            //InitializeSoftModem(SoftwareModemModeType.Afsk1200);
+            //InitializeSoftModem(SoftwareModemModeType.G3RUH9600);
+            InitializeSoftModem(SoftwareModemModeType.Psk2400);
         }
 
         private void Debug(string msg) { if (OnDebugMessage != null) { OnDebugMessage(msg); } }
@@ -121,6 +128,8 @@ namespace HTCommander
         {
             Disabled,
             Afsk1200,
+            Psk2400,
+            Psk4800,
             G3RUH9600,
         }
 
@@ -136,7 +145,7 @@ namespace HTCommander
                 fx25Initialized = false;
                 return;
             }
-            if (mode == SoftwareModemModeType.Afsk1200)
+            else if (mode == SoftwareModemModeType.Afsk1200)
             {
                 try
                 {
@@ -195,9 +204,180 @@ namespace HTCommander
                     fx25Initialized = false;
                 }
             }
-            if (mode == SoftwareModemModeType.G3RUH9600)
+            else if (mode == SoftwareModemModeType.Psk2400)
             {
-                // TODO: Implement G3RUH 9600 baud software modem initialization
+                try
+                {
+                    // Initialize FX.25 subsystem
+                    HamLib.Fx25.Init(0); // Debug level 0 = errors only
+
+                    // Setup audio configuration for 32kHz, 16-bit, mono (matches PCM from SBC decoder)
+                    softModemAudioConfig = new HamLib.AudioConfig();
+                    softModemAudioConfig.Devices[0].Defined = true;
+                    softModemAudioConfig.Devices[0].SamplesPerSec = 32000;
+                    softModemAudioConfig.Devices[0].BitsPerSample = 16;
+                    softModemAudioConfig.Devices[0].NumChannels = 1;
+
+                    // Configure for PSK 2400 bps (QPSK with V.26 Alternative B)
+                    softModemAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
+                    softModemAudioConfig.Channels[0].ModemType = HamLib.ModemType.Qpsk;
+                    softModemAudioConfig.Channels[0].Baud = 1200; // 2400 bps / 2 bits per symbol = 1200 baud
+                    softModemAudioConfig.Channels[0].V26Alt = HamLib.V26Alternative.B; // Always use profile B as requested
+                    softModemAudioConfig.Channels[0].NumSubchan = 1;
+
+                    // Create HDLC receiver with frame event handler
+                    softModemHdlcReceiver = new HamLib.HdlcRec2();
+                    softModemHdlcReceiver.FrameReceived += SoftModemHdlcReceiver_FrameReceived;
+                    softModemHdlcReceiver.Init(softModemAudioConfig);
+
+                    // Create FX.25 receiver with MultiModem wrapper for frame processing
+                    var fx25MultiModem = new Fx25MultiModemWrapper(this);
+                    softModemFx25Receiver = new HamLib.Fx25Rec(fx25MultiModem);
+
+                    // Create bridge that feeds bits to both HDLC and FX.25 receivers
+                    softModemBridge = new HdlcFx25Bridge(softModemHdlcReceiver, softModemFx25Receiver);
+
+                    // Create and initialize PSK demodulator with the bridge
+                    softModemPskDemodulator = new HamLib.DemodPsk(softModemBridge);
+                    softModemPskDemodState = new HamLib.PskDemodulatorState();
+                    softModemPskDemodulator.Init(
+                        HamLib.ModemType.Qpsk,      // QPSK mode for 2400 bps
+                        HamLib.V26Alternative.B,    // Use profile B as requested
+                        32000,                      // Sample rate (matches PCM from SBC decoder)
+                        2400,                       // Bits per second
+                        'B',                        // Profile B (fallback if V26Alt not used internally)
+                        softModemPskDemodState
+                    );
+
+                    _softwareModemMode = mode;
+                    softModemInitialized = true;
+                    fx25Initialized = true;
+                    Debug("Software modem (PSK 2400 bps decoder with FX.25 support) initialized successfully");
+                }
+                catch (Exception ex)
+                {
+                    Debug($"Error initializing PSK 2400 software modem: {ex.Message}");
+                    _softwareModemMode = SoftwareModemModeType.Disabled;
+                    softModemInitialized = false;
+                    fx25Initialized = false;
+                }
+            }
+            else if (mode == SoftwareModemModeType.Psk4800)
+            {
+                try
+                {
+                    // Initialize FX.25 subsystem
+                    HamLib.Fx25.Init(0); // Debug level 0 = errors only
+
+                    // Setup audio configuration for 32kHz, 16-bit, mono (matches PCM from SBC decoder)
+                    softModemAudioConfig = new HamLib.AudioConfig();
+                    softModemAudioConfig.Devices[0].Defined = true;
+                    softModemAudioConfig.Devices[0].SamplesPerSec = 32000;
+                    softModemAudioConfig.Devices[0].BitsPerSample = 16;
+                    softModemAudioConfig.Devices[0].NumChannels = 1;
+
+                    // Configure for PSK 4800 bps (8PSK)
+                    softModemAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
+                    softModemAudioConfig.Channels[0].ModemType = HamLib.ModemType.Psk8;
+                    softModemAudioConfig.Channels[0].Baud = 1600; // 4800 bps / 3 bits per symbol = 1600 baud
+                    softModemAudioConfig.Channels[0].V26Alt = HamLib.V26Alternative.B; // Always use profile B as requested
+                    softModemAudioConfig.Channels[0].NumSubchan = 1;
+
+                    // Create HDLC receiver with frame event handler
+                    softModemHdlcReceiver = new HamLib.HdlcRec2();
+                    softModemHdlcReceiver.FrameReceived += SoftModemHdlcReceiver_FrameReceived;
+                    softModemHdlcReceiver.Init(softModemAudioConfig);
+
+                    // Create FX.25 receiver with MultiModem wrapper for frame processing
+                    var fx25MultiModem = new Fx25MultiModemWrapper(this);
+                    softModemFx25Receiver = new HamLib.Fx25Rec(fx25MultiModem);
+
+                    // Create bridge that feeds bits to both HDLC and FX.25 receivers
+                    softModemBridge = new HdlcFx25Bridge(softModemHdlcReceiver, softModemFx25Receiver);
+
+                    // Create and initialize PSK demodulator with the bridge
+                    softModemPskDemodulator = new HamLib.DemodPsk(softModemBridge);
+                    softModemPskDemodState = new HamLib.PskDemodulatorState();
+                    softModemPskDemodulator.Init(
+                        HamLib.ModemType.Psk8,      // 8PSK mode for 4800 bps
+                        HamLib.V26Alternative.B,    // Use profile B as requested
+                        32000,                      // Sample rate (matches PCM from SBC decoder)
+                        4800,                       // Bits per second
+                        'B',                        // Profile B (fallback if V26Alt not used internally)
+                        softModemPskDemodState
+                    );
+
+                    _softwareModemMode = mode;
+                    softModemInitialized = true;
+                    fx25Initialized = true;
+                    Debug("Software modem (PSK 4800 bps decoder with FX.25 support) initialized successfully");
+                }
+                catch (Exception ex)
+                {
+                    Debug($"Error initializing PSK 4800 software modem: {ex.Message}");
+                    _softwareModemMode = SoftwareModemModeType.Disabled;
+                    softModemInitialized = false;
+                    fx25Initialized = false;
+                }
+            }
+            else if (mode == SoftwareModemModeType.G3RUH9600)
+            {
+                try
+                {
+                    // Initialize FX.25 subsystem
+                    HamLib.Fx25.Init(0); // Debug level 0 = errors only
+
+                    // Setup audio configuration for 32kHz, 16-bit, mono (matches PCM from SBC decoder)
+                    softModemAudioConfig = new HamLib.AudioConfig();
+                    softModemAudioConfig.Devices[0].Defined = true;
+                    softModemAudioConfig.Devices[0].SamplesPerSec = 32000;
+                    softModemAudioConfig.Devices[0].BitsPerSample = 16;
+                    softModemAudioConfig.Devices[0].NumChannels = 1;
+
+                    // Configure for G3RUH 9600 baud baseband
+                    softModemAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
+                    softModemAudioConfig.Channels[0].ModemType = HamLib.ModemType.Baseband;
+                    softModemAudioConfig.Channels[0].Baud = 9600;
+                    softModemAudioConfig.Channels[0].NumSubchan = 1;
+
+                    // Create HDLC receiver with frame event handler
+                    softModemHdlcReceiver = new HamLib.HdlcRec2();
+                    softModemHdlcReceiver.FrameReceived += SoftModemHdlcReceiver_FrameReceived;
+                    softModemHdlcReceiver.Init(softModemAudioConfig);
+
+                    // Create FX.25 receiver with MultiModem wrapper for frame processing
+                    var fx25MultiModem = new Fx25MultiModemWrapper(this);
+                    softModemFx25Receiver = new HamLib.Fx25Rec(fx25MultiModem);
+
+                    // Create bridge that feeds bits to both HDLC and FX.25 receivers
+                    softModemBridge = new HdlcFx25Bridge(softModemHdlcReceiver, softModemFx25Receiver);
+
+                    // Create and initialize 9600 baud demodulator with the bridge
+                    softModemDemodState = new HamLib.DemodulatorState();
+                    softModem9600State = new HamLib.Demod9600.Demod9600State();
+                    
+                    // Initialize the G3RUH 9600 baud demodulator
+                    // Parameters: sample rate, upsample factor, baud rate, demod state, 9600 state
+                    HamLib.Demod9600.Init(
+                        32000,  // Sample rate (matches PCM from SBC decoder)
+                        1,      // Upsample factor (1 = no upsampling)
+                        9600,   // Baud rate
+                        softModemDemodState,
+                        softModem9600State
+                    );
+
+                    _softwareModemMode = mode;
+                    softModemInitialized = true;
+                    fx25Initialized = true;
+                    Debug("Software modem (G3RUH 9600 baud with FX.25 support) initialized successfully");
+                }
+                catch (Exception ex)
+                {
+                    Debug($"Error initializing G3RUH 9600 software modem: {ex.Message}");
+                    _softwareModemMode = SoftwareModemModeType.Disabled;
+                    softModemInitialized = false;
+                    fx25Initialized = false;
+                }
             }
         }
 
@@ -216,7 +396,25 @@ namespace HTCommander
                     TncDataFragment fragment = new TncDataFragment(true, 0, frameData, parent.HtStatus.curr_ch_id, parent.HtStatus.curr_region);
                     fragment.incoming = true;
                     fragment.channel_name = currentChannelName;
-                    fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200;
+                    
+                    // Set encoding type based on modem mode
+                    if (_softwareModemMode == SoftwareModemModeType.G3RUH9600)
+                    {
+                        fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareG3RUH9600;
+                    }
+                    else if (_softwareModemMode == SoftwareModemModeType.Psk2400)
+                    {
+                        fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwarePsk2400;
+                    }
+                    else if (_softwareModemMode == SoftwareModemModeType.Psk4800)
+                    {
+                        fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwarePsk4800;
+                    }
+                    else
+                    {
+                        fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200;
+                    }
+                    
                     fragment.time = DateTime.Now;
 
                     // Determine frame type and corrections based on FEC type
@@ -278,17 +476,62 @@ namespace HTCommander
 
             try
             {
-                // Reinitialize the demodulator to reset its state
-                if (softModemDemodulator != null && softModemDemodState != null)
+                // Reinitialize the appropriate demodulator to reset its state
+                if (_softwareModemMode == SoftwareModemModeType.Afsk1200)
                 {
-                    softModemDemodulator.Init(
-                        32000,  // Sample rate
-                        1200,   // Baud rate
-                        1200,   // Mark frequency
-                        2200,   // Space frequency
-                        'A',    // Profile
-                        softModemDemodState
-                    );
+                    if (softModemDemodulator != null && softModemDemodState != null)
+                    {
+                        softModemDemodulator.Init(
+                            32000,  // Sample rate
+                            1200,   // Baud rate
+                            1200,   // Mark frequency
+                            2200,   // Space frequency
+                            'A',    // Profile
+                            softModemDemodState
+                        );
+                    }
+                }
+                else if (_softwareModemMode == SoftwareModemModeType.Psk2400)
+                {
+                    if (softModemPskDemodulator != null && softModemPskDemodState != null)
+                    {
+                        softModemPskDemodulator.Init(
+                            HamLib.ModemType.Qpsk,      // QPSK mode for 2400 bps
+                            HamLib.V26Alternative.B,    // Use profile B as requested
+                            32000,                      // Sample rate
+                            2400,                       // Bits per second
+                            'B',                        // Profile B (fallback)
+                            softModemPskDemodState
+                        );
+                    }
+                }
+                else if (_softwareModemMode == SoftwareModemModeType.Psk4800)
+                {
+                    if (softModemPskDemodulator != null && softModemPskDemodState != null)
+                    {
+                        softModemPskDemodulator.Init(
+                            HamLib.ModemType.Psk8,      // 8PSK mode for 4800 bps
+                            HamLib.V26Alternative.B,    // Use profile B as requested
+                            32000,                      // Sample rate
+                            4800,                       // Bits per second
+                            'B',                        // Profile B (fallback)
+                            softModemPskDemodState
+                        );
+                    }
+                }
+                else if (_softwareModemMode == SoftwareModemModeType.G3RUH9600)
+                {
+                    if (softModem9600State != null && softModemDemodState != null)
+                    {
+                        // Reinitialize the G3RUH 9600 baud demodulator
+                        HamLib.Demod9600.Init(
+                            32000,  // Sample rate
+                            1,      // Upsample factor
+                            9600,   // Baud rate
+                            softModemDemodState,
+                            softModem9600State
+                        );
+                    }
                 }
 
                 Debug("Software modem reset successfully");
@@ -367,7 +610,8 @@ namespace HTCommander
                             _parent.parent.HtStatus.curr_ch_id, _parent.parent.HtStatus.curr_region);
                         fragment.incoming = true;
                         fragment.channel_name = _parent.currentChannelName;
-                        fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200;
+                        //fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200;
+                        fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwarePsk2400;
                         fragment.frame_type = TncDataFragment.FragmentFrameType.FX25;
                         fragment.time = DateTime.Now;
 
@@ -922,7 +1166,7 @@ namespace HTCommander
                     parent.GotAudioData(pcmFrame, 0, totalWritten, currentChannelName, false);
                 }
 
-                // We need to send the audio into the AFPK1200 or 9600 software modem for decoding
+                // We need to send the audio into the AFPK1200, PFK2400, PFK4800 or 9600 software modem for decoding
                 SoftModemPcmFrame(pcmFrame, 0, totalWritten, currentChannelName);
 
                 // Clean up
@@ -1115,50 +1359,196 @@ namespace HTCommander
             if (packetAudioConfig != null)
                 return; // Already initialized
 
-            try
+            if (_softwareModemMode == SoftwareModemModeType.Afsk1200)
             {
-                // Initialize FX.25 if not already done
-                if (!fx25Initialized)
+                try
                 {
-                    HamLib.Fx25.Init(0);
-                    fx25Initialized = true;
+                    // Initialize FX.25 if not already done
+                    if (!fx25Initialized)
+                    {
+                        HamLib.Fx25.Init(0);
+                        fx25Initialized = true;
+                    }
+
+                    // Set up audio configuration for AFSK 1200 baud (32kHz to match radio)
+                    packetAudioConfig = new HamLib.AudioConfig();
+                    packetAudioConfig.Devices[0].Defined = true;
+                    packetAudioConfig.Devices[0].SamplesPerSec = 32000; // Match radio sample rate
+                    packetAudioConfig.Devices[0].BitsPerSample = 16;
+                    packetAudioConfig.Devices[0].NumChannels = 1;
+
+                    packetAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
+                    packetAudioConfig.Channels[0].ModemType = HamLib.ModemType.Afsk;
+                    packetAudioConfig.Channels[0].MarkFreq = 1200;
+                    packetAudioConfig.Channels[0].SpaceFreq = 2200;
+                    packetAudioConfig.Channels[0].Baud = 1200;
+                    packetAudioConfig.Channels[0].Txdelay = 30; // 300ms preamble
+                    packetAudioConfig.Channels[0].Txtail = 10;  // 100ms postamble
+
+                    // Create audio buffer
+                    packetAudioBuffer = new HamLib.AudioBuffer(HamLib.AudioConfig.MaxAudioDevices);
+
+                    // Create tone generator
+                    packetGenTone = new HamLib.GenTone(packetAudioBuffer);
+                    packetGenTone.Init(packetAudioConfig, 50); // 50% amplitude
+
+                    // Create HDLC sender
+                    packetHdlcSend = new HamLib.HdlcSend(packetGenTone, packetAudioConfig);
+
+                    // Create FX.25 sender
+                    packetFx25Send = new HamLib.Fx25Send();
+                    packetFx25Send.Init(packetGenTone);
+
+                    Debug("Packet transmitter initialized successfully");
                 }
-
-                // Set up audio configuration for AFSK 1200 baud (32kHz to match radio)
-                packetAudioConfig = new HamLib.AudioConfig();
-                packetAudioConfig.Devices[0].Defined = true;
-                packetAudioConfig.Devices[0].SamplesPerSec = 32000; // Match radio sample rate
-                packetAudioConfig.Devices[0].BitsPerSample = 16;
-                packetAudioConfig.Devices[0].NumChannels = 1;
-
-                packetAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
-                packetAudioConfig.Channels[0].ModemType = HamLib.ModemType.Afsk;
-                packetAudioConfig.Channels[0].MarkFreq = 1200;
-                packetAudioConfig.Channels[0].SpaceFreq = 2200;
-                packetAudioConfig.Channels[0].Baud = 1200;
-                packetAudioConfig.Channels[0].Txdelay = 30; // 300ms preamble
-                packetAudioConfig.Channels[0].Txtail = 10;  // 100ms postamble
-
-                // Create audio buffer
-                packetAudioBuffer = new HamLib.AudioBuffer(HamLib.AudioConfig.MaxAudioDevices);
-
-                // Create tone generator
-                packetGenTone = new HamLib.GenTone(packetAudioBuffer);
-                packetGenTone.Init(packetAudioConfig, 50); // 50% amplitude
-
-                // Create HDLC sender
-                packetHdlcSend = new HamLib.HdlcSend(packetGenTone, packetAudioConfig);
-
-                // Create FX.25 sender
-                packetFx25Send = new HamLib.Fx25Send();
-                packetFx25Send.Init(packetGenTone);
-
-                Debug("Packet transmitter initialized successfully");
+                catch (Exception ex)
+                {
+                    Debug($"Error initializing packet transmitter: {ex.Message}");
+                    packetAudioConfig = null;
+                }
             }
-            catch (Exception ex)
+
+            if (_softwareModemMode == SoftwareModemModeType.Psk2400)
             {
-                Debug($"Error initializing packet transmitter: {ex.Message}");
-                packetAudioConfig = null;
+                try
+                {
+                    // Initialize FX.25 if not already done
+                    if (!fx25Initialized)
+                    {
+                        HamLib.Fx25.Init(0);
+                        fx25Initialized = true;
+                    }
+
+                    // Set up audio configuration for PSK 2400 bps (32kHz to match radio)
+                    packetAudioConfig = new HamLib.AudioConfig();
+                    packetAudioConfig.Devices[0].Defined = true;
+                    packetAudioConfig.Devices[0].SamplesPerSec = 32000; // Match radio sample rate
+                    packetAudioConfig.Devices[0].BitsPerSample = 16;
+                    packetAudioConfig.Devices[0].NumChannels = 1;
+
+                    packetAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
+                    packetAudioConfig.Channels[0].ModemType = HamLib.ModemType.Qpsk; // QPSK for 2400 bps
+                    packetAudioConfig.Channels[0].Baud = 1200; // 2400 bps / 2 bits per symbol = 1200 baud
+                    packetAudioConfig.Channels[0].V26Alt = HamLib.V26Alternative.B; // Always use profile B
+                    packetAudioConfig.Channels[0].Txdelay = 30; // 300ms preamble
+                    packetAudioConfig.Channels[0].Txtail = 10;  // 100ms postamble
+
+                    // Create audio buffer
+                    packetAudioBuffer = new HamLib.AudioBuffer(HamLib.AudioConfig.MaxAudioDevices);
+
+                    // Create tone generator for PSK modulation
+                    packetGenTone = new HamLib.GenTone(packetAudioBuffer);
+                    packetGenTone.Init(packetAudioConfig, 50); // 50% amplitude
+
+                    // Create HDLC sender
+                    packetHdlcSend = new HamLib.HdlcSend(packetGenTone, packetAudioConfig);
+
+                    // Create FX.25 sender
+                    packetFx25Send = new HamLib.Fx25Send();
+                    packetFx25Send.Init(packetGenTone);
+
+                    Debug("PSK 2400 bps packet transmitter initialized successfully");
+                }
+                catch (Exception ex)
+                {
+                    Debug($"Error initializing PSK 2400 packet transmitter: {ex.Message}");
+                    packetAudioConfig = null;
+                }
+            }
+
+            if (_softwareModemMode == SoftwareModemModeType.Psk4800)
+            {
+                try
+                {
+                    // Initialize FX.25 if not already done
+                    if (!fx25Initialized)
+                    {
+                        HamLib.Fx25.Init(0);
+                        fx25Initialized = true;
+                    }
+
+                    // Set up audio configuration for PSK 4800 bps (32kHz to match radio)
+                    packetAudioConfig = new HamLib.AudioConfig();
+                    packetAudioConfig.Devices[0].Defined = true;
+                    packetAudioConfig.Devices[0].SamplesPerSec = 32000; // Match radio sample rate
+                    packetAudioConfig.Devices[0].BitsPerSample = 16;
+                    packetAudioConfig.Devices[0].NumChannels = 1;
+
+                    packetAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
+                    packetAudioConfig.Channels[0].ModemType = HamLib.ModemType.Psk8; // 8PSK for 4800 bps
+                    packetAudioConfig.Channels[0].Baud = 1600; // 4800 bps / 3 bits per symbol = 1600 baud
+                    packetAudioConfig.Channels[0].V26Alt = HamLib.V26Alternative.B; // Always use profile B
+                    packetAudioConfig.Channels[0].Txdelay = 30; // 300ms preamble
+                    packetAudioConfig.Channels[0].Txtail = 10;  // 100ms postamble
+
+                    // Create audio buffer
+                    packetAudioBuffer = new HamLib.AudioBuffer(HamLib.AudioConfig.MaxAudioDevices);
+
+                    // Create tone generator for PSK modulation
+                    packetGenTone = new HamLib.GenTone(packetAudioBuffer);
+                    packetGenTone.Init(packetAudioConfig, 50); // 50% amplitude
+
+                    // Create HDLC sender
+                    packetHdlcSend = new HamLib.HdlcSend(packetGenTone, packetAudioConfig);
+
+                    // Create FX.25 sender
+                    packetFx25Send = new HamLib.Fx25Send();
+                    packetFx25Send.Init(packetGenTone);
+
+                    Debug("PSK 4800 bps packet transmitter initialized successfully");
+                }
+                catch (Exception ex)
+                {
+                    Debug($"Error initializing PSK 4800 packet transmitter: {ex.Message}");
+                    packetAudioConfig = null;
+                }
+            }
+
+            if (_softwareModemMode == SoftwareModemModeType.G3RUH9600)
+            {
+                try
+                {
+                    // Initialize FX.25 if not already done
+                    if (!fx25Initialized)
+                    {
+                        HamLib.Fx25.Init(0);
+                        fx25Initialized = true;
+                    }
+
+                    // Set up audio configuration for G3RUH 9600 baud baseband (32kHz to match radio)
+                    packetAudioConfig = new HamLib.AudioConfig();
+                    packetAudioConfig.Devices[0].Defined = true;
+                    packetAudioConfig.Devices[0].SamplesPerSec = 32000; // Match radio sample rate
+                    packetAudioConfig.Devices[0].BitsPerSample = 16;
+                    packetAudioConfig.Devices[0].NumChannels = 1;
+
+                    packetAudioConfig.ChannelMedium[0] = HamLib.Medium.Radio;
+                    packetAudioConfig.Channels[0].ModemType = HamLib.ModemType.Baseband; // Baseband for G3RUH
+                    packetAudioConfig.Channels[0].Baud = 9600;
+                    packetAudioConfig.Channels[0].Txdelay = 30; // 300ms preamble
+                    packetAudioConfig.Channels[0].Txtail = 10;  // 100ms postamble
+
+                    // Create audio buffer
+                    packetAudioBuffer = new HamLib.AudioBuffer(HamLib.AudioConfig.MaxAudioDevices);
+
+                    // Create tone generator (handles baseband modulation for G3RUH)
+                    packetGenTone = new HamLib.GenTone(packetAudioBuffer);
+                    packetGenTone.Init(packetAudioConfig, 50); // 50% amplitude
+
+                    // Create HDLC sender
+                    packetHdlcSend = new HamLib.HdlcSend(packetGenTone, packetAudioConfig);
+
+                    // Create FX.25 sender
+                    packetFx25Send = new HamLib.Fx25Send();
+                    packetFx25Send.Init(packetGenTone);
+
+                    Debug("G3RUH 9600 baud packet transmitter initialized successfully");
+                }
+                catch (Exception ex)
+                {
+                    Debug($"Error initializing G3RUH 9600 packet transmitter: {ex.Message}");
+                    packetAudioConfig = null;
+                }
             }
         }
 
@@ -1220,6 +1610,17 @@ namespace HTCommander
                 // Clear audio buffer
                 packetAudioBuffer.ClearAll();
 
+                // For G3RUH 9600 baud, add 0.5 seconds of silence before data
+                if (_softwareModemMode == SoftwareModemModeType.G3RUH9600)
+                {
+                    int sampleRate = packetAudioConfig.Devices[0].SamplesPerSec;
+                    int silenceSamples = sampleRate / 2; // 0.5 seconds
+                    for (int i = 0; i < silenceSamples; i++)
+                    {
+                        packetAudioBuffer.Put(0, 0); // Channel 0, amplitude 0 (silence)
+                    }
+                }
+
                 // Generate preamble flags (txdelay)
                 int txdelayFlags = packetAudioConfig.Channels[chan].Txdelay;
                 packetHdlcSend.SendFlags(chan, txdelayFlags, false, null);
@@ -1244,6 +1645,17 @@ namespace HTCommander
                 // Generate postamble flags (txtail)
                 int txtailFlags = packetAudioConfig.Channels[chan].Txtail;
                 packetHdlcSend.SendFlags(chan, txtailFlags, true, (device) => { });
+
+                // For G3RUH 9600 baud, add 0.5 seconds of silence after data
+                if (_softwareModemMode == SoftwareModemModeType.G3RUH9600)
+                {
+                    int sampleRate = packetAudioConfig.Devices[0].SamplesPerSec;
+                    int silenceSamples = sampleRate / 2; // 0.5 seconds
+                    for (int i = 0; i < silenceSamples; i++)
+                    {
+                        packetAudioBuffer.Put(0, 0); // Channel 0, amplitude 0 (silence)
+                    }
+                }
 
                 // Get the generated audio samples
                 short[] samples = packetAudioBuffer.GetAndClear(0);
@@ -1543,7 +1955,7 @@ namespace HTCommander
 
         /// <summary>
         /// Handle 32k, 16bit, Mono PCM frames for software modem decoding
-        /// Processes PCM audio samples through the AFSK decoder for real-time packet detection
+        /// Processes PCM audio samples through the AFSK or G3RUH 9600 decoder for real-time packet detection
         /// Includes support for both standard AX.25 and FX.25 frames
         /// </summary>
         /// <param name="data">PCM audio data buffer (16-bit samples)</param>
@@ -1552,7 +1964,7 @@ namespace HTCommander
         /// <param name="channelName">Name of the current channel</param>
         public void SoftModemPcmFrame(byte[] data, int offset, int len, string channelName)
         {
-            if (!softModemInitialized || softModemDemodulator == null || softModemDemodState == null)
+            if (!softModemInitialized || softModemDemodState == null)
             {
                 return;
             }
@@ -1564,18 +1976,60 @@ namespace HTCommander
                 int chan = 0;      // Channel number
                 int subchan = 0;   // Subchannel number
 
-                // Process each 16-bit sample
-                for (int i = offset; i < offset + len - 1; i += 2)
+                // Process based on modem type
+                if (_softwareModemMode == SoftwareModemModeType.Afsk1200)
                 {
-                    // Extract 16-bit sample (little-endian)
-                    short sample = (short)(data[i] | (data[i + 1] << 8));
+                    if (softModemDemodulator == null) return;
 
-                    // Feed sample to demodulator (handles AFSK demodulation and HDLC frame extraction)
-                    softModemDemodulator.ProcessSample(chan, subchan, sample, softModemDemodState);
+                    // Process each 16-bit sample through AFSK demodulator
+                    for (int i = offset; i < offset + len - 1; i += 2)
+                    {
+                        // Extract 16-bit sample (little-endian)
+                        short sample = (short)(data[i] | (data[i + 1] << 8));
 
-                    // Note: FX.25 bit processing is now handled internally by the demodulator
-                    // The demodulator feeds decoded bits to both the HDLC receiver and FX.25 receiver
+                        // Feed sample to AFSK demodulator
+                        softModemDemodulator.ProcessSample(chan, subchan, sample, softModemDemodState);
+                    }
                 }
+                else if (_softwareModemMode == SoftwareModemModeType.Psk2400 || _softwareModemMode == SoftwareModemModeType.Psk4800)
+                {
+                    if (softModemPskDemodulator == null || softModemPskDemodState == null) return;
+
+                    // Process each 16-bit sample through PSK demodulator
+                    for (int i = offset; i < offset + len - 1; i += 2)
+                    {
+                        // Extract 16-bit sample (little-endian)
+                        short sample = (short)(data[i] | (data[i + 1] << 8));
+
+                        // Feed sample to PSK demodulator
+                        softModemPskDemodulator.ProcessSample(chan, subchan, sample, softModemPskDemodState);
+                    }
+                }
+                else if (_softwareModemMode == SoftwareModemModeType.G3RUH9600)
+                {
+                    if (softModem9600State == null || softModemBridge == null) return;
+
+                    // Process each 16-bit sample through G3RUH 9600 baud demodulator
+                    for (int i = offset; i < offset + len - 1; i += 2)
+                    {
+                        // Extract 16-bit sample (little-endian)
+                        short sample = (short)(data[i] | (data[i + 1] << 8));
+
+                        // Feed sample to G3RUH 9600 baud demodulator
+                        // Parameters: channel, sample, upsample factor, demod state, 9600 state, HDLC receiver
+                        HamLib.Demod9600.ProcessSample(
+                            chan,
+                            sample,
+                            1,  // Upsample factor (1 = no upsampling)
+                            softModemDemodState,
+                            softModem9600State,
+                            softModemBridge
+                        );
+                    }
+                }
+
+                // Note: FX.25 bit processing is handled internally by the demodulator
+                // The demodulator feeds decoded bits to both the HDLC receiver and FX.25 receiver
             }
             catch (Exception ex)
             {
