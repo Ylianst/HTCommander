@@ -2839,7 +2839,8 @@ namespace HTCommander
 
         private void packetsListView_Resize(object sender, EventArgs e)
         {
-            packetsListView.Columns[2].Width = packetsListView.Width - packetsListView.Columns[1].Width - packetsListView.Columns[0].Width - 28;
+            // Auto-resize the Data column to fit content
+            columnHeader9.Width = -2;
         }
 
         private void packetsMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
@@ -2863,6 +2864,29 @@ namespace HTCommander
         public string FragmentToShortString(TncDataFragment fragment)
         {
             StringBuilder sb = new StringBuilder();
+
+            if ((fragment.data != null) && (fragment.data.Length > 3) && (fragment.data[0] == 1))
+            {
+                // This is the short binary protocol format.
+                // Examples:
+                //   01 07204B4B37565A54
+                //   01 07204B4B37565A54 0121 062468656C6C6F 072514C72DC7CDF0
+                //   20 = K7VZT        (Callsign)
+                //   21 = true         (Message Type = Position Report?)
+                //   24 = hello        (Message)
+                //   25 = 14C72DC7CDF0 (GPS Position?)
+                int i = 0;
+                Dictionary<byte, byte[]> decodedMessage = Utils.DecodeShortBinaryMessage(fragment.data);
+                foreach (var item in decodedMessage)
+                {
+                    if (i++ > 0) sb.Append(", ");
+                    if (item.Key == 0x20) { sb.Append("Callsign: " + UTF8Encoding.UTF8.GetString(item.Value)); }
+                    else if (item.Key == 0x24) { sb.Append("Msg: " + UTF8Encoding.UTF8.GetString(item.Value)); }
+                    else sb.Append(item.Key + ": " + Utils.BytesToHex(item.Value));
+                }
+                return sb.ToString();
+            }
+
             AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
             if (packet == null)
             {
@@ -3212,11 +3236,6 @@ namespace HTCommander
             int region = (int)item.Tag;
             if (region == radio.HtStatus.curr_region) return;
             radio.SetRegion(region);
-        }
-
-        private void packetDecodeListView_Resize(object sender, EventArgs e)
-        {
-            packetDecodeListView.Columns[1].Width = packetDecodeListView.Width - packetDecodeListView.Columns[0].Width - 28;
         }
 
         private void copyHEXValuesToolStripMenuItem_Click(object sender, EventArgs e)
@@ -4581,7 +4600,7 @@ namespace HTCommander
             if (MessageBox.Show(this, "Clear packets?", "Packet Capture", MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.OK)
             {
                 packetsListView.Items.Clear();
-                packetDecodeListView.Clear();
+                packetDecodeListView.Items.Clear();
             }
         }
 

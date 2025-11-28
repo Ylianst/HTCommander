@@ -78,10 +78,7 @@ namespace HTCommander
         { 
             get 
             { 
-                lock (softModemLock)
-                {
-                    return _softwareModemMode; 
-                }
+                return _softwareModemMode; 
             }
             set
             {

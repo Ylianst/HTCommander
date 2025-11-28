@@ -223,14 +223,15 @@ namespace HamLib
                     _currentBlock.AudioLevel = new AudioLevel(0, 0, 0);
                     ProcessBlock(_currentBlock);
                     
-                    // Start new block and seed it with current raw bit (like HdlcRec does)
-                    _currentBlock = new RawReceivedBitBuffer(chan, subchan, slice, isScrambled, 0, 0);
+                    // Transfer ownership - ProcessBlock now owns this buffer (like C reference)
+                    // Create a NEW buffer for the next frame with preserved scrambler state
+                    _currentBlock = new RawReceivedBitBuffer(chan, subchan, slice, isScrambled, _currentState.Lfsr, _currentState.PrevDescram);
                     _currentBlock.AppendBit((byte)raw);
                 }
                 else
                 {
                     // Start of frame - clear buffer and seed with current bit
-                    _currentBlock.Clear(isScrambled, 0, 0);
+                    _currentBlock.Clear(isScrambled, _currentState.Lfsr, _currentState.PrevDescram);
                     _currentBlock.AppendBit((byte)raw);
                 }
             }

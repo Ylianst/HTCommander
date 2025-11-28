@@ -77,6 +77,9 @@
             this.pSK2400ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.pSK4800ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.g9600ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.hardwareModemToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.disabledToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.aFK1200ToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.radioToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -122,6 +125,7 @@
             this.radio2PictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
+            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsMissingChannelPanel = new System.Windows.Forms.Panel();
             this.aprsSetupButton = new System.Windows.Forms.Button();
@@ -248,6 +252,7 @@
             this.columnHeader13 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader17 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.panel5 = new System.Windows.Forms.Panel();
             this.torrentAddFileButton = new System.Windows.Forms.Button();
             this.torrentMenuPictureBox = new System.Windows.Forms.PictureBox();
@@ -353,11 +358,6 @@
             this.cacheAreaToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showTracksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.largeMarkersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.aprsChatControl = new HTCommander.ChatControl();
-            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
-            this.hardwareModemToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.disabledToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            this.aFK1200ToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -641,21 +641,21 @@
             // audioEnabledToolStripMenuItem
             // 
             this.audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
-            this.audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(213, 26);
             this.audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
             this.audioEnabledToolStripMenuItem.Click += new System.EventHandler(this.audioEnabledToolStripMenuItem_Click);
             // 
             // volumeToolStripMenuItem
             // 
             this.volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(213, 26);
             this.volumeToolStripMenuItem.Text = "Audio &Controls...";
             this.volumeToolStripMenuItem.Click += new System.EventHandler(this.volumeToolStripMenuItem_Click);
             // 
             // spectrogramToolStripMenuItem
             // 
             this.spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";
-            this.spectrogramToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.spectrogramToolStripMenuItem.Size = new System.Drawing.Size(213, 26);
             this.spectrogramToolStripMenuItem.Text = "Spectrogram...";
             this.spectrogramToolStripMenuItem.Click += new System.EventHandler(this.spectrogramToolStripMenuItem_Click);
             // 
@@ -668,7 +668,7 @@
             this.pSK4800ToolStripMenuItem,
             this.g9600ToolStripMenuItem});
             this.softwareModemToolStripMenuItem.Name = "softwareModemToolStripMenuItem";
-            this.softwareModemToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.softwareModemToolStripMenuItem.Size = new System.Drawing.Size(213, 26);
             this.softwareModemToolStripMenuItem.Text = "Software &Modem";
             // 
             // disabledToolStripMenuItem
@@ -677,36 +677,61 @@
             this.disabledToolStripMenuItem.CheckOnClick = true;
             this.disabledToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             this.disabledToolStripMenuItem.Name = "disabledToolStripMenuItem";
-            this.disabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.disabledToolStripMenuItem.Size = new System.Drawing.Size(154, 26);
             this.disabledToolStripMenuItem.Text = "&Disabled";
             // 
             // aFK1200ToolStripMenuItem
             // 
             this.aFK1200ToolStripMenuItem.CheckOnClick = true;
             this.aFK1200ToolStripMenuItem.Name = "aFK1200ToolStripMenuItem";
-            this.aFK1200ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.aFK1200ToolStripMenuItem.Size = new System.Drawing.Size(154, 26);
             this.aFK1200ToolStripMenuItem.Text = "AFK &1200";
             // 
             // pSK2400ToolStripMenuItem
             // 
             this.pSK2400ToolStripMenuItem.CheckOnClick = true;
             this.pSK2400ToolStripMenuItem.Name = "pSK2400ToolStripMenuItem";
-            this.pSK2400ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.pSK2400ToolStripMenuItem.Size = new System.Drawing.Size(154, 26);
             this.pSK2400ToolStripMenuItem.Text = "PSK &2400";
             // 
             // pSK4800ToolStripMenuItem
             // 
             this.pSK4800ToolStripMenuItem.CheckOnClick = true;
             this.pSK4800ToolStripMenuItem.Name = "pSK4800ToolStripMenuItem";
-            this.pSK4800ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.pSK4800ToolStripMenuItem.Size = new System.Drawing.Size(154, 26);
             this.pSK4800ToolStripMenuItem.Text = "PSK &4800";
             // 
             // g9600ToolStripMenuItem
             // 
             this.g9600ToolStripMenuItem.CheckOnClick = true;
             this.g9600ToolStripMenuItem.Name = "g9600ToolStripMenuItem";
-            this.g9600ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.g9600ToolStripMenuItem.Size = new System.Drawing.Size(154, 26);
             this.g9600ToolStripMenuItem.Text = "G &9600";
+            // 
+            // hardwareModemToolStripMenuItem
+            // 
+            this.hardwareModemToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.disabledToolStripMenuItem1,
+            this.aFK1200ToolStripMenuItem1});
+            this.hardwareModemToolStripMenuItem.Name = "hardwareModemToolStripMenuItem";
+            this.hardwareModemToolStripMenuItem.Size = new System.Drawing.Size(213, 26);
+            this.hardwareModemToolStripMenuItem.Text = "&Hardware Modem";
+            // 
+            // disabledToolStripMenuItem1
+            // 
+            this.disabledToolStripMenuItem1.CheckOnClick = true;
+            this.disabledToolStripMenuItem1.Name = "disabledToolStripMenuItem1";
+            this.disabledToolStripMenuItem1.Size = new System.Drawing.Size(154, 26);
+            this.disabledToolStripMenuItem1.Text = "&Disabled";
+            // 
+            // aFK1200ToolStripMenuItem1
+            // 
+            this.aFK1200ToolStripMenuItem1.Checked = true;
+            this.aFK1200ToolStripMenuItem1.CheckOnClick = true;
+            this.aFK1200ToolStripMenuItem1.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.aFK1200ToolStripMenuItem1.Name = "aFK1200ToolStripMenuItem1";
+            this.aFK1200ToolStripMenuItem1.Size = new System.Drawing.Size(154, 26);
+            this.aFK1200ToolStripMenuItem1.Text = "AFK &1200";
             // 
             // viewToolStripMenuItem
             // 
@@ -1246,6 +1271,32 @@
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
+            // aprsChatControl
+            // 
+            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
+            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
+            this.aprsChatControl.CornerRadius = 4;
+            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.aprsChatControl.Images = this.mainImageList;
+            this.aprsChatControl.InterMessageMargin = 12;
+            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
+            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.aprsChatControl.MaxWidth = 300;
+            this.aprsChatControl.MessageBoxAuthColor = System.Drawing.Color.LightGreen;
+            this.aprsChatControl.MessageBoxBadColor = System.Drawing.Color.Wheat;
+            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
+            this.aprsChatControl.MessageBoxMargin = 10;
+            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
+            this.aprsChatControl.MinWidth = 100;
+            this.aprsChatControl.Name = "aprsChatControl";
+            this.aprsChatControl.ShadowOffset = 2;
+            this.aprsChatControl.SideMargins = 12;
+            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
+            this.aprsChatControl.TabIndex = 5;
+            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
+            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
+            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
+            // 
             // mainImageList
             // 
             this.mainImageList.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("mainImageList.ImageStream")));
@@ -1576,7 +1627,7 @@
             // 
             this.cancelVoiceButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.cancelVoiceButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.cancelVoiceButton.Location = new System.Drawing.Point(509, 526);
+            this.cancelVoiceButton.Location = new System.Drawing.Point(509, 524);
             this.cancelVoiceButton.Margin = new System.Windows.Forms.Padding(4);
             this.cancelVoiceButton.Name = "cancelVoiceButton";
             this.cancelVoiceButton.Size = new System.Drawing.Size(121, 64);
@@ -1743,7 +1794,7 @@
             // 
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailPreviewTextBox);
             this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(669, 579);
-            this.mailboxHorizontalSplitContainer.SplitterDistance = 250;
+            this.mailboxHorizontalSplitContainer.SplitterDistance = 249;
             this.mailboxHorizontalSplitContainer.TabIndex = 7;
             // 
             // mailboxVerticalSplitContainer
@@ -1761,7 +1812,7 @@
             // mailboxVerticalSplitContainer.Panel2
             // 
             this.mailboxVerticalSplitContainer.Panel2.Controls.Add(this.mailboxListView);
-            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(669, 250);
+            this.mailboxVerticalSplitContainer.Size = new System.Drawing.Size(669, 249);
             this.mailboxVerticalSplitContainer.SplitterDistance = 151;
             this.mailboxVerticalSplitContainer.TabIndex = 6;
             // 
@@ -1776,7 +1827,7 @@
             this.mailBoxesTreeView.Name = "mailBoxesTreeView";
             this.mailBoxesTreeView.SelectedImageIndex = 0;
             this.mailBoxesTreeView.ShowRootLines = false;
-            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 250);
+            this.mailBoxesTreeView.Size = new System.Drawing.Size(151, 249);
             this.mailBoxesTreeView.TabIndex = 0;
             this.mailBoxesTreeView.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.mailBoxesTreeView_NodeMouseClick);
             this.mailBoxesTreeView.DragDrop += new System.Windows.Forms.DragEventHandler(this.mailBoxesTreeView_DragDrop);
@@ -1811,7 +1862,7 @@
             this.mailboxListView.Location = new System.Drawing.Point(0, 0);
             this.mailboxListView.Margin = new System.Windows.Forms.Padding(4);
             this.mailboxListView.Name = "mailboxListView";
-            this.mailboxListView.Size = new System.Drawing.Size(514, 250);
+            this.mailboxListView.Size = new System.Drawing.Size(514, 249);
             this.mailboxListView.SmallImageList = this.mainImageList;
             this.mailboxListView.TabIndex = 5;
             this.mailboxListView.UseCompatibleStateImageBehavior = false;
@@ -1931,7 +1982,7 @@
             this.mailPreviewTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.mailPreviewTextBox.Name = "mailPreviewTextBox";
             this.mailPreviewTextBox.ReadOnly = true;
-            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 325);
+            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 326);
             this.mailPreviewTextBox.TabIndex = 0;
             this.mailPreviewTextBox.Text = "";
             // 
@@ -2408,7 +2459,7 @@
             // 
             this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
             this.bbsSplitContainer.Size = new System.Drawing.Size(669, 616);
-            this.bbsSplitContainer.SplitterDistance = 117;
+            this.bbsSplitContainer.SplitterDistance = 116;
             this.bbsSplitContainer.SplitterWidth = 5;
             this.bbsSplitContainer.TabIndex = 7;
             // 
@@ -2437,7 +2488,7 @@
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
             this.bbsListView.Margin = new System.Windows.Forms.Padding(4);
             this.bbsListView.Name = "bbsListView";
-            this.bbsListView.Size = new System.Drawing.Size(669, 117);
+            this.bbsListView.Size = new System.Drawing.Size(669, 116);
             this.bbsListView.SmallImageList = this.mainImageList;
             this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.bbsListView.TabIndex = 6;
@@ -2471,7 +2522,7 @@
             this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.bbsTextBox.Name = "bbsTextBox";
             this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(669, 494);
+            this.bbsTextBox.Size = new System.Drawing.Size(669, 495);
             this.bbsTextBox.TabIndex = 5;
             this.bbsTextBox.Text = "";
             // 
@@ -2554,7 +2605,7 @@
             // 
             this.torrentSplitContainer.Panel2.Controls.Add(this.torrentTabControl);
             this.torrentSplitContainer.Size = new System.Drawing.Size(669, 616);
-            this.torrentSplitContainer.SplitterDistance = 267;
+            this.torrentSplitContainer.SplitterDistance = 266;
             this.torrentSplitContainer.TabIndex = 7;
             // 
             // torrentListView
@@ -2571,7 +2622,7 @@
             this.torrentListView.Location = new System.Drawing.Point(0, 0);
             this.torrentListView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentListView.Name = "torrentListView";
-            this.torrentListView.Size = new System.Drawing.Size(669, 267);
+            this.torrentListView.Size = new System.Drawing.Size(669, 266);
             this.torrentListView.SmallImageList = this.mainImageList;
             this.torrentListView.TabIndex = 0;
             this.torrentListView.UseCompatibleStateImageBehavior = false;
@@ -2666,7 +2717,7 @@
             this.torrentTabControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentTabControl.Name = "torrentTabControl";
             this.torrentTabControl.SelectedIndex = 0;
-            this.torrentTabControl.Size = new System.Drawing.Size(669, 345);
+            this.torrentTabControl.Size = new System.Drawing.Size(669, 346);
             this.torrentTabControl.TabIndex = 0;
             // 
             // tabPage1
@@ -2676,7 +2727,7 @@
             this.tabPage1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage1.Size = new System.Drawing.Size(661, 316);
+            this.tabPage1.Size = new System.Drawing.Size(661, 317);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Details";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -2692,7 +2743,7 @@
             this.torrentDetailsListView.Location = new System.Drawing.Point(3, 2);
             this.torrentDetailsListView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentDetailsListView.Name = "torrentDetailsListView";
-            this.torrentDetailsListView.Size = new System.Drawing.Size(655, 312);
+            this.torrentDetailsListView.Size = new System.Drawing.Size(655, 313);
             this.torrentDetailsListView.TabIndex = 0;
             this.torrentDetailsListView.UseCompatibleStateImageBehavior = false;
             this.torrentDetailsListView.View = System.Windows.Forms.View.Details;
@@ -2715,10 +2766,20 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(661, 316);
+            this.tabPage2.Size = new System.Drawing.Size(661, 315);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
+            // 
+            // torrentBlocksUserControl
+            // 
+            this.torrentBlocksUserControl.AutoScroll = true;
+            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
+            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 311);
+            this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // panel5
             // 
@@ -2830,7 +2891,7 @@
             // 
             this.packetsSplitContainer.Panel2.Controls.Add(this.packetDecodeListView);
             this.packetsSplitContainer.Size = new System.Drawing.Size(669, 616);
-            this.packetsSplitContainer.SplitterDistance = 260;
+            this.packetsSplitContainer.SplitterDistance = 259;
             this.packetsSplitContainer.SplitterWidth = 5;
             this.packetsSplitContainer.TabIndex = 6;
             // 
@@ -2849,7 +2910,7 @@
             this.packetsListView.Location = new System.Drawing.Point(0, 0);
             this.packetsListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetsListView.Name = "packetsListView";
-            this.packetsListView.Size = new System.Drawing.Size(669, 260);
+            this.packetsListView.Size = new System.Drawing.Size(669, 259);
             this.packetsListView.SmallImageList = this.mainImageList;
             this.packetsListView.TabIndex = 5;
             this.packetsListView.UseCompatibleStateImageBehavior = false;
@@ -2870,7 +2931,7 @@
             // columnHeader9
             // 
             this.columnHeader9.Text = "Data";
-            this.columnHeader9.Width = 326;
+            this.columnHeader9.Width = 505;
             // 
             // packetsListContextMenuStrip
             // 
@@ -2935,11 +2996,10 @@
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             this.packetDecodeListView.Margin = new System.Windows.Forms.Padding(4);
             this.packetDecodeListView.Name = "packetDecodeListView";
-            this.packetDecodeListView.Size = new System.Drawing.Size(669, 351);
+            this.packetDecodeListView.Size = new System.Drawing.Size(669, 352);
             this.packetDecodeListView.TabIndex = 1;
             this.packetDecodeListView.UseCompatibleStateImageBehavior = false;
             this.packetDecodeListView.View = System.Windows.Forms.View.Details;
-            this.packetDecodeListView.Resize += new System.EventHandler(this.packetDecodeListView_Resize);
             // 
             // packetDecodeColumnHeader1
             // 
@@ -3654,67 +3714,6 @@
             this.largeMarkersToolStripMenuItem.Text = "Large Markers";
             this.largeMarkersToolStripMenuItem.Click += new System.EventHandler(this.largeMarkersToolStripMenuItem_Click);
             // 
-            // aprsChatControl
-            // 
-            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
-            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
-            this.aprsChatControl.CornerRadius = 4;
-            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.aprsChatControl.Images = this.mainImageList;
-            this.aprsChatControl.InterMessageMargin = 12;
-            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
-            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.aprsChatControl.MaxWidth = 300;
-            this.aprsChatControl.MessageBoxAuthColor = System.Drawing.Color.LightGreen;
-            this.aprsChatControl.MessageBoxBadColor = System.Drawing.Color.Wheat;
-            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
-            this.aprsChatControl.MessageBoxMargin = 10;
-            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
-            this.aprsChatControl.MinWidth = 100;
-            this.aprsChatControl.Name = "aprsChatControl";
-            this.aprsChatControl.ShadowOffset = 2;
-            this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
-            this.aprsChatControl.TabIndex = 5;
-            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
-            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
-            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
-            // 
-            // torrentBlocksUserControl
-            // 
-            this.torrentBlocksUserControl.AutoScroll = true;
-            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
-            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 311);
-            this.torrentBlocksUserControl.TabIndex = 0;
-            // 
-            // hardwareModemToolStripMenuItem
-            // 
-            this.hardwareModemToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.disabledToolStripMenuItem1,
-            this.aFK1200ToolStripMenuItem1});
-            this.hardwareModemToolStripMenuItem.Name = "hardwareModemToolStripMenuItem";
-            this.hardwareModemToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.hardwareModemToolStripMenuItem.Text = "&Hardware Modem";
-            // 
-            // disabledToolStripMenuItem1
-            // 
-            this.disabledToolStripMenuItem1.CheckOnClick = true;
-            this.disabledToolStripMenuItem1.Name = "disabledToolStripMenuItem1";
-            this.disabledToolStripMenuItem1.Size = new System.Drawing.Size(224, 26);
-            this.disabledToolStripMenuItem1.Text = "&Disabled";
-            // 
-            // aFK1200ToolStripMenuItem1
-            // 
-            this.aFK1200ToolStripMenuItem1.Checked = true;
-            this.aFK1200ToolStripMenuItem1.CheckOnClick = true;
-            this.aFK1200ToolStripMenuItem1.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.aFK1200ToolStripMenuItem1.Name = "aFK1200ToolStripMenuItem1";
-            this.aFK1200ToolStripMenuItem1.Size = new System.Drawing.Size(224, 26);
-            this.aFK1200ToolStripMenuItem1.Text = "AFK &1200";
-            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -4161,4 +4160,3 @@
         private System.Windows.Forms.ToolStripMenuItem aFK1200ToolStripMenuItem1;
     }
 }
-
