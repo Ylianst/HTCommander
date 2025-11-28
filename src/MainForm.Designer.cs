@@ -30,22 +30,22 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+            System.Windows.Forms.ListViewGroup listViewGroup17 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup18 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup19 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup20 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup21 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Radio", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("Decoding", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("Radio", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("Metadata", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("AX.25 Header", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("APRS", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup22 = new System.Windows.Forms.ListViewGroup("Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup23 = new System.Windows.Forms.ListViewGroup("Decompression", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup24 = new System.Windows.Forms.ListViewGroup("Decoding", System.Windows.Forms.HorizontalAlignment.Left);
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -71,6 +71,12 @@
             this.audioEnabledToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.volumeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.spectrogramToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.softwareModemToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.disabledToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.aFK1200ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.pSK2400ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.pSK4800ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.g9600ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.radioToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -116,7 +122,6 @@
             this.radio2PictureBox = new System.Windows.Forms.PictureBox();
             this.mainTabControl = new System.Windows.Forms.TabControl();
             this.aprsTabPage = new System.Windows.Forms.TabPage();
-            this.aprsChatControl = new HTCommander.ChatControl();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsMissingChannelPanel = new System.Windows.Forms.Panel();
             this.aprsSetupButton = new System.Windows.Forms.Button();
@@ -243,7 +248,6 @@
             this.columnHeader13 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader17 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
             this.panel5 = new System.Windows.Forms.Panel();
             this.torrentAddFileButton = new System.Windows.Forms.Button();
             this.torrentMenuPictureBox = new System.Windows.Forms.PictureBox();
@@ -349,6 +353,11 @@
             this.cacheAreaToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showTracksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.largeMarkersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.aprsChatControl = new HTCommander.ChatControl();
+            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
+            this.hardwareModemToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.disabledToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.aFK1200ToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.mainStatusStrip.SuspendLayout();
             this.mainMenuStrip.SuspendLayout();
             this.radioPanel.SuspendLayout();
@@ -621,7 +630,9 @@
             this.audioToolStripMenuItem1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.audioEnabledToolStripMenuItem,
             this.volumeToolStripMenuItem,
-            this.spectrogramToolStripMenuItem});
+            this.spectrogramToolStripMenuItem,
+            this.softwareModemToolStripMenuItem,
+            this.hardwareModemToolStripMenuItem});
             this.audioToolStripMenuItem1.Name = "audioToolStripMenuItem1";
             this.audioToolStripMenuItem1.Size = new System.Drawing.Size(63, 24);
             this.audioToolStripMenuItem1.Text = "A&udio";
@@ -630,23 +641,72 @@
             // audioEnabledToolStripMenuItem
             // 
             this.audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
-            this.audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
+            this.audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
             this.audioEnabledToolStripMenuItem.Click += new System.EventHandler(this.audioEnabledToolStripMenuItem_Click);
             // 
             // volumeToolStripMenuItem
             // 
             this.volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
+            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.volumeToolStripMenuItem.Text = "Audio &Controls...";
             this.volumeToolStripMenuItem.Click += new System.EventHandler(this.volumeToolStripMenuItem_Click);
             // 
             // spectrogramToolStripMenuItem
             // 
             this.spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";
-            this.spectrogramToolStripMenuItem.Size = new System.Drawing.Size(200, 26);
+            this.spectrogramToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.spectrogramToolStripMenuItem.Text = "Spectrogram...";
             this.spectrogramToolStripMenuItem.Click += new System.EventHandler(this.spectrogramToolStripMenuItem_Click);
+            // 
+            // softwareModemToolStripMenuItem
+            // 
+            this.softwareModemToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.disabledToolStripMenuItem,
+            this.aFK1200ToolStripMenuItem,
+            this.pSK2400ToolStripMenuItem,
+            this.pSK4800ToolStripMenuItem,
+            this.g9600ToolStripMenuItem});
+            this.softwareModemToolStripMenuItem.Name = "softwareModemToolStripMenuItem";
+            this.softwareModemToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.softwareModemToolStripMenuItem.Text = "Software &Modem";
+            // 
+            // disabledToolStripMenuItem
+            // 
+            this.disabledToolStripMenuItem.Checked = true;
+            this.disabledToolStripMenuItem.CheckOnClick = true;
+            this.disabledToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.disabledToolStripMenuItem.Name = "disabledToolStripMenuItem";
+            this.disabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.disabledToolStripMenuItem.Text = "&Disabled";
+            // 
+            // aFK1200ToolStripMenuItem
+            // 
+            this.aFK1200ToolStripMenuItem.CheckOnClick = true;
+            this.aFK1200ToolStripMenuItem.Name = "aFK1200ToolStripMenuItem";
+            this.aFK1200ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.aFK1200ToolStripMenuItem.Text = "AFK &1200";
+            // 
+            // pSK2400ToolStripMenuItem
+            // 
+            this.pSK2400ToolStripMenuItem.CheckOnClick = true;
+            this.pSK2400ToolStripMenuItem.Name = "pSK2400ToolStripMenuItem";
+            this.pSK2400ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.pSK2400ToolStripMenuItem.Text = "PSK &2400";
+            // 
+            // pSK4800ToolStripMenuItem
+            // 
+            this.pSK4800ToolStripMenuItem.CheckOnClick = true;
+            this.pSK4800ToolStripMenuItem.Name = "pSK4800ToolStripMenuItem";
+            this.pSK4800ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.pSK4800ToolStripMenuItem.Text = "PSK &4800";
+            // 
+            // g9600ToolStripMenuItem
+            // 
+            this.g9600ToolStripMenuItem.CheckOnClick = true;
+            this.g9600ToolStripMenuItem.Name = "g9600ToolStripMenuItem";
+            this.g9600ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.g9600ToolStripMenuItem.Text = "G &9600";
             // 
             // viewToolStripMenuItem
             // 
@@ -956,10 +1016,10 @@
             this.gpsStatusLabel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(86)))), ((int)(((byte)(86)))), ((int)(((byte)(88)))));
             this.gpsStatusLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.gpsStatusLabel.ForeColor = System.Drawing.Color.DarkGray;
-            this.gpsStatusLabel.Location = new System.Drawing.Point(93, 129);
+            this.gpsStatusLabel.Location = new System.Drawing.Point(48, 129);
             this.gpsStatusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.gpsStatusLabel.Name = "gpsStatusLabel";
-            this.gpsStatusLabel.Size = new System.Drawing.Size(107, 18);
+            this.gpsStatusLabel.Size = new System.Drawing.Size(152, 18);
             this.gpsStatusLabel.TabIndex = 8;
             this.gpsStatusLabel.Text = "GPS";
             this.gpsStatusLabel.TextAlign = System.Drawing.ContentAlignment.TopRight;
@@ -1185,32 +1245,6 @@
             this.aprsTabPage.Size = new System.Drawing.Size(669, 653);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
-            // 
-            // aprsChatControl
-            // 
-            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
-            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
-            this.aprsChatControl.CornerRadius = 4;
-            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.aprsChatControl.Images = this.mainImageList;
-            this.aprsChatControl.InterMessageMargin = 12;
-            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
-            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.aprsChatControl.MaxWidth = 300;
-            this.aprsChatControl.MessageBoxAuthColor = System.Drawing.Color.LightGreen;
-            this.aprsChatControl.MessageBoxBadColor = System.Drawing.Color.Wheat;
-            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
-            this.aprsChatControl.MessageBoxMargin = 10;
-            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
-            this.aprsChatControl.MinWidth = 100;
-            this.aprsChatControl.Name = "aprsChatControl";
-            this.aprsChatControl.ShadowOffset = 2;
-            this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
-            this.aprsChatControl.TabIndex = 5;
-            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
-            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
-            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
             // 
             // mainImageList
             // 
@@ -2203,22 +2237,22 @@
             this.mainAddressBookListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainAddressBookListView.FullRowSelect = true;
             this.mainAddressBookListView.GridLines = true;
-            listViewGroup1.Header = "Generic Stations";
-            listViewGroup1.Name = "Generic Stations";
-            listViewGroup2.Header = "APRS Stations";
-            listViewGroup2.Name = "APRS Stations";
-            listViewGroup3.Header = "Terminal Stations";
-            listViewGroup3.Name = "Terminal Stations";
-            listViewGroup4.Header = "BBS";
-            listViewGroup4.Name = "BBS";
-            listViewGroup5.Header = "Winlink Gateways";
-            listViewGroup5.Name = "Winlink Gateways";
+            listViewGroup17.Header = "Generic Stations";
+            listViewGroup17.Name = "Generic Stations";
+            listViewGroup18.Header = "APRS Stations";
+            listViewGroup18.Name = "APRS Stations";
+            listViewGroup19.Header = "Terminal Stations";
+            listViewGroup19.Name = "Terminal Stations";
+            listViewGroup20.Header = "BBS";
+            listViewGroup20.Name = "BBS";
+            listViewGroup21.Header = "Winlink Gateways";
+            listViewGroup21.Name = "Winlink Gateways";
             this.mainAddressBookListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup1,
-            listViewGroup2,
-            listViewGroup3,
-            listViewGroup4,
-            listViewGroup5});
+            listViewGroup17,
+            listViewGroup18,
+            listViewGroup19,
+            listViewGroup20,
+            listViewGroup21});
             this.mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.mainAddressBookListView.HideSelection = false;
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 37);
@@ -2388,16 +2422,16 @@
             this.bbsListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.bbsListView.FullRowSelect = true;
             this.bbsListView.GridLines = true;
-            listViewGroup6.Header = "Generic Stations";
-            listViewGroup6.Name = "Generic Stations";
-            listViewGroup7.Header = "APRS Stations";
-            listViewGroup7.Name = "APRS Stations";
-            listViewGroup8.Header = "Terminal Stations";
-            listViewGroup8.Name = "Terminal Stations";
+            listViewGroup1.Header = "Generic Stations";
+            listViewGroup1.Name = "Generic Stations";
+            listViewGroup2.Header = "APRS Stations";
+            listViewGroup2.Name = "APRS Stations";
+            listViewGroup3.Header = "Terminal Stations";
+            listViewGroup3.Name = "Terminal Stations";
             this.bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup6,
-            listViewGroup7,
-            listViewGroup8});
+            listViewGroup1,
+            listViewGroup2,
+            listViewGroup3});
             this.bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.bbsListView.HideSelection = false;
             this.bbsListView.Location = new System.Drawing.Point(0, 0);
@@ -2686,16 +2720,6 @@
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
-            // torrentBlocksUserControl
-            // 
-            this.torrentBlocksUserControl.AutoScroll = true;
-            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
-            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 312);
-            this.torrentBlocksUserControl.TabIndex = 0;
-            // 
             // panel5
             // 
             this.panel5.BackColor = System.Drawing.Color.Silver;
@@ -2881,31 +2905,31 @@
             this.packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.packetDecodeListView.FullRowSelect = true;
             this.packetDecodeListView.GridLines = true;
-            listViewGroup9.Header = "Radio";
-            listViewGroup9.Name = "radioEncodingListViewGroup";
-            listViewGroup10.Header = "Metadata";
-            listViewGroup10.Name = "packetDecodeMetadataListViewGroup";
-            listViewGroup11.Header = "AX.25 Header";
-            listViewGroup11.Name = "packetDecodeHeaderListViewGroup";
-            listViewGroup12.Header = "AX.25 Data";
-            listViewGroup12.Name = "packetDecodeDataListViewGroup";
-            listViewGroup13.Header = "APRS";
-            listViewGroup13.Name = "packetDecodeAprsListViewGroup";
-            listViewGroup14.Header = "Position";
-            listViewGroup14.Name = "packetDecodePositionListViewGroup";
-            listViewGroup15.Header = "Decompression";
-            listViewGroup15.Name = "packetDecodeDecompressionListViewGroup";
-            listViewGroup16.Header = "Decoding";
-            listViewGroup16.Name = "decodingListViewGroup";
+            listViewGroup4.Header = "Radio";
+            listViewGroup4.Name = "radioEncodingListViewGroup";
+            listViewGroup5.Header = "Metadata";
+            listViewGroup5.Name = "packetDecodeMetadataListViewGroup";
+            listViewGroup6.Header = "AX.25 Header";
+            listViewGroup6.Name = "packetDecodeHeaderListViewGroup";
+            listViewGroup7.Header = "AX.25 Data";
+            listViewGroup7.Name = "packetDecodeDataListViewGroup";
+            listViewGroup8.Header = "APRS";
+            listViewGroup8.Name = "packetDecodeAprsListViewGroup";
+            listViewGroup22.Header = "Position";
+            listViewGroup22.Name = "packetDecodePositionListViewGroup";
+            listViewGroup23.Header = "Decompression";
+            listViewGroup23.Name = "packetDecodeDecompressionListViewGroup";
+            listViewGroup24.Header = "Decoding";
+            listViewGroup24.Name = "decodingListViewGroup";
             this.packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup9,
-            listViewGroup10,
-            listViewGroup11,
-            listViewGroup12,
-            listViewGroup13,
-            listViewGroup14,
-            listViewGroup15,
-            listViewGroup16});
+            listViewGroup4,
+            listViewGroup5,
+            listViewGroup6,
+            listViewGroup7,
+            listViewGroup8,
+            listViewGroup22,
+            listViewGroup23,
+            listViewGroup24});
             this.packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.packetDecodeListView.HideSelection = false;
             this.packetDecodeListView.Location = new System.Drawing.Point(0, 0);
@@ -3630,6 +3654,67 @@
             this.largeMarkersToolStripMenuItem.Text = "Large Markers";
             this.largeMarkersToolStripMenuItem.Click += new System.EventHandler(this.largeMarkersToolStripMenuItem_Click);
             // 
+            // aprsChatControl
+            // 
+            this.aprsChatControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
+            this.aprsChatControl.CallsignTextColor = System.Drawing.Color.Gray;
+            this.aprsChatControl.CornerRadius = 4;
+            this.aprsChatControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.aprsChatControl.Images = this.mainImageList;
+            this.aprsChatControl.InterMessageMargin = 12;
+            this.aprsChatControl.Location = new System.Drawing.Point(0, 74);
+            this.aprsChatControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.aprsChatControl.MaxWidth = 300;
+            this.aprsChatControl.MessageBoxAuthColor = System.Drawing.Color.LightGreen;
+            this.aprsChatControl.MessageBoxBadColor = System.Drawing.Color.Wheat;
+            this.aprsChatControl.MessageBoxColor = System.Drawing.Color.LightBlue;
+            this.aprsChatControl.MessageBoxMargin = 10;
+            this.aprsChatControl.MessageFont = new System.Drawing.Font("Arial", 10F);
+            this.aprsChatControl.MinWidth = 100;
+            this.aprsChatControl.Name = "aprsChatControl";
+            this.aprsChatControl.ShadowOffset = 2;
+            this.aprsChatControl.SideMargins = 12;
+            this.aprsChatControl.Size = new System.Drawing.Size(669, 532);
+            this.aprsChatControl.TabIndex = 5;
+            this.aprsChatControl.TextColor = System.Drawing.Color.Black;
+            this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
+            this.aprsChatControl.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseDoubleClick);
+            // 
+            // torrentBlocksUserControl
+            // 
+            this.torrentBlocksUserControl.AutoScroll = true;
+            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
+            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 311);
+            this.torrentBlocksUserControl.TabIndex = 0;
+            // 
+            // hardwareModemToolStripMenuItem
+            // 
+            this.hardwareModemToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.disabledToolStripMenuItem1,
+            this.aFK1200ToolStripMenuItem1});
+            this.hardwareModemToolStripMenuItem.Name = "hardwareModemToolStripMenuItem";
+            this.hardwareModemToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.hardwareModemToolStripMenuItem.Text = "&Hardware Modem";
+            // 
+            // disabledToolStripMenuItem1
+            // 
+            this.disabledToolStripMenuItem1.CheckOnClick = true;
+            this.disabledToolStripMenuItem1.Name = "disabledToolStripMenuItem1";
+            this.disabledToolStripMenuItem1.Size = new System.Drawing.Size(224, 26);
+            this.disabledToolStripMenuItem1.Text = "&Disabled";
+            // 
+            // aFK1200ToolStripMenuItem1
+            // 
+            this.aFK1200ToolStripMenuItem1.Checked = true;
+            this.aFK1200ToolStripMenuItem1.CheckOnClick = true;
+            this.aFK1200ToolStripMenuItem1.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.aFK1200ToolStripMenuItem1.Name = "aFK1200ToolStripMenuItem1";
+            this.aFK1200ToolStripMenuItem1.Size = new System.Drawing.Size(224, 26);
+            this.aFK1200ToolStripMenuItem1.Text = "AFK &1200";
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -4065,6 +4150,15 @@
         private System.Windows.Forms.Label terminalFileTransferStatusLabel;
         private System.Windows.Forms.Button terminalFileTransferCancelButton;
         private System.Windows.Forms.PictureBox radio2PictureBox;
+        private System.Windows.Forms.ToolStripMenuItem softwareModemToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem disabledToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem aFK1200ToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem pSK2400ToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem pSK4800ToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem g9600ToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem hardwareModemToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem disabledToolStripMenuItem1;
+        private System.Windows.Forms.ToolStripMenuItem aFK1200ToolStripMenuItem1;
     }
 }
 

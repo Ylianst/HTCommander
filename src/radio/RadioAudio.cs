@@ -73,7 +73,42 @@ namespace HTCommander
         private MMDevice currentOutputDevice = null;
 
         // Software modem (AFSK decoder) fields
-        public SoftwareModemModeType SoftwareModemMode { get { return _softwareModemMode; } }
+        private readonly object softModemLock = new object();
+        public SoftwareModemModeType SoftwareModemMode 
+        { 
+            get 
+            { 
+                lock (softModemLock)
+                {
+                    return _softwareModemMode; 
+                }
+            }
+            set
+            {
+                lock (softModemLock)
+                {
+                    if (_softwareModemMode == value)
+                        return; // No change needed
+
+                    Debug($"Changing software modem from {_softwareModemMode} to {value}");
+                    
+                    // Clean up existing modem resources
+                    CleanupSoftModem();
+                    
+                    // Initialize new modem
+                    InitializeSoftModem(value);
+                    
+                    // Reinitialize packet transmitter for the new modem type
+                    CleanupPacketTransmitter();
+                    if (value != SoftwareModemModeType.Disabled)
+                    {
+                        InitializePacketTransmitter();
+                    }
+                    
+                    Debug($"Software modem changed to {value}");
+                }
+            }
+        }
         private SoftwareModemModeType _softwareModemMode = SoftwareModemModeType.Disabled;
         private HamLib.DemodAfsk softModemDemodulator = null;
         private HamLib.DemodPsk softModemPskDemodulator = null;
@@ -134,7 +169,62 @@ namespace HTCommander
         }
 
         /// <summary>
+        /// Clean up existing software modem resources
+        /// This should be called with softModemLock held
+        /// </summary>
+        private void CleanupSoftModem()
+        {
+            try
+            {
+                // Unsubscribe from events
+                if (softModemHdlcReceiver != null)
+                {
+                    softModemHdlcReceiver.FrameReceived -= SoftModemHdlcReceiver_FrameReceived;
+                }
+
+                // Clear references to allow garbage collection
+                softModemDemodulator = null;
+                softModemPskDemodulator = null;
+                softModemPskDemodState = null;
+                softModemHdlcReceiver = null;
+                softModemDemodState = null;
+                softModemAudioConfig = null;
+                softModemFx25Receiver = null;
+                softModemBridge = null;
+                softModem9600State = null;
+                
+                softModemInitialized = false;
+                fx25Initialized = false;
+            }
+            catch (Exception ex)
+            {
+                Debug($"Error cleaning up software modem: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Clean up packet transmitter resources
+        /// This should be called with softModemLock held
+        /// </summary>
+        private void CleanupPacketTransmitter()
+        {
+            try
+            {
+                packetAudioConfig = null;
+                packetGenTone = null;
+                packetAudioBuffer = null;
+                packetHdlcSend = null;
+                packetFx25Send = null;
+            }
+            catch (Exception ex)
+            {
+                Debug($"Error cleaning up packet transmitter: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Initialize the software modem (AFSK decoder) for real-time packet decoding
+        /// This should be called with softModemLock held
         /// </summary>
         private void InitializeSoftModem(SoftwareModemModeType mode)
         {
@@ -472,9 +562,11 @@ namespace HTCommander
         /// </summary>
         public void ResetSoftModem()
         {
-            if (!softModemInitialized) return;
+            lock (softModemLock)
+            {
+                if (!softModemInitialized) return;
 
-            try
+                try
             {
                 // Reinitialize the appropriate demodulator to reset its state
                 if (_softwareModemMode == SoftwareModemModeType.Afsk1200)
@@ -534,11 +626,12 @@ namespace HTCommander
                     }
                 }
 
-                Debug("Software modem reset successfully");
-            }
-            catch (Exception ex)
-            {
-                Debug($"Error resetting software modem: {ex.Message}");
+                    Debug("Software modem reset successfully");
+                }
+                catch (Exception ex)
+                {
+                    Debug($"Error resetting software modem: {ex.Message}");
+                }
             }
         }
 
@@ -1353,6 +1446,7 @@ namespace HTCommander
 
         /// <summary>
         /// Initialize packet transmission components
+        /// This should be called with softModemLock held
         /// </summary>
         private void InitializePacketTransmitter()
         {
@@ -1964,12 +2058,14 @@ namespace HTCommander
         /// <param name="channelName">Name of the current channel</param>
         public void SoftModemPcmFrame(byte[] data, int offset, int len, string channelName)
         {
-            if (!softModemInitialized || softModemDemodState == null)
+            lock (softModemLock)
             {
-                return;
-            }
+                if (!softModemInitialized || softModemDemodState == null)
+                {
+                    return;
+                }
 
-            try
+                try
             {
                 // Convert byte array to 16-bit samples and feed to demodulator
                 // PCM data is 16-bit signed samples (little-endian)
@@ -2028,12 +2124,13 @@ namespace HTCommander
                     }
                 }
 
-                // Note: FX.25 bit processing is handled internally by the demodulator
-                // The demodulator feeds decoded bits to both the HDLC receiver and FX.25 receiver
-            }
-            catch (Exception ex)
-            {
-                Debug($"Error in SoftModemPcmFrame: {ex.Message}");
+                    // Note: FX.25 bit processing is handled internally by the demodulator
+                    // The demodulator feeds decoded bits to both the HDLC receiver and FX.25 receiver
+                }
+                catch (Exception ex)
+                {
+                    Debug($"Error in SoftModemPcmFrame: {ex.Message}");
+                }
             }
         }
     }

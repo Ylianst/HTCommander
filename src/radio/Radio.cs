@@ -22,6 +22,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using static HTCommander.RadioAudio;
 
 namespace HTCommander
 {
@@ -245,11 +246,20 @@ namespace HTCommander
         public bool LoopbackMode = false;
         public string currentChannelName = null;
         private TncDataFragment lastHardwarePacketReceived = null;
+        public bool HardwareModemEnabled = true;
 
         public bool Recording { get { return radioAudio.Recording; } }
         public void StartRecording(string filename) { radioAudio.StartRecording(filename); }
         public void StopRecording() { radioAudio.StopRecording(); }
 
+        private SoftwareModemModeType _SoftwareModemMode = SoftwareModemModeType.Disabled;
+        public SoftwareModemModeType SoftwareModemMode {
+            get { return _SoftwareModemMode; }
+            set {
+                _SoftwareModemMode = value;
+                if (radioAudio != null) { radioAudio.SoftwareModemMode = value; }
+            }
+        }
 
         private List<FragmentInQueue> TncFragmentQueue = new List<FragmentInQueue>();
         private bool TncFragmentInFlight = false;
@@ -398,6 +408,7 @@ namespace HTCommander
             radioAudio.onTextReady += RadioAudio_onTextReady;
             radioAudio.OnSoftModemPacketDecoded += RadioAudio_OnSoftModemPacketDecoded;
             radioAudio.OnVoiceTransmitStateChanged += RadioAudio_OnVoiceTransmitStateChanged;
+            radioAudio.SoftwareModemMode = _SoftwareModemMode;
             ClearChannelTimer.Elapsed += ClearFrequencyTimer_Elapsed;
             ClearChannelTimer.Enabled = false;
         }
@@ -798,6 +809,7 @@ namespace HTCommander
                                 //Event: 00020009050508CCCEC008C3A70027102710940053796C76616E00000000
                                 //break;
                                 case RadioNotification.DATA_RXD:
+                                    if (HardwareModemEnabled == false) { break; } // Ignore hardware packets if hardware modem is disabled
                                     Debug("RawData: " + Utils.BytesToHex(value));
                                     TncDataFragment fragment = new TncDataFragment(value);
                                     fragment.encoding = TncDataFragment.FragmentEncodingType.HardwareAfsk1200;
@@ -1120,29 +1132,42 @@ namespace HTCommander
             TncDataFragment fragment = new TncDataFragment(true, 0, outboundData, channelId, regionId);
             fragment.incoming = false;
             fragment.time = t;
-            fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareModem; // TEST
-            fragment.frame_type = TncDataFragment.FragmentFrameType.FX25;
             if (fragmentChannelName != null) { fragment.channel_name = fragmentChannelName; } else { fragment.channel_name = packet.channel_name; }
-            if (OnDataFrame != null) { OnDataFrame(this, fragment); }
 
             if (LoopbackMode)
             {
+                // Simulate sending the frame (Loopback)
+                fragment.encoding = TncDataFragment.FragmentEncodingType.Loopback;
+                fragment.frame_type = TncDataFragment.FragmentFrameType.AX25;
+                if (OnDataFrame != null) { OnDataFrame(this, fragment); }
+
                 // Simulate receiving the frame we just sent (Loopback)
                 TncDataFragment fragment2 = new TncDataFragment(true, 0, outboundData, channelId, regionId);
                 fragment2.incoming = true;
                 fragment2.time = t;
                 fragment2.encoding = TncDataFragment.FragmentEncodingType.Loopback;
+                fragment2.frame_type = TncDataFragment.FragmentFrameType.AX25;
                 if (fragmentChannelName != null) { fragment2.channel_name = fragmentChannelName; } else { fragment2.channel_name = packet.channel_name; }
                 if (OnDataFrame != null) { OnDataFrame(this, fragment2); }
             }
-            else if (fragment.encoding == TncDataFragment.FragmentEncodingType.SoftwareModem)
+            else if (radioAudio.IsAudioEnabled && (radioAudio.SoftwareModemMode != SoftwareModemModeType.Disabled))
             {
                 // Send the packet using software TNC
+                if (radioAudio.SoftwareModemMode == SoftwareModemModeType.Afsk1200) { fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200; }
+                else if (radioAudio.SoftwareModemMode == SoftwareModemModeType.G3RUH9600) { fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareG3RUH9600; }
+                else if (radioAudio.SoftwareModemMode == SoftwareModemModeType.Psk2400) { fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwarePsk2400; }
+                else if (radioAudio.SoftwareModemMode == SoftwareModemModeType.Psk4800) { fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwarePsk4800; }
+                fragment.frame_type = TncDataFragment.FragmentFrameType.FX25;
+                if (OnDataFrame != null) { OnDataFrame(this, fragment); }
                 radioAudio.TransmitPacket(fragment);
             }
-            else
+            else if (HardwareModemEnabled)
             {
                 // Send the packet using the radio's hardware TNC
+                fragment.encoding = TncDataFragment.FragmentEncodingType.HardwareAfsk1200;
+                fragment.frame_type = TncDataFragment.FragmentFrameType.AX25;
+                if (OnDataFrame != null) { OnDataFrame(this, fragment); }
+
                 // Break the packet into smaller Bluetooth fragments
                 int fragid = 0;
                 while (i < outboundData.Length)

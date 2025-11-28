@@ -214,6 +214,17 @@ namespace HTCommander
 
             appTitle = this.Text;
             this.SuspendLayout();
+            
+            // Wire up software modem menu item click handlers
+            disabledToolStripMenuItem.Click += SoftwareModem_Click;
+            aFK1200ToolStripMenuItem.Click += SoftwareModem_Click;
+            pSK2400ToolStripMenuItem.Click += SoftwareModem_Click;
+            pSK4800ToolStripMenuItem.Click += SoftwareModem_Click;
+            g9600ToolStripMenuItem.Click += SoftwareModem_Click;
+            
+            // Wire up hardware modem menu item click handlers
+            disabledToolStripMenuItem1.Click += HardwareModem_Click;
+            aFK1200ToolStripMenuItem1.Click += HardwareModem_Click;
             radio.DebugMessage += Radio_DebugMessage;
             radio.OnInfoUpdate += Radio_InfoUpdate;
             radio.OnDataFrame += Radio_OnDataFrame;
@@ -551,7 +562,18 @@ namespace HTCommander
             voiceLanguage = registry.ReadString("VoiceLanguage", "auto");
             voiceModel = registry.ReadString("VoiceModel", null);
             voice = registry.ReadString("Voice", null);
+            
+            // Load software modem setting from registry
+            int softwareModemMode = (int)registry.ReadInt("SoftwareModemMode", 0);
+            UpdateSoftwareModemMenu((RadioAudio.SoftwareModemModeType)softwareModemMode);
+            if (radio != null) { radio.SoftwareModemMode = (RadioAudio.SoftwareModemModeType)softwareModemMode; }
+            
+            // Load hardware modem setting from registry
+            int hardwareModemMode = (int)registry.ReadInt("HardwareModemMode", 1);
+            UpdateHardwareModemMenu(hardwareModemMode);
+            if (radio != null) { radio.HardwareModemEnabled = (hardwareModemMode != 0); }
 
+            UpdateGpsStatusDisplay();
             this.ResumeLayout();
             UpdateInfo();
             UpdateTabs();
@@ -631,21 +653,40 @@ namespace HTCommander
 
         private void UpdateGpsStatusDisplay()
         {
+            string status = "";
+
+            // GPS Status
             if ((radio.State == RadioState.Connected) && gPSEnabledToolStripMenuItem.Checked)
             {
                 if (radio.Position == null)
                 {
-                    gpsStatusLabel.Text = "";
+                    status = "";
                 }
                 else
                 {
-                    if (radio.Position.IsGpsLocked()) { gpsStatusLabel.Text = "GPS Lock"; } else { gpsStatusLabel.Text = "No GPS Lock"; }
+                    if (radio.Position.IsGpsLocked()) { status = "GPS Lock"; } else { status = "No GPS Lock"; }
                 }
             }
             else
             {
-                gpsStatusLabel.Text = "";
+                status = "";
             }
+
+            if (radio.AudioState == true)
+            {
+                // Software modem status
+                if (radio.SoftwareModemMode != RadioAudio.SoftwareModemModeType.Disabled)
+                {
+                    if (status.Length > 0) { status += " / "; }
+                    if (radio.SoftwareModemMode == RadioAudio.SoftwareModemModeType.Afsk1200) { status += "AFK1200"; }
+                    else if (radio.SoftwareModemMode == RadioAudio.SoftwareModemModeType.Psk2400) { status += "PSK2400"; }
+                    else if (radio.SoftwareModemMode == RadioAudio.SoftwareModemModeType.Psk4800) { status += "PSK4800"; }
+                    else if (radio.SoftwareModemMode == RadioAudio.SoftwareModemModeType.G3RUH9600) { status += "G9600"; }
+                    else status += radio.SoftwareModemMode.ToString();
+                }
+            }
+
+            gpsStatusLabel.Text = status;
         }
 
         private delegate void UpdateAvailableHandler(float currentVersion, float onlineVersion, string url);
@@ -2898,8 +2939,9 @@ namespace HTCommander
             if (fragment.encoding == FragmentEncodingType.Loopback) { encoding = "Loopback"; }
             if (fragment.encoding == FragmentEncodingType.HardwareAfsk1200) { encoding = "Hardware AFSK 1200 baud"; }
             if (fragment.encoding == FragmentEncodingType.SoftwareAfsk1200) { encoding = "Software AFSK 1200 baud"; }
+            if (fragment.encoding == FragmentEncodingType.SoftwarePsk2400) { encoding = "Software PSK 2400 baud"; }
+            if (fragment.encoding == FragmentEncodingType.SoftwarePsk4800) { encoding = "Software PSK 4800 baud"; }
             if (fragment.encoding == FragmentEncodingType.SoftwareG3RUH9600) { encoding = "Software G3RUH 9600 baud"; }
-            if (fragment.encoding == FragmentEncodingType.SoftwareModem) { encoding = "Software Modem"; }
             if (encoding != "")
             {
                 if (fragment.frame_type == TncDataFragment.FragmentFrameType.AX25) { encoding += ", AX.25"; }
@@ -5005,6 +5047,7 @@ namespace HTCommander
             registry.WriteInt("Audio", newAudioState ? 1 : 0);
             UpdateInfo();
             radioVolumeForm.SetAudio(newAudioState);
+            UpdateGpsStatusDisplay();
         }
 
         private void clearHistoryToolStripMenuItem_Click(object sender, EventArgs e)
@@ -5438,6 +5481,102 @@ namespace HTCommander
         {
             registry.WriteInt("TerminalWordWrap", wordWarpToolStripMenuItem.Checked ? 1 : 0);
             terminalTextBox.WordWrap = wordWarpToolStripMenuItem.Checked;
+        }
+
+        private void SoftwareModem_Click(object sender, EventArgs e)
+        {
+            ToolStripMenuItem clickedItem = sender as ToolStripMenuItem;
+            if (clickedItem == null) return;
+
+            // Determine which mode was selected
+            RadioAudio.SoftwareModemModeType newMode = RadioAudio.SoftwareModemModeType.Disabled;
+            
+            if (clickedItem == disabledToolStripMenuItem)
+                newMode = RadioAudio.SoftwareModemModeType.Disabled;
+            else if (clickedItem == aFK1200ToolStripMenuItem)
+                newMode = RadioAudio.SoftwareModemModeType.Afsk1200;
+            else if (clickedItem == pSK2400ToolStripMenuItem)
+                newMode = RadioAudio.SoftwareModemModeType.Psk2400;
+            else if (clickedItem == pSK4800ToolStripMenuItem)
+                newMode = RadioAudio.SoftwareModemModeType.Psk4800;
+            else if (clickedItem == g9600ToolStripMenuItem)
+                newMode = RadioAudio.SoftwareModemModeType.G3RUH9600;
+
+            // Update the menu checkmarks
+            UpdateSoftwareModemMenu(newMode);
+
+            // Save to registry
+            registry.WriteInt("SoftwareModemMode", (int)newMode);
+
+            // Apply to RadioAudio if available
+            if (radio != null) { radio.SoftwareModemMode = newMode; }
+            UpdateGpsStatusDisplay();
+        }
+
+        private void HardwareModem_Click(object sender, EventArgs e)
+        {
+            ToolStripMenuItem clickedItem = sender as ToolStripMenuItem;
+            if (clickedItem == null) return;
+
+            // Determine which mode was selected (0 = Disabled, 1 = AFK1200)
+            int newMode = 0;
+            
+            if (clickedItem == disabledToolStripMenuItem1)
+                newMode = 0;
+            else if (clickedItem == aFK1200ToolStripMenuItem1)
+                newMode = 1;
+
+            // Apply to RadioAudio if available
+            if (radio != null) { radio.HardwareModemEnabled = (newMode != 0); }
+
+            // Update the menu checkmarks
+            UpdateHardwareModemMenu(newMode);
+
+            // Save to registry
+            registry.WriteInt("HardwareModemMode", newMode);
+        }
+
+        private void UpdateHardwareModemMenu(int mode)
+        {
+            // Uncheck all items first
+            disabledToolStripMenuItem1.Checked = false;
+            aFK1200ToolStripMenuItem1.Checked = false;
+
+            // Check the selected item
+            if (mode == 0)
+                disabledToolStripMenuItem1.Checked = true;
+            else if (mode == 1)
+                aFK1200ToolStripMenuItem1.Checked = true;
+        }
+
+        private void UpdateSoftwareModemMenu(RadioAudio.SoftwareModemModeType mode)
+        {
+            // Uncheck all items first
+            disabledToolStripMenuItem.Checked = false;
+            aFK1200ToolStripMenuItem.Checked = false;
+            pSK2400ToolStripMenuItem.Checked = false;
+            pSK4800ToolStripMenuItem.Checked = false;
+            g9600ToolStripMenuItem.Checked = false;
+
+            // Check the selected item
+            switch (mode)
+            {
+                case RadioAudio.SoftwareModemModeType.Disabled:
+                    disabledToolStripMenuItem.Checked = true;
+                    break;
+                case RadioAudio.SoftwareModemModeType.Afsk1200:
+                    aFK1200ToolStripMenuItem.Checked = true;
+                    break;
+                case RadioAudio.SoftwareModemModeType.Psk2400:
+                    pSK2400ToolStripMenuItem.Checked = true;
+                    break;
+                case RadioAudio.SoftwareModemModeType.Psk4800:
+                    pSK4800ToolStripMenuItem.Checked = true;
+                    break;
+                case RadioAudio.SoftwareModemModeType.G3RUH9600:
+                    g9600ToolStripMenuItem.Checked = true;
+                    break;
+            }
         }
 
         private void terminalFileTransferCancelButton_Click(object sender, EventArgs e)

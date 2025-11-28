@@ -42,7 +42,6 @@ namespace HTCommander
             SoftwareG3RUH9600,
             SoftwarePsk2400,
             SoftwarePsk4800,
-            SoftwareModem
         }
         
         public enum FragmentFrameType
