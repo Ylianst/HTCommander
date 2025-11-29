@@ -71,5 +71,10 @@ namespace HTCommander
         {
             System.Diagnostics.Process.Start("https://" + linkLabel4.Text);
         }
+
+        private void linkLabel5_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://" + linkLabel5.Text);
+        }
     }
 }
