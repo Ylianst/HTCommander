@@ -129,7 +129,8 @@ namespace HamLib
     /// </summary>
     public class HdlcRec2 : IHdlcReceiver
     {
-        private const int MinFrameLen = 15 + 2;  // AX25_MIN_PACKET_LEN + 2 for FCS
+        //private const int MinFrameLen = 15 + 2;  // AX25_MIN_PACKET_LEN + 2 for FCS
+        private const int MinFrameLen = 8 + 2;  // AX25_MIN_PACKET_LEN + 2 for FCS
         private const int MaxFrameLen = 2048 + 2; // AX25_MAX_PACKET_LEN + 2 for FCS
         private const int MaxRadioChannels = 6;
 
@@ -210,6 +211,8 @@ namespace HamLib
             // Append raw bit to buffer (TryDecode will do NRZI again)
             _currentBlock.AppendBit((byte)raw);
 
+            Console.WriteLine(_currentState.PatDet);
+
             // Check for flag pattern 01111110 (0x7e)
             if (_currentState.PatDet == 0x7e)
             {
@@ -226,14 +229,18 @@ namespace HamLib
                     // Transfer ownership - ProcessBlock now owns this buffer (like C reference)
                     // Create a NEW buffer for the next frame with preserved scrambler state
                     _currentBlock = new RawReceivedBitBuffer(chan, subchan, slice, isScrambled, _currentState.Lfsr, _currentState.PrevDescram);
-                    _currentBlock.AppendBit((byte)raw);
                 }
                 else
                 {
-                    // Start of frame - clear buffer and seed with current bit
+                    // Start of frame - clear buffer
                     _currentBlock.Clear(isScrambled, _currentState.Lfsr, _currentState.PrevDescram);
-                    _currentBlock.AppendBit((byte)raw);
                 }
+
+                // Append the last bit of the flag to the new/cleared buffer
+                // This MUST be outside the if/else to match C reference (hdlc_rec.c line ~437)
+                // The last bit of the closing flag becomes the first bit needed for NRZI
+                // decoding the first data bit of the next frame
+                _currentBlock.AppendBit((byte)_currentState.PrevRaw);
             }
             // Check for loss of signal (7-8 ones)
             else if (_currentState.PatDet == 0xfe)
