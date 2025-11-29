@@ -145,6 +145,12 @@ namespace HTCommander
             typeof(ListView).InvokeMember("DoubleBuffered",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
                 null, packetDecodeListView, new object[] { true });
+            
+            // Enable double buffering for torrentListView to prevent flickering
+            typeof(ListView).InvokeMember("DoubleBuffered",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
+                null, torrentListView, new object[] { true });
+            
             bbs = new BBS(this);
             torrent = new Torrent(this);
             aprsStack = new AprsStack(this);

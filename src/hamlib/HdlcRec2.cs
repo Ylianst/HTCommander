@@ -24,6 +24,7 @@ limitations under the License.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 
 namespace HamLib
 {
@@ -220,9 +221,10 @@ namespace HamLib
                 // End of frame or start of frame
                 if (_currentBlock.Length >= MinFrameLen * 8)
                 {
-                    // Process the frame
+                    // Process the frame on thread pool to avoid blocking audio processing thread
                     _currentBlock.AudioLevel = new AudioLevel(0, 0, 0);
-                    ProcessBlock(_currentBlock);
+                    RawReceivedBitBuffer blockToProcess = _currentBlock;
+                    ThreadPool.QueueUserWorkItem(state => ProcessBlock((RawReceivedBitBuffer)state), blockToProcess);
 
                     // Transfer ownership - ProcessBlock now owns this buffer (like C reference)
                     // Create a NEW buffer for the next frame with preserved scrambler state

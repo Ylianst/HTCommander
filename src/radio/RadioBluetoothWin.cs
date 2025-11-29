@@ -24,6 +24,7 @@ using InTheHand.Net.Bluetooth;
 using InTheHand.Net.Sockets;
 using InTheHand.Net;
 using Windows.Devices.Enumeration;
+using Windows.Devices.Bluetooth;
 
 #if !__MonoCS__
 using System.Collections.Concurrent;
@@ -86,14 +87,16 @@ namespace HTCommander
         public static async Task<string[]> GetDeviceNames()
         {
             List<string> r = new List<string>();
-            // Find the devices by name
-            var devices = await DeviceInformation.FindAllAsync();
+            // Find the devices by name - use Bluetooth selector for much faster enumeration
+            var selector = BluetoothDevice.GetDeviceSelector();
+            var devices = await DeviceInformation.FindAllAsync(selector);
             foreach (var deviceInfo in devices) { if (!r.Contains(deviceInfo.Name)) { r.Add(deviceInfo.Name); } }
             r.Sort();
             return r.ToArray();
         }
 
-        public static async Task<Radio.CompatibleDevice[]> FindCompatibleDevices()
+        /*
+        public static async Task<Radio.CompatibleDevice[]> FindCompatibleDevicesSlow()
         {
             // Find the devices by name
             List<Radio.CompatibleDevice> compatibleDevices = new List<Radio.CompatibleDevice>();
@@ -124,6 +127,44 @@ namespace HTCommander
                                 compatibleDevices.Add(new Radio.CompatibleDevice(deviceInfo.Name, mac));
                             }
                         }
+                    }
+                }
+            }
+            return compatibleDevices.ToArray();
+        }
+        */
+
+        public static async Task<Radio.CompatibleDevice[]> FindCompatibleDevices()
+        {
+            // Find the devices by name - use Bluetooth selector for much faster enumeration
+            List<Radio.CompatibleDevice> compatibleDevices = new List<Radio.CompatibleDevice>();
+            var selector = BluetoothDevice.GetDeviceSelector();
+            var devices = await DeviceInformation.FindAllAsync(selector);
+            List<string> macs = new List<string>();
+            foreach (var deviceInfo in devices)
+            {
+                if (TargetDeviceNames.Contains(deviceInfo.Name))
+                {
+                    string mac = null;
+
+                    // Handle new format: "Bluetooth#Bluetoothxx:xx:xx:xx:xx:xx-xx:xx:xx:xx:xx:xx"
+                    if (deviceInfo.Id.StartsWith("Bluetooth#Bluetooth"))
+                    {
+                        // Extract MAC address from the format "Bluetooth#Bluetooth[MAC1]-[MAC2]"
+                        // We want the second MAC after the dash
+                        int dashIdx = deviceInfo.Id.IndexOf('-');
+                        if (dashIdx > 0 && dashIdx < deviceInfo.Id.Length - 1)
+                        {
+                            string macWithColons = deviceInfo.Id.Substring(dashIdx + 1);
+                            // Remove colons to get clean MAC address
+                            mac = macWithColons.Replace(":", "").ToUpper();
+                        }
+                    }
+                    
+                    if (mac != null && !macs.Contains(mac))
+                    {
+                        macs.Add(mac);
+                        compatibleDevices.Add(new Radio.CompatibleDevice(deviceInfo.Name, mac));
                     }
                 }
             }
