@@ -211,8 +211,6 @@ namespace HamLib
             // Append raw bit to buffer (TryDecode will do NRZI again)
             _currentBlock.AppendBit((byte)raw);
 
-            Console.WriteLine(_currentState.PatDet);
-
             // Check for flag pattern 01111110 (0x7e)
             if (_currentState.PatDet == 0x7e)
             {
@@ -225,7 +223,7 @@ namespace HamLib
                     // Process the frame
                     _currentBlock.AudioLevel = new AudioLevel(0, 0, 0);
                     ProcessBlock(_currentBlock);
-                    
+
                     // Transfer ownership - ProcessBlock now owns this buffer (like C reference)
                     // Create a NEW buffer for the next frame with preserved scrambler state
                     _currentBlock = new RawReceivedBitBuffer(chan, subchan, slice, isScrambled, _currentState.Lfsr, _currentState.PrevDescram);
@@ -427,6 +425,7 @@ namespace HamLib
                 }
             }
 
+            /*
             // Try inverting three adjacent bits
             if (fixBits < RetryType.InvertTriple)
                 return false;
@@ -465,6 +464,7 @@ namespace HamLib
                     }
                 }
             }
+            */
 
             return false;
         }
