@@ -14,15 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using System;
-using System.IO;
-using System.Text;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Speech.Synthesis;
-using System.Speech.AudioFormat;
-using System.Collections.Generic;
 using NAudio.Wave;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Speech.AudioFormat;
+using System.Speech.Synthesis;
+using System.Text;
+using System.Threading.Tasks;
 using Whisper.net;
 
 namespace HTCommander.radio // Use your original namespace
@@ -30,30 +31,59 @@ namespace HTCommander.radio // Use your original namespace
     public class VoiceEngine
     {
         private MemoryStream audioStream = new MemoryStream();
-        private SpeechSynthesizer synthesizer = new SpeechSynthesizer();
+        private SpeechSynthesizer synthesizer = null;
         private bool Processing = false;
         private Radio radio;
+        private bool ttsAvailable = false;
 
         public VoiceEngine(Radio radio)
         {
             this.radio = radio;
 
-            // Initialize the synthesizer
-            synthesizer.SetOutputToAudioStream(audioStream, new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
-            try { synthesizer.SelectVoice("Microsoft Zira Desktop"); } catch (Exception) { } // Default to Zira if not specified
-            synthesizer.Rate = 0; // Set the rate to 0 for normal speed
-            synthesizer.Volume = 100; // Set volume to maximum
-            synthesizer.SpeakCompleted += Synthesizer_SpeakCompleted;
+            // Initialize the synthesizer with error handling
+            try
+            {
+                synthesizer = new SpeechSynthesizer();
+                synthesizer.SetOutputToAudioStream(audioStream, new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
+                try { synthesizer.SelectVoice("Microsoft Zira Desktop"); } catch (Exception) { } // Default to Zira if not specified
+                synthesizer.Rate = 0; // Set the rate to 0 for normal speed
+                synthesizer.Volume = 100; // Set volume to maximum
+                synthesizer.SpeakCompleted += Synthesizer_SpeakCompleted;
+                ttsAvailable = true;
+            }
+            catch (System.Runtime.InteropServices.COMException ex)
+            {
+                // Log the error but don't crash the application
+                Console.WriteLine("Warning: Text-to-Speech is not available on this system.");
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.WriteLine("To enable TTS, please install the Windows Speech Platform Runtime:");
+                Console.WriteLine("  1. Download Microsoft Speech Platform Runtime 11.0");
+                Console.WriteLine("  2. Install a language pack (e.g., MSSpeech_TTS_en-US_ZiraPro)");
+                Console.WriteLine("  3. Or run: regsvr32 %windir%\\system32\\speech\\common\\sapi.dll");
+                ttsAvailable = false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Failed to initialize Text-to-Speech: {ex.Message}");
+                ttsAvailable = false;
+            }
+        }
+
+        public bool IsTtsAvailable()
+        {
+            return ttsAvailable;
         }
 
         public bool SetVoice(string voiceName)
         {
+            if (!ttsAvailable || synthesizer == null) return false;
             try { synthesizer.SelectVoice(voiceName); } catch (Exception) { return false; }
             return true;
         }
 
         public bool Speak(string text, string voice)
         {
+            if (!ttsAvailable || synthesizer == null) return false; // TTS not available
             if (Processing) return false; // Already processing another speech
             Processing = true;
             try { synthesizer.SelectVoice(voice); } catch (Exception) { return false; }
@@ -63,6 +93,7 @@ namespace HTCommander.radio // Use your original namespace
 
         private void Synthesizer_SpeakCompleted(object sender, SpeakCompletedEventArgs e)
         {
+            if (!ttsAvailable || synthesizer == null) return;
             Task.Run(() =>
             {
                 byte[] speech = audioStream.ToArray();
@@ -92,7 +123,7 @@ namespace HTCommander.radio // Use your original namespace
             }
         }
 
-        public void Morse(string text)
+        public bool Morse(string text)
         {
             Task.Run(() =>
             {
@@ -103,6 +134,7 @@ namespace HTCommander.radio // Use your original namespace
                     radio.TransmitVoice(speech, 0, speech.Length, true);
                 }
             });
+            return true;
         }
 
     }

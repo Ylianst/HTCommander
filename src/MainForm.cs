@@ -229,8 +229,6 @@ namespace HTCommander
             g9600ToolStripMenuItem.Click += SoftwareModem_Click;
             
             // Wire up hardware modem menu item click handlers
-            disabledToolStripMenuItem1.Click += HardwareModem_Click;
-            aFK1200ToolStripMenuItem1.Click += HardwareModem_Click;
             radio.DebugMessage += Radio_DebugMessage;
             radio.OnInfoUpdate += Radio_InfoUpdate;
             radio.OnDataFrame += Radio_OnDataFrame;
@@ -576,7 +574,6 @@ namespace HTCommander
             
             // Load hardware modem setting from registry
             int hardwareModemMode = (int)registry.ReadInt("HardwareModemMode", 1);
-            UpdateHardwareModemMenu(hardwareModemMode);
             if (radio != null) { radio.HardwareModemEnabled = (hardwareModemMode != 0); }
 
             UpdateGpsStatusDisplay();
@@ -666,7 +663,7 @@ namespace HTCommander
             {
                 if (radio.Position == null)
                 {
-                    status = "";
+                    status = "No GPS Lock";
                 }
                 else
                 {
@@ -678,6 +675,7 @@ namespace HTCommander
                 status = "";
             }
 
+            /*
             if (radio.AudioState == true)
             {
                 // Software modem status
@@ -691,6 +689,7 @@ namespace HTCommander
                     else status += radio.SoftwareModemMode.ToString();
                 }
             }
+            */
 
             gpsStatusLabel.Text = status;
         }
@@ -5116,27 +5115,35 @@ namespace HTCommander
         private void speakButton_Click(object sender, EventArgs e)
         {
             if (speakTextBox.Text.Trim().Length == 0) return;
-            if (voiceConfirmedChannelName != radio.currentChannelName)
+            if (voiceConfirmedChannelName != radio.vfo1ChannelName)
             {
-                if (MessageBox.Show(this, "Confirm transmit on " + radio.currentChannelName + "?", "Transmit", MessageBoxButtons.OKCancel) == DialogResult.OK)
+                if (MessageBox.Show(this, "Confirm transmit on " + radio.vfo1ChannelName + "?", "Transmit", MessageBoxButtons.OKCancel) == DialogResult.OK)
                 {
-                    voiceConfirmedChannelName = radio.currentChannelName;
-                    RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true, true);
-                    voiceHistoryCompleted = voiceHistoryTextBox.Rtf;
-                    if (speakButton.Text == "&Speak") { voiceEngine.Speak(speakTextBox.Text, voice); }
-                    if (speakButton.Text == "&Morse") { voiceEngine.Morse(speakTextBox.Text); }
-                    logSentVoice(DateTime.Now, radio.currentChannelName, speakTextBox.Text);
-                    speakTextBox.Clear();
+                    voiceConfirmedChannelName = radio.vfo1ChannelName;
+                    bool ok = false;
+                    if (speakButton.Text == "&Speak") { ok = voiceEngine.Speak(speakTextBox.Text, voice); }
+                    if (speakButton.Text == "&Morse") { ok = voiceEngine.Morse(speakTextBox.Text); }
+                    if (ok)
+                    {
+                        RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.vfo1ChannelName, speakTextBox.Text, true, true);
+                        voiceHistoryCompleted = voiceHistoryTextBox.Rtf;
+                        logSentVoice(DateTime.Now, radio.vfo1ChannelName, speakTextBox.Text);
+                        speakTextBox.Clear();
+                    }
                 }
             }
             else
             {
-                RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.currentChannelName, speakTextBox.Text, true, true);
-                voiceHistoryCompleted = voiceHistoryTextBox.Rtf;
-                if (speakButton.Text == "&Speak") { voiceEngine.Speak(speakTextBox.Text, voice); }
-                if (speakButton.Text == "&Morse") { voiceEngine.Morse(speakTextBox.Text); }
-                logSentVoice(DateTime.Now, radio.currentChannelName, speakTextBox.Text);
-                speakTextBox.Clear();
+                bool ok = false;
+                if (speakButton.Text == "&Speak") { ok = voiceEngine.Speak(speakTextBox.Text, voice); }
+                if (speakButton.Text == "&Morse") { ok = voiceEngine.Morse(speakTextBox.Text); }
+                if (ok)
+                {
+                    RtfBuilder.AddFormattedEntry(voiceHistoryTextBox, DateTime.Now, radio.vfo1ChannelName, speakTextBox.Text, true, true);
+                    voiceHistoryCompleted = voiceHistoryTextBox.Rtf;
+                    logSentVoice(DateTime.Now, radio.vfo1ChannelName, speakTextBox.Text);
+                    speakTextBox.Clear();
+                }
             }
         }
 
@@ -5247,7 +5254,7 @@ namespace HTCommander
                 // Remove self location
                 GMapMarker selfMarker = null;
                 foreach (GMapMarker m in mapMarkersOverlay.Markers) { if (m.ToolTipText == "Self") { selfMarker = m; } }
-                mapMarkersOverlay.Markers.Remove(selfMarker);
+                if (selfMarker != null) { mapMarkersOverlay.Markers.Remove(selfMarker); }
                 centerToGpsButton.Enabled = centerToGPSToolStripMenuItem.Enabled = false;
             }
         }
@@ -5538,42 +5545,6 @@ namespace HTCommander
             UpdateGpsStatusDisplay();
         }
 
-        private void HardwareModem_Click(object sender, EventArgs e)
-        {
-            ToolStripMenuItem clickedItem = sender as ToolStripMenuItem;
-            if (clickedItem == null) return;
-
-            // Determine which mode was selected (0 = Disabled, 1 = AFK1200)
-            int newMode = 0;
-            
-            if (clickedItem == disabledToolStripMenuItem1)
-                newMode = 0;
-            else if (clickedItem == aFK1200ToolStripMenuItem1)
-                newMode = 1;
-
-            // Apply to RadioAudio if available
-            if (radio != null) { radio.HardwareModemEnabled = (newMode != 0); }
-
-            // Update the menu checkmarks
-            UpdateHardwareModemMenu(newMode);
-
-            // Save to registry
-            registry.WriteInt("HardwareModemMode", newMode);
-        }
-
-        private void UpdateHardwareModemMenu(int mode)
-        {
-            // Uncheck all items first
-            disabledToolStripMenuItem1.Checked = false;
-            aFK1200ToolStripMenuItem1.Checked = false;
-
-            // Check the selected item
-            if (mode == 0)
-                disabledToolStripMenuItem1.Checked = true;
-            else if (mode == 1)
-                aFK1200ToolStripMenuItem1.Checked = true;
-        }
-
         private void UpdateSoftwareModemMenu(RadioAudio.SoftwareModemModeType mode)
         {
             // Uncheck all items first
@@ -5663,5 +5634,6 @@ namespace HTCommander
             //AppendTerminalString(false, null, null, $"YAPP transfer error: {e.Error}");
             updateTerminalFileTransferProgress(TerminalFileTransferStates.Idle, "", 0, 0);
         }
+
     }
 }

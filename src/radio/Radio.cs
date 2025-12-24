@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using GMap.NET;
-using HamLib;
 using HTCommander.radio;
 using System;
 using System.Collections;
@@ -245,6 +243,8 @@ namespace HTCommander
         public int Volume = -1;
         public bool LoopbackMode = false;
         public string currentChannelName = null;
+        public string vfo1ChannelName = null;
+        public string vfo2ChannelName = null;
         private TncDataFragment lastHardwarePacketReceived = null;
         public bool HardwareModemEnabled = true;
 
@@ -733,6 +733,32 @@ namespace HTCommander
                                 currentChannelName = radioAudio.currentChannelName = string.Empty;
                             }
 
+                            if (Settings.channel_a >= 254)
+                            {
+                                vfo1ChannelName = "NOAA";
+                            }
+                            else if ((Channels != null) && (Channels.Length > Settings.channel_a) && (Channels[Settings.channel_a] != null))
+                            {
+                                vfo1ChannelName = Channels[Settings.channel_a].name_str;
+                            }
+                            else
+                            {
+                                vfo1ChannelName = string.Empty;
+                            }
+
+                            if (Settings.channel_b >= 254)
+                            {
+                                vfo2ChannelName = "NOAA";
+                            }
+                            else if ((Channels != null) && (Channels.Length > Settings.channel_b) && (Channels[Settings.channel_b] != null))
+                            {
+                                vfo2ChannelName = Channels[Settings.channel_b].name_str;
+                            }
+                            else
+                            {
+                                vfo2ChannelName = string.Empty;
+                            }
+
                             //if (c.name_str.Length > 0) { Debug($"Channel ({c.channel_id}): '{c.name_str}'"); }
                             Update(RadioUpdateNotification.ChannelInfo);
                             if (AllChannelsLoaded()) { Update(RadioUpdateNotification.AllChannelsLoaded); }
@@ -860,6 +886,33 @@ namespace HTCommander
                                     break;
                                 case RadioNotification.HT_SETTINGS_CHANGED:
                                     Settings = new RadioSettings(value);
+
+                                    if (Settings.channel_a >= 254)
+                                    {
+                                        vfo1ChannelName = "NOAA";
+                                    }
+                                    else if ((Channels != null) && (Channels.Length > Settings.channel_a) && (Channels[Settings.channel_a] != null))
+                                    {
+                                        vfo1ChannelName = Channels[Settings.channel_a].name_str;
+                                    }
+                                    else
+                                    {
+                                        vfo1ChannelName = string.Empty;
+                                    }
+
+                                    if (Settings.channel_b >= 254)
+                                    {
+                                        vfo2ChannelName = "NOAA";
+                                    }
+                                    else if ((Channels != null) && (Channels.Length > Settings.channel_b) && (Channels[Settings.channel_b] != null))
+                                    {
+                                        vfo2ChannelName = Channels[Settings.channel_b].name_str;
+                                    }
+                                    else
+                                    {
+                                        vfo2ChannelName = string.Empty;
+                                    }
+
                                     Update(RadioUpdateNotification.Settings);
                                     break;
                                 case RadioNotification.POSITION_CHANGE:
@@ -1150,7 +1203,7 @@ namespace HTCommander
                 if (fragmentChannelName != null) { fragment2.channel_name = fragmentChannelName; } else { fragment2.channel_name = packet.channel_name; }
                 if (OnDataFrame != null) { OnDataFrame(this, fragment2); }
             }
-            else if (radioAudio.IsAudioEnabled && (radioAudio.SoftwareModemMode != SoftwareModemModeType.Disabled))
+            else if (radioAudio.IsAudioEnabled && (radioAudio.SoftwareModemMode != SoftwareModemModeType.Disabled) && (Settings.channel_a == channelId))
             {
                 // Send the packet using software TNC
                 if (radioAudio.SoftwareModemMode == SoftwareModemModeType.Afsk1200) { fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200; }

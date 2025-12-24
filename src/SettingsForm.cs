@@ -14,15 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using System;
-using System.IO;
-using System.Text;
-using System.Threading;
-using System.Windows.Forms;
-using System.Speech.Synthesis;
 using HTCommander.radio;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Speech.Synthesis;
+using System.Text;
+using System.Threading;
+using System.Windows.Forms;
 
 namespace HTCommander
 {
@@ -158,12 +159,33 @@ namespace HTCommander
             }
             modelsComboBox.SelectedIndex = 0;
 
-            SpeechSynthesizer synthesizer = new SpeechSynthesizer();
-            System.Collections.ObjectModel.ReadOnlyCollection<InstalledVoice> voices = synthesizer.GetInstalledVoices();
-            foreach (InstalledVoice voice in voices) { voicesComboBox.Items.Add(voice.VoiceInfo.Name); }
-            voicesComboBox.SelectedIndex = 0;
-            Voice = "Microsoft Zira Desktop";
-            synthesizer.Dispose();
+            try
+            {
+                SpeechSynthesizer synthesizer = new SpeechSynthesizer();
+                System.Collections.ObjectModel.ReadOnlyCollection<InstalledVoice> voices = synthesizer.GetInstalledVoices();
+                foreach (InstalledVoice voice in voices) { voicesComboBox.Items.Add(voice.VoiceInfo.Name); }
+                if (voicesComboBox.Items.Count > 0)
+                {
+                    voicesComboBox.SelectedIndex = 0;
+                    Voice = "Microsoft Zira Desktop";
+                }
+                synthesizer.Dispose();
+            }
+            catch (System.Runtime.InteropServices.COMException ex)
+            {
+                // TTS not available - add a placeholder message
+                voicesComboBox.Items.Add("(Text-to-Speech not available)");
+                voicesComboBox.SelectedIndex = 0;
+                voicesComboBox.Enabled = false;
+            }
+            catch (Exception ex)
+            {
+                // Generic error handling
+                voicesComboBox.Items.Add("(Text-to-Speech not available)");
+                voicesComboBox.SelectedIndex = 0;
+                voicesComboBox.Enabled = false;
+                Console.WriteLine($"Warning: Failed to load TTS voices: {ex.Message}");
+            }
 
             UpdateInfo();
         }
