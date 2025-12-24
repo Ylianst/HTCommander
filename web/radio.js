@@ -115,7 +115,9 @@ const RadioNotification = {
     RADIO_STATUS_CHANGED: 8,
     USER_ACTION: 9,
     SYSTEM_EVENT: 10,
-    BSS_SETTINGS_CHANGED: 11
+    BSS_SETTINGS_CHANGED: 11,
+    DATA_TXD: 12,
+    POSITION_CHANGE: 13
 }
 
 const RadioChannelType = {
@@ -462,5 +464,179 @@ class RadioChannelInfo {
         r.set(nameBytes.slice(0, 10), 15);
 
         return r;
+    }
+}
+class RadioSettings {
+    constructor(param) {
+        this.rawData = null;
+        this.channel_a = 0;
+        this.channel_b = 0;
+        this.scan = false;
+        this.aghfp_call_mode = false;
+        this.double_channel = 0;
+        this.squelch_level = 0; // 0 to 9
+        this.tail_elim = false;
+        this.auto_relay_en = false;
+        this.auto_power_on = false;
+        this.keep_aghfp_link = false;
+        this.mic_gain = 0;
+        this.tx_hold_time = 0;
+        this.tx_time_limit = 0;
+        this.local_speaker = 0; // 0 to 3
+        this.bt_mic_gain = 0; // 0 to 7
+        this.adaptive_response = false;
+        this.dis_tone = false;
+        this.power_saving_mode = false;
+        this.auto_power_off = 0; // 0 to 8
+        this.auto_share_loc_ch = 0; // 5 bits
+        this.hm_speaker = 0; // 2 bits
+        this.positioning_system = 0; // 4 bits
+        this.time_offset = 0; // 6 bits
+        this.use_freq_range_2 = false;
+        this.ptt_lock = false;
+        this.leading_sync_bit_en = false;
+        this.pairing_at_power_on = false;
+        this.screen_timeout = 0; // 5 bits
+        this.vfo_x = 0; // 2 bits
+        this.imperial_unit = false;
+        this.wx_mode = 0; // 2 bits
+        this.noaa_ch = 0; // 4 bits
+        this.vfol_tx_power_x = 0; // 2 bits
+        this.vfo2_tx_power_x = 0; // 2 bits
+        this.dis_digital_mute = false;
+        this.signaling_ecc_en = false;
+        this.ch_data_lock = false;
+        this.vfo1_mod_freq_x = 0; // 4 bytes
+        this.vfo2_mod_freq_x = 0; // 4 bytes
+
+        if (param instanceof RadioSettings) {
+            // Clone constructor
+            this.rawData = param.rawData ? new Uint8Array(param.rawData) : null; // Deep copy rawData if it exists
+            this.channel_a = param.channel_a;
+            this.channel_b = param.channel_b;
+            this.scan = param.scan;
+            this.aghfp_call_mode = param.aghfp_call_mode;
+            this.double_channel = param.double_channel;
+            this.squelch_level = param.squelch_level;
+            this.tail_elim = param.tail_elim;
+            this.auto_relay_en = param.auto_relay_en;
+            this.auto_power_on = param.auto_power_on;
+            this.keep_aghfp_link = param.keep_aghfp_link;
+            this.mic_gain = param.mic_gain;
+            this.tx_hold_time = param.tx_hold_time;
+            this.tx_time_limit = param.tx_time_limit;
+            this.local_speaker = param.local_speaker;
+            this.bt_mic_gain = param.bt_mic_gain;
+            this.adaptive_response = param.adaptive_response;
+            this.dis_tone = param.dis_tone;
+            this.power_saving_mode = param.power_saving_mode;
+            this.auto_power_off = param.auto_power_off;
+            this.auto_share_loc_ch = param.auto_share_loc_ch;
+            this.hm_speaker = param.hm_speaker;
+            this.positioning_system = param.positioning_system;
+            this.time_offset = param.time_offset;
+            this.use_freq_range_2 = param.use_freq_range_2;
+            this.ptt_lock = param.ptt_lock;
+            this.leading_sync_bit_en = param.leading_sync_bit_en;
+            this.pairing_at_power_on = param.pairing_at_power_on;
+            this.screen_timeout = param.screen_timeout;
+            this.vfo_x = param.vfo_x;
+            this.imperial_unit = param.imperial_unit;
+            this.wx_mode = param.wx_mode;
+            this.noaa_ch = param.noaa_ch;
+            this.vfol_tx_power_x = param.vfol_tx_power_x;
+            this.vfo2_tx_power_x = param.vfo2_tx_power_x;
+            this.dis_digital_mute = param.dis_digital_mute;
+            this.signaling_ecc_en = param.signaling_ecc_en;
+            this.ch_data_lock = param.ch_data_lock;
+            this.vfo1_mod_freq_x = param.vfo1_mod_freq_x;
+            this.vfo2_mod_freq_x = param.vfo2_mod_freq_x;
+        } else if (param instanceof Uint8Array) {
+            // Constructor from byte array (Uint8Array)
+            const msg = param;
+            this.rawData = new Uint8Array(msg); // Store a copy of the raw data
+
+            this.channel_a = ((msg[5] & 0xF0) >> 4) + (msg[14] & 0xF0);
+            this.channel_b = (msg[5] & 0x0F) + ((msg[14] & 0x0F) << 4);
+
+            this.scan = (msg[6] & 0x80) !== 0;
+            this.aghfp_call_mode = (msg[6] & 0x40) !== 0;
+            this.double_channel = (msg[6] & 0x30) >> 4;
+            this.squelch_level = (msg[6] & 0x0F);
+
+            this.tail_elim = (msg[7] & 0x80) !== 0;
+            this.auto_relay_en = (msg[7] & 0x40) !== 0;
+            this.auto_power_on = (msg[7] & 0x20) !== 0;
+            this.keep_aghfp_link = (msg[7] & 0x10) !== 0;
+            this.mic_gain = (msg[7] & 0x0E) >> 1;
+            this.tx_hold_time = ((msg[7] & 0x01) << 4) + ((msg[8] & 0xE0) >> 4);
+            this.tx_time_limit = (msg[8] & 0x1F);
+
+            this.local_speaker = msg[9] >> 6;
+            this.bt_mic_gain = (msg[9] & 0x38) >> 3;
+            this.adaptive_response = (msg[9] & 0x04) !== 0;
+            this.dis_tone = (msg[9] & 0x02) !== 0;
+            this.power_saving_mode = (msg[9] & 0x01) !== 0;
+
+            this.auto_power_off = msg[10] >> 4;
+            this.auto_share_loc_ch = (msg[10] & 0x1F);
+
+            this.hm_speaker = msg[11] >> 6;
+            this.positioning_system = (msg[11] & 0x3C) >> 2;
+            this.time_offset = ((msg[11] & 0x03) << 4) + ((msg[12] & 0xF0) >> 4);
+            this.use_freq_range_2 = (msg[12] & 0x08) !== 0;
+            this.ptt_lock = (msg[12] & 0x04) !== 0;
+            this.leading_sync_bit_en = (msg[12] & 0x02) !== 0;
+            this.pairing_at_power_on = (msg[12] & 0x01) !== 0;
+
+            this.screen_timeout = msg[13] >> 3;
+            this.vfo_x = (msg[13] & 0x06) >> 1;
+            this.imperial_unit = (msg[13] & 0x01) !== 0;
+
+            this.wx_mode = msg[15] >> 6;
+            this.noaa_ch = (msg[15] & 0x3C) >> 2;
+            this.vfol_tx_power_x = (msg[15] & 0x03);
+
+            this.vfo2_tx_power_x = (msg[16] >> 6);
+            this.dis_digital_mute = (msg[16] & 0x20) !== 0;
+            this.signaling_ecc_en = (msg[16] & 0x10) !== 0;
+            this.ch_data_lock = (msg[16] & 0x08) !== 0;
+
+            if (msg.length >= 25) { // Ensure enough bytes for vfo1_mod_freq_x and vfo2_mod_freq_x
+                const dataView = new DataView(msg.buffer, msg.byteOffset);
+                this.vfo1_mod_freq_x = dataView.getUint32(17, true); // true for little-endian
+                this.vfo2_mod_freq_x = dataView.getUint32(21, true); // true for little-endian
+            }
+        } else {
+            // Default constructor or no arguments
+            // All properties are already initialized to their default values
+        }
+    }
+
+    ToByteArray() {
+        if (!this.rawData) {
+            console.warn("rawData is not initialized. Cannot create byte array from original rawData slice.");
+            return new Uint8Array(0);
+        }
+        // Creates a new Uint8Array from the slice of rawData
+        // In JavaScript, slice on Uint8Array creates a new array
+        return this.rawData.slice(5, this.rawData.length);
+    }
+
+    ToByteArray(cha, chb, xdouble_channel, xscan, xsquelch) {
+        if (!this.rawData) {
+            console.warn("rawData is not initialized. Cannot create byte array based on it.");
+            this.rawData = new Uint8Array(25); // Or handle this more robustly
+        }
+
+        const buf = new Uint8Array(this.rawData.length - 5);
+        // Copy a slice of rawData.slice(5) into buf
+        buf.set(this.rawData.slice(5, this.rawData.length));
+
+        buf[0] = ((cha & 0x0F) << 4) | (chb & 0x0F);
+        // In C#, `(byte)` cast truncates to 8 bits. In JS, bitwise ops inherently handle this.
+        buf[1] = (xscan ? 0x80 : 0) | (this.aghfp_call_mode ? 0x40 : 0) | ((xdouble_channel & 0x03) << 4) | (xsquelch & 0x0F);
+        buf[9] = (cha & 0xF0) | ((chb & 0x0F) >> 4);
+        return buf;
     }
 }
