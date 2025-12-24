@@ -45,6 +45,7 @@ namespace HTCommander
             advGroupBox.Visible = false;
             basicGroupBox.Visible = true;
             this.Height = basicGroupBox.Height + 148;
+            this.PerformLayout();
             normalBackColor = freqTextBox.BackColor;
         }
 
@@ -220,6 +221,8 @@ namespace HTCommander
             advGroupBox.Visible = true;
             basicGroupBox.Visible = false;
             this.Height = advGroupBox.Height + 148;
+            this.PerformLayout();
+            this.Refresh();
         }
 
         private void disableTransmitCheckBox_CheckedChanged(object sender, EventArgs e)
