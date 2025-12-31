@@ -8,6 +8,6 @@ The software modem is enabled in the `Audio -> Software modem" menu and only wor
 
 On the trasnmit path, the software modem only transmits on VFO A. So, if you use the APRS panel to send data while VFO A is listening to a non-APRS channel, the hardware modem will be used on transmit. ECC codes are always sent when the software modem is used.
 
-On the receive path, both software and hardware modems will work to decode packets at the same time and which even can decode it first wins. You will not see any duplicate packets. Generally, the hardware modem does it first but if there are error bits, the software modem may get a chance to decode it.
+On the receive path, both software and hardware modems will work to decode packets at the same time and which ever can decode it first wins. You will not see any duplicate packets. Generally, the hardware modem does it first but if there are errors, the software modem may get a chance to decode it.
 
-In the packet capture panel, you can see what modem was used to send/receive the data and if the software modem decoded the data, you can see if ECC codes where included in the packet and how many error bits where present.
+In the packet capture panel, you can see what modem was used to send/receive the data and, if the software modem decoded the data, you can see if ECC codes where included in the packet and how many error bits where present.
