@@ -2740,7 +2740,7 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(661, 316);
+            this.tabPage2.Size = new System.Drawing.Size(661, 318);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Blocks";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -2752,7 +2752,7 @@
             this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 2);
             this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 312);
+            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 314);
             this.torrentBlocksUserControl.TabIndex = 0;
             // 
             // panel5
@@ -3223,7 +3223,7 @@
             this.toolStripMenuItem8,
             this.clearToolStripMenuItem});
             this.debugTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.debugTabContextMenuStrip.Size = new System.Drawing.Size(235, 164);
+            this.debugTabContextMenuStrip.Size = new System.Drawing.Size(235, 136);
             // 
             // debugSaveToFileToolStripMenuItem
             // 
