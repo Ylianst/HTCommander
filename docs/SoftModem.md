@@ -12,4 +12,4 @@ On the receive path, both software and hardware modems will work to decode packe
 
 In the packet capture panel, you can see what modem was used to send/receive the data and, if the software modem decoded the data, you can see if ECC codes where included in the packet and how many error bits where present.
 
-I don't think there is any drawback to enabling the AFSK softmodem except extra processing being done on the comptuer.
+I don't think there is any drawback to enabling the soft-modem except extra processing being done on the comptuer.
