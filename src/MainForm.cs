@@ -51,6 +51,7 @@ namespace HTCommander
         public RadioBssSettingsForm radioBssSettingsForm = null;
         public RadioChannelForm radioChannelForm = null;
         public RadioVolumeForm radioVolumeForm = null;
+        public RadioAudioClipsForm radioAudioClipsForm = null;
         public RadioPositionForm radioPositionForm = null;
         public AprsDetailsForm aprsDetailsForm = null;
         public BTActivateForm bluetoothActivateForm = null;
@@ -2582,6 +2583,18 @@ namespace HTCommander
             radioVolumeForm.UpdateInfo();
         }
 
+        private void audioClipsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (radioAudioClipsForm == null)
+            {
+                radioAudioClipsForm = new RadioAudioClipsForm(radio);
+                radioAudioClipsForm.FormClosed += (s, args) => { radioAudioClipsForm = null; };
+                radioAudioClipsForm.Show(this);
+            } else {
+                radioAudioClipsForm.Focus();
+            }
+        }
+
         public void ChangeChannelA(int channelId)
         {
             if ((activeChannelIdLock != -1) && (activeChannelIdLock != channelId)) return; // Currently locked
@@ -5071,6 +5084,7 @@ namespace HTCommander
             registry.WriteInt("Audio", newAudioState ? 1 : 0);
             UpdateInfo();
             radioVolumeForm.SetAudio(newAudioState);
+            if (radioAudioClipsForm != null) { radioAudioClipsForm.UpdateUI(); }
             UpdateGpsStatusDisplay();
         }
 

@@ -246,8 +246,8 @@ namespace HTCommander
     {
         public event Action<Guid> ClientConnected;
         public event Action<Guid> ClientDisconnected;
-        public event Action<Guid, byte[]> MessageReceived;
-        public event Action<string> DebugMessage;
+        //public event Action<Guid, byte[]> MessageReceived;
+        //public event Action<string> DebugMessage;
 
         private readonly MainForm parent;
         private readonly TcpListener _listener;

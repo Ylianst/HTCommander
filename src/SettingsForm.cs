@@ -171,7 +171,7 @@ namespace HTCommander
                 }
                 synthesizer.Dispose();
             }
-            catch (System.Runtime.InteropServices.COMException ex)
+            catch (System.Runtime.InteropServices.COMException)
             {
                 // TTS not available - add a placeholder message
                 voicesComboBox.Items.Add("(Text-to-Speech not available)");

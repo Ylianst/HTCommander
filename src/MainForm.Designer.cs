@@ -70,6 +70,7 @@
             this.audioToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.audioEnabledToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.volumeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.audioClipsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.spectrogramToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.softwareModemToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.disabledToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -627,6 +628,7 @@
             this.audioToolStripMenuItem1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.audioEnabledToolStripMenuItem,
             this.volumeToolStripMenuItem,
+            this.audioClipsToolStripMenuItem,
             this.spectrogramToolStripMenuItem,
             this.softwareModemToolStripMenuItem});
             this.audioToolStripMenuItem1.Name = "audioToolStripMenuItem1";
@@ -637,21 +639,28 @@
             // audioEnabledToolStripMenuItem
             // 
             this.audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
-            this.audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            this.audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
             this.audioEnabledToolStripMenuItem.Click += new System.EventHandler(this.audioEnabledToolStripMenuItem_Click);
             // 
             // volumeToolStripMenuItem
             // 
             this.volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            this.volumeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.volumeToolStripMenuItem.Text = "Audio &Controls...";
             this.volumeToolStripMenuItem.Click += new System.EventHandler(this.volumeToolStripMenuItem_Click);
+            // 
+            // audioClipsToolStripMenuItem
+            // 
+            this.audioClipsToolStripMenuItem.Name = "audioClipsToolStripMenuItem";
+            this.audioClipsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.audioClipsToolStripMenuItem.Text = "Audio C&lips...";
+            this.audioClipsToolStripMenuItem.Click += new System.EventHandler(this.audioClipsToolStripMenuItem_Click);
             // 
             // spectrogramToolStripMenuItem
             // 
             this.spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";
-            this.spectrogramToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            this.spectrogramToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.spectrogramToolStripMenuItem.Text = "Spectrogram...";
             this.spectrogramToolStripMenuItem.Click += new System.EventHandler(this.spectrogramToolStripMenuItem_Click);
             // 
@@ -664,7 +673,7 @@
             this.pSK4800ToolStripMenuItem,
             this.g9600ToolStripMenuItem});
             this.softwareModemToolStripMenuItem.Name = "softwareModemToolStripMenuItem";
-            this.softwareModemToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            this.softwareModemToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.softwareModemToolStripMenuItem.Text = "Software &Modem";
             // 
             // disabledToolStripMenuItem
@@ -3894,6 +3903,7 @@
         private System.Windows.Forms.ColumnHeader columnHeader6;
         private ChatControl aprsChatControl;
         private System.Windows.Forms.ToolStripMenuItem audioToolStripMenuItem1;
+        private System.Windows.Forms.ToolStripMenuItem audioClipsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem mapToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem terminalToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem mailToolStripMenuItem;
