@@ -11,3 +11,5 @@ On the trasnmit path, the software modem only transmits on VFO A. So, if you use
 On the receive path, both software and hardware modems will work to decode packets at the same time and which ever can decode it first wins. You will not see any duplicate packets. Generally, the hardware modem does it first but if there are errors, the software modem may get a chance to decode it.
 
 In the packet capture panel, you can see what modem was used to send/receive the data and, if the software modem decoded the data, you can see if ECC codes where included in the packet and how many error bits where present.
+
+I don't think there is any drawback to enabling the AFSK softmodem except extra processing being done on the comptuer.
