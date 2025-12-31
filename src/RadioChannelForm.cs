@@ -45,8 +45,9 @@ namespace HTCommander
             advGroupBox.Visible = false;
             basicGroupBox.Visible = true;
             this.Height = basicGroupBox.Height + 148;
-            this.PerformLayout();
+            clearButton.Top = cancelButton.Top = okButton.Top = (this.Height - 74);
             normalBackColor = freqTextBox.BackColor;
+            this.PerformLayout();
         }
 
         private void RadioInfoForm_Load(object sender, EventArgs e)
@@ -221,6 +222,7 @@ namespace HTCommander
             advGroupBox.Visible = true;
             basicGroupBox.Visible = false;
             this.Height = advGroupBox.Height + 148;
+            clearButton.Top = cancelButton.Top = okButton.Top = (this.Height - 74);
             this.PerformLayout();
             this.Refresh();
         }
