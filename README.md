@@ -14,7 +14,7 @@ The following radios should work with this application:
 - BTech UV-Pro
 - BTech UV-50Pro (untested)
 - RadioOddity GA-5WB (untested)
-- Radtel RT-660 (Exact Bluetooth Name Needed)
+- Radtel RT-660 (Contact Developers)
 - Vero VR-N75
 - Vero VR-N76 (untested)
 - Vero VR-N7500 (untested)
