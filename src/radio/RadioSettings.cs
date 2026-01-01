@@ -173,7 +173,7 @@ namespace HTCommander
             Array.Copy(rawData, 5, buf, 0, rawData.Length - 5);
             buf[0] = (byte)(((cha & 0x0F) << 4) | (chb & 0x0F));
             buf[1] = (byte)((xscan ? 0x80 : 0) | (aghfp_call_mode ? 0x40 : 0) | ((xdouble_channel & 0x03) << 4) | (xsquelch & 0x0F));
-            buf[9] = (byte)((cha & 0xF0) | ((chb & 0x0F) >> 4));
+            buf[9] = (byte)((cha & 0xF0) | ((chb & 0xF0) >> 4));
             return buf;
         }
     }
