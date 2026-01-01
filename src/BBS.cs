@@ -111,7 +111,8 @@ namespace HTCommander
 
                     StringBuilder sb = new StringBuilder();
                     sb.Append("Handy-Talky Commander BBS\r[M] for menu\r");
-                    sb.Append("[HTCmd-" + GetVersion() + "-B2FWIHJM$]\r");
+                    //sb.Append("[HTCmd-" + GetVersion() + "-B2FWIHJM$]\r");
+                    sb.Append("[WL2K-5.0-B2FWIHJM$]\r");
                     if (!string.IsNullOrEmpty(parent.winlinkPassword)) { sb.Append(";PQ: " + session.sessionState["wlChallenge"] + "\r"); }
                     //sb.Append("CMS via " + parent.callsign + " >\r");
                     sb.Append(">\r");

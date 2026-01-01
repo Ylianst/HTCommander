@@ -176,7 +176,8 @@ namespace HTCommander
                     StringBuilder sb = new StringBuilder();
 
                     // Send Information
-                    sb.Append("[HTCmd-" + GetVersion() + "-B2FHM$]\r");
+                    //sb.Append("[HTCmd-" + GetVersion() + "-B2FHM$]\r");
+                    sb.Append("[WL2K-5.0-B2FHM$]\r");
 
                     // Send Authentication
                     if (session.sessionState.ContainsKey("WinlinkAUth"))
