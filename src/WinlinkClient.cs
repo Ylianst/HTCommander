@@ -177,12 +177,13 @@ namespace HTCommander
 
                     // Send Information
                     //sb.Append("[HTCmd-" + GetVersion() + "-B2FHM$]\r");
-                    sb.Append("[WL2K-5.0-B2FHM$]\r");
+                    //sb.Append("[WL2K-5.0-B2FHM$]\r");
+                    sb.Append("[RMS Express-1.7.28.0-B2FHM$]\r");
 
                     // Send Authentication
-                    if (session.sessionState.ContainsKey("WinlinkAUth"))
+                    if (session.sessionState.ContainsKey("WinlinkAuth"))
                     {
-                        string authResponse = WinlinkSecurity.SecureLoginResponse((string)session.sessionState["WinlinkAUth"], parent.winlinkPassword);
+                        string authResponse = WinlinkSecurity.SecureLoginResponse((string)session.sessionState["WinlinkAuth"], parent.winlinkPassword);
                         if (!string.IsNullOrEmpty(parent.winlinkPassword)) { sb.Append(";PR: " + authResponse + "\r"); }
                         StateMessage("Authenticating...");
                     }
@@ -232,7 +233,7 @@ namespace HTCommander
 
                     if ((key == ";PQ:") && (!string.IsNullOrEmpty(parent.winlinkPassword)))
                     {   // Winlink Authentication Request
-                        session.sessionState["WinlinkAUth"] = value;
+                        session.sessionState["WinlinkAuth"] = value;
                     }
                     else if (key == "FS") // "FS YY"
                     {   // Winlink Mail Transfer Approvals
