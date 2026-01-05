@@ -97,6 +97,7 @@ namespace HTCommander
         public BBS bbs;
         public Torrent torrent;
         public WinlinkClient winlinkClient;
+        public WinlinkClient tcpWinlinkClient;
         public AprsStack aprsStack;
         public YappTransfer yappTransfer;
         public bool Loading = true;
@@ -152,10 +153,21 @@ namespace HTCommander
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
                 null, torrentListView, new object[] { true });
             
+            // Enable double buffering for mailboxListView to prevent flickering
+            typeof(ListView).InvokeMember("DoubleBuffered",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
+                null, mailboxListView, new object[] { true });
+            
+            // Enable double buffering for mailBoxesTreeView to prevent flickering
+            typeof(TreeView).InvokeMember("DoubleBuffered",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
+                null, mailBoxesTreeView, new object[] { true });
+            
             bbs = new BBS(this);
             torrent = new Torrent(this);
             aprsStack = new AprsStack(this);
-            winlinkClient = new WinlinkClient(this);
+            winlinkClient = new WinlinkClient(this, WinlinkClient.TransportType.X25);
+            tcpWinlinkClient = new WinlinkClient(this, WinlinkClient.TransportType.TCP);
             voiceEngine = new VoiceEngine(radio);
             microphone = new Microphone();
             microphone.DataAvailable += Microphone_DataAvailable;
@@ -1006,7 +1018,7 @@ namespace HTCommander
                     if (p.type == FrameType.U_FRAME_UI)
                     {
                         // Have the Winlink client process this frame as a un-numbered frame
-                        winlinkClient.ProcessFrame(frame, p);
+                        //winlinkClient.ProcessFrame(frame, p);
                     }
                     else
                     {
@@ -5649,5 +5661,14 @@ namespace HTCommander
             updateTerminalFileTransferProgress(TerminalFileTransferStates.Idle, "", 0, 0);
         }
 
+        private async void mainInternetButton_Click(object sender, EventArgs e)
+        {
+            // Attempt to connect to Winlink server over TCP with TLS on port 8773
+            bool connected = await tcpWinlinkClient.ConnectTcp("cms.winlink.org", 8773, true);
+            if (!connected)
+            {
+                MessageBox.Show(this, "Failed to connect to Winlink server over the internet.", "Winlink", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
     }
 }

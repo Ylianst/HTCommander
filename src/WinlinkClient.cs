@@ -21,19 +21,37 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using HTCommander.radio;
 using System.IO;
+using System.Net.Sockets;
+using System.Threading.Tasks;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 
 namespace HTCommander
 {
     public class WinlinkClient
     {
-        private MainForm parent;
+        public enum TransportType { X25, TCP }
+        public enum ConnectionState { DISCONNECTED, CONNECTED, CONNECTING, DISCONNECTING }
 
-        public WinlinkClient(MainForm parent)
+        private MainForm parent;
+        private TransportType transportType;
+        private Dictionary<string, object> sessionState = new Dictionary<string, object>();
+        
+        // TCP specific fields
+        private TcpClient tcpClient;
+        private Stream tcpStream; // Changed to Stream to support both NetworkStream and SslStream
+        private bool tcpRunning = false;
+        private string remoteAddress = "";
+        private ConnectionState currentState = ConnectionState.DISCONNECTED;
+        private bool useTls = false;
+
+        public WinlinkClient(MainForm parent, TransportType transportType)
         {
             this.parent = parent;
+            this.transportType = transportType;
         }
 
-        private void SessionSend(AX25Session session, string output)
+        private void TransportSend(string output)
         {
             if (!string.IsNullOrEmpty(output))
             {
@@ -41,38 +59,318 @@ namespace HTCommander
                 foreach (string str in dataStrs)
                 {
                     if (str.Length == 0) continue;
-                    parent.mailClientDebugForm.AddBbsTraffic(session.Addresses[0].ToString(), true, str.Trim());
+                    parent.mailClientDebugForm.AddBbsTraffic(remoteAddress, true, str.Trim());
                 }
-                session.Send(output);
+
+                if (transportType == TransportType.TCP)
+                {
+                    SendTcp(output);
+                }
             }
         }
 
-        private void StateMessage(string msg) {
+        private void TransportSend(byte[] data)
+        {
+            if ((data != null) && (data.Length > 0))
+            {
+                if (transportType == TransportType.TCP)
+                {
+                    SendTcp(data);
+                }
+            }
+        }
+
+        private void StateMessage(string msg)
+        {
             parent.MailStateMessage(msg);
             parent.mailClientDebugForm.AddBbsControlMessage(msg);
         }
 
-        // Process connection state change
+        private void SetConnectionState(ConnectionState state)
+        {
+            if (state != currentState)
+            {
+                currentState = state;
+                ProcessTransportStateChange(state);
+                
+                if (state == ConnectionState.DISCONNECTED)
+                {
+                    sessionState.Clear();
+                    remoteAddress = "";
+                }
+            }
+        }
+
+        // TCP Connection Methods
+        public async Task<bool> ConnectTcp(string server, int port, bool useTls = false)
+        {
+            if (transportType != TransportType.TCP)
+            {
+                StateMessage("Error: Cannot use TCP connection with X25 transport type.");
+                return false;
+            }
+
+            if (currentState != ConnectionState.DISCONNECTED)
+            {
+                StateMessage("Error: Already connected or connecting.");
+                return false;
+            }
+
+            try
+            {
+                SetConnectionState(ConnectionState.CONNECTING);
+                remoteAddress = server + ":" + port;
+                this.useTls = useTls;
+                parent.mailClientDebugForm.Clear();
+                
+                tcpClient = new TcpClient();
+                await tcpClient.ConnectAsync(server, port);
+                
+                if (useTls)
+                {
+                    // Wrap the network stream with SSL/TLS
+                    NetworkStream networkStream = tcpClient.GetStream();
+                    SslStream sslStream = new SslStream(
+                        networkStream,
+                        false,
+                        new RemoteCertificateValidationCallback(ValidateServerCertificate),
+                        null
+                    );
+                    
+                    try
+                    {
+                        await sslStream.AuthenticateAsClientAsync(server);
+                        tcpStream = sslStream;
+                        StateMessage("TLS/SSL connection established.");
+                    }
+                    catch (Exception ex)
+                    {
+                        StateMessage("TLS/SSL authentication failed: " + ex.Message);
+                        sslStream.Close();
+                        throw;
+                    }
+                }
+                else
+                {
+                    tcpStream = tcpClient.GetStream();
+                }
+                
+                SetConnectionState(ConnectionState.CONNECTED);
+                
+                // Start receiving data
+                tcpRunning = true;
+                _ = Task.Run(() => TcpReceiveLoop());
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StateMessage("TCP Connection failed: " + ex.Message);
+                SetConnectionState(ConnectionState.DISCONNECTED);
+                CleanupTcp();
+                return false;
+            }
+        }
+
+        // Certificate validation callback for SSL/TLS
+        private bool ValidateServerCertificate(
+            object sender,
+            X509Certificate certificate,
+            X509Chain chain,
+            SslPolicyErrors sslPolicyErrors)
+        {
+            if (sslPolicyErrors == SslPolicyErrors.None)
+            {
+                return true;
+            }
+
+            StateMessage("Certificate validation error: " + sslPolicyErrors.ToString());
+            
+            // Log certificate details for debugging
+            if (certificate != null)
+            {
+                StateMessage("Certificate Subject: " + certificate.Subject);
+                StateMessage("Certificate Issuer: " + certificate.Issuer);
+            }
+            
+            // For production, you should return false here to reject invalid certificates
+            // For now, we'll be strict and reject invalid certificates
+            return false;
+        }
+
+        public void DisconnectTcp()
+        {
+            if (transportType != TransportType.TCP) return;
+            
+            SetConnectionState(ConnectionState.DISCONNECTING);
+            tcpRunning = false;
+            CleanupTcp();
+            SetConnectionState(ConnectionState.DISCONNECTED);
+        }
+
+        private void CleanupTcp()
+        {
+            try
+            {
+                if (tcpStream != null)
+                {
+                    tcpStream.Close();
+                    tcpStream.Dispose();
+                    tcpStream = null;
+                }
+                if (tcpClient != null)
+                {
+                    tcpClient.Close();
+                    tcpClient.Dispose();
+                    tcpClient = null;
+                }
+            }
+            catch { }
+        }
+
+        private void SendTcp(string data)
+        {
+            if (tcpStream != null && tcpStream.CanWrite)
+            {
+                try
+                {
+                    byte[] buffer = UTF8Encoding.UTF8.GetBytes(data);
+                    tcpStream.Write(buffer, 0, buffer.Length);
+                    tcpStream.Flush();
+                }
+                catch (Exception ex)
+                {
+                    StateMessage("TCP Send error: " + ex.Message);
+                    DisconnectTcp();
+                }
+            }
+        }
+
+        private void SendTcp(byte[] data)
+        {
+            if (tcpStream != null && tcpStream.CanWrite)
+            {
+                try
+                {
+                    tcpStream.Write(data, 0, data.Length);
+                    tcpStream.Flush();
+                }
+                catch (Exception ex)
+                {
+                    StateMessage("TCP Send error: " + ex.Message);
+                    DisconnectTcp();
+                }
+            }
+        }
+
+        private async Task TcpReceiveLoop()
+        {
+            byte[] buffer = new byte[8192];
+            
+            while (tcpRunning && tcpClient != null && tcpClient.Connected)
+            {
+                try
+                {
+                    int bytesRead = await tcpStream.ReadAsync(buffer, 0, buffer.Length);
+                    
+                    if (bytesRead > 0)
+                    {
+                        byte[] data = new byte[bytesRead];
+                        Array.Copy(buffer, 0, data, 0, bytesRead);
+                        
+                        // Process received data on UI thread
+                        parent.Invoke(new Action(() => {
+                            ProcessStream(data);
+                        }));
+                    }
+                    else
+                    {
+                        // Connection closed by remote
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (tcpRunning)
+                    {
+                        parent.Invoke(new Action(() => {
+                            StateMessage("TCP Receive error: " + ex.Message);
+                        }));
+                    }
+                    break;
+                }
+            }
+
+            // Connection closed
+            if (tcpRunning)
+            {
+                parent.Invoke(new Action(() => {
+                    DisconnectTcp();
+                }));
+            }
+        }
+
+        // X25 Support Methods (called from external code for X25 transport)
         public void ProcessStreamState(AX25Session session, AX25Session.ConnectionState state)
         {
+            if (transportType != TransportType.X25) return;
+
+            remoteAddress = session.Addresses[0].ToString();
+            
+            ConnectionState newState;
             switch (state)
             {
                 case AX25Session.ConnectionState.CONNECTED:
-                    StateMessage("Connected to " + session.Addresses[0].ToString());
+                    newState = ConnectionState.CONNECTED;
                     break;
                 case AX25Session.ConnectionState.DISCONNECTED:
+                    newState = ConnectionState.DISCONNECTED;
+                    break;
+                case AX25Session.ConnectionState.CONNECTING:
+                    newState = ConnectionState.CONNECTING;
+                    parent.mailClientDebugForm.Clear();
+                    break;
+                case AX25Session.ConnectionState.DISCONNECTING:
+                    newState = ConnectionState.DISCONNECTING;
+                    break;
+                default:
+                    return;
+            }
+            
+            SetConnectionState(newState);
+        }
+
+        public void ProcessStream(AX25Session session, byte[] data)
+        {
+            if (transportType != TransportType.X25) return;
+            
+            // Copy session state from AX25Session
+            sessionState = session.sessionState;
+            remoteAddress = session.Addresses[0].ToString();
+            
+            ProcessStream(data);
+        }
+
+        private void ProcessTransportStateChange(ConnectionState state)
+        {
+            switch (state)
+            {
+                case ConnectionState.CONNECTED:
+                    StateMessage("Connected to " + remoteAddress);
+                    break;
+                case ConnectionState.DISCONNECTED:
                     StateMessage("Disconnected");
                     StateMessage(null);
                     break;
-                case AX25Session.ConnectionState.CONNECTING:
-                    parent.mailClientDebugForm.Clear();
+                case ConnectionState.CONNECTING:
                     StateMessage("Connecting...");
                     break;
-                case AX25Session.ConnectionState.DISCONNECTING:
+                case ConnectionState.DISCONNECTING:
                     StateMessage("Disconnecting...");
                     break;
             }
         }
+
         private string GetVersion()
         {
             // Get the path of the currently running executable
@@ -107,14 +405,14 @@ namespace HTCommander
             return responses.ToArray();
         }
 
-        private void UpdateEmails(AX25Session session)
+        private void UpdateEmails()
         {
             // All good, save the new state of the mails
-            if (session.sessionState.ContainsKey("OutMails") && session.sessionState.ContainsKey("OutMailBlocks") && session.sessionState.ContainsKey("MailProposals"))
+            if (sessionState.ContainsKey("OutMails") && sessionState.ContainsKey("OutMailBlocks") && sessionState.ContainsKey("MailProposals"))
             {
-                List<WinLinkMail> proposedMails = (List<WinLinkMail>)session.sessionState["OutMails"];
-                List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)session.sessionState["OutMailBlocks"];
-                string[] proposalResponses = ParseProposalResponses((string)session.sessionState["MailProposals"]);
+                List<WinLinkMail> proposedMails = (List<WinLinkMail>)sessionState["OutMails"];
+                List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)sessionState["OutMailBlocks"];
+                string[] proposalResponses = ParseProposalResponses((string)sessionState["MailProposals"]);
 
                 // Look at proposal responses
                 int mailsChanges = 0;
@@ -138,24 +436,30 @@ namespace HTCommander
             }
         }
 
-        // Process stream data
-        public void ProcessStream(AX25Session session, byte[] data)
+        // Process stream data (unified for both TCP and X25)
+        private void ProcessStream(byte[] data)
         {
             if ((data == null) || (data.Length == 0)) return;
 
             // This is embedded mail sent in compressed format
-            if (session.sessionState.ContainsKey("wlMailBinary"))
+            if (sessionState.ContainsKey("wlMailBinary"))
             {
-                MemoryStream blocks = (MemoryStream)session.sessionState["wlMailBinary"];
+                MemoryStream blocks = (MemoryStream)sessionState["wlMailBinary"];
                 blocks.Write(data, 0, data.Length);
                 StateMessage("Receiving mail, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes"));
-                if (ExtractMail(session, blocks) == true)
+                if (ExtractMail(blocks) == true)
                 {
                     // We are done with the mail reception
-                    session.sessionState.Remove("wlMailBinary");
-                    session.sessionState.Remove("wlMailBlocks");
-                    session.sessionState.Remove("wlMailProp");
-                    SessionSend(session, "FF");
+                    sessionState.Remove("wlMailBinary");
+                    sessionState.Remove("wlMailBlocks");
+                    sessionState.Remove("wlMailProp");
+                    TransportSend("FF");
+                    
+                    // Close TCP session after sending FF
+                    if (transportType == TransportType.TCP)
+                    {
+                        DisconnectTcp();
+                    }
                 }
                 return;
             }
@@ -165,25 +469,45 @@ namespace HTCommander
             foreach (string str in dataStrs)
             {
                 if (str.Length == 0) continue;
-                parent.mailClientDebugForm.AddBbsTraffic(session.Addresses[0].ToString(), false, str);
+                parent.mailClientDebugForm.AddBbsTraffic(remoteAddress, false, str);
 
-                if (str.EndsWith(">") && !session.sessionState.ContainsKey("SessionStart"))
+                // Handle TCP callsign prompt
+                if ((transportType == TransportType.TCP) && str.Trim().Equals("Callsign :", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Send our callsign with station ID
+                    string callsignResponse = parent.callsign;
+                    /*
+                    if (parent.stationId > 0) { callsignResponse += "-" + parent.stationId; }
+                    */
+                    callsignResponse += "\r";
+                    TransportSend(callsignResponse);
+                    StateMessage("Sent callsign: " + callsignResponse.Trim());
+                    continue;
+                }
+
+                // Handle TCP password prompt
+                if ((transportType == TransportType.TCP) && str.Trim().Equals("Password :", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Send "CMSTelnet" as the password
+                    TransportSend("CMSTelnet\r");
+                    continue;
+                }
+
+                if (str.EndsWith(">") && !sessionState.ContainsKey("SessionStart"))
                 {
                     // Only do this once at the start of the session
-                    session.sessionState["SessionStart"] = 1;
+                    sessionState["SessionStart"] = 1;
 
                     // Build the big response (Info + Auth + Proposals)
                     StringBuilder sb = new StringBuilder();
 
                     // Send Information
-                    //sb.Append("[HTCmd-" + GetVersion() + "-B2FHM$]\r");
-                    //sb.Append("[WL2K-5.0-B2FHM$]\r");
                     sb.Append("[RMS Express-1.7.28.0-B2FHM$]\r");
 
                     // Send Authentication
-                    if (session.sessionState.ContainsKey("WinlinkAuth"))
+                    if (sessionState.ContainsKey("WinlinkAuth"))
                     {
-                        string authResponse = WinlinkSecurity.SecureLoginResponse((string)session.sessionState["WinlinkAuth"], parent.winlinkPassword);
+                        string authResponse = WinlinkSecurity.SecureLoginResponse((string)sessionState["WinlinkAuth"], parent.winlinkPassword);
                         if (!string.IsNullOrEmpty(parent.winlinkPassword)) { sb.Append(";PR: " + authResponse + "\r"); }
                         StateMessage("Authenticating...");
                     }
@@ -214,15 +538,15 @@ namespace HTCommander
                         // Send proposal checksum
                         checksum = (-checksum) & 0xFF;
                         sb.Append("F> " + checksum.ToString("X2") + "\r");
-                        SessionSend(session, sb.ToString());
-                        session.sessionState["OutMails"] = proposedMails;
-                        session.sessionState["OutMailBlocks"] = proposedMailsBinary;
+                        TransportSend(sb.ToString());
+                        sessionState["OutMails"] = proposedMails;
+                        sessionState["OutMailBlocks"] = proposedMailsBinary;
                     }
                     else
                     {
                         // No mail proposals sent, give a change to the server to send us mails.
                         sb.Append("FF\r");
-                        SessionSend(session, sb.ToString());
+                        TransportSend(sb.ToString());
                     }
                 }
                 else
@@ -233,15 +557,15 @@ namespace HTCommander
 
                     if ((key == ";PQ:") && (!string.IsNullOrEmpty(parent.winlinkPassword)))
                     {   // Winlink Authentication Request
-                        session.sessionState["WinlinkAuth"] = value;
+                        sessionState["WinlinkAuth"] = value;
                     }
                     else if (key == "FS") // "FS YY"
                     {   // Winlink Mail Transfer Approvals
-                        if (session.sessionState.ContainsKey("OutMails") && session.sessionState.ContainsKey("OutMailBlocks"))
+                        if (sessionState.ContainsKey("OutMails") && sessionState.ContainsKey("OutMailBlocks"))
                         {
-                            List<WinLinkMail> proposedMails = (List<WinLinkMail>)session.sessionState["OutMails"];
-                            List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)session.sessionState["OutMailBlocks"];
-                            session.sessionState["MailProposals"] = value;
+                            List<WinLinkMail> proposedMails = (List<WinLinkMail>)sessionState["OutMails"];
+                            List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)sessionState["OutMailBlocks"];
+                            sessionState["MailProposals"] = value;
 
                             // Look at proposal responses
                             int sentMails = 0;
@@ -254,7 +578,7 @@ namespace HTCommander
                                     if (proposalResponses[j] == "Y")
                                     {
                                         sentMails++;
-                                        foreach (byte[] block in proposedMailsBinary[j]) { session.Send(block); totalSize += block.Length; }
+                                        foreach (byte[] block in proposedMailsBinary[j]) { TransportSend(block); totalSize += block.Length; }
                                     }
                                 }
                                 if (sentMails == 1) { StateMessage("Sending mail, " + totalSize + " bytes..."); }
@@ -262,45 +586,45 @@ namespace HTCommander
                                 else
                                 {
                                     // Winlink Session Close
-                                    UpdateEmails(session);
+                                    UpdateEmails();
                                     StateMessage("No emails to transfer.");
-                                    SessionSend(session, "FF\r");
+                                    TransportSend("FF\r");
                                 }
                             }
                             else
                             {
                                 // Winlink Session Close
                                 StateMessage("Incorrect proposal response.");
-                                SessionSend(session, "FQ\r");
+                                TransportSend("FQ\r");
                             }
                         }
                         else
                         {
                             // Winlink Session Close
                             StateMessage("Unexpected proposal response.");
-                            SessionSend(session, "FQ\r");
+                            TransportSend("FQ\r");
                         }
                     }
                     else if (key == "FF")
                     {
                         // Winlink Session Close
-                        UpdateEmails(session);
-                        SessionSend(session, "FQ\r");
+                        UpdateEmails();
+                        TransportSend("FQ\r");
                     }
                     else if (key == "FC")
                     {
                         // Winlink Mail Proposal
                         List<string> proposals;
-                        if (session.sessionState.ContainsKey("wlMailProp")) { proposals = (List<string>)session.sessionState["wlMailProp"]; } else { proposals = new List<string>(); }
+                        if (sessionState.ContainsKey("wlMailProp")) { proposals = (List<string>)sessionState["wlMailProp"]; } else { proposals = new List<string>(); }
                         proposals.Add(value);
-                        session.sessionState["wlMailProp"] = proposals;
+                        sessionState["wlMailProp"] = proposals;
                     }
                     else if (key == "F>")
                     {
                         // Winlink Mail Proposals completed, we need to respond
-                        if ((session.sessionState.ContainsKey("wlMailProp")) && (!session.sessionState.ContainsKey("wlMailBinary")))
+                        if ((sessionState.ContainsKey("wlMailProp")) && (!sessionState.ContainsKey("wlMailBinary")))
                         {
-                            List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
+                            List<string> proposals = (List<string>)sessionState["wlMailProp"];
                             List<string> proposals2 = new List<string>();
                             if ((proposals != null) && (proposals.Count > 0))
                             {
@@ -345,41 +669,41 @@ namespace HTCommander
                                         }
                                         else { response += "H"; }
                                     }
-                                    SessionSend(session, "FS " + response + "\r");
+                                    TransportSend("FS " + response + "\r");
                                     if (acceptedProposalCount > 0)
                                     {
-                                        session.sessionState["wlMailBinary"] = new MemoryStream();
-                                        session.sessionState["wlMailProp"] = proposals2;
+                                        sessionState["wlMailBinary"] = new MemoryStream();
+                                        sessionState["wlMailProp"] = proposals2;
                                     }
                                 }
                                 else
                                 {
                                     // Checksum failed
                                     StateMessage("Checksum Failed");
-                                    session.Disconnect();
+                                    if (transportType == TransportType.TCP)
+                                    {
+                                        DisconnectTcp();
+                                    }
                                 }
                             }
                         }
                     }
                     else if (key == "FQ")
                     {   // Winlink Session Close
-                        UpdateEmails(session);
-                        session.Disconnect();
+                        UpdateEmails();
+                        if (transportType == TransportType.TCP)
+                        {
+                            DisconnectTcp();
+                        }
                     }
                 }
             }
         }
 
-        // Process un-numbered frames
-        public void ProcessFrame(TncDataFragment frame, AX25Packet p)
+        private bool ExtractMail(MemoryStream blocks)
         {
-            // Do nothing
-        }
-
-        private bool ExtractMail(AX25Session session, MemoryStream blocks)
-        {
-            if (session.sessionState.ContainsKey("wlMailProp") == false) return false;
-            List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
+            if (sessionState.ContainsKey("wlMailProp") == false) return false;
+            List<string> proposals = (List<string>)sessionState["wlMailProp"];
             if ((proposals == null) || (blocks == null)) return false;
             if ((proposals.Count == 0) || (blocks.Length == 0)) return true;
 
@@ -426,6 +750,5 @@ namespace HTCommander
             foreach (WinLinkMail mail in parent.Mails) { if (mail.MID == mid) return true; }
             return false;
         }
-
     }
 }
