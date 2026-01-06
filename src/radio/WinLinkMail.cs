@@ -45,7 +45,7 @@ namespace HTCommander.radio
         public string Location { get; set; }
         public List<WinLinkMailAttachement> Attachements { get; set; }
         public int Flags { get; set; } // 1 = Unread
-        public int Mailbox { get; set; }
+        public string Mailbox { get; set; } = "Inbox"; // Mailbox name (Inbox, Outbox, Draft, Sent, Archive, Trash, or custom)
 
         public enum MailFlags : int
         {
@@ -360,7 +360,7 @@ namespace HTCommander.radio
                 if (!string.IsNullOrEmpty(mail.Tag)) { sb.AppendLine($"Tag={mail.Tag}"); }
                 if (!string.IsNullOrEmpty(mail.Location)) { sb.AppendLine($"Tag={mail.Location}"); }
                 if (mail.Flags != 0) { sb.AppendLine($"Flags={(int)mail.Flags}"); }
-                sb.AppendLine($"Mailbox={(int)mail.Mailbox}");
+                if (!string.IsNullOrEmpty(mail.Mailbox)) { sb.AppendLine($"Mailbox={mail.Mailbox}"); }
                 if (mail.Attachements != null)
                 {
                     foreach (WinLinkMailAttachement attachement in mail.Attachements)
@@ -415,7 +415,19 @@ namespace HTCommander.radio
                             case "Tag": currentMail.Tag = value; break;
                             case "Location": currentMail.Location = value; break;
                             case "Flags": currentMail.Flags = int.Parse(value); break;
-                            case "Mailbox": currentMail.Mailbox = int.Parse(value); break;
+                            case "Mailbox":
+                                // Support both old integer format and new string format
+                                if (int.TryParse(value, out int mailboxIndex))
+                                {
+                                    // Convert old integer to string name
+                                    string[] defaultMailboxes = { "Inbox", "Outbox", "Draft", "Sent", "Archive", "Trash" };
+                                    currentMail.Mailbox = (mailboxIndex >= 0 && mailboxIndex < defaultMailboxes.Length) ? defaultMailboxes[mailboxIndex] : "Inbox";
+                                }
+                                else
+                                {
+                                    currentMail.Mailbox = value;
+                                }
+                                break;
                             case "File": FileName = value; break;
                             case "FileData":
                                 if (!string.IsNullOrEmpty(FileName))

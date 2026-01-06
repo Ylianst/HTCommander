@@ -131,7 +131,7 @@ namespace HTCommander
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
             mail.DateTime = DateTime.Now;
-            mail.Mailbox = 1; // Outbox
+            mail.Mailbox = "Outbox";
 
             if (attachmentsFlowLayoutPanel.Controls.Count > 0)
             {
@@ -149,8 +149,7 @@ namespace HTCommander
                 mail.Attachements = null;
             }
 
-            if (addMail) { parent.Mails.Add(mail); }
-            parent.SaveMails();
+            if (addMail) { parent.mailStore.AddMail(mail); } else { parent.mailStore.UpdateMail(mail); }
             parent.UpdateMail();
             MessageSaved = true;
             Close();
@@ -167,7 +166,7 @@ namespace HTCommander
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
             mail.DateTime = DateTime.Now;
-            mail.Mailbox = 2; // Draft
+            mail.Mailbox = "Draft";
 
             if (attachmentsFlowLayoutPanel.Controls.Count > 0)
             {
@@ -185,8 +184,7 @@ namespace HTCommander
                 mail.Attachements = null;
             }
 
-            if (addMail) { parent.Mails.Add(mail); }
-            parent.SaveMails();
+            if (addMail) { parent.mailStore.AddMail(mail); } else { parent.mailStore.UpdateMail(mail); }
             parent.UpdateMail();
             MessageSaved = true;
             Close();

@@ -450,11 +450,10 @@ namespace HTCommander
                     Subject = subject,
                     Body = body,
                     DateTime = dateTime,
-                    Mailbox = 1 // Outbox
+                    Mailbox = "Outbox"
                 };
 
-                mainForm.Mails.Add(mail);
-                mainForm.SaveMails();
+                mainForm.mailStore.AddMail(mail);
                 mainForm.UpdateMail();
 
                 mainForm.Debug($"SMTP: Email queued to Outbox - From: {from}, To: {to}, Subject: {subject}");

@@ -116,10 +116,11 @@ namespace HTCommander
         public string TerminalLastDone = null;
 
         // Mailboxes
-        public int SelectedMailbox = 0;
+        public string SelectedMailbox = "Inbox";
         public string[] MailBoxesNames = { "Inbox", "Outbox", "Draft", "Sent", "Archive", "Trash" };
         public TreeNode[] MailBoxTreeNodes = null;
-        public List<WinLinkMail> Mails = new List<WinLinkMail>();
+        public IMailStore mailStore;
+        public List<WinLinkMail> Mails { get { return mailStore.GetAllMails(); } }
         private Point _mailMouseDownLocation;
         private bool _mailIsDragging;
 
@@ -390,7 +391,10 @@ namespace HTCommander
                 MailBoxTreeNodes[i] = mailBoxesTreeView.Nodes.Add(MailBoxesNames[i]);
                 MailBoxTreeNodes[i].Tag = MailBoxTreeNodes[i].SelectedImageIndex = MailBoxTreeNodes[i].ImageIndex = i;
             }
-            Mails = WinLinkMail.Deserialize(registry.ReadString("Mails", ""));
+            
+            // Initialize the mail store (SQLite-based storage)
+            mailStore = new MailStore();
+            mailStore.MailsChanged += MailStore_MailsChanged;
             UpdateMail();
 
             // Get application data path
@@ -2295,17 +2299,20 @@ namespace HTCommander
 
         public void UpdateMail()
         {
-            mailTitleLabel.Text = "Mail - " + MailBoxesNames[SelectedMailbox];
+            mailTitleLabel.Text = "Mail - " + SelectedMailbox;
 
             int[] MailBoxCount = new int[MailBoxesNames.Length];
-            for (int i = 0; i < Mails.Count; i++) { MailBoxCount[Mails[i].Mailbox]++; }
+            for (int i = 0; i < Mails.Count; i++) { 
+                int mailboxIndex = Array.IndexOf(MailBoxesNames, Mails[i].Mailbox);
+                if (mailboxIndex >= 0 && mailboxIndex < MailBoxCount.Length) MailBoxCount[mailboxIndex]++;
+            }
 
             for (int i = 0; i < mailBoxesTreeView.Nodes.Count; i++)
             {
                 MailBoxTreeNodes[i].Text = MailBoxesNames[i] + " (" + MailBoxCount[i] + ")";
             }
 
-            if ((SelectedMailbox == 1) || (SelectedMailbox == 2) || (SelectedMailbox == 3))
+            if ((SelectedMailbox == "Outbox") || (SelectedMailbox == "Draft") || (SelectedMailbox == "Sent"))
             {
                 mailboxListView.Columns[1].Text = "To";
             }
@@ -2328,7 +2335,7 @@ namespace HTCommander
                 {
                     WinLinkMail m = Mails[i];
                     string secondFeild = m.From;
-                    if ((SelectedMailbox == 1) || (SelectedMailbox == 2) || (SelectedMailbox == 3)) { secondFeild = m.To; }
+                    if ((SelectedMailbox == "Outbox") || (SelectedMailbox == "Draft") || (SelectedMailbox == "Sent")) { secondFeild = m.To; }
                     ListViewItem item = new ListViewItem(new String[] { m.DateTime.ToShortDateString(), m.To, m.Subject });
                     item.ImageIndex = 8;
                     item.Tag = m;
@@ -2337,14 +2344,29 @@ namespace HTCommander
                 }
             }
 
+            mailboxListView.BeginUpdate();
             mailboxListView.Items.Clear();
             mailboxListView.Items.AddRange(r.ToArray());
+            mailboxListView.EndUpdate();
             mailboxListView_SelectedIndexChanged(this, null);
         }
 
         public void SaveMails()
         {
-            registry.WriteString("Mails", WinLinkMail.Serialize(Mails));
+            // SaveMails is no longer needed for batch saves since MailStore saves immediately.
+            // This method is kept for backward compatibility with existing code that calls it.
+            // The MailStore automatically persists changes when AddMail, UpdateMail, or DeleteMail is called.
+        }
+
+        private void MailStore_MailsChanged(object sender, EventArgs e)
+        {
+            // Called when another instance of the application changes the mail store
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new EventHandler(MailStore_MailsChanged), sender, e);
+                return;
+            }
+            UpdateMail();
         }
 
         public void UpdateInfo()
@@ -2429,7 +2451,8 @@ namespace HTCommander
             torrentConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Torrent)) ? "&Activate" : "&Deactivate";
 
             // Mail
-            mailConnectButton.Enabled = (radio.State == Radio.RadioState.Connected) && ((activeStationLock == null) || (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink));
+            mailInternetButton.Enabled = !string.IsNullOrEmpty(callsign) && !string.IsNullOrEmpty(winlinkPassword);
+            mailConnectButton.Enabled = !string.IsNullOrEmpty(callsign) && !string.IsNullOrEmpty(winlinkPassword) && (radio.State == Radio.RadioState.Connected) && ((activeStationLock == null) || (activeStationLock.StationType == StationInfoClass.StationTypes.Winlink));
             mailConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Winlink)) ? "&Connect" : "&Disconnect";
 
             // ActiveLockToStation
@@ -2871,6 +2894,12 @@ namespace HTCommander
         {
             // Auto-resize the Data column to fit content
             columnHeader9.Width = -2;
+        }
+
+        private void mailboxListView_Resize(object sender, EventArgs e)
+        {
+            // Auto-resize the Subject column to fill remaining width
+            columnHeader6.Width = mailboxListView.Width - columnHeader4.Width - columnHeader5.Width - 28;
         }
 
         private void packetsMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
@@ -4305,7 +4334,7 @@ namespace HTCommander
             {
                 if (e.Node == MailBoxTreeNodes[i])
                 {
-                    SelectedMailbox = i;
+                    SelectedMailbox = MailBoxesNames[i];
                 }
             }
             UpdateMail();
@@ -4329,7 +4358,7 @@ namespace HTCommander
             if (mailboxListView.SelectedItems.Count != 1) return;
             WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
 
-            if ((SelectedMailbox == 1) || (SelectedMailbox == 2))
+            if ((SelectedMailbox == "Outbox") || (SelectedMailbox == "Draft"))
             {
                 if (mailComposeForm != null)
                 {
@@ -4347,18 +4376,31 @@ namespace HTCommander
             }
         }
 
+        private void mailPreviewTextBox_LinkClicked(object sender, LinkClickedEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = e.LinkText,
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        }
+
         private void mailboxListView_SelectedIndexChanged(object sender, EventArgs e)
         {
             // Adjust menus
-            viewMailToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == 0) || (SelectedMailbox == 3) || (SelectedMailbox == 4) || (SelectedMailbox == 5));
-            editMailToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == 1) || (SelectedMailbox == 2));
+            viewMailToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == "Inbox") || (SelectedMailbox == "Sent") || (SelectedMailbox == "Archive") || (SelectedMailbox == "Trash"));
+            editMailToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == "Outbox") || (SelectedMailbox == "Draft"));
             toolStripMenuItem14.Visible = (mailboxListView.SelectedItems.Count > 0);
-            moveToDraftToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && (SelectedMailbox == 1);
-            moveToOutboxToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && (SelectedMailbox == 2);
-            moveToInboxToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == 4) || (SelectedMailbox == 5));
-            moveToArchiveToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == 0) || (SelectedMailbox == 5));
-            moveToTrashToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == 0) || (SelectedMailbox == 4));
-            toolStripMenuItem15.Visible = (mailboxListView.SelectedItems.Count > 0);
+            moveToDraftToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && (SelectedMailbox == "Outbox");
+            moveToOutboxToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && (SelectedMailbox == "Draft");
+            moveToInboxToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == "Archive") || (SelectedMailbox == "Trash"));
+            moveToArchiveToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == "Inbox") || (SelectedMailbox == "Trash"));
+            moveToTrashToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0) && ((SelectedMailbox == "Inbox") || (SelectedMailbox == "Archive"));
+            toolStripMenuItem15.Visible = moveToDraftToolStripMenuItem.Visible || moveToOutboxToolStripMenuItem.Visible || moveToInboxToolStripMenuItem.Visible || moveToArchiveToolStripMenuItem.Visible || moveToTrashToolStripMenuItem.Visible;
             deleteMailToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0);
 
             // Adjust mail preview
@@ -4394,10 +4436,10 @@ namespace HTCommander
             foreach (ListViewItem l in mailboxListView.SelectedItems)
             {
                 WinLinkMail m = (WinLinkMail)l.Tag;
-                m.Mailbox = 2;
+                m.Mailbox = "Draft";
+                mailStore.UpdateMail(m);
             }
             UpdateMail();
-            SaveMails();
         }
 
         private void moveToOutboxToolStripMenuItem_Click(object sender, EventArgs e)
@@ -4405,10 +4447,10 @@ namespace HTCommander
             foreach (ListViewItem l in mailboxListView.SelectedItems)
             {
                 WinLinkMail m = (WinLinkMail)l.Tag;
-                m.Mailbox = 1;
+                m.Mailbox = "Outbox";
+                mailStore.UpdateMail(m);
             }
             UpdateMail();
-            SaveMails();
         }
 
         private void moveToInboxToolStripMenuItem_Click(object sender, EventArgs e)
@@ -4416,10 +4458,10 @@ namespace HTCommander
             foreach (ListViewItem l in mailboxListView.SelectedItems)
             {
                 WinLinkMail m = (WinLinkMail)l.Tag;
-                m.Mailbox = 0;
+                m.Mailbox = "Inbox";
+                mailStore.UpdateMail(m);
             }
             UpdateMail();
-            SaveMails();
         }
 
         private void moveToArchiveToolStripMenuItem_Click(object sender, EventArgs e)
@@ -4427,10 +4469,10 @@ namespace HTCommander
             foreach (ListViewItem l in mailboxListView.SelectedItems)
             {
                 WinLinkMail m = (WinLinkMail)l.Tag;
-                m.Mailbox = 4;
+                m.Mailbox = "Archive";
+                mailStore.UpdateMail(m);
             }
             UpdateMail();
-            SaveMails();
         }
 
         private void moveToTrashToolStripMenuItem_Click(object sender, EventArgs e)
@@ -4438,10 +4480,10 @@ namespace HTCommander
             foreach (ListViewItem l in mailboxListView.SelectedItems)
             {
                 WinLinkMail m = (WinLinkMail)l.Tag;
-                m.Mailbox = 5;
+                m.Mailbox = "Trash";
+                mailStore.UpdateMail(m);
             }
             UpdateMail();
-            SaveMails();
         }
 
         private void deleteMailToolStripMenuItem_Click(object sender, EventArgs e)
@@ -4452,10 +4494,9 @@ namespace HTCommander
                 foreach (ListViewItem l in mailboxListView.SelectedItems)
                 {
                     WinLinkMail m = (WinLinkMail)l.Tag;
-                    Mails.Remove(m);
+                    mailStore.DeleteMail(m.MID);
                 }
                 UpdateMail();
-                SaveMails();
             }
         }
 
@@ -4473,12 +4514,13 @@ namespace HTCommander
                 WinLinkMail[] mails = (WinLinkMail[])e.Data.GetData(typeof(WinLinkMail[]));
                 if ((mails.Length > 0))
                 {
-                    int sourceMailBox = mails[0].Mailbox;
-                    int destMailBox = (int)n.Tag;
+                    string sourceMailBox = mails[0].Mailbox;
+                    int destMailBoxIndex = (int)n.Tag;
+                    string destMailBox = MailBoxesNames[destMailBoxIndex];
 
                     bool allowedMove = false;
-                    if ((sourceMailBox == 1) && (destMailBox == 2)) { allowedMove = true; }
-                    if (((sourceMailBox == 0) || (sourceMailBox == 4) || (sourceMailBox == 5)) && ((destMailBox == 0) || (destMailBox == 4) || (destMailBox == 5))) { allowedMove = true; }
+                    if (((sourceMailBox == "Outbox") || (sourceMailBox == "Draft")) && ((destMailBox == "Outbox") || (destMailBox == "Draft"))) { allowedMove = true; }
+                    if (((sourceMailBox == "Inbox") || (sourceMailBox == "Archive") || (sourceMailBox == "Trash")) && ((destMailBox == "Inbox") || (destMailBox == "Archive") || (destMailBox == "Trash"))) { allowedMove = true; }
 
                     if ((sourceMailBox != destMailBox) && allowedMove)
                     {
@@ -4514,18 +4556,18 @@ namespace HTCommander
                 WinLinkMail[] mails = (WinLinkMail[])e.Data.GetData(typeof(WinLinkMail[]));
                 if ((mails.Length > 0))
                 {
-                    int sourceMailBox = mails[0].Mailbox;
-                    int destMailBox = (int)n.Tag;
+                    string sourceMailBox = mails[0].Mailbox;
+                    int destMailBoxIndex = (int)n.Tag;
+                    string destMailBox = MailBoxesNames[destMailBoxIndex];
 
                     bool allowedMove = false;
-                    if (((sourceMailBox == 1) || (sourceMailBox == 2)) && ((destMailBox == 1) || (destMailBox == 2))) { allowedMove = true; }
-                    if (((sourceMailBox == 0) || (sourceMailBox == 4) || (sourceMailBox == 5)) && ((destMailBox == 0) || (destMailBox == 4) || (destMailBox == 5))) { allowedMove = true; }
+                    if (((sourceMailBox == "Outbox") || (sourceMailBox == "Draft")) && ((destMailBox == "Outbox") || (destMailBox == "Draft"))) { allowedMove = true; }
+                    if (((sourceMailBox == "Inbox") || (sourceMailBox == "Archive") || (sourceMailBox == "Trash")) && ((destMailBox == "Inbox") || (destMailBox == "Archive") || (destMailBox == "Trash"))) { allowedMove = true; }
 
                     if ((sourceMailBox != destMailBox) && allowedMove)
                     {
-                        foreach (WinLinkMail mail in mails) { mail.Mailbox = destMailBox; }
+                        foreach (WinLinkMail mail in mails) { mail.Mailbox = destMailBox; mailStore.UpdateMail(mail); }
                         UpdateMail();
-                        SaveMails();
                     }
                 }
             }
@@ -4548,12 +4590,11 @@ namespace HTCommander
                 bool change = false;
                 foreach (WinLinkMail mail in restoreMails)
                 {
-                    if (IsMailMidPresent(mail.MID) == false) { Mails.Add(mail); change = true; }
+                    if (IsMailMidPresent(mail.MID) == false) { mailStore.AddMail(mail); change = true; }
                 }
                 if (change)
                 {
                     UpdateMail();
-                    SaveMails();
                 }
             }
         }

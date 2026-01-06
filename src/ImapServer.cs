@@ -400,11 +400,10 @@ namespace HTCommander
 
             // Parse the RFC822 message
             WinLinkMail mail = ParseRfc822Message(messageData);
-            mail.Mailbox = mailboxIndex;
+            mail.Mailbox = folderName; // Use the folder name string
             mail.MID = Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper();
 
-            mainForm.Mails.Add(mail);
-            mainForm.SaveMails();
+            mainForm.mailStore.AddMail(mail);
             mainForm.UpdateMail();
 
             mainForm.Debug($"IMAP: Email appended to {folderName} - Subject: {mail.Subject}");
@@ -816,14 +815,13 @@ namespace HTCommander
                     Subject = mail.Subject,
                     Body = mail.Body,
                     DateTime = mail.DateTime,
-                    Mailbox = destMailbox,
+                    Mailbox = destFolder, // Use the folder name string
                     Attachements = mail.Attachements
                 };
                 
-                mainForm.Mails.Add(copy);
+                mainForm.mailStore.AddMail(copy);
             }
 
-            mainForm.SaveMails();
             mainForm.UpdateMail();
 
             SendResponse(tag, "OK COPY completed");
@@ -853,11 +851,15 @@ namespace HTCommander
             foreach (int index in toDelete)
             {
                 WinLinkMail mail = mails[index];
-                mail.Mailbox = 5; // Move to Trash
+                mail.Mailbox = "Trash"; // Move to Trash
                 writer.WriteLine($"* {index + 1} EXPUNGE");
             }
 
-            mainForm.SaveMails();
+            foreach (int index in toDelete)
+            {
+                WinLinkMail mail = mails[index];
+                mainForm.mailStore.UpdateMail(mail); // Update the moved mail
+            }
             mainForm.UpdateMail();
             InitializeMailboxState();
 
@@ -1043,16 +1045,18 @@ namespace HTCommander
 
         private List<WinLinkMail> GetMailsInMailbox(int mailboxIndex)
         {
-            var mails = mainForm.Mails.Where(m => m.Mailbox == mailboxIndex).ToList();
+            // Convert mailbox index to folder name for string comparison
+            string folderName = mailboxToFolder.ContainsKey(mailboxIndex) ? mailboxToFolder[mailboxIndex] : "";
+            var mails = mainForm.Mails.Where(m => m.Mailbox == folderName).ToList();
             
             // Debug: Show all emails and their mailbox indices
             if (mailboxIndex == 1) // Outbox
             {
                 mainForm.Debug($"IMAP: Total emails in system: {mainForm.Mails.Count}");
-                mainForm.Debug($"IMAP: Emails in Outbox (mailbox {mailboxIndex}): {mails.Count}");
+                mainForm.Debug($"IMAP: Emails in Outbox (folder {folderName}): {mails.Count}");
                 foreach (var mail in mainForm.Mails)
                 {
-                    mainForm.Debug($"IMAP:   - Subject: '{mail.Subject}', Mailbox: {mail.Mailbox}, Folder: {(mailboxToFolder.ContainsKey(mail.Mailbox) ? mailboxToFolder[mail.Mailbox] : "Unknown")}");
+                    mainForm.Debug($"IMAP:   - Subject: '{mail.Subject}', Mailbox: {mail.Mailbox}");
                 }
             }
             

@@ -383,6 +383,8 @@
     <Compile Include="radio\RadioSettings.cs" />
     <Compile Include="radio\TncDataFragment.cs" />
     <Compile Include="radio\Utils.cs" />
+    <Compile Include="IMailStore.cs" />
+    <Compile Include="MailStore.cs" />
     <Compile Include="RegistryHelperClass.cs" />
     <Compile Include="sbc\SbcBitStream.cs" />
     <Compile Include="sbc\SbcDecoder.cs" />
@@ -580,6 +582,9 @@
     </PackageReference>
     <PackageReference Include="Whisper.net.Runtime">
       <Version>1.8.1</Version>
+    </PackageReference>
+    <PackageReference Include="System.Data.SQLite">
+      <Version>1.0.119</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>

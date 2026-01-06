@@ -27,8 +27,8 @@ namespace HTCommander
 {
     public class BBS
     {
-        private MainForm parent;
-        private string adventureAppDataPath;
+        readonly private MainForm parent;
+        readonly private string adventureAppDataPath;
         public Dictionary<string, StationStats> stats = new Dictionary<string, StationStats>();
 
         public class StationStats
@@ -169,14 +169,13 @@ namespace HTCommander
             // Check if the mail is for us
             bool others = false;
             bool response = WinLinkMail.IsMailForStation(parent.callsign, mail.To, mail.Cc, out others);
-            if (response == false) { mail.Mailbox = 1; }
+            if (response == false) { mail.Mailbox = "Outbox"; }
 
             // TODO: If others is true, we need to keep the email on the outbox for others to get.
             // So, we need to duplicate the email.
 
             // Process the mail
-            parent.Mails.Add(mail);
-            parent.SaveMails();
+            parent.mailStore.AddMail(mail);
             parent.UpdateMail();
             parent.AddBbsControlMessage("Got mail for " + mail.To + ".");
 
@@ -471,7 +470,7 @@ namespace HTCommander
             int checksum = 0, mailSendCount = 0;
             foreach (WinLinkMail mail in parent.Mails)
             {
-                if ((mail.Mailbox != 1) || string.IsNullOrEmpty(mail.MID) || (mail.MID.Length != 12)) continue;
+                if ((mail.Mailbox != "Outbox") || string.IsNullOrEmpty(mail.MID) || (mail.MID.Length != 12)) continue;
 
                 // See if the mail in the outbox is for the connected station
                 bool others = false;
@@ -562,7 +561,8 @@ namespace HTCommander
                     {
                         if ((proposalResponses[j] == "Y") || (proposalResponses[j] == "N"))
                         {
-                            proposedMails[j].Mailbox = 3; // Sent
+                            proposedMails[j].Mailbox = "Sent";
+                            parent.mailStore.UpdateMail(proposedMails[j]);
                             mailsChanges++;
                         }
                     }
@@ -570,7 +570,6 @@ namespace HTCommander
 
                 if (mailsChanges > 0)
                 {
-                    parent.SaveMails();
                     parent.UpdateMail();
                 }
             }

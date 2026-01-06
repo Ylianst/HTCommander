@@ -422,7 +422,8 @@ namespace HTCommander
                     {
                         if ((proposalResponses[j] == "Y") || (proposalResponses[j] == "N"))
                         {
-                            proposedMails[j].Mailbox = 3; // Sent
+                            proposedMails[j].Mailbox = "Sent";
+                            parent.mailStore.UpdateMail(proposedMails[j]);
                             mailsChanges++;
                         }
                     }
@@ -430,7 +431,6 @@ namespace HTCommander
 
                 if (mailsChanges > 0)
                 {
-                    parent.SaveMails();
                     parent.UpdateMail();
                 }
             }
@@ -518,7 +518,7 @@ namespace HTCommander
                     int checksum = 0, mailSendCount = 0;
                     foreach (WinLinkMail mail in parent.Mails)
                     {
-                        if ((mail.Mailbox != 1) || string.IsNullOrEmpty(mail.MID) || (mail.MID.Length != 12)) continue;
+                        if ((mail.Mailbox != "Outbox") || string.IsNullOrEmpty(mail.MID) || (mail.MID.Length != 12)) continue;
 
                         int uncompressedSize, compressedSize;
                         List<Byte[]> blocks = WinLinkMail.EncodeMailToBlocks(mail, out uncompressedSize, out compressedSize);
@@ -737,8 +737,7 @@ namespace HTCommander
             proposals.RemoveAt(0);
 
             // Process the mail
-            parent.Mails.Add(mail);
-            parent.SaveMails();
+            parent.mailStore.AddMail(mail);
             parent.UpdateMail();
             StateMessage("Got mail for " + mail.To + ".");
 

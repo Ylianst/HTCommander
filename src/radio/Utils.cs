@@ -322,7 +322,17 @@ namespace HTCommander
 
         public void Append(string text)
         {
-            _builder.Append(EscapeRtfText(text));
+            // Normalize line endings and convert to RTF line breaks
+            string normalizedText = text.Replace("\r\n", "\n").Replace("\r", "\n");
+            string[] lines = normalizedText.Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                _builder.Append(EscapeRtfText(lines[i]));
+                if (i < lines.Length - 1)
+                {
+                    _builder.Append(@"\line ");
+                }
+            }
         }
 
         public void AppendLine(string text)
