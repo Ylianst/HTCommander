@@ -142,7 +142,7 @@ namespace HTCommander
                 // Use machine name to avoid DNS issues with Outlook
                 //string hostname = System.Net.Dns.GetHostName();
                 //if (string.IsNullOrEmpty(hostname)) hostname = "localhost";
-                string hostname = "localhost";
+                //string hostname = "localhost";
                 string greeting = "220 localhost ESMTP\r\n";
                 byte[] greetingBytes = Encoding.UTF8.GetBytes(greeting);
                 client.GetStream().Write(greetingBytes, 0, greetingBytes.Length);

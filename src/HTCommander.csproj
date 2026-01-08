@@ -191,6 +191,18 @@
     <Compile Include="CantConnectForm.Designer.cs">
       <DependentUpon>CantConnectForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Controls\BbsTabUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\BbsTabUserControl.Designer.cs">
+      <DependentUpon>BbsTabUserControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ContactsTabUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\ContactsTabUserControl.Designer.cs">
+      <DependentUpon>ContactsTabUserControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\DebugTabUserControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -202,6 +214,12 @@
     </Compile>
     <Compile Include="Controls\PacketCaptureTabUserControl.Designer.cs">
       <DependentUpon>PacketCaptureTabUserControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\TorrentTabUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\TorrentTabUserControl.Designer.cs">
+      <DependentUpon>TorrentTabUserControl.cs</DependentUpon>
     </Compile>
     <Compile Include="CustomTilePrefetcher.cs" />
     <Compile Include="EditBeaconSettingsForm.cs">
@@ -474,11 +492,20 @@
     <EmbeddedResource Include="CantConnectForm.resx">
       <DependentUpon>CantConnectForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Controls\BbsTabUserControl.resx">
+      <DependentUpon>BbsTabUserControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ContactsTabUserControl.resx">
+      <DependentUpon>ContactsTabUserControl.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Controls\DebugTabUserControl.resx">
       <DependentUpon>DebugTabUserControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\PacketCaptureTabUserControl.resx">
       <DependentUpon>PacketCaptureTabUserControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\TorrentTabUserControl.resx">
+      <DependentUpon>TorrentTabUserControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="EditBeaconSettingsForm.resx">
       <DependentUpon>EditBeaconSettingsForm.cs</DependentUpon>

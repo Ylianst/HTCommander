@@ -35,9 +35,6 @@
             System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("BBS", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("Winlink Gateways", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
             this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
             this.mainToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.batteryToolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -205,6 +202,16 @@
             this.terminalMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.terminalTitleLabel = new System.Windows.Forms.Label();
             this.addressesTabPage = new System.Windows.Forms.TabPage();
+            this.contactsTabUserControl = new HTCommander.Controls.ContactsTabUserControl();
+            this.bbsTabPage = new System.Windows.Forms.TabPage();
+            this.bbsTabUserControl = new HTCommander.Controls.BbsTabUserControl();
+            this.torrentTabPage = new System.Windows.Forms.TabPage();
+            this.torrentTabUserControl = new HTCommander.Controls.TorrentTabUserControl();
+            this.packetsTabPage = new System.Windows.Forms.TabPage();
+            this.packetCaptureTabUserControl = new HTCommander.Controls.PacketCaptureTabUserControl();
+            this.debugTabPage = new System.Windows.Forms.TabPage();
+            this.debugTabUserControl = new HTCommander.Controls.DebugTabUserControl();
+            this.tabsImageList = new System.Windows.Forms.ImageList(this.components);
             this.mainAddressBookListView = new System.Windows.Forms.ListView();
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -218,50 +225,6 @@
             this.addStationButton = new System.Windows.Forms.Button();
             this.removeStationButton = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
-            this.bbsTabPage = new System.Windows.Forms.TabPage();
-            this.bbsSplitContainer = new System.Windows.Forms.SplitContainer();
-            this.bbsListView = new System.Windows.Forms.ListView();
-            this.columnHeader10 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader11 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader12 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.bbsTextBox = new System.Windows.Forms.RichTextBox();
-            this.panel4 = new System.Windows.Forms.Panel();
-            this.bbsMenuPictureBox = new System.Windows.Forms.PictureBox();
-            this.bbsConnectButton = new System.Windows.Forms.Button();
-            this.label3 = new System.Windows.Forms.Label();
-            this.torrentTabPage = new System.Windows.Forms.TabPage();
-            this.torrentSplitContainer = new System.Windows.Forms.SplitContainer();
-            this.torrentListView = new System.Windows.Forms.ListView();
-            this.columnHeader14 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader15 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader16 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.torrentContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.torrentPauseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.torrentShareToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.torrentRequestToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem19 = new System.Windows.Forms.ToolStripSeparator();
-            this.torrentSaveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem20 = new System.Windows.Forms.ToolStripSeparator();
-            this.torrentDeleteToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.torrentTabControl = new System.Windows.Forms.TabControl();
-            this.tabPage1 = new System.Windows.Forms.TabPage();
-            this.torrentDetailsListView = new System.Windows.Forms.ListView();
-            this.columnHeader13 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader17 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.torrentBlocksUserControl = new HTCommander.TorrentBlocksUserControl();
-            this.panel5 = new System.Windows.Forms.Panel();
-            this.torrentAddFileButton = new System.Windows.Forms.Button();
-            this.torrentMenuPictureBox = new System.Windows.Forms.PictureBox();
-            this.torrentTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.showDetailsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.torrentConnectButton = new System.Windows.Forms.Button();
-            this.label4 = new System.Windows.Forms.Label();
-            this.packetsTabPage = new System.Windows.Forms.TabPage();
-            this.packetCaptureTabUserControl = new HTCommander.Controls.PacketCaptureTabUserControl();
-            this.debugTabPage = new System.Windows.Forms.TabPage();
-            this.debugTabUserControl = new HTCommander.Controls.DebugTabUserControl();
-            this.tabsImageList = new System.Windows.Forms.ImageList(this.components);
             this.aprsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showAllMessagesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem7 = new System.Windows.Forms.ToolStripSeparator();
@@ -285,7 +248,6 @@
             this.openStationsFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.exportChannelsFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.importChannelFileDialog = new System.Windows.Forms.OpenFileDialog();
-            this.bbsTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.viewTrafficToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem11 = new System.Windows.Forms.ToolStripSeparator();
             this.clearStatsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -303,7 +265,6 @@
             this.restoreMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.backupMailSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.restoreMailOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
-            this.torrentSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.gpsLockTimer = new System.Windows.Forms.Timer(this.components);
@@ -364,34 +325,16 @@
             this.terminalTopPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.terminalMenuPictureBox)).BeginInit();
             this.addressesTabPage.SuspendLayout();
+            this.bbsTabPage.SuspendLayout();
+            this.torrentTabPage.SuspendLayout();
+            this.packetsTabPage.SuspendLayout();
+            this.debugTabPage.SuspendLayout();
             this.stationsContextMenuStrip.SuspendLayout();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.stationsMenuPictureBox)).BeginInit();
-            this.bbsTabPage.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.bbsSplitContainer)).BeginInit();
-            this.bbsSplitContainer.Panel1.SuspendLayout();
-            this.bbsSplitContainer.Panel2.SuspendLayout();
-            this.bbsSplitContainer.SuspendLayout();
-            this.panel4.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.bbsMenuPictureBox)).BeginInit();
-            this.torrentTabPage.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.torrentSplitContainer)).BeginInit();
-            this.torrentSplitContainer.Panel1.SuspendLayout();
-            this.torrentSplitContainer.Panel2.SuspendLayout();
-            this.torrentSplitContainer.SuspendLayout();
-            this.torrentContextMenuStrip.SuspendLayout();
-            this.torrentTabControl.SuspendLayout();
-            this.tabPage1.SuspendLayout();
-            this.tabPage2.SuspendLayout();
-            this.panel5.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.torrentMenuPictureBox)).BeginInit();
-            this.torrentTabContextMenuStrip.SuspendLayout();
-            this.packetsTabPage.SuspendLayout();
-            this.debugTabPage.SuspendLayout();
             this.aprsContextMenuStrip.SuspendLayout();
             this.terminalTabContextMenuStrip.SuspendLayout();
             this.aprsMsgContextMenuStrip.SuspendLayout();
-            this.bbsTabContextMenuStrip.SuspendLayout();
             this.notifyContextMenuStrip.SuspendLayout();
             this.mailTabContextMenuStrip.SuspendLayout();
             this.voiceTabContextMenuStrip.SuspendLayout();
@@ -404,7 +347,7 @@
             this.mainStatusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.mainToolStripStatusLabel,
             this.batteryToolStripStatusLabel});
-            this.mainStatusStrip.Location = new System.Drawing.Point(0, 657);
+            this.mainStatusStrip.Location = new System.Drawing.Point(0, 692);
             this.mainStatusStrip.Name = "mainStatusStrip";
             this.mainStatusStrip.Padding = new System.Windows.Forms.Padding(1, 0, 19, 0);
             this.mainStatusStrip.Size = new System.Drawing.Size(1084, 22);
@@ -892,7 +835,7 @@
             this.radioPanel.Location = new System.Drawing.Point(0, 26);
             this.radioPanel.Margin = new System.Windows.Forms.Padding(4);
             this.radioPanel.Name = "radioPanel";
-            this.radioPanel.Size = new System.Drawing.Size(372, 631);
+            this.radioPanel.Size = new System.Drawing.Size(372, 666);
             this.radioPanel.TabIndex = 2;
             this.radioPanel.SizeChanged += new System.EventHandler(this.radioPanel_SizeChanged);
             this.radioPanel.Click += new System.EventHandler(this.radioPictureBox_Click);
@@ -915,7 +858,7 @@
             // 
             this.channelsFlowLayoutPanel.BackColor = System.Drawing.Color.DarkKhaki;
             this.channelsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 459);
+            this.channelsFlowLayoutPanel.Location = new System.Drawing.Point(0, 494);
             this.channelsFlowLayoutPanel.Margin = new System.Windows.Forms.Padding(4);
             this.channelsFlowLayoutPanel.Name = "channelsFlowLayoutPanel";
             this.channelsFlowLayoutPanel.Size = new System.Drawing.Size(368, 84);
@@ -925,7 +868,7 @@
             // checkBluetoothButton
             // 
             this.checkBluetoothButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 543);
+            this.checkBluetoothButton.Location = new System.Drawing.Point(0, 578);
             this.checkBluetoothButton.Margin = new System.Windows.Forms.Padding(4);
             this.checkBluetoothButton.Name = "checkBluetoothButton";
             this.checkBluetoothButton.Size = new System.Drawing.Size(368, 42);
@@ -1131,7 +1074,7 @@
             // connectButton
             // 
             this.connectButton.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.connectButton.Location = new System.Drawing.Point(0, 585);
+            this.connectButton.Location = new System.Drawing.Point(0, 620);
             this.connectButton.Margin = new System.Windows.Forms.Padding(4);
             this.connectButton.Name = "connectButton";
             this.connectButton.Size = new System.Drawing.Size(368, 42);
@@ -1191,7 +1134,7 @@
             this.mainTabControl.Multiline = true;
             this.mainTabControl.Name = "mainTabControl";
             this.mainTabControl.SelectedIndex = 0;
-            this.mainTabControl.Size = new System.Drawing.Size(712, 631);
+            this.mainTabControl.Size = new System.Drawing.Size(712, 666);
             this.mainTabControl.TabIndex = 3;
             // 
             // aprsTabPage
@@ -1204,7 +1147,7 @@
             this.aprsTabPage.Location = new System.Drawing.Point(4, 4);
             this.aprsTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.aprsTabPage.Name = "aprsTabPage";
-            this.aprsTabPage.Size = new System.Drawing.Size(669, 623);
+            this.aprsTabPage.Size = new System.Drawing.Size(669, 658);
             this.aprsTabPage.TabIndex = 3;
             this.aprsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1228,7 +1171,7 @@
             this.aprsChatControl.Name = "aprsChatControl";
             this.aprsChatControl.ShadowOffset = 2;
             this.aprsChatControl.SideMargins = 12;
-            this.aprsChatControl.Size = new System.Drawing.Size(669, 502);
+            this.aprsChatControl.Size = new System.Drawing.Size(669, 537);
             this.aprsChatControl.TabIndex = 5;
             this.aprsChatControl.TextColor = System.Drawing.Color.Black;
             this.aprsChatControl.MouseClick += new System.Windows.Forms.MouseEventHandler(this.aprsChatControl_MouseClick);
@@ -1295,7 +1238,7 @@
             this.aprsBottomPanel.Controls.Add(this.aprsTextBox);
             this.aprsBottomPanel.Controls.Add(this.aprsSendButton);
             this.aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 576);
+            this.aprsBottomPanel.Location = new System.Drawing.Point(0, 611);
             this.aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.aprsBottomPanel.Name = "aprsBottomPanel";
             this.aprsBottomPanel.Size = new System.Drawing.Size(669, 47);
@@ -1427,7 +1370,7 @@
             this.mapTabPage.Location = new System.Drawing.Point(4, 4);
             this.mapTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.mapTabPage.Name = "mapTabPage";
-            this.mapTabPage.Size = new System.Drawing.Size(669, 623);
+            this.mapTabPage.Size = new System.Drawing.Size(669, 658);
             this.mapTabPage.TabIndex = 0;
             this.mapTabPage.ToolTipText = "APRS";
             this.mapTabPage.UseVisualStyleBackColor = true;
@@ -1438,7 +1381,7 @@
             this.downloadMapPanel.Controls.Add(this.cancelMapDownloadButton);
             this.downloadMapPanel.Controls.Add(this.downloadMapLabel);
             this.downloadMapPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.downloadMapPanel.Location = new System.Drawing.Point(0, 586);
+            this.downloadMapPanel.Location = new System.Drawing.Point(0, 621);
             this.downloadMapPanel.Margin = new System.Windows.Forms.Padding(4);
             this.downloadMapPanel.Name = "downloadMapPanel";
             this.downloadMapPanel.Size = new System.Drawing.Size(669, 37);
@@ -1556,7 +1499,7 @@
             this.voiceTabPage.Location = new System.Drawing.Point(4, 4);
             this.voiceTabPage.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             this.voiceTabPage.Name = "voiceTabPage";
-            this.voiceTabPage.Size = new System.Drawing.Size(669, 623);
+            this.voiceTabPage.Size = new System.Drawing.Size(669, 658);
             this.voiceTabPage.TabIndex = 9;
             this.voiceTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1581,7 +1524,7 @@
             this.voiceHistoryTextBox.Name = "voiceHistoryTextBox";
             this.voiceHistoryTextBox.ReadOnly = true;
             this.voiceHistoryTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.ForcedVertical;
-            this.voiceHistoryTextBox.Size = new System.Drawing.Size(669, 539);
+            this.voiceHistoryTextBox.Size = new System.Drawing.Size(669, 574);
             this.voiceHistoryTextBox.TabIndex = 0;
             this.voiceHistoryTextBox.Text = "";
             // 
@@ -1591,7 +1534,7 @@
             this.voiceBottomPanel.Controls.Add(this.speakTextBox);
             this.voiceBottomPanel.Controls.Add(this.speakButton);
             this.voiceBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.voiceBottomPanel.Location = new System.Drawing.Point(0, 576);
+            this.voiceBottomPanel.Location = new System.Drawing.Point(0, 611);
             this.voiceBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.voiceBottomPanel.Name = "voiceBottomPanel";
             this.voiceBottomPanel.Size = new System.Drawing.Size(669, 47);
@@ -1711,7 +1654,7 @@
             this.mailTabPage.Location = new System.Drawing.Point(4, 4);
             this.mailTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.mailTabPage.Name = "mailTabPage";
-            this.mailTabPage.Size = new System.Drawing.Size(669, 623);
+            this.mailTabPage.Size = new System.Drawing.Size(669, 658);
             this.mailTabPage.TabIndex = 5;
             this.mailTabPage.UseVisualStyleBackColor = true;
             // 
@@ -1732,7 +1675,7 @@
             // 
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailPreviewTextBox);
             this.mailboxHorizontalSplitContainer.Panel2.Controls.Add(this.mailToolStrip);
-            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(669, 549);
+            this.mailboxHorizontalSplitContainer.Size = new System.Drawing.Size(669, 584);
             this.mailboxHorizontalSplitContainer.SplitterDistance = 200;
             this.mailboxHorizontalSplitContainer.TabIndex = 7;
             // 
@@ -1925,11 +1868,10 @@
             this.mailPreviewTextBox.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             this.mailPreviewTextBox.Name = "mailPreviewTextBox";
             this.mailPreviewTextBox.ReadOnly = true;
-            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 318);
+            this.mailPreviewTextBox.Size = new System.Drawing.Size(669, 353);
             this.mailPreviewTextBox.TabIndex = 0;
             this.mailPreviewTextBox.Text = "";
             this.mailPreviewTextBox.LinkClicked += new System.Windows.Forms.LinkClickedEventHandler(this.mailPreviewTextBox_LinkClicked);
-            this.mailPreviewTextBox.TextChanged += new System.EventHandler(this.mailPreviewTextBox_TextChanged);
             // 
             // mailToolStrip
             // 
@@ -1992,7 +1934,7 @@
             this.mailTransferStatusPanel.BackColor = System.Drawing.Color.Silver;
             this.mailTransferStatusPanel.Controls.Add(this.mailTransferStatusLabel);
             this.mailTransferStatusPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 586);
+            this.mailTransferStatusPanel.Location = new System.Drawing.Point(0, 621);
             this.mailTransferStatusPanel.Margin = new System.Windows.Forms.Padding(4);
             this.mailTransferStatusPanel.Name = "mailTransferStatusPanel";
             this.mailTransferStatusPanel.Size = new System.Drawing.Size(669, 37);
@@ -2007,7 +1949,7 @@
             this.mailTransferStatusLabel.Location = new System.Drawing.Point(4, 6);
             this.mailTransferStatusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.mailTransferStatusLabel.Name = "mailTransferStatusLabel";
-            this.mailTransferStatusLabel.Size = new System.Drawing.Size(659, 25);
+            this.mailTransferStatusLabel.Size = new System.Drawing.Size(658, 25);
             this.mailTransferStatusLabel.TabIndex = 1;
             this.mailTransferStatusLabel.Text = "Disconnected";
             // 
@@ -2029,7 +1971,7 @@
             // mailInternetButton
             // 
             this.mailInternetButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.mailInternetButton.Location = new System.Drawing.Point(419, 4);
+            this.mailInternetButton.Location = new System.Drawing.Point(418, 4);
             this.mailInternetButton.Margin = new System.Windows.Forms.Padding(4);
             this.mailInternetButton.Name = "mailInternetButton";
             this.mailInternetButton.Size = new System.Drawing.Size(100, 28);
@@ -2041,7 +1983,7 @@
             // newMailButton
             // 
             this.newMailButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.newMailButton.Location = new System.Drawing.Point(311, 4);
+            this.newMailButton.Location = new System.Drawing.Point(310, 4);
             this.newMailButton.Margin = new System.Windows.Forms.Padding(4);
             this.newMailButton.Name = "newMailButton";
             this.newMailButton.Size = new System.Drawing.Size(100, 28);
@@ -2054,7 +1996,7 @@
             // 
             this.mailConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.mailConnectButton.Enabled = false;
-            this.mailConnectButton.Location = new System.Drawing.Point(527, 4);
+            this.mailConnectButton.Location = new System.Drawing.Point(526, 4);
             this.mailConnectButton.Margin = new System.Windows.Forms.Padding(4);
             this.mailConnectButton.Name = "mailConnectButton";
             this.mailConnectButton.Size = new System.Drawing.Size(100, 28);
@@ -2123,7 +2065,7 @@
             this.terminalTabPage.Location = new System.Drawing.Point(4, 4);
             this.terminalTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTabPage.Name = "terminalTabPage";
-            this.terminalTabPage.Size = new System.Drawing.Size(669, 623);
+            this.terminalTabPage.Size = new System.Drawing.Size(669, 658);
             this.terminalTabPage.TabIndex = 2;
             this.terminalTabPage.UseVisualStyleBackColor = true;
             // 
@@ -2138,7 +2080,7 @@
             this.terminalTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.terminalTextBox.Name = "terminalTextBox";
             this.terminalTextBox.ReadOnly = true;
-            this.terminalTextBox.Size = new System.Drawing.Size(669, 487);
+            this.terminalTextBox.Size = new System.Drawing.Size(669, 522);
             this.terminalTextBox.TabIndex = 4;
             this.terminalTextBox.Text = "";
             this.terminalTextBox.WordWrap = false;
@@ -2182,7 +2124,7 @@
             // 
             this.terminalFileTransferCancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.terminalFileTransferCancelButton.Enabled = false;
-            this.terminalFileTransferCancelButton.Location = new System.Drawing.Point(559, 4);
+            this.terminalFileTransferCancelButton.Location = new System.Drawing.Point(558, 4);
             this.terminalFileTransferCancelButton.Margin = new System.Windows.Forms.Padding(4);
             this.terminalFileTransferCancelButton.Name = "terminalFileTransferCancelButton";
             this.terminalFileTransferCancelButton.Size = new System.Drawing.Size(100, 28);
@@ -2197,7 +2139,7 @@
             this.terminalBottomPanel.Controls.Add(this.terminalInputTextBox);
             this.terminalBottomPanel.Controls.Add(this.terminalSendButton);
             this.terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 576);
+            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 611);
             this.terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4);
             this.terminalBottomPanel.Name = "terminalBottomPanel";
             this.terminalBottomPanel.Size = new System.Drawing.Size(669, 47);
@@ -2246,7 +2188,7 @@
             // 
             this.terminalConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.terminalConnectButton.Enabled = false;
-            this.terminalConnectButton.Location = new System.Drawing.Point(527, 4);
+            this.terminalConnectButton.Location = new System.Drawing.Point(526, 4);
             this.terminalConnectButton.Margin = new System.Windows.Forms.Padding(4);
             this.terminalConnectButton.Name = "terminalConnectButton";
             this.terminalConnectButton.Size = new System.Drawing.Size(100, 28);
@@ -2283,15 +2225,119 @@
             // 
             // addressesTabPage
             // 
-            this.addressesTabPage.Controls.Add(this.mainAddressBookListView);
-            this.addressesTabPage.Controls.Add(this.panel1);
+            this.addressesTabPage.Controls.Add(this.contactsTabUserControl);
             this.addressesTabPage.ImageIndex = 4;
             this.addressesTabPage.Location = new System.Drawing.Point(4, 4);
             this.addressesTabPage.Margin = new System.Windows.Forms.Padding(4);
             this.addressesTabPage.Name = "addressesTabPage";
-            this.addressesTabPage.Size = new System.Drawing.Size(669, 623);
+            this.addressesTabPage.Size = new System.Drawing.Size(669, 658);
             this.addressesTabPage.TabIndex = 4;
             this.addressesTabPage.UseVisualStyleBackColor = true;
+            // 
+            // contactsTabUserControl
+            // 
+            this.contactsTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.contactsTabUserControl.Location = new System.Drawing.Point(0, 0);
+            this.contactsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.contactsTabUserControl.Name = "contactsTabUserControl";
+            this.contactsTabUserControl.Size = new System.Drawing.Size(669, 658);
+            this.contactsTabUserControl.TabIndex = 0;
+            // 
+            // bbsTabPage
+            // 
+            this.bbsTabPage.Controls.Add(this.bbsTabUserControl);
+            this.bbsTabPage.ImageIndex = 8;
+            this.bbsTabPage.Location = new System.Drawing.Point(4, 4);
+            this.bbsTabPage.Margin = new System.Windows.Forms.Padding(4);
+            this.bbsTabPage.Name = "bbsTabPage";
+            this.bbsTabPage.Size = new System.Drawing.Size(669, 658);
+            this.bbsTabPage.TabIndex = 7;
+            this.bbsTabPage.UseVisualStyleBackColor = true;
+            // 
+            // bbsTabUserControl
+            // 
+            this.bbsTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.bbsTabUserControl.Location = new System.Drawing.Point(0, 0);
+            this.bbsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.bbsTabUserControl.Name = "bbsTabUserControl";
+            this.bbsTabUserControl.Size = new System.Drawing.Size(669, 658);
+            this.bbsTabUserControl.TabIndex = 0;
+            // 
+            // torrentTabPage
+            // 
+            this.torrentTabPage.Controls.Add(this.torrentTabUserControl);
+            this.torrentTabPage.ImageIndex = 7;
+            this.torrentTabPage.Location = new System.Drawing.Point(4, 4);
+            this.torrentTabPage.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
+            this.torrentTabPage.Name = "torrentTabPage";
+            this.torrentTabPage.Size = new System.Drawing.Size(669, 658);
+            this.torrentTabPage.TabIndex = 8;
+            this.torrentTabPage.UseVisualStyleBackColor = true;
+            // 
+            // torrentTabUserControl
+            // 
+            this.torrentTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.torrentTabUserControl.Location = new System.Drawing.Point(0, 0);
+            this.torrentTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.torrentTabUserControl.Name = "torrentTabUserControl";
+            this.torrentTabUserControl.Size = new System.Drawing.Size(669, 658);
+            this.torrentTabUserControl.TabIndex = 0;
+            // 
+            // packetsTabPage
+            // 
+            this.packetsTabPage.Controls.Add(this.packetCaptureTabUserControl);
+            this.packetsTabPage.ImageIndex = 6;
+            this.packetsTabPage.Location = new System.Drawing.Point(4, 4);
+            this.packetsTabPage.Margin = new System.Windows.Forms.Padding(4);
+            this.packetsTabPage.Name = "packetsTabPage";
+            this.packetsTabPage.Size = new System.Drawing.Size(669, 658);
+            this.packetsTabPage.TabIndex = 6;
+            this.packetsTabPage.UseVisualStyleBackColor = true;
+            // 
+            // packetCaptureTabUserControl
+            // 
+            this.packetCaptureTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.packetCaptureTabUserControl.Location = new System.Drawing.Point(0, 0);
+            this.packetCaptureTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.packetCaptureTabUserControl.Name = "packetCaptureTabUserControl";
+            this.packetCaptureTabUserControl.Size = new System.Drawing.Size(669, 658);
+            this.packetCaptureTabUserControl.TabIndex = 0;
+            // 
+            // debugTabPage
+            // 
+            this.debugTabPage.Controls.Add(this.debugTabUserControl);
+            this.debugTabPage.ImageIndex = 0;
+            this.debugTabPage.Location = new System.Drawing.Point(4, 4);
+            this.debugTabPage.Margin = new System.Windows.Forms.Padding(4);
+            this.debugTabPage.Name = "debugTabPage";
+            this.debugTabPage.Size = new System.Drawing.Size(669, 658);
+            this.debugTabPage.TabIndex = 1;
+            this.debugTabPage.ToolTipText = "Debug";
+            this.debugTabPage.UseVisualStyleBackColor = true;
+            // 
+            // debugTabUserControl
+            // 
+            this.debugTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.debugTabUserControl.Location = new System.Drawing.Point(0, 0);
+            this.debugTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.debugTabUserControl.Name = "debugTabUserControl";
+            this.debugTabUserControl.Size = new System.Drawing.Size(669, 658);
+            this.debugTabUserControl.TabIndex = 0;
+            // 
+            // tabsImageList
+            // 
+            this.tabsImageList.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("tabsImageList.ImageStream")));
+            this.tabsImageList.TransparentColor = System.Drawing.Color.Transparent;
+            this.tabsImageList.Images.SetKeyName(0, "info.ico");
+            this.tabsImageList.Images.SetKeyName(1, "world.ico");
+            this.tabsImageList.Images.SetKeyName(2, "terminal-32.png");
+            this.tabsImageList.Images.SetKeyName(3, "people.ico");
+            this.tabsImageList.Images.SetKeyName(4, "AddressBook.ico");
+            this.tabsImageList.Images.SetKeyName(5, "Letter.png");
+            this.tabsImageList.Images.SetKeyName(6, "search.ico");
+            this.tabsImageList.Images.SetKeyName(7, "transfer.ico");
+            this.tabsImageList.Images.SetKeyName(8, "bbs.ico");
+            this.tabsImageList.Images.SetKeyName(9, "talking.ico");
             // 
             // mainAddressBookListView
             // 
@@ -2324,7 +2370,7 @@
             this.mainAddressBookListView.Location = new System.Drawing.Point(0, 37);
             this.mainAddressBookListView.Margin = new System.Windows.Forms.Padding(4);
             this.mainAddressBookListView.Name = "mainAddressBookListView";
-            this.mainAddressBookListView.Size = new System.Drawing.Size(669, 586);
+            this.mainAddressBookListView.Size = new System.Drawing.Size(668, 612);
             this.mainAddressBookListView.SmallImageList = this.mainImageList;
             this.mainAddressBookListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.mainAddressBookListView.TabIndex = 4;
@@ -2391,7 +2437,7 @@
             this.panel1.Location = new System.Drawing.Point(0, 0);
             this.panel1.Margin = new System.Windows.Forms.Padding(4);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(669, 37);
+            this.panel1.Size = new System.Drawing.Size(668, 37);
             this.panel1.TabIndex = 3;
             // 
             // stationsMenuPictureBox
@@ -2399,7 +2445,7 @@
             this.stationsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.stationsMenuPictureBox.ContextMenuStrip = this.stationsTabContextMenuStrip;
             this.stationsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("stationsMenuPictureBox.Image")));
-            this.stationsMenuPictureBox.Location = new System.Drawing.Point(637, 6);
+            this.stationsMenuPictureBox.Location = new System.Drawing.Point(636, 6);
             this.stationsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.stationsMenuPictureBox.Name = "stationsMenuPictureBox";
             this.stationsMenuPictureBox.Size = new System.Drawing.Size(27, 25);
@@ -2411,7 +2457,7 @@
             // addStationButton
             // 
             this.addStationButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.addStationButton.Location = new System.Drawing.Point(419, 4);
+            this.addStationButton.Location = new System.Drawing.Point(417, 4);
             this.addStationButton.Margin = new System.Windows.Forms.Padding(4);
             this.addStationButton.Name = "addStationButton";
             this.addStationButton.Size = new System.Drawing.Size(100, 28);
@@ -2424,7 +2470,7 @@
             // 
             this.removeStationButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.removeStationButton.Enabled = false;
-            this.removeStationButton.Location = new System.Drawing.Point(527, 4);
+            this.removeStationButton.Location = new System.Drawing.Point(525, 4);
             this.removeStationButton.Margin = new System.Windows.Forms.Padding(4);
             this.removeStationButton.Name = "removeStationButton";
             this.removeStationButton.Size = new System.Drawing.Size(100, 28);
@@ -2445,492 +2491,6 @@
             this.label1.Size = new System.Drawing.Size(135, 25);
             this.label1.TabIndex = 0;
             this.label1.Text = "Address Book";
-            // 
-            // bbsTabPage
-            // 
-            this.bbsTabPage.Controls.Add(this.bbsSplitContainer);
-            this.bbsTabPage.Controls.Add(this.panel4);
-            this.bbsTabPage.ImageIndex = 8;
-            this.bbsTabPage.Location = new System.Drawing.Point(4, 4);
-            this.bbsTabPage.Margin = new System.Windows.Forms.Padding(4);
-            this.bbsTabPage.Name = "bbsTabPage";
-            this.bbsTabPage.Size = new System.Drawing.Size(669, 623);
-            this.bbsTabPage.TabIndex = 7;
-            this.bbsTabPage.UseVisualStyleBackColor = true;
-            // 
-            // bbsSplitContainer
-            // 
-            this.bbsSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.bbsSplitContainer.Location = new System.Drawing.Point(0, 37);
-            this.bbsSplitContainer.Margin = new System.Windows.Forms.Padding(4);
-            this.bbsSplitContainer.Name = "bbsSplitContainer";
-            this.bbsSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
-            // 
-            // bbsSplitContainer.Panel1
-            // 
-            this.bbsSplitContainer.Panel1.Controls.Add(this.bbsListView);
-            // 
-            // bbsSplitContainer.Panel2
-            // 
-            this.bbsSplitContainer.Panel2.Controls.Add(this.bbsTextBox);
-            this.bbsSplitContainer.Size = new System.Drawing.Size(669, 586);
-            this.bbsSplitContainer.SplitterDistance = 105;
-            this.bbsSplitContainer.SplitterWidth = 5;
-            this.bbsSplitContainer.TabIndex = 7;
-            // 
-            // bbsListView
-            // 
-            this.bbsListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnHeader10,
-            this.columnHeader11,
-            this.columnHeader12});
-            this.bbsListView.ContextMenuStrip = this.stationsContextMenuStrip;
-            this.bbsListView.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.bbsListView.FullRowSelect = true;
-            this.bbsListView.GridLines = true;
-            listViewGroup6.Header = "Generic Stations";
-            listViewGroup6.Name = "Generic Stations";
-            listViewGroup7.Header = "APRS Stations";
-            listViewGroup7.Name = "APRS Stations";
-            listViewGroup8.Header = "Terminal Stations";
-            listViewGroup8.Name = "Terminal Stations";
-            this.bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup6,
-            listViewGroup7,
-            listViewGroup8});
-            this.bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
-            this.bbsListView.HideSelection = false;
-            this.bbsListView.Location = new System.Drawing.Point(0, 0);
-            this.bbsListView.Margin = new System.Windows.Forms.Padding(4);
-            this.bbsListView.Name = "bbsListView";
-            this.bbsListView.Size = new System.Drawing.Size(669, 105);
-            this.bbsListView.SmallImageList = this.mainImageList;
-            this.bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
-            this.bbsListView.TabIndex = 6;
-            this.bbsListView.UseCompatibleStateImageBehavior = false;
-            this.bbsListView.View = System.Windows.Forms.View.Details;
-            this.bbsListView.Resize += new System.EventHandler(this.bbsListView_Resize);
-            // 
-            // columnHeader10
-            // 
-            this.columnHeader10.Text = "Call Sign";
-            this.columnHeader10.Width = 100;
-            // 
-            // columnHeader11
-            // 
-            this.columnHeader11.Text = "Last Seen";
-            this.columnHeader11.Width = 133;
-            // 
-            // columnHeader12
-            // 
-            this.columnHeader12.Text = "Stats";
-            this.columnHeader12.Width = 251;
-            // 
-            // bbsTextBox
-            // 
-            this.bbsTextBox.BackColor = System.Drawing.Color.Black;
-            this.bbsTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.bbsTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.bbsTextBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold);
-            this.bbsTextBox.ForeColor = System.Drawing.Color.Gainsboro;
-            this.bbsTextBox.Location = new System.Drawing.Point(0, 0);
-            this.bbsTextBox.Margin = new System.Windows.Forms.Padding(4);
-            this.bbsTextBox.Name = "bbsTextBox";
-            this.bbsTextBox.ReadOnly = true;
-            this.bbsTextBox.Size = new System.Drawing.Size(669, 476);
-            this.bbsTextBox.TabIndex = 5;
-            this.bbsTextBox.Text = "";
-            // 
-            // panel4
-            // 
-            this.panel4.BackColor = System.Drawing.Color.Silver;
-            this.panel4.Controls.Add(this.bbsMenuPictureBox);
-            this.panel4.Controls.Add(this.bbsConnectButton);
-            this.panel4.Controls.Add(this.label3);
-            this.panel4.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panel4.Location = new System.Drawing.Point(0, 0);
-            this.panel4.Margin = new System.Windows.Forms.Padding(4);
-            this.panel4.Name = "panel4";
-            this.panel4.Size = new System.Drawing.Size(669, 37);
-            this.panel4.TabIndex = 5;
-            // 
-            // bbsMenuPictureBox
-            // 
-            this.bbsMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.bbsMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("bbsMenuPictureBox.Image")));
-            this.bbsMenuPictureBox.Location = new System.Drawing.Point(637, 6);
-            this.bbsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
-            this.bbsMenuPictureBox.Name = "bbsMenuPictureBox";
-            this.bbsMenuPictureBox.Size = new System.Drawing.Size(27, 25);
-            this.bbsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.bbsMenuPictureBox.TabIndex = 4;
-            this.bbsMenuPictureBox.TabStop = false;
-            this.bbsMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.pictureBox1_MouseClick);
-            // 
-            // bbsConnectButton
-            // 
-            this.bbsConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.bbsConnectButton.Location = new System.Drawing.Point(527, 4);
-            this.bbsConnectButton.Margin = new System.Windows.Forms.Padding(4);
-            this.bbsConnectButton.Name = "bbsConnectButton";
-            this.bbsConnectButton.Size = new System.Drawing.Size(100, 28);
-            this.bbsConnectButton.TabIndex = 2;
-            this.bbsConnectButton.Text = "&Activate";
-            this.bbsConnectButton.UseVisualStyleBackColor = true;
-            this.bbsConnectButton.Click += new System.EventHandler(this.bbsConnectButton_Click);
-            // 
-            // label3
-            // 
-            this.label3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.label3.AutoSize = true;
-            this.label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label3.Location = new System.Drawing.Point(7, 6);
-            this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(52, 25);
-            this.label3.TabIndex = 0;
-            this.label3.Text = "BBS";
-            // 
-            // torrentTabPage
-            // 
-            this.torrentTabPage.Controls.Add(this.torrentSplitContainer);
-            this.torrentTabPage.Controls.Add(this.panel5);
-            this.torrentTabPage.ImageIndex = 7;
-            this.torrentTabPage.Location = new System.Drawing.Point(4, 4);
-            this.torrentTabPage.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.torrentTabPage.Name = "torrentTabPage";
-            this.torrentTabPage.Size = new System.Drawing.Size(669, 623);
-            this.torrentTabPage.TabIndex = 8;
-            this.torrentTabPage.UseVisualStyleBackColor = true;
-            // 
-            // torrentSplitContainer
-            // 
-            this.torrentSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentSplitContainer.Location = new System.Drawing.Point(0, 37);
-            this.torrentSplitContainer.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.torrentSplitContainer.Name = "torrentSplitContainer";
-            this.torrentSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
-            // 
-            // torrentSplitContainer.Panel1
-            // 
-            this.torrentSplitContainer.Panel1.Controls.Add(this.torrentListView);
-            // 
-            // torrentSplitContainer.Panel2
-            // 
-            this.torrentSplitContainer.Panel2.Controls.Add(this.torrentTabControl);
-            this.torrentSplitContainer.Size = new System.Drawing.Size(669, 586);
-            this.torrentSplitContainer.SplitterDistance = 247;
-            this.torrentSplitContainer.TabIndex = 7;
-            // 
-            // torrentListView
-            // 
-            this.torrentListView.AllowDrop = true;
-            this.torrentListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnHeader14,
-            this.columnHeader15,
-            this.columnHeader16});
-            this.torrentListView.ContextMenuStrip = this.torrentContextMenuStrip;
-            this.torrentListView.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentListView.FullRowSelect = true;
-            this.torrentListView.HideSelection = false;
-            this.torrentListView.Location = new System.Drawing.Point(0, 0);
-            this.torrentListView.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.torrentListView.Name = "torrentListView";
-            this.torrentListView.Size = new System.Drawing.Size(669, 247);
-            this.torrentListView.SmallImageList = this.mainImageList;
-            this.torrentListView.TabIndex = 0;
-            this.torrentListView.UseCompatibleStateImageBehavior = false;
-            this.torrentListView.View = System.Windows.Forms.View.Details;
-            this.torrentListView.SelectedIndexChanged += new System.EventHandler(this.torrentListView_SelectedIndexChanged);
-            this.torrentListView.DragDrop += new System.Windows.Forms.DragEventHandler(this.torrentListView_DragDrop);
-            this.torrentListView.DragEnter += new System.Windows.Forms.DragEventHandler(this.torrentListView_DragEnter);
-            this.torrentListView.KeyDown += new System.Windows.Forms.KeyEventHandler(this.torrentListView_KeyDown);
-            this.torrentListView.Resize += new System.EventHandler(this.torrentListView_Resize);
-            // 
-            // columnHeader14
-            // 
-            this.columnHeader14.Text = "Filename";
-            this.columnHeader14.Width = 173;
-            // 
-            // columnHeader15
-            // 
-            this.columnHeader15.Text = "Action";
-            this.columnHeader15.Width = 70;
-            // 
-            // columnHeader16
-            // 
-            this.columnHeader16.Text = "Description";
-            this.columnHeader16.Width = 377;
-            // 
-            // torrentContextMenuStrip
-            // 
-            this.torrentContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.torrentContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.torrentPauseToolStripMenuItem,
-            this.torrentShareToolStripMenuItem,
-            this.torrentRequestToolStripMenuItem,
-            this.toolStripMenuItem19,
-            this.torrentSaveAsToolStripMenuItem,
-            this.toolStripMenuItem20,
-            this.torrentDeleteToolStripMenuItem});
-            this.torrentContextMenuStrip.Name = "mailContextMenuStrip";
-            this.torrentContextMenuStrip.Size = new System.Drawing.Size(139, 136);
-            this.torrentContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.torrentContextMenuStrip_Opening);
-            // 
-            // torrentPauseToolStripMenuItem
-            // 
-            this.torrentPauseToolStripMenuItem.Name = "torrentPauseToolStripMenuItem";
-            this.torrentPauseToolStripMenuItem.Size = new System.Drawing.Size(138, 24);
-            this.torrentPauseToolStripMenuItem.Text = "Pause";
-            this.torrentPauseToolStripMenuItem.Click += new System.EventHandler(this.torrentPauseToolStripMenuItem_Click);
-            // 
-            // torrentShareToolStripMenuItem
-            // 
-            this.torrentShareToolStripMenuItem.Name = "torrentShareToolStripMenuItem";
-            this.torrentShareToolStripMenuItem.Size = new System.Drawing.Size(138, 24);
-            this.torrentShareToolStripMenuItem.Text = "Share";
-            this.torrentShareToolStripMenuItem.Click += new System.EventHandler(this.torrentShareToolStripMenuItem_Click);
-            // 
-            // torrentRequestToolStripMenuItem
-            // 
-            this.torrentRequestToolStripMenuItem.Name = "torrentRequestToolStripMenuItem";
-            this.torrentRequestToolStripMenuItem.Size = new System.Drawing.Size(138, 24);
-            this.torrentRequestToolStripMenuItem.Text = "Request";
-            this.torrentRequestToolStripMenuItem.Click += new System.EventHandler(this.torrentRequestToolStripMenuItem_Click);
-            // 
-            // toolStripMenuItem19
-            // 
-            this.toolStripMenuItem19.Name = "toolStripMenuItem19";
-            this.toolStripMenuItem19.Size = new System.Drawing.Size(135, 6);
-            // 
-            // torrentSaveAsToolStripMenuItem
-            // 
-            this.torrentSaveAsToolStripMenuItem.Name = "torrentSaveAsToolStripMenuItem";
-            this.torrentSaveAsToolStripMenuItem.Size = new System.Drawing.Size(138, 24);
-            this.torrentSaveAsToolStripMenuItem.Text = "Save As...";
-            this.torrentSaveAsToolStripMenuItem.Click += new System.EventHandler(this.torrentSaveAsToolStripMenuItem_Click);
-            // 
-            // toolStripMenuItem20
-            // 
-            this.toolStripMenuItem20.Name = "toolStripMenuItem20";
-            this.toolStripMenuItem20.Size = new System.Drawing.Size(135, 6);
-            // 
-            // torrentDeleteToolStripMenuItem
-            // 
-            this.torrentDeleteToolStripMenuItem.Name = "torrentDeleteToolStripMenuItem";
-            this.torrentDeleteToolStripMenuItem.Size = new System.Drawing.Size(138, 24);
-            this.torrentDeleteToolStripMenuItem.Text = "&Delete";
-            this.torrentDeleteToolStripMenuItem.Click += new System.EventHandler(this.torrentDeleteToolStripMenuItem_Click);
-            // 
-            // torrentTabControl
-            // 
-            this.torrentTabControl.Controls.Add(this.tabPage1);
-            this.torrentTabControl.Controls.Add(this.tabPage2);
-            this.torrentTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentTabControl.Location = new System.Drawing.Point(0, 0);
-            this.torrentTabControl.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.torrentTabControl.Name = "torrentTabControl";
-            this.torrentTabControl.SelectedIndex = 0;
-            this.torrentTabControl.Size = new System.Drawing.Size(669, 335);
-            this.torrentTabControl.TabIndex = 0;
-            // 
-            // tabPage1
-            // 
-            this.tabPage1.Controls.Add(this.torrentDetailsListView);
-            this.tabPage1.Location = new System.Drawing.Point(4, 25);
-            this.tabPage1.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.tabPage1.Name = "tabPage1";
-            this.tabPage1.Padding = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.tabPage1.Size = new System.Drawing.Size(661, 306);
-            this.tabPage1.TabIndex = 0;
-            this.tabPage1.Text = "Details";
-            this.tabPage1.UseVisualStyleBackColor = true;
-            // 
-            // torrentDetailsListView
-            // 
-            this.torrentDetailsListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnHeader13,
-            this.columnHeader17});
-            this.torrentDetailsListView.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentDetailsListView.FullRowSelect = true;
-            this.torrentDetailsListView.HideSelection = false;
-            this.torrentDetailsListView.Location = new System.Drawing.Point(3, 1);
-            this.torrentDetailsListView.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.torrentDetailsListView.Name = "torrentDetailsListView";
-            this.torrentDetailsListView.Size = new System.Drawing.Size(655, 304);
-            this.torrentDetailsListView.TabIndex = 0;
-            this.torrentDetailsListView.UseCompatibleStateImageBehavior = false;
-            this.torrentDetailsListView.View = System.Windows.Forms.View.Details;
-            this.torrentDetailsListView.Resize += new System.EventHandler(this.torrentDetailsListView_Resize);
-            // 
-            // columnHeader13
-            // 
-            this.columnHeader13.Text = "Name";
-            this.columnHeader13.Width = 122;
-            // 
-            // columnHeader17
-            // 
-            this.columnHeader17.Text = "Value";
-            this.columnHeader17.Width = 469;
-            // 
-            // tabPage2
-            // 
-            this.tabPage2.Controls.Add(this.torrentBlocksUserControl);
-            this.tabPage2.Location = new System.Drawing.Point(4, 25);
-            this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.tabPage2.Name = "tabPage2";
-            this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.tabPage2.Size = new System.Drawing.Size(661, 306);
-            this.tabPage2.TabIndex = 1;
-            this.tabPage2.Text = "Blocks";
-            this.tabPage2.UseVisualStyleBackColor = true;
-            // 
-            // torrentBlocksUserControl
-            // 
-            this.torrentBlocksUserControl.AutoScroll = true;
-            this.torrentBlocksUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.torrentBlocksUserControl.Location = new System.Drawing.Point(3, 1);
-            this.torrentBlocksUserControl.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.torrentBlocksUserControl.Name = "torrentBlocksUserControl";
-            this.torrentBlocksUserControl.Size = new System.Drawing.Size(655, 304);
-            this.torrentBlocksUserControl.TabIndex = 0;
-            // 
-            // panel5
-            // 
-            this.panel5.BackColor = System.Drawing.Color.Silver;
-            this.panel5.Controls.Add(this.torrentAddFileButton);
-            this.panel5.Controls.Add(this.torrentMenuPictureBox);
-            this.panel5.Controls.Add(this.torrentConnectButton);
-            this.panel5.Controls.Add(this.label4);
-            this.panel5.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panel5.Location = new System.Drawing.Point(0, 0);
-            this.panel5.Margin = new System.Windows.Forms.Padding(4);
-            this.panel5.Name = "panel5";
-            this.panel5.Size = new System.Drawing.Size(669, 37);
-            this.panel5.TabIndex = 6;
-            // 
-            // torrentAddFileButton
-            // 
-            this.torrentAddFileButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.torrentAddFileButton.Location = new System.Drawing.Point(421, 4);
-            this.torrentAddFileButton.Margin = new System.Windows.Forms.Padding(4);
-            this.torrentAddFileButton.Name = "torrentAddFileButton";
-            this.torrentAddFileButton.Size = new System.Drawing.Size(100, 28);
-            this.torrentAddFileButton.TabIndex = 5;
-            this.torrentAddFileButton.Text = "Add &File...";
-            this.torrentAddFileButton.UseVisualStyleBackColor = true;
-            this.torrentAddFileButton.Click += new System.EventHandler(this.torrentAddFileButton_Click);
-            // 
-            // torrentMenuPictureBox
-            // 
-            this.torrentMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.torrentMenuPictureBox.ContextMenuStrip = this.torrentTabContextMenuStrip;
-            this.torrentMenuPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("torrentMenuPictureBox.Image")));
-            this.torrentMenuPictureBox.Location = new System.Drawing.Point(637, 6);
-            this.torrentMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
-            this.torrentMenuPictureBox.Name = "torrentMenuPictureBox";
-            this.torrentMenuPictureBox.Size = new System.Drawing.Size(27, 25);
-            this.torrentMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.torrentMenuPictureBox.TabIndex = 4;
-            this.torrentMenuPictureBox.TabStop = false;
-            this.torrentMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.torrentMenuPictureBox_MouseClick);
-            // 
-            // torrentTabContextMenuStrip
-            // 
-            this.torrentTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.torrentTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.showDetailsToolStripMenuItem});
-            this.torrentTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.torrentTabContextMenuStrip.Size = new System.Drawing.Size(165, 28);
-            this.torrentTabContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.torrentTabContextMenuStrip_Opening);
-            // 
-            // showDetailsToolStripMenuItem
-            // 
-            this.showDetailsToolStripMenuItem.CheckOnClick = true;
-            this.showDetailsToolStripMenuItem.Name = "showDetailsToolStripMenuItem";
-            this.showDetailsToolStripMenuItem.Size = new System.Drawing.Size(164, 24);
-            this.showDetailsToolStripMenuItem.Text = "&Show Details";
-            this.showDetailsToolStripMenuItem.Click += new System.EventHandler(this.showDetailsToolStripMenuItem_Click);
-            // 
-            // torrentConnectButton
-            // 
-            this.torrentConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.torrentConnectButton.Location = new System.Drawing.Point(527, 4);
-            this.torrentConnectButton.Margin = new System.Windows.Forms.Padding(4);
-            this.torrentConnectButton.Name = "torrentConnectButton";
-            this.torrentConnectButton.Size = new System.Drawing.Size(100, 28);
-            this.torrentConnectButton.TabIndex = 2;
-            this.torrentConnectButton.Text = "&Activate";
-            this.torrentConnectButton.UseVisualStyleBackColor = true;
-            this.torrentConnectButton.Click += new System.EventHandler(this.torrentActivateButton_Click);
-            // 
-            // label4
-            // 
-            this.label4.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.label4.AutoSize = true;
-            this.label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label4.Location = new System.Drawing.Point(7, 6);
-            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(75, 25);
-            this.label4.TabIndex = 0;
-            this.label4.Text = "Torrent";
-            // 
-            // packetsTabPage
-            // 
-            this.packetsTabPage.Controls.Add(this.packetCaptureTabUserControl);
-            this.packetsTabPage.ImageIndex = 6;
-            this.packetsTabPage.Location = new System.Drawing.Point(4, 4);
-            this.packetsTabPage.Margin = new System.Windows.Forms.Padding(4);
-            this.packetsTabPage.Name = "packetsTabPage";
-            this.packetsTabPage.Size = new System.Drawing.Size(669, 623);
-            this.packetsTabPage.TabIndex = 6;
-            this.packetsTabPage.UseVisualStyleBackColor = true;
-            // 
-            // packetCaptureTabUserControl
-            // 
-            this.packetCaptureTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.packetCaptureTabUserControl.Location = new System.Drawing.Point(0, 0);
-            this.packetCaptureTabUserControl.Name = "packetCaptureTabUserControl";
-            this.packetCaptureTabUserControl.Size = new System.Drawing.Size(669, 623);
-            this.packetCaptureTabUserControl.TabIndex = 0;
-            // 
-            // debugTabPage
-            // 
-            this.debugTabPage.Controls.Add(this.debugTabUserControl);
-            this.debugTabPage.ImageIndex = 0;
-            this.debugTabPage.Location = new System.Drawing.Point(4, 4);
-            this.debugTabPage.Margin = new System.Windows.Forms.Padding(4);
-            this.debugTabPage.Name = "debugTabPage";
-            this.debugTabPage.Size = new System.Drawing.Size(669, 623);
-            this.debugTabPage.TabIndex = 1;
-            this.debugTabPage.ToolTipText = "Debug";
-            this.debugTabPage.UseVisualStyleBackColor = true;
-            // 
-            // debugTabUserControl
-            // 
-            this.debugTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.debugTabUserControl.Location = new System.Drawing.Point(0, 0);
-            this.debugTabUserControl.Name = "debugTabUserControl";
-            this.debugTabUserControl.Size = new System.Drawing.Size(669, 623);
-            this.debugTabUserControl.TabIndex = 0;
-            // 
-            // tabsImageList
-            // 
-            this.tabsImageList.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("tabsImageList.ImageStream")));
-            this.tabsImageList.TransparentColor = System.Drawing.Color.Transparent;
-            this.tabsImageList.Images.SetKeyName(0, "info.ico");
-            this.tabsImageList.Images.SetKeyName(1, "world.ico");
-            this.tabsImageList.Images.SetKeyName(2, "terminal-32.png");
-            this.tabsImageList.Images.SetKeyName(3, "people.ico");
-            this.tabsImageList.Images.SetKeyName(4, "AddressBook.ico");
-            this.tabsImageList.Images.SetKeyName(5, "Letter.png");
-            this.tabsImageList.Images.SetKeyName(6, "search.ico");
-            this.tabsImageList.Images.SetKeyName(7, "transfer.ico");
-            this.tabsImageList.Images.SetKeyName(8, "bbs.ico");
-            this.tabsImageList.Images.SetKeyName(9, "talking.ico");
             // 
             // aprsContextMenuStrip
             // 
@@ -3099,16 +2659,6 @@
             this.importChannelFileDialog.Filter = "Channels (*.csv)|*.csv|CHIRP (*.csv)|*.csv";
             this.importChannelFileDialog.Title = "Import Channels";
             // 
-            // bbsTabContextMenuStrip
-            // 
-            this.bbsTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.bbsTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.viewTrafficToolStripMenuItem,
-            this.toolStripMenuItem11,
-            this.clearStatsToolStripMenuItem});
-            this.bbsTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.bbsTabContextMenuStrip.Size = new System.Drawing.Size(156, 62);
-            // 
             // viewTrafficToolStripMenuItem
             // 
             this.viewTrafficToolStripMenuItem.Checked = true;
@@ -3117,7 +2667,6 @@
             this.viewTrafficToolStripMenuItem.Name = "viewTrafficToolStripMenuItem";
             this.viewTrafficToolStripMenuItem.Size = new System.Drawing.Size(155, 26);
             this.viewTrafficToolStripMenuItem.Text = "&View Traffic";
-            this.viewTrafficToolStripMenuItem.Click += new System.EventHandler(this.viewTrafficToolStripMenuItem_Click);
             // 
             // toolStripMenuItem11
             // 
@@ -3129,7 +2678,6 @@
             this.clearStatsToolStripMenuItem.Name = "clearStatsToolStripMenuItem";
             this.clearStatsToolStripMenuItem.Size = new System.Drawing.Size(155, 26);
             this.clearStatsToolStripMenuItem.Text = "&Clear Stats";
-            this.clearStatsToolStripMenuItem.Click += new System.EventHandler(this.clearStatsToolStripMenuItem_Click);
             // 
             // notifyIcon
             // 
@@ -3236,10 +2784,6 @@
             this.restoreMailOpenFileDialog.FileName = "mails";
             this.restoreMailOpenFileDialog.Filter = "Mails (*.htmails)|*.htmails";
             this.restoreMailOpenFileDialog.Title = "Restore Mail";
-            // 
-            // torrentSaveFileDialog
-            // 
-            this.torrentSaveFileDialog.Title = "Save Torrent File";
             // 
             // voiceTabContextMenuStrip
             // 
@@ -3388,7 +2932,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1084, 679);
+            this.ClientSize = new System.Drawing.Size(1084, 714);
             this.Controls.Add(this.mainTabControl);
             this.Controls.Add(this.radioPanel);
             this.Controls.Add(this.mainStatusStrip);
@@ -3396,7 +2940,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.mainMenuStrip;
             this.Margin = new System.Windows.Forms.Padding(4);
-            this.MinimumSize = new System.Drawing.Size(1097, 727);
+            this.MinimumSize = new System.Drawing.Size(1097, 752);
             this.Name = "MainForm";
             this.Text = "Handi-Talkie Commander";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainForm_FormClosing);
@@ -3458,37 +3002,17 @@
             this.terminalTopPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.terminalMenuPictureBox)).EndInit();
             this.addressesTabPage.ResumeLayout(false);
+            this.bbsTabPage.ResumeLayout(false);
+            this.torrentTabPage.ResumeLayout(false);
+            this.packetsTabPage.ResumeLayout(false);
+            this.debugTabPage.ResumeLayout(false);
             this.stationsContextMenuStrip.ResumeLayout(false);
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.stationsMenuPictureBox)).EndInit();
-            this.bbsTabPage.ResumeLayout(false);
-            this.bbsSplitContainer.Panel1.ResumeLayout(false);
-            this.bbsSplitContainer.Panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.bbsSplitContainer)).EndInit();
-            this.bbsSplitContainer.ResumeLayout(false);
-            this.panel4.ResumeLayout(false);
-            this.panel4.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.bbsMenuPictureBox)).EndInit();
-            this.torrentTabPage.ResumeLayout(false);
-            this.torrentSplitContainer.Panel1.ResumeLayout(false);
-            this.torrentSplitContainer.Panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.torrentSplitContainer)).EndInit();
-            this.torrentSplitContainer.ResumeLayout(false);
-            this.torrentContextMenuStrip.ResumeLayout(false);
-            this.torrentTabControl.ResumeLayout(false);
-            this.tabPage1.ResumeLayout(false);
-            this.tabPage2.ResumeLayout(false);
-            this.panel5.ResumeLayout(false);
-            this.panel5.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.torrentMenuPictureBox)).EndInit();
-            this.torrentTabContextMenuStrip.ResumeLayout(false);
-            this.packetsTabPage.ResumeLayout(false);
-            this.debugTabPage.ResumeLayout(false);
             this.aprsContextMenuStrip.ResumeLayout(false);
             this.terminalTabContextMenuStrip.ResumeLayout(false);
             this.aprsMsgContextMenuStrip.ResumeLayout(false);
-            this.bbsTabContextMenuStrip.ResumeLayout(false);
             this.notifyContextMenuStrip.ResumeLayout(false);
             this.mailTabContextMenuStrip.ResumeLayout(false);
             this.voiceTabContextMenuStrip.ResumeLayout(false);
@@ -3622,21 +3146,10 @@
         private System.Windows.Forms.ToolStripMenuItem showCallsignToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem9;
         private System.Windows.Forms.TabPage bbsTabPage;
-        private System.Windows.Forms.ListView bbsListView;
-        private System.Windows.Forms.ColumnHeader columnHeader10;
-        private System.Windows.Forms.ColumnHeader columnHeader11;
-        private System.Windows.Forms.ColumnHeader columnHeader12;
-        private System.Windows.Forms.Panel panel4;
-        private System.Windows.Forms.Button bbsConnectButton;
-        private System.Windows.Forms.Label label3;
         private System.Windows.Forms.ToolStripMenuItem bBSToolStripMenuItem;
-        private System.Windows.Forms.SplitContainer bbsSplitContainer;
-        private System.Windows.Forms.PictureBox bbsMenuPictureBox;
-        private System.Windows.Forms.ContextMenuStrip bbsTabContextMenuStrip;
         private System.Windows.Forms.ToolStripMenuItem viewTrafficToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem11;
         private System.Windows.Forms.ToolStripMenuItem clearStatsToolStripMenuItem;
-        private System.Windows.Forms.RichTextBox bbsTextBox;
         private System.Windows.Forms.NotifyIcon notifyIcon;
         private System.Windows.Forms.ContextMenuStrip notifyContextMenuStrip;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem12;
@@ -3681,35 +3194,7 @@
         private System.Windows.Forms.ToolStripMenuItem showToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem hideToolStripMenuItem;
         private System.Windows.Forms.TabPage torrentTabPage;
-        private System.Windows.Forms.Panel panel5;
-        private System.Windows.Forms.PictureBox torrentMenuPictureBox;
-        private System.Windows.Forms.Button torrentConnectButton;
-        private System.Windows.Forms.Label label4;
-        private System.Windows.Forms.SplitContainer torrentSplitContainer;
         private System.Windows.Forms.ToolStripMenuItem torrentToolStripMenuItem;
-        private System.Windows.Forms.ListView torrentListView;
-        private System.Windows.Forms.ColumnHeader columnHeader14;
-        private System.Windows.Forms.ColumnHeader columnHeader15;
-        private System.Windows.Forms.ColumnHeader columnHeader16;
-        private System.Windows.Forms.Button torrentAddFileButton;
-        private System.Windows.Forms.TabControl torrentTabControl;
-        private System.Windows.Forms.TabPage tabPage1;
-        private System.Windows.Forms.TabPage tabPage2;
-        private System.Windows.Forms.ContextMenuStrip torrentContextMenuStrip;
-        private System.Windows.Forms.ToolStripMenuItem torrentPauseToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem torrentShareToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem torrentRequestToolStripMenuItem;
-        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem19;
-        private System.Windows.Forms.ToolStripMenuItem torrentSaveAsToolStripMenuItem;
-        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem20;
-        private System.Windows.Forms.ToolStripMenuItem torrentDeleteToolStripMenuItem;
-        private System.Windows.Forms.SaveFileDialog torrentSaveFileDialog;
-        private System.Windows.Forms.ContextMenuStrip torrentTabContextMenuStrip;
-        private System.Windows.Forms.ToolStripMenuItem showDetailsToolStripMenuItem;
-        private System.Windows.Forms.ListView torrentDetailsListView;
-        private System.Windows.Forms.ColumnHeader columnHeader13;
-        private System.Windows.Forms.ColumnHeader columnHeader17;
-        private TorrentBlocksUserControl torrentBlocksUserControl;
         private System.Windows.Forms.ToolStripMenuItem voiceToolStripMenuItem;
         private System.Windows.Forms.TabPage voiceTabPage;
         private System.Windows.Forms.Panel panel6;
@@ -3787,5 +3272,8 @@
         private System.Windows.Forms.ToolStripButton mailDeleteToolStripButton;
         private Controls.DebugTabUserControl debugTabUserControl;
         private Controls.PacketCaptureTabUserControl packetCaptureTabUserControl;
+        private Controls.TorrentTabUserControl torrentTabUserControl;
+        private Controls.BbsTabUserControl bbsTabUserControl;
+        private Controls.ContactsTabUserControl contactsTabUserControl;
     }
 }

@@ -145,11 +145,8 @@ namespace HTCommander
             InitializeComponent();
             debugTabUserControl.Initialize(this);
             packetCaptureTabUserControl.Initialize(this);
-
-            // Enable double buffering for torrentListView to prevent flickering
-            typeof(ListView).InvokeMember("DoubleBuffered",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
-                null, torrentListView, new object[] { true });
+            torrentTabUserControl.Initialize(this);
+            bbsTabUserControl.Initialize(this);
             
             // Enable double buffering for mailboxListView to prevent flickering
             typeof(ListView).InvokeMember("DoubleBuffered",
@@ -359,10 +356,8 @@ namespace HTCommander
             terminalTextBox.WordWrap = wordWarpToolStripMenuItem.Checked = registry.ReadInt("TerminalWordWrap", 1) == 1;
             showCallsignToolStripMenuItem.Checked = (registry.ReadInt("TerminalShowCallsign", 1) == 1);
             viewTrafficToolStripMenuItem.Checked = (registry.ReadInt("ViewBbsTraffic", 1) == 1);
-            bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
+            //bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
             systemTrayToolStripMenuItem.Checked = (registry.ReadInt("SystemTray", 1) == 1);
-            showDetailsToolStripMenuItem.Checked = (registry.ReadInt("ViewTorrentDetails", 1) == 1);
-            torrentSplitContainer.Panel2Collapsed = !showDetailsToolStripMenuItem.Checked;
             audioEnabledToolStripMenuItem.Checked = (registry.ReadInt("Audio", 0) == 1);
             gPSEnabledToolStripMenuItem.Checked = (registry.ReadInt("GpsEnabled", 0) == 1);
             radio.GpsEnabled(gPSEnabledToolStripMenuItem.Checked);
@@ -2368,14 +2363,13 @@ namespace HTCommander
             exportStationsToolStripMenuItem.Enabled = (stations.Count > 0);
             waitForConnectionToolStripMenuItem.Visible = allowTransmit;
             waitForConnectionToolStripMenuItem.Enabled = (radio.State == Radio.RadioState.Connected) && allowTransmit && (activeStationLock == null);
-
             toolStripMenuItem7.Visible = smSMessageToolStripMenuItem.Visible = weatherReportToolStripMenuItem.Visible = (allowTransmit && (aprsChannel != -1));
             beaconSettingsToolStripMenuItem.Visible = (radio.State == Radio.RadioState.Connected) && allowTransmit;
             aprsBottomPanel.Visible = allowTransmit;
             newMailButton.Visible = mailConnectButton.Visible = allowTransmit;
             terminalBottomPanel.Visible = allowTransmit;
             terminalConnectButton.Visible = allowTransmit;
-            bbsConnectButton.Visible = allowTransmit;
+            //bbsConnectButton.Visible = allowTransmit;
             bBSToolStripMenuItem.Visible = allowTransmit;
             terminalToolStripMenuItem.Visible = allowTransmit;
             if (radio.State != Radio.RadioState.Connected) cancelVoiceButton.Visible = false;
@@ -2411,12 +2405,8 @@ namespace HTCommander
             terminalConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Terminal)) ? "&Connect" : "&Disconnect";
 
             // BBS
-            bbsConnectButton.Enabled = (radio.State == Radio.RadioState.Connected) && ((activeStationLock == null) || (activeStationLock.StationType == StationInfoClass.StationTypes.BBS));
-            bbsConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.BBS)) ? "&Activate" : "&Deactivate";
-
-            // Torrent
-            torrentConnectButton.Enabled = (radio.State == Radio.RadioState.Connected) && ((activeStationLock == null) || (activeStationLock.StationType == StationInfoClass.StationTypes.Torrent));
-            torrentConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.Torrent)) ? "&Activate" : "&Deactivate";
+            //bbsConnectButton.Enabled = (radio.State == Radio.RadioState.Connected) && ((activeStationLock == null) || (activeStationLock.StationType == StationInfoClass.StationTypes.BBS));
+            //bbsConnectButton.Text = ((activeStationLock == null) || (activeStationLock.StationType != StationInfoClass.StationTypes.BBS)) ? "&Activate" : "&Deactivate";
 
             // Mail
             mailInternetButton.Enabled = !string.IsNullOrEmpty(callsign) && !string.IsNullOrEmpty(winlinkPassword);
@@ -3854,74 +3844,19 @@ namespace HTCommander
 
         public void UpdateBbsStats(BBS.StationStats stats)
         {
-            if (this.InvokeRequired) { this.BeginInvoke(new UpdateBbsStatsHandler(UpdateBbsStats), stats); return; }
-
-            ListViewItem l;
-            if (stats.listViewItem == null)
-            {
-                l = new ListViewItem(new string[] { stats.callsign, "", "" });
-                l.ImageIndex = 7;
-                bbsListView.Items.Add(l);
-                stats.listViewItem = l;
-            }
-            else { l = stats.listViewItem; }
-            l.SubItems[1].Text = stats.lastseen.ToString();
-            StringBuilder sb = new StringBuilder();
-            sb.Append($"{stats.protocol}, {stats.packetsIn} in / {stats.packetsOut} out, {stats.bytesIn} in / {stats.bytesOut} out");
-            l.SubItems[2].Text = sb.ToString();
-        }
-
-        private void viewTrafficToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
-            registry.WriteInt("ViewBbsTraffic", viewTrafficToolStripMenuItem.Checked ? 1 : 0);
-        }
-
-        private void clearStatsToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            bbsListView.Items.Clear();
-            bbs.ClearStats();
-        }
-
-        private void pictureBox1_MouseClick(object sender, MouseEventArgs e)
-        {
-            bbsTabContextMenuStrip.Show(bbsMenuPictureBox, e.Location);
+            bbsTabUserControl.UpdateBbsStats(stats);
         }
 
         public delegate void AddBbsTrafficHandler(string callsign, bool outgoing, string text);
         public void AddBbsTraffic(string callsign, bool outgoing, string text)
         {
-            if (this.InvokeRequired) { this.BeginInvoke(new AddBbsTrafficHandler(AddBbsTraffic), callsign, outgoing, text); return; }
-
-            if (bbsTextBox.Text.Length != 0) { bbsTextBox.AppendText(Environment.NewLine); }
-            if (outgoing) { AppendBbsText(callsign + " < ", Color.Green); } else { AppendBbsText(callsign + " > ", Color.Green); }
-            AppendBbsText(text, outgoing ? Color.CornflowerBlue : Color.Gainsboro);
-            bbsTextBox.SelectionStart = bbsTextBox.Text.Length;
-            bbsTextBox.ScrollToCaret();
+            bbsTabUserControl.AddBbsTraffic(callsign, outgoing, text);
         }
 
         public delegate void AddBbsControlMessageHandler(string text);
         public void AddBbsControlMessage(string text)
         {
-            if (this.InvokeRequired) { this.BeginInvoke(new AddBbsControlMessageHandler(AddBbsControlMessage), text); return; }
-            if (bbsTextBox.Text.Length != 0) { bbsTextBox.AppendText(Environment.NewLine); }
-            AppendBbsText(text, Color.Yellow);
-            bbsTextBox.SelectionStart = bbsTextBox.Text.Length;
-            bbsTextBox.ScrollToCaret();
-        }
-
-        public void AppendBbsText(string text, Color color)
-        {
-            bbsTextBox.SelectionStart = bbsTextBox.TextLength;
-            bbsTextBox.SelectionLength = 0;
-            bbsTextBox.SelectionColor = color;
-            bbsTextBox.AppendText(text);
-            bbsTextBox.SelectionColor = bbsTextBox.ForeColor;
-        }
-
-        private void bbsListView_Resize(object sender, EventArgs e)
-        {
-            bbsListView.Columns[2].Width = bbsListView.Width - bbsListView.Columns[1].Width - bbsListView.Columns[0].Width - 28;
+            bbsTabUserControl.AddBbsControlMessage(text);
         }
 
         public delegate void MailStateMessageHandler(string msg);
@@ -4489,32 +4424,9 @@ namespace HTCommander
             }
         }
 
-        private void torrentActivateButton_Click(object sender, EventArgs e)
-        {
-            if (activeStationLock != null)
-            {
-                if (activeStationLock.StationType == StationInfoClass.StationTypes.Torrent)
-                {
-                    ActiveLockToStation(null);
-                }
-            }
-            else
-            {
-                StationInfoClass station = new StationInfoClass();
-                station.StationType = StationInfoClass.StationTypes.Torrent;
-                ActiveLockToStation(station, radio.Settings.channel_a);
-            }
-        }
-        private void torrentAddFileButton_Click(object sender, EventArgs e)
-        {
-            using (AddTorrentFileForm form = new AddTorrentFileForm(this))
-            {
-                if (form.ShowDialog() == DialogResult.OK) { AddTorrent(form.torrentFile); }
-            }
-        }
-
         private void AddTorrent(TorrentFile torrentFile)
         {
+            /*
             ListViewItem l = new ListViewItem(new string[] { torrentFile.FileName, torrentFile.Mode.ToString(), torrentFile.Description });
             l.ImageIndex = torrentFile.Completed ? 9 : 10;
 
@@ -4536,233 +4448,7 @@ namespace HTCommander
             torrentListView.Items.Add(l);
             torrent.Add(torrentFile);
             torrentFile.WriteTorrentFile();
-        }
-
-        private void torrentListView_DragEnter(object sender, DragEventArgs e)
-        {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                if (files.Length == 1)
-                {
-                    e.Effect = DragDropEffects.Copy;
-                }
-                else
-                {
-                    e.Effect = DragDropEffects.None;
-                }
-            }
-            else
-            {
-                e.Effect = DragDropEffects.None;
-            }
-        }
-
-        private void torrentListView_DragDrop(object sender, DragEventArgs e)
-        {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                if (files.Length == 1)
-                {
-                    using (AddTorrentFileForm form = new AddTorrentFileForm(this))
-                    {
-                        if (form.Import(files[0]))
-                        {
-                            if (form.ShowDialog() == DialogResult.OK)
-                            {
-                                AddTorrent(form.torrentFile);
-                            }
-                        }
-
-                    }
-                }
-            }
-        }
-
-        private void torrentListView_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (torrentListView.SelectedItems.Count > 0)
-            {
-                TorrentFile file = (TorrentFile)torrentListView.SelectedItems[0].Tag;
-
-                bool hasPaused = false, hasShared = false, hasRequest = false, hasNotError = false, hasCompleted = false, hasNotCompleted = false;
-                foreach (ListViewItem l in torrentListView.SelectedItems)
-                {
-                    TorrentFile xfile = (TorrentFile)l.Tag;
-                    if (xfile.Mode == TorrentFile.TorrentModes.Pause) { hasPaused = true; hasNotError = true; }
-                    if (xfile.Mode == TorrentFile.TorrentModes.Sharing) { hasShared = true; hasNotError = true; }
-                    if (xfile.Mode == TorrentFile.TorrentModes.Request) { hasRequest = true; hasNotError = true; }
-                    if (xfile.Completed == true) { hasCompleted = true; }
-                    if (xfile.Completed == false) { hasNotCompleted = true; }
-                }
-
-                torrentPauseToolStripMenuItem.Visible = true;
-                torrentPauseToolStripMenuItem.Checked = hasPaused;
-                torrentPauseToolStripMenuItem.Enabled = hasNotError;
-                torrentShareToolStripMenuItem.Visible = true;
-                torrentShareToolStripMenuItem.Checked = hasShared;
-                torrentShareToolStripMenuItem.Enabled = hasCompleted && hasNotError;
-                torrentRequestToolStripMenuItem.Visible = true;
-                torrentRequestToolStripMenuItem.Checked = hasRequest;
-                torrentRequestToolStripMenuItem.Enabled = hasNotCompleted && hasNotError;
-                toolStripMenuItem19.Visible = true;
-                torrentSaveAsToolStripMenuItem.Visible = true;
-                torrentSaveAsToolStripMenuItem.Enabled = hasCompleted && hasNotError && (torrentListView.SelectedItems.Count == 1);
-                toolStripMenuItem20.Visible = true;
-                torrentDeleteToolStripMenuItem.Visible = true;
-
-                torrentDetailsListView.Items.Clear();
-                if (!string.IsNullOrEmpty(file.FileName)) { addTorrentDetailProperty("File name", file.FileName); }
-                if (!string.IsNullOrEmpty(file.Description)) { addTorrentDetailProperty("Description", file.Description); }
-                if (!string.IsNullOrEmpty(file.Callsign)) { string cs = file.Callsign; if (file.StationId > 0) cs += "-" + file.StationId; addTorrentDetailProperty("Source", cs); }
-                if (file.Size != 0) { addTorrentDetailProperty("File Size", file.Size.ToString() + " bytes"); }
-                if (file.Compression != TorrentFile.TorrentCompression.Unknown)
-                {
-                    string comp = file.Compression.ToString();
-                    if (file.CompressedSize != 0) { comp += ", " + file.CompressedSize.ToString() + " bytes"; }
-                    addTorrentDetailProperty("Compression", comp);
-                }
-                if (file.TotalBlocks != 0) { addTorrentDetailProperty("Blocks", file.ReceivedBlocks.ToString() + " / " + file.TotalBlocks.ToString()); }
-                torrentBlocksUserControl.Blocks = file.Blocks;
-            }
-            else
-            {
-                torrentPauseToolStripMenuItem.Visible = false;
-                torrentShareToolStripMenuItem.Visible = false;
-                torrentRequestToolStripMenuItem.Visible = false;
-                toolStripMenuItem19.Visible = false;
-                torrentSaveAsToolStripMenuItem.Visible = false;
-                toolStripMenuItem20.Visible = false;
-                torrentDeleteToolStripMenuItem.Visible = false;
-                torrentDetailsListView.Items.Clear();
-                torrentBlocksUserControl.Blocks = null;
-            }
-        }
-
-        private void addTorrentDetailProperty(string name, string value)
-        {
-            ListViewItem l = new ListViewItem(new string[] { name, value });
-            torrentDetailsListView.Items.Add(l);
-        }
-
-        private void torrentPauseToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            foreach (ListViewItem l in torrentListView.SelectedItems)
-            {
-                TorrentFile file = (TorrentFile)l.Tag;
-                if (file.Mode != TorrentFile.TorrentModes.Error)
-                {
-                    file.Mode = TorrentFile.TorrentModes.Pause;
-                    l.SubItems[1].Text = file.Mode.ToString();
-                }
-            }
-        }
-
-        private void torrentShareToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            foreach (ListViewItem l in torrentListView.SelectedItems)
-            {
-                TorrentFile file = (TorrentFile)l.Tag;
-                if ((file.Mode != TorrentFile.TorrentModes.Error) && (file.Completed == true))
-                {
-                    file.Mode = TorrentFile.TorrentModes.Sharing;
-                    l.SubItems[1].Text = file.Mode.ToString();
-                }
-            }
-        }
-
-        private void torrentRequestToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            bool sendRequest = false;
-            foreach (ListViewItem l in torrentListView.SelectedItems)
-            {
-                TorrentFile file = (TorrentFile)l.Tag;
-                if ((file.Mode != TorrentFile.TorrentModes.Error) && (file.Completed == false) && (file.Mode != TorrentFile.TorrentModes.Sharing))
-                {
-                    file.Mode = TorrentFile.TorrentModes.Request;
-                    l.SubItems[1].Text = file.Mode.ToString();
-                }
-            }
-            if (sendRequest) torrent.SendRequest(); // Cause a request frame to be sent
-        }
-
-        private void torrentContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            torrentListView_SelectedIndexChanged(sender, null);
-        }
-
-        private void torrentDeleteToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            if (torrentListView.SelectedItems.Count == 0) return;
-            if (MessageBox.Show(this, (torrentListView.SelectedItems.Count == 1) ? "Deleted selected torrent file?" : "Deleted selected torrent files?", "Torrent", MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.OK)
-            {
-                foreach (ListViewItem l in torrentListView.SelectedItems)
-                {
-                    TorrentFile file = (TorrentFile)l.Tag;
-                    file.DeleteTorrentFile(); // TODO
-                    torrent.Remove(file);
-                    torrentListView.Items.Remove(torrentListView.SelectedItems[0]);
-                }
-                torrent.UpdateAllStations();
-            }
-        }
-
-        private void torrentSaveAsToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            if (torrentListView.SelectedItems.Count != 1) return;
-            TorrentFile file = (TorrentFile)torrentListView.SelectedItems[0].Tag;
-            if (file.Completed == false) return;
-            byte[] filedata = file.GetFileData();
-            torrentSaveFileDialog.FileName = file.FileName;
-            if (torrentSaveFileDialog.ShowDialog(this) == DialogResult.OK)
-            {
-                try
-                {
-                    File.WriteAllBytes(torrentSaveFileDialog.FileName, filedata);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(this, "Error saving file: " + ex.Message, "Torrent", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }
-
-        private void torrentMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
-        {
-            torrentTabContextMenuStrip.Show(torrentMenuPictureBox, e.Location);
-        }
-
-        private void showDetailsToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            torrentSplitContainer.Panel2Collapsed = !showDetailsToolStripMenuItem.Checked;
-            registry.WriteInt("ViewTorrentDetails", showDetailsToolStripMenuItem.Checked ? 1 : 0);
-        }
-
-        private void torrentTabContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            showDetailsToolStripMenuItem.Checked = !torrentSplitContainer.Panel2Collapsed;
-        }
-
-        private void torrentListView_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Delete)
-            {
-                torrentDeleteToolStripMenuItem_Click(this, null);
-                e.Handled = true;
-                return;
-            }
-            e.Handled = false;
-        }
-
-        private void torrentListView_Resize(object sender, EventArgs e)
-        {
-            torrentListView.Columns[2].Width = torrentListView.Width - torrentListView.Columns[1].Width - torrentListView.Columns[0].Width - 28;
-        }
-
-        private void torrentDetailsListView_Resize(object sender, EventArgs e)
-        {
-            torrentDetailsListView.Columns[1].Width = torrentDetailsListView.Width - torrentDetailsListView.Columns[0].Width - 28;
+            */
         }
 
         public delegate void UpdateTorrentHandler(TorrentFile file);
@@ -4777,10 +4463,12 @@ namespace HTCommander
                 file.ListViewItem.SubItems[1].Text = file.Mode.ToString();
                 file.ListViewItem.SubItems[2].Text = (file.Description == null) ? "" : file.Description;
                 file.ListViewItem.ImageIndex = file.Completed ? 9 : 10;
+                /*
                 if ((torrentListView.SelectedItems.Count == 1) && (torrentListView.SelectedItems[0] == file.ListViewItem))
                 {
                     torrentListView_SelectedIndexChanged(null, null);
                 }
+                */
             }
             else
             {
@@ -5386,11 +5074,6 @@ namespace HTCommander
             {
                 MessageBox.Show(this, "Failed to connect to Winlink server over the internet.", "Winlink", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }
-
-        private void mailPreviewTextBox_TextChanged(object sender, EventArgs e)
-        {
-
         }
     }
 }
