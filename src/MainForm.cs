@@ -4403,6 +4403,11 @@ namespace HTCommander
             toolStripMenuItem15.Visible = moveToDraftToolStripMenuItem.Visible || moveToOutboxToolStripMenuItem.Visible || moveToInboxToolStripMenuItem.Visible || moveToArchiveToolStripMenuItem.Visible || moveToTrashToolStripMenuItem.Visible;
             deleteMailToolStripMenuItem.Visible = (mailboxListView.SelectedItems.Count > 0);
 
+            // Adjust mail preview toolbar
+            mailToolStrip.Visible = (mailboxListView.SelectedItems.Count > 0);
+            mailReplyToolStripButton.Visible = mailReplyAllToolStripButton.Visible = (SelectedMailbox != "Outbox") && (SelectedMailbox != "Draft") && (SelectedMailbox != "Sent") && (mailboxListView.SelectedItems.Count == 1);
+            mailForwardToolStripButton.Visible = (mailboxListView.SelectedItems.Count == 1);
+
             // Adjust mail preview
             mailPreviewTextBox.Clear();
             if (mailboxListView.SelectedItems.Count == 0) return;
@@ -5710,6 +5715,16 @@ namespace HTCommander
             {
                 MessageBox.Show(this, "Failed to connect to Winlink server over the internet.", "Winlink", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void mailPreviewTextBox_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void mailDeleteToolStripButton_Click(object sender, EventArgs e)
+        {
+            // moveToTrashToolStripMenuItem_Click();
         }
     }
 }
