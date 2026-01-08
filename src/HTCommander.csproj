@@ -191,6 +191,18 @@
     <Compile Include="CantConnectForm.Designer.cs">
       <DependentUpon>CantConnectForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Controls\DebugTabUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\DebugTabUserControl.Designer.cs">
+      <DependentUpon>DebugTabUserControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\PacketCaptureTabUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\PacketCaptureTabUserControl.Designer.cs">
+      <DependentUpon>PacketCaptureTabUserControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="CustomTilePrefetcher.cs" />
     <Compile Include="EditBeaconSettingsForm.cs">
       <SubType>Form</SubType>
@@ -462,6 +474,12 @@
     <EmbeddedResource Include="CantConnectForm.resx">
       <DependentUpon>CantConnectForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Controls\DebugTabUserControl.resx">
+      <DependentUpon>DebugTabUserControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\PacketCaptureTabUserControl.resx">
+      <DependentUpon>PacketCaptureTabUserControl.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="EditBeaconSettingsForm.resx">
       <DependentUpon>EditBeaconSettingsForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -613,5 +631,6 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -143,12 +143,9 @@ namespace HTCommander
 
             g_MainForm = this;
             InitializeComponent();
-            
-            // Enable double buffering for packetDecodeListView to prevent flickering
-            typeof(ListView).InvokeMember("DoubleBuffered",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
-                null, packetDecodeListView, new object[] { true });
-            
+            debugTabUserControl.Initialize(this);
+            packetCaptureTabUserControl.Initialize(this);
+
             // Enable double buffering for torrentListView to prevent flickering
             typeof(ListView).InvokeMember("DoubleBuffered",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
@@ -322,7 +319,7 @@ namespace HTCommander
             {
                 saveTraceFileDialog.FileName = debugFileName;
                 debugFile = File.OpenWrite(debugFileName);
-                debugSaveToFileToolStripMenuItem.Checked = true;
+                //debugSaveToFileToolStripMenuItem.Checked = true;
                 DebugTrace("-- Application Started --");
             }
             catch (Exception) { }
@@ -346,7 +343,6 @@ namespace HTCommander
             aprsSelectedRoute = registry.ReadString("SelectedAprsRoute", "Standard");
             nextAprsMessageId = (int)registry.ReadInt("NextAprsMessageId", new Random().Next(1, 1000));
             radioPanel.Visible = radioToolStripMenuItem.Checked = registry.ReadInt("ViewRadio", 1) == 1;
-            showBluetoothFramesToolStripMenuItem.Checked = (registry.ReadInt("PacketTrace", 0) == 1);
             showAllChannels = (registry.ReadInt("ShowAllChannels", 0) == 1);
             aprsDestinationComboBox.Text = registry.ReadString("AprsDestination", "ALL");
             voiceToolStripMenuItem.Checked = (registry.ReadInt("ViewVoice", 0) == 1);
@@ -359,7 +355,7 @@ namespace HTCommander
             packetsToolStripMenuItem.Checked = (registry.ReadInt("ViewPackets", 0) == 1);
             debugToolStripMenuItem.Checked = (registry.ReadInt("ViewDebug", 0) == 1);
             showAllMessagesToolStripMenuItem.Checked = (registry.ReadInt("aprsViewAll", 1) == 1);
-            showPacketDecodeToolStripMenuItem.Checked = (registry.ReadInt("showPacketDecode", 0) == 1);
+            //showPacketDecodeToolStripMenuItem.Checked = (registry.ReadInt("showPacketDecode", 0) == 1);
             terminalTextBox.WordWrap = wordWarpToolStripMenuItem.Checked = registry.ReadInt("TerminalWordWrap", 1) == 1;
             showCallsignToolStripMenuItem.Checked = (registry.ReadInt("TerminalShowCallsign", 1) == 1);
             viewTrafficToolStripMenuItem.Checked = (registry.ReadInt("ViewBbsTraffic", 1) == 1);
@@ -474,7 +470,7 @@ namespace HTCommander
                     catch (Exception) { }
                 }
                 listViewItems.Sort((a, b) => DateTime.Compare(((TncDataFragment)b.Tag).time, ((TncDataFragment)a.Tag).time));
-                packetsListView.Items.AddRange(listViewItems.ToArray());
+                packetCaptureTabUserControl.AddPackets(listViewItems);
             }
 
             // Read the voice history file
@@ -527,13 +523,10 @@ namespace HTCommander
             }
             catch (Exception) { }
 
-            packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
-
             // Open the packet write file
             try { AprsFile = File.Open(Path.Combine(appDataPath, "packets.ptcap"), FileMode.Append, FileAccess.Write); } catch (Exception) { }
             aprsChatControl.UpdateMessages(true);
 
-            debugTextBox.Clear();
             CheckBluetooth();
 
             // Setup all context menus
@@ -976,7 +969,7 @@ namespace HTCommander
                 ListViewItem l = new ListViewItem(new string[] { frame.time.ToShortTimeString(), frame.channel_name, FragmentToShortString(frame) });
                 l.ImageIndex = frame.incoming ? 5 : 4;
                 l.Tag = frame;
-                packetsListView.Items.Insert(0, l);
+                packetCaptureTabUserControl.AddPacket(l);
 
                 // Write frame data to file
                 if (AprsFile != null)
@@ -1526,7 +1519,7 @@ namespace HTCommander
         public void DebugTrace(string msg)
         {
             Program.BlockBoxEvent(msg);
-            try { debugTextBox.AppendText(msg + Environment.NewLine); } catch (Exception) { }
+            try { debugTabUserControl.AppendText(msg); } catch (Exception) { }
             if (debugFile != null)
             {
                 byte[] buf = UTF8Encoding.UTF8.GetBytes(DateTime.Now.ToString() + ": " + msg + Environment.NewLine);
@@ -2235,31 +2228,6 @@ namespace HTCommander
 
         }
 
-        private void showPacketTraceToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void saveToFileToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            if (debugFile != null)
-            {
-                debugFile.Close();
-                debugFile = null;
-                debugSaveToFileToolStripMenuItem.Checked = false;
-                registry.DeleteValue("DebugFile");
-            }
-            else
-            {
-                if (saveTraceFileDialog.ShowDialog(this) == DialogResult.OK)
-                {
-                    debugFile = File.OpenWrite(saveTraceFileDialog.FileName);
-                    debugSaveToFileToolStripMenuItem.Checked = true;
-                    registry.WriteString("DebugFile", saveTraceFileDialog.FileName);
-                }
-            }
-        }
-
         private void aprsSmsButton_Click(object sender, EventArgs e)
         {
             using (AprsSmsForm aprsSmsForm = new AprsSmsForm())
@@ -2880,44 +2848,10 @@ namespace HTCommander
             mapMarkersOverlay.Markers.Add(marker);
         }
 
-        private void RemoveMapMarker(string callsign)
-        {
-            GMapMarker marker = null;
-            foreach (GMapMarker m in mapMarkersOverlay.Markers)
-            {
-                if (m.ToolTipText == callsign) { marker = m; break; }
-            }
-            mapMarkersOverlay.Markers.Remove(marker);
-        }
-
-        private void packetsListView_Resize(object sender, EventArgs e)
-        {
-            // Auto-resize the Data column to fit content
-            columnHeader9.Width = -2;
-        }
-
         private void mailboxListView_Resize(object sender, EventArgs e)
         {
             // Auto-resize the Subject column to fill remaining width
             columnHeader6.Width = mailboxListView.Width - columnHeader4.Width - columnHeader5.Width - 28;
-        }
-
-        private void packetsMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
-        {
-            packetsContextMenuStrip.Show(packetsMenuPictureBox, e.Location);
-        }
-
-        private void showPacketDecodeToolStripMenuItem_CheckStateChanged(object sender, EventArgs e)
-        {
-            registry.WriteInt("showPacketDecode", showPacketDecodeToolStripMenuItem.Checked ? 1 : 0);
-            packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
-        }
-
-        private void addPacketDecodeLine(int group, string title, string value)
-        {
-            ListViewItem l = new ListViewItem(new string[] { title, value });
-            l.Group = packetDecodeListView.Groups[group];
-            packetDecodeListView.Items.Add(l);
         }
 
         public string FragmentToShortString(TncDataFragment fragment)
@@ -2992,186 +2926,6 @@ namespace HTCommander
                 }
             }
             return sb.ToString().Replace("\r", "").Replace("\n", "");
-        }
-
-        private void packetsListView_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            packetDecodeListView.BeginUpdate();
-            packetDecodeListView.Items.Clear();
-            if (packetsListView.SelectedItems.Count == 0)
-            {
-                packetDecodeListView.EndUpdate();
-                return;
-            }
-            ListViewItem l = packetsListView.SelectedItems[0];
-            if (l.Tag == null) {
-                packetDecodeListView.EndUpdate();
-                return;
-            }
-            TncDataFragment fragment = (TncDataFragment)l.Tag;
-            if (fragment.channel_id >= 0) { addPacketDecodeLine(1, "Channel", (fragment.incoming ? "Received" : "Sent") + " on " + (fragment.channel_id + 1)); }
-            addPacketDecodeLine(1, "Time", fragment.time.ToString());
-            if (fragment.data != null)
-            {
-                addPacketDecodeLine(1, "Size", fragment.data.Length + " byte" + (fragment.data.Length > 1 ? "s" : ""));
-                addPacketDecodeLine(1, "Data", ASCIIEncoding.ASCII.GetString(fragment.data));
-                addPacketDecodeLine(1, "Data HEX", Utils.BytesToHex(fragment.data));
-            }
-
-            string encoding = "";
-            if (fragment.encoding == FragmentEncodingType.Loopback) { encoding = "Loopback"; }
-            if (fragment.encoding == FragmentEncodingType.HardwareAfsk1200) { encoding = "Hardware AFSK 1200 baud"; }
-            if (fragment.encoding == FragmentEncodingType.SoftwareAfsk1200) { encoding = "Software AFSK 1200 baud"; }
-            if (fragment.encoding == FragmentEncodingType.SoftwarePsk2400) { encoding = "Software PSK 2400 baud"; }
-            if (fragment.encoding == FragmentEncodingType.SoftwarePsk4800) { encoding = "Software PSK 4800 baud"; }
-            if (fragment.encoding == FragmentEncodingType.SoftwareG3RUH9600) { encoding = "Software G3RUH 9600 baud"; }
-            if (encoding != "")
-            {
-                if (fragment.frame_type == TncDataFragment.FragmentFrameType.AX25) { encoding += ", AX.25"; }
-                if (fragment.frame_type == TncDataFragment.FragmentFrameType.FX25) { encoding += ", FX.25"; }
-                if (fragment.corrections == 0) { encoding += ", No Corrections"; }
-                if (fragment.corrections == 1) { encoding += ", 1 Correction"; }
-                if (fragment.corrections > 1) { encoding += ", " + fragment.corrections + " Corrections"; }
-                addPacketDecodeLine(0, "Encoding", encoding);
-            }
-
-            if ((fragment.data.Length > 3) && (fragment.data[0] == 1))
-            {
-                // This is the short binary protocol format.
-                // Examples:
-                //   01 07204B4B37565A54
-                //   01 07204B4B37565A54 0121 062468656C6C6F 072514C72DC7CDF0
-                //   20 = K7VZT        (Callsign)
-                //   21 = true         (Message Type = Position Report?)
-                //   24 = hello        (Message)
-                //   25 = 14C72DC7CDF0 (GPS Position?)
-                Dictionary<byte, byte[]> decodedMessage = Utils.DecodeShortBinaryMessage(fragment.data);
-                foreach (var item in decodedMessage)
-                {
-                    if (item.Key == 0x20) { addPacketDecodeLine(7, "Callsign", UTF8Encoding.UTF8.GetString(item.Value)); }
-                    else if (item.Key == 0x24) { addPacketDecodeLine(7, "Message", UTF8Encoding.UTF8.GetString(item.Value)); }
-                    else addPacketDecodeLine(7, $"Key: {item.Key}", Utils.BytesToHex(item.Value));
-                }
-            }
-            else
-            {
-                // Try normal AX.25 packet format
-                StringBuilder sb = new StringBuilder();
-                AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
-                if (packet == null)
-                {
-                    addPacketDecodeLine(2, "Decode", "AX25 Decoder failed to decode packet.");
-                }
-                else
-                {
-                    for (int i = 0; i < packet.addresses.Count; i++)
-                    {
-                        sb.Clear();
-                        AX25Address addr = packet.addresses[i];
-                        sb.Append(addr.CallSignWithId);
-                        sb.Append("  ");
-                        sb.Append((addr.CRBit1) ? "X" : "-");
-                        sb.Append((addr.CRBit2) ? "X" : "-");
-                        sb.Append((addr.CRBit3) ? "X" : "-");
-                        addPacketDecodeLine(2, "Address " + (i + 1), sb.ToString());
-                    }
-                    addPacketDecodeLine(2, "Type", packet.type.ToString().Replace("_", "-"));
-                    sb.Clear();
-                    sb.Append("NS:" + packet.ns + ", NR:" + packet.nr);
-                    if (packet.command) { sb.Append(", Command"); }
-                    if (packet.pollFinal) { sb.Append(", PollFinal"); }
-                    if (packet.modulo128) { sb.Append(", Modulo128"); }
-                    if (sb.Length > 2) { addPacketDecodeLine(2, "Control", sb.ToString()); }
-                    if (packet.pid > 0) { addPacketDecodeLine(2, "Protocol ID", packet.pid.ToString()); }
-                    if (packet.dataStr != null) { addPacketDecodeLine(3, "Data", packet.dataStr); }
-                    if (packet.data != null) { addPacketDecodeLine(3, "Data HEX", Utils.BytesToHex(packet.data)); }
-
-                    if (packet.pid == 242)
-                    {
-                        byte[] decompressedData = null;
-                        try { decompressedData = Utils.DecompressBrotli(packet.data); } catch { }
-                        if (decompressedData != null)
-                        {
-                            addPacketDecodeLine(6, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
-                            addPacketDecodeLine(6, "Data HEX", Utils.BytesToHex(decompressedData));
-                            byte[] deflateBuf = Utils.CompressDeflate(decompressedData);
-                            addPacketDecodeLine(6, "Stats", $"Brotli {decompressedData.Length} --> {packet.data.Length}, Deflate would have been {deflateBuf.Length}");
-                        }
-                    }
-
-                    if (packet.pid == 243)
-                    {
-                        byte[] decompressedData = null;
-                        try { decompressedData = Utils.DecompressDeflate(packet.data); } catch { }
-                        if (decompressedData != null)
-                        {
-                            addPacketDecodeLine(6, "Data", UTF8Encoding.UTF8.GetString(decompressedData));
-                            addPacketDecodeLine(6, "Data HEX", Utils.BytesToHex(decompressedData));
-                            byte[] brotliBuf = Utils.CompressBrotli(decompressedData);
-                            addPacketDecodeLine(6, "Stats", $"Deflate {decompressedData.Length} --> {packet.data.Length}, Brotli would have been {brotliBuf.Length}");
-                        }
-                    }
-
-                    if ((packet.type == AX25Packet.FrameType.U_FRAME) && (packet.pid == 240))
-                    {
-                        AprsPacket aprsPacket = AprsPacket.Parse(packet);
-                        if (aprsPacket == null)
-                        {
-                            addPacketDecodeLine(4, "Decode", "APRS Decoder failed to decode packet.");
-                        }
-                        else
-                        {
-                            addPacketDecodeLine(4, "Type", aprsPacket.DataType.ToString());
-                            if (aprsPacket.TimeStamp != null) { addPacketDecodeLine(4, "Time Stamp", aprsPacket.TimeStamp.ToString()); }
-                            if (!string.IsNullOrEmpty(aprsPacket.DestCallsign.StationCallsign)) { addPacketDecodeLine(4, "Destination", aprsPacket.DestCallsign.StationCallsign.ToString()); }
-                            if (!string.IsNullOrEmpty(aprsPacket.ThirdPartyHeader)) { addPacketDecodeLine(4, "ThirdParty Header", aprsPacket.ThirdPartyHeader); }
-                            if (!string.IsNullOrEmpty(aprsPacket.InformationField)) { addPacketDecodeLine(4, "Information", aprsPacket.InformationField.ToString()); }
-                            if (!string.IsNullOrEmpty(aprsPacket.Comment)) { addPacketDecodeLine(4, "Comment", aprsPacket.Comment.ToString()); }
-                            if (aprsPacket.SymbolTableIdentifier != 0) { addPacketDecodeLine(4, "Symbol Code", aprsPacket.SymbolTableIdentifier.ToString()); }
-
-                            if (aprsPacket.Position.Speed != 0) { addPacketDecodeLine(5, "Speed", aprsPacket.Position.Speed.ToString()); }
-                            if (aprsPacket.Position.Altitude != 0) { addPacketDecodeLine(5, "Altitude", aprsPacket.Position.Altitude.ToString()); }
-                            if (aprsPacket.Position.Ambiguity != 0) { addPacketDecodeLine(5, "Ambiguity", aprsPacket.Position.Ambiguity.ToString()); }
-                            if (aprsPacket.Position.Course != 0) { addPacketDecodeLine(5, "Course", aprsPacket.Position.Course.ToString()); }
-                            if (!string.IsNullOrEmpty(aprsPacket.Position.Gridsquare)) { addPacketDecodeLine(5, "Gridsquare", aprsPacket.Position.Gridsquare.ToString()); }
-                            if (aprsPacket.Position.CoordinateSet.Latitude.Value != 0) { addPacketDecodeLine(5, "Latitude", aprsPacket.Position.CoordinateSet.Latitude.Value.ToString()); }
-                            if (aprsPacket.Position.CoordinateSet.Longitude.Value != 0) { addPacketDecodeLine(5, "Longitude", aprsPacket.Position.CoordinateSet.Longitude.Value.ToString()); }
-                        }
-                    }
-                }
-            }
-            packetDecodeListView.EndUpdate();
-        }
-
-        private void packetsListContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            if (packetsListView.SelectedItems.Count == 0) { e.Cancel = true; return; }
-        }
-
-        private void clearToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            debugTextBox.Clear();
-        }
-
-        private void showBluetoothFramesToolStripMenuItem_CheckStateChanged(object sender, EventArgs e)
-        {
-            radio.PacketTrace = showBluetoothFramesToolStripMenuItem.Checked;
-            registry.WriteInt("PacketTrace", showBluetoothFramesToolStripMenuItem.Checked ? 1 : 0);
-        }
-
-        private void debugMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
-        {
-            debugTabContextMenuStrip.Show(debugMenuPictureBox, e.Location);
-        }
-
-        private async void queryDeviceNamesToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            string[] deviceNames = await RadioBluetoothWin.GetDeviceNames();
-            DebugTrace("List of devices:");
-            foreach (string deviceName in deviceNames)
-            {
-                DebugTrace("  " + deviceName);
-            }
         }
 
         private void aprsRouteComboBox_SelectionChangeCommitted(object sender, EventArgs e)
@@ -3295,80 +3049,6 @@ namespace HTCommander
             int region = (int)item.Tag;
             if (region == radio.HtStatus.curr_region) return;
             radio.SetRegion(region);
-        }
-
-        private void copyHEXValuesToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            StringBuilder sb = new StringBuilder();
-            foreach (ListViewItem l in packetsListView.SelectedItems)
-            {
-                TncDataFragment frame = (TncDataFragment)l.Tag;
-                sb.AppendLine(Utils.BytesToHex(frame.data));
-            }
-            if (sb.Length > 0) { Clipboard.SetText(sb.ToString()); }
-        }
-
-        private void saveToFileToolStripMenuItem_Click_1(object sender, EventArgs e)
-        {
-            StringBuilder sb = new StringBuilder();
-            foreach (ListViewItem l in packetsListView.SelectedItems)
-            {
-                TncDataFragment frame = (TncDataFragment)l.Tag;
-                sb.AppendLine(frame.time.Ticks + "," + (frame.incoming ? "1" : "0") + "," + frame.ToString());
-            }
-            if ((sb.Length > 0) && (savePacketsFileDialog.ShowDialog(this) == DialogResult.OK))
-            {
-                File.WriteAllText(savePacketsFileDialog.FileName, sb.ToString());
-            }
-        }
-
-        private void saveToFileToolStripMenuItem1_Click(object sender, EventArgs e)
-        {
-            StringBuilder sb = new StringBuilder();
-            foreach (ListViewItem l in packetsListView.Items)
-            {
-                TncDataFragment frame = (TncDataFragment)l.Tag;
-                sb.AppendLine(frame.time.Ticks + "," + (frame.incoming ? "1" : "0") + "," + frame.ToString());
-            }
-            if ((sb.Length > 0) && (savePacketsFileDialog.ShowDialog(this) == DialogResult.OK))
-            {
-                File.WriteAllText(savePacketsFileDialog.FileName, sb.ToString());
-            }
-        }
-
-        private void packetsContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            saveToFileToolStripMenuItem1.Enabled = (packetsListView.Items.Count > 0);
-        }
-
-        private void openFileToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            if (openPacketsFileDialog.ShowDialog(this) == DialogResult.OK)
-            {
-                PacketCaptureViewerForm form = new PacketCaptureViewerForm(this, openPacketsFileDialog.FileName);
-                form.Show(this);
-            }
-        }
-
-        private void copyToClipboardToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            if (packetDecodeListView.SelectedItems.Count == 0) return;
-            StringBuilder sb = new StringBuilder();
-            foreach (ListViewItem l in packetDecodeListView.SelectedItems)
-            {
-                sb.AppendLine(l.Text + ", " + l.SubItems[1].Text);
-            }
-            Clipboard.SetText(sb.ToString());
-        }
-
-        private void packetDataContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            copyToClipboardToolStripMenuItem.Visible = (packetDecodeListView.SelectedItems.Count > 0);
-        }
-
-        private void loopbackModeToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            radio.LoopbackMode = loopbackModeToolStripMenuItem.Checked;
         }
 
         private void removeStationButton_Click(object sender, EventArgs e)
@@ -4671,15 +4351,6 @@ namespace HTCommander
             }
         }
 
-        private void clearPacketsToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            if (MessageBox.Show(this, "Clear packets?", "Packet Capture", MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.OK)
-            {
-                packetsListView.Items.Clear();
-                packetDecodeListView.Items.Clear();
-            }
-        }
-
         private void showTrafficToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (mailClientDebugForm.Visible)
@@ -5720,11 +5391,6 @@ namespace HTCommander
         private void mailPreviewTextBox_TextChanged(object sender, EventArgs e)
         {
 
-        }
-
-        private void mailDeleteToolStripButton_Click(object sender, EventArgs e)
-        {
-            // moveToTrashToolStripMenuItem_Click();
         }
     }
 }
