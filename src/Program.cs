@@ -1,5 +1,5 @@
 ﻿/*
-Copyright 2025 Ylian Saint-Hilaire
+Copyright 2026 Ylian Saint-Hilaire
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -68,6 +68,9 @@ namespace HTCommander
         }
         static void MainEx(string[] args)
         {
+            // Initialize the global data broker
+            DataBroker.Initialize("HTCommander");
+
             // No other instance running
             Application.ThreadException += new System.Threading.ThreadExceptionEventHandler(ExceptionSink);
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(UnhandledExceptionEventSink);

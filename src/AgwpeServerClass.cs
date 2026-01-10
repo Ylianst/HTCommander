@@ -1,5 +1,5 @@
 ﻿/*
-Copyright 2025 Ylian Saint-Hilaire
+Copyright 2026 Ylian Saint-Hilaire
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -381,7 +381,7 @@ namespace HTCommander
             }
         }
 
-        internal void OnDebugMessage(string message) { parent.Debug(message); }
+        internal void OnDebugMessage(string message) { /*parent.Debug(message);*/ }
 
         /// <summary>
         /// Handles the raw byte message received from a client and processes it as an AGW frame.
@@ -503,6 +503,7 @@ namespace HTCommander
         /// </summary>
         internal void ProcessAgwCommand(Guid clientId, AgwpeFrame frame)
         {
+            /*
             switch ((char)frame.DataKind)
             {
                 case 'G': // Get channel info
@@ -625,8 +626,8 @@ namespace HTCommander
 
                         // Override the source station ID
                         AX25Address addr = AX25Address.GetAddress(SessionFrom);
-                        parent.session.CallSignOverride = addr.address;
-                        parent.session.StationIdOverride = addr.SSID;
+                        //parent.session.CallSignOverride = addr.address;
+                        //parent.session.StationIdOverride = addr.SSID;
 
                         // Lock the station to the current channel
                         StationInfoClass station = new StationInfoClass();
@@ -634,7 +635,7 @@ namespace HTCommander
                         station.TerminalProtocol = StationInfoClass.TerminalProtocols.X25Session;
                         station.Callsign = frame.CallTo;
                         station.AgwpeClientId = clientId; // Associate with this TNC client
-                        parent.ActiveLockToStation(station, parent.radio.Settings.channel_a);
+                        //parent.ActiveLockToStation(station, parent.radio.Settings.channel_a);
                         break;
                     }
                 case 'd': // AX25 Session Disconnect Request
@@ -642,11 +643,11 @@ namespace HTCommander
                         OnDebugMessage($"AGWPE session disconnect request.");
 
                         // Release the station lock
-                        if ((parent.activeStationLock != null) && (parent.activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE) && (parent.activeStationLock.AgwpeClientId == clientId))
-                        {
+                        //if ((parent.activeStationLock != null) && (parent.activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE) && (parent.activeStationLock.AgwpeClientId == clientId))
+                        //{
                             // This will also disconnect any AX25 session.
-                            parent.ActiveLockToStation(null, -1);
-                        }
+                            //parent.ActiveLockToStation(null, -1);
+                        //}
 
                         // Confirm the disconnection
                         var reply = new AgwpeFrame
@@ -673,6 +674,7 @@ namespace HTCommander
                     OnDebugMessage($"AGWPE unknown data kind '{(char)frame.DataKind}' (0x{frame.DataKind:X2})");
                     break;
             }
+            */
         }
 
         private void SendFrame(Guid clientId, AgwpeFrame frame)

@@ -1,5 +1,5 @@
 ﻿/*
-Copyright 2025 Ylian Saint-Hilaire
+Copyright 2026 Ylian Saint-Hilaire
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -41,10 +41,12 @@ namespace HTCommander
 
         public void ChannelIsClear()
         {
+            /*
             if ((parent.radio == null) || (parent.radio.TransmitQueueLength > 0)) return;
             SendRequestFrame(FirstDiscovery);
             FirstDiscovery = false;
             parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(30));
+            */
         }
 
         public bool Add(TorrentFile file)
@@ -71,7 +73,7 @@ namespace HTCommander
             {
                 //SendRequestFrame(true);
                 FirstDiscovery = true;
-                parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(5));
+                //parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(5));
             }
         }
 
@@ -110,6 +112,7 @@ namespace HTCommander
 
         private void SendRequestFrame(bool discovery = false)
         {
+            /*
             if ((parent.activeStationLock == null) || (parent.activeStationLock.StationType != StationInfoClass.StationTypes.Torrent)) return;
 
             MemoryStream ms = new MemoryStream();
@@ -169,14 +172,15 @@ namespace HTCommander
             addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
             AX25Packet packet = new AX25Packet(addresses, ms.ToArray(), DateTime.Now);
             packet.pid = 162; // Control packet
-            packet.channel_id = parent.activeChannelIdLock;
+            //packet.channel_id = parent.activeChannelIdLock;
             //packet.channel_name = p.channel_name;
             packet.tag = "TorrentRequest"; // Tag this packet so we can delete it from the send queue if needed.
             packet.deadline = DateTime.Now.AddSeconds(30); // If we can't send this in the next 30 seconds, don't bother.
-            if (parent.activeChannelIdLock >= 0)
-            {
-                parent.radio.TransmitTncData(packet, packet.channel_id);
-            }
+            //if (parent.activeChannelIdLock >= 0)
+            //{
+            //    parent.radio.TransmitTncData(packet, packet.channel_id);
+            //}
+            */
         }
 
         private struct Request
@@ -333,7 +337,7 @@ namespace HTCommander
                                 sFile.ReceivedLastBlock = true;
                                 sFile.Mode = TorrentFile.TorrentModes.Request;
                                 Stations.Add(sFile);
-                                parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(1));
+                                //parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(1));
                             }
                             break;
                         case 5: // Short Id
@@ -370,7 +374,7 @@ namespace HTCommander
                                         packet.channel_name = p.channel_name;
                                         packet.tag = file.Callsign + "-" + file.StationId + "-" + Utils.BytesToHex(shortId) + "-" + i; // Tag this packet so we can delete it from the send queue if needed.
                                         packet.deadline = DateTime.Now.AddSeconds(60); // If we can't send this in the next 60 seconds, don't bother.
-                                        parent.radio.TransmitTncData(packet, packet.channel_id);
+                                        //parent.radio.TransmitTncData(packet, packet.channel_id);
                                     }
                                 }
                             }
@@ -397,7 +401,7 @@ namespace HTCommander
 
                 // If we just received data that is in the transmit queue, delete it, someone else sent it
                 string packetTag = callsign + "-" + stationId + "-" + Utils.BytesToHex(blockShortId) + "-" + blockNumber;
-                parent.radio.DeleteTransmitByTag(packetTag);
+                //parent.radio.DeleteTransmitByTag(packetTag);
 
                 if (isStationFile)
                 {
@@ -449,7 +453,7 @@ namespace HTCommander
                             int r = mfile.IsCompleted();
                             if (r == 1) { mfile.Completed = true; mfile.Mode = TorrentFile.TorrentModes.Sharing; }
                             if (r == 2) { mfile.Mode = TorrentFile.TorrentModes.Error; }
-                            parent.updateTorrent(mfile);
+                            //parent.updateTorrent(mfile);
                         }
                     }
                 }
@@ -565,11 +569,12 @@ namespace HTCommander
             // If we have files that are not in the updated list, remove them.
             // TODO
 
-            if (changed) { parent.updateTorrentList(); }
+            //if (changed) { parent.updateTorrentList(); }
         }
 
         private void UpdateAdvertised()
         {
+            /*
             MemoryStream ms = new MemoryStream();
             BinaryWriter bw = new BinaryWriter(ms);
             byte[] buf;
@@ -670,6 +675,7 @@ namespace HTCommander
 
             // Done
             Advertised = torrentFile;
+            */
         }
 
     }

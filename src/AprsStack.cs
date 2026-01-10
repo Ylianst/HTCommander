@@ -20,10 +20,12 @@ namespace HTCommander
         private string GetAuthPassword(string destAddress)
         {
             string authPassword = null;
+            /*
             foreach (StationInfoClass station in parent.stations)
             {
                 if ((station.StationType == StationInfoClass.StationTypes.APRS) && (station.Callsign.CompareTo(destAddress) == 0) && !string.IsNullOrEmpty(station.AuthPassword)) { authPassword = station.AuthPassword; }
             }
+            */
             return authPassword;
         }
 
@@ -87,8 +89,8 @@ namespace HTCommander
 
                 foreach (AprsOutboundMessageRecord record in toRetry)
                 {
-                    parent.radio.TransmitTncData(record.packet, record.channelId, record.regionId);
-                    if (record.retryCount >= 2) { outboundRecords.Remove(record); }
+                    //parent.radio.TransmitTncData(record.packet, record.channelId, record.regionId);
+                    //if (record.retryCount >= 2) { outboundRecords.Remove(record); }
                 }
 
                 if (outboundRecords.Count == 0) { retryTimer.Stop(); }
@@ -98,16 +100,20 @@ namespace HTCommander
         // Called when a packet is sent out
         public int ProcessOutgoing(AX25Packet packet, int channelId = -1, int regionId = -1, bool auth = false)
         {
+            /*
             AprsOutboundMessageRecord r = new AprsOutboundMessageRecord(DateTime.Now.AddSeconds(5), packet, channelId, regionId, auth);
             outboundRecords.Add(r);
             int size = parent.radio.TransmitTncData(packet, channelId, regionId); // Transmit the packet the first time
             retryTimer.Start();
             return size;
+            */
+            return 0;
         }
 
         // Called when a APRS packet is received
         public bool ProcessIncoming(AprsPacket aprs)
         {
+            /*
             if ((aprs == null) || (aprs.Packet == null)) return true;
             if (aprs.Packet.addresses.Count < 2) return false;
             if (aprs.Packet.incoming == false) return true;
@@ -137,10 +143,10 @@ namespace HTCommander
                             string aprsAddr = ":" + aprs.Packet.addresses[1].address;
                             if (aprs.Packet.addresses[1].SSID > 0) { aprsAddr += "-" + aprs.Packet.addresses[1].SSID; }
                             while (aprsAddr.Length < 10) { aprsAddr += " "; }
-                            bool authApplied = false;
-                            string aprsMsg = parent.addAprsAuthNoMsgId(parent.callsign + "-" + parent.stationId, aprs.Packet.addresses[1].address + "-" + aprs.Packet.addresses[1].SSID, ":ack" + aprs.MessageData.SeqId, DateTime.Now, out authApplied);
-                            AX25Packet rpacket = new AX25Packet(addresses, aprsMsg, DateTime.Now);
-                            parent.radio.TransmitTncData(rpacket, aprs.Packet.channel_id);
+                            //bool authApplied = false;
+                            //string aprsMsg = parent.addAprsAuthNoMsgId(parent.callsign + "-" + parent.stationId, aprs.Packet.addresses[1].address + "-" + aprs.Packet.addresses[1].SSID, ":ack" + aprs.MessageData.SeqId, DateTime.Now, out authApplied);
+                            //AX25Packet rpacket = new AX25Packet(addresses, aprsMsg, DateTime.Now);
+                            //parent.radio.TransmitTncData(rpacket, aprs.Packet.channel_id);
                         }
                         else
                         {
@@ -179,6 +185,7 @@ namespace HTCommander
                     }
                 }
             }
+            */
             return true;
         }
 

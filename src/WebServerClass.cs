@@ -1,5 +1,5 @@
 ﻿/*
-Copyright 2025 Ylian Saint-Hilaire
+Copyright 2026 Ylian Saint-Hilaire
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -68,8 +68,9 @@ namespace HTCommander
             // (The SemaphoreSlim in ProcessSendQueue naturally handles this if it's waiting)
         }
 
-        private async Task ProcessSendQueue()
+        private Task ProcessSendQueue()
         {
+            /*
             try
             {
                 while (!_cts.Token.IsCancellationRequested)
@@ -124,6 +125,8 @@ namespace HTCommander
             {
                 _parent.Debug($"Fatal error in sending task for {Id}: {ex.Message}");
             }
+            */
+            return null;
         }
 
         public void Dispose()
@@ -157,24 +160,24 @@ namespace HTCommander
         {
             if (_serverTask != null && !_serverTask.IsCompleted)
             {
-                parent.Debug("Server is already running.");
+                //parent.Debug("Server is already running.");
                 return;
             }
 
             _cts = new CancellationTokenSource();
             _serverTask = Task.Run(() => StartAsync(_cts.Token), _cts.Token);
-            parent.Debug("Server starting...");
+            //parent.Debug("Server starting...");
         }
 
         public void Stop()
         {
             if (_cts == null)
             {
-                parent.Debug("Server is not running.");
+                //parent.Debug("Server is not running.");
                 return;
             }
 
-            parent.Debug("Stopping server...");
+            //parent.Debug("Stopping server...");
             _cts.Cancel();
             _listener.Stop();
 
@@ -187,7 +190,7 @@ namespace HTCommander
                 catch (OperationCanceledException) { }
                 catch (Exception ex)
                 {
-                    parent.Debug($"Error waiting for server task to complete: {ex.Message}");
+                    //parent.Debug($"Error waiting for server task to complete: {ex.Message}");
                 }
             }
 
@@ -205,7 +208,7 @@ namespace HTCommander
                     }
                     catch (Exception ex)
                     {
-                        parent.Debug($"Error closing WebSocket {id}: {ex.Message}");
+                        //parent.Debug($"Error closing WebSocket {id}: {ex.Message}");
                     }
                 }
                 wsSender.Dispose(); // Dispose the WebSocketSender, which disposes the WebSocket
@@ -216,13 +219,13 @@ namespace HTCommander
             _cts = null;
             _serverTask = null;
 
-            parent.Debug("Server stopped.");
+            //parent.Debug("Server stopped.");
         }
 
         private async Task StartAsync(CancellationToken cancellationToken)
         {
             _listener.Start();
-            parent.Debug("Server started on " + string.Join(", ", _listener.Prefixes));
+            //parent.Debug("Server started on " + string.Join(", ", _listener.Prefixes));
 
             try
             {
@@ -239,12 +242,12 @@ namespace HTCommander
                         {
                             break;
                         }
-                        parent.Debug($"HttpListenerException: {ex.Message}");
+                        //parent.Debug($"HttpListenerException: {ex.Message}");
                         continue;
                     }
                     catch (Exception ex)
                     {
-                        parent.Debug($"Error getting HTTP context: {ex.Message}");
+                        //parent.Debug($"Error getting HTTP context: {ex.Message}");
                         continue;
                     }
 
@@ -260,21 +263,22 @@ namespace HTCommander
             }
             catch (OperationCanceledException)
             {
-                parent.Debug("Server task cancelled.");
+                //parent.Debug("Server task cancelled.");
             }
             catch (Exception ex)
             {
-                parent.Debug("Server error: " + ex.Message);
+                //parent.Debug("Server error: " + ex.Message);
             }
             finally
             {
                 _listener.Stop();
-                parent.Debug("HttpListener stopped.");
+                //parent.Debug("HttpListener stopped.");
             }
         }
 
-        private async Task HandleWebSocketClientAsync(HttpListenerContext context, CancellationToken cancellationToken)
+        private Task HandleWebSocketClientAsync(HttpListenerContext context, CancellationToken cancellationToken)
         {
+            /*
             string localpath = context.Request.Url.LocalPath;
             if (localpath.Length > 0) { localpath = localpath.Substring(1); }
             if (localpath != "websocket.aspx")
@@ -356,15 +360,15 @@ namespace HTCommander
                         // Check if we are channel locked, if so, don't allow channel changing.
                         int group = Utils.GetShort(receivedData, 0);
                         int cmd = Utils.GetShort(receivedData, 2);
-                        if ((group == 2) && (cmd == 11) && (parent.activeChannelIdLock != -1)) { forward = false; } // WRITE_SETTINGS 
+                        //if ((group == 2) && (cmd == 11) && (parent.activeChannelIdLock != -1)) { forward = false; } // WRITE_SETTINGS 
 
-                        if (forward) { parent.radio.SendRawCommand(receivedData); }
+                        //if (forward) { parent.radio.SendRawCommand(receivedData); }
                     }
                 }
             }
             catch (Exception ex)
             {
-                parent.Debug($"WebSocket client {id} error: {ex.Message}");
+                //parent.Debug($"WebSocket client {id} error: {ex.Message}");
             }
             finally
             {
@@ -372,7 +376,7 @@ namespace HTCommander
                 {
                     if (_webSockets.TryRemove(id, out _))
                     {
-                        parent.Debug($"WebSocket {id} removed from active connections.");
+                        //parent.Debug($"WebSocket {id} removed from active connections.");
                     }
                     if (webSocket.State == WebSocketState.Open || webSocket.State == WebSocketState.CloseReceived)
                     {
@@ -382,12 +386,14 @@ namespace HTCommander
                         }
                         catch (Exception ex)
                         {
-                            parent.Debug($"Error closing WebSocket {id} in finally block: {ex.Message}");
+                            //parent.Debug($"Error closing WebSocket {id} in finally block: {ex.Message}");
                         }
                     }
                     webSocketSender.Dispose(); // Dispose the WebSocketSender
                 }
             }
+            */
+            return null;
         }
 
         private void HandleHttpRequest(HttpListenerContext context)

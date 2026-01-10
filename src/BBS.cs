@@ -1,5 +1,5 @@
 ﻿/*
-Copyright 2025 Ylian Saint-Hilaire
+Copyright 2026 Ylian Saint-Hilaire
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ namespace HTCommander
             s.bytesIn += bytesIn;
             s.bytesOut += bytesOut;
             stats[callsign] = s;
-            parent.UpdateBbsStats(s);
+            //parent.UpdateBbsStats(s);
         }
 
         public void ClearStats()
@@ -81,7 +81,7 @@ namespace HTCommander
                 for (int i = 0; i < dataStrs.Length; i++)
                 {
                     if ((dataStrs[i].Trim().Length == 0) && (i == (dataStrs.Length - 1))) continue;
-                    parent.AddBbsTraffic(session.Addresses[0].ToString(), true, dataStrs[i].Trim());
+                    //parent.AddBbsTraffic(session.Addresses[0].ToString(), true, dataStrs[i].Trim());
                 }
                 UpdateStats(session.Addresses[0].ToString(), "Stream", 0, 1, 0, output.Length);
                 session.Send(output);
@@ -103,6 +103,7 @@ namespace HTCommander
 
         public void ProcessStreamState(AX25Session session, AX25Session.ConnectionState state)
         {
+            /*
             switch (state)
             {
                 case AX25Session.ConnectionState.CONNECTED:
@@ -128,10 +129,12 @@ namespace HTCommander
                     parent.AddBbsControlMessage("Disconnecting...");
                     break;
             }
+            */
         }
 
         private bool ExtractMail(AX25Session session, MemoryStream blocks)
         {
+            /*
             if (session.sessionState.ContainsKey("wlMailProp") == false) return false;
             List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
             if ((proposals == null) || (blocks == null)) return false;
@@ -148,7 +151,7 @@ namespace HTCommander
             bool fail;
             int dataConsumed = 0;
             WinLinkMail mail = WinLinkMail.DecodeBlocksToEmail(blocks.ToArray(), out fail, out dataConsumed);
-            if (fail) { parent.AddBbsControlMessage("Failed to decode mail."); return true; }
+            //if (fail) { parent.AddBbsControlMessage("Failed to decode mail."); return true; }
             if (mail == null) return false;
             if (dataConsumed > 0)
             {
@@ -176,14 +179,16 @@ namespace HTCommander
 
             // Process the mail
             parent.mailStore.AddMail(mail);
-            parent.UpdateMail();
+            //parent.UpdateMail();
             parent.AddBbsControlMessage("Got mail for " + mail.To + ".");
 
             return (proposals.Count == 0);
+            */
+            return false;
         }
         private bool WeHaveEmail(string mid)
         {
-            foreach (WinLinkMail mail in parent.Mails) { if (mail.MID == mid) return true; }
+            //foreach (WinLinkMail mail in parent.Mails) { if (mail.MID == mid) return true; }
             return false;
         }
 
@@ -207,7 +212,7 @@ namespace HTCommander
             foreach (string str in dataStrs)
             {
                 if (str.Length == 0) continue;
-                parent.AddBbsTraffic(session.Addresses[0].ToString(), false, str.Trim());
+                //parent.AddBbsTraffic(session.Addresses[0].ToString(), false, str.Trim());
 
                 // Switch to Winlink mail mode
                 if ((!session.sessionState.ContainsKey("mode")) && (str.Length > 6) && (str.IndexOf("-") > 0) && str.StartsWith("[") && str.EndsWith("$]"))
@@ -261,7 +266,7 @@ namespace HTCommander
         {
             string dataStr = null;
             if (data != null) { dataStr = UTF8Encoding.UTF8.GetString(data).Replace("\r\n", "\r").Replace("\n", "\r").Split('\r')[0]; }
-            if (!string.IsNullOrEmpty(dataStr)) { parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr); }
+            //if (!string.IsNullOrEmpty(dataStr)) { parent.AddBbsTraffic(session.Addresses[0].ToString(), false, dataStr); }
             if (start) { dataStr = "help"; }
 
             Adventurer.GameRunner runner = new Adventurer.GameRunner();
@@ -285,12 +290,13 @@ namespace HTCommander
         /// <param name="data"></param>
         public void ProcessMailStream(AX25Session session, byte[] data)
         {
+            /*
             // This is embedded mail sent in compressed format
             if (session.sessionState.ContainsKey("wlMailBinary"))
             {
                 MemoryStream blocks = (MemoryStream)session.sessionState["wlMailBinary"];
                 blocks.Write(data, 0, data.Length);
-                parent.AddBbsControlMessage("Receiving mail, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes"));
+                //parent.AddBbsControlMessage("Receiving mail, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes"));
                 if (ExtractMail(session, blocks) == true)
                 {
                     // We are done with the mail reception
@@ -459,6 +465,7 @@ namespace HTCommander
                     SessionSend(session, value + "\r");
                 }
             }
+            */
         }
 
         private void SendProposals(AX25Session session, bool lastExchange)
@@ -468,6 +475,7 @@ namespace HTCommander
             List<WinLinkMail> proposedMails = new List<WinLinkMail>();
             List<List<Byte[]>> proposedMailsBinary = new List<List<Byte[]>>();
             int checksum = 0, mailSendCount = 0;
+            /*
             foreach (WinLinkMail mail in parent.Mails)
             {
                 if ((mail.Mailbox != "Outbox") || string.IsNullOrEmpty(mail.MID) || (mail.MID.Length != 12)) continue;
@@ -490,6 +498,7 @@ namespace HTCommander
                     mailSendCount++;
                 }
             }
+            */
             if (mailSendCount > 0)
             {
                 // Send proposal checksum
@@ -529,6 +538,7 @@ namespace HTCommander
 
         public void ProcessFrame(TncDataFragment frame, AX25Packet p)
         {
+            /*
             // TODO: Add support for the weird packet format
             // TODO: Add support for ignoring stations
 
@@ -542,6 +552,7 @@ namespace HTCommander
             {
                 if (aprsPacket.DataType == PacketDataType.Message) { ProcessAprsPacket(p, aprsPacket, frame.data.Length, frame.channel_name == "APRS"); return; }
             }
+            */
         }
 
         private void UpdateEmails(AX25Session session)
@@ -562,7 +573,7 @@ namespace HTCommander
                         if ((proposalResponses[j] == "Y") || (proposalResponses[j] == "N"))
                         {
                             proposedMails[j].Mailbox = "Sent";
-                            parent.mailStore.UpdateMail(proposedMails[j]);
+                            //parent.mailStore.UpdateMail(proposedMails[j]);
                             mailsChanges++;
                         }
                     }
@@ -570,7 +581,7 @@ namespace HTCommander
 
                 if (mailsChanges > 0)
                 {
-                    parent.UpdateMail();
+                    //parent.UpdateMail();
                 }
             }
         }
@@ -608,13 +619,13 @@ namespace HTCommander
             string dataStr = p.dataStr;
             if (p.pid == 242) { try { dataStr = UTF8Encoding.Default.GetString(Utils.DecompressBrotli(p.data)); } catch (Exception) { } }
             if (p.pid == 243) { try { dataStr = UTF8Encoding.Default.GetString(Utils.CompressDeflate(p.data)); } catch (Exception) { } }
-            parent.AddBbsTraffic(p.addresses[1].ToString(), false, dataStr);
+            //parent.AddBbsTraffic(p.addresses[1].ToString(), false, dataStr);
             Adventurer.GameRunner runner = new Adventurer.GameRunner();
 
             string output = runner.RunTurn("adv01.dat", Path.Combine(adventureAppDataPath, p.addresses[1].CallSignWithId + ".sav"), p.dataStr).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
             {
-                parent.AddBbsTraffic(p.addresses[1].ToString(), true, output);
+                //parent.AddBbsTraffic(p.addresses[1].ToString(), true, output);
                 //if (output.Length > 310) { output = output.Substring(0, 310); }
                 List<string> stringList = new List<string>();
                 StringBuilder sb = new StringBuilder();
@@ -640,7 +651,7 @@ namespace HTCommander
                 //AppendTerminalString(true, callsign + "-" + stationId, destCallsign + "-" + destStationId, sendText);
                 List<AX25Address> addresses = new List<AX25Address>(1);
                 addresses.Add(p.addresses[1]);
-                addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
+                //addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
 
                 int bytesOut = 0;
                 int packetsOut = 0;
@@ -651,7 +662,7 @@ namespace HTCommander
                     packet.pid = outPid;
                     packet.channel_id = p.channel_id;
                     packet.channel_name = p.channel_name;
-                    bytesOut += parent.radio.TransmitTncData(packet, packet.channel_id);
+                    //bytesOut += parent.radio.TransmitTncData(packet, packet.channel_id);
                     packetsOut++;
                 }
 
@@ -668,6 +679,7 @@ namespace HTCommander
 
         private void ProcessAprsPacket(AX25Packet p, AprsPacket aprsPacket, int frameLength, bool aprsChannel)
         {
+            /*
             if (aprsPacket.DataType != PacketDataType.Message) return;
             if (aprsPacket.MessageData.MsgType != MessageType.mtGeneral) return;
 
@@ -733,6 +745,7 @@ namespace HTCommander
 
                 UpdateStats(p.addresses[1].ToString(), "APRS", 1, packetsOut, frameLength, bytesOut);
             }
+            */
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Ylian Saint-Hilaire
+Copyright 2026 Ylian Saint-Hilaire
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -187,7 +187,7 @@ namespace HTCommander
             CleanupTransfer();
             
             // Update UI
-            parent?.updateTerminalFileTransferProgress(MainForm.TerminalFileTransferStates.Idle, "", 0, 0);
+            //parent?.updateTerminalFileTransferProgress(MainForm.TerminalFileTransferStates.Idle, "", 0, 0);
             
             OnError($"Transfer cancelled: {reason}");
         }
@@ -352,7 +352,7 @@ namespace HTCommander
                 SetState(YappState.RH);
                 StartTimeout();
                 
-                parent?.AppendTerminalString(false, null, null, "Incoming YAPP file transfer request received");
+                //parent?.AppendTerminalString(false, null, null, "Incoming YAPP file transfer request received");
             }
             else if (type == Control.SOH) // HD - Header packet
             {
@@ -477,12 +477,14 @@ namespace HTCommander
                         useChecksumForTransfer = UseChecksum;
                         
                         // Update UI
+                        /*
                         parent?.updateTerminalFileTransferProgress(
                             MainForm.TerminalFileTransferStates.Receiving, 
                             currentFilename, 
                             (int)fileSize, 
                             (int)bytesTransferred);
-                            
+                        */
+
                         OnProgress();
                     }
                     catch (Exception ex)
@@ -529,12 +531,13 @@ namespace HTCommander
             }
             
             // Update UI
+            /*
             parent?.updateTerminalFileTransferProgress(
                 MainForm.TerminalFileTransferStates.Receiving, 
                 currentFilename, 
                 (int)fileSize, 
                 (int)bytesTransferred);
-                
+            */
             OnProgress();
         }
         
@@ -602,12 +605,14 @@ namespace HTCommander
                 Log($"Received data block: {packetData.Length} bytes ({bytesTransferred}/{fileSize})");
                 
                 // Update UI
+                /*
                 parent?.updateTerminalFileTransferProgress(
                     MainForm.TerminalFileTransferStates.Receiving, 
                     currentFilename, 
                     (int)fileSize, 
                     (int)bytesTransferred);
-                
+                */
+
                 OnProgress();
                 RestartTimeout();
                 
@@ -635,7 +640,7 @@ namespace HTCommander
             
             // Notify file completion with specific file details
             string completedFile = Path.Combine(downloadPath, currentFilename);
-            parent?.AppendTerminalString(false, null, null, $"YAPP file completed: {currentFilename} ({bytesTransferred} bytes)");
+            //parent?.AppendTerminalString(false, null, null, $"YAPP file completed: {currentFilename} ({bytesTransferred} bytes)");
             
             OnFileComplete();
             
@@ -860,7 +865,7 @@ namespace HTCommander
             CleanupTransfer();
             
             // Update UI
-            parent?.updateTerminalFileTransferProgress(MainForm.TerminalFileTransferStates.Idle, "", 0, 0);
+            //parent?.updateTerminalFileTransferProgress(MainForm.TerminalFileTransferStates.Idle, "", 0, 0);
             
             // Display overall transfer completion message
             //parent?.AppendTerminalString(false, null, null, "YAPP transfer completed successfully");
@@ -913,7 +918,7 @@ namespace HTCommander
         
         private void Log(string message)
         {
-            parent?.Debug($"YAPP: {message}");
+            //parent?.Debug($"YAPP: {message}");
         }
         
         #endregion
@@ -983,7 +988,7 @@ namespace HTCommander
             Mode = YappMode.None;
             
             // Update UI
-            parent?.updateTerminalFileTransferProgress(MainForm.TerminalFileTransferStates.Idle, "", 0, 0);
+            //parent?.updateTerminalFileTransferProgress(MainForm.TerminalFileTransferStates.Idle, "", 0, 0);
         }
         
         public void Dispose()

@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Ylian Saint-Hilaire
+Copyright 2026 Ylian Saint-Hilaire
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -500,7 +500,7 @@ namespace HTCommander
                     };
 
                     // Load attachments
-                    mail.Attachements = LoadAttachments(mail.MID);
+                    mail.Attachments = LoadAttachments(mail.MID);
 
                     mails.Add(mail);
                 }
@@ -533,9 +533,9 @@ namespace HTCommander
             }
 
             // Insert attachment references
-            if (mail.Attachements != null)
+            if (mail.Attachments != null)
             {
-                foreach (var attachment in mail.Attachements)
+                foreach (var attachment in mail.Attachments)
                 {
                     string filePath = GetAttachmentFilePath(mail.MID, attachment.Name);
                     string relativePath = Path.GetFileName(filePath);
@@ -592,9 +592,9 @@ namespace HTCommander
                 cmd.ExecuteNonQuery();
             }
 
-            if (mail.Attachements != null)
+            if (mail.Attachments != null)
             {
-                foreach (var attachment in mail.Attachements)
+                foreach (var attachment in mail.Attachments)
                 {
                     string filePath = GetAttachmentFilePath(mail.MID, attachment.Name);
                     string relativePath = Path.GetFileName(filePath);
@@ -612,9 +612,9 @@ namespace HTCommander
 
         private void SaveAttachments(WinLinkMail mail)
         {
-            if (mail.Attachements == null) return;
+            if (mail.Attachments == null) return;
 
-            foreach (var attachment in mail.Attachements)
+            foreach (var attachment in mail.Attachments)
             {
                 if (attachment.Data == null) continue;
                 string filePath = GetAttachmentFilePath(mail.MID, attachment.Name);

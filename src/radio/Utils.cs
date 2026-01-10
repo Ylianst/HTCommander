@@ -1,5 +1,5 @@
 ﻿/*
-Copyright 2025 Ylian Saint-Hilaire
+Copyright 2026 Ylian Saint-Hilaire
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,17 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+using Brotli;
 using System;
-using System.IO;
-using System.Text;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
-using System.Windows.Forms;
+using System.IO;
 using System.IO.Compression;
-using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.Runtime.InteropServices;
-using Brotli;
+using System.Security.Cryptography;
+using System.Text;
+using System.Windows.Forms;
+using static HTCommander.AX25Packet;
 
 namespace HTCommander
 {
@@ -299,6 +300,99 @@ namespace HTCommander
         {
             using (HMACSHA256 hmac = new HMACSHA256(authkey)) { return hmac.ComputeHash(data); }
         }
+
+        public static string TncDataFragmentToShortString(TncDataFragment fragment)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            if ((fragment.data != null) && (fragment.data.Length > 3) && (fragment.data[0] == 1))
+            {
+                // This is the short binary protocol format.
+                // Examples:
+                //   01 07204B4B37565A54
+                //   01 07204B4B37565A54 0121 062468656C6C6F 072514C72DC7CDF0
+                //   20 = K7VZT        (Callsign)
+                //   21 = true         (Message Type = Position Report?)
+                //   24 = hello        (Message)
+                //   25 = 14C72DC7CDF0 (GPS Position?)
+                int i = 0;
+                Dictionary<byte, byte[]> decodedMessage = Utils.DecodeShortBinaryMessage(fragment.data);
+                foreach (var item in decodedMessage)
+                {
+                    if (i++ > 0) sb.Append(", ");
+                    if (item.Key == 0x20) { sb.Append("Callsign: " + UTF8Encoding.UTF8.GetString(item.Value)); }
+                    else if (item.Key == 0x24) { sb.Append("Msg: " + UTF8Encoding.UTF8.GetString(item.Value)); }
+                    else sb.Append(item.Key + ": " + Utils.BytesToHex(item.Value));
+                }
+                return sb.ToString();
+            }
+
+            AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
+            if (packet == null)
+            {
+                return Utils.BytesToHex(fragment.data);
+            }
+            else
+            {
+                if (packet.addresses.Count > 1)
+                {
+                    AX25Address addr = packet.addresses[1];
+                    sb.Append(addr.ToString() + ">");
+                }
+                if (packet.addresses.Count > 0)
+                {
+                    AX25Address addr = packet.addresses[0];
+                    sb.Append(addr.ToString());
+                }
+                for (int i = 2; i < packet.addresses.Count; i++)
+                {
+                    AX25Address addr = packet.addresses[i];
+                    sb.Append("," + addr.ToString() + ((addr.CRBit1) ? "*" : ""));
+                }
+
+                if (sb.Length > 0) { sb.Append(": "); }
+
+                if ((fragment.channel_name == "APRS") && (packet.type == FrameType.U_FRAME))
+                {
+                    sb.Append(packet.dataStr);
+                }
+                else
+                {
+                    if (packet.type == FrameType.U_FRAME)
+                    {
+                        sb.Append(packet.type.ToString().Replace("_", "-"));
+                        string hex = Utils.BytesToHex(packet.data);
+                        if (hex.Length > 0) { sb.Append(": " + hex); }
+                    }
+                    else
+                    {
+                        sb.Append(packet.type.ToString().Replace("_", "-") + ", NR:" + packet.nr + ", NS:" + packet.ns);
+                        string hex = Utils.BytesToHex(packet.data);
+                        if (hex.Length > 0) { sb.Append(": " + hex); }
+                    }
+                }
+            }
+            return sb.ToString().Replace("\r", "").Replace("\n", "");
+        }
+
+        private bool ParseCallsignWithId(string callsignWithId, out string xcallsign, out int xstationId)
+        {
+            xcallsign = null;
+            xstationId = -1;
+            if (callsignWithId == null) return false;
+            string[] destSplit = callsignWithId.Split('-');
+            if (destSplit.Length != 2) return false;
+            int destStationId = -1;
+            if (destSplit[0].Length < 3) return false;
+            if (destSplit[0].Length > 6) return false;
+            if (destSplit[1].Length < 1) return false;
+            if (destSplit[1].Length > 2) return false;
+            if (int.TryParse(destSplit[1], out destStationId) == false) return false;
+            if ((destStationId < 0) || (destStationId > 15)) return false;
+            xcallsign = destSplit[0];
+            xstationId = destStationId;
+            return true;
+        }
     }
 
     public class RtfBuilder
@@ -436,6 +530,7 @@ namespace HTCommander
             // Scroll to the caret (which is now at the end) to make the new entry visible
             rtb.ScrollToCaret();
         }
+
 
     }
 

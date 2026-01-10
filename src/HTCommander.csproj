@@ -15,6 +15,7 @@
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
     <TargetFrameworkProfile />
+    <RuntimeIdentifiers>win;win-x64;win-x86</RuntimeIdentifiers>
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -97,206 +98,247 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AboutForm.cs">
+    <Compile Include="AprsParser\AprsAuth.cs" />
+    <Compile Include="ChannelImport.cs" />
+    <Compile Include="Dialogs\AboutForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="AboutForm.Designer.cs">
+    <Compile Include="Dialogs\AboutForm.Designer.cs">
       <DependentUpon>AboutForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="ActiveStationSelectorForm.cs">
+    <Compile Include="Dialogs\ActiveStationSelectorForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="ActiveStationSelectorForm.Designer.cs">
+    <Compile Include="Dialogs\ActiveStationSelectorForm.Designer.cs">
       <DependentUpon>ActiveStationSelectorForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="AddAprsRouteForm.cs">
+    <Compile Include="Dialogs\AddAprsRouteForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="AddAprsRouteForm.Designer.cs">
+    <Compile Include="Dialogs\AddAprsRouteForm.Designer.cs">
       <DependentUpon>AddAprsRouteForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="AddStationForm.cs">
+    <Compile Include="Dialogs\AddStationForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="AddStationForm.Designer.cs">
+    <Compile Include="Dialogs\AddStationForm.Designer.cs">
       <DependentUpon>AddStationForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="AddTorrentFileForm.cs">
+    <Compile Include="Dialogs\AddTorrentFileForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="AddTorrentFileForm.Designer.cs">
+    <Compile Include="Dialogs\AddTorrentFileForm.Designer.cs">
       <DependentUpon>AddTorrentFileForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="adventurer\Advent - Constants.cs" />
-    <Compile Include="adventurer\Advent - Events.cs" />
-    <Compile Include="adventurer\Advent - Game Variables.cs" />
-    <Compile Include="adventurer\Advent - Game.cs" />
-    <Compile Include="adventurer\Advent - IO.cs" />
-    <Compile Include="adventurer\Advent - Properties.cs" />
-    <Compile Include="adventurer\Adventurer.cs" />
-    <Compile Include="adventurer\DATToChunks.cs" />
-    <Compile Include="adventurer\GameData.cs" />
-    <Compile Include="AmplitudeHistoryBar.cs">
+    <Compile Include="Adventurer\Advent - Constants.cs" />
+    <Compile Include="Adventurer\Advent - Events.cs" />
+    <Compile Include="Adventurer\Advent - Game Variables.cs" />
+    <Compile Include="Adventurer\Advent - Game.cs" />
+    <Compile Include="Adventurer\Advent - IO.cs" />
+    <Compile Include="Adventurer\Advent - Properties.cs" />
+    <Compile Include="Adventurer\Adventurer.cs" />
+    <Compile Include="Adventurer\DATToChunks.cs" />
+    <Compile Include="Adventurer\GameData.cs" />
+    <Compile Include="Controls\AmplitudeHistoryBar.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="AmplitudeHistoryBar.Designer.cs">
+    <Compile Include="Controls\AmplitudeHistoryBar.Designer.cs">
       <DependentUpon>AmplitudeHistoryBar.cs</DependentUpon>
     </Compile>
-    <Compile Include="aprs-parser\AprsPacket.cs" />
-    <Compile Include="aprs-parser\AprsUtil.cs" />
-    <Compile Include="aprs-parser\Callsign.cs" />
-    <Compile Include="aprs-parser\ClientSocket.cs" />
-    <Compile Include="aprs-parser\CoordinateSet.cs" />
-    <Compile Include="aprs-parser\MessageData.cs" />
-    <Compile Include="aprs-parser\PacketDataType.cs" />
-    <Compile Include="aprs-parser\ParseErrorEventArgs.cs" />
-    <Compile Include="aprs-parser\Position.cs" />
-    <Compile Include="AprsConfigurationForm.cs">
+    <Compile Include="AprsParser\AprsPacket.cs" />
+    <Compile Include="AprsParser\AprsUtil.cs" />
+    <Compile Include="AprsParser\Callsign.cs" />
+    <Compile Include="AprsParser\ClientSocket.cs" />
+    <Compile Include="AprsParser\CoordinateSet.cs" />
+    <Compile Include="AprsParser\MessageData.cs" />
+    <Compile Include="AprsParser\PacketDataType.cs" />
+    <Compile Include="AprsParser\ParseErrorEventArgs.cs" />
+    <Compile Include="AprsParser\Position.cs" />
+    <Compile Include="Dialogs\AprsConfigurationForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="AprsConfigurationForm.Designer.cs">
+    <Compile Include="Dialogs\AprsConfigurationForm.Designer.cs">
       <DependentUpon>AprsConfigurationForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="AprsWeatherForm.cs">
+    <Compile Include="Dialogs\AprsWeatherForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="AprsWeatherForm.Designer.cs">
+    <Compile Include="Dialogs\AprsWeatherForm.Designer.cs">
       <DependentUpon>AprsWeatherForm.cs</DependentUpon>
     </Compile>
     <Compile Include="AprsStack.cs" />
     <Compile Include="AudioClip.cs" />
-    <Compile Include="AudioClipRenameDialog.cs">
+    <Compile Include="Dialogs\AudioClipRenameDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="AudioClipRenameDialog.Designer.cs">
+    <Compile Include="Dialogs\AudioClipRenameDialog.Designer.cs">
       <DependentUpon>AudioClipRenameDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="BBS.cs" />
-    <Compile Include="BinaryDataFile.cs" />
-    <Compile Include="BTAccessDeniedForm.cs">
+    <Compile Include="Dialogs\BTAccessDeniedForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="BTAccessDeniedForm.Designer.cs">
+    <Compile Include="Dialogs\BTAccessDeniedForm.Designer.cs">
       <DependentUpon>BTAccessDeniedForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="BTActivateForm.cs">
+    <Compile Include="Dialogs\BTActivateForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="BTActivateForm.Designer.cs">
+    <Compile Include="Dialogs\BTActivateForm.Designer.cs">
       <DependentUpon>BTActivateForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="CantConnectForm.cs">
+    <Compile Include="Dialogs\CantConnectForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="CantConnectForm.Designer.cs">
+    <Compile Include="Dialogs\CantConnectForm.Designer.cs">
       <DependentUpon>CantConnectForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="Controls\BbsTabUserControl.cs">
+    <Compile Include="RadioControls\RadioPanelControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Controls\BbsTabUserControl.Designer.cs">
+    <Compile Include="RadioControls\RadioPanelControl.Designer.cs">
+      <DependentUpon>RadioPanelControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="TabControls\AprsTabUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="TabControls\AprsTabUserControl.Designer.cs">
+      <DependentUpon>AprsTabUserControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="TabControls\BbsTabUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="TabControls\BbsTabUserControl.Designer.cs">
       <DependentUpon>BbsTabUserControl.cs</DependentUpon>
     </Compile>
-    <Compile Include="Controls\ContactsTabUserControl.cs">
+    <Compile Include="TabControls\ContactsTabUserControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Controls\ContactsTabUserControl.Designer.cs">
+    <Compile Include="TabControls\ContactsTabUserControl.Designer.cs">
       <DependentUpon>ContactsTabUserControl.cs</DependentUpon>
     </Compile>
-    <Compile Include="Controls\DebugTabUserControl.cs">
+    <Compile Include="TabControls\DebugTabUserControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Controls\DebugTabUserControl.Designer.cs">
+    <Compile Include="TabControls\DebugTabUserControl.Designer.cs">
       <DependentUpon>DebugTabUserControl.cs</DependentUpon>
     </Compile>
-    <Compile Include="Controls\PacketCaptureTabUserControl.cs">
+    <Compile Include="TabControls\MailTabUserControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Controls\PacketCaptureTabUserControl.Designer.cs">
+    <Compile Include="TabControls\MailTabUserControl.Designer.cs">
+      <DependentUpon>MailTabUserControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="TabControls\MapTabUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="TabControls\MapTabUserControl.Designer.cs">
+      <DependentUpon>MapTabUserControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="TabControls\PacketCaptureTabUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="TabControls\PacketCaptureTabUserControl.Designer.cs">
       <DependentUpon>PacketCaptureTabUserControl.cs</DependentUpon>
     </Compile>
-    <Compile Include="Controls\TorrentTabUserControl.cs">
+    <Compile Include="TabControls\TerminalTabUserControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Controls\TorrentTabUserControl.Designer.cs">
+    <Compile Include="TabControls\TerminalTabUserControl.Designer.cs">
+      <DependentUpon>TerminalTabUserControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="TabControls\TorrentTabUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="TabControls\TorrentTabUserControl.Designer.cs">
       <DependentUpon>TorrentTabUserControl.cs</DependentUpon>
     </Compile>
-    <Compile Include="CustomTilePrefetcher.cs" />
-    <Compile Include="EditBeaconSettingsForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="EditBeaconSettingsForm.Designer.cs">
-      <DependentUpon>EditBeaconSettingsForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="hamlib\AfskDecoder.cs" />
-    <Compile Include="hamlib\AfskEncoder.cs" />
-    <Compile Include="hamlib\AudioBuffer.cs" />
-    <Compile Include="hamlib\AudioConfig.cs" />
-    <Compile Include="hamlib\Ax25Link.cs" />
-    <Compile Include="hamlib\Ax25Pad.cs" />
-    <Compile Include="hamlib\Ax25Pad2.cs" />
-    <Compile Include="hamlib\CorrectionInfo.cs" />
-    <Compile Include="hamlib\Demod9600.cs" />
-    <Compile Include="hamlib\DemodAfsk.cs" />
-    <Compile Include="hamlib\DemodPsk.cs" />
-    <Compile Include="hamlib\Dsp.cs" />
-    <Compile Include="hamlib\FcsCalc.cs" />
-    <Compile Include="hamlib\Fx25.cs" />
-    <Compile Include="hamlib\Fx25Encode.cs" />
-    <Compile Include="hamlib\Fx25Rec.cs" />
-    <Compile Include="hamlib\Fx25Send.cs" />
-    <Compile Include="hamlib\GenTone.cs" />
-    <Compile Include="hamlib\HdlcRec.cs" />
-    <Compile Include="hamlib\HdlcRec2.cs" />
-    <Compile Include="hamlib\HdlcSend.cs" />
-    <Compile Include="hamlib\IHdlcReceiver.cs" />
-    <Compile Include="hamlib\MultiModem.cs" />
-    <Compile Include="hamlib\ReedSolomonCodec.cs" />
-    <Compile Include="hamlib\WavFile.cs" />
-    <Compile Include="ImapServer.cs" />
-    <Compile Include="ImportChannelsForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="ImportChannelsForm.Designer.cs">
-      <DependentUpon>ImportChannelsForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="MailAttachmentControl.cs">
+    <Compile Include="TabControls\VoiceTabUserControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="MailAttachmentControl.Designer.cs">
+    <Compile Include="TabControls\VoiceTabUserControl.Designer.cs">
+      <DependentUpon>VoiceTabUserControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Utils\BinaryDataFile.cs" />
+    <Compile Include="Utils\CustomTilePrefetcher.cs" />
+    <Compile Include="Dialogs\EditBeaconSettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\EditBeaconSettingsForm.Designer.cs">
+      <DependentUpon>EditBeaconSettingsForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="HamLib\AfskDecoder.cs" />
+    <Compile Include="HamLib\AfskEncoder.cs" />
+    <Compile Include="HamLib\AudioBuffer.cs" />
+    <Compile Include="HamLib\AudioConfig.cs" />
+    <Compile Include="HamLib\Ax25Link.cs" />
+    <Compile Include="HamLib\Ax25Pad.cs" />
+    <Compile Include="HamLib\Ax25Pad2.cs" />
+    <Compile Include="HamLib\CorrectionInfo.cs" />
+    <Compile Include="HamLib\Demod9600.cs" />
+    <Compile Include="HamLib\DemodAfsk.cs" />
+    <Compile Include="HamLib\DemodPsk.cs" />
+    <Compile Include="HamLib\Dsp.cs" />
+    <Compile Include="HamLib\FcsCalc.cs" />
+    <Compile Include="HamLib\Fx25.cs" />
+    <Compile Include="HamLib\Fx25Encode.cs" />
+    <Compile Include="HamLib\Fx25Rec.cs" />
+    <Compile Include="HamLib\Fx25Send.cs" />
+    <Compile Include="HamLib\GenTone.cs" />
+    <Compile Include="HamLib\HdlcRec.cs" />
+    <Compile Include="HamLib\HdlcRec2.cs" />
+    <Compile Include="HamLib\HdlcSend.cs" />
+    <Compile Include="HamLib\IHdlcReceiver.cs" />
+    <Compile Include="HamLib\MultiModem.cs" />
+    <Compile Include="HamLib\ReedSolomonCodec.cs" />
+    <Compile Include="HamLib\WavFile.cs" />
+    <Compile Include="Utils\DataBroker.cs" />
+    <Compile Include="Utils\DataBrokerClient.cs" />
+    <Compile Include="Utils\LogFileHandler.cs" />
+    <Compile Include="WinLink\ImapServer.cs" />
+    <Compile Include="Dialogs\ImportChannelsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\ImportChannelsForm.Designer.cs">
+      <DependentUpon>ImportChannelsForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\MailAttachmentControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\MailAttachmentControl.Designer.cs">
       <DependentUpon>MailAttachmentControl.cs</DependentUpon>
     </Compile>
-    <Compile Include="MailClientDebugForm.cs">
+    <Compile Include="Dialogs\MailClientDebugForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="MailClientDebugForm.Designer.cs">
+    <Compile Include="Dialogs\MailClientDebugForm.Designer.cs">
       <DependentUpon>MailClientDebugForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="MailViewerForm.cs">
+    <Compile Include="Dialogs\MailViewerForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="MailViewerForm.Designer.cs">
+    <Compile Include="Dialogs\MailViewerForm.Designer.cs">
       <DependentUpon>MailViewerForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="MailComposeForm.cs">
+    <Compile Include="Dialogs\MailComposeForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="MailComposeForm.Designer.cs">
+    <Compile Include="Dialogs\MailComposeForm.Designer.cs">
       <DependentUpon>MailComposeForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="MapLocationForm.cs">
+    <Compile Include="Dialogs\MapLocationForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="MapLocationForm.Designer.cs">
+    <Compile Include="Dialogs\MapLocationForm.Designer.cs">
       <DependentUpon>MapLocationForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="NoTabsTabControl .cs">
+    <Compile Include="Controls\NoTabsTabControl .cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="PacketCaptureViewerForm.cs">
+    <Compile Include="Dialogs\PacketCaptureViewerForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="PacketCaptureViewerForm.Designer.cs">
+    <Compile Include="Dialogs\PacketCaptureViewerForm.Designer.cs">
       <DependentUpon>PacketCaptureViewerForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Properties\Resources.Designer.cs">
@@ -304,46 +346,46 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="RadioAudioClipsForm.cs">
+    <Compile Include="Dialogs\RadioAudioClipsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="RadioAudioClipsForm.Designer.cs">
+    <Compile Include="Dialogs\RadioAudioClipsForm.Designer.cs">
       <DependentUpon>RadioAudioClipsForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="RadioPositionForm.cs">
+    <Compile Include="Dialogs\RadioPositionForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="RadioPositionForm.Designer.cs">
+    <Compile Include="Dialogs\RadioPositionForm.Designer.cs">
       <DependentUpon>RadioPositionForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="RadioSelectorForm.cs">
+    <Compile Include="Dialogs\RadioSelectorForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="RadioSelectorForm.Designer.cs">
+    <Compile Include="Dialogs\RadioSelectorForm.Designer.cs">
       <DependentUpon>RadioSelectorForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="AprsDetailsForm.cs">
+    <Compile Include="Dialogs\AprsDetailsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="AprsDetailsForm.Designer.cs">
+    <Compile Include="Dialogs\AprsDetailsForm.Designer.cs">
       <DependentUpon>AprsDetailsForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="AprsSmsForm.cs">
+    <Compile Include="Dialogs\AprsSmsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="AprsSmsForm.Designer.cs">
+    <Compile Include="Dialogs\AprsSmsForm.Designer.cs">
       <DependentUpon>AprsSmsForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="RadioChannelControl.cs">
+    <Compile Include="Dialogs\RadioChannelControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="RadioChannelControl.Designer.cs">
+    <Compile Include="Dialogs\RadioChannelControl.Designer.cs">
       <DependentUpon>RadioChannelControl.cs</DependentUpon>
     </Compile>
-    <Compile Include="ChatControl.cs">
+    <Compile Include="Controls\ChatControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="ChatControl.Designer.cs">
+    <Compile Include="Controls\ChatControl.Designer.cs">
       <DependentUpon>ChatControl.cs</DependentUpon>
     </Compile>
     <Compile Include="ChatMessage.cs" />
@@ -355,202 +397,220 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RadioBssSettingsForm.cs">
+    <Compile Include="Dialogs\RadioBssSettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="RadioBssSettingsForm.Designer.cs">
+    <Compile Include="Dialogs\RadioBssSettingsForm.Designer.cs">
       <DependentUpon>RadioBssSettingsForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="radio\AX25Address.cs" />
-    <Compile Include="radio\AX25Packet.cs" />
-    <Compile Include="radio\AX25Session.cs" />
-    <Compile Include="radio\FileDownloader.cs" />
-    <Compile Include="radio\LibSbc.cs" />
-    <Compile Include="radio\Microphone.cs" />
-    <Compile Include="radio\MorseCodeEngine.cs" />
-    <Compile Include="radio\RadioAudio.cs" />
-    <Compile Include="radio\RadioBluetoothWin.cs" />
-    <Compile Include="radio\RadioPosition.cs" />
-    <Compile Include="radio\WhisperEngine.cs" />
-    <Compile Include="radio\WinLinkMail.cs" />
-    <Compile Include="radio\WinLinkUtils.cs" />
-    <Compile Include="radio\Radio.cs" />
-    <Compile Include="RadioSettingsForm.cs">
+    <Compile Include="Radio\AX25Address.cs" />
+    <Compile Include="Radio\AX25Packet.cs" />
+    <Compile Include="Radio\AX25Session.cs" />
+    <Compile Include="Radio\FileDownloader.cs" />
+    <Compile Include="Radio\LibSbc.cs" />
+    <Compile Include="Radio\Microphone.cs" />
+    <Compile Include="Radio\MorseCodeEngine.cs" />
+    <Compile Include="Radio\RadioAudio.cs" />
+    <Compile Include="Radio\RadioBluetoothWin.cs" />
+    <Compile Include="Radio\RadioPosition.cs" />
+    <Compile Include="Radio\WhisperEngine.cs" />
+    <Compile Include="WinLink\WinLinkMail.cs" />
+    <Compile Include="WinLink\WinLinkUtils.cs" />
+    <Compile Include="Radio\Radio.cs" />
+    <Compile Include="Dialogs\RadioSettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="RadioSettingsForm.Designer.cs">
+    <Compile Include="Dialogs\RadioSettingsForm.Designer.cs">
       <DependentUpon>RadioSettingsForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="RadioHtStatusForm.cs">
+    <Compile Include="Dialogs\RadioHtStatusForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="RadioHtStatusForm.Designer.cs">
+    <Compile Include="Dialogs\RadioHtStatusForm.Designer.cs">
       <DependentUpon>RadioHtStatusForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="RadioChannelForm.cs">
+    <Compile Include="Dialogs\RadioChannelForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="RadioChannelForm.Designer.cs">
+    <Compile Include="Dialogs\RadioChannelForm.Designer.cs">
       <DependentUpon>RadioChannelForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="RadioInfoForm.cs">
+    <Compile Include="Dialogs\RadioInfoForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="RadioInfoForm.Designer.cs">
+    <Compile Include="Dialogs\RadioInfoForm.Designer.cs">
       <DependentUpon>RadioInfoForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="RadioVolumeForm.cs">
+    <Compile Include="Dialogs\RadioVolumeForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="RadioVolumeForm.Designer.cs">
+    <Compile Include="Dialogs\RadioVolumeForm.Designer.cs">
       <DependentUpon>RadioVolumeForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="radio\RadioBluetoothLinux.cs" />
-    <Compile Include="radio\RadioBssSettings.cs" />
-    <Compile Include="radio\RadioChannelInfo.cs" />
-    <Compile Include="radio\RadioDevInfo.cs" />
-    <Compile Include="radio\RadioHtStatus.cs" />
-    <Compile Include="radio\RadioSettings.cs" />
-    <Compile Include="radio\TncDataFragment.cs" />
-    <Compile Include="radio\Utils.cs" />
-    <Compile Include="IMailStore.cs" />
+    <Compile Include="Radio\RadioBluetoothLinux.cs" />
+    <Compile Include="Radio\RadioBssSettings.cs" />
+    <Compile Include="Radio\RadioChannelInfo.cs" />
+    <Compile Include="Radio\RadioDevInfo.cs" />
+    <Compile Include="Radio\RadioHtStatus.cs" />
+    <Compile Include="Radio\RadioSettings.cs" />
+    <Compile Include="Radio\TncDataFragment.cs" />
+    <Compile Include="Radio\Utils.cs" />
+    <Compile Include="WinLink\IMailStore.cs" />
     <Compile Include="MailStore.cs" />
-    <Compile Include="RegistryHelperClass.cs" />
-    <Compile Include="sbc\SbcBitStream.cs" />
-    <Compile Include="sbc\SbcDecoder.cs" />
-    <Compile Include="sbc\SbcDecoderTables.cs" />
-    <Compile Include="sbc\SbcEncoder.cs" />
-    <Compile Include="sbc\SbcEncoderTables.cs" />
-    <Compile Include="sbc\SbcEnums.cs" />
-    <Compile Include="sbc\SbcFrame.cs" />
-    <Compile Include="sbc\SbcTables.cs" />
-    <Compile Include="SelfUpdateForm.cs">
+    <Compile Include="Utils\RegistryHelper.cs" />
+    <Compile Include="Sbc\SbcBitStream.cs" />
+    <Compile Include="Sbc\SbcDecoder.cs" />
+    <Compile Include="Sbc\SbcDecoderTables.cs" />
+    <Compile Include="Sbc\SbcEncoder.cs" />
+    <Compile Include="Sbc\SbcEncoderTables.cs" />
+    <Compile Include="Sbc\SbcEnums.cs" />
+    <Compile Include="Sbc\SbcFrame.cs" />
+    <Compile Include="Sbc\SbcTables.cs" />
+    <Compile Include="Dialogs\SelfUpdateForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="SelfUpdateForm.Designer.cs">
+    <Compile Include="Dialogs\SelfUpdateForm.Designer.cs">
       <DependentUpon>SelfUpdateForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="SettingsForm.cs">
+    <Compile Include="Dialogs\SettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="SettingsForm.Designer.cs">
+    <Compile Include="Dialogs\SettingsForm.Designer.cs">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="SmtpServer.cs" />
-    <Compile Include="SpectrogramForm.cs">
+    <Compile Include="WinLink\SmtpServer.cs" />
+    <Compile Include="Dialogs\SpectrogramForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="SpectrogramForm.Designer.cs">
+    <Compile Include="Dialogs\SpectrogramForm.Designer.cs">
       <DependentUpon>SpectrogramForm.cs</DependentUpon>
     </Compile>
     <Compile Include="StationInfoClass.cs" />
     <Compile Include="Torrent.cs" />
-    <Compile Include="TorrentBlocksUserControl.cs">
+    <Compile Include="Controls\TorrentBlocksUserControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="TorrentBlocksUserControl.Designer.cs">
+    <Compile Include="Controls\TorrentBlocksUserControl.Designer.cs">
       <DependentUpon>TorrentBlocksUserControl.cs</DependentUpon>
     </Compile>
     <Compile Include="AgwpeServerClass.cs" />
     <Compile Include="WaveformGenerator.cs" />
     <Compile Include="WebServerClass.cs" />
-    <Compile Include="WinlinkClient.cs" />
+    <Compile Include="WinLink\WinlinkClient.cs" />
     <Compile Include="Yapp.cs" />
-    <EmbeddedResource Include="AboutForm.resx">
+    <EmbeddedResource Include="Dialogs\AboutForm.resx">
       <DependentUpon>AboutForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="ActiveStationSelectorForm.resx">
+    <EmbeddedResource Include="Dialogs\ActiveStationSelectorForm.resx">
       <DependentUpon>ActiveStationSelectorForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="AddAprsRouteForm.resx">
+    <EmbeddedResource Include="Dialogs\AddAprsRouteForm.resx">
       <DependentUpon>AddAprsRouteForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="AddStationForm.resx">
+    <EmbeddedResource Include="Dialogs\AddStationForm.resx">
       <DependentUpon>AddStationForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="AddTorrentFileForm.resx">
+    <EmbeddedResource Include="Dialogs\AddTorrentFileForm.resx">
       <DependentUpon>AddTorrentFileForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="AmplitudeHistoryBar.resx">
+    <EmbeddedResource Include="Controls\AmplitudeHistoryBar.resx">
       <DependentUpon>AmplitudeHistoryBar.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="AprsConfigurationForm.resx">
+    <EmbeddedResource Include="Dialogs\AprsConfigurationForm.resx">
       <DependentUpon>AprsConfigurationForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="AprsWeatherForm.resx">
+    <EmbeddedResource Include="Dialogs\AprsWeatherForm.resx">
       <DependentUpon>AprsWeatherForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="AudioClipRenameDialog.resx">
+    <EmbeddedResource Include="Dialogs\AudioClipRenameDialog.resx">
       <DependentUpon>AudioClipRenameDialog.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="BTAccessDeniedForm.resx">
+    <EmbeddedResource Include="Dialogs\BTAccessDeniedForm.resx">
       <DependentUpon>BTAccessDeniedForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="BTActivateForm.resx">
+    <EmbeddedResource Include="Dialogs\BTActivateForm.resx">
       <DependentUpon>BTActivateForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="CantConnectForm.resx">
+    <EmbeddedResource Include="Dialogs\CantConnectForm.resx">
       <DependentUpon>CantConnectForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Controls\BbsTabUserControl.resx">
+    <EmbeddedResource Include="RadioControls\RadioPanelControl.resx">
+      <DependentUpon>RadioPanelControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TabControls\AprsTabUserControl.resx">
+      <DependentUpon>AprsTabUserControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TabControls\BbsTabUserControl.resx">
       <DependentUpon>BbsTabUserControl.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Controls\ContactsTabUserControl.resx">
+    <EmbeddedResource Include="TabControls\ContactsTabUserControl.resx">
       <DependentUpon>ContactsTabUserControl.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Controls\DebugTabUserControl.resx">
+    <EmbeddedResource Include="TabControls\DebugTabUserControl.resx">
       <DependentUpon>DebugTabUserControl.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Controls\PacketCaptureTabUserControl.resx">
+    <EmbeddedResource Include="TabControls\MailTabUserControl.resx">
+      <DependentUpon>MailTabUserControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TabControls\MapTabUserControl.resx">
+      <DependentUpon>MapTabUserControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TabControls\PacketCaptureTabUserControl.resx">
       <DependentUpon>PacketCaptureTabUserControl.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Controls\TorrentTabUserControl.resx">
+    <EmbeddedResource Include="TabControls\TerminalTabUserControl.resx">
+      <DependentUpon>TerminalTabUserControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TabControls\TorrentTabUserControl.resx">
       <DependentUpon>TorrentTabUserControl.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="EditBeaconSettingsForm.resx">
+    <EmbeddedResource Include="TabControls\VoiceTabUserControl.resx">
+      <DependentUpon>VoiceTabUserControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\EditBeaconSettingsForm.resx">
       <DependentUpon>EditBeaconSettingsForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="ImportChannelsForm.resx">
+    <EmbeddedResource Include="Dialogs\ImportChannelsForm.resx">
       <DependentUpon>ImportChannelsForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="MailAttachmentControl.resx">
+    <EmbeddedResource Include="Controls\MailAttachmentControl.resx">
       <DependentUpon>MailAttachmentControl.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="MailClientDebugForm.resx">
+    <EmbeddedResource Include="Dialogs\MailClientDebugForm.resx">
       <DependentUpon>MailClientDebugForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="MailViewerForm.resx">
+    <EmbeddedResource Include="Dialogs\MailViewerForm.resx">
       <DependentUpon>MailViewerForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="MailComposeForm.resx">
+    <EmbeddedResource Include="Dialogs\MailComposeForm.resx">
       <DependentUpon>MailComposeForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="MapLocationForm.resx">
+    <EmbeddedResource Include="Dialogs\MapLocationForm.resx">
       <DependentUpon>MapLocationForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="PacketCaptureViewerForm.resx">
+    <EmbeddedResource Include="Dialogs\PacketCaptureViewerForm.resx">
       <DependentUpon>PacketCaptureViewerForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="RadioAudioClipsForm.resx">
+    <EmbeddedResource Include="Dialogs\RadioAudioClipsForm.resx">
       <SubType>Designer</SubType>
       <DependentUpon>RadioAudioClipsForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="RadioPositionForm.resx">
+    <EmbeddedResource Include="Dialogs\RadioPositionForm.resx">
       <DependentUpon>RadioPositionForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="RadioSelectorForm.resx">
+    <EmbeddedResource Include="Dialogs\RadioSelectorForm.resx">
       <DependentUpon>RadioSelectorForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="AprsDetailsForm.resx">
+    <EmbeddedResource Include="Dialogs\AprsDetailsForm.resx">
       <DependentUpon>AprsDetailsForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="AprsSmsForm.resx">
+    <EmbeddedResource Include="Dialogs\AprsSmsForm.resx">
       <DependentUpon>AprsSmsForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="RadioChannelControl.resx">
+    <EmbeddedResource Include="Dialogs\RadioChannelControl.resx">
       <DependentUpon>RadioChannelControl.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="ChatControl.resx">
+    <EmbeddedResource Include="Controls\ChatControl.resx">
       <DependentUpon>ChatControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
@@ -561,34 +621,34 @@
       <SubType>Designer</SubType>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-    <EmbeddedResource Include="RadioBssSettingsForm.resx">
+    <EmbeddedResource Include="Dialogs\RadioBssSettingsForm.resx">
       <DependentUpon>RadioBssSettingsForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="RadioSettingsForm.resx">
+    <EmbeddedResource Include="Dialogs\RadioSettingsForm.resx">
       <DependentUpon>RadioSettingsForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="RadioHtStatusForm.resx">
+    <EmbeddedResource Include="Dialogs\RadioHtStatusForm.resx">
       <DependentUpon>RadioHtStatusForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="RadioChannelForm.resx">
+    <EmbeddedResource Include="Dialogs\RadioChannelForm.resx">
       <DependentUpon>RadioChannelForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="RadioInfoForm.resx">
+    <EmbeddedResource Include="Dialogs\RadioInfoForm.resx">
       <DependentUpon>RadioInfoForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="RadioVolumeForm.resx">
+    <EmbeddedResource Include="Dialogs\RadioVolumeForm.resx">
       <DependentUpon>RadioVolumeForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="SelfUpdateForm.resx">
+    <EmbeddedResource Include="Dialogs\SelfUpdateForm.resx">
       <DependentUpon>SelfUpdateForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="SettingsForm.resx">
+    <EmbeddedResource Include="Dialogs\SettingsForm.resx">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="SpectrogramForm.resx">
+    <EmbeddedResource Include="Dialogs\SpectrogramForm.resx">
       <DependentUpon>SpectrogramForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="TorrentBlocksUserControl.resx">
+    <EmbeddedResource Include="Controls\TorrentBlocksUserControl.resx">
       <DependentUpon>TorrentBlocksUserControl.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="app.manifest" />
@@ -633,18 +693,20 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Docs\Overview.md" />
+    <None Include="Docs\Design.md" />
     <Content Include="HTCommander.ico" />
-    <None Include="images\Voice.png" />
+    <None Include="Images\Voice.png" />
     <None Include="Resources\CantConnect.png" />
     <None Include="Resources\file-transfer.png" />
     <None Include="Resources\DownArrow64.png" />
     <None Include="Resources\xicon64.png" />
     <None Include="Resources\Letter.png" />
-    <None Include="images\Mail.png" />
-    <None Include="images\Weather.png" />
+    <None Include="Images\Mail.png" />
+    <None Include="Images\Weather.png" />
     <None Include="Resources\webserver.png" />
-    <None Include="images\Terminal.png" />
-    <None Include="images\Paring.png" />
+    <None Include="Images\Terminal.png" />
+    <None Include="Images\Paring.png" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.8">

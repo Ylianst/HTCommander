@@ -1,5 +1,5 @@
 ﻿/*
-Copyright 2025 Ylian Saint-Hilaire
+Copyright 2026 Ylian Saint-Hilaire
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -42,8 +42,8 @@ namespace HTCommander
         public string CallSignOverride = null;
         public int StationIdOverride = -1; // -1 means use the default station ID
 
-        public string SessionCallsign { get { if (CallSignOverride != null) { return CallSignOverride; } return parent.callsign; } }
-        public int SessionStationId { get { if (StationIdOverride >= 0) { return StationIdOverride; } return parent.stationId; } }
+        public string SessionCallsign { get { if (CallSignOverride != null) { return CallSignOverride; } return "parent.callsign"; } }
+        public int SessionStationId { get { if (StationIdOverride >= 0) { return StationIdOverride; } return 0 /*parent.stationId*/; } }
 
 
         private void OnErrorEvent(string error) { Trace("ERROR: " + error); if (ErrorEvent != null) { ErrorEvent(this, error); } }
@@ -68,7 +68,7 @@ namespace HTCommander
         public bool Modulo128 = false;
         public bool Tracing = true;
 
-        private void Trace(string msg) { if (Tracing) { parent.Debug("X25: " + msg); } }
+        private void Trace(string msg) { /*if (Tracing) { parent.Debug("X25: " + msg); }*/ }
 
         private void SetConnectionState(ConnectionState state)
         {
@@ -154,8 +154,8 @@ namespace HTCommander
         private void EmitPacket(AX25Packet packet)
         {
             Trace("EmitPacket");
-            if (parent.activeChannelIdLock < 0) return;
-            radio.TransmitTncData(packet, parent.activeChannelIdLock);
+            //if (parent.activeChannelIdLock < 0) return;
+            //radio.TransmitTncData(packet, parent.activeChannelIdLock);
         }
 
         // Milliseconds required to transmit the largest possible packet

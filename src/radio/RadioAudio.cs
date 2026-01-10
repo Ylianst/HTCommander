@@ -1,5 +1,5 @@
 ﻿/*
-Copyright 2025 Ylian Saint-Hilaire
+Copyright 2026 Ylian Saint-Hilaire
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1681,7 +1681,7 @@ namespace HTCommander
         /// <summary>
         /// Transmit a single packet
         /// </summary>
-        private async Task TransmitPacketAsync(TncDataFragment fragment)
+        private Task TransmitPacketAsync(TncDataFragment fragment)
         {
             WaveFileWriter debugWavWriter = null;
             try
@@ -1692,7 +1692,7 @@ namespace HTCommander
                 if (packetAudioConfig == null || packetGenTone == null || packetAudioBuffer == null)
                 {
                     Debug("Packet transmitter not initialized");
-                    return;
+                    return null;
                 }
 
                 int chan = 0;
@@ -1770,6 +1770,7 @@ namespace HTCommander
                     catch (Exception) { }
                 }
             }
+            return null;
         }
 
         /// <summary>
