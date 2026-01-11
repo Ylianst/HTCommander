@@ -40,6 +40,7 @@ namespace HTCommander
         public static void CheckForUpdate(MainForm parent)
         {
             Task.Run(() => { CheckForUpdateEx(parent); });
+            DataBroker.Dispatch(0, "LastUpdateCheck", DateTime.Now.ToString());
         }
 
         private string updateUrlEx = null;
@@ -91,7 +92,7 @@ namespace HTCommander
                 if (onlineVersion == 0) return;
                 if (onlineVersion <= currentVersion) return;
 
-                //parent.UpdateAvailable(currentVersion, onlineVersion, "https://raw.githubusercontent.com/Ylianst/HTCommander/refs/heads/main/releases/" + updateFileName);
+                parent.UpdateAvailable(currentVersion, onlineVersion, "https://raw.githubusercontent.com/Ylianst/HTCommander/refs/heads/main/releases/" + updateFileName);
             }
             catch (Exception) { }
             checkingForUpdate = false;

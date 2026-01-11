@@ -39,7 +39,6 @@
             disconnectToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
             settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            systemTrayToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             launchAnotherInstanceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItem4 = new System.Windows.Forms.ToolStripSeparator();
             exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -150,7 +149,7 @@
             // 
             // fileToolStripMenuItem
             // 
-            fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { connectToolStripMenuItem, disconnectToolStripMenuItem, toolStripMenuItem1, settingsToolStripMenuItem, systemTrayToolStripMenuItem, launchAnotherInstanceToolStripMenuItem, toolStripMenuItem4, exitToolStripMenuItem });
+            fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { connectToolStripMenuItem, disconnectToolStripMenuItem, toolStripMenuItem1, settingsToolStripMenuItem, launchAnotherInstanceToolStripMenuItem, toolStripMenuItem4, exitToolStripMenuItem });
             fileToolStripMenuItem.Name = "fileToolStripMenuItem";
             fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
             fileToolStripMenuItem.Text = "&File";
@@ -181,13 +180,7 @@
             settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
             settingsToolStripMenuItem.Size = new System.Drawing.Size(253, 26);
             settingsToolStripMenuItem.Text = "&Settings...";
-            // 
-            // systemTrayToolStripMenuItem
-            // 
-            systemTrayToolStripMenuItem.CheckOnClick = true;
-            systemTrayToolStripMenuItem.Name = "systemTrayToolStripMenuItem";
-            systemTrayToolStripMenuItem.Size = new System.Drawing.Size(253, 26);
-            systemTrayToolStripMenuItem.Text = "System &Tray";
+            settingsToolStripMenuItem.Click += settingsToolStripMenuItem_Click;
             // 
             // launchAnotherInstanceToolStripMenuItem
             // 
@@ -374,33 +367,34 @@
             // 
             radioInformationToolStripMenuItem.Enabled = false;
             radioInformationToolStripMenuItem.Name = "radioInformationToolStripMenuItem";
-            radioInformationToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            radioInformationToolStripMenuItem.Size = new System.Drawing.Size(222, 26);
             radioInformationToolStripMenuItem.Text = "Radio Information...";
             radioInformationToolStripMenuItem.Click += radioInformationToolStripMenuItem_Click;
             // 
             // localWebSiteToolStripMenuItem
             // 
             localWebSiteToolStripMenuItem.Name = "localWebSiteToolStripMenuItem";
-            localWebSiteToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            localWebSiteToolStripMenuItem.Size = new System.Drawing.Size(222, 26);
             localWebSiteToolStripMenuItem.Text = "Local Web Site...";
             localWebSiteToolStripMenuItem.Visible = false;
             // 
             // toolStripMenuItem5
             // 
             toolStripMenuItem5.Name = "toolStripMenuItem5";
-            toolStripMenuItem5.Size = new System.Drawing.Size(221, 6);
+            toolStripMenuItem5.Size = new System.Drawing.Size(219, 6);
             // 
             // checkForUpdatesToolStripMenuItem
             // 
             checkForUpdatesToolStripMenuItem.CheckOnClick = true;
             checkForUpdatesToolStripMenuItem.Name = "checkForUpdatesToolStripMenuItem";
-            checkForUpdatesToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            checkForUpdatesToolStripMenuItem.Size = new System.Drawing.Size(222, 26);
             checkForUpdatesToolStripMenuItem.Text = "Check for Updates";
+            checkForUpdatesToolStripMenuItem.Click += checkForUpdatesToolStripMenuItem_Click;
             // 
             // aboutToolStripMenuItem1
             // 
             aboutToolStripMenuItem1.Name = "aboutToolStripMenuItem1";
-            aboutToolStripMenuItem1.Size = new System.Drawing.Size(224, 26);
+            aboutToolStripMenuItem1.Size = new System.Drawing.Size(222, 26);
             aboutToolStripMenuItem1.Text = "&About...";
             aboutToolStripMenuItem1.Click += aboutToolStripMenuItem1_Click;
             // 
@@ -769,7 +763,6 @@
         private System.Windows.Forms.TabPage packetsTabPage;
         private System.Windows.Forms.ToolStripMenuItem allChannelsToolStripMenuItem;
         private System.Windows.Forms.TabPage bbsTabPage;
-        private System.Windows.Forms.ToolStripMenuItem systemTrayToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem radioInformationToolStripMenuItem;
         private System.Windows.Forms.TabPage torrentTabPage;
         private System.Windows.Forms.TabPage voiceTabPage;

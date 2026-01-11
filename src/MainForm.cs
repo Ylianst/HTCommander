@@ -14,13 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipes;
 using System.Linq;
-using System.Windows.Forms;
 using System.Threading.Tasks;
-using System.Collections.Generic;
+using System.Windows.Forms;
 
 namespace HTCommander
 {
@@ -29,6 +30,10 @@ namespace HTCommander
         private DataBrokerClient broker;
         private List<Radio> connectedRadios = new List<Radio>();
         private const int StartingDeviceId = 100;
+        private SettingsForm settingsForm = null;
+
+        private string LastUpdateCheck => DataBroker.GetValue<string>(0, "LastUpdateCheck", null);
+        private bool CheckForUpdates => DataBroker.GetValue<bool>(0, "CheckForUpdates", false);
 
         public MainForm(string[] args)
         {
@@ -44,6 +49,15 @@ namespace HTCommander
             // Set UI context for broker callbacks and create main form broker client
             DataBroker.SetUIContext(this);
             broker = new DataBrokerClient();
+
+            // Subscribe to CallSign and StationId changes for title bar updates
+            broker.Subscribe(0, new[] { "CallSign", "StationId" }, OnCallSignOrStationIdChanged);
+
+            // Subscribe to RadioConnect event from device 1 (e.g., from RadioPanelControl)
+            broker.Subscribe(1, "RadioConnect", OnRadioConnectRequested);
+
+            // Set initial title bar based on stored values
+            UpdateTitleBar();
 
             // Publish initial empty connected radios list
             PublishConnectedRadios();
@@ -77,7 +91,40 @@ namespace HTCommander
 
         private void MainForm_Load(object sender, EventArgs e)
         {
+            // Check for updates
+            checkForUpdatesToolStripMenuItem.Checked = CheckForUpdates;
+            if (File.Exists("NoUpdateCheck.txt"))
+            {
+                checkForUpdatesToolStripMenuItem.Visible = false;
+                checkForUpdatesToolStripMenuItem.Checked = false;
+            }
+            else if (checkForUpdatesToolStripMenuItem.Checked)
+            {
+                if (string.IsNullOrEmpty(LastUpdateCheck) || (DateTime.Now - DateTime.Parse(LastUpdateCheck)).TotalDays > 1)
+                {
+                    SelfUpdateForm.CheckForUpdate(this);
+                }
+            }
+        }
 
+        private void checkForUpdatesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Check for updates
+            DataBroker.Dispatch(0, "CheckForUpdates", checkForUpdatesToolStripMenuItem.Checked);
+            if (checkForUpdatesToolStripMenuItem.Checked) { SelfUpdateForm.CheckForUpdate(this); }
+        }
+
+        private delegate void UpdateAvailableHandler(float currentVersion, float onlineVersion, string url);
+        public void UpdateAvailable(float currentVersion, float onlineVersion, string url)
+        {
+            if (this.InvokeRequired) { this.BeginInvoke(new UpdateAvailableHandler(UpdateAvailable), currentVersion, onlineVersion, url); return; }
+
+            // Display update dialog
+            SelfUpdateForm updateForm = new SelfUpdateForm();
+            updateForm.currentVersionText = currentVersion.ToString();
+            updateForm.onlineVersionText = onlineVersion.ToString();
+            updateForm.updateUrl = url;
+            updateForm.ShowDialog(this);
         }
 
         private void fileToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
@@ -150,7 +197,7 @@ namespace HTCommander
                 return;
             }
 
-        if (availableDevices.Length == 1)
+            if (availableDevices.Length == 1)
             {
                 // Single device found - connect directly
                 ConnectToRadio(availableDevices[0].mac, availableDevices[0].name);
@@ -269,6 +316,21 @@ namespace HTCommander
             radioPanel.Visible = radioToolStripMenuItem.Checked;
         }
 
+        private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // If settings form is already open, just focus it
+            if (settingsForm != null && !settingsForm.IsDisposed)
+            {
+                settingsForm.Focus();
+                return;
+            }
+
+            // Create and show the settings form as non-modal
+            settingsForm = new SettingsForm();
+            settingsForm.FormClosed += (s, args) => { settingsForm = null; };
+            settingsForm.Show(this);
+        }
+
         private void PublishConnectedRadios()
         {
             var radioList = connectedRadios.Select(r => new
@@ -280,5 +342,41 @@ namespace HTCommander
             }).ToList();
             broker.Dispatch(1, "ConnectedRadios", radioList);
         }
+
+        private void OnCallSignOrStationIdChanged(int deviceId, string name, object data)
+        {
+            UpdateTitleBar();
+        }
+
+        private void OnRadioConnectRequested(int deviceId, string name, object data)
+        {
+            // Trigger the radio connection process when RadioConnect event is received
+            connectToolStripMenuItem_Click(this, EventArgs.Empty);
+        }
+
+        private void UpdateTitleBar()
+        {
+            string callSign = DataBroker.GetValue<string>(0, "CallSign", "");
+            int stationId = DataBroker.GetValue<int>(0, "StationId", 0);
+
+            string baseTitle = "HTCommander";
+
+            if (string.IsNullOrEmpty(callSign))
+            {
+                // No callsign, just show base title
+                this.Text = baseTitle;
+            }
+            else if (stationId == 0)
+            {
+                // Has callsign but station ID is 0, show only callsign
+                this.Text = baseTitle + " - " + callSign;
+            }
+            else
+            {
+                // Has callsign and non-zero station ID
+                this.Text = baseTitle + " - " + callSign + "-" + stationId;
+            }
+        }
+
     }
 }

@@ -4,12 +4,11 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-using aprsparser;
-using HTCommander.radio;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Collections.Generic;
+using HTCommander.radio;
 
 namespace HTCommander
 {
@@ -39,6 +38,7 @@ namespace HTCommander
         private RadioAudio.SoftwareModemModeType _SoftwareModemMode = RadioAudio.SoftwareModemModeType.Disabled;
         private bool PacketTrace => DataBroker.GetValue<bool>(0, "BluetoothFramesDebug", false);
         private bool LoopbackMode => DataBroker.GetValue<bool>(1, "LoopbackMode", false);
+        private bool AllowTransmit => DataBroker.GetValue<bool>(0, "AllowTransmit", false);
 
         #endregion
 
@@ -478,6 +478,7 @@ namespace HTCommander
 
         public int TransmitTncData(AX25Packet packet, int channelId = -1, int regionId = -1)
         {
+            if (AllowTransmit == false) return 0; // Make sure not to transmit if not allowed
             byte[] outboundData = packet.ToByteArray();
             if (outboundData == null) return 0;
 

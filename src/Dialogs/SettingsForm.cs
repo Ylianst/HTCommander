@@ -14,16 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using HTCommander.radio;
-using NAudio.CoreAudioApi;
-using NAudio.Wave;
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Speech.Synthesis;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using System.Speech.Synthesis;
+using HTCommander.radio;
+using NAudio.CoreAudioApi;
+using NAudio.Wave;
 
 namespace HTCommander
 {
@@ -197,9 +196,55 @@ namespace HTCommander
 
         private void SettingsForm_Load(object sender, EventArgs e)
         {
+            // Load settings from DataBroker (device 0)
+            LoadSettingsFromDataBroker();
+
             // If there are no ARPS routes, add the default one.
             if (aprsRoutesListView.Items.Count == 0) { AddAprsRouteString("Standard|APN000,WIDE1-1,WIDE2-2"); }
             UpdateInfo();
+        }
+
+        private void LoadSettingsFromDataBroker()
+        {
+            // Load all settings from DataBroker device 0
+            CallSign = DataBroker.GetValue<string>(0, "CallSign", "");
+            StationId = DataBroker.GetValue<int>(0, "StationId", 0);
+            AllowTransmit = DataBroker.GetValue<int>(0, "AllowTransmit", 0) == 1;
+            WebServerEnabled = DataBroker.GetValue<int>(0, "webServerEnabled", 0) == 1;
+            WebServerPort = DataBroker.GetValue<int>(0, "webServerPort", 8080);
+            AgwpeServerEnabled = DataBroker.GetValue<int>(0, "agwpeServerEnabled", 0) == 1;
+            AgwpeServerPort = DataBroker.GetValue<int>(0, "agwpeServerPort", 8000);
+            VoiceLanguage = DataBroker.GetValue<string>(0, "VoiceLanguage", "auto");
+            VoiceModel = DataBroker.GetValue<string>(0, "VoiceModel", "");
+            Voice = DataBroker.GetValue<string>(0, "Voice", "Microsoft Zira Desktop");
+
+            // APRS Settings
+            string aprsRoutesStr = DataBroker.GetValue<string>(0, "AprsRoutes", "");
+            if (!string.IsNullOrEmpty(aprsRoutesStr)) { AprsRoutes = aprsRoutesStr; }
+
+            // Winlink Settings
+            WinlinkPassword = DataBroker.GetValue<string>(0, "WinlinkPassword", "");
+        }
+
+        private void SaveSettingsToDataBroker()
+        {
+            // Save all settings to DataBroker device 0
+            DataBroker.Dispatch(0, "CallSign", CallSign);
+            DataBroker.Dispatch(0, "StationId", StationId);
+            DataBroker.Dispatch(0, "AllowTransmit", AllowTransmit ? 1 : 0);
+            DataBroker.Dispatch(0, "webServerEnabled", WebServerEnabled ? 1 : 0);
+            DataBroker.Dispatch(0, "webServerPort", WebServerPort);
+            DataBroker.Dispatch(0, "agwpeServerEnabled", AgwpeServerEnabled ? 1 : 0);
+            DataBroker.Dispatch(0, "agwpeServerPort", AgwpeServerPort);
+            DataBroker.Dispatch(0, "VoiceLanguage", VoiceLanguage);
+            DataBroker.Dispatch(0, "VoiceModel", VoiceModel);
+            DataBroker.Dispatch(0, "Voice", Voice);
+
+            // APRS Settings
+            DataBroker.Dispatch(0, "AprsRoutes", AprsRoutes);
+
+            // Winlink Settings
+            DataBroker.Dispatch(0, "WinlinkPassword", WinlinkPassword);
         }
 
         private string GetAprsRoutes()
@@ -229,7 +274,9 @@ namespace HTCommander
 
         private void okButton_Click(object sender, EventArgs e)
         {
-            DialogResult = DialogResult.OK;
+            // Save settings to DataBroker before closing
+            SaveSettingsToDataBroker();
+            Close();
         }
 
         private void UpdateInfo()
@@ -434,6 +481,7 @@ namespace HTCommander
         private void cancelButton_Click(object sender, EventArgs e)
         {
             if (_cts != null) { _cts.Cancel(); }
+            Close();
         }
 
         public static int GetDefaultOutputDeviceNumber()

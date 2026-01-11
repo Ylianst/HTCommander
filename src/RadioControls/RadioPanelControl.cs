@@ -27,6 +27,7 @@ namespace HTCommander.RadioControls
         private MainForm parent;
         private RadioChannelControl[] channelControls = null;
         private int vfo2LastChannelId = -1;
+        private DataBrokerClient broker;
 
         public RadioPanelControl()
         {
@@ -42,6 +43,9 @@ namespace HTCommander.RadioControls
         {
             this.parent = mainForm;
             //this.CheckBluetoothRequested += (s, e) => mainForm?.CheckBluetooth();
+
+            // Set up DataBrokerClient for subscribing to broker events
+            broker = new DataBrokerClient();
         }
 
         public RadioChannelControl[] ChannelControls
@@ -375,6 +379,9 @@ namespace HTCommander.RadioControls
         private void connectButton_Click(object sender, EventArgs e)
         {
             //if (parent != null) { parent.connectToolStripMenuItem_Click(sender, e); }
+
+            // Dispatch RadioConnect event on device 1
+            DataBroker.Dispatch(1, "RadioConnect", true, store: false);
         }
 
         private void checkBluetoothButton_Click(object sender, EventArgs e)
