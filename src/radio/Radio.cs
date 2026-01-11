@@ -208,6 +208,7 @@ namespace HTCommander
             frameAccumulator = null;
             TncFragmentQueue.Clear();
             TncFragmentInFlight = false;
+            DataBroker.DeleteDevice(DeviceId);
         }
 
         private void RadioTransport_OnConnected()
@@ -769,6 +770,7 @@ namespace HTCommander
             Info = new RadioDevInfo(value);
             Channels = new RadioChannelInfo[Info.channel_count];
             UpdateState(RadioState.Connected);
+            broker.Dispatch(DeviceId, "DeviceInfo", Info, store: true);
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.HT_STATUS_CHANGED);
             if (gpsEnabled)
                 SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.POSITION_CHANGE);

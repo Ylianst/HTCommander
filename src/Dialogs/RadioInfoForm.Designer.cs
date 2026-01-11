@@ -29,68 +29,66 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(RadioInfoForm));
-            this.okButton = new System.Windows.Forms.Button();
-            this.mainListView = new System.Windows.Forms.ListView();
-            this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.SuspendLayout();
+            okButton = new System.Windows.Forms.Button();
+            mainListView = new System.Windows.Forms.ListView();
+            columnHeader1 = new System.Windows.Forms.ColumnHeader();
+            columnHeader2 = new System.Windows.Forms.ColumnHeader();
+            SuspendLayout();
             // 
             // okButton
             // 
-            this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.okButton.Location = new System.Drawing.Point(374, 225);
-            this.okButton.Name = "okButton";
-            this.okButton.Size = new System.Drawing.Size(75, 23);
-            this.okButton.TabIndex = 0;
-            this.okButton.Text = "OK";
-            this.okButton.UseVisualStyleBackColor = true;
-            this.okButton.Click += new System.EventHandler(this.okButton_Click);
+            okButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+            okButton.Location = new System.Drawing.Point(404, 353);
+            okButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            okButton.Name = "okButton";
+            okButton.Size = new System.Drawing.Size(100, 35);
+            okButton.TabIndex = 0;
+            okButton.Text = "OK";
+            okButton.UseVisualStyleBackColor = true;
+            okButton.Click += okButton_Click;
             // 
             // mainListView
             // 
-            this.mainListView.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.mainListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnHeader1,
-            this.columnHeader2});
-            this.mainListView.FullRowSelect = true;
-            this.mainListView.GridLines = true;
-            this.mainListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
-            this.mainListView.HideSelection = false;
-            this.mainListView.Location = new System.Drawing.Point(12, 12);
-            this.mainListView.Name = "mainListView";
-            this.mainListView.Size = new System.Drawing.Size(437, 207);
-            this.mainListView.TabIndex = 1;
-            this.mainListView.UseCompatibleStateImageBehavior = false;
-            this.mainListView.View = System.Windows.Forms.View.Details;
+            mainListView.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            mainListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] { columnHeader1, columnHeader2 });
+            mainListView.FullRowSelect = true;
+            mainListView.GridLines = true;
+            mainListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
+            mainListView.Location = new System.Drawing.Point(16, 18);
+            mainListView.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            mainListView.Name = "mainListView";
+            mainListView.Size = new System.Drawing.Size(486, 323);
+            mainListView.TabIndex = 1;
+            mainListView.UseCompatibleStateImageBehavior = false;
+            mainListView.View = System.Windows.Forms.View.Details;
             // 
             // columnHeader1
             // 
-            this.columnHeader1.Text = "Name";
-            this.columnHeader1.Width = 160;
+            columnHeader1.Text = "Name";
+            columnHeader1.Width = 160;
             // 
             // columnHeader2
             // 
-            this.columnHeader2.Text = "Value";
-            this.columnHeader2.Width = 250;
+            columnHeader2.Text = "Value";
+            columnHeader2.Width = 250;
             // 
             // RadioInfoForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(461, 260);
-            this.Controls.Add(this.mainListView);
-            this.Controls.Add(this.okButton);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
-            this.Name = "RadioInfoForm";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "Radio Information";
-            this.Load += new System.EventHandler(this.RadioInfoForm_Load);
-            this.ResumeLayout(false);
+            AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            ClientSize = new System.Drawing.Size(520, 407);
+            Controls.Add(mainListView);
+            Controls.Add(okButton);
+            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
+            Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            MaximizeBox = false;
+            MinimizeBox = false;
+            Name = "RadioInfoForm";
+            StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+            Text = "Radio Information";
+            Load += RadioInfoForm_Load;
+            ResumeLayout(false);
 
         }
 

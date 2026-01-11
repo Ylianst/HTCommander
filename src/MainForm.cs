@@ -87,6 +87,23 @@ namespace HTCommander
             disconnectToolStripMenuItem.Enabled = (connectedRadios.Count > 0);
         }
 
+        private void aboutToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
+        {
+            // Enable the first 5 radio-related menu items only if we have connected radios
+            bool hasRadio = (connectedRadios.Count > 0);
+            radioInformationToolStripMenuItem.Enabled = hasRadio;
+            radioStatusToolStripMenuItem.Enabled = hasRadio;
+            radioSettingsToolStripMenuItem.Enabled = hasRadio;
+            radioBSSSettingsToolStripMenuItem.Enabled = hasRadio;
+            radioPositionToolStripMenuItem.Enabled = hasRadio;
+        }
+
+        private void radioInformationToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (connectedRadios.Count == 0) return;
+            new RadioInfoForm(connectedRadios[0].DeviceId).Show(this);
+        }
+
         private void aboutToolStripMenuItem1_Click(object sender, EventArgs e)
         {
             broker.LogInfo("Opening About dialog");
@@ -240,6 +257,11 @@ namespace HTCommander
 
             // Remove from tracking list
             connectedRadios.Remove(radio);
+        }
+
+        private void radioToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
+        {
+            radioPanel.Visible = radioToolStripMenuItem.Checked;
         }
     }
 }

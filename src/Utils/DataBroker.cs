@@ -427,6 +427,43 @@ namespace HTCommander
         }
 
         /// <summary>
+        /// Deletes all data for a specific device, dispatching null values to all subscribers
+        /// before removing the data from storage.
+        /// </summary>
+        /// <param name="deviceId">The device ID to delete.</param>
+        public static void DeleteDevice(int deviceId)
+        {
+            List<DataKey> keysToRemove;
+
+            lock (_lock)
+            {
+                keysToRemove = new List<DataKey>();
+                foreach (var key in _dataStore.Keys)
+                {
+                    if (key.DeviceId == deviceId)
+                    {
+                        keysToRemove.Add(key);
+                    }
+                }
+            }
+
+            // Dispatch null for each key to notify subscribers
+            foreach (var key in keysToRemove)
+            {
+                Dispatch(key.DeviceId, key.Name, null, store: false);
+            }
+
+            // Remove all values for the device from storage
+            lock (_lock)
+            {
+                foreach (var key in keysToRemove)
+                {
+                    _dataStore.Remove(key);
+                }
+            }
+        }
+
+        /// <summary>
         /// Clears all stored data and subscriptions. Use with caution.
         /// </summary>
         public static void Reset()
