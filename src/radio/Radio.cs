@@ -35,6 +35,7 @@ namespace HTCommander
         private DateTime nextMinFreeChannelTime = DateTime.MaxValue;
         private int nextChannelTimeRandomMS = 800;
         private RadioAudio.SoftwareModemModeType _SoftwareModemMode = RadioAudio.SoftwareModemModeType.Disabled;
+        private bool PacketTrace => DataBroker.GetValue<bool>(0, "BluetoothFramesDebug", false);
 
         #endregion
 
@@ -133,7 +134,6 @@ namespace HTCommander
         public RadioSettings Settings = null;
         public RadioBssSettings BssSettings = null;
         public RadioPosition Position = null;
-        public bool PacketTrace = false;
         public int BatteryLevel = -1;
         public float BatteryVoltage = -1;
         public int RcBatteryLevel = -1;
@@ -148,7 +148,6 @@ namespace HTCommander
         public RadioState State => state;
         public bool Recording => RadioAudio.Recording;
         public int TransmitQueueLength => TncFragmentQueue.Count;
-        public string SelectedDevice => (radioTransport != null && state == RadioState.Connected) ? radioTransport.selectedDevice : null;
         public bool AudioState => RadioAudio.IsAudioEnabled;
         public float OutputVolume { get => RadioAudio.Volume; set => RadioAudio.Volume = value; }
         public bool AudioToTextState => RadioAudio.speechToText;
@@ -190,9 +189,8 @@ namespace HTCommander
 
             radioTransport = new RadioBluetoothWin(this);
             radioTransport.ReceivedData += RadioTransport_ReceivedData;
-            radioTransport.OnDebugMessage += RadioTransport_OnDebugMessage;
             radioTransport.OnConnected += RadioTransport_OnConnected;
-            radioTransport.Connect(MacAddress);
+            radioTransport.Connect();
         }
 
         public void Disconnect() => Disconnect(null, RadioState.Disconnected);
@@ -214,13 +212,12 @@ namespace HTCommander
 
         private void RadioTransport_OnConnected()
         {
+            SetVolumeLevel(15); // DEBUG
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_SETTINGS, null);
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_BSS_SETTINGS, null);
             RequestPowerStatus(RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE);
         }
-
-        private void RadioTransport_OnDebugMessage(string msg) => Debug("Transport: " + msg);
 
         private void UpdateState(RadioState newstate)
         {

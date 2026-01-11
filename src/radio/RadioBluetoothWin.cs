@@ -5,7 +5,6 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
-using System.Text;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -21,13 +20,10 @@ namespace HTCommander
     public class RadioBluetoothWin
     {
         private Radio parent;
-        public string selectedDevice;
         private bool running = false;
         private BluetoothClient connectionClient = null;
         private NetworkStream stream;
 
-        public delegate void DebugMessageEventHandler(string msg);
-        public event DebugMessageEventHandler OnDebugMessage;
         public delegate void ConnectedEventHandler();
         public event ConnectedEventHandler OnConnected;
         public delegate void ReceivedDataHandler(RadioBluetoothWin sender, Exception error, byte[] value);
@@ -35,29 +31,9 @@ namespace HTCommander
 
         private static readonly string[] TargetDeviceNames = { "UV-PRO", "UV-50PRO", "GA-5WB", "VR-N75", "VR-N76", "VR-N7500", "VR-N7600" };
 
-        public RadioBluetoothWin(Radio parent)
-        {
-            this.parent = parent;
-        }
+        public RadioBluetoothWin(Radio parent) { this.parent = parent; }
 
-        private void Debug(string msg)
-        {
-            OnDebugMessage?.Invoke(msg);
-        }
-
-        private static string BytesToHex(byte[] data, int index, int length)
-        {
-            if (data == null) return "";
-            StringBuilder result = new StringBuilder(length * 2);
-            const string hexAlphabet = "0123456789ABCDEF";
-            for (int i = index; i < length; i++)
-            {
-                byte b = data[i];
-                result.Append(hexAlphabet[b >> 4]);
-                result.Append(hexAlphabet[b & 0xF]);
-            }
-            return result.ToString();
-        }
+        private void Debug(string msg) { parent.Debug("Transport: " + msg); }
 
         public void Disconnect()
         {
@@ -93,7 +69,6 @@ namespace HTCommander
             foreach (var deviceInfo in devices)
             {
                 if (!TargetDeviceNames.Contains(deviceInfo.Name)) continue;
-
                 string mac = null;
 
                 // Parse MAC from format: "Bluetooth#Bluetooth[MAC1]-[MAC2]"
@@ -116,10 +91,10 @@ namespace HTCommander
             return compatibleDevices.ToArray();
         }
 
-        public bool Connect(string macAddress)
+        public bool Connect()
         {
             if (running) return false;
-            Task.Run(() => StartAsync(macAddress));
+            Task.Run(() => StartAsync());
             return true;
         }
 
@@ -127,11 +102,15 @@ namespace HTCommander
         {
             if (!running) return;
             byte[] bytes = GaiaEncode(cmdData);
-            try { stream.Write(bytes, 0, bytes.Length); }
-            catch (Exception ex) { Debug("Error sending request: " + ex.Message); }
+            try
+            {
+                stream.Write(bytes, 0, bytes.Length);
+                stream.Flush();
+            }
+            catch (Exception ex) { Debug("Error sending: " + ex.Message); }
         }
 
-        // Decode GAIA protocol frame
+        // Decode GAIA frame, returns bytes consumed or 0 if incomplete, -1 on error
         private static int GaiaDecode(byte[] data, int index, int len, out byte[] cmd)
         {
             cmd = null;
@@ -148,7 +127,7 @@ namespace HTCommander
             return totalLen;
         }
 
-        // Encode GAIA protocol frame
+        // Encode command into GAIA frame
         private static byte[] GaiaEncode(byte[] cmd)
         {
             byte[] bytes = new byte[cmd.Length + 4];
@@ -159,18 +138,18 @@ namespace HTCommander
             return bytes;
         }
 
-        private async void StartAsync(string mac)
+        private async void StartAsync()
         {
             Guid rfcommServiceUuid = BluetoothService.SerialPort;
-            BluetoothAddress address = BluetoothAddress.Parse(mac);
+            BluetoothAddress address = BluetoothAddress.Parse(parent.MacAddress);
 
-            // Attempt connection with retries
+            // Connect with retries
             int retry = 5;
             while (retry > 0)
             {
                 try
                 {
-                    Debug("Attempting to connect...");
+                    Debug("Connecting...");
                     connectionClient = new BluetoothClient();
                     await connectionClient.ConnectAsync(address, rfcommServiceUuid);
                     retry = -2;
@@ -190,7 +169,7 @@ namespace HTCommander
                 return;
             }
 
-            Debug("Successfully connected to RFCOMM channel.");
+            Debug("Connected.");
 
             try
             {
@@ -202,7 +181,7 @@ namespace HTCommander
 
                 while (running && connectionClient.Connected)
                 {
-                    int bytesRead = stream.Read(accumulator, accumulatorPtr, accumulator.Length - (accumulatorPtr + accumulatorLen));
+                    int bytesRead = await stream.ReadAsync(accumulator, accumulatorPtr + accumulatorLen, accumulator.Length - (accumulatorPtr + accumulatorLen));
                     accumulatorLen += bytesRead;
 
                     if (!running) { connectionClient?.Close(); stream?.Dispose(); stream = null; return; }
@@ -216,7 +195,7 @@ namespace HTCommander
                     }
                     if (accumulatorLen < 8) continue;
 
-                    // Process received GAIA frames
+                    // Process GAIA frames
                     int cmdSize;
                     byte[] cmd;
                     while ((cmdSize = GaiaDecode(accumulator, accumulatorPtr, accumulatorLen, out cmd)) != 0)
@@ -224,7 +203,7 @@ namespace HTCommander
                         if (cmdSize < 0)
                         {
                             cmdSize = accumulatorLen;
-                            Debug($"GAIA: {BytesToHex(accumulator, accumulatorPtr, accumulatorLen)}");
+                            Debug($"GAIA: {Utils.BytesToHex(accumulator, accumulatorPtr, accumulatorLen)}");
                         }
                         accumulatorPtr += cmdSize;
                         accumulatorLen -= cmdSize;
@@ -250,7 +229,8 @@ namespace HTCommander
                 running = false;
                 stream = null;
                 connectionClient?.Close();
-                parent.Disconnect("Bluetooth connection closed.", Radio.RadioState.Disconnected);
+                Debug("Connection closed.");
+                parent.Disconnect("Connection closed.", Radio.RadioState.Disconnected);
             }
         }
     }

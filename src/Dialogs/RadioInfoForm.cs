@@ -31,7 +31,6 @@ namespace HTCommander
 
         private void RadioInfoForm_Load(object sender, EventArgs e)
         {
-            addItem("Device Name", radio.SelectedDevice);
             addItem("Product ID", radio.Info.product_id.ToString());
             addItem("Vendor ID", radio.Info.vendor_id.ToString());
             addItem("DMR Support", radio.Info.support_dmr ? "Present" : "Not-Present");
