@@ -67,11 +67,6 @@
             allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             radioInformationToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            radioStatusToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            radioSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            radioBSSSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            radioPositionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
             localWebSiteToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItem5 = new System.Windows.Forms.ToolStripSeparator();
             checkForUpdatesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -357,19 +352,19 @@
             radioToolStripMenuItem.CheckOnClick = true;
             radioToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             radioToolStripMenuItem.Name = "radioToolStripMenuItem";
-            radioToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            radioToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             radioToolStripMenuItem.Text = "&Radio";
             radioToolStripMenuItem.CheckedChanged += radioToolStripMenuItem_CheckedChanged;
             // 
             // allChannelsToolStripMenuItem
             // 
             allChannelsToolStripMenuItem.Name = "allChannelsToolStripMenuItem";
-            allChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            allChannelsToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             allChannelsToolStripMenuItem.Text = "All Channels";
             // 
             // aboutToolStripMenuItem
             // 
-            aboutToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { radioInformationToolStripMenuItem, radioStatusToolStripMenuItem, radioSettingsToolStripMenuItem, radioBSSSettingsToolStripMenuItem, radioPositionToolStripMenuItem, toolStripMenuItem2, localWebSiteToolStripMenuItem, toolStripMenuItem5, checkForUpdatesToolStripMenuItem, aboutToolStripMenuItem1 });
+            aboutToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { radioInformationToolStripMenuItem, localWebSiteToolStripMenuItem, toolStripMenuItem5, checkForUpdatesToolStripMenuItem, aboutToolStripMenuItem1 });
             aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
             aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
             aboutToolStripMenuItem.Text = "&About";
@@ -379,67 +374,33 @@
             // 
             radioInformationToolStripMenuItem.Enabled = false;
             radioInformationToolStripMenuItem.Name = "radioInformationToolStripMenuItem";
-            radioInformationToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
+            radioInformationToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             radioInformationToolStripMenuItem.Text = "Radio Information...";
             radioInformationToolStripMenuItem.Click += radioInformationToolStripMenuItem_Click;
-            // 
-            // radioStatusToolStripMenuItem
-            // 
-            radioStatusToolStripMenuItem.Enabled = false;
-            radioStatusToolStripMenuItem.Name = "radioStatusToolStripMenuItem";
-            radioStatusToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
-            radioStatusToolStripMenuItem.Text = "Radio &Status...";
-            // 
-            // radioSettingsToolStripMenuItem
-            // 
-            radioSettingsToolStripMenuItem.Enabled = false;
-            radioSettingsToolStripMenuItem.Name = "radioSettingsToolStripMenuItem";
-            radioSettingsToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
-            radioSettingsToolStripMenuItem.Text = "Radio S&ettings...";
-            // 
-            // radioBSSSettingsToolStripMenuItem
-            // 
-            radioBSSSettingsToolStripMenuItem.Enabled = false;
-            radioBSSSettingsToolStripMenuItem.Name = "radioBSSSettingsToolStripMenuItem";
-            radioBSSSettingsToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
-            radioBSSSettingsToolStripMenuItem.Text = "Radio BSS Settings...";
-            // 
-            // radioPositionToolStripMenuItem
-            // 
-            radioPositionToolStripMenuItem.Enabled = false;
-            radioPositionToolStripMenuItem.Name = "radioPositionToolStripMenuItem";
-            radioPositionToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
-            radioPositionToolStripMenuItem.Text = "Radio Position...";
-            // 
-            // toolStripMenuItem2
-            // 
-            toolStripMenuItem2.Name = "toolStripMenuItem2";
-            toolStripMenuItem2.Size = new System.Drawing.Size(223, 6);
-            toolStripMenuItem2.Visible = false;
             // 
             // localWebSiteToolStripMenuItem
             // 
             localWebSiteToolStripMenuItem.Name = "localWebSiteToolStripMenuItem";
-            localWebSiteToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
+            localWebSiteToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             localWebSiteToolStripMenuItem.Text = "Local Web Site...";
             localWebSiteToolStripMenuItem.Visible = false;
             // 
             // toolStripMenuItem5
             // 
             toolStripMenuItem5.Name = "toolStripMenuItem5";
-            toolStripMenuItem5.Size = new System.Drawing.Size(223, 6);
+            toolStripMenuItem5.Size = new System.Drawing.Size(221, 6);
             // 
             // checkForUpdatesToolStripMenuItem
             // 
             checkForUpdatesToolStripMenuItem.CheckOnClick = true;
             checkForUpdatesToolStripMenuItem.Name = "checkForUpdatesToolStripMenuItem";
-            checkForUpdatesToolStripMenuItem.Size = new System.Drawing.Size(226, 26);
+            checkForUpdatesToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             checkForUpdatesToolStripMenuItem.Text = "Check for Updates";
             // 
             // aboutToolStripMenuItem1
             // 
             aboutToolStripMenuItem1.Name = "aboutToolStripMenuItem1";
-            aboutToolStripMenuItem1.Size = new System.Drawing.Size(226, 26);
+            aboutToolStripMenuItem1.Size = new System.Drawing.Size(224, 26);
             aboutToolStripMenuItem1.Text = "&About...";
             aboutToolStripMenuItem1.Click += aboutToolStripMenuItem1_Click;
             // 
@@ -791,11 +752,8 @@
         private System.Windows.Forms.ToolStripMenuItem disconnectToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
-        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem2;
         private System.Windows.Forms.ToolStripStatusLabel mainToolStripStatusLabel;
         private System.Windows.Forms.ToolStripStatusLabel batteryToolStripStatusLabel;
-        private System.Windows.Forms.ToolStripMenuItem radioStatusToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem radioSettingsToolStripMenuItem;
         private System.Windows.Forms.TabPage terminalTabPage;
         private System.Windows.Forms.TabPage aprsTabPage;
         private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
@@ -813,7 +771,6 @@
         private System.Windows.Forms.TabPage bbsTabPage;
         private System.Windows.Forms.ToolStripMenuItem systemTrayToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem radioInformationToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem radioBSSSettingsToolStripMenuItem;
         private System.Windows.Forms.TabPage torrentTabPage;
         private System.Windows.Forms.TabPage voiceTabPage;
         private System.Windows.Forms.ToolStripMenuItem checkForUpdatesToolStripMenuItem;
@@ -827,7 +784,6 @@
         private System.Windows.Forms.ToolStripMenuItem volumeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem spectrogramToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem audioEnabledToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem radioPositionToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem gPSEnabledToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem launchAnotherInstanceToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem localWebSiteToolStripMenuItem;

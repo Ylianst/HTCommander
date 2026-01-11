@@ -15,11 +15,10 @@ limitations under the License.
 */
 
 using System;
-using System.Collections.Generic;
-using System.Data.SQLite;
 using System.IO;
 using System.Threading;
-using HTCommander.radio;
+using System.Data.SQLite;
+using System.Collections.Generic;
 
 namespace HTCommander
 {

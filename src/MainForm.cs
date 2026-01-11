@@ -45,6 +45,9 @@ namespace HTCommander
             DataBroker.SetUIContext(this);
             broker = new DataBrokerClient();
 
+            // Publish initial empty connected radios list
+            PublishConnectedRadios();
+
             aprsTabUserControl.Initialize(this);
             mapTabUserControl.Initialize(this);
             voiceTabUserControl.Initialize(this);
@@ -92,16 +95,11 @@ namespace HTCommander
             // Enable the first 5 radio-related menu items only if we have connected radios
             bool hasRadio = (connectedRadios.Count > 0);
             radioInformationToolStripMenuItem.Enabled = hasRadio;
-            radioStatusToolStripMenuItem.Enabled = hasRadio;
-            radioSettingsToolStripMenuItem.Enabled = hasRadio;
-            radioBSSSettingsToolStripMenuItem.Enabled = hasRadio;
-            radioPositionToolStripMenuItem.Enabled = hasRadio;
         }
 
         private void radioInformationToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (connectedRadios.Count == 0) return;
-            new RadioInfoForm(connectedRadios[0].DeviceId).Show(this);
+            new RadioInfoForm().Show(this);
         }
 
         private void aboutToolStripMenuItem1_Click(object sender, EventArgs e)
@@ -152,10 +150,10 @@ namespace HTCommander
                 return;
             }
 
-            if (availableDevices.Length == 1)
+        if (availableDevices.Length == 1)
             {
                 // Single device found - connect directly
-                ConnectToRadio(availableDevices[0].mac);
+                ConnectToRadio(availableDevices[0].mac, availableDevices[0].name);
             }
             else
             {
@@ -167,7 +165,10 @@ namespace HTCommander
                         string selectedMac = selectorForm.SelectedMac;
                         if (!string.IsNullOrEmpty(selectedMac))
                         {
-                            ConnectToRadio(selectedMac);
+                            // Find the device name for the selected MAC
+                            var selectedDevice = availableDevices.FirstOrDefault(d => d.mac.Equals(selectedMac, StringComparison.OrdinalIgnoreCase));
+                            string selectedName = selectedDevice?.name ?? string.Empty;
+                            ConnectToRadio(selectedMac, selectedName);
                         }
                     }
                 }
@@ -178,14 +179,11 @@ namespace HTCommander
         {
             int deviceId = StartingDeviceId;
             var usedIds = connectedRadios.Select(r => r.DeviceId).ToHashSet();
-            while (usedIds.Contains(deviceId))
-            {
-                deviceId++;
-            }
+            while (usedIds.Contains(deviceId)) { deviceId++; }
             return deviceId;
         }
 
-        private void ConnectToRadio(string macAddress)
+        private void ConnectToRadio(string macAddress, string friendlyName)
         {
             // Check if already connected to this MAC address
             if (connectedRadios.Any(r => r.MacAddress.Equals(macAddress, StringComparison.OrdinalIgnoreCase)))
@@ -199,6 +197,7 @@ namespace HTCommander
 
             // Create the radio instance
             Radio radio = new Radio(deviceId, macAddress);
+            radio.FriendlyName = friendlyName;
 
             // Add the radio as a data handler in the DataBroker
             string handlerName = "Radio_" + deviceId;
@@ -206,6 +205,9 @@ namespace HTCommander
 
             // Track the connected radio
             connectedRadios.Add(radio);
+
+            // Publish updated connected radios list
+            PublishConnectedRadios();
 
             // Start the Bluetooth connection
             radio.Connect();
@@ -257,11 +259,26 @@ namespace HTCommander
 
             // Remove from tracking list
             connectedRadios.Remove(radio);
+
+            // Publish updated connected radios list
+            PublishConnectedRadios();
         }
 
         private void radioToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
             radioPanel.Visible = radioToolStripMenuItem.Checked;
+        }
+
+        private void PublishConnectedRadios()
+        {
+            var radioList = connectedRadios.Select(r => new
+            {
+                DeviceId = r.DeviceId,
+                MacAddress = r.MacAddress,
+                FriendlyName = r.FriendlyName,
+                State = r.State.ToString()
+            }).ToList();
+            broker.Dispatch(1, "ConnectedRadios", radioList);
         }
     }
 }

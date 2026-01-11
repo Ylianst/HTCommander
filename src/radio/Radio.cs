@@ -4,11 +4,12 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+using aprsparser;
+using HTCommander.radio;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Collections.Generic;
-using HTCommander.radio;
 
 namespace HTCommander
 {
@@ -21,6 +22,7 @@ namespace HTCommander
 
         public int DeviceId { get; }
         public string MacAddress { get; }
+        public string FriendlyName { get; set; }
 
         private RadioBluetoothWin radioTransport;
         private TncDataFragment frameAccumulator = null;
@@ -36,6 +38,7 @@ namespace HTCommander
         private int nextChannelTimeRandomMS = 800;
         private RadioAudio.SoftwareModemModeType _SoftwareModemMode = RadioAudio.SoftwareModemModeType.Disabled;
         private bool PacketTrace => DataBroker.GetValue<bool>(0, "BluetoothFramesDebug", false);
+        private bool LoopbackMode => DataBroker.GetValue<bool>(1, "LoopbackMode", false);
 
         #endregion
 
@@ -134,15 +137,6 @@ namespace HTCommander
         public RadioSettings Settings = null;
         public RadioBssSettings BssSettings = null;
         public RadioPosition Position = null;
-        public int BatteryLevel = -1;
-        public float BatteryVoltage = -1;
-        public int RcBatteryLevel = -1;
-        public int BatteryAsPercentage = -1;
-        public int Volume = -1;
-        public bool LoopbackMode = false;
-        public string currentChannelName = null;
-        public string vfo1ChannelName = null;
-        public string vfo2ChannelName = null;
         public bool HardwareModemEnabled = true;
 
         public RadioState State => state;
@@ -213,7 +207,6 @@ namespace HTCommander
 
         private void RadioTransport_OnConnected()
         {
-            SetVolumeLevel(15); // DEBUG
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_DEV_INFO, 3);
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_SETTINGS, null);
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_BSS_SETTINGS, null);
@@ -226,7 +219,6 @@ namespace HTCommander
             state = newstate;
             broker.Dispatch(DeviceId, "State", newstate.ToString(), store: true);
             Debug("State changed to: " + newstate);
-            Update(RadioUpdateNotification.State);
         }
 
         #endregion
@@ -294,16 +286,8 @@ namespace HTCommander
         private void UpdateCurrentChannelName()
         {
             if (HtStatus == null) return;
-
-            currentChannelName = RadioAudio.currentChannelName = GetChannelNameById(HtStatus.curr_ch_id);
-        }
-
-        private void UpdateVfoChannelNames()
-        {
-            if (Settings == null) return;
-
-            vfo1ChannelName = GetChannelNameById(Settings.channel_a);
-            vfo2ChannelName = GetChannelNameById(Settings.channel_b);
+            RadioAudio.currentChannelId = HtStatus.curr_ch_id;
+            RadioAudio.currentChannelName = GetChannelNameById(HtStatus.curr_ch_id);
         }
 
         private string GetChannelNameById(int channelId)
@@ -711,7 +695,12 @@ namespace HTCommander
             switch (cmd)
             {
                 case RadioBasicCommand.GET_DEV_INFO:
-                    HandleGetDevInfo(value);
+                    Info = new RadioDevInfo(value);
+                    Channels = new RadioChannelInfo[Info.channel_count];
+                    UpdateState(RadioState.Connected);
+                    broker.Dispatch(DeviceId, "Info", Info, store: true);
+                    SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.HT_STATUS_CHANGED);
+                    if (gpsEnabled) SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.POSITION_CHANGE);
                     break;
                 case RadioBasicCommand.READ_RF_CH:
                     HandleReadRfChannel(value);
@@ -721,7 +710,7 @@ namespace HTCommander
                     break;
                 case RadioBasicCommand.READ_BSS_SETTINGS:
                     BssSettings = new RadioBssSettings(value);
-                    Update(RadioUpdateNotification.BssSettings);
+                    broker.Dispatch(DeviceId, "BssSettings", BssSettings, store: true);
                     break;
                 case RadioBasicCommand.WRITE_BSS_SETTINGS:
                     if (value[4] != 0) Debug($"WRITE_BSS_SETTINGS Error: '{value[4]}'");
@@ -735,7 +724,7 @@ namespace HTCommander
                     break;
                 case RadioBasicCommand.READ_SETTINGS:
                     Settings = new RadioSettings(value);
-                    Update(RadioUpdateNotification.Settings);
+                    broker.Dispatch(DeviceId, "Settings", Settings, store: true);
                     break;
                 case RadioBasicCommand.HT_SEND_DATA:
                     HandleHtSendDataResponse(value);
@@ -743,8 +732,7 @@ namespace HTCommander
                 case RadioBasicCommand.SET_VOLUME:
                     break;
                 case RadioBasicCommand.GET_VOLUME:
-                    Volume = value[5];
-                    Update(RadioUpdateNotification.Volume);
+                    broker.Dispatch(DeviceId, "Volume", value[5], store: true);
                     break;
                 case RadioBasicCommand.WRITE_SETTINGS:
                     if (value[4] != 0) Debug("WRITE_SETTINGS ERROR: " + Utils.BytesToHex(value));
@@ -753,7 +741,7 @@ namespace HTCommander
                     break;
                 case RadioBasicCommand.GET_POSITION:
                     Position = new RadioPosition(value);
-                    DispatchPositionUpdate(Position);
+                    broker.Dispatch(DeviceId, "Position", Position, store: true);
                     break;
                 case RadioBasicCommand.GET_HT_STATUS:
                     HandleGetHtStatus(value);
@@ -765,26 +753,12 @@ namespace HTCommander
             }
         }
 
-        private void HandleGetDevInfo(byte[] value)
-        {
-            Info = new RadioDevInfo(value);
-            Channels = new RadioChannelInfo[Info.channel_count];
-            UpdateState(RadioState.Connected);
-            broker.Dispatch(DeviceId, "DeviceInfo", Info, store: true);
-            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.HT_STATUS_CHANGED);
-            if (gpsEnabled)
-                SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.POSITION_CHANGE);
-        }
-
         private void HandleReadRfChannel(byte[] value)
         {
             RadioChannelInfo c = new RadioChannelInfo(value);
-            if (Channels != null) Channels[c.channel_id] = c;
-
+            if (Channels != null) { Channels[c.channel_id] = c; }
             UpdateCurrentChannelName();
-            UpdateVfoChannelNames();
-            Update(RadioUpdateNotification.ChannelInfo);
-            if (AllChannelsLoaded()) Update(RadioUpdateNotification.AllChannelsLoaded);
+            if (AllChannelsLoaded()) { broker.Dispatch(DeviceId, "Channels", Channels, store: true); }
         }
 
         private void HandleEventNotification(byte[] value)
@@ -802,15 +776,14 @@ namespace HTCommander
                     break;
                 case RadioNotification.HT_SETTINGS_CHANGED:
                     Settings = new RadioSettings(value);
-                    UpdateVfoChannelNames();
-                    Update(RadioUpdateNotification.Settings);
+                    broker.Dispatch(DeviceId, "Settings", Settings, store: true);
                     break;
                 case RadioNotification.POSITION_CHANGE:
                     value[4] = 0; // Set status to success
                     Position = new RadioPosition(value);
                     if (gpsLock > 0) gpsLock--;
                     Position.Locked = (gpsLock == 0);
-                    DispatchPositionUpdate(Position);
+                    broker.Dispatch(DeviceId, "Position", Position, store: true);
                     break;
                 default:
                     Debug("Event: " + Utils.BytesToHex(value));
@@ -822,14 +795,14 @@ namespace HTCommander
         {
             int oldRegion = HtStatus?.curr_region ?? -1;
             HtStatus = new RadioHtStatus(value);
-            Update(RadioUpdateNotification.HtStatus);
+            broker.Dispatch(DeviceId, "HtStatus", HtStatus, store: true);
             if (HtStatus == null) return;
 
             if (oldRegion != HtStatus.curr_region)
             {
-                Update(RadioUpdateNotification.RegionChange);
+                broker.Dispatch(DeviceId, "RegionChange", null, store: false);
                 if (Channels != null) Array.Clear(Channels, 0, Channels.Length);
-                Update(RadioUpdateNotification.ChannelInfo);
+                broker.Dispatch(DeviceId, "Channels", Channels, store: true);
                 UpdateChannels();
             }
 
@@ -893,23 +866,23 @@ namespace HTCommander
             switch (powerStatus)
             {
                 case RadioPowerStatus.BATTERY_LEVEL:
-                    BatteryLevel = value[7];
+                    int BatteryLevel = value[7];
                     Debug("BatteryLevel: " + BatteryLevel);
-                    Update(RadioUpdateNotification.BatteryLevel);
+                    broker.Dispatch(DeviceId, "BatteryLevel", BatteryLevel, store: true);
                     break;
                 case RadioPowerStatus.BATTERY_VOLTAGE:
-                    BatteryVoltage = Utils.GetShort(value, 7) / 1000f;
+                    float BatteryVoltage = Utils.GetShort(value, 7) / 1000f;
                     Debug("BatteryVoltage: " + BatteryVoltage);
-                    Update(RadioUpdateNotification.BatteryVoltage);
+                    broker.Dispatch(DeviceId, "BatteryVoltage", BatteryVoltage, store: true);
                     break;
                 case RadioPowerStatus.RC_BATTERY_LEVEL:
-                    RcBatteryLevel = value[7];
+                    int RcBatteryLevel = value[7];
                     Debug("RcBatteryLevel: " + RcBatteryLevel);
-                    Update(RadioUpdateNotification.RcBatteryLevel);
+                    broker.Dispatch(DeviceId, "RcBatteryLevel", RcBatteryLevel, store: true);
                     break;
                 case RadioPowerStatus.BATTERY_LEVEL_AS_PERCENTAGE:
-                    BatteryAsPercentage = value[7];
-                    Update(RadioUpdateNotification.BatteryAsPercentage);
+                    int BatteryAsPercentage = value[7];
+                    broker.Dispatch(DeviceId, "BatteryAsPercentage", BatteryAsPercentage, store: true);
                     break;
                 default:
                     Debug("Unexpected Power Status: " + powerStatus);
@@ -972,14 +945,17 @@ namespace HTCommander
         {
             int oldRegion = HtStatus?.curr_region ?? -1;
             HtStatus = new RadioHtStatus(value);
-            Update(RadioUpdateNotification.HtStatus);
+            if (AllChannelsLoaded()) { broker.Dispatch(DeviceId, "HtStatus", HtStatus, store: true); }
             if (HtStatus == null) return;
 
             if (oldRegion != HtStatus.curr_region)
             {
-                Update(RadioUpdateNotification.RegionChange);
-                if (Channels != null) Array.Clear(Channels, 0, Channels.Length);
-                Update(RadioUpdateNotification.ChannelInfo);
+                broker.Dispatch(DeviceId, "RegionChange", null, store: true);
+                if (Channels != null)
+                {
+                    Array.Clear(Channels, 0, Channels.Length);
+                    if (AllChannelsLoaded()) { broker.Dispatch(DeviceId, "Channels", Channels, store: true); }
+                }
                 UpdateChannels();
             }
 
@@ -1018,9 +994,7 @@ namespace HTCommander
         #region Dispatch Helpers
 
         public void Debug(string msg) => broker.Dispatch(0, "LogInfo", $"[Radio/{DeviceId}]: {msg}", store: false);
-        private void Update(RadioUpdateNotification msg) => broker.Dispatch(DeviceId, "State", msg.ToString(), store: true);
         private void DispatchDataFrame(TncDataFragment frame) => broker.Dispatch(DeviceId, "DataFrame", frame, store: false);
-        private void DispatchPositionUpdate(RadioPosition position) => broker.Dispatch(DeviceId, "PositionUpdate", position, store: false);
         private void DispatchRawCommand(byte[] cmd) => broker.Dispatch(DeviceId, "RawCommand", cmd, store: false);
 
         #endregion

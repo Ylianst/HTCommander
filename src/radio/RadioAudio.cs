@@ -42,6 +42,7 @@ namespace HTCommander
         public bool speechToText = false;
         private WhisperEngine speechToTextEngine = null;
         public string currentChannelName = "";
+        public int currentChannelId = 0;
         public string voiceLanguage = "auto";
         public string voiceModel = null;
         private int pcmInputSizePerFrame; // Expected PCM bytes per encode call

@@ -33,12 +33,13 @@
             mainListView = new System.Windows.Forms.ListView();
             columnHeader1 = new System.Windows.Forms.ColumnHeader();
             columnHeader2 = new System.Windows.Forms.ColumnHeader();
+            radioSelectionComboBox = new System.Windows.Forms.ComboBox();
             SuspendLayout();
             // 
             // okButton
             // 
             okButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
-            okButton.Location = new System.Drawing.Point(404, 353);
+            okButton.Location = new System.Drawing.Point(402, 358);
             okButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             okButton.Name = "okButton";
             okButton.Size = new System.Drawing.Size(100, 35);
@@ -54,10 +55,10 @@
             mainListView.FullRowSelect = true;
             mainListView.GridLines = true;
             mainListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
-            mainListView.Location = new System.Drawing.Point(16, 18);
+            mainListView.Location = new System.Drawing.Point(16, 48);
             mainListView.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             mainListView.Name = "mainListView";
-            mainListView.Size = new System.Drawing.Size(486, 323);
+            mainListView.Size = new System.Drawing.Size(486, 300);
             mainListView.TabIndex = 1;
             mainListView.UseCompatibleStateImageBehavior = false;
             mainListView.View = System.Windows.Forms.View.Details;
@@ -72,18 +73,27 @@
             columnHeader2.Text = "Value";
             columnHeader2.Width = 250;
             // 
+            // radioSelectionComboBox
+            // 
+            radioSelectionComboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            radioSelectionComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            radioSelectionComboBox.FormattingEnabled = true;
+            radioSelectionComboBox.Location = new System.Drawing.Point(16, 12);
+            radioSelectionComboBox.Name = "radioSelectionComboBox";
+            radioSelectionComboBox.Size = new System.Drawing.Size(486, 28);
+            radioSelectionComboBox.TabIndex = 2;
+            // 
             // RadioInfoForm
             // 
+            AcceptButton = okButton;
             AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(520, 407);
+            Controls.Add(radioSelectionComboBox);
             Controls.Add(mainListView);
             Controls.Add(okButton);
-            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            MaximizeBox = false;
-            MinimizeBox = false;
             Name = "RadioInfoForm";
             StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             Text = "Radio Information";
@@ -98,5 +108,6 @@
         private System.Windows.Forms.ListView mainListView;
         private System.Windows.Forms.ColumnHeader columnHeader1;
         private System.Windows.Forms.ColumnHeader columnHeader2;
+        private System.Windows.Forms.ComboBox radioSelectionComboBox;
     }
 }
