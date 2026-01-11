@@ -225,7 +225,7 @@ namespace HTCommander
             {
                 SelectedOutputDeviceId = selected.Value;
                 //parent.registry.WriteString("OutputAudioDevice", SelectedOutputDeviceId);
-                radio.SetOutputAudioDevice(outputDevice.ID);
+                radio.RadioAudio.SetOutputDevice(outputDevice.ID);
             }
             else
             {
@@ -234,7 +234,7 @@ namespace HTCommander
                 outputDevice = xoutputDevice;
                 outputDevice.AudioEndpointVolume.OnVolumeNotification += AudioEndpointVolume_OnVolumeNotification;
                 //parent.registry.WriteString("OutputAudioDevice", SelectedOutputDeviceId);
-                radio.SetOutputAudioDevice(outputDevice.ID);
+                radio.RadioAudio.SetOutputDevice(outputDevice.ID);
             }
         }
 
@@ -382,7 +382,7 @@ namespace HTCommander
         {
             if (dataFlow == DataFlow.Render && deviceRole == Role.Multimedia)
             {
-                if (SelectedOutputDeviceId == "") { radio.SetOutputAudioDevice(""); }
+                if (SelectedOutputDeviceId == "") { radio.RadioAudio.SetOutputDevice(""); }
                 LoadAudioDevices(true);
             }
             else if (dataFlow == DataFlow.Capture && deviceRole == Role.Console)

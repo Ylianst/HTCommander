@@ -1,5 +1,10 @@
-﻿using System;
-using System.Threading;
+﻿/*
+Copyright 2026 Ylian Saint-Hilaire
+Licensed under the Apache License, Version 2.0 (the "License");
+http://www.apache.org/licenses/LICENSE-2.0
+*/
+
+using System;
 using static HTCommander.Radio;
 
 namespace HTCommander.radio

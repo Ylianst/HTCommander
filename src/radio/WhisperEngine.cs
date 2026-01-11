@@ -1,29 +1,18 @@
 ﻿/*
 Copyright 2026 Ylian Saint-Hilaire
-
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+http://www.apache.org/licenses/LICENSE-2.0
 */
 
-using NAudio.Wave;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Speech.AudioFormat;
-using System.Speech.Synthesis;
 using System.Text;
 using System.Threading.Tasks;
+using System.Speech.Synthesis;
+using System.Speech.AudioFormat;
+using System.Collections.Generic;
+using NAudio.Wave;
 using Whisper.net;
 
 namespace HTCommander.radio // Use your original namespace
@@ -33,12 +22,12 @@ namespace HTCommander.radio // Use your original namespace
         private MemoryStream audioStream = new MemoryStream();
         private SpeechSynthesizer synthesizer = null;
         private bool Processing = false;
-        private Radio radio;
+        private RadioAudio radioAudio;
         private bool ttsAvailable = false;
 
-        public VoiceEngine(Radio radio)
+        public VoiceEngine(RadioAudio radioAudio)
         {
-            this.radio = radio;
+            this.radioAudio = radioAudio;
 
             // Initialize the synthesizer with error handling
             try
@@ -100,7 +89,7 @@ namespace HTCommander.radio // Use your original namespace
                 if (speech.Length > 0)
                 {
                     BoostVolume(speech, speech.Length, 5f); // Boost volume
-                    radio.TransmitVoice(speech, 0, speech.Length, true);
+                    radioAudio.TransmitVoice(speech, 0, speech.Length, true);
                 }
                 audioStream.SetLength(0);
                 Processing = false;
@@ -131,7 +120,7 @@ namespace HTCommander.radio // Use your original namespace
                 if (speech.Length > 0)
                 {
                     BoostVolume(speech, speech.Length, 5f); // Boost volume
-                    radio.TransmitVoice(speech, 0, speech.Length, true);
+                    radioAudio.TransmitVoice(speech, 0, speech.Length, true);
                 }
             });
             return true;

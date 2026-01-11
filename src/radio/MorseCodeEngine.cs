@@ -1,7 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
+﻿/*
+Copyright 2026 Ylian Saint-Hilaire
+Licensed under the Apache License, Version 2.0 (the "License");
+http://www.apache.org/licenses/LICENSE-2.0
+*/
+
+using System;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace HTCommander.radio
 {

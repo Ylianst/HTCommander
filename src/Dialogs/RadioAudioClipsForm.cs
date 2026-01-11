@@ -480,7 +480,7 @@ namespace HTCommander
                     {
                         var buffer = new byte[reader.Length];
                         int bytesRead = reader.Read(buffer, 0, buffer.Length);
-                        radio.TransmitVoice(buffer, 0, bytesRead, true);
+                        radio.RadioAudio.TransmitVoice(buffer, 0, bytesRead, true);
                     }
 
                     transmitUiTimer.Stop();

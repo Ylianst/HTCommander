@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization.Formatters.Binary;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace GameEngine
 {
@@ -55,12 +56,14 @@ namespace GameEngine
         /// <param name="pSave">GameData class to extract save data</param>
         public string SaveSnapshot(string filename)
         {
-            var serializer = new BinaryFormatter();
-            using (Stream s = new FileStream(filename, FileMode.Create, FileAccess.Write, FileShare.None))
+            var options = new JsonSerializerOptions
             {
-                serializer.Serialize(s, this);
-                s.Close();
-            }
+                WriteIndented = true,
+                IncludeFields = true,
+                ReferenceHandler = ReferenceHandler.Preserve
+            };
+            string json = JsonSerializer.Serialize(this, options);
+            File.WriteAllText(filename, json);
             return filename;
         }
 
@@ -75,13 +78,13 @@ namespace GameEngine
         /// <returns>GameData class</returns>
         public static GameData LoadSnapShot(string pAdvGame, string pSnapShot)
         {
-            var serializer = new BinaryFormatter();
-            using (Stream s = new FileStream(pSnapShot, FileMode.Open, FileAccess.Read, FileShare.None))
+            var options = new JsonSerializerOptions
             {
-                GameData d = (GameData)serializer.Deserialize(s);
-                s.Close();
-                return d;
-            }
+                IncludeFields = true,
+                ReferenceHandler = ReferenceHandler.Preserve
+            };
+            string json = File.ReadAllText(pSnapShot);
+            return JsonSerializer.Deserialize<GameData>(json, options);
         }
 
         /// <summary>
@@ -466,6 +469,8 @@ namespace GameEngine
         [Serializable]
         public class GameHeader
         {
+            public GameHeader() { }
+
             public GameHeader(int[] pVals)
             {
                 Unknown = pVals[0];
@@ -482,23 +487,25 @@ namespace GameEngine
                 TreasureRoom = pVals[11];
             }
 
-            public int Unknown { get; private set; }
-            public int NumItems { get; private set; }
-            public int NumActions { get; private set; }
-            public int NumNounVerbs { get; private set; }
-            public int NumRooms { get; private set; }
-            public int MaxCarry { get; private set; }
-            public int StartRoom { get; private set; }
-            public int TotalTreasures { get; private set; }
-            public int WordLength { get; private set; }
-            public int LightDuration { get; private set; }
-            public int NumMessages { get; private set; }
-            public int TreasureRoom { get; private set; }
+            public int Unknown { get; set; }
+            public int NumItems { get; set; }
+            public int NumActions { get; set; }
+            public int NumNounVerbs { get; set; }
+            public int NumRooms { get; set; }
+            public int MaxCarry { get; set; }
+            public int StartRoom { get; set; }
+            public int TotalTreasures { get; set; }
+            public int WordLength { get; set; }
+            public int LightDuration { get; set; }
+            public int NumMessages { get; set; }
+            public int TreasureRoom { get; set; }
         }
 
         [Serializable]
         public class GameFooter
         {
+            public GameFooter() { }
+
             public GameFooter(int[] pVals)
             {
                 Version = pVals[0];
@@ -514,6 +521,8 @@ namespace GameEngine
         [Serializable]
         public class Room
         {
+            public Room() { }
+
             public Room(int[] pExits, string pDescription)
             {
                 Description = pDescription;
@@ -523,7 +532,7 @@ namespace GameEngine
 
             public string Description { get; set; }
             public string RawDescription { get; set; }
-            public int[] Exits { get; private set; }
+            public int[] Exits { get; set; }
 
             /// <summary>
             /// Output the class as it's corresponding DAT file entry
@@ -539,6 +548,8 @@ namespace GameEngine
         [Serializable]
         public class Item
         {
+            public Item() { }
+
             public Item(string pDescription, int pLocation)
             {
                 //an item description contains an associated word if a slash if present
@@ -564,15 +575,15 @@ namespace GameEngine
                 return OriginalLocation != Location;
             }
 
-            public string Description { get; private set; }
+            public string Description { get; set; }
             public int Location { get; set; }
-            private int OriginalLocation { get; set; }
+            public int OriginalLocation { get; set; }
 
             /// <summary>
             /// If an item has one of these it can be picked up without a special action 
             /// created for it
             /// </summary>
-            public string Word { get; private set; }
+            public string Word { get; set; }
 
             public override string ToString()
             {

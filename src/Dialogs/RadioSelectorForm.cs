@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using aprsparser;
 using System.Windows.Forms;
 using static HTCommander.Radio;
 
@@ -23,24 +22,24 @@ namespace HTCommander
     public partial class RadioSelectorForm : Form
     {
         private MainForm parent;
+        private CompatibleDevice[] devices;
 
         public string SelectedMac { get { return radiosListView.SelectedItems[0].SubItems[1].Text; } }
 
-        public RadioSelectorForm(MainForm parent)
+        public RadioSelectorForm(MainForm parent, CompatibleDevice[] devices)
         {
             this.parent = parent;
+            this.devices = devices;
             InitializeComponent();
         }
 
         private void RadioSelectorForm_Load(object sender, System.EventArgs e)
         {
-            /*
-            foreach (CompatibleDevice radio in parent.devices)
+            foreach (CompatibleDevice radio in devices)
             {
                 ListViewItem item = new ListViewItem(new string[] { radio.name, radio.mac });
                 radiosListView.Items.Add(item);
             }
-            */
         }
 
         private void radiosListView_SelectedIndexChanged(object sender, System.EventArgs e)

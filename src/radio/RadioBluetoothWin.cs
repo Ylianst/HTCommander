@@ -1,17 +1,7 @@
 ﻿/*
 Copyright 2026 Ylian Saint-Hilaire
-
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
@@ -20,15 +10,11 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using InTheHand.Net;
 using InTheHand.Net.Bluetooth;
 using InTheHand.Net.Sockets;
-using InTheHand.Net;
-using Windows.Devices.Enumeration;
 using Windows.Devices.Bluetooth;
-
-#if !__MonoCS__
-using System.Collections.Concurrent;
-#endif
+using Windows.Devices.Enumeration;
 
 namespace HTCommander
 {
@@ -39,133 +25,92 @@ namespace HTCommander
         private bool running = false;
         private BluetoothClient connectionClient = null;
         private NetworkStream stream;
+
         public delegate void DebugMessageEventHandler(string msg);
         public event DebugMessageEventHandler OnDebugMessage;
         public delegate void ConnectedEventHandler();
         public event ConnectedEventHandler OnConnected;
+        public delegate void ReceivedDataHandler(RadioBluetoothWin sender, Exception error, byte[] value);
+        public event ReceivedDataHandler ReceivedData;
 
-        private static string BytesToHex(byte[] data, int index, int length)
-        {
-            if (data == null) return "";
-            StringBuilder Result = new StringBuilder(data.Length * 2);
-            string HexAlphabet = "0123456789ABCDEF";
-            for (int i = index; i < length; i++)
-            {
-                byte B = data[i];
-                Result.Append(HexAlphabet[(int)(B >> 4)]);
-                Result.Append(HexAlphabet[(int)(B & 0xF)]);
-            }
-            return Result.ToString();
-        }
-
-        private void Debug(string msg)
-        {
-            if (OnDebugMessage != null) { OnDebugMessage(msg); }
-        }
-
-        // Define the target device name and guids
         private static readonly string[] TargetDeviceNames = { "UV-PRO", "UV-50PRO", "GA-5WB", "VR-N75", "VR-N76", "VR-N7500", "VR-N7600" };
-        private class DeviceWriteData { public int expectResponse; public byte[] data; public DeviceWriteData(int expectResponse, byte[] data) { this.expectResponse = expectResponse; this.data = data; } }
-        private ConcurrentQueue<DeviceWriteData> _writeQueue = new ConcurrentQueue<DeviceWriteData>();
 
         public RadioBluetoothWin(Radio parent)
         {
             this.parent = parent;
         }
 
+        private void Debug(string msg)
+        {
+            OnDebugMessage?.Invoke(msg);
+        }
+
+        private static string BytesToHex(byte[] data, int index, int length)
+        {
+            if (data == null) return "";
+            StringBuilder result = new StringBuilder(length * 2);
+            const string hexAlphabet = "0123456789ABCDEF";
+            for (int i = index; i < length; i++)
+            {
+                byte b = data[i];
+                result.Append(hexAlphabet[b >> 4]);
+                result.Append(hexAlphabet[b & 0xF]);
+            }
+            return result.ToString();
+        }
+
         public void Disconnect()
         {
             running = false;
-            try { if (stream != null) { stream.Dispose(); stream = null; } } catch (Exception) { }
+            try { stream?.Dispose(); stream = null; } catch (Exception) { }
         }
 
         public static bool CheckBluetooth()
         {
-            try { return (BluetoothRadio.Default != null); } catch (Exception) { return false; }
+            try { return BluetoothRadio.Default != null; } catch (Exception) { return false; }
         }
 
         public static async Task<string[]> GetDeviceNames()
         {
             List<string> r = new List<string>();
-            // Find the devices by name - use Bluetooth selector for much faster enumeration
             var selector = BluetoothDevice.GetDeviceSelector();
             var devices = await DeviceInformation.FindAllAsync(selector);
-            foreach (var deviceInfo in devices) { if (!r.Contains(deviceInfo.Name)) { r.Add(deviceInfo.Name); } }
+            foreach (var deviceInfo in devices)
+            {
+                if (!r.Contains(deviceInfo.Name)) { r.Add(deviceInfo.Name); }
+            }
             r.Sort();
             return r.ToArray();
         }
 
-        /*
-        public static async Task<Radio.CompatibleDevice[]> FindCompatibleDevicesSlow()
-        {
-            // Find the devices by name
-            List<Radio.CompatibleDevice> compatibleDevices = new List<Radio.CompatibleDevice>();
-            var devices = await DeviceInformation.FindAllAsync();
-            List<string> macs = new List<string>();
-            foreach (var deviceInfo in devices)
-            {
-                if (TargetDeviceNames.Contains(deviceInfo.Name))
-                {
-                    if (deviceInfo.Id.StartsWith("\\\\?\\BTHLE#Dev_"))
-                    {
-                        string mac = deviceInfo.Id.Substring(14, 12).ToUpper();
-                        if (!macs.Contains(mac))
-                        {
-                            macs.Add(mac);
-                            compatibleDevices.Add(new Radio.CompatibleDevice(deviceInfo.Name, mac));
-                        }
-                    }
-                    else if (deviceInfo.Id.StartsWith("\\\\?\\BTHENUM#Dev_"))
-                    {
-                        int i = deviceInfo.Id.IndexOf("BluetoothDevice_");
-                        if (i > 0)
-                        {
-                            string mac = deviceInfo.Id.Substring(i + 16, 12).ToUpper();
-                            if (!macs.Contains(mac))
-                            {
-                                macs.Add(mac);
-                                compatibleDevices.Add(new Radio.CompatibleDevice(deviceInfo.Name, mac));
-                            }
-                        }
-                    }
-                }
-            }
-            return compatibleDevices.ToArray();
-        }
-        */
-
         public static async Task<Radio.CompatibleDevice[]> FindCompatibleDevices()
         {
-            // Find the devices by name - use Bluetooth selector for much faster enumeration
             List<Radio.CompatibleDevice> compatibleDevices = new List<Radio.CompatibleDevice>();
             var selector = BluetoothDevice.GetDeviceSelector();
             var devices = await DeviceInformation.FindAllAsync(selector);
             List<string> macs = new List<string>();
+
             foreach (var deviceInfo in devices)
             {
-                if (TargetDeviceNames.Contains(deviceInfo.Name))
-                {
-                    string mac = null;
+                if (!TargetDeviceNames.Contains(deviceInfo.Name)) continue;
 
-                    // Handle new format: "Bluetooth#Bluetoothxx:xx:xx:xx:xx:xx-xx:xx:xx:xx:xx:xx"
-                    if (deviceInfo.Id.StartsWith("Bluetooth#Bluetooth"))
+                string mac = null;
+
+                // Parse MAC from format: "Bluetooth#Bluetooth[MAC1]-[MAC2]"
+                if (deviceInfo.Id.StartsWith("Bluetooth#Bluetooth"))
+                {
+                    int dashIdx = deviceInfo.Id.IndexOf('-');
+                    if (dashIdx > 0 && dashIdx < deviceInfo.Id.Length - 1)
                     {
-                        // Extract MAC address from the format "Bluetooth#Bluetooth[MAC1]-[MAC2]"
-                        // We want the second MAC after the dash
-                        int dashIdx = deviceInfo.Id.IndexOf('-');
-                        if (dashIdx > 0 && dashIdx < deviceInfo.Id.Length - 1)
-                        {
-                            string macWithColons = deviceInfo.Id.Substring(dashIdx + 1);
-                            // Remove colons to get clean MAC address
-                            mac = macWithColons.Replace(":", "").ToUpper();
-                        }
+                        string macWithColons = deviceInfo.Id.Substring(dashIdx + 1);
+                        mac = macWithColons.Replace(":", "").ToUpper();
                     }
-                    
-                    if (mac != null && !macs.Contains(mac))
-                    {
-                        macs.Add(mac);
-                        compatibleDevices.Add(new Radio.CompatibleDevice(deviceInfo.Name, mac));
-                    }
+                }
+
+                if (mac != null && !macs.Contains(mac))
+                {
+                    macs.Add(mac);
+                    compatibleDevices.Add(new Radio.CompatibleDevice(deviceInfo.Name, mac));
                 }
             }
             return compatibleDevices.ToArray();
@@ -178,33 +123,32 @@ namespace HTCommander
             return true;
         }
 
-        public delegate void ReceivedDataHandler(RadioBluetoothWin sender, Exception error, byte[] value);
-        public event ReceivedDataHandler ReceivedData;
-
-        // Method to queue a write operation
         public void EnqueueWrite(int expectedResponse, byte[] cmdData)
         {
             if (!running) return;
             byte[] bytes = GaiaEncode(cmdData);
-            //Debug("Write: " + BytesToHex(bytes, 0, bytes.Length));
-            try { stream.Write(bytes, 0, bytes.Length); } catch (Exception ex) { Debug("Error sending request: " + ex.Message); return; }
+            try { stream.Write(bytes, 0, bytes.Length); }
+            catch (Exception ex) { Debug("Error sending request: " + ex.Message); }
         }
 
+        // Decode GAIA protocol frame
         private static int GaiaDecode(byte[] data, int index, int len, out byte[] cmd)
         {
             cmd = null;
             if (len < 8) return 0;
-            if (data[index] != 0xFF) return -1; // Error
-            if (data[index + 1] != 0x01) return -1; // Error
-            byte nBytesPayload = data[index + 3];
-            int hasChecksum = (data[index + 2] & 1);
-            int totalLen = nBytesPayload + 8 + hasChecksum;
-            if (totalLen > len) return 0; // Wait for more data
-            cmd = new byte[4 + nBytesPayload]; // TODO: Check if checksum is correct if present
+            if (data[index] != 0xFF || data[index + 1] != 0x01) return -1;
+
+            byte payloadLen = data[index + 3];
+            int hasChecksum = data[index + 2] & 1;
+            int totalLen = payloadLen + 8 + hasChecksum;
+            if (totalLen > len) return 0;
+
+            cmd = new byte[4 + payloadLen];
             Array.Copy(data, index + 4, cmd, 0, cmd.Length);
             return totalLen;
         }
 
+        // Encode GAIA protocol frame
         private static byte[] GaiaEncode(byte[] cmd)
         {
             byte[] bytes = new byte[cmd.Length + 4];
@@ -219,8 +163,8 @@ namespace HTCommander
         {
             Guid rfcommServiceUuid = BluetoothService.SerialPort;
             BluetoothAddress address = BluetoothAddress.Parse(mac);
-            //BluetoothEndPoint remoteEndPoint = new BluetoothEndPoint(address, rfcommServiceUuid, 0);
-            // Connect to the remote endpoint asynchronously
+
+            // Attempt connection with retries
             int retry = 5;
             while (retry > 0)
             {
@@ -239,54 +183,62 @@ namespace HTCommander
                     Debug("Connect failed: " + ex.ToString());
                 }
             }
+
             if (retry != -2)
             {
                 parent.Disconnect("Unable to connect", Radio.RadioState.UnableToConnect);
                 return;
             }
 
-            Debug("Successfully connected to the RFCOMM channel.");
+            Debug("Successfully connected to RFCOMM channel.");
 
             try
             {
                 byte[] accumulator = new byte[4096];
                 int accumulatorPtr = 0, accumulatorLen = 0;
                 stream = connectionClient.GetStream();
-
                 running = true;
-                //Debug("Ready to receive data.");
-                if (OnConnected != null) { OnConnected(); }
+                OnConnected?.Invoke();
+
                 while (running && connectionClient.Connected)
                 {
-                    // Receive data
                     int bytesRead = stream.Read(accumulator, accumulatorPtr, accumulator.Length - (accumulatorPtr + accumulatorLen));
                     accumulatorLen += bytesRead;
-                    //Debug($"Received {bytesRead} bytes, Accumulator: {BytesToHex(accumulator, accumulatorPtr, accumulatorLen)}");
-                    if (running == false) { connectionClient?.Close(); stream.Dispose(); stream = null; return; }
-                    if (bytesRead == 0) { running = false; connectionClient?.Close(); stream = null; parent.Disconnect("Connection closed by remote host.", Radio.RadioState.Disconnected); break; }
-                    if (accumulatorLen < 8) continue; // Wait for at least 8 bytes
 
+                    if (!running) { connectionClient?.Close(); stream?.Dispose(); stream = null; return; }
+                    if (bytesRead == 0)
+                    {
+                        running = false;
+                        connectionClient?.Close();
+                        stream = null;
+                        parent.Disconnect("Connection closed by remote host.", Radio.RadioState.Disconnected);
+                        break;
+                    }
+                    if (accumulatorLen < 8) continue;
+
+                    // Process received GAIA frames
                     int cmdSize;
                     byte[] cmd;
                     while ((cmdSize = GaiaDecode(accumulator, accumulatorPtr, accumulatorLen, out cmd)) != 0)
                     {
-                        if (cmdSize < 0) {
+                        if (cmdSize < 0)
+                        {
                             cmdSize = accumulatorLen;
                             Debug($"GAIA: {BytesToHex(accumulator, accumulatorPtr, accumulatorLen)}");
                         }
                         accumulatorPtr += cmdSize;
                         accumulatorLen -= cmdSize;
 
-                        if (cmd != null)
-                        {
-                            //Debug("CMD: " + BytesToHex(cmd, 0, cmd.Length));
-                            if (ReceivedData != null) { ReceivedData(this, null, cmd); }
-                        }
+                        if (cmd != null) { ReceivedData?.Invoke(this, null, cmd); }
                     }
 
-                    // Get the accumulator ready for the next read
+                    // Reset accumulator position if needed
                     if (accumulatorLen == 0) { accumulatorPtr = 0; }
-                    if (accumulatorPtr > 2048) { Array.Copy(accumulator, accumulatorPtr, accumulator, 0, accumulatorLen); accumulatorPtr = 0; }
+                    if (accumulatorPtr > 2048)
+                    {
+                        Array.Copy(accumulator, accumulatorPtr, accumulator, 0, accumulatorLen);
+                        accumulatorPtr = 0;
+                    }
                 }
             }
             catch (Exception ex)
@@ -301,6 +253,5 @@ namespace HTCommander
                 parent.Disconnect("Bluetooth connection closed.", Radio.RadioState.Disconnected);
             }
         }
-
     }
 }
