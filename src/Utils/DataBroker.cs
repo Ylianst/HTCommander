@@ -16,6 +16,7 @@ limitations under the License.
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Windows.Forms;
 
 namespace HTCommander
@@ -134,7 +135,7 @@ namespace HTCommander
                     var key = new DataKey(deviceId, name);
                     _dataStore[key] = data;
 
-                    // Persist to registry if device 0 and int, string, or bool
+                    // Persist to registry if device 0
                     if (deviceId == 0 && _registryHelper != null)
                     {
                         if (data is int intValue)
@@ -148,6 +149,14 @@ namespace HTCommander
                         else if (data is bool boolValue)
                         {
                             _registryHelper.WriteBool(name, boolValue);
+                        }
+                        else if (data != null)
+                        {
+                            // Serialize complex types with type marker prefix
+                            string typeName = GetSerializableTypeName(data.GetType());
+                            string json = JsonSerializer.Serialize(data);
+                            string serialized = $"~~JSON:{typeName}:{json}";
+                            _registryHelper.WriteString(name, serialized);
                         }
                     }
                 }
@@ -262,8 +271,12 @@ namespace HTCommander
                         string regValue = _registryHelper.ReadString(name, null);
                         if (regValue != null)
                         {
-                            _dataStore[key] = regValue;
-                            return (T)(object)regValue;
+                            // Check if this is a serialized JSON value (shouldn't return as plain string)
+                            if (!regValue.StartsWith("~~JSON:"))
+                            {
+                                _dataStore[key] = regValue;
+                                return (T)(object)regValue;
+                            }
                         }
                     }
                     else if (typeof(T) == typeof(bool) || typeof(T) == typeof(bool?))
@@ -277,6 +290,33 @@ namespace HTCommander
                             // Value exists in registry (both reads returned the same value)
                             _dataStore[key] = val1;
                             return (T)(object)val1;
+                        }
+                    }
+                    else
+                    {
+                        // Try to load serialized JSON for complex types
+                        string regValue = _registryHelper.ReadString(name, null);
+                        if (regValue != null && regValue.StartsWith("~~JSON:"))
+                        {
+                            try
+                            {
+                                // Parse: "~~JSON:TypeName:actual_json"
+                                int firstColon = regValue.IndexOf(':', 7); // Start after "~~JSON:"
+                                if (firstColon > 0)
+                                {
+                                    string json = regValue.Substring(firstColon + 1);
+                                    T deserializedValue = JsonSerializer.Deserialize<T>(json);
+                                    if (deserializedValue != null)
+                                    {
+                                        _dataStore[key] = deserializedValue;
+                                        return deserializedValue;
+                                    }
+                                }
+                            }
+                            catch (JsonException)
+                            {
+                                // Failed to deserialize, return default
+                            }
                         }
                     }
                 }
@@ -619,6 +659,27 @@ namespace HTCommander
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Gets a friendly type name for serialization purposes.
+        /// </summary>
+        private static string GetSerializableTypeName(Type type)
+        {
+            if (type.IsGenericType)
+            {
+                var genericTypeDef = type.GetGenericTypeDefinition();
+                var genericArgs = type.GetGenericArguments();
+                string baseName = genericTypeDef.Name;
+                int backtickIndex = baseName.IndexOf('`');
+                if (backtickIndex > 0)
+                {
+                    baseName = baseName.Substring(0, backtickIndex);
+                }
+                string argNames = string.Join(",", Array.ConvertAll(genericArgs, t => t.Name));
+                return $"{baseName}<{argNames}>";
+            }
+            return type.Name;
         }
     }
 }

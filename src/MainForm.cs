@@ -31,6 +31,7 @@ namespace HTCommander
         private List<Radio> connectedRadios = new List<Radio>();
         private const int StartingDeviceId = 100;
         private SettingsForm settingsForm = null;
+        private RadioConnectionForm radioSelectorForm = null;
 
         private string LastUpdateCheck => DataBroker.GetValue<string>(0, "LastUpdateCheck", null);
         private bool CheckForUpdates => DataBroker.GetValue<bool>(0, "CheckForUpdates", false);
@@ -55,6 +56,10 @@ namespace HTCommander
 
             // Subscribe to RadioConnect event from device 1 (e.g., from RadioPanelControl)
             broker.Subscribe(1, "RadioConnect", OnRadioConnectRequested);
+
+            // Subscribe to RadioConnectRequest and RadioDisconnectRequest from RadioSelectorForm
+            broker.Subscribe(1, "RadioConnectRequest", OnRadioConnectRequest);
+            broker.Subscribe(1, "RadioDisconnectRequest", OnRadioDisconnectRequest);
 
             // Set initial title bar based on stored values
             UpdateTitleBar();
@@ -187,6 +192,9 @@ namespace HTCommander
                 return;
             }
 
+            // Apply stored friendly names
+            ApplyStoredFriendlyNames(allDevices);
+
             // Filter out already connected radios
             var connectedMacs = connectedRadios.Select(r => r.MacAddress.ToUpperInvariant()).ToHashSet();
             var availableDevices = allDevices.Where(d => !connectedMacs.Contains(d.mac.ToUpperInvariant())).ToArray();
@@ -197,29 +205,23 @@ namespace HTCommander
                 return;
             }
 
-            if (availableDevices.Length == 1)
+            // If only one compatible radio and it's not connected, connect directly
+            if (availableDevices.Length == 1 && allDevices.Length == 1)
             {
-                // Single device found - connect directly
                 ConnectToRadio(availableDevices[0].mac, availableDevices[0].name);
+                return;
             }
-            else
+
+            // Show selector dialog for all devices - user can connect/disconnect from there
+            if (radioSelectorForm != null && !radioSelectorForm.IsDisposed)
             {
-                // Multiple devices found - show selector dialog
-                using (RadioSelectorForm selectorForm = new RadioSelectorForm(this, availableDevices))
-                {
-                    if (selectorForm.ShowDialog(this) == DialogResult.OK)
-                    {
-                        string selectedMac = selectorForm.SelectedMac;
-                        if (!string.IsNullOrEmpty(selectedMac))
-                        {
-                            // Find the device name for the selected MAC
-                            var selectedDevice = availableDevices.FirstOrDefault(d => d.mac.Equals(selectedMac, StringComparison.OrdinalIgnoreCase));
-                            string selectedName = selectedDevice?.name ?? string.Empty;
-                            ConnectToRadio(selectedMac, selectedName);
-                        }
-                    }
-                }
+                radioSelectorForm.Focus();
+                return;
             }
+
+            radioSelectorForm = new RadioConnectionForm(allDevices);
+            radioSelectorForm.FormClosed += (s, args) => { radioSelectorForm = null; };
+            radioSelectorForm.Show(this);
         }
 
         private int GetNextAvailableDeviceId()
@@ -235,7 +237,6 @@ namespace HTCommander
             // Check if already connected to this MAC address
             if (connectedRadios.Any(r => r.MacAddress.Equals(macAddress, StringComparison.OrdinalIgnoreCase)))
             {
-                MessageBox.Show(this, "This radio is already connected.", "Already Connected", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
@@ -244,7 +245,7 @@ namespace HTCommander
 
             // Create the radio instance
             Radio radio = new Radio(deviceId, macAddress);
-            radio.FriendlyName = friendlyName;
+            radio.UpdateFriendlyName(friendlyName);
 
             // Add the radio as a data handler in the DataBroker
             string handlerName = "Radio_" + deviceId;
@@ -260,39 +261,54 @@ namespace HTCommander
             radio.Connect();
         }
 
-        private void disconnectToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void disconnectToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (connectedRadios.Count == 0)
+            // If only one radio is connected, disconnect it directly
+            if (connectedRadios.Count == 1)
             {
-                MessageBox.Show(this, "No radios are currently connected.", "No Connected Radios", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                DisconnectRadio(connectedRadios[0]);
                 return;
             }
 
-            if (connectedRadios.Count == 1)
+            // Otherwise, show selector dialog with all radios
+            // Check if Bluetooth is available
+            if (!RadioBluetoothWin.CheckBluetooth())
             {
-                // Single radio connected - disconnect directly
-                DisconnectRadio(connectedRadios[0]);
+                MessageBox.Show(this, "Bluetooth is not available on this system.", "Bluetooth Not Available", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
-            else
+
+            // Find compatible devices
+            Radio.CompatibleDevice[] allDevices;
+            try
             {
-                // Multiple radios connected - show selector dialog
-                var devices = connectedRadios.Select(r => new Radio.CompatibleDevice("Radio " + r.DeviceId, r.MacAddress)).ToArray();
-                using (RadioSelectorForm selectorForm = new RadioSelectorForm(this, devices))
-                {
-                    if (selectorForm.ShowDialog(this) == DialogResult.OK)
-                    {
-                        string selectedMac = selectorForm.SelectedMac;
-                        if (!string.IsNullOrEmpty(selectedMac))
-                        {
-                            Radio radio = connectedRadios.FirstOrDefault(r => r.MacAddress.Equals(selectedMac, StringComparison.OrdinalIgnoreCase));
-                            if (radio != null)
-                            {
-                                DisconnectRadio(radio);
-                            }
-                        }
-                    }
-                }
+                allDevices = await RadioBluetoothWin.FindCompatibleDevices();
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Error searching for compatible radios: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (allDevices == null || allDevices.Length == 0)
+            {
+                MessageBox.Show(this, "No compatible radios found.", "No Radios Found", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Apply stored friendly names
+            ApplyStoredFriendlyNames(allDevices);
+
+            // Show selector dialog for all devices - user can connect/disconnect from there
+            if (radioSelectorForm != null && !radioSelectorForm.IsDisposed)
+            {
+                radioSelectorForm.Focus();
+                return;
+            }
+
+            radioSelectorForm = new RadioConnectionForm(allDevices);
+            radioSelectorForm.FormClosed += (s, args) => { radioSelectorForm = null; };
+            radioSelectorForm.Show(this);
         }
 
         private void DisconnectRadio(Radio radio)
@@ -354,6 +370,35 @@ namespace HTCommander
             connectToolStripMenuItem_Click(this, EventArgs.Empty);
         }
 
+        private void OnRadioConnectRequest(int deviceId, string name, object data)
+        {
+            // Handle connection request from RadioSelectorForm
+            if (data == null) return;
+            var dataType = data.GetType();
+            string macAddress = (string)dataType.GetProperty("MacAddress")?.GetValue(data);
+            string friendlyName = (string)dataType.GetProperty("FriendlyName")?.GetValue(data);
+            if (!string.IsNullOrEmpty(macAddress))
+            {
+                ConnectToRadio(macAddress, friendlyName ?? "");
+            }
+        }
+
+        private void OnRadioDisconnectRequest(int deviceId, string name, object data)
+        {
+            // Handle disconnection request from RadioSelectorForm
+            if (data == null) return;
+            var dataType = data.GetType();
+            string macAddress = (string)dataType.GetProperty("MacAddress")?.GetValue(data);
+            if (!string.IsNullOrEmpty(macAddress))
+            {
+                Radio radio = connectedRadios.FirstOrDefault(r => r.MacAddress.Equals(macAddress, StringComparison.OrdinalIgnoreCase));
+                if (radio != null)
+                {
+                    DisconnectRadio(radio);
+                }
+            }
+        }
+
         private void UpdateTitleBar()
         {
             string callSign = DataBroker.GetValue<string>(0, "CallSign", "");
@@ -375,6 +420,47 @@ namespace HTCommander
             {
                 // Has callsign and non-zero station ID
                 this.Text = baseTitle + " - " + callSign + "-" + stationId;
+            }
+        }
+
+        private void ApplyStoredFriendlyNames(Radio.CompatibleDevice[] devices)
+        {
+            // Get stored friendly names and Bluetooth names from DataBroker
+            var friendlyNames = DataBroker.GetValue<Dictionary<string, string>>(0, "DeviceFriendlyName", null);
+            var bluetoothNames = DataBroker.GetValue<Dictionary<string, string>>(0, "DeviceBluetoothName", null);
+            
+            // Create or update the Bluetooth names dictionary with newly discovered names
+            if (bluetoothNames == null)
+            {
+                bluetoothNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            bool bluetoothNamesUpdated = false;
+            foreach (var device in devices)
+            {
+                string macKey = device.mac.ToUpperInvariant();
+                
+                // Store the original Bluetooth-discovered name (from FindCompatibleDevices)
+                // Only update if we don't have it yet or if the device has a non-empty name
+                if (!string.IsNullOrEmpty(device.name) && 
+                    (!bluetoothNames.ContainsKey(macKey) || string.IsNullOrEmpty(bluetoothNames[macKey])))
+                {
+                    bluetoothNames[macKey] = device.name;
+                    bluetoothNamesUpdated = true;
+                }
+
+                // Apply the stored friendly name if available
+                if (friendlyNames != null && friendlyNames.TryGetValue(macKey, out string storedName))
+                {
+                    device.name = storedName;
+                }
+                // If no stored name, keep the name from FindCompatibleDevices (default friendly name)
+            }
+
+            // Save updated Bluetooth names if changed
+            if (bluetoothNamesUpdated)
+            {
+                DataBroker.Dispatch(0, "DeviceBluetoothName", bluetoothNames, store: true);
             }
         }
 

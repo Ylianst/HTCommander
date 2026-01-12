@@ -5,9 +5,8 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Reflection;
+using System.Collections;
 using System.Windows.Forms;
 using HTCommander.radio;
 
@@ -162,6 +161,9 @@ namespace HTCommander
             broker = new DataBrokerClient();
             broker.Subscribe(1, "ConnectedRadios", OnConnectedRadiosChanged);
 
+            // Subscribe to FriendlyName changes for all devices to update the combobox
+            broker.Subscribe(DataBroker.AllDevices, "FriendlyName", OnFriendlyNameChanged);
+
             // Populate the combobox with current connected radios and subscribe to first if available
             PopulateRadioComboBox();
 
@@ -181,6 +183,32 @@ namespace HTCommander
         {
             var connectedRadios = data as IList;
             UpdateRadioComboBox(connectedRadios);
+        }
+
+        private void OnFriendlyNameChanged(int deviceId, string name, object data)
+        {
+            // When a radio's friendly name changes, update the combobox item
+            string newFriendlyName = data as string;
+            
+            isUpdatingComboBox = true;
+            try
+            {
+                for (int i = 0; i < radioSelectionComboBox.Items.Count; i++)
+                {
+                    var item = radioSelectionComboBox.Items[i] as RadioComboBoxItem;
+                    if (item != null && item.DeviceId == deviceId)
+                    {
+                        item.FriendlyName = newFriendlyName;
+                        // Force refresh of the combobox display
+                        radioSelectionComboBox.Items[i] = item;
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                isUpdatingComboBox = false;
+            }
         }
 
         private void UpdateRadioComboBox(IList connectedRadios)

@@ -21,7 +21,7 @@ namespace HTCommander
 
         public int DeviceId { get; }
         public string MacAddress { get; }
-        public string FriendlyName { get; set; }
+        public string FriendlyName { get; private set; }
 
         private RadioBluetoothWin radioTransport;
         private TncDataFragment frameAccumulator = null;
@@ -997,6 +997,20 @@ namespace HTCommander
         public void Debug(string msg) => broker.Dispatch(0, "LogInfo", $"[Radio/{DeviceId}]: {msg}", store: false);
         private void DispatchDataFrame(TncDataFragment frame) => broker.Dispatch(DeviceId, "DataFrame", frame, store: false);
         private void DispatchRawCommand(byte[] cmd) => broker.Dispatch(DeviceId, "RawCommand", cmd, store: false);
+
+        #endregion
+
+        #region Friendly Name Management
+
+        /// <summary>
+        /// Updates the friendly name and dispatches a FriendlyName event.
+        /// </summary>
+        /// <param name="newName">The new friendly name for the radio.</param>
+        public void UpdateFriendlyName(string newName)
+        {
+            FriendlyName = newName;
+            broker.Dispatch(DeviceId, "FriendlyName", newName, store: true);
+        }
 
         #endregion
     }
