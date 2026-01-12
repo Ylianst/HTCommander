@@ -167,6 +167,32 @@ namespace HTCommander
 
             ClearChannelTimer.Elapsed += ClearFrequencyTimer_Elapsed;
             ClearChannelTimer.Enabled = false;
+
+            // Subscribe to channel change events
+            broker.Subscribe(deviceid, new[] { "ChannelChangeVfoA", "ChannelChangeVfoB" }, OnChannelChangeEvent);
+        }
+
+        /// <summary>
+        /// Handles channel change events from the broker.
+        /// </summary>
+        private void OnChannelChangeEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            if (Settings == null) return;
+
+            int channelId = (int)data;
+
+            switch (name)
+            {
+                case "ChannelChangeVfoA":
+                    // Change VFO A to the new channel
+                    WriteSettings(Settings.ToByteArray(channelId, Settings.channel_b, Settings.double_channel, Settings.scan, Settings.squelch_level));
+                    break;
+                case "ChannelChangeVfoB":
+                    // Change VFO B to the new channel
+                    WriteSettings(Settings.ToByteArray(Settings.channel_a, channelId, Settings.double_channel, Settings.scan, Settings.squelch_level));
+                    break;
+            }
         }
 
         public void Dispose() => Disconnect(null, RadioState.Disconnected);

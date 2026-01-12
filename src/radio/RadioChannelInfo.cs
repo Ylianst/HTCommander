@@ -59,7 +59,7 @@ namespace HTCommander
             fixed_tx_power = ((msg[19] & 0x20) != 0);
             mute = ((msg[19] & 0x10) != 0);
             name_str = UTF8Encoding.Default.GetString(msg, 20, 10).Trim();
-            int i = name_str.IndexOf("\0");
+            int i = name_str.IndexOf('\0');
             if (i >= 0) { name_str = name_str.Substring(0, i); }
         }
 

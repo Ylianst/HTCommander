@@ -28,103 +28,97 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            this.contextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.showToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
-            this.setChannelAToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.setChannelBToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
-            this.showAllChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.channelNameLabel = new System.Windows.Forms.Label();
-            this.contextMenuStrip.SuspendLayout();
-            this.SuspendLayout();
+            components = new System.ComponentModel.Container();
+            contextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            showToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
+            setChannelAToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            setChannelBToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
+            showAllChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            channelNameLabel = new System.Windows.Forms.Label();
+            contextMenuStrip.SuspendLayout();
+            SuspendLayout();
             // 
             // contextMenuStrip
             // 
-            this.contextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.contextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.showToolStripMenuItem,
-            this.toolStripMenuItem1,
-            this.setChannelAToolStripMenuItem,
-            this.setChannelBToolStripMenuItem,
-            this.toolStripMenuItem2,
-            this.showAllChannelsToolStripMenuItem});
-            this.contextMenuStrip.Name = "contextMenuStrip";
-            this.contextMenuStrip.Size = new System.Drawing.Size(200, 112);
-            this.contextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.contextMenuStrip_Opening);
+            contextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            contextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { showToolStripMenuItem, toolStripMenuItem1, setChannelAToolStripMenuItem, setChannelBToolStripMenuItem, toolStripMenuItem2, showAllChannelsToolStripMenuItem });
+            contextMenuStrip.Name = "contextMenuStrip";
+            contextMenuStrip.Size = new System.Drawing.Size(200, 112);
+            contextMenuStrip.Opening += contextMenuStrip_Opening;
             // 
             // showToolStripMenuItem
             // 
-            this.showToolStripMenuItem.Name = "showToolStripMenuItem";
-            this.showToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
-            this.showToolStripMenuItem.Text = "&Edit...";
-            this.showToolStripMenuItem.Click += new System.EventHandler(this.showToolStripMenuItem_Click);
+            showToolStripMenuItem.Name = "showToolStripMenuItem";
+            showToolStripMenuItem.Size = new System.Drawing.Size(199, 24);
+            showToolStripMenuItem.Text = "&Edit...";
+            showToolStripMenuItem.Click += showToolStripMenuItem_Click;
             // 
             // toolStripMenuItem1
             // 
-            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(207, 6);
+            toolStripMenuItem1.Name = "toolStripMenuItem1";
+            toolStripMenuItem1.Size = new System.Drawing.Size(196, 6);
             // 
             // setChannelAToolStripMenuItem
             // 
-            this.setChannelAToolStripMenuItem.Name = "setChannelAToolStripMenuItem";
-            this.setChannelAToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
-            this.setChannelAToolStripMenuItem.Text = "Set VFO &A";
-            this.setChannelAToolStripMenuItem.Click += new System.EventHandler(this.setChannelAToolStripMenuItem_Click);
+            setChannelAToolStripMenuItem.Name = "setChannelAToolStripMenuItem";
+            setChannelAToolStripMenuItem.Size = new System.Drawing.Size(199, 24);
+            setChannelAToolStripMenuItem.Text = "Set VFO &A";
+            setChannelAToolStripMenuItem.Click += setChannelAToolStripMenuItem_Click;
             // 
             // setChannelBToolStripMenuItem
             // 
-            this.setChannelBToolStripMenuItem.Name = "setChannelBToolStripMenuItem";
-            this.setChannelBToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
-            this.setChannelBToolStripMenuItem.Text = "Set VFO &B";
-            this.setChannelBToolStripMenuItem.Click += new System.EventHandler(this.setChannelBToolStripMenuItem_Click);
+            setChannelBToolStripMenuItem.Name = "setChannelBToolStripMenuItem";
+            setChannelBToolStripMenuItem.Size = new System.Drawing.Size(199, 24);
+            setChannelBToolStripMenuItem.Text = "Set VFO &B";
+            setChannelBToolStripMenuItem.Click += setChannelBToolStripMenuItem_Click;
             // 
             // toolStripMenuItem2
             // 
-            this.toolStripMenuItem2.Name = "toolStripMenuItem2";
-            this.toolStripMenuItem2.Size = new System.Drawing.Size(207, 6);
+            toolStripMenuItem2.Name = "toolStripMenuItem2";
+            toolStripMenuItem2.Size = new System.Drawing.Size(196, 6);
             // 
             // showAllChannelsToolStripMenuItem
             // 
-            this.showAllChannelsToolStripMenuItem.Name = "showAllChannelsToolStripMenuItem";
-            this.showAllChannelsToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
-            this.showAllChannelsToolStripMenuItem.Text = "&Show All Channels";
-            this.showAllChannelsToolStripMenuItem.Click += new System.EventHandler(this.showAllChannelsToolStripMenuItem_Click);
+            showAllChannelsToolStripMenuItem.Name = "showAllChannelsToolStripMenuItem";
+            showAllChannelsToolStripMenuItem.Size = new System.Drawing.Size(199, 24);
+            showAllChannelsToolStripMenuItem.Text = "&Show All Channels";
+            showAllChannelsToolStripMenuItem.Click += showAllChannelsToolStripMenuItem_Click;
             // 
             // channelNameLabel
             // 
-            this.channelNameLabel.ContextMenuStrip = this.contextMenuStrip;
-            this.channelNameLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.channelNameLabel.Location = new System.Drawing.Point(0, 0);
-            this.channelNameLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.channelNameLabel.Name = "channelNameLabel";
-            this.channelNameLabel.Size = new System.Drawing.Size(122, 34);
-            this.channelNameLabel.TabIndex = 1;
-            this.channelNameLabel.Text = "label1";
-            this.channelNameLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            this.channelNameLabel.Click += new System.EventHandler(this.channelNameLabel_Click);
-            this.channelNameLabel.DragDrop += new System.Windows.Forms.DragEventHandler(this.RadioChannelControl_DragDrop);
-            this.channelNameLabel.DragEnter += new System.Windows.Forms.DragEventHandler(this.RadioChannelControl_DragEnter);
-            this.channelNameLabel.DoubleClick += new System.EventHandler(this.channelNameLabel_DoubleClick);
-            this.channelNameLabel.MouseMove += new System.Windows.Forms.MouseEventHandler(this.channelNameLabel_MouseMove);
+            channelNameLabel.ContextMenuStrip = contextMenuStrip;
+            channelNameLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            channelNameLabel.Location = new System.Drawing.Point(0, 0);
+            channelNameLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            channelNameLabel.Name = "channelNameLabel";
+            channelNameLabel.Size = new System.Drawing.Size(121, 42);
+            channelNameLabel.TabIndex = 1;
+            channelNameLabel.Text = "label1";
+            channelNameLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            channelNameLabel.Click += channelNameLabel_Click;
+            channelNameLabel.DragDrop += RadioChannelControl_DragDrop;
+            channelNameLabel.DragEnter += RadioChannelControl_DragEnter;
+            channelNameLabel.DoubleClick += channelNameLabel_DoubleClick;
+            channelNameLabel.MouseMove += channelNameLabel_MouseMove;
             // 
             // RadioChannelControl
             // 
-            this.AllowDrop = true;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.DarkKhaki;
-            this.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.Controls.Add(this.channelNameLabel);
-            this.Margin = new System.Windows.Forms.Padding(0);
-            this.Name = "RadioChannelControl";
-            this.Size = new System.Drawing.Size(122, 34);
-            this.DragDrop += new System.Windows.Forms.DragEventHandler(this.RadioChannelControl_DragDrop);
-            this.DragEnter += new System.Windows.Forms.DragEventHandler(this.RadioChannelControl_DragEnter);
-            this.DoubleClick += new System.EventHandler(this.channelNameLabel_DoubleClick);
-            this.contextMenuStrip.ResumeLayout(false);
-            this.ResumeLayout(false);
+            AllowDrop = true;
+            AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            BackColor = System.Drawing.Color.DarkKhaki;
+            BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            Controls.Add(channelNameLabel);
+            Margin = new System.Windows.Forms.Padding(0);
+            Name = "RadioChannelControl";
+            Size = new System.Drawing.Size(121, 42);
+            DragDrop += RadioChannelControl_DragDrop;
+            DragEnter += RadioChannelControl_DragEnter;
+            DoubleClick += channelNameLabel_DoubleClick;
+            contextMenuStrip.ResumeLayout(false);
+            ResumeLayout(false);
 
         }
 

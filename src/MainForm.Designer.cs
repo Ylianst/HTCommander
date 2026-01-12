@@ -94,7 +94,8 @@
             tabsImageList = new System.Windows.Forms.ImageList(components);
             mainImageList = new System.Windows.Forms.ImageList(components);
             radioPanel = new System.Windows.Forms.Panel();
-            radioPanelControl1 = new HTCommander.RadioControls.RadioPanelControl();
+            radioPanelControl = new HTCommander.RadioControls.RadioPanelControl();
+            radioWindowToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             mainStatusStrip.SuspendLayout();
             mainMenuStrip.SuspendLayout();
             mainTabControl.SuspendLayout();
@@ -334,10 +335,11 @@
             // 
             // viewToolStripMenuItem
             // 
-            viewToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { radioToolStripMenuItem, allChannelsToolStripMenuItem });
+            viewToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { radioToolStripMenuItem, radioWindowToolStripMenuItem, allChannelsToolStripMenuItem });
             viewToolStripMenuItem.Name = "viewToolStripMenuItem";
             viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
             viewToolStripMenuItem.Text = "&View";
+            viewToolStripMenuItem.DropDownOpening += viewToolStripMenuItem_DropDownOpening;
             // 
             // radioToolStripMenuItem
             // 
@@ -345,15 +347,16 @@
             radioToolStripMenuItem.CheckOnClick = true;
             radioToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             radioToolStripMenuItem.Name = "radioToolStripMenuItem";
-            radioToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            radioToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             radioToolStripMenuItem.Text = "&Radio";
             radioToolStripMenuItem.CheckedChanged += radioToolStripMenuItem_CheckedChanged;
             // 
             // allChannelsToolStripMenuItem
             // 
             allChannelsToolStripMenuItem.Name = "allChannelsToolStripMenuItem";
-            allChannelsToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
+            allChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             allChannelsToolStripMenuItem.Text = "All Channels";
+            allChannelsToolStripMenuItem.Click += allChannelsToolStripMenuItem_Click;
             // 
             // aboutToolStripMenuItem
             // 
@@ -665,7 +668,7 @@
             // 
             radioPanel.AllowDrop = true;
             radioPanel.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-            radioPanel.Controls.Add(radioPanelControl1);
+            radioPanel.Controls.Add(radioPanelControl);
             radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
             radioPanel.Location = new System.Drawing.Point(0, 26);
             radioPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
@@ -673,28 +676,25 @@
             radioPanel.Size = new System.Drawing.Size(372, 844);
             radioPanel.TabIndex = 2;
             // 
-            // radioPanelControl1
+            // radioPanelControl
             // 
-            radioPanelControl1.AllowDrop = true;
-            radioPanelControl1.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-            radioPanelControl1.ChannelControls = null;
-            radioPanelControl1.CheckBluetoothButtonVisible = false;
-            radioPanelControl1.ConnectButtonVisible = true;
-            radioPanelControl1.ConnectedPanelVisible = false;
-            radioPanelControl1.Dock = System.Windows.Forms.DockStyle.Fill;
-            radioPanelControl1.GpsStatusText = "GPS";
-            radioPanelControl1.Location = new System.Drawing.Point(0, 0);
-            radioPanelControl1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            radioPanelControl1.Name = "radioPanelControl1";
-            radioPanelControl1.RadioStateLabelVisible = true;
-            radioPanelControl1.RadioStateText = "Disconnected";
-            radioPanelControl1.RssiProgressBarVisible = false;
-            radioPanelControl1.RssiValue = 0;
-            radioPanelControl1.Size = new System.Drawing.Size(368, 840);
-            radioPanelControl1.TabIndex = 0;
-            radioPanelControl1.TransmitBarVisible = false;
-            radioPanelControl1.Vfo2LastChannelId = -1;
-            radioPanelControl1.VoiceProcessingVisible = false;
+            radioPanelControl.AllowDrop = true;
+            radioPanelControl.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
+            radioPanelControl.DeviceId = -1;
+            radioPanelControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            radioPanelControl.Location = new System.Drawing.Point(0, 0);
+            radioPanelControl.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            radioPanelControl.Name = "radioPanelControl";
+            radioPanelControl.ShowAllChannels = false;
+            radioPanelControl.Size = new System.Drawing.Size(368, 840);
+            radioPanelControl.TabIndex = 0;
+            // 
+            // radioWindowToolStripMenuItem
+            // 
+            radioWindowToolStripMenuItem.Name = "radioWindowToolStripMenuItem";
+            radioWindowToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            radioWindowToolStripMenuItem.Text = "Radio Window...";
+            radioWindowToolStripMenuItem.Click += radioWindowToolStripMenuItem_Click;
             // 
             // MainForm
             // 
@@ -799,6 +799,7 @@
         private Controls.MapTabUserControl mapTabUserControl;
         private Controls.AprsTabUserControl aprsTabUserControl;
         private System.Windows.Forms.Panel radioPanel;
-        private RadioControls.RadioPanelControl radioPanelControl1;
+        private RadioControls.RadioPanelControl radioPanelControl;
+        private System.Windows.Forms.ToolStripMenuItem radioWindowToolStripMenuItem;
     }
 }

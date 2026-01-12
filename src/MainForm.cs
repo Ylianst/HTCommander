@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using Microsoft.Win32;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.IO.Pipes;
 using System.Linq;
-using System.Threading.Tasks;
+using System.IO.Pipes;
 using System.Windows.Forms;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using HTCommander.Dialogs;
 
 namespace HTCommander
 {
@@ -254,6 +254,12 @@ namespace HTCommander
             // Track the connected radio
             connectedRadios.Add(radio);
 
+            // If the radioPanelControl is not monitoring an existing connected radio, set it to this new radio
+            if (radioPanelControl.DeviceId <= 0 || !connectedRadios.Any(r => r.DeviceId == radioPanelControl.DeviceId))
+            {
+                radioPanelControl.DeviceId = deviceId;
+            }
+
             // Publish updated connected radios list
             PublishConnectedRadios();
 
@@ -313,6 +319,8 @@ namespace HTCommander
 
         private void DisconnectRadio(Radio radio)
         {
+            int disconnectedDeviceId = radio.DeviceId;
+
             // Remove from DataBroker
             string handlerName = "Radio_" + radio.DeviceId;
             DataBroker.RemoveDataHandler(handlerName);
@@ -323,6 +331,21 @@ namespace HTCommander
             // Remove from tracking list
             connectedRadios.Remove(radio);
 
+            // If the radioPanelControl was displaying this radio, switch to another connected radio if available
+            if (radioPanelControl.DeviceId == disconnectedDeviceId)
+            {
+                if (connectedRadios.Count > 0)
+                {
+                    // Switch to the first available connected radio
+                    radioPanelControl.DeviceId = connectedRadios[0].DeviceId;
+                }
+                else
+                {
+                    // No radios left, reset to disconnected state
+                    radioPanelControl.DeviceId = -1;
+                }
+            }
+
             // Publish updated connected radios list
             PublishConnectedRadios();
         }
@@ -330,6 +353,58 @@ namespace HTCommander
         private void radioToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
             radioPanel.Visible = radioToolStripMenuItem.Checked;
+        }
+
+        private void viewToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
+        {
+            // Set the "All Channels" checkbox state based on RadioPanelControl's ShowAllChannels
+            allChannelsToolStripMenuItem.Checked = radioPanelControl.ShowAllChannels;
+
+            // Remove any previously added dynamic radio menu items and separator
+            RemoveDynamicRadioMenuItems();
+
+            // If there are 2 or more radios connected, add a separator and menu items for each radio
+            if (connectedRadios.Count >= 2)
+            {
+                // Add separator
+                ToolStripSeparator separator = new ToolStripSeparator();
+                separator.Tag = "DynamicRadioItem";
+                viewToolStripMenuItem.DropDownItems.Add(separator);
+
+                // Add menu item for each connected radio
+                foreach (Radio radio in connectedRadios)
+                {
+                    ToolStripMenuItem radioMenuItem = new ToolStripMenuItem();
+                    radioMenuItem.Text = string.IsNullOrEmpty(radio.FriendlyName) ? $"Radio {radio.DeviceId}" : radio.FriendlyName;
+                    radioMenuItem.Tag = "DynamicRadioItem";
+                    radioMenuItem.Checked = (radio.DeviceId == radioPanelControl.DeviceId);
+                    radioMenuItem.Click += (s, args) =>
+                    {
+                        // Switch the radioPanelControl to display this radio
+                        radioPanelControl.DeviceId = radio.DeviceId;
+                    };
+                    viewToolStripMenuItem.DropDownItems.Add(radioMenuItem);
+                }
+            }
+        }
+
+        private void RemoveDynamicRadioMenuItems()
+        {
+            // Remove all items tagged as dynamic radio items
+            for (int i = viewToolStripMenuItem.DropDownItems.Count - 1; i >= 0; i--)
+            {
+                ToolStripItem item = viewToolStripMenuItem.DropDownItems[i];
+                if (item.Tag != null && item.Tag.ToString() == "DynamicRadioItem")
+                {
+                    viewToolStripMenuItem.DropDownItems.RemoveAt(i);
+                }
+            }
+        }
+
+        private void allChannelsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Toggle the ShowAllChannels state in RadioPanelControl
+            radioPanelControl.ShowAllChannels = !radioPanelControl.ShowAllChannels;
         }
 
         private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -428,7 +503,7 @@ namespace HTCommander
             // Get stored friendly names and Bluetooth names from DataBroker
             var friendlyNames = DataBroker.GetValue<Dictionary<string, string>>(0, "DeviceFriendlyName", null);
             var bluetoothNames = DataBroker.GetValue<Dictionary<string, string>>(0, "DeviceBluetoothName", null);
-            
+
             // Create or update the Bluetooth names dictionary with newly discovered names
             if (bluetoothNames == null)
             {
@@ -439,10 +514,10 @@ namespace HTCommander
             foreach (var device in devices)
             {
                 string macKey = device.mac.ToUpperInvariant();
-                
+
                 // Store the original Bluetooth-discovered name (from FindCompatibleDevices)
                 // Only update if we don't have it yet or if the device has a non-empty name
-                if (!string.IsNullOrEmpty(device.name) && 
+                if (!string.IsNullOrEmpty(device.name) &&
                     (!bluetoothNames.ContainsKey(macKey) || string.IsNullOrEmpty(bluetoothNames[macKey])))
                 {
                     bluetoothNames[macKey] = device.name;
@@ -464,5 +539,11 @@ namespace HTCommander
             }
         }
 
+        private void radioWindowToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            RadioForm radioForm = new RadioForm();
+            radioForm.DeviceId = radioPanelControl.DeviceId;
+            radioForm.Show(this);
+        }
     }
 }

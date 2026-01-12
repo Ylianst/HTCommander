@@ -17,7 +17,6 @@ limitations under the License.
 using System;
 using System.Drawing;
 using System.Windows.Forms;
-using HTCommander.radio;
 using NAudio.Wave;
 
 namespace HTCommander.RadioControls
@@ -29,176 +28,296 @@ namespace HTCommander.RadioControls
         private int vfo2LastChannelId = -1;
         private DataBrokerClient broker;
 
+        // Device ID that this control is monitoring
+        private int _deviceId = -1;
+
+        // Cached state from broker
+        private string currentState = null;
+        private RadioHtStatus currentHtStatus = null;
+        private RadioSettings currentSettings = null;
+        private RadioChannelInfo[] currentChannels = null;
+
+        // UI state
+        private bool _showAllChannels = false;
+
         public RadioPanelControl()
         {
             InitializeComponent();
-        }
-
-        public RadioPanelControl(MainForm mainForm) : this()
-        {
-            Initialize(mainForm);
-        }
-
-        public void Initialize(MainForm mainForm)
-        {
-            this.parent = mainForm;
-            //this.CheckBluetoothRequested += (s, e) => mainForm?.CheckBluetooth();
 
             // Set up DataBrokerClient for subscribing to broker events
             broker = new DataBrokerClient();
         }
 
-        public RadioChannelControl[] ChannelControls
+        public RadioPanelControl(MainForm mainForm) : this()
         {
-            get { return channelControls; }
-            set { channelControls = value; }
+            Initialize(mainForm);
+
+            // Set up DataBrokerClient for subscribing to broker events
+            broker = new DataBrokerClient();
         }
 
-        public int Vfo2LastChannelId
+        public void Initialize(MainForm mainForm)
         {
-            get { return vfo2LastChannelId; }
-            set { vfo2LastChannelId = value; }
+            this.parent = mainForm;
         }
 
-        public bool ConnectButtonVisible
+        /// <summary>
+        /// Gets or sets the device ID that this control monitors.
+        /// Setting this property will subscribe to broker events for that device.
+        /// Set to -1 to disconnect from any device.
+        /// </summary>
+        public int DeviceId
         {
-            get { return connectButton.Visible; }
-            set { connectButton.Visible = value; }
+            get { return _deviceId; }
+            set
+            {
+                if (_deviceId == value) return;
+
+                // Unsubscribe from previous device
+                if (_deviceId > 0 && broker != null)
+                {
+                    broker.Unsubscribe(_deviceId, "State");
+                    broker.Unsubscribe(_deviceId, "HtStatus");
+                    broker.Unsubscribe(_deviceId, "Settings");
+                    broker.Unsubscribe(_deviceId, "Channels");
+                }
+
+                // Clear cached state
+                currentState = null;
+                currentHtStatus = null;
+                currentSettings = null;
+                currentChannels = null;
+
+                _deviceId = value;
+
+                if (_deviceId > 0 && broker != null)
+                {
+                    // Subscribe to the new device's events
+                    broker.Subscribe(_deviceId, new[] { "State", "HtStatus", "Settings", "Channels" }, OnBrokerEvent);
+
+                    // Load initial state from broker
+                    LoadInitialState();
+                }
+
+                // Update the display
+                UpdateDisplayForCurrentState();
+            }
         }
 
-        public bool CheckBluetoothButtonVisible
+        /// <summary>
+        /// Loads the initial state from the broker for the current device.
+        /// </summary>
+        private void LoadInitialState()
         {
-            get { return checkBluetoothButton.Visible; }
-            set { checkBluetoothButton.Visible = value; }
+            if (_deviceId <= 0 || broker == null) return;
+
+            // Load cached values from broker
+            currentState = broker.GetValue<string>(_deviceId, "State", null);
+            currentHtStatus = broker.GetValue<RadioHtStatus>(_deviceId, "HtStatus", null);
+            currentSettings = broker.GetValue<RadioSettings>(_deviceId, "Settings", null);
+            currentChannels = broker.GetValue<RadioChannelInfo[]>(_deviceId, "Channels", null);
         }
 
-        public string RadioStateText
+        /// <summary>
+        /// Handles broker events for the subscribed device.
+        /// </summary>
+        private void OnBrokerEvent(int deviceId, string name, object data)
         {
-            get { return radioStateLabel.Text; }
-            set { radioStateLabel.Text = value; }
+            if (deviceId != _deviceId) return;
+
+            switch (name)
+            {
+                case "State":
+                    currentState = data as string;
+                    UpdateDisplayForCurrentState();
+                    break;
+                case "HtStatus":
+                    currentHtStatus = data as RadioHtStatus;
+                    UpdateRadioDisplay();
+                    break;
+                case "Settings":
+                    currentSettings = data as RadioSettings;
+                    UpdateRadioDisplay();
+                    break;
+                case "Channels":
+                    currentChannels = data as RadioChannelInfo[];
+                    UpdateChannelsPanel();
+                    UpdateRadioDisplay();
+                    break;
+            }
         }
 
-        public bool RadioStateLabelVisible
+        /// <summary>
+        /// Updates the display based on the current connection state.
+        /// Shows "Disconnected" if no device or disconnected, "Connecting..." if connecting,
+        /// and the full radio display if connected.
+        /// </summary>
+        private void UpdateDisplayForCurrentState()
         {
-            get { return radioStateLabel.Visible; }
-            set { radioStateLabel.Visible = value; }
+            if (this.Disposing || this.IsDisposed) return;
+            if (this.InvokeRequired) { this.BeginInvoke(new Action(UpdateDisplayForCurrentState)); return; }
+
+            if (_deviceId <= 0 || currentState == null)
+            {
+                // No device assigned - show disconnected state
+                ShowDisconnectedState("Disconnected");
+                return;
+            }
+
+            switch (currentState)
+            {
+                case "Disconnected":
+                case "NotRadioFound":
+                case "BluetoothNotAvailable":
+                    ShowDisconnectedState("Disconnected");
+                    break;
+                case "Connecting":
+                    ShowConnectingState();
+                    break;
+                case "Connected":
+                    ShowConnectedState();
+                    break;
+                case "UnableToConnect":
+                    ShowDisconnectedState("Unable to Connect");
+                    break;
+                case "AccessDenied":
+                    ShowDisconnectedState("Access Denied");
+                    break;
+                case "MultiRadioSelect":
+                    ShowDisconnectedState("Select Radio");
+                    break;
+                default:
+                    ShowDisconnectedState(currentState);
+                    break;
+            }
         }
 
-        public bool ConnectedPanelVisible
+        /// <summary>
+        /// Shows the disconnected state with the specified message.
+        /// </summary>
+        private void ShowDisconnectedState(string message)
         {
-            get { return connectedPanel.Visible; }
-            set { connectedPanel.Visible = value; }
+            radioStateLabel.Text = message;
+            radioStateLabel.Visible = true;
+            connectedPanel.Visible = false;
+            connectButton.Visible = true;
+            rssiProgressBar.Visible = false;
+            transmitBarPanel.Visible = false;
+            voiceProcessingLabel.Visible = false;
         }
 
-        public bool TransmitBarVisible
+        /// <summary>
+        /// Shows the connecting state.
+        /// </summary>
+        private void ShowConnectingState()
         {
-            get { return transmitBarPanel.Visible; }
-            set { transmitBarPanel.Visible = value; }
+            radioStateLabel.Text = "Connecting...";
+            radioStateLabel.Visible = true;
+            connectedPanel.Visible = false;
+            connectButton.Visible = false;
+            rssiProgressBar.Visible = false;
+            transmitBarPanel.Visible = false;
+            voiceProcessingLabel.Visible = false;
         }
 
-        public bool RssiProgressBarVisible
+        /// <summary>
+        /// Shows the connected state with full radio display.
+        /// </summary>
+        private void ShowConnectedState()
         {
-            get { return rssiProgressBar.Visible; }
-            set { rssiProgressBar.Visible = value; }
-        }
+            radioStateLabel.Visible = false;
+            connectedPanel.Visible = true;
+            connectButton.Visible = false;
+            rssiProgressBar.Visible = false;
 
-        public int RssiValue
-        {
-            get { return rssiProgressBar.Value; }
-            set { rssiProgressBar.Value = value; }
-        }
+            // Update the full display
+            UpdateRadioDisplay();
+            UpdateChannelsPanel();
 
-        public bool VoiceProcessingVisible
-        {
-            get { return voiceProcessingLabel.Visible; }
-            set { voiceProcessingLabel.Visible = value; }
-        }
-
-        public string GpsStatusText
-        {
-            get { return gpsStatusLabel.Text; }
-            set { gpsStatusLabel.Text = value; }
-        }
-
-        public void SetRadioImage(int radioType)
-        {
-            radioPictureBox.Visible = (radioType == 0);
-            radio2PictureBox.Visible = (radioType == 1);
-        }
-
-        public void ClearChannels()
-        {
-            channelsFlowLayoutPanel.Controls.Clear();
+            gpsStatusLabel.Text = ""; // TODO
         }
 
         public void UpdateChannelsPanel()
         {
-            /*
-            if (parent == null || parent.radio == null) return;
-            
+            if (this.Disposing || this.IsDisposed) return;
+            if (this.InvokeRequired) { this.BeginInvoke(new Action(UpdateChannelsPanel)); return; }
+
+            if (currentChannels == null || currentChannels.Length == 0)
+            {
+                channelsFlowLayoutPanel.Visible = false;
+                return;
+            }
+
             channelsFlowLayoutPanel.SuspendLayout();
             int visibleChannels = 0;
             int channelHeight = 0;
-            if ((channelControls != null) && (parent.radio.Channels != null))
+
+            // Initialize channel controls array if needed
+            if (channelControls == null || channelControls.Length != currentChannels.Length)
             {
+                channelControls = new RadioChannelControl[currentChannels.Length];
+            }
+
+            for (int i = 0; i < currentChannels.Length; i++)
+            {
+                if (currentChannels[i] != null)
+                {
+                    if (channelControls[i] == null)
+                    {
+                        channelControls[i] = new RadioChannelControl(this);
+                        channelsFlowLayoutPanel.Controls.Add(channelControls[i]);
+                    }
+                    channelControls[i].Channel = currentChannels[i];
+                    channelControls[i].Tag = i;
+
+                    // Show channels that have a name or frequency, or if ShowAllChannels is enabled
+                    bool visible = _showAllChannels || (currentChannels[i].name_str.Length > 0) || (currentChannels[i].rx_freq != 0);
+                    channelControls[i].Visible = visible;
+                    if (visible) { visibleChannels++; }
+                    channelHeight = channelControls[i].Height;
+                }
+            }
+
+            int hBlockCount = ((visibleChannels / 3) + (((visibleChannels % 3) != 0) ? 1 : 0));
+            int blockHeight = 0;
+            if (hBlockCount > 0)
+            {
+                blockHeight = (this.Height - 340) / hBlockCount;
+                if (blockHeight > 50) { blockHeight = 50; }
                 for (int i = 0; i < channelControls.Length; i++)
                 {
-                    if (parent.radio.Channels[i] != null)
-                    {
-                        if (channelControls[i] == null)
-                        {
-                            channelControls[i] = new RadioChannelControl(parent);
-                            channelsFlowLayoutPanel.Controls.Add(channelControls[i]);
-                        }
-                        channelControls[i].Channel = parent.radio.Channels[i];
-                        channelControls[i].Tag = i;
-                        bool visible = parent.showAllChannels || (parent.radio.Channels[i].name_str.Length > 0) || (parent.radio.Channels[i].rx_freq != 0);
-                        channelControls[i].Visible = visible;
-                        if (visible) { visibleChannels++; }
-                        channelHeight = channelControls[i].Height;
-                    }
+                    if (channelControls[i] != null) { channelControls[i].Height = blockHeight; }
                 }
-                int hBlockCount = ((visibleChannels / 3) + (((visibleChannels % 3) != 0) ? 1 : 0));
-                int blockHeight = 0;
-                if (hBlockCount > 0)
-                {
-                    blockHeight = (this.Height - 310) / hBlockCount;
-                    if (blockHeight > 50) { blockHeight = 50; }
-                    for (int i = 0; i < channelControls.Length; i++)
-                    {
-                        if (channelControls[i] != null) { channelControls[i].Height = blockHeight; }
-                    }
-                }
-                channelsFlowLayoutPanel.Height = blockHeight * hBlockCount;
             }
+            channelsFlowLayoutPanel.Height = blockHeight * hBlockCount;
             channelsFlowLayoutPanel.Visible = (visibleChannels > 0);
             channelsFlowLayoutPanel.ResumeLayout();
-            */
         }
 
         public void UpdateRadioDisplay()
         {
-            /*
-            if (parent == null || parent.radio == null) return;
             if (this.Disposing || this.IsDisposed) return;
             if (this.InvokeRequired) { this.BeginInvoke(new Action(UpdateRadioDisplay)); return; }
-            
-            if (parent.radio.Settings == null) return;
 
-            if (parent.radio.Channels != null)
+            if (currentSettings == null) return;
+
+            if (currentChannels != null)
             {
                 RadioChannelInfo channelA = null;
                 RadioChannelInfo channelB = null;
 
-                if ((parent.radio.Settings.channel_a >= 0) && (parent.radio.Settings.channel_a < parent.radio.Channels.Length))
+                // Get channel A from settings
+                if ((currentSettings.channel_a >= 0) && (currentSettings.channel_a < currentChannels.Length))
                 {
-                    channelA = parent.radio.Channels[parent.radio.Settings.channel_a];
+                    channelA = currentChannels[currentSettings.channel_a];
                 }
-                if ((parent.radio.Settings.channel_b >= 0) && (parent.radio.Settings.channel_b < parent.radio.Channels.Length))
+                // Get channel B from settings
+                if ((currentSettings.channel_b >= 0) && (currentSettings.channel_b < currentChannels.Length))
                 {
-                    channelB = parent.radio.Channels[parent.radio.Settings.channel_b];
+                    channelB = currentChannels[currentSettings.channel_b];
                 }
 
+                // Update channel control highlighting
                 if (channelControls != null)
                 {
                     foreach (RadioChannelControl c in channelControls)
@@ -208,7 +327,7 @@ namespace HTCommander.RadioControls
                         {
                             c.BackColor = Color.PaleGoldenrod;
                         }
-                        else if ((channelB != null) && (parent.radio.Settings.double_channel == 1) && (((int)c.Tag) == channelB.channel_id))
+                        else if ((channelB != null) && (currentSettings.double_channel == 1) && (((int)c.Tag) == channelB.channel_id))
                         {
                             c.BackColor = Color.PaleGoldenrod;
                         }
@@ -219,6 +338,7 @@ namespace HTCommander.RadioControls
                     }
                 }
 
+                // Update VFO1 display (Channel A)
                 if (channelA != null)
                 {
                     if (channelA.name_str.Length > 0)
@@ -236,18 +356,7 @@ namespace HTCommander.RadioControls
                         vfo1Label.Text = "Empty";
                         vfo1FreqLabel.Text = "";
                     }
-                    if (parent.activeStationLock == null)
-                    {
-                        vfo1StatusLabel.Text = "";
-                    }
-                    else
-                    {
-                        if (parent.activeStationLock.StationType == StationInfoClass.StationTypes.Terminal) { vfo1StatusLabel.Text = "Terminal"; }
-                        else if (parent.activeStationLock.StationType == StationInfoClass.StationTypes.Winlink) { vfo1StatusLabel.Text = "WinLink"; }
-                        else if (parent.activeStationLock.StationType == StationInfoClass.StationTypes.BBS) { vfo1StatusLabel.Text = "BBS"; }
-                        else if (parent.activeStationLock.StationType == StationInfoClass.StationTypes.Torrent) { vfo1StatusLabel.Text = "Torrent"; }
-                        else if (parent.activeStationLock.StationType == StationInfoClass.StationTypes.AGWPE) { vfo1StatusLabel.Text = "AGWPE"; }
-                    }
+                    vfo1StatusLabel.Text = "";
                 }
                 else
                 {
@@ -255,15 +364,18 @@ namespace HTCommander.RadioControls
                     vfo1FreqLabel.Text = "";
                     vfo1StatusLabel.Text = "";
                 }
-                if (parent.radio.Settings.scan == true)
+
+                // Update VFO2 display (Channel B or scanning)
+                if (currentSettings.scan == true)
                 {
-                    if ((parent.radio.HtStatus != null) && (parent.radio.Channels != null) && (parent.radio.Channels.Length > parent.radio.HtStatus.curr_ch_id) && (parent.radio.Channels[parent.radio.HtStatus.curr_ch_id] != null))
+                    // Scanning mode
+                    if ((currentHtStatus != null) && (currentChannels != null) && (currentChannels.Length > currentHtStatus.curr_ch_id) && (currentChannels[currentHtStatus.curr_ch_id] != null))
                     {
-                        if (parent.radio.Channels[parent.radio.HtStatus.curr_ch_id] == channelA)
+                        if (currentChannels[currentHtStatus.curr_ch_id] == channelA)
                         {
-                            if (vfo2LastChannelId >= 0)
+                            if (vfo2LastChannelId >= 0 && vfo2LastChannelId < currentChannels.Length && currentChannels[vfo2LastChannelId] != null)
                             {
-                                channelB = parent.radio.Channels[vfo2LastChannelId];
+                                channelB = currentChannels[vfo2LastChannelId];
                                 vfo2Label.Text = channelB.name_str;
                                 vfo2FreqLabel.Text = (((float)channelB.rx_freq) / 1000000).ToString("F3") + " MHz";
                                 vfo2StatusLabel.Text = "Scanning...";
@@ -277,11 +389,11 @@ namespace HTCommander.RadioControls
                         }
                         else
                         {
-                            channelB = parent.radio.Channels[parent.radio.HtStatus.curr_ch_id];
+                            channelB = currentChannels[currentHtStatus.curr_ch_id];
                             vfo2Label.Text = channelB.name_str;
                             vfo2FreqLabel.Text = (((float)channelB.rx_freq) / 1000000).ToString("F3") + " MHz";
                             vfo2StatusLabel.Text = "Scanning...";
-                            vfo2LastChannelId = parent.radio.HtStatus.curr_ch_id;
+                            vfo2LastChannelId = currentHtStatus.curr_ch_id;
                         }
                     }
                     else
@@ -291,8 +403,9 @@ namespace HTCommander.RadioControls
                         vfo2StatusLabel.Text = "";
                     }
                 }
-                else if ((parent.radio.Settings.double_channel == 1) && (channelB != null))
+                else if ((currentSettings.double_channel == 1) && (channelB != null))
                 {
+                    // Dual channel mode
                     if (channelB.name_str.Length > 0)
                     {
                         vfo2Label.Text = channelB.name_str;
@@ -312,16 +425,24 @@ namespace HTCommander.RadioControls
                 }
                 else
                 {
+                    // Single channel mode - clear VFO2
                     vfo2Label.Text = "";
                     vfo2FreqLabel.Text = "";
                     vfo2StatusLabel.Text = "";
                 }
-                connectedPanel.Visible = true;
 
-                // Update the colors
-                if ((channelB != null) && (parent.radio.State == Radio.RadioState.Connected) && (parent.radio.HtStatus != null) && (parent.radio.HtStatus.double_channel == Radio.RadioChannelType.A))
+                // Update RSSI if HtStatus is available
+                if (currentHtStatus != null)
                 {
-                    if ((parent.radio.HtStatus.is_in_rx || parent.radio.HtStatus.is_in_tx) && (parent.radio.HtStatus.curr_ch_id == channelB.channel_id))
+                    // RSSI is 0-16. rssiProgressBar maximum is set to 16
+                    rssiProgressBar.Value = currentHtStatus.rssi;
+                    rssiProgressBar.Visible = (currentHtStatus.rssi > 0);
+                }
+
+                // Update the VFO colors based on RX/TX state
+                if ((channelB != null) && (currentState == "Connected") && (currentHtStatus != null) && (currentHtStatus.double_channel == Radio.RadioChannelType.A))
+                {
+                    if ((currentHtStatus.is_in_rx || currentHtStatus.is_in_tx) && (currentHtStatus.curr_ch_id == channelB.channel_id))
                     {
                         vfo1StatusLabel.ForeColor = vfo1FreqLabel.ForeColor = vfo1Label.ForeColor = Color.LightGray;
                         vfo2StatusLabel.ForeColor = vfo2FreqLabel.ForeColor = vfo2Label.ForeColor = Color.FromArgb(221, 211, 0);
@@ -340,6 +461,7 @@ namespace HTCommander.RadioControls
             }
             else
             {
+                // No channels available - clear display
                 vfo1Label.Text = "";
                 vfo1FreqLabel.Text = "";
                 vfo1StatusLabel.Text = "";
@@ -349,9 +471,9 @@ namespace HTCommander.RadioControls
                 vfo1StatusLabel.ForeColor = vfo1FreqLabel.ForeColor = vfo1Label.ForeColor = Color.LightGray;
                 vfo2StatusLabel.ForeColor = vfo2FreqLabel.ForeColor = vfo2Label.ForeColor = Color.LightGray;
             }
+
             AdjustVfoLabel(vfo1Label);
             AdjustVfoLabel(vfo2Label);
-            */
         }
 
         private void AdjustVfoLabel(Label label)
@@ -378,9 +500,7 @@ namespace HTCommander.RadioControls
 
         private void connectButton_Click(object sender, EventArgs e)
         {
-            //if (parent != null) { parent.connectToolStripMenuItem_Click(sender, e); }
-
-            // Dispatch RadioConnect event on device 1
+            // This is a message to the mainform.cs to connect a radio
             DataBroker.Dispatch(1, "RadioConnect", true, store: false);
         }
 
@@ -506,6 +626,62 @@ namespace HTCommander.RadioControls
             */
 
             //gpsStatusLabel.Text = status;
+        }
+
+        /// <summary>
+        /// Gets the current VFO A channel ID from the cached settings.
+        /// </summary>
+        /// <returns>The channel ID for VFO A, or null if settings are not available.</returns>
+        public int? GetCurrentChannelA()
+        {
+            if (currentSettings == null) return null;
+            return currentSettings.channel_a;
+        }
+
+        /// <summary>
+        /// Gets the current VFO B channel ID from the cached settings.
+        /// </summary>
+        /// <returns>The channel ID for VFO B, or null if settings are not available.</returns>
+        public int? GetCurrentChannelB()
+        {
+            if (currentSettings == null) return null;
+            return currentSettings.channel_b;
+        }
+
+        /// <summary>
+        /// Changes the VFO A channel to the specified channel ID.
+        /// Dispatches a ChannelChangeVfoA event to the broker.
+        /// </summary>
+        /// <param name="channelId">The channel ID to switch VFO A to.</param>
+        public void ChangeChannelA(int channelId)
+        {
+            if (_deviceId <= 0) return;
+            broker.Dispatch(_deviceId, "ChannelChangeVfoA", channelId, store: false);
+        }
+
+        /// <summary>
+        /// Changes the VFO B channel to the specified channel ID.
+        /// Dispatches a ChannelChangeVfoB event to the broker.
+        /// </summary>
+        /// <param name="channelId">The channel ID to switch VFO B to.</param>
+        public void ChangeChannelB(int channelId)
+        {
+            if (_deviceId <= 0) return;
+            broker.Dispatch(_deviceId, "ChannelChangeVfoB", channelId, store: false);
+        }
+
+        /// <summary>
+        /// Gets or sets whether all channels should be shown, including empty ones.
+        /// </summary>
+        public bool ShowAllChannels
+        {
+            get { return _showAllChannels; }
+            set
+            {
+                if (_showAllChannels == value) return;
+                _showAllChannels = value;
+                UpdateChannelsPanel();
+            }
         }
     }
 }

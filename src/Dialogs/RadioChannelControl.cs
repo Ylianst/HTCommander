@@ -16,15 +16,16 @@ limitations under the License.
 
 using System;
 using System.Windows.Forms;
+using HTCommander.RadioControls;
 
 namespace HTCommander
 {
     public partial class RadioChannelControl : UserControl
     {
         private RadioChannelInfo channel;
-        private MainForm parent;
+        private RadioPanelControl parent;
 
-        public RadioChannelControl(MainForm parent)
+        public RadioChannelControl(RadioPanelControl parent)
         {
             InitializeComponent();
             this.parent = parent;
@@ -83,26 +84,24 @@ namespace HTCommander
 
         private void channelNameLabel_Click(object sender, EventArgs e)
         {
-            //if (parent != null) { parent.ChangeChannelA((int)this.Tag); }
+            if (parent != null) { parent.ChangeChannelA((int)this.Tag); }
         }
 
         private void setChannelAToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            //if (parent != null) { parent.ChangeChannelA((int)this.Tag); }
+            if (parent != null) { parent.ChangeChannelA((int)this.Tag); }
         }
 
         private void setChannelBToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            //if (parent != null) { parent.ChangeChannelB((int)this.Tag); }
+            if (parent != null) { parent.ChangeChannelB((int)this.Tag); }
         }
 
         private void showAllChannelsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (parent != null)
             {
-                //parent.showAllChannels = !showAllChannelsToolStripMenuItem.Checked;
-                //parent.registry.WriteInt("ShowAllChannels", parent.showAllChannels ? 1 : 0);
-                UpdateChannelsPanel();
+                parent.ShowAllChannels = !parent.ShowAllChannels;
             }
         }
 
@@ -153,9 +152,18 @@ namespace HTCommander
         {
             if (parent != null)
             {
-                //showAllChannelsToolStripMenuItem.Checked = parent.showAllChannels;
-                //setChannelAToolStripMenuItem.Enabled = (parent.activeStationLock == null);
-                //setChannelBToolStripMenuItem.Visible = (parent.radio.Settings.double_channel == 1);
+                int channelId = (int)this.Tag;
+                int? currentChannelA = parent.GetCurrentChannelA();
+                int? currentChannelB = parent.GetCurrentChannelB();
+                
+                // Disable "Set VFO A" if this channel is already VFO A
+                setChannelAToolStripMenuItem.Enabled = (currentChannelA == null || currentChannelA != channelId);
+                
+                // Disable "Set VFO B" if this channel is already VFO B
+                setChannelBToolStripMenuItem.Enabled = (currentChannelB == null || currentChannelB != channelId);
+                
+                // Set the "Show All Channels" checkbox state
+                showAllChannelsToolStripMenuItem.Checked = parent.ShowAllChannels;
             }
         }
 
