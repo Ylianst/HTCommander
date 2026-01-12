@@ -254,14 +254,14 @@ namespace HTCommander
             // Track the connected radio
             connectedRadios.Add(radio);
 
+            // Publish updated connected radios list
+            PublishConnectedRadios();
+
             // If the radioPanelControl is not monitoring an existing connected radio, set it to this new radio
             if (radioPanelControl.DeviceId <= 0 || !connectedRadios.Any(r => r.DeviceId == radioPanelControl.DeviceId))
             {
                 radioPanelControl.DeviceId = deviceId;
             }
-
-            // Publish updated connected radios list
-            PublishConnectedRadios();
 
             // Start the Bluetooth connection
             radio.Connect();

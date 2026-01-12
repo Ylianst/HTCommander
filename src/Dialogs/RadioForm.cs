@@ -48,7 +48,7 @@ namespace HTCommander.Dialogs
 
         private void LoadConnectedRadios()
         {
-            var radioList = broker.GetValue<List<object>>(1, "ConnectedRadios", null);
+            var radioList = DataBroker.GetValue(1, "ConnectedRadios") as System.Collections.IList;
             UpdateConnectedRadiosList(radioList);
         }
 

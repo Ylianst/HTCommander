@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using NAudio.Wave;
@@ -23,7 +24,6 @@ namespace HTCommander.RadioControls
 {
     public partial class RadioPanelControl : UserControl
     {
-        private MainForm parent;
         private RadioChannelControl[] channelControls = null;
         private int vfo2LastChannelId = -1;
         private DataBrokerClient broker;
@@ -36,6 +36,7 @@ namespace HTCommander.RadioControls
         private RadioHtStatus currentHtStatus = null;
         private RadioSettings currentSettings = null;
         private RadioChannelInfo[] currentChannels = null;
+        private string _friendlyName = null;
 
         // UI state
         private bool _showAllChannels = false;
@@ -44,21 +45,14 @@ namespace HTCommander.RadioControls
         {
             InitializeComponent();
 
-            // Set up DataBrokerClient for subscribing to broker events
-            broker = new DataBrokerClient();
-        }
+            // Enable double buffering to prevent flickering when drawing
+            this.DoubleBuffered = true;
 
-        public RadioPanelControl(MainForm mainForm) : this()
-        {
-            Initialize(mainForm);
+            // Subscribe to PictureBox Paint event to draw text on top of the image
+            radioPictureBox.Paint += RadioPictureBox_Paint;
 
             // Set up DataBrokerClient for subscribing to broker events
             broker = new DataBrokerClient();
-        }
-
-        public void Initialize(MainForm mainForm)
-        {
-            this.parent = mainForm;
         }
 
         /// <summary>
@@ -93,7 +87,7 @@ namespace HTCommander.RadioControls
                 if (_deviceId > 0 && broker != null)
                 {
                     // Subscribe to the new device's events
-                    broker.Subscribe(_deviceId, new[] { "State", "HtStatus", "Settings", "Channels" }, OnBrokerEvent);
+                    broker.Subscribe(_deviceId, new[] { "State", "HtStatus", "Settings", "Channels", "FriendlyName" }, OnBrokerEvent);
 
                     // Load initial state from broker
                     LoadInitialState();
@@ -116,6 +110,35 @@ namespace HTCommander.RadioControls
             currentHtStatus = broker.GetValue<RadioHtStatus>(_deviceId, "HtStatus", null);
             currentSettings = broker.GetValue<RadioSettings>(_deviceId, "Settings", null);
             currentChannels = broker.GetValue<RadioChannelInfo[]>(_deviceId, "Channels", null);
+
+            // Get FriendlyName from ConnectedRadios list on device id 1
+            _friendlyName = GetFriendlyNameFromConnectedRadios(_deviceId);
+
+            // Force redraw of the PictureBox to show the FriendlyName
+            radioPictureBox.Invalidate();
+        }
+
+        /// <summary>
+        /// Gets the FriendlyName for a device from the ConnectedRadios list.
+        /// </summary>
+        /// <param name="deviceId">The device ID to look up.</param>
+        /// <returns>The FriendlyName if found, otherwise null.</returns>
+        private string GetFriendlyNameFromConnectedRadios(int deviceId)
+        {
+            var connectedRadios = DataBroker.GetValue(1, "ConnectedRadios") as System.Collections.IList;
+            if (connectedRadios == null) return null;
+
+            foreach (var item in connectedRadios)
+            {
+                if (item == null) continue;
+                var itemType = item.GetType();
+                int? itemDeviceId = (int?)itemType.GetProperty("DeviceId")?.GetValue(item);
+                if (itemDeviceId.HasValue && itemDeviceId.Value == deviceId)
+                {
+                    return (string)itemType.GetProperty("FriendlyName")?.GetValue(item);
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -143,6 +166,10 @@ namespace HTCommander.RadioControls
                     currentChannels = data as RadioChannelInfo[];
                     UpdateChannelsPanel();
                     UpdateRadioDisplay();
+                    break;
+                case "FriendlyName":
+                    _friendlyName = data as string;
+                    radioPictureBox.Invalidate(); // Trigger repaint to update the displayed name
                     break;
             }
         }
@@ -189,6 +216,28 @@ namespace HTCommander.RadioControls
                 default:
                     ShowDisconnectedState(currentState);
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Paint event handler for the PictureBox to draw the FriendlyName on top of the image.
+        /// </summary>
+        private void RadioPictureBox_Paint(object sender, PaintEventArgs e)
+        {
+            // Draw the FriendlyName if available
+            if (!string.IsNullOrEmpty(_friendlyName))
+            {
+                using (Font font = new Font("Microsoft Sans Serif", 14, FontStyle.Regular, GraphicsUnit.Pixel))
+                using (Brush brush = new SolidBrush(Color.Gray))
+                {
+                    // Measure the string to center it horizontally within the PictureBox
+                    SizeF textSize = e.Graphics.MeasureString(_friendlyName, font);
+                    float x = ((radioPictureBox.ClientSize.Width - textSize.Width) / 2) + 4;
+                    float y = 106;
+
+                    // Draw the text on top of the image
+                    e.Graphics.DrawString(_friendlyName, font, brush, x, y);
+                }
             }
         }
 
@@ -504,15 +553,6 @@ namespace HTCommander.RadioControls
             DataBroker.Dispatch(1, "RadioConnect", true, store: false);
         }
 
-        private void checkBluetoothButton_Click(object sender, EventArgs e)
-        {
-            // Trigger bluetooth check in parent
-            if (parent != null)
-            {
-                // Parent will handle this
-            }
-        }
-
         private void radioPictureBox_Click(object sender, EventArgs e)
         {
             //if (parent != null) { parent.volumeToolStripMenuItem_Click(sender, e); }
@@ -542,6 +582,7 @@ namespace HTCommander.RadioControls
 
         private void radioPictureBox_DragDrop(object sender, DragEventArgs e)
         {
+            /*
             if (parent == null) return;
             
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -562,6 +603,7 @@ namespace HTCommander.RadioControls
                     }
                 }
             }
+            */
         }
 
         private void radioPanel_SizeChanged(object sender, EventArgs e)

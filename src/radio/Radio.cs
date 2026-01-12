@@ -1035,7 +1035,7 @@ namespace HTCommander
         public void UpdateFriendlyName(string newName)
         {
             FriendlyName = newName;
-            broker.Dispatch(DeviceId, "FriendlyName", newName, store: true);
+            broker.Dispatch(DeviceId, "FriendlyName", newName, store: false);
         }
 
         #endregion
