@@ -117,6 +117,7 @@
             radiosListView.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             radiosListView.Name = "radiosListView";
             radiosListView.Size = new System.Drawing.Size(557, 177);
+            radiosListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             radiosListView.TabIndex = 1;
             radiosListView.UseCompatibleStateImageBehavior = false;
             radiosListView.View = System.Windows.Forms.View.Details;
