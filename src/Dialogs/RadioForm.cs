@@ -8,6 +8,7 @@ using System;
 using System.Linq;
 using System.Windows.Forms;
 using System.Collections.Generic;
+using HTCommander.radio;
 
 namespace HTCommander.Dialogs
 {
@@ -205,6 +206,102 @@ namespace HTCommander.Dialogs
         private void closeToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Close();
+        }
+
+        private void settingsToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
+        {
+            int deviceId = radioPanelControl.DeviceId;
+            bool hasRadio = (deviceId > 0) && connectedRadios.Any(r => r.DeviceId == deviceId);
+
+            // Enable/disable the first 4 menu items based on radio connection
+            dualWatchToolStripMenuItem.Enabled = hasRadio;
+            scanToolStripMenuItem.Enabled = hasRadio;
+            regionToolStripMenuItem.Enabled = hasRadio;
+            gPSEnabledToolStripMenuItem.Enabled = hasRadio;
+
+            if (!hasRadio)
+            {
+                // Clear checked states when no radio
+                dualWatchToolStripMenuItem.Checked = false;
+                scanToolStripMenuItem.Checked = false;
+                gPSEnabledToolStripMenuItem.Checked = false;
+                regionToolStripMenuItem.DropDownItems.Clear();
+                return;
+            }
+
+            // Get the current radio's settings and status from the broker
+            RadioSettings settings = DataBroker.GetValue<RadioSettings>(deviceId, "Settings", null);
+            RadioHtStatus htStatus = DataBroker.GetValue<RadioHtStatus>(deviceId, "HtStatus", null);
+            RadioDevInfo devInfo = DataBroker.GetValue<RadioDevInfo>(deviceId, "Info", null);
+
+            // Set Dual-Watch state (double_channel: 0 = off, 1 = on)
+            if (settings != null)
+            {
+                dualWatchToolStripMenuItem.Checked = (settings.double_channel == 1);
+                scanToolStripMenuItem.Checked = settings.scan;
+            }
+            else
+            {
+                dualWatchToolStripMenuItem.Checked = false;
+                scanToolStripMenuItem.Checked = false;
+            }
+
+            // Set GPS Enabled state from the broker
+            bool gpsEnabled = DataBroker.GetValue<bool>(deviceId, "GpsEnabled", false);
+            gPSEnabledToolStripMenuItem.Checked = gpsEnabled;
+
+            // Build Regions sub-menu
+            regionToolStripMenuItem.DropDownItems.Clear();
+            if (devInfo != null && htStatus != null && devInfo.region_count > 0)
+            {
+                for (int i = 0; i < devInfo.region_count; i++)
+                {
+                    ToolStripMenuItem regionItem = new ToolStripMenuItem();
+                    regionItem.Text = $"Region {i + 1}";
+                    regionItem.Tag = i;
+                    regionItem.Checked = (i == htStatus.curr_region);
+                    int regionIndex = i; // Capture for closure
+                    int currentDeviceId = deviceId; // Capture for closure
+                    regionItem.Click += (s, args) =>
+                    {
+                        // Send Region event via broker
+                        DataBroker.Dispatch(currentDeviceId, "Region", regionIndex, store: false);
+                    };
+                    regionToolStripMenuItem.DropDownItems.Add(regionItem);
+                }
+            }
+        }
+
+        private void dualWatchToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            int deviceId = radioPanelControl.DeviceId;
+            RadioSettings settings = DataBroker.GetValue<RadioSettings>(deviceId, "Settings", null);
+            if (settings == null) return;
+
+            // Toggle dual-watch (double_channel: 0 = off, 1 = on) and send via broker
+            bool newDualWatch = (settings.double_channel != 1);
+            DataBroker.Dispatch(deviceId, "DualWatch", newDualWatch, store: false);
+        }
+
+        private void scanToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            int deviceId = radioPanelControl.DeviceId;
+            RadioSettings settings = DataBroker.GetValue<RadioSettings>(deviceId, "Settings", null);
+            if (settings == null) return;
+
+            // Toggle scan and send via broker
+            bool newScan = !settings.scan;
+            DataBroker.Dispatch(deviceId, "Scan", newScan, store: false);
+        }
+
+        private void gPSEnabledToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            int deviceId = radioPanelControl.DeviceId;
+            if (deviceId <= 0) return;
+
+            // Toggle GPS - check current state and toggle, send via broker
+            bool currentlyEnabled = gPSEnabledToolStripMenuItem.Checked;
+            DataBroker.Dispatch(deviceId, "SetGPS", !currentlyEnabled, store: false);
         }
 
         /// <summary>

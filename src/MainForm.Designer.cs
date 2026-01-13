@@ -63,6 +63,7 @@
             g9600ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             radioToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            radioWindowToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             radioInformationToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -95,7 +96,6 @@
             mainImageList = new System.Windows.Forms.ImageList(components);
             radioPanel = new System.Windows.Forms.Panel();
             radioPanelControl = new HTCommander.RadioControls.RadioPanelControl();
-            radioWindowToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             mainStatusStrip.SuspendLayout();
             mainMenuStrip.SuspendLayout();
             mainTabControl.SuspendLayout();
@@ -208,51 +208,54 @@
             toolStripMenuItem21.Name = "toolStripMenuItem21";
             toolStripMenuItem21.Size = new System.Drawing.Size(76, 24);
             toolStripMenuItem21.Text = "&Settings";
+            toolStripMenuItem21.DropDownOpening += settingsMenuToolStripMenuItem_DropDownOpening;
             // 
             // dualWatchToolStripMenuItem
             // 
             dualWatchToolStripMenuItem.Enabled = false;
             dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
-            dualWatchToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            dualWatchToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             dualWatchToolStripMenuItem.Text = "&Dual-Watch";
+            dualWatchToolStripMenuItem.Click += dualWatchToolStripMenuItem_Click;
             // 
             // scanToolStripMenuItem
             // 
             scanToolStripMenuItem.Enabled = false;
             scanToolStripMenuItem.Name = "scanToolStripMenuItem";
-            scanToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            scanToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             scanToolStripMenuItem.Text = "&Scan";
+            scanToolStripMenuItem.Click += scanToolStripMenuItem_Click;
             // 
             // regionToolStripMenuItem
             // 
             regionToolStripMenuItem.Enabled = false;
             regionToolStripMenuItem.Name = "regionToolStripMenuItem";
-            regionToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            regionToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             regionToolStripMenuItem.Text = "&Regions";
             // 
             // gPSEnabledToolStripMenuItem
             // 
-            gPSEnabledToolStripMenuItem.CheckOnClick = true;
             gPSEnabledToolStripMenuItem.Name = "gPSEnabledToolStripMenuItem";
-            gPSEnabledToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            gPSEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             gPSEnabledToolStripMenuItem.Text = "&GPS Enabled";
+            gPSEnabledToolStripMenuItem.Click += gPSEnabledToolStripMenuItem_Click;
             // 
             // toolStripSeparator1
             // 
             toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new System.Drawing.Size(206, 6);
+            toolStripSeparator1.Size = new System.Drawing.Size(221, 6);
             // 
             // exportChannelsToolStripMenuItem
             // 
             exportChannelsToolStripMenuItem.Enabled = false;
             exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
-            exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             exportChannelsToolStripMenuItem.Text = "&Export Channels...";
             // 
             // importChannelsToolStripMenuItem
             // 
             importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
-            importChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            importChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             importChannelsToolStripMenuItem.Text = "&Import Channels...";
             // 
             // audioToolStripMenuItem1
@@ -347,14 +350,21 @@
             radioToolStripMenuItem.CheckOnClick = true;
             radioToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             radioToolStripMenuItem.Name = "radioToolStripMenuItem";
-            radioToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            radioToolStripMenuItem.Size = new System.Drawing.Size(199, 26);
             radioToolStripMenuItem.Text = "&Radio";
             radioToolStripMenuItem.CheckedChanged += radioToolStripMenuItem_CheckedChanged;
+            // 
+            // radioWindowToolStripMenuItem
+            // 
+            radioWindowToolStripMenuItem.Name = "radioWindowToolStripMenuItem";
+            radioWindowToolStripMenuItem.Size = new System.Drawing.Size(199, 26);
+            radioWindowToolStripMenuItem.Text = "Radio Window...";
+            radioWindowToolStripMenuItem.Click += radioWindowToolStripMenuItem_Click;
             // 
             // allChannelsToolStripMenuItem
             // 
             allChannelsToolStripMenuItem.Name = "allChannelsToolStripMenuItem";
-            allChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            allChannelsToolStripMenuItem.Size = new System.Drawing.Size(199, 26);
             allChannelsToolStripMenuItem.Text = "All Channels";
             allChannelsToolStripMenuItem.Click += allChannelsToolStripMenuItem_Click;
             // 
@@ -688,13 +698,6 @@
             radioPanelControl.ShowAllChannels = false;
             radioPanelControl.Size = new System.Drawing.Size(368, 840);
             radioPanelControl.TabIndex = 0;
-            // 
-            // radioWindowToolStripMenuItem
-            // 
-            radioWindowToolStripMenuItem.Name = "radioWindowToolStripMenuItem";
-            radioWindowToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            radioWindowToolStripMenuItem.Text = "Radio Window...";
-            radioWindowToolStripMenuItem.Click += radioWindowToolStripMenuItem_Click;
             // 
             // MainForm
             // 

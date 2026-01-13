@@ -27,7 +27,7 @@ namespace HTCommander
         private TncDataFragment frameAccumulator = null;
         private TncDataFragment lastHardwarePacketReceived = null;
         private RadioState state = RadioState.Disconnected;
-        private bool gpsEnabled = false;
+        private bool _gpsEnabled = false;
         private int gpsLock = 2;
 
         private List<FragmentInQueue> TncFragmentQueue = new List<FragmentInQueue>();
@@ -170,6 +170,9 @@ namespace HTCommander
 
             // Subscribe to channel change events
             broker.Subscribe(deviceid, new[] { "ChannelChangeVfoA", "ChannelChangeVfoB" }, OnChannelChangeEvent);
+
+            // Subscribe to settings change events from UI
+            broker.Subscribe(deviceid, new[] { "WriteSettings", "SetRegion", "DualWatch", "Scan", "SetGPS", "Region" }, OnSettingsChangeEvent);
         }
 
         /// <summary>
@@ -191,6 +194,55 @@ namespace HTCommander
                 case "ChannelChangeVfoB":
                     // Change VFO B to the new channel
                     WriteSettings(Settings.ToByteArray(Settings.channel_a, channelId, Settings.double_channel, Settings.scan, Settings.squelch_level));
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Handles settings change events from the broker (from UI like RadioForm).
+        /// </summary>
+        private void OnSettingsChangeEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+
+            switch (name)
+            {
+                case "WriteSettings":
+                    // Write the new settings to the radio
+                    if (data is byte[] settingsData)
+                    {
+                        WriteSettings(settingsData);
+                    }
+                    break;
+                case "SetRegion":
+                case "Region":
+                    // Set the region
+                    if (data is int regionId)
+                    {
+                        SetRegion(regionId);
+                    }
+                    break;
+                case "SetGPS":
+                    // Toggle GPS
+                    if (data is bool gpsState)
+                    {
+                        GpsEnabled(gpsState);
+                    }
+                    break;
+                case "DualWatch":
+                    // Toggle dual-watch
+                    if (Settings != null && data is bool dualWatchEnabled)
+                    {
+                        int newDoubleChannel = dualWatchEnabled ? 1 : 0;
+                        WriteSettings(Settings.ToByteArray(Settings.channel_a, Settings.channel_b, newDoubleChannel, Settings.scan, Settings.squelch_level));
+                    }
+                    break;
+                case "Scan":
+                    // Toggle scan
+                    if (Settings != null && data is bool scanEnabled)
+                    {
+                        WriteSettings(Settings.ToByteArray(Settings.channel_a, Settings.channel_b, Settings.double_channel, scanEnabled, Settings.squelch_level));
+                    }
                     break;
             }
         }
@@ -339,12 +391,16 @@ namespace HTCommander
 
         public void GpsEnabled(bool enabled)
         {
-            if (gpsEnabled == enabled) return;
-            gpsEnabled = enabled;
+            if (_gpsEnabled == enabled) return;
+            _gpsEnabled = enabled;
+
+            // Publish the GPS enabled state to the broker
+            broker.Dispatch(DeviceId, "GpsEnabled", _gpsEnabled, store: true);
+
             if (state == RadioState.Connected)
             {
                 gpsLock = 2;
-                var cmd = gpsEnabled ? RadioBasicCommand.REGISTER_NOTIFICATION : RadioBasicCommand.CANCEL_NOTIFICATION;
+                var cmd = _gpsEnabled ? RadioBasicCommand.REGISTER_NOTIFICATION : RadioBasicCommand.CANCEL_NOTIFICATION;
                 SendCommand(RadioCommandGroup.BASIC, cmd, (int)RadioNotification.POSITION_CHANGE);
             }
         }
@@ -726,8 +782,10 @@ namespace HTCommander
                     Channels = new RadioChannelInfo[Info.channel_count];
                     UpdateState(RadioState.Connected);
                     broker.Dispatch(DeviceId, "Info", Info, store: true);
+                    // Publish initial GPS enabled state
+                    broker.Dispatch(DeviceId, "GpsEnabled", _gpsEnabled, store: true);
                     SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.HT_STATUS_CHANGED);
-                    if (gpsEnabled) SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.POSITION_CHANGE);
+                    if (_gpsEnabled) SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.POSITION_CHANGE);
                     break;
                 case RadioBasicCommand.READ_RF_CH:
                     HandleReadRfChannel(value);

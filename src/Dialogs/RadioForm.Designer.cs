@@ -32,6 +32,11 @@
             mainMenuStrip = new System.Windows.Forms.MenuStrip();
             fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             closeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            dualWatchToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            scanToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            regionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            gPSEnabledToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             radioPanelControl = new HTCommander.RadioControls.RadioPanelControl();
@@ -41,7 +46,7 @@
             // mainMenuStrip
             // 
             mainMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            mainMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { fileToolStripMenuItem, viewToolStripMenuItem });
+            mainMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { fileToolStripMenuItem, settingsToolStripMenuItem, viewToolStripMenuItem });
             mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             mainMenuStrip.Name = "mainMenuStrip";
             mainMenuStrip.Size = new System.Drawing.Size(366, 28);
@@ -61,6 +66,44 @@
             closeToolStripMenuItem.Size = new System.Drawing.Size(128, 26);
             closeToolStripMenuItem.Text = "&Close";
             closeToolStripMenuItem.Click += closeToolStripMenuItem_Click;
+            // 
+            // settingsToolStripMenuItem
+            // 
+            settingsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { dualWatchToolStripMenuItem, scanToolStripMenuItem, regionToolStripMenuItem, gPSEnabledToolStripMenuItem });
+            settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
+            settingsToolStripMenuItem.Size = new System.Drawing.Size(76, 24);
+            settingsToolStripMenuItem.Text = "&Settings";
+            settingsToolStripMenuItem.DropDownOpening += settingsToolStripMenuItem_DropDownOpening;
+            // 
+            // dualWatchToolStripMenuItem
+            // 
+            dualWatchToolStripMenuItem.Enabled = false;
+            dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
+            dualWatchToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            dualWatchToolStripMenuItem.Text = "&Dual-Watch";
+            dualWatchToolStripMenuItem.Click += dualWatchToolStripMenuItem_Click;
+            // 
+            // scanToolStripMenuItem
+            // 
+            scanToolStripMenuItem.Enabled = false;
+            scanToolStripMenuItem.Name = "scanToolStripMenuItem";
+            scanToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            scanToolStripMenuItem.Text = "&Scan";
+            scanToolStripMenuItem.Click += scanToolStripMenuItem_Click;
+            // 
+            // regionToolStripMenuItem
+            // 
+            regionToolStripMenuItem.Enabled = false;
+            regionToolStripMenuItem.Name = "regionToolStripMenuItem";
+            regionToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            regionToolStripMenuItem.Text = "&Regions";
+            // 
+            // gPSEnabledToolStripMenuItem
+            // 
+            gPSEnabledToolStripMenuItem.Name = "gPSEnabledToolStripMenuItem";
+            gPSEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            gPSEnabledToolStripMenuItem.Text = "&GPS Enabled";
+            gPSEnabledToolStripMenuItem.Click += gPSEnabledToolStripMenuItem_Click;
             // 
             // viewToolStripMenuItem
             // 
@@ -114,6 +157,11 @@
         private System.Windows.Forms.MenuStrip mainMenuStrip;
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem settingsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem dualWatchToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem scanToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem regionToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem gPSEnabledToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem allChannelsToolStripMenuItem;
         private RadioControls.RadioPanelControl radioPanelControl;

@@ -7,6 +7,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using HTCommander.radio;
 
 namespace HTCommander.RadioControls
 {
@@ -25,6 +26,8 @@ namespace HTCommander.RadioControls
         private RadioSettings currentSettings = null;
         private RadioChannelInfo[] currentChannels = null;
         private string _friendlyName = null;
+        private bool _gpsEnabled = false;
+        private RadioPosition _position = null;
 
         // UI state
         private bool _showAllChannels = false;
@@ -75,7 +78,7 @@ namespace HTCommander.RadioControls
                 if (_deviceId > 0 && broker != null)
                 {
                     // Subscribe to the new device's events
-                    broker.Subscribe(_deviceId, new[] { "State", "HtStatus", "Settings", "Channels", "FriendlyName" }, OnBrokerEvent);
+                    broker.Subscribe(_deviceId, new[] { "State", "HtStatus", "Settings", "Channels", "FriendlyName", "GpsEnabled", "Position" }, OnBrokerEvent);
 
                     // Load initial state from broker
                     LoadInitialState();
@@ -98,12 +101,17 @@ namespace HTCommander.RadioControls
             currentHtStatus = broker.GetValue<RadioHtStatus>(_deviceId, "HtStatus", null);
             currentSettings = broker.GetValue<RadioSettings>(_deviceId, "Settings", null);
             currentChannels = broker.GetValue<RadioChannelInfo[]>(_deviceId, "Channels", null);
+            _gpsEnabled = broker.GetValue<bool>(_deviceId, "GpsEnabled", false);
+            _position = broker.GetValue<RadioPosition>(_deviceId, "Position", null);
 
             // Get FriendlyName from ConnectedRadios list on device id 1
             _friendlyName = GetFriendlyNameFromConnectedRadios(_deviceId);
 
             // Force redraw of the PictureBox to show the FriendlyName
             radioPictureBox.Invalidate();
+
+            // Update GPS status display
+            UpdateGpsStatusDisplay();
         }
 
         /// <summary>
@@ -158,6 +166,17 @@ namespace HTCommander.RadioControls
                 case "FriendlyName":
                     _friendlyName = data as string;
                     radioPictureBox.Invalidate(); // Trigger repaint to update the displayed name
+                    break;
+                case "GpsEnabled":
+                    if (data is bool gpsEnabled)
+                    {
+                        _gpsEnabled = gpsEnabled;
+                        UpdateGpsStatusDisplay();
+                    }
+                    break;
+                case "Position":
+                    _position = data as RadioPosition;
+                    UpdateGpsStatusDisplay();
                     break;
             }
         }
@@ -270,8 +289,7 @@ namespace HTCommander.RadioControls
             // Update the full display
             UpdateRadioDisplay();
             UpdateChannelsPanel();
-
-            gpsStatusLabel.Text = ""; // TODO
+            UpdateGpsStatusDisplay();
         }
 
         public void UpdateChannelsPanel()
@@ -620,42 +638,33 @@ namespace HTCommander.RadioControls
 
         private void UpdateGpsStatusDisplay()
         {
-            /*
-            string status = "";
+            if (this.Disposing || this.IsDisposed) return;
+            if (this.InvokeRequired) { this.BeginInvoke(new Action(UpdateGpsStatusDisplay)); return; }
 
-            // GPS Status
-            if ((radio.State == RadioState.Connected) && gPSEnabledToolStripMenuItem.Checked)
+            // If GPS is not enabled, display nothing
+            if (!_gpsEnabled)
             {
-                if (radio.Position == null)
-                {
-                    status = "No GPS Lock";
-                }
-                else
-                {
-                    if (radio.Position.IsGpsLocked()) { status = "GPS Lock"; } else { status = "No GPS Lock"; }
-                }
+                gpsStatusLabel.Text = "";
+                return;
+            }
+
+            // GPS is enabled - check if we have a position
+            if (_position == null)
+            {
+                gpsStatusLabel.Text = "No GPS Lock";
             }
             else
             {
-                status = "";
-            }
-
-            if (radio.AudioState == true)
-            {
-                // Software modem status
-                if (radio.SoftwareModemMode != RadioAudio.SoftwareModemModeType.Disabled)
+                // Check if position has a valid GPS lock
+                if (_position.Locked)
                 {
-                    if (status.Length > 0) { status += " / "; }
-                    if (radio.SoftwareModemMode == RadioAudio.SoftwareModemModeType.Afsk1200) { status += "AFK1200"; }
-                    else if (radio.SoftwareModemMode == RadioAudio.SoftwareModemModeType.Psk2400) { status += "PSK2400"; }
-                    else if (radio.SoftwareModemMode == RadioAudio.SoftwareModemModeType.Psk4800) { status += "PSK4800"; }
-                    else if (radio.SoftwareModemMode == RadioAudio.SoftwareModemModeType.G3RUH9600) { status += "G9600"; }
-                    else status += radio.SoftwareModemMode.ToString();
+                    gpsStatusLabel.Text = "GPS Lock";
+                }
+                else
+                {
+                    gpsStatusLabel.Text = "No GPS Lock";
                 }
             }
-            */
-
-            //gpsStatusLabel.Text = status;
         }
 
         /// <summary>
