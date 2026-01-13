@@ -96,6 +96,7 @@
             mainImageList = new System.Windows.Forms.ImageList(components);
             radioPanel = new System.Windows.Forms.Panel();
             radioPanelControl = new HTCommander.RadioControls.RadioPanelControl();
+            importChannelFileDialog = new System.Windows.Forms.OpenFileDialog();
             mainStatusStrip.SuspendLayout();
             mainMenuStrip.SuspendLayout();
             mainTabControl.SuspendLayout();
@@ -214,7 +215,7 @@
             // 
             dualWatchToolStripMenuItem.Enabled = false;
             dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
-            dualWatchToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            dualWatchToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
             dualWatchToolStripMenuItem.Text = "&Dual-Watch";
             dualWatchToolStripMenuItem.Click += dualWatchToolStripMenuItem_Click;
             // 
@@ -222,7 +223,7 @@
             // 
             scanToolStripMenuItem.Enabled = false;
             scanToolStripMenuItem.Name = "scanToolStripMenuItem";
-            scanToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            scanToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
             scanToolStripMenuItem.Text = "&Scan";
             scanToolStripMenuItem.Click += scanToolStripMenuItem_Click;
             // 
@@ -230,33 +231,34 @@
             // 
             regionToolStripMenuItem.Enabled = false;
             regionToolStripMenuItem.Name = "regionToolStripMenuItem";
-            regionToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            regionToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
             regionToolStripMenuItem.Text = "&Regions";
             // 
             // gPSEnabledToolStripMenuItem
             // 
             gPSEnabledToolStripMenuItem.Name = "gPSEnabledToolStripMenuItem";
-            gPSEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            gPSEnabledToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
             gPSEnabledToolStripMenuItem.Text = "&GPS Enabled";
             gPSEnabledToolStripMenuItem.Click += gPSEnabledToolStripMenuItem_Click;
             // 
             // toolStripSeparator1
             // 
             toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new System.Drawing.Size(221, 6);
+            toolStripSeparator1.Size = new System.Drawing.Size(206, 6);
             // 
             // exportChannelsToolStripMenuItem
             // 
             exportChannelsToolStripMenuItem.Enabled = false;
             exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
-            exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
             exportChannelsToolStripMenuItem.Text = "&Export Channels...";
             // 
             // importChannelsToolStripMenuItem
             // 
             importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
-            importChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            importChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
             importChannelsToolStripMenuItem.Text = "&Import Channels...";
+            importChannelsToolStripMenuItem.Click += importChannelsToolStripMenuItem_Click;
             // 
             // audioToolStripMenuItem1
             // 
@@ -699,6 +701,11 @@
             radioPanelControl.Size = new System.Drawing.Size(368, 840);
             radioPanelControl.TabIndex = 0;
             // 
+            // importChannelFileDialog
+            // 
+            importChannelFileDialog.Filter = "Channels (*.csv)|*.csv|CHIRP (*.csv)|*.csv";
+            importChannelFileDialog.Title = "Import Channels";
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
@@ -804,5 +811,6 @@
         private System.Windows.Forms.Panel radioPanel;
         private RadioControls.RadioPanelControl radioPanelControl;
         private System.Windows.Forms.ToolStripMenuItem radioWindowToolStripMenuItem;
+        private System.Windows.Forms.OpenFileDialog importChannelFileDialog;
     }
 }

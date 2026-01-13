@@ -632,5 +632,62 @@ namespace HTCommander
             bool currentlyEnabled = gPSEnabledToolStripMenuItem.Checked;
             DataBroker.Dispatch(deviceId, "SetGPS", !currentlyEnabled, store: false);
         }
+
+        private void importChannelsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //if ((radio.State != RadioState.Connected) || (radio.Channels == null)) return;
+            if (importChannelFileDialog.ShowDialog(this) == DialogResult.OK)
+            {
+                importChannels(importChannelFileDialog.FileName);
+            }
+        }
+        public void importChannels(string filename)
+        {
+            List<RadioChannelInfo> importChannels = new List<RadioChannelInfo>();
+            string[] lines = null;
+            try { lines = File.ReadAllLines(filename); } catch (Exception ex) { MessageBox.Show(this, ex.ToString(), "File Error"); }
+            if ((lines == null) || (lines.Length < 2)) return;
+            Dictionary<string, int> headers = lines[0].Split(',').Select((h, i) => new { h, i }).ToDictionary(x => Utils.RemoveQuotes(x.h.Trim()), x => x.i);
+
+            // File format 1
+            if (headers.ContainsKey("Location") && headers.ContainsKey("Name") && headers.ContainsKey("Frequency") && headers.ContainsKey("Mode"))
+            {
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    RadioChannelInfo c = null;
+                    try { c = ImportUtils.ParseChannel1(lines[i].Split(','), headers); } catch (Exception) { }
+                    if (c != null) { importChannels.Add(c); }
+                }
+            }
+
+            // File format 2
+            if (headers.ContainsKey("title") && headers.ContainsKey("tx_freq") && headers.ContainsKey("rx_freq"))
+            {
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    RadioChannelInfo c = null;
+                    try { c = ImportUtils.ParseChannel2(lines[i].Split(','), headers); } catch (Exception) { }
+                    if (c != null) { importChannels.Add(c); }
+                }
+            }
+
+            // File format 2
+            if (headers.ContainsKey("Frequency Output") && headers.ContainsKey("Frequency Input") && headers.ContainsKey("Description") && headers.ContainsKey("PL Output Tone") && headers.ContainsKey("PL Input Tone") && headers.ContainsKey("Mode"))
+            {
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    RadioChannelInfo c = null;
+                    try { c = ImportUtils.ParseChannel3(lines[i].Split(','), headers); } catch (Exception) { }
+                    if (c != null) { importChannels.Add(c); }
+                }
+            }
+
+            // If there are decoded import channels, open a dialog box to merge them.
+            if (importChannels.Count == 0) return;
+            ImportChannelsForm f = new ImportChannelsForm(null, importChannels.ToArray());
+            f.Text = f.Text + " - " + new FileInfo(filename).Name;
+            f.Show(this);
+        }
+
     }
 }
