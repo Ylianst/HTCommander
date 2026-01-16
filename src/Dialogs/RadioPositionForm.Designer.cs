@@ -29,91 +29,87 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(RadioPositionForm));
-            this.closeButton = new System.Windows.Forms.Button();
-            this.refrashButton = new System.Windows.Forms.Button();
-            this.mainListView = new System.Windows.Forms.ListView();
-            this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.SuspendLayout();
+            closeButton = new System.Windows.Forms.Button();
+            refreshButton = new System.Windows.Forms.Button();
+            mainListView = new System.Windows.Forms.ListView();
+            columnHeader1 = new System.Windows.Forms.ColumnHeader();
+            columnHeader2 = new System.Windows.Forms.ColumnHeader();
+            SuspendLayout();
             // 
             // closeButton
             // 
-            this.closeButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.closeButton.Location = new System.Drawing.Point(357, 228);
-            this.closeButton.Margin = new System.Windows.Forms.Padding(4);
-            this.closeButton.Name = "closeButton";
-            this.closeButton.Size = new System.Drawing.Size(100, 28);
-            this.closeButton.TabIndex = 1;
-            this.closeButton.Text = "Close";
-            this.closeButton.UseVisualStyleBackColor = true;
-            this.closeButton.Click += new System.EventHandler(this.closeButton_Click);
+            closeButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+            closeButton.Location = new System.Drawing.Point(357, 285);
+            closeButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            closeButton.Name = "closeButton";
+            closeButton.Size = new System.Drawing.Size(100, 35);
+            closeButton.TabIndex = 1;
+            closeButton.Text = "Close";
+            closeButton.UseVisualStyleBackColor = true;
+            closeButton.Click += closeButton_Click;
             // 
-            // refrashButton
+            // refreshButton
             // 
-            this.refrashButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.refrashButton.Location = new System.Drawing.Point(249, 228);
-            this.refrashButton.Margin = new System.Windows.Forms.Padding(4);
-            this.refrashButton.Name = "refrashButton";
-            this.refrashButton.Size = new System.Drawing.Size(100, 28);
-            this.refrashButton.TabIndex = 2;
-            this.refrashButton.Text = "Refresh";
-            this.refrashButton.UseVisualStyleBackColor = true;
-            this.refrashButton.Click += new System.EventHandler(this.refrashButton_Click);
+            refreshButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+            refreshButton.Location = new System.Drawing.Point(249, 285);
+            refreshButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            refreshButton.Name = "refreshButton";
+            refreshButton.Size = new System.Drawing.Size(100, 35);
+            refreshButton.TabIndex = 2;
+            refreshButton.Text = "Refresh";
+            refreshButton.UseVisualStyleBackColor = true;
+            refreshButton.Click += refreshButton_Click;
             // 
             // mainListView
             // 
-            this.mainListView.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.mainListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnHeader1,
-            this.columnHeader2});
-            this.mainListView.FullRowSelect = true;
-            this.mainListView.GridLines = true;
-            this.mainListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
-            this.mainListView.HideSelection = false;
-            this.mainListView.Location = new System.Drawing.Point(13, 13);
-            this.mainListView.Margin = new System.Windows.Forms.Padding(4);
-            this.mainListView.Name = "mainListView";
-            this.mainListView.Size = new System.Drawing.Size(443, 207);
-            this.mainListView.TabIndex = 2;
-            this.mainListView.UseCompatibleStateImageBehavior = false;
-            this.mainListView.View = System.Windows.Forms.View.Details;
+            mainListView.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            mainListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] { columnHeader1, columnHeader2 });
+            mainListView.FullRowSelect = true;
+            mainListView.GridLines = true;
+            mainListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
+            mainListView.Location = new System.Drawing.Point(13, 16);
+            mainListView.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            mainListView.Name = "mainListView";
+            mainListView.Size = new System.Drawing.Size(443, 258);
+            mainListView.TabIndex = 2;
+            mainListView.UseCompatibleStateImageBehavior = false;
+            mainListView.View = System.Windows.Forms.View.Details;
             // 
             // columnHeader1
             // 
-            this.columnHeader1.Text = "Name";
-            this.columnHeader1.Width = 140;
+            columnHeader1.Text = "Name";
+            columnHeader1.Width = 140;
             // 
             // columnHeader2
             // 
-            this.columnHeader2.Text = "Value";
-            this.columnHeader2.Width = 180;
+            columnHeader2.Text = "Value";
+            columnHeader2.Width = 180;
             // 
             // RadioPositionForm
             // 
-            this.AcceptButton = this.closeButton;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(469, 269);
-            this.Controls.Add(this.mainListView);
-            this.Controls.Add(this.refrashButton);
-            this.Controls.Add(this.closeButton);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
-            this.Name = "RadioPositionForm";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "Radio Position";
-            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.RadioPositionForm_FormClosed);
-            this.ResumeLayout(false);
+            AcceptButton = closeButton;
+            AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            ClientSize = new System.Drawing.Size(469, 336);
+            Controls.Add(mainListView);
+            Controls.Add(refreshButton);
+            Controls.Add(closeButton);
+            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
+            Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            MaximizeBox = false;
+            MinimizeBox = false;
+            Name = "RadioPositionForm";
+            StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+            Text = "Radio Position";
+            FormClosed += RadioPositionForm_FormClosed;
+            ResumeLayout(false);
 
         }
 
         #endregion
         private System.Windows.Forms.Button closeButton;
-        private System.Windows.Forms.Button refrashButton;
+        private System.Windows.Forms.Button refreshButton;
         private System.Windows.Forms.ListView mainListView;
         private System.Windows.Forms.ColumnHeader columnHeader1;
         private System.Windows.Forms.ColumnHeader columnHeader2;

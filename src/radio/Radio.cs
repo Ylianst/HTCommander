@@ -809,6 +809,8 @@ namespace HTCommander
                     Channels = new RadioChannelInfo[Info.channel_count];
                     UpdateState(RadioState.Connected);
                     broker.Dispatch(DeviceId, "Info", Info, store: true);
+                    // Publish initial FriendlyName
+                    broker.Dispatch(DeviceId, "FriendlyName", FriendlyName, store: true);
                     // Publish initial GPS enabled state
                     broker.Dispatch(DeviceId, "GpsEnabled", _gpsEnabled, store: true);
                     SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.HT_STATUS_CHANGED);

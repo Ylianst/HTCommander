@@ -4,9 +4,10 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-using HTCommander.radio;
 using System;
+using System.Reflection;
 using System.Windows.Forms;
+using HTCommander.radio;
 
 namespace HTCommander
 {
@@ -19,6 +20,9 @@ namespace HTCommander
         {
             InitializeComponent();
             this.deviceId = deviceId;
+
+            // Enable double buffering on the ListView to prevent flicker
+            EnableDoubleBuffering(mainListView);
 
             // Create data broker client
             broker = new DataBrokerClient();
@@ -34,10 +38,7 @@ namespace HTCommander
 
             // Load current position if available
             RadioPosition position = broker.GetValue<RadioPosition>(deviceId, "Position", null);
-            if (position != null)
-            {
-                UpdatePosition(position);
-            }
+            UpdatePosition(position);
         }
 
         private void UpdateTitle()
@@ -86,7 +87,7 @@ namespace HTCommander
             }
         }
 
-        private void refrashButton_Click(object sender, EventArgs e)
+        private void refreshButton_Click(object sender, EventArgs e)
         {
             // Request a fresh GPS position by dispatching a command
             // The radio will handle this and dispatch the Position event when received
@@ -109,32 +110,41 @@ namespace HTCommander
 
         public void UpdatePosition(RadioPosition position)
         {
-            if (position.Status == Radio.RadioCommandState.SUCCESS)
+            // Use BeginUpdate/EndUpdate to prevent flicker during batch updates
+            mainListView.BeginUpdate();
+            try
             {
-                addItem("Latitude", position.LatitudeStr);
-                addItem("Longitude", position.LongitudeStr);
-                if (position.Time != DateTime.MinValue)
+                if ((position != null) && (position.Status == Radio.RadioCommandState.SUCCESS))
                 {
-                    addItem("Accuracy", position.Accuracy.ToString() + " meters");
-                    addItem("Altitude", position.Altitude.ToString() + " meters");
-                    addItem("Speed", position.Speed.ToString());
-                    addItem("Heading", position.Heading.ToString() + " degrees");
-                    addItem("Received Time", position.ReceivedTime.ToString("yyyy-MM-dd HH:mm:ss"));
-                    addItem("GPS Time Local", position.Time.ToString("yyyy-MM-dd HH:mm:ss"));
-                    addItem("GPS Time UTC", position.TimeUTC.ToString("yyyy-MM-dd HH:mm:ss"));
-                }
-                if (position.Locked)
-                {
-                    addItem("GPS Lock", "Yes");
+                    addItem("Latitude", position.LatitudeStr);
+                    addItem("Longitude", position.LongitudeStr);
+                    if (position.Time != DateTime.MinValue)
+                    {
+                        addItem("Accuracy", position.Accuracy.ToString() + " meters");
+                        addItem("Altitude", position.Altitude.ToString() + " meters");
+                        addItem("Speed", position.Speed.ToString());
+                        addItem("Heading", position.Heading.ToString() + " degrees");
+                        addItem("Received Time", position.ReceivedTime.ToString("yyyy-MM-dd HH:mm:ss"));
+                        addItem("GPS Time Local", position.Time.ToString("yyyy-MM-dd HH:mm:ss"));
+                        addItem("GPS Time UTC", position.TimeUTC.ToString("yyyy-MM-dd HH:mm:ss"));
+                    }
+                    if (position.Locked)
+                    {
+                        addItem("GPS Lock", "Yes");
+                    }
+                    else
+                    {
+                        addItem("GPS Lock", "Acquiring...");
+                    }
                 }
                 else
                 {
-                    addItem("GPS Lock", "Acquiring...");
+                    addItem("Status", "No GPS lock");
                 }
             }
-            else
+            finally
             {
-                addItem("Status", "No GPS lock");
+                mainListView.EndUpdate();
             }
         }
 
@@ -144,5 +154,16 @@ namespace HTCommander
             broker?.Dispose();
             broker = null;
         }
+
+        /// <summary>
+        /// Enables double buffering on a ListView control using reflection to access the protected DoubleBuffered property.
+        /// </summary>
+        private static void EnableDoubleBuffering(ListView listView)
+        {
+            // Use reflection to set the protected DoubleBuffered property
+            PropertyInfo prop = typeof(ListView).GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic);
+            prop?.SetValue(listView, true, null);
+        }
+
     }
 }
