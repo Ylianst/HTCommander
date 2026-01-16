@@ -176,6 +176,9 @@ namespace HTCommander
 
             // Subscribe to channel write events (for updating individual channels)
             broker.Subscribe(deviceid, "WriteChannel", OnWriteChannelEvent);
+
+            // Subscribe to GetPosition event (for refreshing GPS position)
+            broker.Subscribe(deviceid, "GetPosition", OnGetPositionEvent);
         }
 
         /// <summary>
@@ -260,6 +263,15 @@ namespace HTCommander
             {
                 SetChannel(channel);
             }
+        }
+
+        /// <summary>
+        /// Handles GetPosition event from the broker (for refreshing GPS position on demand).
+        /// </summary>
+        private void OnGetPositionEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            GetPosition();
         }
 
         public void Dispose() => Disconnect(null, RadioState.Disconnected);

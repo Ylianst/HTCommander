@@ -17,6 +17,7 @@ namespace HTCommander.RadioControls
         private RadioChannelControl[] channelControls = null;
         private int vfo2LastChannelId = -1;
         private DataBrokerClient broker;
+        private RadioPositionForm radioPositionForm = null;
 
         // Device ID that this control is monitoring
         private int _deviceId = -1;
@@ -618,7 +619,19 @@ namespace HTCommander.RadioControls
 
         private void gpsStatusLabel_DoubleClick(object sender, EventArgs e)
         {
-            //if (parent != null) { parent.radioPositionToolStripMenuItem_Click(sender, e); }
+            if (_deviceId <= 0) return;
+
+            // If form is already open, just focus it
+            if (radioPositionForm != null && !radioPositionForm.IsDisposed)
+            {
+                radioPositionForm.Focus();
+                return;
+            }
+
+            // Create and show the RadioPositionForm
+            radioPositionForm = new RadioPositionForm(_deviceId);
+            radioPositionForm.FormClosed += (s, args) => { radioPositionForm = null; };
+            radioPositionForm.Show();
         }
 
         // Event that parent can subscribe to for bluetooth check
