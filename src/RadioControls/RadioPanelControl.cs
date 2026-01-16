@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.IO;
 using System.Drawing;
 using System.Windows.Forms;
 using HTCommander.radio;
@@ -566,15 +567,10 @@ namespace HTCommander.RadioControls
 
         private void radioPictureBox_DragEnter(object sender, DragEventArgs e)
         {
-            /*
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
                 if ((files.Length == 1) && (files[0].ToLower().EndsWith(".csv")))
-                {
-                    e.Effect = DragDropEffects.Copy;
-                }
-                else if ((files.Length == 1) && (files[0].ToLower().EndsWith(".wav") && parent != null && parent.allowTransmit && (parent.radio.State == Radio.RadioState.Connected)))
                 {
                     e.Effect = DragDropEffects.Copy;
                 }
@@ -583,33 +579,36 @@ namespace HTCommander.RadioControls
                     e.Effect = DragDropEffects.None;
                 }
             }
-            */
+            else
+            {
+                e.Effect = DragDropEffects.None;
+            }
         }
 
         private void radioPictureBox_DragDrop(object sender, DragEventArgs e)
         {
-            /*
-            if (parent == null) return;
-            
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
                 if ((files.Length == 1) && (files[0].ToLower().EndsWith(".csv")))
                 {
-                    //parent.importChannels(files[0]);
-                }
-                else if ((files.Length == 1) && (files[0].ToLower().EndsWith(".wav")))
-                {
-                    // Transmit the wav file
-                    using (var reader = new WaveFileReader(files[0]))
-                    {
-                        var buffer = new byte[reader.Length];
-                        int bytesRead = reader.Read(buffer, 0, buffer.Length);
-                        //parent.radio.TransmitVoice(buffer, 0, bytesRead, true);
-                    }
+                    ImportChannelsFromFile(files[0]);
                 }
             }
-            */
+        }
+
+        /// <summary>
+        /// Imports channels from a CSV file and opens the ImportChannelsForm.
+        /// </summary>
+        /// <param name="filename">The path to the CSV file to import.</param>
+        private void ImportChannelsFromFile(string filename)
+        {
+            RadioChannelInfo[] channels = ImportUtils.ParseChannelsFromFile(filename);
+            if (channels == null || channels.Length == 0) return;
+
+            ImportChannelsForm f = new ImportChannelsForm(null, channels);
+            f.Text = f.Text + " - " + new FileInfo(filename).Name;
+            f.Show();
         }
 
         private void radioPanel_SizeChanged(object sender, EventArgs e)
@@ -721,6 +720,52 @@ namespace HTCommander.RadioControls
                 _showAllChannels = value;
                 UpdateChannelsPanel();
             }
+        }
+
+        /// <summary>
+        /// Shows the channel editing dialog for the specified channel ID.
+        /// </summary>
+        /// <param name="channelId">The channel ID to edit.</param>
+        public void ShowChannelDialog(int channelId)
+        {
+            if (_deviceId <= 0) return;
+            RadioChannelForm f = new RadioChannelForm(_deviceId, channelId);
+            f.ShowDialog(this);
+        }
+
+        /// <summary>
+        /// Writes a channel to the radio via the DataBroker.
+        /// </summary>
+        /// <param name="channel">The RadioChannelInfo to write to the radio.</param>
+        public void WriteChannel(RadioChannelInfo channel)
+        {
+            if (_deviceId <= 0 || channel == null) return;
+            broker.Dispatch(_deviceId, "WriteChannel", channel, store: false);
+        }
+
+        /// <summary>
+        /// Gets the list of channels currently being displayed based on the ShowAllChannels filter.
+        /// </summary>
+        /// <returns>An array of RadioChannelInfo objects that are currently displayed, or null if no channels are available.</returns>
+        public RadioChannelInfo[] GetDisplayedChannels()
+        {
+            if (currentChannels == null || currentChannels.Length == 0) return null;
+
+            var displayedChannels = new System.Collections.Generic.List<RadioChannelInfo>();
+            for (int i = 0; i < currentChannels.Length; i++)
+            {
+                if (currentChannels[i] != null)
+                {
+                    // Show channels that have a name or frequency, or if ShowAllChannels is enabled
+                    bool visible = _showAllChannels || (currentChannels[i].name_str.Length > 0) || (currentChannels[i].rx_freq != 0);
+                    if (visible)
+                    {
+                        displayedChannels.Add(currentChannels[i]);
+                    }
+                }
+            }
+
+            return displayedChannels.Count > 0 ? displayedChannels.ToArray() : null;
         }
     }
 }

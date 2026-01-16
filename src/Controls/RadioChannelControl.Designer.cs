@@ -36,8 +36,11 @@
             setChannelBToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
             showAllChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            viewOnlyContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             channelNameLabel = new System.Windows.Forms.Label();
             contextMenuStrip.SuspendLayout();
+            viewOnlyContextMenuStrip.SuspendLayout();
             SuspendLayout();
             // 
             // contextMenuStrip
@@ -86,6 +89,20 @@
             showAllChannelsToolStripMenuItem.Text = "&Show All Channels";
             showAllChannelsToolStripMenuItem.Click += showAllChannelsToolStripMenuItem_Click;
             // 
+            // viewOnlyContextMenuStrip
+            // 
+            viewOnlyContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            viewOnlyContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { viewToolStripMenuItem });
+            viewOnlyContextMenuStrip.Name = "viewOnlyContextMenuStrip";
+            viewOnlyContextMenuStrip.Size = new System.Drawing.Size(120, 28);
+            // 
+            // viewToolStripMenuItem
+            // 
+            viewToolStripMenuItem.Name = "viewToolStripMenuItem";
+            viewToolStripMenuItem.Size = new System.Drawing.Size(119, 24);
+            viewToolStripMenuItem.Text = "&View...";
+            viewToolStripMenuItem.Click += showToolStripMenuItem_Click;
+            // 
             // channelNameLabel
             // 
             channelNameLabel.ContextMenuStrip = contextMenuStrip;
@@ -118,6 +135,7 @@
             DragEnter += RadioChannelControl_DragEnter;
             DoubleClick += channelNameLabel_DoubleClick;
             contextMenuStrip.ResumeLayout(false);
+            viewOnlyContextMenuStrip.ResumeLayout(false);
             ResumeLayout(false);
 
         }
@@ -132,5 +150,7 @@
         private System.Windows.Forms.ToolStripMenuItem setChannelBToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem2;
         private System.Windows.Forms.ToolStripMenuItem showAllChannelsToolStripMenuItem;
+        private System.Windows.Forms.ContextMenuStrip viewOnlyContextMenuStrip;
+        private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
     }
 }

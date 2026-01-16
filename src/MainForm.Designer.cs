@@ -96,7 +96,8 @@
             mainImageList = new System.Windows.Forms.ImageList(components);
             radioPanel = new System.Windows.Forms.Panel();
             radioPanelControl = new HTCommander.RadioControls.RadioPanelControl();
-            importChannelFileDialog = new System.Windows.Forms.OpenFileDialog();
+            importChannelsFileDialog = new System.Windows.Forms.OpenFileDialog();
+            exportChannelsFileDialog = new System.Windows.Forms.SaveFileDialog();
             mainStatusStrip.SuspendLayout();
             mainMenuStrip.SuspendLayout();
             mainTabControl.SuspendLayout();
@@ -252,6 +253,7 @@
             exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
             exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
             exportChannelsToolStripMenuItem.Text = "&Export Channels...";
+            exportChannelsToolStripMenuItem.Click += exportChannelsToolStripMenuItem_Click;
             // 
             // importChannelsToolStripMenuItem
             // 
@@ -701,10 +703,17 @@
             radioPanelControl.Size = new System.Drawing.Size(368, 840);
             radioPanelControl.TabIndex = 0;
             // 
-            // importChannelFileDialog
+            // importChannelsFileDialog
             // 
-            importChannelFileDialog.Filter = "Channels (*.csv)|*.csv|CHIRP (*.csv)|*.csv";
-            importChannelFileDialog.Title = "Import Channels";
+            importChannelsFileDialog.Filter = "Channels (*.csv)|*.csv|CHIRP (*.csv)|*.csv";
+            importChannelsFileDialog.Title = "Import Channels";
+            // 
+            // exportChannelsFileDialog
+            // 
+            exportChannelsFileDialog.DefaultExt = "csv";
+            exportChannelsFileDialog.FileName = "channels.csv";
+            exportChannelsFileDialog.Filter = "Channels (*.csv)|*.csv|CHIRP (*.csv)|*.csv";
+            exportChannelsFileDialog.Title = "Export Channels";
             // 
             // MainForm
             // 
@@ -811,6 +820,7 @@
         private System.Windows.Forms.Panel radioPanel;
         private RadioControls.RadioPanelControl radioPanelControl;
         private System.Windows.Forms.ToolStripMenuItem radioWindowToolStripMenuItem;
-        private System.Windows.Forms.OpenFileDialog importChannelFileDialog;
+        private System.Windows.Forms.OpenFileDialog importChannelsFileDialog;
+        private System.Windows.Forms.SaveFileDialog exportChannelsFileDialog;
     }
 }

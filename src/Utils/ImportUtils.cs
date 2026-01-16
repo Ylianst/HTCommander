@@ -1,8 +1,14 @@
-﻿using System;
+﻿/*
+Copyright 2026 Ylian Saint-Hilaire
+Licensed under the Apache License, Version 2.0 (the "License");
+http://www.apache.org/licenses/LICENSE-2.0
+*/
+
+using System;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Globalization;
-using System.Threading.Tasks;
 using System.Collections.Generic;
 using static HTCommander.Radio;
 
@@ -10,6 +16,140 @@ namespace HTCommander
 {
     internal class ImportUtils
     {
+        #region Export Methods
+
+        /// <summary>
+        /// Exports channels to a file in native format.
+        /// </summary>
+        public static string ExportToNativeFormat(RadioChannelInfo[] channels)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("title,tx_freq,rx_freq,tx_sub_audio(CTCSS=freq/DCS=number),rx_sub_audio(CTCSS=freq/DCS=number),tx_power(H/M/L),bandwidth(12500/25000),scan(0=OFF/1=ON),talk around(0=OFF/1=ON),pre_de_emph_bypass(0=OFF/1=ON),sign(0=OFF/1=ON),tx_dis(0=OFF/1=ON),mute(0=OFF/1=ON),rx_modulation(0=FM/1=AM),tx_modulation(0=FM/1=AM)");
+            foreach (RadioChannelInfo c in channels)
+            {
+                if ((c != null) && (c.tx_freq != 0) && (c.rx_freq != 0))
+                {
+                    string power = "L";
+                    if (c.tx_at_max_power) { power = "H"; }
+                    if (c.tx_at_med_power) { power = "M"; }
+                    string[] values = new string[] { c.name_str, c.tx_freq.ToString(), c.rx_freq.ToString(), c.tx_sub_audio.ToString(), c.rx_sub_audio.ToString(), power, c.bandwidth == RadioBandwidthType.NARROW ? "12500" : "25000", c.scan ? "1" : "0", c.talk_around ? "1" : "0", c.pre_de_emph_bypass ? "1" : "0", c.sign ? "1" : "0", c.tx_disable ? "1" : "0", c.mute ? "1" : "0", ((int)c.rx_mod).ToString(), ((int)c.tx_mod).ToString() };
+                    sb.AppendLine(string.Join(",", values));
+                }
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Exports channels to a file in CHIRP format.
+        /// </summary>
+        public static string ExportToChirpFormat(RadioChannelInfo[] channels)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Location,Name,Frequency,Duplex,Offset,Tone,rToneFreq,cToneFreq,DtcsCode,DtcsPolarity,Mode,TStep,Skip,Power");
+            for (int i = 0; i < channels.Length; i++)
+            {
+                RadioChannelInfo c = channels[i];
+                if ((c != null) && (c.tx_freq != 0) && (c.rx_freq != 0))
+                {
+                    string duplex = "";
+                    if (c.tx_freq < c.rx_freq) { duplex = "-"; }
+                    if (c.tx_freq > c.rx_freq) { duplex = "+"; }
+
+                    double offset = ((double)Math.Abs(c.tx_freq - c.rx_freq)) / 1000000;
+
+                    // (None),Tone,TSQL,DTCS,DTCS-R,TSQL-R,Cross
+                    string tone = "";
+                    string rToneFreq = "";
+                    string cToneFreq = "";
+                    string DtcsCode = "";
+                    string DtcsPolarity = "";
+                    if ((c.tx_sub_audio >= 1000) && (c.rx_sub_audio >= 1000))
+                    {
+                        tone = "TONE";
+                        rToneFreq = ((double)c.rx_sub_audio / 100).ToString();
+                        cToneFreq = ((double)c.tx_sub_audio / 100).ToString();
+                    }
+                    else if ((c.tx_sub_audio > 0) && (c.rx_sub_audio > 0) && (c.tx_sub_audio < 1000) && (c.rx_sub_audio < 1000) && (c.rx_sub_audio == c.tx_sub_audio))
+                    {
+                        tone = "DTCS";
+                        DtcsCode = c.rx_sub_audio.ToString();
+                        DtcsPolarity = "NN";
+                    }
+
+                    string Mode = c.rx_mod.ToString();
+                    if (c.rx_mod == RadioModulationType.FM)
+                    {
+                        if (c.bandwidth == RadioBandwidthType.WIDE) { Mode = "FM"; }
+                        if (c.bandwidth == RadioBandwidthType.NARROW) { Mode = "NFM"; }
+                    }
+
+                    string Power = "";
+                    if (c.tx_at_max_power) { Power = "5.0W"; }
+                    else if (c.tx_at_med_power) { Power = "3.0W"; }
+                    else { Power = "1.0W"; }
+
+                    string[] values = new string[] { i.ToString(), c.name_str, (((double)c.rx_freq) / 1000000).ToString("F6"), duplex, offset.ToString("F6"), tone, rToneFreq, cToneFreq, DtcsCode, DtcsPolarity, Mode, "", "", Power };
+                    sb.AppendLine(string.Join(",", values));
+                }
+            }
+            return sb.ToString();
+        }
+
+        #endregion
+
+        #region Import Methods
+
+        /// <summary>
+        /// Parses a CSV file and returns an array of RadioChannelInfo objects.
+        /// Supports multiple file formats (CHIRP, native, repeater book).
+        /// </summary>
+        /// <param name="filename">The path to the CSV file to parse.</param>
+        /// <returns>An array of RadioChannelInfo objects, or null if parsing fails or no channels found.</returns>
+        public static RadioChannelInfo[] ParseChannelsFromFile(string filename)
+        {
+            string[] lines = null;
+            try { lines = File.ReadAllLines(filename); } catch (Exception) { return null; }
+            if ((lines == null) || (lines.Length < 2)) return null;
+
+            Dictionary<string, int> headers = lines[0].Split(',').Select((h, i) => new { h, i }).ToDictionary(x => Utils.RemoveQuotes(x.h.Trim()), x => x.i);
+            List<RadioChannelInfo> importChannels = new List<RadioChannelInfo>();
+
+            // File format 1 (CHIRP format)
+            if (headers.ContainsKey("Location") && headers.ContainsKey("Name") && headers.ContainsKey("Frequency") && headers.ContainsKey("Mode"))
+            {
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    RadioChannelInfo c = null;
+                    try { c = ParseChannel1(lines[i].Split(','), headers); } catch (Exception) { }
+                    if (c != null) { importChannels.Add(c); }
+                }
+            }
+
+            // File format 2 (native format)
+            if (headers.ContainsKey("title") && headers.ContainsKey("tx_freq") && headers.ContainsKey("rx_freq"))
+            {
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    RadioChannelInfo c = null;
+                    try { c = ParseChannel2(lines[i].Split(','), headers); } catch (Exception) { }
+                    if (c != null) { importChannels.Add(c); }
+                }
+            }
+
+            // File format 3 (repeater book format)
+            if (headers.ContainsKey("Frequency Output") && headers.ContainsKey("Frequency Input") && headers.ContainsKey("Description") && headers.ContainsKey("PL Output Tone") && headers.ContainsKey("PL Input Tone") && headers.ContainsKey("Mode"))
+            {
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    RadioChannelInfo c = null;
+                    try { c = ParseChannel3(lines[i].Split(','), headers); } catch (Exception) { }
+                    if (c != null) { importChannels.Add(c); }
+                }
+            }
+
+            return importChannels.Count > 0 ? importChannels.ToArray() : null;
+        }
+
         public static RadioChannelInfo ParseChannel3(string[] parts, Dictionary<string, int> headers)
         {
             for (int i = 0; i < parts.Length; i++) { parts[i] = Utils.RemoveQuotes(parts[i].Trim()); }
@@ -249,6 +389,8 @@ namespace HTCommander
 
             return r;
         }
+
+        #endregion
 
     }
 }

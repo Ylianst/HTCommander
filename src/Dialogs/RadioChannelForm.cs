@@ -23,31 +23,125 @@ namespace HTCommander
 {
     public partial class RadioChannelForm : Form
     {
-        public RadioChannelInfo channel;
+        private DataBrokerClient broker;
+        private RadioChannelInfo channel;
         private Color normalBackColor;
-        private string dialogTitle;
-        private MainForm parent;
-        private Radio radio;
+        private int deviceId = -1;
         private int channelId = -1;
         private bool advancedMode = false;
         private bool xreadonly = false;
-        public bool ReadOnly { get { return xreadonly; } set { xreadonly = value; UpdateInfo(); } }
-        public int ChannelId { get { return channelId; } }
+        private string friendlyName = null;
 
-        public RadioChannelForm(MainForm parent, Radio radio, int channelId)
+        /// <summary>
+        /// Constructor for editing a channel on a connected radio.
+        /// </summary>
+        /// <param name="deviceId">The device ID of the connected radio.</param>
+        /// <param name="channelId">The channel ID to view/edit.</param>
+        public RadioChannelForm(int deviceId, int channelId)
         {
             InitializeComponent();
-            dialogTitle = this.Text;
-            this.parent = parent;
-            this.radio = radio;
+            this.deviceId = deviceId;
             this.channelId = channelId;
+            this.xreadonly = false;
+
+            // Set up DataBrokerClient
+            broker = new DataBrokerClient();
+
+            // Subscribe to channel updates and friendly name changes
+            broker.Subscribe(deviceId, new[] { "Channels", "FriendlyName" }, OnBrokerEvent);
+
+            // Load the initial friendly name
+            friendlyName = GetFriendlyNameFromConnectedRadios(deviceId);
+            UpdateFormTitle();
+
             advGroupBox.Location = basicGroupBox.Location;
             advGroupBox.Visible = false;
             basicGroupBox.Visible = true;
-            this.Height = basicGroupBox.Height + 148;
+            this.Height = basicGroupBox.Height + 158;
             clearButton.Top = cancelButton.Top = okButton.Top = (this.Height - 74);
             normalBackColor = freqTextBox.BackColor;
             this.PerformLayout();
+        }
+
+        /// <summary>
+        /// Constructor for viewing an imported/external channel (read-only mode).
+        /// </summary>
+        /// <param name="channelInfo">The RadioChannelInfo to display.</param>
+        public RadioChannelForm(RadioChannelInfo channelInfo)
+        {
+            InitializeComponent();
+            this.deviceId = -1;
+            this.channelId = channelInfo.channel_id;
+            this.channel = channelInfo;
+            this.xreadonly = true;
+
+            // No broker needed for read-only imported channels
+            broker = null;
+
+            // Set title for imported channel
+            UpdateFormTitle();
+
+            advGroupBox.Location = basicGroupBox.Location;
+            advGroupBox.Visible = false;
+            basicGroupBox.Visible = true;
+            this.Height = basicGroupBox.Height + 158;
+            clearButton.Top = cancelButton.Top = okButton.Top = (this.Height - 74);
+            normalBackColor = freqTextBox.BackColor;
+            this.PerformLayout();
+        }
+
+        /// <summary>
+        /// Gets the FriendlyName for a device from the ConnectedRadios list.
+        /// </summary>
+        private string GetFriendlyNameFromConnectedRadios(int deviceId)
+        {
+            var connectedRadios = DataBroker.GetValue(1, "ConnectedRadios") as System.Collections.IList;
+            if (connectedRadios == null) return null;
+
+            foreach (var item in connectedRadios)
+            {
+                if (item == null) continue;
+                var itemType = item.GetType();
+                int? itemDeviceId = (int?)itemType.GetProperty("DeviceId")?.GetValue(item);
+                if (itemDeviceId.HasValue && itemDeviceId.Value == deviceId)
+                {
+                    return (string)itemType.GetProperty("FriendlyName")?.GetValue(item);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Updates the form title based on the radio friendly name and channel ID.
+        /// </summary>
+        private void UpdateFormTitle()
+        {
+            if (deviceId > 0)
+            {
+                // Connected radio - show "FriendlyName Channel X" or "Channel X" if no friendly name
+                if (!string.IsNullOrEmpty(friendlyName))
+                {
+                    this.Text = friendlyName + " Channel " + (channelId + 1).ToString();
+                }
+                else
+                {
+                    this.Text = "Channel " + (channelId + 1).ToString();
+                }
+            }
+            else if (channel != null && !string.IsNullOrEmpty(channel.name_str))
+            {
+                // Imported channel - show channel name
+                this.Text = "Channel - " + channel.name_str;
+            }
+            else if (channelId >= 0)
+            {
+                // Fallback - show channel number
+                this.Text = "Channel " + (channelId + 1).ToString();
+            }
+            else
+            {
+                this.Text = "Channel";
+            }
         }
 
         private void RadioInfoForm_Load(object sender, EventArgs e)
@@ -55,18 +149,47 @@ namespace HTCommander
             UpdateChannel();
         }
 
+        /// <summary>
+        /// Handles broker events for channels and friendly name changes.
+        /// </summary>
+        private void OnBrokerEvent(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => OnBrokerEvent(deviceId, name, data)));
+                return;
+            }
+
+            switch (name)
+            {
+                case "Channels":
+                    // Refresh the channel display when channels are updated
+                    UpdateChannel();
+                    break;
+                case "FriendlyName":
+                    // Update the friendly name and refresh the form title
+                    friendlyName = data as string;
+                    UpdateFormTitle();
+                    break;
+            }
+        }
+
         public void UpdateChannel()
         {
             RadioChannelInfo c = channel;
-            if (radio != null) { c = radio.Channels[channelId]; }
-            if (channelId >= 0)
+
+            // If we have a deviceId, get the channel from the broker
+            if (deviceId > 0)
             {
-                this.Text = dialogTitle + " " + (channelId + 1).ToString();
+                RadioChannelInfo[] channels = DataBroker.GetValue<RadioChannelInfo[]>(deviceId, "Channels", null);
+                if (channels != null && channelId >= 0 && channelId < channels.Length && channels[channelId] != null)
+                {
+                    c = channels[channelId];
+                }
             }
-            else if (!string.IsNullOrEmpty(c.name_str))
-            {
-                this.Text = dialogTitle + " " + c.name_str;
-            }
+
+            if (c == null) return;
+
             nameTextBox.Text = c.name_str;
             advNameTextBox.Text = c.name_str;
             if (c.tx_freq == 0) { c.tx_freq = c.rx_freq; }
@@ -88,7 +211,8 @@ namespace HTCommander
             if (c.tx_at_max_power) { powerComboBox.SelectedIndex = advPowerComboBox.SelectedIndex = 0; }
             else if (c.tx_at_med_power) { powerComboBox.SelectedIndex = advPowerComboBox.SelectedIndex = 1; }
             else { powerComboBox.SelectedIndex = advPowerComboBox.SelectedIndex = 2; }
-            if (c.tx_sub_audio == 0) {
+            if (c.tx_sub_audio == 0)
+            {
                 transmitCtcssComboBox.SelectedIndex = 0;
             }
             else
@@ -100,7 +224,8 @@ namespace HTCommander
                     if (transmitCtcssComboBox.Items[i].ToString().StartsWith(x)) { transmitCtcssComboBox.SelectedIndex = i; }
                 }
             }
-            if (c.rx_sub_audio == 0) {
+            if (c.rx_sub_audio == 0)
+            {
                 receiveCtcssComboBox.SelectedIndex = 0;
             }
             else
@@ -124,8 +249,15 @@ namespace HTCommander
 
         private void okButton_Click(object sender, EventArgs e)
         {
+            // Can only save if we have a valid deviceId (connected radio)
+            if (deviceId <= 0) return;
+
+            // Get the current channel from the broker
+            RadioChannelInfo[] channels = DataBroker.GetValue<RadioChannelInfo[]>(deviceId, "Channels", null);
+            if (channels == null || channelId < 0 || channelId >= channels.Length || channels[channelId] == null) return;
+
             // Create a copy of the channel and set everything
-            RadioChannelInfo c = new RadioChannelInfo(radio.Channels[channelId]);
+            RadioChannelInfo c = new RadioChannelInfo(channels[channelId]);
             c.name_str = advNameTextBox.Text;
 
             if (advancedMode)
@@ -172,8 +304,11 @@ namespace HTCommander
                 if (modeComboBox.SelectedIndex == 1) { c.tx_mod = c.rx_mod = RadioModulationType.AM; }
             }
 
-            if (!radio.Channels[channelId].Equals(c)) { 
-                radio.SetChannel(c);
+            // Check if the channel has changed
+            if (!channels[channelId].Equals(c))
+            {
+                // Dispatch the updated channel to the broker
+                DataBroker.Dispatch(deviceId, "WriteChannel", c, store: false);
             }
 
             Close();
@@ -203,7 +338,8 @@ namespace HTCommander
 
         private void RadioChannelForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            //if (parent != null) { parent.radioChannelForm = null; }
+            // Dispose the broker if it exists
+            broker?.Dispose();
         }
 
         private void repeaterBookLinkLabel_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -221,7 +357,7 @@ namespace HTCommander
             advancedMode = true;
             advGroupBox.Visible = true;
             basicGroupBox.Visible = false;
-            this.Height = advGroupBox.Height + 148;
+            this.Height = advGroupBox.Height + 158;
             clearButton.Top = cancelButton.Top = okButton.Top = (this.Height - 74);
             this.PerformLayout();
             this.Refresh();

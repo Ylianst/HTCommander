@@ -173,6 +173,9 @@ namespace HTCommander
 
             // Subscribe to settings change events from UI
             broker.Subscribe(deviceid, new[] { "WriteSettings", "SetRegion", "DualWatch", "Scan", "SetGPS", "Region" }, OnSettingsChangeEvent);
+
+            // Subscribe to channel write events (for updating individual channels)
+            broker.Subscribe(deviceid, "WriteChannel", OnWriteChannelEvent);
         }
 
         /// <summary>
@@ -244,6 +247,18 @@ namespace HTCommander
                         WriteSettings(Settings.ToByteArray(Settings.channel_a, Settings.channel_b, Settings.double_channel, scanEnabled, Settings.squelch_level));
                     }
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Handles channel write events from the broker (for updating individual channel settings).
+        /// </summary>
+        private void OnWriteChannelEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            if (data is RadioChannelInfo channel)
+            {
+                SetChannel(channel);
             }
         }
 

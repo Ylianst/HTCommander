@@ -5,10 +5,10 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using System.Collections.Generic;
-using HTCommander.radio;
 
 namespace HTCommander.Dialogs
 {
@@ -155,6 +155,12 @@ namespace HTCommander.Dialogs
             }
         }
 
+        private void allChannelsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Toggle the ShowAllChannels state in RadioPanelControl
+            radioPanelControl.ShowAllChannels = !radioPanelControl.ShowAllChannels;
+        }
+
         private void viewToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
         {
             // Set the "All Channels" checkbox state based on RadioPanelControl's ShowAllChannels
@@ -213,11 +219,12 @@ namespace HTCommander.Dialogs
             int deviceId = radioPanelControl.DeviceId;
             bool hasRadio = (deviceId > 0) && connectedRadios.Any(r => r.DeviceId == deviceId);
 
-            // Enable/disable the first 4 menu items based on radio connection
+            // Enable/disable menu items based on radio connection
             dualWatchToolStripMenuItem.Enabled = hasRadio;
             scanToolStripMenuItem.Enabled = hasRadio;
             regionToolStripMenuItem.Enabled = hasRadio;
             gPSEnabledToolStripMenuItem.Enabled = hasRadio;
+            exportChannelsToolStripMenuItem.Enabled = hasRadio;
 
             if (!hasRadio)
             {
@@ -302,6 +309,44 @@ namespace HTCommander.Dialogs
             // Toggle GPS - check current state and toggle, send via broker
             bool currentlyEnabled = gPSEnabledToolStripMenuItem.Checked;
             DataBroker.Dispatch(deviceId, "SetGPS", !currentlyEnabled, store: false);
+        }
+
+        private void importChannelsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (importChannelsFileDialog.ShowDialog(this) == DialogResult.OK)
+            {
+                RadioChannelInfo[] channels = ImportUtils.ParseChannelsFromFile(importChannelsFileDialog.FileName);
+                if (channels == null || channels.Length == 0) return;
+
+                ImportChannelsForm f = new ImportChannelsForm(null, channels);
+                f.Text = f.Text + " - " + new FileInfo(importChannelsFileDialog.FileName).Name;
+                f.Show(this);
+            }
+        }
+
+        private void exportChannelsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Get the displayed channels from the radio panel control
+            RadioChannelInfo[] channels = radioPanelControl.GetDisplayedChannels();
+            if (channels == null || channels.Length == 0)
+            {
+                MessageBox.Show(this, "No channels available to export.", "Export Channels", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (exportChannelsFileDialog.ShowDialog(this) == DialogResult.OK)
+            {
+                string content;
+                if (exportChannelsFileDialog.FilterIndex == 1)
+                {
+                    content = ImportUtils.ExportToNativeFormat(channels);
+                }
+                else
+                {
+                    content = ImportUtils.ExportToChirpFormat(channels);
+                }
+                File.WriteAllText(exportChannelsFileDialog.FileName, content);
+            }
         }
 
         /// <summary>

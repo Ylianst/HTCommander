@@ -1,21 +1,13 @@
 ﻿/*
 Copyright 2026 Ylian Saint-Hilaire
-
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.IO;
 using System.Windows.Forms;
+using HTCommander.Dialogs;
 using HTCommander.RadioControls;
 
 namespace HTCommander
@@ -29,6 +21,16 @@ namespace HTCommander
         {
             InitializeComponent();
             this.parent = parent;
+            
+            // Set the appropriate context menu based on whether we have a parent
+            if (parent == null)
+            {
+                channelNameLabel.ContextMenuStrip = viewOnlyContextMenuStrip;
+            }
+            else
+            {
+                channelNameLabel.ContextMenuStrip = contextMenuStrip;
+            }
         }
 
         public RadioChannelInfo Channel
@@ -57,29 +59,30 @@ namespace HTCommander
 
         private void showToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            /*
-            if (parent != null) { parent.ShowChannelDialog((int)this.Tag); }
+            if (parent != null)
+            {
+                parent.ShowChannelDialog((int)this.Tag);
+            }
             else
             {
-                RadioChannelForm f = new RadioChannelForm(null, null, -1);
-                f.channel = channel;
-                f.ReadOnly = true;
+                // No parent - show in read-only mode
+                RadioChannelForm f = new RadioChannelForm(channel);
                 f.ShowDialog();
             }
-            */
         }
 
         private void channelNameLabel_DoubleClick(object sender, EventArgs e)
         {
-            /*
-            if (parent != null) { parent.ShowChannelDialog((int)this.Tag); } else
+            if (parent != null)
             {
-                RadioChannelForm f = new RadioChannelForm(null, null, -1);
-                f.channel = channel;
-                f.ReadOnly = true;
+                parent.ShowChannelDialog((int)this.Tag);
+            }
+            else
+            {
+                // No parent - show in read-only mode
+                RadioChannelForm f = new RadioChannelForm(channel);
                 f.ShowDialog();
             }
-            */
         }
 
         private void channelNameLabel_Click(object sender, EventArgs e)
@@ -105,66 +108,22 @@ namespace HTCommander
             }
         }
 
-        public void UpdateChannelsPanel()
-        {
-            /*
-            channelsFlowLayoutPanel.SuspendLayout();
-            int visibleChannels = 0;
-            int channelHeight = 0;
-            if ((channelControls != null) && (radio.Channels != null))
-            {
-                for (int i = 0; i < channelControls.Length; i++)
-                {
-                    if (radio.Channels[i] != null)
-                    {
-                        if (channelControls[i] == null)
-                        {
-                            channelControls[i] = new RadioChannelControl(this);
-                            //channelsFlowLayoutPanel.Controls.Add(channelControls[i]);
-                        }
-                        channelControls[i].Channel = radio.Channels[i];
-                        channelControls[i].Tag = i;
-                        bool visible = showAllChannels || (radio.Channels[i].name_str.Length > 0) || (radio.Channels[i].rx_freq != 0);
-                        channelControls[i].Visible = visible;
-                        if (visible) { visibleChannels++; }
-                        channelHeight = channelControls[i].Height;
-                    }
-                }
-                int hBlockCount = ((visibleChannels / 3) + (((visibleChannels % 3) != 0) ? 1 : 0));
-                int blockHeight = 0;
-                if (hBlockCount > 0)
-                {
-                    blockHeight = (radioPanel.Height - 310) / hBlockCount;
-                    if (blockHeight > 50) { blockHeight = 50; }
-                    for (int i = 0; i < channelControls.Length; i++)
-                    {
-                        if (channelControls[i] != null) { channelControls[i].Height = blockHeight; }
-                    }
-                }
-                channelsFlowLayoutPanel.Height = blockHeight * hBlockCount;
-            }
-            channelsFlowLayoutPanel.Visible = (visibleChannels > 0);
-            channelsFlowLayoutPanel.ResumeLayout();
-            */
-        }
-
         private void contextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (parent != null)
-            {
-                int channelId = (int)this.Tag;
-                int? currentChannelA = parent.GetCurrentChannelA();
-                int? currentChannelB = parent.GetCurrentChannelB();
-                
-                // Disable "Set VFO A" if this channel is already VFO A
-                setChannelAToolStripMenuItem.Enabled = (currentChannelA == null || currentChannelA != channelId);
-                
-                // Disable "Set VFO B" if this channel is already VFO B
-                setChannelBToolStripMenuItem.Enabled = (currentChannelB == null || currentChannelB != channelId);
-                
-                // Set the "Show All Channels" checkbox state
-                showAllChannelsToolStripMenuItem.Checked = parent.ShowAllChannels;
-            }
+            if (parent == null) return;
+
+            int channelId = (int)this.Tag;
+            int? currentChannelA = parent.GetCurrentChannelA();
+            int? currentChannelB = parent.GetCurrentChannelB();
+            
+            // Disable "Set VFO A" if this channel is already VFO A
+            setChannelAToolStripMenuItem.Enabled = (currentChannelA == null || currentChannelA != channelId);
+            
+            // Disable "Set VFO B" if this channel is already VFO B
+            setChannelBToolStripMenuItem.Enabled = (currentChannelB == null || currentChannelB != channelId);
+            
+            // Set the "Show All Channels" checkbox state
+            showAllChannelsToolStripMenuItem.Checked = parent.ShowAllChannels;
         }
 
         private void channelNameLabel_MouseMove(object sender, MouseEventArgs e)
@@ -213,11 +172,16 @@ namespace HTCommander
             {
                 RadioChannelInfo c = (RadioChannelInfo)e.Data.GetData(typeof(RadioChannelInfo));
                 if (c.channel_id == channel.channel_id) return;
+                if (parent == null) return;
+
                 if (MessageBox.Show(parent, string.Format("Copy \"{0}\" to channel {1}?", c.name_str, (channel.channel_id + 1)), "Channel", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
                 {
+                    // Create a copy of the dragged channel with the target channel ID
                     RadioChannelInfo c2 = new RadioChannelInfo(c);
                     c2.channel_id = channel.channel_id;
-                    //parent.radio.SetChannel(c2);
+                    
+                    // Write the channel to the radio via the parent's DataBroker
+                    parent.WriteChannel(c2);
                 }
             }
             else if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -225,9 +189,23 @@ namespace HTCommander
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
                 if ((files.Length == 1) && (files[0].ToLower().EndsWith(".csv")))
                 {
-                    //parent.importChannels(files[0]);
+                    ImportChannelsFromFile(files[0]);
                 }
             }
+        }
+
+        /// <summary>
+        /// Imports channels from a CSV file and opens the ImportChannelsForm.
+        /// </summary>
+        /// <param name="filename">The path to the CSV file to import.</param>
+        private void ImportChannelsFromFile(string filename)
+        {
+            RadioChannelInfo[] channels = ImportUtils.ParseChannelsFromFile(filename);
+            if (channels == null || channels.Length == 0) return;
+
+            ImportChannelsForm f = new ImportChannelsForm(null, channels);
+            f.Text = f.Text + " - " + new FileInfo(filename).Name;
+            f.Show();
         }
 
     }

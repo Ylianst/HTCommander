@@ -40,6 +40,11 @@
             viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             allChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             radioPanelControl = new HTCommander.RadioControls.RadioPanelControl();
+            toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
+            exportChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            importChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            importChannelsFileDialog = new System.Windows.Forms.OpenFileDialog();
+            exportChannelsFileDialog = new System.Windows.Forms.SaveFileDialog();
             mainMenuStrip.SuspendLayout();
             SuspendLayout();
             // 
@@ -69,7 +74,7 @@
             // 
             // settingsToolStripMenuItem
             // 
-            settingsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { dualWatchToolStripMenuItem, scanToolStripMenuItem, regionToolStripMenuItem, gPSEnabledToolStripMenuItem });
+            settingsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { dualWatchToolStripMenuItem, scanToolStripMenuItem, regionToolStripMenuItem, gPSEnabledToolStripMenuItem, toolStripMenuItem1, exportChannelsToolStripMenuItem, importChannelsToolStripMenuItem });
             settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
             settingsToolStripMenuItem.Size = new System.Drawing.Size(76, 24);
             settingsToolStripMenuItem.Text = "&Settings";
@@ -118,6 +123,7 @@
             allChannelsToolStripMenuItem.Name = "allChannelsToolStripMenuItem";
             allChannelsToolStripMenuItem.Size = new System.Drawing.Size(173, 26);
             allChannelsToolStripMenuItem.Text = "&All Channels";
+            allChannelsToolStripMenuItem.Click += allChannelsToolStripMenuItem_Click;
             // 
             // radioPanelControl
             // 
@@ -131,6 +137,35 @@
             radioPanelControl.ShowAllChannels = false;
             radioPanelControl.Size = new System.Drawing.Size(366, 765);
             radioPanelControl.TabIndex = 1;
+            // 
+            // toolStripMenuItem1
+            // 
+            toolStripMenuItem1.Name = "toolStripMenuItem1";
+            toolStripMenuItem1.Size = new System.Drawing.Size(221, 6);
+            // 
+            // exportChannelsToolStripMenuItem
+            // 
+            exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
+            exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            exportChannelsToolStripMenuItem.Text = "&Export Channels...";
+            exportChannelsToolStripMenuItem.Click += exportChannelsToolStripMenuItem_Click;
+            // 
+            // importChannelsToolStripMenuItem
+            // 
+            importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
+            importChannelsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            importChannelsToolStripMenuItem.Text = "&Import Channels...";
+            importChannelsToolStripMenuItem.Click += importChannelsToolStripMenuItem_Click;
+            // 
+            // importChannelsFileDialog
+            // 
+            importChannelsFileDialog.Filter = "Channel Files|*.csv";
+            importChannelsFileDialog.Title = "Import Channels";
+            // 
+            // exportChannelsFileDialog
+            // 
+            exportChannelsFileDialog.Filter = "Native Channel File|*.csv|CHIRP Channel File|*.csv";
+            exportChannelsFileDialog.Title = "Export Channels";
             // 
             // RadioForm
             // 
@@ -165,5 +200,10 @@
         private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem allChannelsToolStripMenuItem;
         private RadioControls.RadioPanelControl radioPanelControl;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem1;
+        private System.Windows.Forms.ToolStripMenuItem exportChannelsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem importChannelsToolStripMenuItem;
+        private System.Windows.Forms.OpenFileDialog importChannelsFileDialog;
+        private System.Windows.Forms.SaveFileDialog exportChannelsFileDialog;
     }
 }
