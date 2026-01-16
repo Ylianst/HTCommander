@@ -22,6 +22,8 @@ namespace HTCommander
         public FragmentEncodingType encoding = FragmentEncodingType.Unknown;
         public FragmentFrameType frame_type = FragmentFrameType.Unknown;
         public int corrections = -1;
+        public string RadioMac;
+        public int RadioDeviceId;
 
         public enum FragmentEncodingType
         {

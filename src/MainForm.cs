@@ -41,6 +41,9 @@ namespace HTCommander
             DataBroker.SetUIContext(this);
             broker = new DataBrokerClient();
 
+            // Add the FrameDeduplicator data handler to handle duplicate frames from multiple radios
+            DataBroker.AddDataHandler("FrameDeduplicator", new FrameDeduplicator());
+
             // Subscribe to CallSign and StationId changes for title bar updates
             broker.Subscribe(0, new[] { "CallSign", "StationId" }, OnCallSignOrStationIdChanged);
 

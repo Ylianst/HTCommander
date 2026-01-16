@@ -25,7 +25,6 @@ namespace HTCommander
 
         private RadioBluetoothWin radioTransport;
         private TncDataFragment frameAccumulator = null;
-        private TncDataFragment lastHardwarePacketReceived = null;
         private RadioState state = RadioState.Disconnected;
         private bool _gpsEnabled = false;
         private int gpsLock = 2;
@@ -969,7 +968,6 @@ namespace HTCommander
                 frameAccumulator = null;
                 packet.incoming = true;
                 packet.time = DateTime.Now;
-                lastHardwarePacketReceived = packet;
                 DispatchDataFrame(packet);
             }
         }
@@ -1108,7 +1106,12 @@ namespace HTCommander
         #region Dispatch Helpers
 
         public void Debug(string msg) => broker.Dispatch(0, "LogInfo", $"[Radio/{DeviceId}]: {msg}", store: false);
-        private void DispatchDataFrame(TncDataFragment frame) => broker.Dispatch(DeviceId, "DataFrame", frame, store: false);
+        private void DispatchDataFrame(TncDataFragment frame)
+        {
+            frame.RadioMac = MacAddress;
+            frame.RadioDeviceId = DeviceId;
+            broker.Dispatch(DeviceId, "DataFrame", frame, store: false);
+        }
         private void DispatchRawCommand(byte[] cmd) => broker.Dispatch(DeviceId, "RawCommand", cmd, store: false);
 
         #endregion
