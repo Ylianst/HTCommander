@@ -8,6 +8,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.IO.Pipes;
+using System.Threading;
 using System.Windows.Forms;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -22,6 +23,7 @@ namespace HTCommander
         private const int StartingDeviceId = 100;
         private SettingsForm settingsForm = null;
         private RadioConnectionForm radioSelectorForm = null;
+        private CancellationTokenSource pipeServerCts = null;
 
         private string LastUpdateCheck => DataBroker.GetValue<string>(0, "LastUpdateCheck", null);
         private bool CheckForUpdates => DataBroker.GetValue<bool>(0, "CheckForUpdates", false);
@@ -63,7 +65,6 @@ namespace HTCommander
             PublishConnectedRadios();
 
             aprsTabUserControl.Initialize(this);
-            mapTabUserControl.Initialize(this);
             voiceTabUserControl.Initialize(this);
             mailTabUserControl.Initialize(this);
             terminalTabUserControl.Initialize(this);
@@ -73,19 +74,57 @@ namespace HTCommander
         }
         private void StartPipeServer()
         {
+            pipeServerCts = new CancellationTokenSource();
+            var token = pipeServerCts.Token;
+
             Task.Run(() =>
             {
-                while (true)
+                while (!token.IsCancellationRequested)
                 {
-                    using (var server = new NamedPipeServerStream(Program.PipeName))
-                    using (var reader = new StreamReader(server))
+                    NamedPipeServerStream server = null;
+                    try
                     {
-                        server.WaitForConnection();
-                        var message = reader.ReadLine();
-                        //if (message == "show") { showToolStripMenuItem_Click(this, null); }
+                        server = new NamedPipeServerStream(Program.PipeName);
+                        // Use async wait with cancellation support
+                        var waitTask = server.WaitForConnectionAsync(token);
+                        waitTask.Wait(token);
+
+                        if (token.IsCancellationRequested)
+                        {
+                            server.Dispose();
+                            break;
+                        }
+
+                        using (var reader = new StreamReader(server))
+                        {
+                            var message = reader.ReadLine();
+                            //if (message == "show") { showToolStripMenuItem_Click(this, null); }
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Cancellation requested, exit gracefully
+                        server?.Dispose();
+                        break;
+                    }
+                    catch (Exception)
+                    {
+                        // Handle other exceptions (e.g., pipe broken)
+                        server?.Dispose();
+                        if (token.IsCancellationRequested) break;
                     }
                 }
-            });
+            }, token);
+        }
+
+        private void StopPipeServer()
+        {
+            if (pipeServerCts != null)
+            {
+                pipeServerCts.Cancel();
+                pipeServerCts.Dispose();
+                pipeServerCts = null;
+            }
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -157,6 +196,12 @@ namespace HTCommander
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Application.Exit();
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            StopPipeServer();
+            base.OnFormClosing(e);
         }
 
         private async void connectToolStripMenuItem_Click(object sender, EventArgs e)

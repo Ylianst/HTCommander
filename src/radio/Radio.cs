@@ -429,6 +429,13 @@ namespace HTCommander
                 var cmd = _gpsEnabled ? RadioBasicCommand.REGISTER_NOTIFICATION : RadioBasicCommand.CANCEL_NOTIFICATION;
                 SendCommand(RadioCommandGroup.BASIC, cmd, (int)RadioNotification.POSITION_CHANGE);
             }
+
+            // If GPS is disabled, dispatch a null Position to clear the marker
+            if (!_gpsEnabled)
+            {
+                Position = null;
+                broker.Dispatch(DeviceId, "Position", null, store: true);
+            }
         }
 
         public void GetPosition()
@@ -854,7 +861,11 @@ namespace HTCommander
                     break;
                 case RadioBasicCommand.GET_POSITION:
                     Position = new RadioPosition(value);
-                    broker.Dispatch(DeviceId, "Position", Position, store: true);
+                    // Only dispatch position if GPS is enabled
+                    if (_gpsEnabled)
+                    {
+                        broker.Dispatch(DeviceId, "Position", Position, store: true);
+                    }
                     break;
                 case RadioBasicCommand.GET_HT_STATUS:
                     HandleGetHtStatus(value);
@@ -896,7 +907,11 @@ namespace HTCommander
                     Position = new RadioPosition(value);
                     if (gpsLock > 0) gpsLock--;
                     Position.Locked = (gpsLock == 0);
-                    broker.Dispatch(DeviceId, "Position", Position, store: true);
+                    // Only dispatch position if GPS is enabled
+                    if (_gpsEnabled)
+                    {
+                        broker.Dispatch(DeviceId, "Position", Position, store: true);
+                    }
                     break;
                 default:
                     Debug("Event: " + Utils.BytesToHex(value));
