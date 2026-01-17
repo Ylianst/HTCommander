@@ -41,6 +41,8 @@ namespace HTCommander.Controls
             this.queryDeviceNamesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem8 = new System.Windows.Forms.ToolStripSeparator();
             this.clearToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
+            this.detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.saveTraceFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.debugControlsPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.debugMenuPictureBox)).BeginInit();
@@ -110,9 +112,11 @@ namespace HTCommander.Controls
             this.toolStripMenuItem3,
             this.queryDeviceNamesToolStripMenuItem,
             this.toolStripMenuItem8,
-            this.clearToolStripMenuItem});
+            this.clearToolStripMenuItem,
+            this.toolStripMenuItemDetachSeparator,
+            this.detachToolStripMenuItem});
             this.debugTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.debugTabContextMenuStrip.Size = new System.Drawing.Size(235, 136);
+            this.debugTabContextMenuStrip.Size = new System.Drawing.Size(235, 166);
             // 
             // debugSaveToFileToolStripMenuItem
             // 
@@ -161,6 +165,20 @@ namespace HTCommander.Controls
             this.clearToolStripMenuItem.Text = "&Clear";
             this.clearToolStripMenuItem.Click += new System.EventHandler(this.clearToolStripMenuItem_Click);
             // 
+            // toolStripMenuItemDetachSeparator
+            // 
+            this.toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
+            this.toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(231, 6);
+            this.toolStripMenuItemDetachSeparator.Visible = false;
+            // 
+            // detachToolStripMenuItem
+            // 
+            this.detachToolStripMenuItem.Name = "detachToolStripMenuItem";
+            this.detachToolStripMenuItem.Size = new System.Drawing.Size(234, 24);
+            this.detachToolStripMenuItem.Text = "Detach...";
+            this.detachToolStripMenuItem.Visible = false;
+            this.detachToolStripMenuItem.Click += new System.EventHandler(this.detachToolStripMenuItem_Click);
+            // 
             // saveTraceFileDialog
             // 
             this.saveTraceFileDialog.Filter = "Text files|*.txt";
@@ -197,6 +215,8 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem queryDeviceNamesToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem8;
         private System.Windows.Forms.ToolStripMenuItem clearToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
+        private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
         private System.Windows.Forms.SaveFileDialog saveTraceFileDialog;
     }
 }

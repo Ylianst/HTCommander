@@ -6,6 +6,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 using System;
 using System.Windows.Forms;
+using HTCommander.Dialogs;
 
 namespace HTCommander.Controls
 {
@@ -26,6 +27,11 @@ namespace HTCommander.Controls
         /// Client for subscribing to and dispatching messages through the DataBroker.
         /// </summary>
         private DataBrokerClient broker;
+
+        /// <summary>
+        /// Backing field for ShowDetach property.
+        /// </summary>
+        private bool _showDetach = false;
 
         #endregion
 
@@ -55,6 +61,31 @@ namespace HTCommander.Controls
 
             // Initialize menu item states from current broker values
             InitializeMenuItemStates();
+        }
+
+        #endregion
+
+        #region Public Properties
+
+        /// <summary>
+        /// Gets or sets whether the "Detach..." menu item is visible.
+        /// This property can be set in the designer.
+        /// </summary>
+        [System.ComponentModel.Category("Behavior")]
+        [System.ComponentModel.Description("Gets or sets whether the Detach menu item is visible.")]
+        [System.ComponentModel.DefaultValue(false)]
+        public bool ShowDetach
+        {
+            get { return _showDetach; }
+            set
+            {
+                _showDetach = value;
+                if (detachToolStripMenuItem != null)
+                {
+                    detachToolStripMenuItem.Visible = value;
+                    toolStripMenuItemDetachSeparator.Visible = value;
+                }
+            }
         }
 
         #endregion
@@ -296,6 +327,15 @@ namespace HTCommander.Controls
         private void clearToolStripMenuItem_Click(object sender, EventArgs e)
         {
             debugTextBox.Clear();
+        }
+
+        /// <summary>
+        /// Opens a new detached window with a DebugTabUserControl.
+        /// </summary>
+        private void detachToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var form = DetachedTabForm.Create<DebugTabUserControl>("Developer Debug");
+            form.Show(this.ParentForm);
         }
 
         #endregion

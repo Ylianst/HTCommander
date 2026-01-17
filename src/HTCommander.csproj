@@ -56,6 +56,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="memory-bank\**" />
+    <EmbeddedResource Remove="memory-bank\**" />
+    <None Remove="memory-bank\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Radio\RadioBluetoothLinux.cs" />
     <Compile Remove="Radio\WhisperEngine-01.cs" />
     <Compile Remove="Radio\WhisperEngine-02.cs" />

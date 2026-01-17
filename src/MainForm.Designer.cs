@@ -621,6 +621,7 @@
             packetCaptureTabUserControl.Location = new System.Drawing.Point(0, 0);
             packetCaptureTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             packetCaptureTabUserControl.Name = "packetCaptureTabUserControl";
+            packetCaptureTabUserControl.ShowDetach = true;
             packetCaptureTabUserControl.Size = new System.Drawing.Size(669, 836);
             packetCaptureTabUserControl.TabIndex = 0;
             // 
@@ -642,6 +643,7 @@
             debugTabUserControl.Location = new System.Drawing.Point(0, 0);
             debugTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             debugTabUserControl.Name = "debugTabUserControl";
+            debugTabUserControl.ShowDetach = true;
             debugTabUserControl.Size = new System.Drawing.Size(669, 836);
             debugTabUserControl.TabIndex = 0;
             // 

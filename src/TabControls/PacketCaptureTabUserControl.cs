@@ -1,60 +1,269 @@
+/*
+Copyright 2026 Ylian Saint-Hilaire
+Licensed under the Apache License, Version 2.0 (the "License");
+http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 using System;
-using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using System.Collections.Generic;
 using static HTCommander.TncDataFragment;
+using HTCommander.Dialogs;
 
 namespace HTCommander.Controls
 {
+    /// <summary>
+    /// User control that displays captured packets and provides packet decode functionality.
+    /// Uses the DataBroker pattern to receive packets from the PacketStore data handler.
+    /// </summary>
     public partial class PacketCaptureTabUserControl : UserControl
     {
-        private MainForm mainForm;
+        #region Private Fields
 
+        /// <summary>
+        /// Client for subscribing to and dispatching messages through the DataBroker.
+        /// </summary>
+        private DataBrokerClient broker;
+
+        /// <summary>
+        /// Indicates whether this control is in file viewing mode (no broker subscriptions).
+        /// </summary>
+        private bool _fileViewMode = false;
+
+        /// <summary>
+        /// The path to the packet capture file (when in file viewing mode).
+        /// </summary>
+        private string _filename;
+
+        /// <summary>
+        /// Backing field for ShowDetach property.
+        /// </summary>
+        private bool _showDetach = false;
+
+        #endregion
+
+        #region Constructor
+
+        /// <summary>
+        /// Default constructor for live packet capture mode.
+        /// Subscribes to Data Broker events for real-time packet display.
+        /// </summary>
         public PacketCaptureTabUserControl()
         {
             InitializeComponent();
+            InitializeDoubleBuffering();
+
+            // Initialize the broker client for pub/sub messaging
+            broker = new DataBrokerClient();
+
+            // Subscribe to receive the packet list response
+            broker.Subscribe(1, "PacketList", OnPacketList);
+
+            // Subscribe to new packets being stored
+            broker.Subscribe(1, "PacketStored", OnPacketStored);
+
+            // Subscribe to show packet decode setting changes
+            broker.Subscribe(0, "ShowPacketDecode", OnShowPacketDecodeChanged);
+
+            // Subscribe to PacketStoreReady to know when PacketStore has loaded packets
+            broker.Subscribe(1, "PacketStoreReady", OnPacketStoreReady);
+
+            // Initialize menu item states from current broker values
+            InitializeMenuItemStates();
+
+            // Check if PacketStore is already ready (in case we're created after PacketStore)
+            bool packetStoreReady = DataBroker.GetValue<bool>(1, "PacketStoreReady", false);
+            if (packetStoreReady)
+            {
+                // Request the packet list right away
+                broker.Dispatch(1, "RequestPacketList", null, store: false);
+            }
         }
 
-        public void Initialize(MainForm mainForm)
+        /// <summary>
+        /// Constructor for file viewing mode.
+        /// Loads packets from the specified file and hides the title panel.
+        /// No Data Broker subscriptions are created.
+        /// </summary>
+        /// <param name="filename">The path to the packet capture file to load.</param>
+        public PacketCaptureTabUserControl(string filename)
         {
-            this.mainForm = mainForm;
+            InitializeComponent();
+            InitializeDoubleBuffering();
 
-            // Enable double buffering for packetDecodeListView to prevent flickering
+            _fileViewMode = true;
+
+            // Hide the title panel in file view mode
+            titlePanel.Visible = false;
+
+            // Load packets from file
+            LoadPacketsFromFile(filename);
+        }
+
+        #endregion
+
+        #region Private Methods - Common Initialization
+
+        /// <summary>
+        /// Enables double buffering for ListViews to prevent flickering.
+        /// </summary>
+        private void InitializeDoubleBuffering()
+        {
             typeof(ListView).InvokeMember("DoubleBuffered",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
                 null, packetsListView, new object[] { true });
-
-            // Load settings from registry
-            //showPacketDecodeToolStripMenuItem.Checked = (mainForm.registry.ReadInt("showPacketDecode", 0) == 1);
-            packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
+            typeof(ListView).InvokeMember("DoubleBuffered",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
+                null, packetDecodeListView, new object[] { true });
         }
 
-        public void AddPacket(TncDataFragment fragment)
+        /// <summary>
+        /// Loads packets from a file and displays them.
+        /// </summary>
+        /// <param name="filename">The path to the packet capture file.</param>
+        private void LoadPacketsFromFile(string filename)
         {
-            if (this.InvokeRequired) { this.BeginInvoke(new Action<TncDataFragment>(AddPacket), fragment); return; }
+            string[] lines = null;
+            try
+            {
+                if (File.Exists(filename))
+                {
+                    lines = File.ReadAllLines(filename);
+                }
+            }
+            catch (Exception)
+            {
+                return;
+            }
 
-            ListViewItem l = new ListViewItem(new string[] { fragment.time.ToShortTimeString(), fragment.channel_name, FragmentToShortString(fragment) });
-            l.ImageIndex = fragment.incoming ? 5 : 4;
-            l.Tag = fragment;
-            packetsListView.Items.Insert(0, l);
+            if (lines == null || lines.Length == 0) return;
+
+            List<TncDataFragment> packets = new List<TncDataFragment>();
+            for (int i = 0; i < lines.Length; i++)
+            {
+                try
+                {
+                    TncDataFragment fragment = PacketStore.ParsePacketLine(lines[i]);
+                    if (fragment != null)
+                    {
+                        packets.Add(fragment);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Skip malformed lines
+                }
+            }
+
+            // Display the packets
+            DisplayPacketList(packets);
         }
 
-        public void AddPackets(List<ListViewItem> listViewItems)
+        /// <summary>
+        /// Displays a list of packets in the ListView.
+        /// </summary>
+        /// <param name="packets">The list of packets to display.</param>
+        private void DisplayPacketList(List<TncDataFragment> packets)
         {
+            packetsListView.BeginUpdate();
+            packetsListView.Items.Clear();
+
+            List<ListViewItem> listViewItems = new List<ListViewItem>();
+            foreach (TncDataFragment fragment in packets)
+            {
+                ListViewItem l = new ListViewItem(new string[] { fragment.time.ToShortTimeString(), fragment.channel_name, FragmentToShortString(fragment) });
+                l.ImageIndex = fragment.incoming ? 5 : 4;
+                l.Tag = fragment;
+                listViewItems.Add(l);
+            }
+
+            // Sort by time descending (newest first)
+            listViewItems.Sort((a, b) => DateTime.Compare(((TncDataFragment)b.Tag).time, ((TncDataFragment)a.Tag).time));
             packetsListView.Items.AddRange(listViewItems.ToArray());
+            packetsListView.EndUpdate();
         }
 
-        public void AddPacket(ListViewItem listViewItem)
+        #endregion
+
+        #region Public Properties
+
+        /// <summary>
+        /// Gets or sets whether the title panel is visible.
+        /// This property can be set in the designer.
+        /// </summary>
+        [System.ComponentModel.Category("Appearance")]
+        [System.ComponentModel.Description("Gets or sets whether the title panel is visible.")]
+        [System.ComponentModel.DefaultValue(true)]
+        public bool ShowTitle
         {
-            packetsListView.Items.Insert(0, listViewItem);
+            get { return titlePanel.Visible; }
+            set { titlePanel.Visible = value; }
         }
 
+        /// <summary>
+        /// Gets or sets the path to a packet capture file to load.
+        /// When set, the control enters file viewing mode and loads packets from the specified file.
+        /// </summary>
+        [System.ComponentModel.Category("Data")]
+        [System.ComponentModel.Description("The path to the packet capture file to load. Setting this puts the control in file viewing mode.")]
+        [System.ComponentModel.DefaultValue(null)]
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public string Filename
+        {
+            get { return _filename; }
+            set
+            {
+                _filename = value;
+                if (!string.IsNullOrEmpty(value) && !DesignMode)
+                {
+                    _fileViewMode = true;
+                    LoadPacketsFromFile(value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets whether the "Detach..." menu item is visible.
+        /// This property can be set in the designer.
+        /// </summary>
+        [System.ComponentModel.Category("Behavior")]
+        [System.ComponentModel.Description("Gets or sets whether the Detach menu item is visible.")]
+        [System.ComponentModel.DefaultValue(false)]
+        public bool ShowDetach
+        {
+            get { return _showDetach; }
+            set
+            {
+                _showDetach = value;
+                if (detachToolStripMenuItem != null)
+                {
+                    detachToolStripMenuItem.Visible = value;
+                    toolStripMenuItemDetachSeparator.Visible = value;
+                }
+            }
+        }
+
+        #endregion
+
+        #region Public Methods
+
+        /// <summary>
+        /// Clears all packets from the list view and decode view.
+        /// </summary>
         public void Clear()
         {
             packetsListView.Items.Clear();
             packetDecodeListView.Items.Clear();
         }
 
+        /// <summary>
+        /// Converts a TncDataFragment to a short string representation for display.
+        /// </summary>
+        /// <param name="fragment">The fragment to convert.</param>
+        /// <returns>A short string representation of the fragment.</returns>
         public string FragmentToShortString(TncDataFragment fragment)
         {
             StringBuilder sb = new StringBuilder();
@@ -122,12 +331,136 @@ namespace HTCommander.Controls
             return sb.ToString().Replace("\r", "").Replace("\n", "");
         }
 
-        public void addPacketDecodeLine(int group, string title, string value)
+        #endregion
+
+        #region Private Methods - Initialization
+
+        /// <summary>
+        /// Initializes the checked states of menu items based on current broker values.
+        /// </summary>
+        private void InitializeMenuItemStates()
+        {
+            // Get show packet decode setting (persisted in registry)
+            showPacketDecodeToolStripMenuItem.Checked = DataBroker.GetValue<bool>(0, "ShowPacketDecode", false);
+            packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
+        }
+
+        #endregion
+
+        #region Private Methods - DataBroker Event Handlers
+
+        /// <summary>
+        /// Handles the packet list response from PacketStore.
+        /// </summary>
+        /// <param name="deviceId">The device ID.</param>
+        /// <param name="name">The event name.</param>
+        /// <param name="data">The list of packets.</param>
+        private void OnPacketList(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnPacketList), deviceId, name, data);
+                return;
+            }
+
+            if (!(data is List<TncDataFragment> packets)) return;
+
+            // Clear existing items and add all packets
+            packetsListView.BeginUpdate();
+            packetsListView.Items.Clear();
+
+            // Add packets in reverse order (newest first)
+            List<ListViewItem> listViewItems = new List<ListViewItem>();
+            foreach (TncDataFragment fragment in packets)
+            {
+                ListViewItem l = new ListViewItem(new string[] { fragment.time.ToShortTimeString(), fragment.channel_name, FragmentToShortString(fragment) });
+                l.ImageIndex = fragment.incoming ? 5 : 4;
+                l.Tag = fragment;
+                listViewItems.Add(l);
+            }
+
+            // Sort by time descending (newest first)
+            listViewItems.Sort((a, b) => DateTime.Compare(((TncDataFragment)b.Tag).time, ((TncDataFragment)a.Tag).time));
+            packetsListView.Items.AddRange(listViewItems.ToArray());
+            packetsListView.EndUpdate();
+        }
+
+        /// <summary>
+        /// Handles new packets being stored by PacketStore.
+        /// </summary>
+        /// <param name="deviceId">The device ID.</param>
+        /// <param name="name">The event name.</param>
+        /// <param name="data">The new packet.</param>
+        private void OnPacketStored(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnPacketStored), deviceId, name, data);
+                return;
+            }
+
+            if (!(data is TncDataFragment fragment)) return;
+
+            ListViewItem l = new ListViewItem(new string[] { fragment.time.ToShortTimeString(), fragment.channel_name, FragmentToShortString(fragment) });
+            l.ImageIndex = fragment.incoming ? 5 : 4;
+            l.Tag = fragment;
+            packetsListView.Items.Insert(0, l);
+        }
+
+        /// <summary>
+        /// Handles the PacketStoreReady event from PacketStore.
+        /// Requests the packet list when PacketStore is ready.
+        /// </summary>
+        /// <param name="deviceId">The device ID.</param>
+        /// <param name="name">The event name.</param>
+        /// <param name="data">The ready flag.</param>
+        private void OnPacketStoreReady(int deviceId, string name, object data)
+        {
+            // Request the current packet list from PacketStore
+            broker.Dispatch(1, "RequestPacketList", null, store: false);
+        }
+
+        /// <summary>
+        /// Handles changes to the show packet decode setting.
+        /// </summary>
+        /// <param name="deviceId">The device ID.</param>
+        /// <param name="name">The setting name.</param>
+        /// <param name="data">The new boolean value.</param>
+        private void OnShowPacketDecodeChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnShowPacketDecodeChanged), deviceId, name, data);
+                return;
+            }
+
+            if (data is bool value && showPacketDecodeToolStripMenuItem.Checked != value)
+            {
+                showPacketDecodeToolStripMenuItem.Checked = value;
+                packetsSplitContainer.Panel2Collapsed = !value;
+            }
+        }
+
+        #endregion
+
+        #region Private Methods - Helper Methods
+
+        /// <summary>
+        /// Adds a line to the packet decode list view.
+        /// </summary>
+        /// <param name="group">The group index.</param>
+        /// <param name="title">The title/key.</param>
+        /// <param name="value">The value.</param>
+        private void addPacketDecodeLine(int group, string title, string value)
         {
             ListViewItem l = new ListViewItem(new string[] { title, value });
             l.Group = packetDecodeListView.Groups[group];
             packetDecodeListView.Items.Add(l);
         }
+
+        #endregion
+
+        #region Private Methods - UI Event Handlers
 
         private void packetsListView_Resize(object sender, EventArgs e)
         {
@@ -285,8 +618,8 @@ namespace HTCommander.Controls
 
         private void showPacketDecodeToolStripMenuItem_CheckStateChanged(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
-            //mainForm.registry.WriteInt("showPacketDecode", showPacketDecodeToolStripMenuItem.Checked ? 1 : 0);
+            // Dispatch the new value (persists to registry via broker)
+            DataBroker.Dispatch(0, "ShowPacketDecode", showPacketDecodeToolStripMenuItem.Checked);
             packetsSplitContainer.Panel2Collapsed = !showPacketDecodeToolStripMenuItem.Checked;
         }
 
@@ -348,8 +681,8 @@ namespace HTCommander.Controls
         {
             if (openPacketsFileDialog.ShowDialog(this) == DialogResult.OK)
             {
-                PacketCaptureViewerForm form = new PacketCaptureViewerForm(mainForm, openPacketsFileDialog.FileName);
-                form.Show(mainForm);
+                PacketCaptureViewerForm form = new PacketCaptureViewerForm(openPacketsFileDialog.FileName);
+                form.Show(this.ParentForm);
             }
         }
 
@@ -371,5 +704,14 @@ namespace HTCommander.Controls
                 Clear();
             }
         }
+
+        private void detachToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Create a new detached form with a PacketCaptureTabUserControl
+            var form = DetachedTabForm.Create<PacketCaptureTabUserControl>("Packet Capture");
+            form.Show(this.ParentForm);
+        }
+
+        #endregion
     }
 }

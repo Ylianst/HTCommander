@@ -41,8 +41,9 @@ namespace HTCommander
             DataBroker.SetUIContext(this);
             broker = new DataBrokerClient();
 
-            // Add the FrameDeduplicator data handler to handle duplicate frames from multiple radios
+            // Add the FrameDeduplicator and PacketStore data handlers
             DataBroker.AddDataHandler("FrameDeduplicator", new FrameDeduplicator());
+            DataBroker.AddDataHandler("PacketStore", new PacketStore());
 
             // Subscribe to CallSign and StationId changes for title bar updates
             broker.Subscribe(0, new[] { "CallSign", "StationId" }, OnCallSignOrStationIdChanged);
@@ -68,7 +69,6 @@ namespace HTCommander
             contactsTabUserControl.Initialize(this);
             bbsTabUserControl.Initialize(this);
             torrentTabUserControl.Initialize(this);
-            packetCaptureTabUserControl.Initialize(this);
         }
         private void StartPipeServer()
         {
