@@ -5,7 +5,9 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace HTCommander
@@ -23,19 +25,16 @@ namespace HTCommander
             stationTypeComboBox.SelectedIndex = 0;
             terminalProtocolComboBox.SelectedIndex = 0;
 
-            // Setup radio channels from DataBroker
-            RadioChannelInfo[] channels = broker.GetValue<RadioChannelInfo[]>(1, "Channels", null);
-            if (channels != null)
+            // Setup radio channels from DataBroker - query all connected radios
+            List<string> channelNames = GetAllChannelNames();
+            if (channelNames.Count > 0)
             {
                 channelsComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
                 channelsComboBox2.DropDownStyle = ComboBoxStyle.DropDownList;
-                for (int i = 0; i < channels.Length; i++)
+                foreach (string channelName in channelNames)
                 {
-                    if ((channels[i] != null) && (!string.IsNullOrEmpty(channels[i].name_str)))
-                    {
-                        channelsComboBox.Items.Add(channels[i].name_str);
-                        channelsComboBox2.Items.Add(channels[i].name_str);
-                    }
+                    channelsComboBox.Items.Add(channelName);
+                    channelsComboBox2.Items.Add(channelName);
                 }
                 if (channelsComboBox.Items.Count > 0) channelsComboBox.SelectedIndex = 0;
                 if (channelsComboBox2.Items.Count > 0) channelsComboBox2.SelectedIndex = 0;
@@ -316,6 +315,49 @@ namespace HTCommander
         private void authPasswordTextBox_TextChanged(object sender, EventArgs e)
         {
             UpdateInfo();
+        }
+
+        /// <summary>
+        /// Gets all channel names from all connected radios, merged and sorted.
+        /// </summary>
+        private List<string> GetAllChannelNames()
+        {
+            HashSet<string> channelNamesSet = new HashSet<string>();
+
+            // Get the list of connected radios from the broker
+            var connectedRadios = broker.GetValue<System.Collections.IList>(1, "ConnectedRadios", null);
+            if (connectedRadios != null)
+            {
+                foreach (var item in connectedRadios)
+                {
+                    if (item == null) continue;
+
+                    // Extract DeviceId from the anonymous object
+                    var itemType = item.GetType();
+                    int? deviceId = (int?)itemType.GetProperty("DeviceId")?.GetValue(item);
+
+                    if (deviceId.HasValue && deviceId.Value > 0)
+                    {
+                        // Query channels for this device
+                        RadioChannelInfo[] channels = broker.GetValue<RadioChannelInfo[]>(deviceId.Value, "Channels", null);
+                        if (channels != null)
+                        {
+                            foreach (var channel in channels)
+                            {
+                                if (channel != null && !string.IsNullOrEmpty(channel.name_str))
+                                {
+                                    channelNamesSet.Add(channel.name_str);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Convert to list and sort
+            List<string> sortedChannelNames = channelNamesSet.ToList();
+            sortedChannelNames.Sort(StringComparer.OrdinalIgnoreCase);
+            return sortedChannelNames;
         }
     }
 }

@@ -40,7 +40,6 @@ namespace HTCommander.Controls
             stationsTopPanel = new System.Windows.Forms.Panel();
             stationsMenuPictureBox = new System.Windows.Forms.PictureBox();
             stationsTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
-            setToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             editToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             removeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItem10 = new System.Windows.Forms.ToolStripSeparator();
@@ -55,6 +54,7 @@ namespace HTCommander.Controls
             columnHeader9 = new System.Windows.Forms.ColumnHeader();
             mainImageList = new System.Windows.Forms.ImageList(components);
             stationsBottomPanel = new System.Windows.Forms.Panel();
+            editButton = new System.Windows.Forms.Button();
             removeStationButton = new System.Windows.Forms.Button();
             addStationButton = new System.Windows.Forms.Button();
             saveStationsFileDialog = new System.Windows.Forms.SaveFileDialog();
@@ -94,16 +94,10 @@ namespace HTCommander.Controls
             // stationsTabContextMenuStrip
             // 
             stationsTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            stationsTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { setToolStripMenuItem, editToolStripMenuItem, removeToolStripMenuItem, toolStripMenuItem10, exportStationsToolStripMenuItem, importStationsToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
+            stationsTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { editToolStripMenuItem, removeToolStripMenuItem, toolStripMenuItem10, exportStationsToolStripMenuItem, importStationsToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
             stationsTabContextMenuStrip.Name = "stationsTabContextMenuStrip";
-            stationsTabContextMenuStrip.Size = new System.Drawing.Size(135, 160);
-            // 
-            // setToolStripMenuItem
-            // 
-            setToolStripMenuItem.Name = "setToolStripMenuItem";
-            setToolStripMenuItem.Size = new System.Drawing.Size(134, 24);
-            setToolStripMenuItem.Text = "&Set";
-            setToolStripMenuItem.Click += setToolStripMenuItem_Click;
+            stationsTabContextMenuStrip.Size = new System.Drawing.Size(135, 136);
+            stationsTabContextMenuStrip.Opening += stationsTabContextMenuStrip_Opening;
             // 
             // editToolStripMenuItem
             // 
@@ -195,6 +189,7 @@ namespace HTCommander.Controls
             mainAddressBookListView.View = System.Windows.Forms.View.Details;
             mainAddressBookListView.SelectedIndexChanged += mainAddressBookListView_SelectedIndexChanged;
             mainAddressBookListView.DoubleClick += mainAddressBookListView_DoubleClick;
+            mainAddressBookListView.KeyDown += mainAddressBookListView_KeyDown;
             mainAddressBookListView.Resize += mainAddressBookListView_Resize;
             // 
             // columnHeader7
@@ -230,6 +225,7 @@ namespace HTCommander.Controls
             // stationsBottomPanel
             // 
             stationsBottomPanel.BackColor = System.Drawing.Color.Silver;
+            stationsBottomPanel.Controls.Add(editButton);
             stationsBottomPanel.Controls.Add(removeStationButton);
             stationsBottomPanel.Controls.Add(addStationButton);
             stationsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -238,6 +234,18 @@ namespace HTCommander.Controls
             stationsBottomPanel.Name = "stationsBottomPanel";
             stationsBottomPanel.Size = new System.Drawing.Size(669, 54);
             stationsBottomPanel.TabIndex = 2;
+            // 
+            // editButton
+            // 
+            editButton.Enabled = false;
+            editButton.Location = new System.Drawing.Point(227, 9);
+            editButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            editButton.Name = "editButton";
+            editButton.Size = new System.Drawing.Size(100, 35);
+            editButton.TabIndex = 2;
+            editButton.Text = "&Edit...";
+            editButton.UseVisualStyleBackColor = true;
+            editButton.Click += mainAddressBookListView_DoubleClick;
             // 
             // removeStationButton
             // 
@@ -264,14 +272,14 @@ namespace HTCommander.Controls
             // 
             // saveStationsFileDialog
             // 
-            saveStationsFileDialog.DefaultExt = "json";
-            saveStationsFileDialog.Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*";
+            saveStationsFileDialog.DefaultExt = "ini";
+            saveStationsFileDialog.Filter = "INI Files (*.ini)|*.ini|All Files (*.*)|*.*";
             saveStationsFileDialog.Title = "Export Stations";
             // 
             // openStationsFileDialog
             // 
             openStationsFileDialog.DefaultExt = "json";
-            openStationsFileDialog.Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*";
+            openStationsFileDialog.Filter = "INI Files (*.ini)|*.ini|All Files (*.*)|*.*";
             openStationsFileDialog.Title = "Import Stations";
             // 
             // ContactsTabUserControl
@@ -306,7 +314,6 @@ namespace HTCommander.Controls
         private System.Windows.Forms.Button removeStationButton;
         private System.Windows.Forms.Button addStationButton;
         private System.Windows.Forms.ContextMenuStrip stationsTabContextMenuStrip;
-        private System.Windows.Forms.ToolStripMenuItem setToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem editToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem removeToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem10;
@@ -317,5 +324,6 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
         private System.Windows.Forms.SaveFileDialog saveStationsFileDialog;
         private System.Windows.Forms.OpenFileDialog openStationsFileDialog;
+        private System.Windows.Forms.Button editButton;
     }
 }

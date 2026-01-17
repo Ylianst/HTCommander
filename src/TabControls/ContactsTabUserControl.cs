@@ -124,6 +124,8 @@ namespace HTCommander.Controls
                 }
                 SaveStations(stations);
             }
+            toolStripMenuItem10.Visible = editToolStripMenuItem.Visible = removeToolStripMenuItem.Visible = removeStationButton.Enabled = (mainAddressBookListView.SelectedItems.Count > 0);
+            editButton.Enabled = (mainAddressBookListView.SelectedItems.Count == 1);
         }
 
         private void mainAddressBookListView_DoubleClick(object sender, EventArgs e)
@@ -137,10 +139,10 @@ namespace HTCommander.Controls
             {
                 StationInfoClass updatedStation = form.SerializeToObject();
                 List<StationInfoClass> stations = GetStations();
-                
+
                 // Remove the old station entry
                 stations.RemoveAll(s => s.Callsign == station.Callsign && s.StationType == station.StationType);
-                
+
                 // Add the updated station
                 stations.Add(updatedStation);
                 SaveStations(stations);
@@ -152,38 +154,15 @@ namespace HTCommander.Controls
 
         private void mainAddressBookListView_SelectedIndexChanged(object sender, EventArgs e)
         {
-            editToolStripMenuItem.Visible = removeToolStripMenuItem.Visible = removeStationButton.Enabled = (mainAddressBookListView.SelectedItems.Count > 0);
-            bool setMenuItemVisible = true;
-            if (mainAddressBookListView.SelectedItems.Count != 1)
-            {
-                setMenuItemVisible = false;
-            }
-            else
-            {
-                StationInfoClass station = (StationInfoClass)mainAddressBookListView.SelectedItems[0].Tag;
-                if (station.StationType == StationInfoClass.StationTypes.Terminal)
-                {
-                    // Enable based on radio connection state - this will be handled via DataBroker
-                    setToolStripMenuItem.Enabled = true;
-                }
-                else if (station.StationType == StationInfoClass.StationTypes.APRS)
-                {
-                    // Enable based on radio connection state - this will be handled via DataBroker
-                    setToolStripMenuItem.Enabled = true;
-                }
-                else
-                {
-                    setMenuItemVisible = false;
-                }
-            }
-            setToolStripMenuItem.Visible = setMenuItemVisible;
+            toolStripMenuItem10.Visible = editToolStripMenuItem.Visible = removeToolStripMenuItem.Visible = removeStationButton.Enabled = (mainAddressBookListView.SelectedItems.Count > 0);
+            editButton.Enabled = (mainAddressBookListView.SelectedItems.Count == 1);
         }
 
         private void mainAddressBookListView_Resize(object sender, EventArgs e)
         {
             if (mainAddressBookListView.Columns.Count >= 3)
             {
-                mainAddressBookListView.Columns[2].Width = mainAddressBookListView.Width - mainAddressBookListView.Columns[1].Width - mainAddressBookListView.Columns[0].Width - 28;
+                mainAddressBookListView.Columns[2].Width = -2; // Auto-fill remaining width
             }
         }
 
@@ -213,13 +192,13 @@ namespace HTCommander.Controls
                     if (importedStations != null)
                     {
                         List<StationInfoClass> stations = GetStations();
-                        
+
                         // Remove existing stations that match imported ones
                         foreach (StationInfoClass importedStation in importedStations)
                         {
                             stations.RemoveAll(s => s.Callsign == importedStation.Callsign && s.StationType == importedStation.StationType);
                         }
-                        
+
                         // Add all imported stations
                         stations.AddRange(importedStations);
                         SaveStations(stations);
@@ -236,34 +215,30 @@ namespace HTCommander.Controls
             }
         }
 
-        private void setToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            if (mainAddressBookListView.SelectedItems.Count != 1) return;
-
-            StationInfoClass station = (StationInfoClass)mainAddressBookListView.SelectedItems[0].Tag;
-
-            if (station.StationType == StationInfoClass.StationTypes.APRS)
-            {
-                // Dispatch event to set APRS destination
-                broker.Dispatch(0, "SetAprsDestination", station, store: false);
-            }
-
-            if (station.StationType == StationInfoClass.StationTypes.Terminal)
-            {
-                // Dispatch event to lock to terminal station
-                broker.Dispatch(0, "SetTerminalStation", station, store: false);
-            }
-        }
-
         private void removeToolStripMenuItem_Click(object sender, EventArgs e)
         {
             removeStationButton_Click(this, null);
+        }
+
+        private void mainAddressBookListView_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Delete)
+            {
+                removeStationButton_Click(this, null);
+                e.Handled = true;
+            }
         }
 
         private void detachToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var form = DetachedTabForm.Create<ContactsTabUserControl>("Contacts");
             form.Show();
+        }
+
+        private void stationsTabContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            toolStripMenuItem10.Visible = editToolStripMenuItem.Visible = removeToolStripMenuItem.Visible = removeStationButton.Enabled = (mainAddressBookListView.SelectedItems.Count > 0);
+            editButton.Enabled = (mainAddressBookListView.SelectedItems.Count == 1);
         }
     }
 }
