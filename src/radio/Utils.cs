@@ -8,6 +8,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Drawing;
+using System.Reflection;
 using System.Collections;
 using System.Windows.Forms;
 using System.Globalization;
@@ -21,6 +22,17 @@ namespace HTCommander
 {
     public class Utils
     {
+        /// <summary>
+        /// Enables or disables double buffering on a control to reduce flickering.
+        /// </summary>
+        /// <param name="control">The control to set double buffering on.</param>
+        /// <param name="enable">True to enable double buffering, false to disable.</param>
+        public static void SetDoubleBuffered(Control control, bool enable)
+        {
+            PropertyInfo prop = typeof(Control).GetProperty("DoubleBuffered", BindingFlags.NonPublic | BindingFlags.Instance);
+            prop?.SetValue(control, enable, null);
+        }
+
         public class ComboBoxItem
         {
             public int Index { get; }

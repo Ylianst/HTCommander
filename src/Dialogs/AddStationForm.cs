@@ -1,17 +1,7 @@
 ﻿/*
 Copyright 2026 Ylian Saint-Hilaire
-
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
@@ -22,32 +12,33 @@ namespace HTCommander
 {
     public partial class AddStationForm : Form
     {
-        private MainForm parent;
+        private DataBrokerClient broker;
 
-        public AddStationForm(MainForm parent)
+        public AddStationForm()
         {
-            /*
-            this.parent = parent;
             InitializeComponent();
+
+            broker = new DataBrokerClient();
 
             stationTypeComboBox.SelectedIndex = 0;
             terminalProtocolComboBox.SelectedIndex = 0;
 
-            // Setup radio channels
-            if (parent.radio.Channels != null)
+            // Setup radio channels from DataBroker
+            RadioChannelInfo[] channels = broker.GetValue<RadioChannelInfo[]>(1, "Channels", null);
+            if (channels != null)
             {
                 channelsComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
                 channelsComboBox2.DropDownStyle = ComboBoxStyle.DropDownList;
-                for (int i = 0; i < parent.radio.Channels.Length; i++)
+                for (int i = 0; i < channels.Length; i++)
                 {
-                    if ((parent.radio.Channels[i] != null) && (!string.IsNullOrEmpty(parent.radio.Channels[i].name_str)))
+                    if ((channels[i] != null) && (!string.IsNullOrEmpty(channels[i].name_str)))
                     {
-                        channelsComboBox.Items.Add(parent.radio.Channels[i].name_str);
-                        channelsComboBox2.Items.Add(parent.radio.Channels[i].name_str);
+                        channelsComboBox.Items.Add(channels[i].name_str);
+                        channelsComboBox2.Items.Add(channels[i].name_str);
                     }
                 }
-                channelsComboBox.SelectedIndex = 0;
-                channelsComboBox2.SelectedIndex = 0;
+                if (channelsComboBox.Items.Count > 0) channelsComboBox.SelectedIndex = 0;
+                if (channelsComboBox2.Items.Count > 0) channelsComboBox2.SelectedIndex = 0;
             }
             else
             {
@@ -55,10 +46,27 @@ namespace HTCommander
                 channelsComboBox2.DropDownStyle = ComboBoxStyle.DropDown;
             }
 
-            // Setup APRS routes
-            //foreach (string aprsRoute in parent.aprsRoutes.Keys) { aprsRouteComboBox.Items.Add(aprsRoute); }
-            aprsRouteComboBox.SelectedIndex = 0;
-            */
+            // Setup APRS routes from DataBroker
+            string aprsRoutesStr = broker.GetValue<string>(0, "AprsRoutes", null);
+            if (!string.IsNullOrEmpty(aprsRoutesStr))
+            {
+                // APRS routes are stored as pipe-delimited strings, where each route is "Name,Dest,Path1,Path2,..."
+                string[] routes = aprsRoutesStr.Split('|');
+                foreach (string route in routes)
+                {
+                    if (!string.IsNullOrEmpty(route))
+                    {
+                        // The route name is the first comma-separated value
+                        int commaIndex = route.IndexOf(',');
+                        if (commaIndex > 0)
+                        {
+                            string routeName = route.Substring(0, commaIndex);
+                            aprsRouteComboBox.Items.Add(routeName);
+                        }
+                    }
+                }
+            }
+            if (aprsRouteComboBox.Items.Count > 0) aprsRouteComboBox.SelectedIndex = 0;
         }
 
         private void cancelButton_Click(object sender, EventArgs e)

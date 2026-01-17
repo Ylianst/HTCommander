@@ -68,7 +68,6 @@ namespace HTCommander
             voiceTabUserControl.Initialize(this);
             mailTabUserControl.Initialize(this);
             terminalTabUserControl.Initialize(this);
-            contactsTabUserControl.Initialize(this);
             bbsTabUserControl.Initialize(this);
             torrentTabUserControl.Initialize(this);
         }
