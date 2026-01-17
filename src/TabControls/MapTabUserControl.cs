@@ -13,12 +13,34 @@ using GMap.NET;
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
 using GMap.NET.WindowsForms.Markers;
+using HTCommander.Dialogs;
 
 namespace HTCommander.Controls
 {
     public partial class MapTabUserControl : UserControl
     {
         private MainForm mainForm;
+        private bool _showDetach = false;
+
+        /// <summary>
+        /// Gets or sets whether the "Detach..." menu item is visible.
+        /// </summary>
+        [System.ComponentModel.Category("Behavior")]
+        [System.ComponentModel.Description("Gets or sets whether the Detach menu item is visible.")]
+        [System.ComponentModel.DefaultValue(false)]
+        public bool ShowDetach
+        {
+            get { return _showDetach; }
+            set
+            {
+                _showDetach = value;
+                if (detachToolStripMenuItem != null)
+                {
+                    detachToolStripMenuItem.Visible = value;
+                    toolStripMenuItemDetachSeparator.Visible = value;
+                }
+            }
+        }
         private CancellationTokenSource cts = null;
         private CustomTilePrefetcher prefetcher = null;
         private Point startPoint;
@@ -375,6 +397,12 @@ namespace HTCommander.Controls
                     e.Graphics.DrawRectangle(pen, selectionRect);
                 }
             }
+        }
+
+        private void detachToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var form = DetachedTabForm.Create<MapTabUserControl>("Map");
+            form.Show();
         }
     }
 }

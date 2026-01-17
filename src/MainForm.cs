@@ -41,9 +41,10 @@ namespace HTCommander
             DataBroker.SetUIContext(this);
             broker = new DataBrokerClient();
 
-            // Add the FrameDeduplicator and PacketStore data handlers
+            // Add the FrameDeduplicator, PacketStore, and LogStore data handlers
             DataBroker.AddDataHandler("FrameDeduplicator", new FrameDeduplicator());
             DataBroker.AddDataHandler("PacketStore", new PacketStore());
+            DataBroker.AddDataHandler("LogStore", new LogStore());
 
             // Subscribe to CallSign and StationId changes for title bar updates
             broker.Subscribe(0, new[] { "CallSign", "StationId" }, OnCallSignOrStationIdChanged);

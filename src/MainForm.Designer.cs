@@ -458,6 +458,7 @@
             aprsTabUserControl.Name = "aprsTabUserControl";
             aprsTabUserControl.SelectedAprsRoute = 0;
             aprsTabUserControl.ShowAllMessages = false;
+            aprsTabUserControl.ShowDetach = true;
             aprsTabUserControl.Size = new System.Drawing.Size(669, 836);
             aprsTabUserControl.TabIndex = 0;
             // 
@@ -479,6 +480,7 @@
             mapTabUserControl.Location = new System.Drawing.Point(0, 0);
             mapTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             mapTabUserControl.Name = "mapTabUserControl";
+            mapTabUserControl.ShowDetach = true;
             mapTabUserControl.Size = new System.Drawing.Size(669, 836);
             mapTabUserControl.TabIndex = 0;
             // 
@@ -499,6 +501,7 @@
             voiceTabUserControl.Location = new System.Drawing.Point(0, 0);
             voiceTabUserControl.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             voiceTabUserControl.Name = "voiceTabUserControl";
+            voiceTabUserControl.ShowDetach = true;
             voiceTabUserControl.Size = new System.Drawing.Size(669, 836);
             voiceTabUserControl.TabIndex = 0;
             // 
@@ -519,6 +522,7 @@
             mailTabUserControl.Location = new System.Drawing.Point(0, 0);
             mailTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             mailTabUserControl.Name = "mailTabUserControl";
+            mailTabUserControl.ShowDetach = true;
             mailTabUserControl.Size = new System.Drawing.Size(669, 836);
             mailTabUserControl.TabIndex = 0;
             // 
@@ -540,6 +544,7 @@
             terminalTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             terminalTabUserControl.Name = "terminalTabUserControl";
             terminalTabUserControl.ShowCallsign = false;
+            terminalTabUserControl.ShowDetach = true;
             terminalTabUserControl.Size = new System.Drawing.Size(669, 836);
             terminalTabUserControl.TabIndex = 0;
             terminalTabUserControl.WordWrap = false;
@@ -561,6 +566,7 @@
             contactsTabUserControl.Location = new System.Drawing.Point(0, 0);
             contactsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             contactsTabUserControl.Name = "contactsTabUserControl";
+            contactsTabUserControl.ShowDetach = true;
             contactsTabUserControl.Size = new System.Drawing.Size(669, 836);
             contactsTabUserControl.TabIndex = 0;
             // 
@@ -581,6 +587,7 @@
             bbsTabUserControl.Location = new System.Drawing.Point(0, 0);
             bbsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             bbsTabUserControl.Name = "bbsTabUserControl";
+            bbsTabUserControl.ShowDetach = true;
             bbsTabUserControl.Size = new System.Drawing.Size(669, 836);
             bbsTabUserControl.TabIndex = 0;
             // 
@@ -601,6 +608,7 @@
             torrentTabUserControl.Location = new System.Drawing.Point(0, 0);
             torrentTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             torrentTabUserControl.Name = "torrentTabUserControl";
+            torrentTabUserControl.ShowDetach = true;
             torrentTabUserControl.Size = new System.Drawing.Size(669, 836);
             torrentTabUserControl.TabIndex = 0;
             // 

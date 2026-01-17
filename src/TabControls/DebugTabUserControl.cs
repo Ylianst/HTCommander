@@ -50,8 +50,8 @@ namespace HTCommander.Controls
             // Subscribe to log messages (info and error)
             broker.Subscribe(0, new[] { "LogInfo", "LogError" }, OnLogMessage);
 
-            // Subscribe to data handler lifecycle events for log file management
-            broker.Subscribe(0, new[] { "DataHandlerAdded", "DataHandlerRemoved" }, OnDataHandlerChanged);
+            // Subscribe to LogStore file logging state changes
+            broker.Subscribe(0, "LogStoreFileActive", OnLogStoreFileActiveChanged);
 
             // Subscribe to Bluetooth frames debug setting changes (persisted in registry)
             broker.Subscribe(0, "BluetoothFramesDebug", OnBluetoothFramesDebugChanged);
@@ -59,8 +59,14 @@ namespace HTCommander.Controls
             // Subscribe to loopback mode changes (device 1, not persisted)
             broker.Subscribe(1, "LoopbackMode", OnLoopbackModeChanged);
 
+            // Subscribe to LogStoreReady in case LogStore is initialized after this control
+            broker.Subscribe(0, "LogStoreReady", OnLogStoreReady);
+
             // Initialize menu item states from current broker values
             InitializeMenuItemStates();
+
+            // Load existing log entries from LogStore
+            LoadExistingLogs();
         }
 
         #endregion
@@ -131,12 +137,35 @@ namespace HTCommander.Controls
         #region Private Methods - Initialization
 
         /// <summary>
+        /// Loads existing log entries from the LogStore data handler.
+        /// </summary>
+        private void LoadExistingLogs()
+        {
+            LogStore logStore = DataBroker.GetDataHandler<LogStore>("LogStore");
+            if (logStore != null)
+            {
+                var logs = logStore.GetLogs();
+                foreach (var entry in logs)
+                {
+                    if (entry.Level == "Error")
+                    {
+                        AppendText("[Error] " + entry.Message);
+                    }
+                    else
+                    {
+                        AppendText(entry.Message);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Initializes the checked states of menu items based on current broker values.
         /// </summary>
         private void InitializeMenuItemStates()
         {
-            // Check if log file handler is currently active
-            debugSaveToFileToolStripMenuItem.Checked = DataBroker.HasDataHandler("DebugLogFile");
+            // Check if LogStore file logging is currently active
+            debugSaveToFileToolStripMenuItem.Checked = DataBroker.GetValue<bool>(0, "LogStoreFileActive", false);
 
             // Get Bluetooth frames debug setting (persisted in registry)
             showBluetoothFramesToolStripMenuItem.Checked = DataBroker.GetValue<bool>(0, "BluetoothFramesDebug", false);
@@ -172,16 +201,16 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
-        /// Handles data handler lifecycle events to update the save-to-file menu item state.
+        /// Handles LogStore file logging state changes.
         /// </summary>
         /// <param name="deviceId">The device ID associated with the event.</param>
-        /// <param name="name">The event name (DataHandlerAdded or DataHandlerRemoved).</param>
-        /// <param name="data">The handler name that was added or removed.</param>
-        private void OnDataHandlerChanged(int deviceId, string name, object data)
+        /// <param name="name">The event name.</param>
+        /// <param name="data">The new boolean state.</param>
+        private void OnLogStoreFileActiveChanged(int deviceId, string name, object data)
         {
-            if (data is string handlerName && handlerName == "DebugLogFile")
+            if (data is bool isActive)
             {
-                debugSaveToFileToolStripMenuItem.Checked = (name == "DataHandlerAdded");
+                debugSaveToFileToolStripMenuItem.Checked = isActive;
             }
         }
 
@@ -213,6 +242,21 @@ namespace HTCommander.Controls
             }
         }
 
+        /// <summary>
+        /// Handles the LogStoreReady event to load existing logs if they weren't available at startup.
+        /// </summary>
+        /// <param name="deviceId">The device ID associated with the event.</param>
+        /// <param name="name">The event name.</param>
+        /// <param name="data">The event data.</param>
+        private void OnLogStoreReady(int deviceId, string name, object data)
+        {
+            // Only load if we haven't loaded any logs yet (text box is empty)
+            if (debugTextBox.TextLength == 0)
+            {
+                LoadExistingLogs();
+            }
+        }
+
         #endregion
 
         #region Private Methods - Event Handlers (UI Controls)
@@ -226,7 +270,7 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
-        /// Toggles saving debug output to a log file.
+        /// Toggles saving debug output to a log file via LogStore.
         /// </summary>
         /// <remarks>
         /// If logging is active, stops logging and closes the file.
@@ -235,27 +279,24 @@ namespace HTCommander.Controls
         /// </remarks>
         private void saveToFileToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            const string handlerName = "DebugLogFile";
+            bool isFileLoggingActive = DataBroker.GetValue<bool>(0, "LogStoreFileActive", false);
 
-            if (DataBroker.HasDataHandler(handlerName))
+            if (isFileLoggingActive)
             {
-                // Stop logging: remove the handler (disposes and closes the file)
-                DataBroker.RemoveDataHandler(handlerName);
-                debugSaveToFileToolStripMenuItem.Checked = false;
-                broker.LogInfo("Log file closed");
+                // Stop logging via LogStore
+                broker.Dispatch(0, "LogStoreStopFile", null, store: false);
             }
             else
             {
                 // Start logging: prompt for file location
-                StartLoggingToFile(handlerName);
+                StartLoggingToFile();
             }
         }
 
         /// <summary>
-        /// Prompts the user to select a log file and starts logging.
+        /// Prompts the user to select a log file and starts logging via LogStore.
         /// </summary>
-        /// <param name="handlerName">The name to register the log handler under.</param>
-        private void StartLoggingToFile(string handlerName)
+        private void StartLoggingToFile()
         {
             // Restore last used file path from registry
             string lastDebugFile = DataBroker.GetValue<string>(0, "DebugFile", null);
@@ -267,26 +308,11 @@ namespace HTCommander.Controls
             // Show save file dialog
             if (saveTraceFileDialog.ShowDialog(this) == DialogResult.OK)
             {
-                try
-                {
-                    // Persist the selected file path to registry
-                    DataBroker.Dispatch(0, "DebugFile", saveTraceFileDialog.FileName);
+                // Persist the selected file path to registry
+                DataBroker.Dispatch(0, "DebugFile", saveTraceFileDialog.FileName);
 
-                    // Create and register the log file handler
-                    var logHandler = new LogFileHandler(saveTraceFileDialog.FileName, append: true);
-                    DataBroker.AddDataHandler(handlerName, logHandler);
-                    debugSaveToFileToolStripMenuItem.Checked = true;
-                    broker.LogInfo("Log file opened: " + saveTraceFileDialog.FileName);
-                }
-                catch (Exception ex)
-                {
-                    broker.LogError("Failed to open log file: " + ex.Message);
-                    MessageBox.Show(
-                        "Failed to open log file: " + ex.Message,
-                        "Error",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-                }
+                // Start file logging via LogStore
+                broker.Dispatch(0, "LogStoreStartFile", saveTraceFileDialog.FileName, store: false);
             }
         }
 
@@ -335,7 +361,7 @@ namespace HTCommander.Controls
         private void detachToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var form = DetachedTabForm.Create<DebugTabUserControl>("Developer Debug");
-            form.Show(this.ParentForm);
+            form.Show();
         }
 
         #endregion

@@ -50,6 +50,8 @@ namespace HTCommander.Controls
             this.beaconSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.smSMessageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.weatherReportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
+            this.detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aprsMsgContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.detailsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showLocationToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -269,9 +271,11 @@ namespace HTCommander.Controls
             this.toolStripMenuItem7,
             this.beaconSettingsToolStripMenuItem,
             this.smSMessageToolStripMenuItem,
-            this.weatherReportToolStripMenuItem});
+            this.weatherReportToolStripMenuItem,
+            this.toolStripMenuItemDetachSeparator,
+            this.detachToolStripMenuItem});
             this.aprsContextMenuStrip.Name = "aprsContextMenuStrip";
-            this.aprsContextMenuStrip.Size = new System.Drawing.Size(194, 106);
+            this.aprsContextMenuStrip.Size = new System.Drawing.Size(194, 136);
             // 
             // showAllMessagesToolStripMenuItem
             // 
@@ -306,6 +310,20 @@ namespace HTCommander.Controls
             this.weatherReportToolStripMenuItem.Size = new System.Drawing.Size(193, 24);
             this.weatherReportToolStripMenuItem.Text = "&Weather Report...";
             this.weatherReportToolStripMenuItem.Click += new System.EventHandler(this.weatherReportToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItemDetachSeparator
+            // 
+            this.toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
+            this.toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(190, 6);
+            this.toolStripMenuItemDetachSeparator.Visible = false;
+            // 
+            // detachToolStripMenuItem
+            // 
+            this.detachToolStripMenuItem.Name = "detachToolStripMenuItem";
+            this.detachToolStripMenuItem.Size = new System.Drawing.Size(193, 24);
+            this.detachToolStripMenuItem.Text = "Detach...";
+            this.detachToolStripMenuItem.Visible = false;
+            this.detachToolStripMenuItem.Click += new System.EventHandler(this.detachToolStripMenuItem_Click);
             // 
             // aprsMsgContextMenuStrip
             // 
@@ -400,5 +418,7 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem showLocationToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem copyMessageToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem copyCallsignToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
+        private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
     }
 }

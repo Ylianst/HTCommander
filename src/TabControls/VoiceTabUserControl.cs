@@ -7,12 +7,34 @@ http://www.apache.org/licenses/LICENSE-2.0
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using HTCommander.Dialogs;
 
 namespace HTCommander.Controls
 {
     public partial class VoiceTabUserControl : UserControl
     {
         private MainForm mainForm;
+        private bool _showDetach = false;
+
+        /// <summary>
+        /// Gets or sets whether the "Detach..." menu item is visible.
+        /// </summary>
+        [System.ComponentModel.Category("Behavior")]
+        [System.ComponentModel.Description("Gets or sets whether the Detach menu item is visible.")]
+        [System.ComponentModel.DefaultValue(false)]
+        public bool ShowDetach
+        {
+            get { return _showDetach; }
+            set
+            {
+                _showDetach = value;
+                if (detachToolStripMenuItem != null)
+                {
+                    detachToolStripMenuItem.Visible = value;
+                    toolStripMenuItemDetachSeparator.Visible = value;
+                }
+            }
+        }
 
         public VoiceTabUserControl()
         {
@@ -84,6 +106,12 @@ namespace HTCommander.Controls
         private void voiceMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
         {
             voiceTabContextMenuStrip.Show(voiceMenuPictureBox, e.Location);
+        }
+
+        private void detachToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var form = DetachedTabForm.Create<VoiceTabUserControl>("Voice");
+            form.Show();
         }
     }
 }

@@ -71,6 +71,8 @@ namespace HTCommander.Controls
             this.toolStripMenuItem16 = new System.Windows.Forms.ToolStripSeparator();
             this.backupMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.restoreMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
+            this.detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.backupMailSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.restoreMailOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
             ((System.ComponentModel.ISupportInitialize)(this.mailboxHorizontalSplitContainer)).BeginInit();
@@ -468,9 +470,11 @@ namespace HTCommander.Controls
             this.showTrafficToolStripMenuItem,
             this.toolStripMenuItem16,
             this.backupMailToolStripMenuItem,
-            this.restoreMailToolStripMenuItem});
+            this.restoreMailToolStripMenuItem,
+            this.toolStripMenuItemDetachSeparator,
+            this.detachToolStripMenuItem});
             this.mailTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.mailTabContextMenuStrip.Size = new System.Drawing.Size(171, 106);
+            this.mailTabContextMenuStrip.Size = new System.Drawing.Size(171, 136);
             // 
             // showPreviewToolStripMenuItem
             // 
@@ -505,6 +509,20 @@ namespace HTCommander.Controls
             this.restoreMailToolStripMenuItem.Size = new System.Drawing.Size(170, 24);
             this.restoreMailToolStripMenuItem.Text = "&Restore Mail...";
             this.restoreMailToolStripMenuItem.Click += new System.EventHandler(this.restoreMailToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItemDetachSeparator
+            // 
+            this.toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
+            this.toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(167, 6);
+            this.toolStripMenuItemDetachSeparator.Visible = false;
+            // 
+            // detachToolStripMenuItem
+            // 
+            this.detachToolStripMenuItem.Name = "detachToolStripMenuItem";
+            this.detachToolStripMenuItem.Size = new System.Drawing.Size(170, 24);
+            this.detachToolStripMenuItem.Text = "Detach...";
+            this.detachToolStripMenuItem.Visible = false;
+            this.detachToolStripMenuItem.Click += new System.EventHandler(this.detachToolStripMenuItem_Click);
             // 
             // backupMailSaveFileDialog
             // 
@@ -595,5 +613,7 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem restoreMailToolStripMenuItem;
         private System.Windows.Forms.SaveFileDialog backupMailSaveFileDialog;
         private System.Windows.Forms.OpenFileDialog restoreMailOpenFileDialog;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
+        private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
     }
 }

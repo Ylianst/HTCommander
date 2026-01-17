@@ -8,6 +8,7 @@ using System;
 using System.Windows.Forms;
 using System.Collections.Generic;
 using aprsparser;
+using HTCommander.Dialogs;
 
 namespace HTCommander.Controls
 {
@@ -17,6 +18,7 @@ namespace HTCommander.Controls
         private ChatMessage rightClickedMessage = null;
         private List<string[]> aprsRoutes = new List<string[]>();
         private int selectedAprsRoute = 0;
+        private bool _showDetach = false;
 
         public AprsTabUserControl()
         {
@@ -36,6 +38,26 @@ namespace HTCommander.Controls
         }
 
         public ChatControl ChatControl => aprsChatControl;
+
+        /// <summary>
+        /// Gets or sets whether the "Detach..." menu item is visible.
+        /// </summary>
+        [System.ComponentModel.Category("Behavior")]
+        [System.ComponentModel.Description("Gets or sets whether the Detach menu item is visible.")]
+        [System.ComponentModel.DefaultValue(false)]
+        public bool ShowDetach
+        {
+            get { return _showDetach; }
+            set
+            {
+                _showDetach = value;
+                if (detachToolStripMenuItem != null)
+                {
+                    detachToolStripMenuItem.Visible = value;
+                    toolStripMenuItemDetachSeparator.Visible = value;
+                }
+            }
+        }
 
         public bool ShowAllMessages
         {
@@ -280,6 +302,12 @@ namespace HTCommander.Controls
             //AprsDetailsForm form = new AprsDetailsForm();
             //form.SetPacket(packet);
             //form.ShowDialog(this);
+        }
+
+        private void detachToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var form = DetachedTabForm.Create<AprsTabUserControl>("APRS");
+            form.Show();
         }
     }
 }

@@ -9,12 +9,34 @@ using System.Linq;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Collections.Generic;
+using HTCommander.Dialogs;
 
 namespace HTCommander.Controls
 {
     public partial class TerminalTabUserControl : UserControl
     {
         private MainForm mainForm;
+        private bool _showDetach = false;
+
+        /// <summary>
+        /// Gets or sets whether the "Detach..." menu item is visible.
+        /// </summary>
+        [System.ComponentModel.Category("Behavior")]
+        [System.ComponentModel.Description("Gets or sets whether the Detach menu item is visible.")]
+        [System.ComponentModel.DefaultValue(false)]
+        public bool ShowDetach
+        {
+            get { return _showDetach; }
+            set
+            {
+                _showDetach = value;
+                if (detachToolStripMenuItem != null)
+                {
+                    detachToolStripMenuItem.Visible = value;
+                    toolStripMenuItemDetachSeparator.Visible = value;
+                }
+            }
+        }
         public List<TerminalText> terminalTexts = new List<TerminalText>();
         public string TerminalLastDone = null;
 
@@ -422,6 +444,12 @@ namespace HTCommander.Controls
         public void FocusInput()
         {
             terminalInputTextBox.Focus();
+        }
+
+        private void detachToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var form = DetachedTabForm.Create<TerminalTabUserControl>("Terminal");
+            form.Show();
         }
     }
 }

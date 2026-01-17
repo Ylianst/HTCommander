@@ -51,6 +51,8 @@ namespace HTCommander.Controls
             this.last12HoursToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.last24HoursToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.largeMarkersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
+            this.detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.downloadMapPanel = new System.Windows.Forms.Panel();
             this.cancelMapDownloadButton = new System.Windows.Forms.Button();
             this.downloadMapLabel = new System.Windows.Forms.Label();
@@ -178,9 +180,11 @@ namespace HTCommander.Controls
             this.toolStripMenuItem9,
             this.showTracksToolStripMenuItem,
             this.showMarkersToolStripMenuItem,
-            this.largeMarkersToolStripMenuItem});
+            this.largeMarkersToolStripMenuItem,
+            this.toolStripMenuItemDetachSeparator,
+            this.detachToolStripMenuItem});
             this.mapTabContextMenuStrip.Name = "mapTabContextMenuStrip";
-            this.mapTabContextMenuStrip.Size = new System.Drawing.Size(172, 172);
+            this.mapTabContextMenuStrip.Size = new System.Drawing.Size(172, 202);
             // 
             // offlineModeToolStripMenuItem
             // 
@@ -298,6 +302,20 @@ namespace HTCommander.Controls
             this.largeMarkersToolStripMenuItem.Text = "Large Markers";
             this.largeMarkersToolStripMenuItem.Click += new System.EventHandler(this.largeMarkersToolStripMenuItem_Click);
             // 
+            // toolStripMenuItemDetachSeparator
+            // 
+            this.toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
+            this.toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(168, 6);
+            this.toolStripMenuItemDetachSeparator.Visible = false;
+            // 
+            // detachToolStripMenuItem
+            // 
+            this.detachToolStripMenuItem.Name = "detachToolStripMenuItem";
+            this.detachToolStripMenuItem.Size = new System.Drawing.Size(171, 26);
+            this.detachToolStripMenuItem.Text = "Detach...";
+            this.detachToolStripMenuItem.Visible = false;
+            this.detachToolStripMenuItem.Click += new System.EventHandler(this.detachToolStripMenuItem_Click);
+            // 
             // downloadMapPanel
             // 
             this.downloadMapPanel.BackColor = System.Drawing.Color.MistyRose;
@@ -383,5 +401,7 @@ namespace HTCommander.Controls
         private System.Windows.Forms.Panel downloadMapPanel;
         private System.Windows.Forms.Button cancelMapDownloadButton;
         private System.Windows.Forms.Label downloadMapLabel;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
+        private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
     }
 }

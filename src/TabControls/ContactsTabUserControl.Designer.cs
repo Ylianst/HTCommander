@@ -52,6 +52,8 @@ namespace HTCommander.Controls
             this.toolStripMenuItem10 = new System.Windows.Forms.ToolStripSeparator();
             this.exportStationsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.importStationsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
+            this.detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             this.saveStationsFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.openStationsFileDialog = new System.Windows.Forms.OpenFileDialog();
@@ -202,9 +204,11 @@ namespace HTCommander.Controls
             this.removeToolStripMenuItem,
             this.toolStripMenuItem10,
             this.exportStationsToolStripMenuItem,
-            this.importStationsToolStripMenuItem});
+            this.importStationsToolStripMenuItem,
+            this.toolStripMenuItemDetachSeparator,
+            this.detachToolStripMenuItem});
             this.stationsTabContextMenuStrip.Name = "stationsTabContextMenuStrip";
-            this.stationsTabContextMenuStrip.Size = new System.Drawing.Size(181, 142);
+            this.stationsTabContextMenuStrip.Size = new System.Drawing.Size(181, 172);
             // 
             // setToolStripMenuItem
             // 
@@ -245,6 +249,20 @@ namespace HTCommander.Controls
             this.importStationsToolStripMenuItem.Size = new System.Drawing.Size(180, 26);
             this.importStationsToolStripMenuItem.Text = "&Import...";
             this.importStationsToolStripMenuItem.Click += new System.EventHandler(this.importStationsToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItemDetachSeparator
+            // 
+            this.toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
+            this.toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(177, 6);
+            this.toolStripMenuItemDetachSeparator.Visible = false;
+            // 
+            // detachToolStripMenuItem
+            // 
+            this.detachToolStripMenuItem.Name = "detachToolStripMenuItem";
+            this.detachToolStripMenuItem.Size = new System.Drawing.Size(180, 26);
+            this.detachToolStripMenuItem.Text = "Detach...";
+            this.detachToolStripMenuItem.Visible = false;
+            this.detachToolStripMenuItem.Click += new System.EventHandler(this.detachToolStripMenuItem_Click);
             // 
             // mainImageList
             // 
@@ -302,6 +320,8 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem exportStationsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem importStationsToolStripMenuItem;
         private System.Windows.Forms.ImageList mainImageList;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
+        private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
         private System.Windows.Forms.SaveFileDialog saveStationsFileDialog;
         private System.Windows.Forms.OpenFileDialog openStationsFileDialog;
     }

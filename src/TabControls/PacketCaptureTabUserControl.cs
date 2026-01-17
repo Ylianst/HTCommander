@@ -709,7 +709,7 @@ namespace HTCommander.Controls
         {
             // Create a new detached form with a PacketCaptureTabUserControl
             var form = DetachedTabForm.Create<PacketCaptureTabUserControl>("Packet Capture");
-            form.Show(this.ParentForm);
+            form.Show();
         }
 
         #endregion

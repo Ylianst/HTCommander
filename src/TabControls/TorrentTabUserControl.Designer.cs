@@ -54,6 +54,8 @@ namespace HTCommander.Controls
             this.torrentMenuPictureBox = new System.Windows.Forms.PictureBox();
             this.torrentTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.showDetailsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
+            this.detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.torrentConnectButton = new System.Windows.Forms.Button();
             this.torrentTitleLabel = new System.Windows.Forms.Label();
             this.torrentSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
@@ -306,9 +308,11 @@ namespace HTCommander.Controls
             // 
             this.torrentTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.torrentTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.showDetailsToolStripMenuItem});
+            this.showDetailsToolStripMenuItem,
+            this.toolStripMenuItemDetachSeparator,
+            this.detachToolStripMenuItem});
             this.torrentTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.torrentTabContextMenuStrip.Size = new System.Drawing.Size(165, 28);
+            this.torrentTabContextMenuStrip.Size = new System.Drawing.Size(165, 58);
             this.torrentTabContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.torrentTabContextMenuStrip_Opening);
             // 
             // showDetailsToolStripMenuItem
@@ -318,6 +322,20 @@ namespace HTCommander.Controls
             this.showDetailsToolStripMenuItem.Size = new System.Drawing.Size(164, 24);
             this.showDetailsToolStripMenuItem.Text = "Show &Details";
             this.showDetailsToolStripMenuItem.Click += new System.EventHandler(this.showDetailsToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItemDetachSeparator
+            // 
+            this.toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
+            this.toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(161, 6);
+            this.toolStripMenuItemDetachSeparator.Visible = false;
+            // 
+            // detachToolStripMenuItem
+            // 
+            this.detachToolStripMenuItem.Name = "detachToolStripMenuItem";
+            this.detachToolStripMenuItem.Size = new System.Drawing.Size(164, 24);
+            this.detachToolStripMenuItem.Text = "Detach...";
+            this.detachToolStripMenuItem.Visible = false;
+            this.detachToolStripMenuItem.Click += new System.EventHandler(this.detachToolStripMenuItem_Click);
             // 
             // torrentConnectButton
             // 
@@ -402,5 +420,7 @@ namespace HTCommander.Controls
         private System.Windows.Forms.Button torrentConnectButton;
         private System.Windows.Forms.Label torrentTitleLabel;
         private System.Windows.Forms.SaveFileDialog torrentSaveFileDialog;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
+        private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
     }
 }

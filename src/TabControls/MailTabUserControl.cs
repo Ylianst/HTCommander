@@ -12,12 +12,34 @@ using System.Diagnostics;
 using System.Windows.Forms;
 using System.IO.Compression;
 using System.Collections.Generic;
+using HTCommander.Dialogs;
 
 namespace HTCommander.Controls
 {
     public partial class MailTabUserControl : UserControl
     {
         private MainForm mainForm;
+        private bool _showDetach = false;
+
+        /// <summary>
+        /// Gets or sets whether the "Detach..." menu item is visible.
+        /// </summary>
+        [System.ComponentModel.Category("Behavior")]
+        [System.ComponentModel.Description("Gets or sets whether the Detach menu item is visible.")]
+        [System.ComponentModel.DefaultValue(false)]
+        public bool ShowDetach
+        {
+            get { return _showDetach; }
+            set
+            {
+                _showDetach = value;
+                if (detachToolStripMenuItem != null)
+                {
+                    detachToolStripMenuItem.Visible = value;
+                    toolStripMenuItemDetachSeparator.Visible = value;
+                }
+            }
+        }
         private Point _mailMouseDownLocation;
         public string SelectedMailbox = "Inbox";
         public string[] MailBoxesNames = { "Inbox", "Outbox", "Draft", "Sent", "Archive", "Trash" };
@@ -565,6 +587,12 @@ namespace HTCommander.Controls
         private void mailDeleteToolStripButton_Click(object sender, EventArgs e)
         {
             moveToTrashToolStripMenuItem_Click(sender, e);
+        }
+
+        private void detachToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var form = DetachedTabForm.Create<MailTabUserControl>("Mail");
+            form.Show();
         }
     }
 }

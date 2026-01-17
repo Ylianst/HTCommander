@@ -44,6 +44,8 @@ namespace HTCommander.Controls
             this.voiceTitleLabel = new System.Windows.Forms.Label();
             this.voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
+            this.detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.voiceBottomPanel.SuspendLayout();
             this.speakContextMenuStrip.SuspendLayout();
             this.voiceTopPanel.SuspendLayout();
@@ -212,9 +214,11 @@ namespace HTCommander.Controls
             // 
             this.voiceTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.voiceTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.clearHistoryToolStripMenuItem});
+            this.clearHistoryToolStripMenuItem,
+            this.toolStripMenuItemDetachSeparator,
+            this.detachToolStripMenuItem});
             this.voiceTabContextMenuStrip.Name = "voiceTabContextMenuStrip";
-            this.voiceTabContextMenuStrip.Size = new System.Drawing.Size(164, 28);
+            this.voiceTabContextMenuStrip.Size = new System.Drawing.Size(164, 58);
             // 
             // clearHistoryToolStripMenuItem
             // 
@@ -222,6 +226,20 @@ namespace HTCommander.Controls
             this.clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
             this.clearHistoryToolStripMenuItem.Text = "&Clear History";
             this.clearHistoryToolStripMenuItem.Click += new System.EventHandler(this.clearHistoryToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItemDetachSeparator
+            // 
+            this.toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
+            this.toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(160, 6);
+            this.toolStripMenuItemDetachSeparator.Visible = false;
+            // 
+            // detachToolStripMenuItem
+            // 
+            this.detachToolStripMenuItem.Name = "detachToolStripMenuItem";
+            this.detachToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
+            this.detachToolStripMenuItem.Text = "Detach...";
+            this.detachToolStripMenuItem.Visible = false;
+            this.detachToolStripMenuItem.Click += new System.EventHandler(this.detachToolStripMenuItem_Click);
             // 
             // VoiceTabUserControl
             // 
@@ -262,5 +280,7 @@ namespace HTCommander.Controls
         private System.Windows.Forms.Label voiceProcessingLabel;
         private System.Windows.Forms.ContextMenuStrip voiceTabContextMenuStrip;
         private System.Windows.Forms.ToolStripMenuItem clearHistoryToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
+        private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
     }
 }

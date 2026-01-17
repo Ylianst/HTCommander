@@ -7,12 +7,34 @@ http://www.apache.org/licenses/LICENSE-2.0
 using System;
 using System.IO;
 using System.Windows.Forms;
+using HTCommander.Dialogs;
 
 namespace HTCommander.Controls
 {
     public partial class TorrentTabUserControl : UserControl
     {
         private MainForm mainForm;
+        private bool _showDetach = false;
+
+        /// <summary>
+        /// Gets or sets whether the "Detach..." menu item is visible.
+        /// </summary>
+        [System.ComponentModel.Category("Behavior")]
+        [System.ComponentModel.Description("Gets or sets whether the Detach menu item is visible.")]
+        [System.ComponentModel.DefaultValue(false)]
+        public bool ShowDetach
+        {
+            get { return _showDetach; }
+            set
+            {
+                _showDetach = value;
+                if (detachToolStripMenuItem != null)
+                {
+                    detachToolStripMenuItem.Visible = value;
+                    toolStripMenuItemDetachSeparator.Visible = value;
+                }
+            }
+        }
 
         public TorrentTabUserControl()
         {
@@ -349,6 +371,12 @@ namespace HTCommander.Controls
         private void torrentDetailsListView_Resize(object sender, EventArgs e)
         {
             torrentDetailsListView.Columns[1].Width = torrentDetailsListView.Width - torrentDetailsListView.Columns[0].Width - 28;
+        }
+
+        private void detachToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var form = DetachedTabForm.Create<TorrentTabUserControl>("Torrent");
+            form.Show();
         }
     }
 }

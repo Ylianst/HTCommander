@@ -36,6 +36,8 @@ namespace HTCommander.Controls
             this.waitForConnectionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.clearToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
+            this.detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.terminalFileTransferPanel.SuspendLayout();
             this.terminalBottomPanel.SuspendLayout();
             this.terminalTopPanel.SuspendLayout();
@@ -205,9 +207,11 @@ namespace HTCommander.Controls
             this.wordWrapToolStripMenuItem,
             this.waitForConnectionToolStripMenuItem,
             this.toolStripSeparator1,
-            this.clearToolStripMenuItem});
+            this.clearToolStripMenuItem,
+            this.toolStripMenuItemDetachSeparator,
+            this.detachToolStripMenuItem});
             this.terminalTabContextMenuStrip.Name = "terminalTabContextMenuStrip";
-            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(211, 106);
+            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(211, 136);
             // 
             // showCallsignToolStripMenuItem
             // 
@@ -243,6 +247,20 @@ namespace HTCommander.Controls
             this.clearToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
             this.clearToolStripMenuItem.Text = "&Clear";
             this.clearToolStripMenuItem.Click += new System.EventHandler(this.clearToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItemDetachSeparator
+            // 
+            this.toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
+            this.toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(207, 6);
+            this.toolStripMenuItemDetachSeparator.Visible = false;
+            // 
+            // detachToolStripMenuItem
+            // 
+            this.detachToolStripMenuItem.Name = "detachToolStripMenuItem";
+            this.detachToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.detachToolStripMenuItem.Text = "Detach...";
+            this.detachToolStripMenuItem.Visible = false;
+            this.detachToolStripMenuItem.Click += new System.EventHandler(this.detachToolStripMenuItem_Click);
             // 
             // TerminalTabUserControl
             // 
@@ -286,5 +304,7 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem waitForConnectionToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.ToolStripMenuItem clearToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
+        private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
     }
 }

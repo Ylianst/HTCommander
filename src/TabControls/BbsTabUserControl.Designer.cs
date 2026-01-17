@@ -46,6 +46,8 @@ namespace HTCommander.Controls
             this.viewTrafficToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem11 = new System.Windows.Forms.ToolStripSeparator();
             this.clearStatsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
+            this.detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainImageList = new System.Windows.Forms.ImageList(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.bbsSplitContainer)).BeginInit();
             this.bbsSplitContainer.Panel1.SuspendLayout();
@@ -195,9 +197,11 @@ namespace HTCommander.Controls
             this.bbsTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.viewTrafficToolStripMenuItem,
             this.toolStripMenuItem11,
-            this.clearStatsToolStripMenuItem});
+            this.clearStatsToolStripMenuItem,
+            this.toolStripMenuItemDetachSeparator,
+            this.detachToolStripMenuItem});
             this.bbsTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            this.bbsTabContextMenuStrip.Size = new System.Drawing.Size(156, 62);
+            this.bbsTabContextMenuStrip.Size = new System.Drawing.Size(156, 92);
             // 
             // viewTrafficToolStripMenuItem
             // 
@@ -220,6 +224,20 @@ namespace HTCommander.Controls
             this.clearStatsToolStripMenuItem.Size = new System.Drawing.Size(155, 26);
             this.clearStatsToolStripMenuItem.Text = "&Clear Stats";
             this.clearStatsToolStripMenuItem.Click += new System.EventHandler(this.clearStatsToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItemDetachSeparator
+            // 
+            this.toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
+            this.toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(152, 6);
+            this.toolStripMenuItemDetachSeparator.Visible = false;
+            // 
+            // detachToolStripMenuItem
+            // 
+            this.detachToolStripMenuItem.Name = "detachToolStripMenuItem";
+            this.detachToolStripMenuItem.Size = new System.Drawing.Size(155, 26);
+            this.detachToolStripMenuItem.Text = "Detach...";
+            this.detachToolStripMenuItem.Visible = false;
+            this.detachToolStripMenuItem.Click += new System.EventHandler(this.detachToolStripMenuItem_Click);
             // 
             // mainImageList
             // 
@@ -263,6 +281,8 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem viewTrafficToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem11;
         private System.Windows.Forms.ToolStripMenuItem clearStatsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
+        private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
         private System.Windows.Forms.ImageList mainImageList;
     }
 }
