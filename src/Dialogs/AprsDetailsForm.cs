@@ -21,12 +21,10 @@ namespace HTCommander
 {
     public partial class AprsDetailsForm : Form
     {
-        private MainForm parent;
         private ChatMessage msg;
 
-        public AprsDetailsForm(MainForm parent)
+        public AprsDetailsForm()
         {
-            this.parent = parent;
             InitializeComponent();
         }
 

@@ -43,10 +43,11 @@ namespace HTCommander
             DataBroker.SetUIContext(this);
             broker = new DataBrokerClient();
 
-            // Add the FrameDeduplicator, PacketStore, and LogStore data handlers
+            // Add the data handlers
             DataBroker.AddDataHandler("FrameDeduplicator", new FrameDeduplicator());
             DataBroker.AddDataHandler("PacketStore", new PacketStore());
             DataBroker.AddDataHandler("LogStore", new LogStore());
+            DataBroker.AddDataHandler("AprsHandler", new AprsHandler());
 
             // Subscribe to CallSign and StationId changes for title bar updates
             broker.Subscribe(0, new[] { "CallSign", "StationId" }, OnCallSignOrStationIdChanged);
@@ -64,7 +65,6 @@ namespace HTCommander
             // Publish initial empty connected radios list
             PublishConnectedRadios();
 
-            aprsTabUserControl.Initialize(this);
             voiceTabUserControl.Initialize(this);
             mailTabUserControl.Initialize(this);
             terminalTabUserControl.Initialize(this);

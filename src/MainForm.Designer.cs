@@ -451,13 +451,11 @@
             // 
             // aprsTabUserControl
             // 
-            aprsTabUserControl.DestinationCallsign = "";
             aprsTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             aprsTabUserControl.Location = new System.Drawing.Point(0, 0);
             aprsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             aprsTabUserControl.Name = "aprsTabUserControl";
             aprsTabUserControl.SelectedAprsRoute = 0;
-            aprsTabUserControl.ShowAllMessages = false;
             aprsTabUserControl.ShowDetach = true;
             aprsTabUserControl.Size = new System.Drawing.Size(669, 836);
             aprsTabUserControl.TabIndex = 0;

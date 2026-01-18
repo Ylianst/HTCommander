@@ -178,6 +178,9 @@ namespace HTCommander
 
             // Subscribe to GetPosition event (for refreshing GPS position)
             broker.Subscribe(deviceid, "GetPosition", OnGetPositionEvent);
+
+            // Subscribe to TransmitDataFrame event (for transmitting AX.25 packets)
+            broker.Subscribe(deviceid, "TransmitDataFrame", OnTransmitDataFrameEvent);
         }
 
         /// <summary>
@@ -271,6 +274,24 @@ namespace HTCommander
         {
             if (deviceId != DeviceId) return;
             GetPosition();
+        }
+
+        /// <summary>
+        /// Handles TransmitDataFrame event from the broker (for transmitting AX.25 packets).
+        /// </summary>
+        private void OnTransmitDataFrameEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            if (!(data is TransmitDataFrameData txData)) return;
+
+            // Set the channel ID on the packet if provided
+            if (txData.ChannelId >= 0)
+            {
+                txData.Packet.channel_id = txData.ChannelId;
+            }
+
+            // Transmit the packet
+            TransmitTncData(txData.Packet, txData.ChannelId, txData.RegionId);
         }
 
         public void Dispose() => Disconnect(null, RadioState.Disconnected);
@@ -819,6 +840,8 @@ namespace HTCommander
                     broker.Dispatch(DeviceId, "FriendlyName", FriendlyName, store: true);
                     // Publish initial GPS enabled state
                     broker.Dispatch(DeviceId, "GpsEnabled", _gpsEnabled, store: true);
+                    // Channels are not loaded yet
+                    broker.Dispatch(DeviceId, "AllChannelsLoaded", false, store: true);
                     SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.HT_STATUS_CHANGED);
                     if (_gpsEnabled) SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.REGISTER_NOTIFICATION, (int)RadioNotification.POSITION_CHANGE);
                     break;
@@ -882,7 +905,11 @@ namespace HTCommander
             RadioChannelInfo c = new RadioChannelInfo(value);
             if (Channels != null) { Channels[c.channel_id] = c; }
             UpdateCurrentChannelName();
-            if (AllChannelsLoaded()) { broker.Dispatch(DeviceId, "Channels", Channels, store: true); }
+            if (AllChannelsLoaded())
+            {
+                broker.Dispatch(DeviceId, "Channels", Channels, store: true);
+                broker.Dispatch(DeviceId, "AllChannelsLoaded", true, store: true);
+            }
         }
 
         private void HandleEventNotification(byte[] value)
@@ -929,6 +956,8 @@ namespace HTCommander
             if (oldRegion != HtStatus.curr_region)
             {
                 broker.Dispatch(DeviceId, "RegionChange", null, store: false);
+                // Mark channels as not loaded since we're reloading them
+                broker.Dispatch(DeviceId, "AllChannelsLoaded", false, store: true);
                 if (Channels != null) Array.Clear(Channels, 0, Channels.Length);
                 broker.Dispatch(DeviceId, "Channels", Channels, store: true);
                 UpdateChannels();
@@ -1078,10 +1107,12 @@ namespace HTCommander
             if (oldRegion != HtStatus.curr_region)
             {
                 broker.Dispatch(DeviceId, "RegionChange", null, store: true);
+                // Mark channels as not loaded since we're reloading them
+                broker.Dispatch(DeviceId, "AllChannelsLoaded", false, store: true);
                 if (Channels != null)
                 {
                     Array.Clear(Channels, 0, Channels.Length);
-                    if (AllChannelsLoaded()) { broker.Dispatch(DeviceId, "Channels", Channels, store: true); }
+                    broker.Dispatch(DeviceId, "Channels", Channels, store: true);
                 }
                 UpdateChannels();
             }
@@ -1144,5 +1175,26 @@ namespace HTCommander
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Data class for transmitting AX.25 packets via the Data Broker.
+    /// </summary>
+    public class TransmitDataFrameData
+    {
+        /// <summary>
+        /// The AX.25 packet to transmit.
+        /// </summary>
+        public AX25Packet Packet { get; set; }
+
+        /// <summary>
+        /// The channel ID to transmit on. Use -1 to use the current channel.
+        /// </summary>
+        public int ChannelId { get; set; } = -1;
+
+        /// <summary>
+        /// The region ID. Use -1 if not applicable.
+        /// </summary>
+        public int RegionId { get; set; } = -1;
     }
 }
