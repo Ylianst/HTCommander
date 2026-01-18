@@ -1,34 +1,24 @@
 ﻿/*
 Copyright 2026 Ylian Saint-Hilaire
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+Licensed under the Apache License, Version 2.0 (the "License").
+See http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
 using System.Drawing;
+using System.Diagnostics;
 using System.Windows.Forms;
 
 namespace HTCommander
 {
     public partial class AprsConfigurationForm : Form
     {
-        private MainForm parent;
+        private RadioChannelInfo[] _channels;
 
         private class DropDownOptionClass
         {
             public string text;
             public int chid;
-
 
             public DropDownOptionClass(string text, int chid)
             {
@@ -42,71 +32,83 @@ namespace HTCommander
             }
         }
 
-        public AprsConfigurationForm(MainForm parent)
+        /// <summary>
+        /// Gets the channel ID selected by the user.
+        /// </summary>
+        public int SelectedChannelId
         {
-            this.parent = parent;
+            get
+            {
+                if (channelsComboBox.SelectedItem is DropDownOptionClass option)
+                {
+                    return option.chid;
+                }
+                return -1;
+            }
+        }
+
+        /// <summary>
+        /// Gets the frequency entered by the user (in MHz).
+        /// </summary>
+        public float Frequency
+        {
+            get
+            {
+                if (float.TryParse(freqTextBox.Text, out float freq))
+                {
+                    return freq;
+                }
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Sets the channels to populate the dropdown.
+        /// </summary>
+        public RadioChannelInfo[] Channels
+        {
+            set { _channels = value; }
+        }
+
+        public AprsConfigurationForm()
+        {
             InitializeComponent();
         }
 
         private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            System.Diagnostics.Process.Start("https://" + linkLabel1.Text);
-        }
-
-        private void AprsConfigurationForm_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            //parent.aprsConfigurationForm = null;
+            Process.Start(new ProcessStartInfo("https://" + linkLabel1.Text) { UseShellExecute = true });
         }
 
         private void AprsConfigurationForm_Load(object sender, EventArgs e)
         {
-            /*
-            foreach (RadioChannelInfo channel in this.parent.radio.Channels)
+            if (_channels != null)
             {
-                string option = (channel.channel_id + 1).ToString();
-                if (channel.name_str.Length > 0) { option += " - " + channel.name_str; }
-                channelsComboBox.Items.Add(new DropDownOptionClass(option, channel.channel_id));
+                foreach (RadioChannelInfo channel in _channels)
+                {
+                    if (channel == null) continue;
+                    string option = (channel.channel_id + 1).ToString();
+                    if (!string.IsNullOrEmpty(channel.name_str)) { option += " - " + channel.name_str; }
+                    channelsComboBox.Items.Add(new DropDownOptionClass(option, channel.channel_id));
+                }
+                if (channelsComboBox.Items.Count > 0)
+                {
+                    channelsComboBox.SelectedIndex = channelsComboBox.Items.Count - 1;
+                }
             }
-            channelsComboBox.SelectedIndex = channelsComboBox.Items.Count - 1;
-            Utils.SetPlaceholderText(freqTextBox, "144.39");
             UpdateInfo();
-            */
         }
 
         private void cancelButton_Click(object sender, EventArgs e)
         {
+            DialogResult = DialogResult.Cancel;
             Close();
         }
 
         private void okButton_Click(object sender, EventArgs e)
         {
-            /*
-            float freq;
-            if (float.TryParse(freqTextBox.Text, out freq))
-            {
-                if ((freq >= 144) && (freq <= 146)) {
-                    // Dulicate the existing channel
-                    int channelId = ((DropDownOptionClass)channelsComboBox.SelectedItem).chid;
-                    RadioChannelInfo channel = new RadioChannelInfo(parent.radio.Channels[channelId]);
-                    channel.bandwidth = Radio.RadioBandwidthType.WIDE;
-                    channel.mute = true;
-                    channel.name_str = "APRS";
-                    channel.rx_freq = 144390000;
-                    channel.tx_freq = 144390000;
-                    channel.pre_de_emph_bypass = true;
-                    channel.rx_mod = Radio.RadioModulationType.FM;
-                    channel.scan = false;
-                    channel.talk_around = false;
-                    channel.tx_at_max_power = true;
-                    channel.tx_at_med_power = false;
-                    channel.tx_sub_audio = 0;
-                    channel.rx_sub_audio = 0;
-                    channel.tx_disable = false;
-                    parent.radio.SetChannel(channel);
-                    Close();
-                }
-            }
-            */
+            DialogResult = DialogResult.OK;
+            Close();
         }
 
         private void freqTextBox_TextChanged(object sender, EventArgs e)
@@ -117,12 +119,16 @@ namespace HTCommander
         private void UpdateInfo()
         {
             bool ok = true;
-            float freq;
-            if (float.TryParse(freqTextBox.Text, out freq))
+            if (float.TryParse(freqTextBox.Text, out float freq))
             {
-                if ((freq < 144) || (freq > 146)) {
+                if ((freq < 144) || (freq > 148))
+                {
                     freqTextBox.BackColor = Color.Salmon;
                     ok = false;
+                }
+                else
+                {
+                    freqTextBox.BackColor = SystemColors.Window;
                 }
             }
             else
@@ -130,7 +136,13 @@ namespace HTCommander
                 freqTextBox.BackColor = Color.Salmon;
                 ok = false;
             }
-            freqTextBox.BackColor = channelsComboBox.BackColor;
+
+            // Also check that a channel is selected
+            if (channelsComboBox.SelectedItem == null)
+            {
+                ok = false;
+            }
+
             okButton.Enabled = ok;
         }
 

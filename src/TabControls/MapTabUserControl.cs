@@ -15,6 +15,7 @@ using GMap.NET.WindowsForms;
 using GMap.NET.WindowsForms.Markers;
 using HTCommander.Dialogs;
 using HTCommander.radio;
+using aprsparser;
 
 namespace HTCommander.Controls
 {
@@ -77,6 +78,20 @@ namespace HTCommander.Controls
 
             // Subscribe to Position updates from all devices
             broker.Subscribe(DataBroker.AllDevices, "Position", OnPositionChanged);
+
+            // Subscribe to APRS events for map markers
+            broker.Subscribe(1, "AprsFrame", OnAprsFrame);
+            broker.Subscribe(1, "AprsStoreReady", OnAprsStoreReady);
+
+            // Check if the APRS store is already ready (in case we subscribed after it was dispatched)
+            if (broker.HasValue(1, "AprsStoreReady"))
+            {
+                List<AprsPacket> historicalPackets = broker.GetValue<List<AprsPacket>>(1, "AprsStoreReady", null);
+                if (historicalPackets != null)
+                {
+                    LoadHistoricalAprsPackets(historicalPackets);
+                }
+            }
         }
 
         private void LoadInitialRadioPositions()
@@ -251,7 +266,71 @@ namespace HTCommander.Controls
             centerToGPSToolStripMenuItem.Enabled = hasValidPosition;
         }
 
-        #region APRS Marker Code (for future use)
+        #region APRS Marker Code
+
+        /// <summary>
+        /// Handles the AprsStoreReady event - loads historical APRS packets onto the map.
+        /// </summary>
+        private void OnAprsStoreReady(int deviceId, string name, object data)
+        {
+            if (!(data is List<AprsPacket> historicalPackets)) return;
+            LoadHistoricalAprsPackets(historicalPackets);
+        }
+
+        /// <summary>
+        /// Handles incoming AprsFrame events from the Data Broker.
+        /// </summary>
+        private void OnAprsFrame(int deviceId, string name, object data)
+        {
+            if (!(data is AprsFrameEventArgs args)) return;
+            if (args.AprsPacket == null) return;
+
+            ProcessAprsPacketForMap(args.AprsPacket);
+        }
+
+        /// <summary>
+        /// Loads historical APRS packets onto the map.
+        /// </summary>
+        private void LoadHistoricalAprsPackets(List<AprsPacket> historicalPackets)
+        {
+            if (historicalPackets == null) return;
+
+            foreach (AprsPacket aprsPacket in historicalPackets)
+            {
+                ProcessAprsPacketForMap(aprsPacket);
+            }
+        }
+
+        /// <summary>
+        /// Processes an APRS packet and adds it to the map if it has a valid position.
+        /// </summary>
+        private void ProcessAprsPacketForMap(AprsPacket aprsPacket)
+        {
+            if (aprsPacket?.Packet == null) return;
+            if (aprsPacket.Position == null) return;
+
+            // Check if position is valid (non-zero coordinates)
+            double lat = aprsPacket.Position.CoordinateSet.Latitude.Value;
+            double lng = aprsPacket.Position.CoordinateSet.Longitude.Value;
+            if (lat == 0 && lng == 0) return;
+
+            // Get the callsign from the packet
+            AX25Packet packet = aprsPacket.Packet;
+            if (packet.addresses == null || packet.addresses.Count < 2) return;
+
+            string callsign = packet.addresses[1].CallSignWithId;
+            DateTime time = packet.time;
+
+            // Add the marker to the map (this handles tracks and updates existing markers)
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => AddMapMarker(callsign, lat, lng, time)));
+            }
+            else
+            {
+                AddMapMarker(callsign, lat, lng, time);
+            }
+        }
 
         public void AddMapMarker(string callsign, double lat, double lng, DateTime time)
         {

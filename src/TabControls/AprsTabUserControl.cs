@@ -1006,7 +1006,64 @@ namespace HTCommander.Controls
 
         private void aprsSetupButton_Click(object sender, EventArgs e)
         {
-            // TODO: Implement APRS configuration via DataBroker
+            // Find a connected radio with all channels loaded
+            int radioDeviceId = -1;
+            RadioChannelInfo[] channels = null;
+
+            foreach (int deviceId in _subscribedRadioDeviceIds)
+            {
+                bool allChannelsLoaded = _broker.GetValue<bool>(deviceId, "AllChannelsLoaded", false);
+                if (allChannelsLoaded)
+                {
+                    channels = _broker.GetValue<RadioChannelInfo[]>(deviceId, "Channels", null);
+                    if (channels != null && channels.Length > 0)
+                    {
+                        radioDeviceId = deviceId;
+                        break;
+                    }
+                }
+            }
+
+            if (radioDeviceId == -1 || channels == null)
+            {
+                MessageBox.Show("No radio with loaded channels is available.", "APRS Setup", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Show the APRS configuration form
+            using (AprsConfigurationForm form = new AprsConfigurationForm())
+            {
+                form.Channels = channels;
+                if (form.ShowDialog(this) == DialogResult.OK)
+                {
+                    int selectedChannelId = form.SelectedChannelId;
+                    float frequencyMhz = form.Frequency;
+
+                    if (selectedChannelId >= 0 && selectedChannelId < channels.Length && channels[selectedChannelId] != null)
+                    {
+                        // Create a new channel based on the selected one with APRS settings
+                        RadioChannelInfo aprsChannel = new RadioChannelInfo(channels[selectedChannelId]);
+                        aprsChannel.name_str = "APRS";
+                        aprsChannel.rx_freq = (int)(frequencyMhz * 1000000);
+                        aprsChannel.tx_freq = (int)(frequencyMhz * 1000000);
+                        aprsChannel.rx_mod = Radio.RadioModulationType.FM;
+                        aprsChannel.tx_mod = Radio.RadioModulationType.FM;
+                        aprsChannel.bandwidth = Radio.RadioBandwidthType.WIDE;
+                        aprsChannel.mute = true;
+                        aprsChannel.pre_de_emph_bypass = true;
+                        aprsChannel.scan = false;
+                        aprsChannel.talk_around = false;
+                        aprsChannel.tx_at_max_power = true;
+                        aprsChannel.tx_at_med_power = false;
+                        aprsChannel.tx_sub_audio = 0;
+                        aprsChannel.rx_sub_audio = 0;
+                        aprsChannel.tx_disable = false;
+
+                        // Dispatch the channel write event to the radio
+                        _broker.Dispatch(radioDeviceId, "WriteChannel", aprsChannel, store: false);
+                    }
+                }
+            }
         }
 
         private void requestPositionToolStripMenuItem_Click(object sender, EventArgs e)
