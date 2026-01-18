@@ -4,11 +4,10 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-using aprsparser;
-using Microsoft.Win32;
 using System;
-using System.Collections.Generic;
 using System.Text;
+using System.Collections.Generic;
+using aprsparser;
 
 namespace HTCommander
 {
@@ -94,6 +93,10 @@ namespace HTCommander
                 // Request the packet list immediately
                 _broker.Dispatch(1, "RequestPacketList", null, store: false);
             }
+
+            // Load the next APRS message ID from the Data Broker (persisted across restarts)
+            nextAprsMessageId = _broker.GetValue<int>(0, "NextAprsMessageId", 1);
+            if (nextAprsMessageId < 1 || nextAprsMessageId > 999) { nextAprsMessageId = 1; }
         }
 
         /// <summary>
@@ -145,11 +148,17 @@ namespace HTCommander
         }
 
         private int nextAprsMessageId = 1;
+
+        /// <summary>
+        /// Gets the next APRS message ID, cycling from 1 to 999.
+        /// Persists the value to the Data Broker for recovery across restarts.
+        /// </summary>
+        /// <returns>The next message ID.</returns>
         private int GetNextAprsMessageId()
         {
             int msgId = nextAprsMessageId++;
             if (nextAprsMessageId > 999) { nextAprsMessageId = 1; }
-            //registry.WriteInt("NextAprsMessageId", nextAprsMessageId);
+            _broker.Dispatch(0, "NextAprsMessageId", nextAprsMessageId, store: true);
             return msgId;
         }
 
@@ -179,10 +188,7 @@ namespace HTCommander
             int msgId = GetNextAprsMessageId();
             DateTime now = DateTime.Now;
             bool authApplied;
-            string aprsMessageContent = addAprsAuth(srcCallsignWithId, messageData.Destination, messageData.Message, msgId, now, out authApplied);
-            //string aprsMessageContent = AddAprsAuthNoMsgId(srcCallsignWithId, messageData.Destination, messageData.Message, now, out authApplied);
-
-            AX25Packet.AuthState authCheck = CheckAprsAuth(true, srcCallsignWithId, aprsMessageContent, now); // For logging purposes
+            string aprsMessageContent = AddAprsAuth(srcCallsignWithId, messageData.Destination, messageData.Message, msgId, now, out authApplied);
 
             // Build the address list for the AX.25 frame
             List<AX25Address> addresses = new List<AX25Address>();
@@ -421,7 +427,6 @@ namespace HTCommander
                 if (ax25Packet.addresses != null && ax25Packet.addresses.Count >= 2)
                 {
                     srcAddress = ax25Packet.addresses[1].CallSignWithId; // Source address
-                    string destAddress = ax25Packet.addresses[0].CallSignWithId; // Destination address
 
                     // Check if we are the sender
                     string localCallsign;
@@ -462,9 +467,19 @@ namespace HTCommander
             _broker.Dispatch(1, "AprsFrame", new AprsFrameEventArgs(aprsPacket, ax25Packet, frame), store: false);
         }
 
-        public string addAprsAuth(string srcAddress, string destAddress, string aprsMessage, int msgId, DateTime time, out bool authApplied)
+        /// <summary>
+        /// Adds APRS authentication to a message with message ID.
+        /// </summary>
+        /// <param name="srcAddress">The source callsign with station ID.</param>
+        /// <param name="destAddress">The destination callsign.</param>
+        /// <param name="aprsMessage">The APRS message content.</param>
+        /// <param name="msgId">The message ID.</param>
+        /// <param name="time">The timestamp for authentication.</param>
+        /// <param name="authApplied">Output: whether authentication was applied.</param>
+        /// <returns>The formatted APRS message with optional authentication.</returns>
+        public string AddAprsAuth(string srcAddress, string destAddress, string aprsMessage, int msgId, DateTime time, out bool authApplied)
         {
-            // APRS Address
+            // APRS Address - pad to 9 characters
             string aprsAddr = destAddress;
             while (aprsAddr.Length < 9) { aprsAddr += " "; }
 
@@ -485,24 +500,22 @@ namespace HTCommander
             }
 
             // If the auth key is not present, send without authentication
-            if (string.IsNullOrEmpty(authPassword)) { authApplied = false; return ":" + aprsAddr + ":" + aprsMessage + "{" + msgId; }
+            if (string.IsNullOrEmpty(authPassword))
+            {
+                authApplied = false;
+                return ":" + aprsAddr + ":" + aprsMessage + "{" + msgId;
+            }
 
-            // Compute the current time in minutes
-            DateTime truncated = new DateTime(time.Year, time.Month, time.Day, time.Hour, time.Minute, 0);
+            // Compute the current time in minutes since Unix epoch
             DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             TimeSpan timeSinceEpoch = time.ToUniversalTime() - unixEpoch;
             long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes;
 
             // Compute authentication token
-            byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
-            //Console.WriteLine("AuthKey: " + Utils.BytesToHex(authKey));
-            //string x1 = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage + "{" + msgId;
-            //Console.WriteLine("Hash: " + x1);
-            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage + "{" + msgId));
-            //Console.WriteLine("authHash (hex): " + Utils.BytesToHex(authCode));
-            //Console.WriteLine("authHash (base64): " + Convert.ToBase64String(authCode));
+            byte[] authKey = Utils.ComputeSha256Hash(Encoding.UTF8.GetBytes(authPassword));
+            string hashInput = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage + "{" + msgId;
+            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, Encoding.UTF8.GetBytes(hashInput));
             string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
-            //Console.WriteLine("authCodeBase64: " + authCodeBase64);
 
             // Add authentication token to APRS message
             authApplied = true;
@@ -610,14 +623,12 @@ namespace HTCommander
 
             // Parse the message to extract auth code and message ID
             string msgId = null;
-            bool msgIdPresent = false;
             string messageContent = aprsMessage.Substring(10);
 
             // Check for message ID (format: message{msgId)
             string[] msplit1 = messageContent.Split('{');
             if (msplit1.Length == 2)
             {
-                msgIdPresent = true;
                 msgId = msplit1[1];
                 messageContent = msplit1[0];
             }
@@ -639,7 +650,7 @@ namespace HTCommander
 
             // Build the hash message
             string hashMsg = ":" + srcAddress + ":" + aprsAddr.Trim() + cleanMessage;
-            if (msgIdPresent && msgId != null)
+            if (msgId != null)
             {
                 hashMsg += "{" + msgId;
             }
