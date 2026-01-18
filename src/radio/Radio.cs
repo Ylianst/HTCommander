@@ -39,6 +39,13 @@ namespace HTCommander
         private bool LoopbackMode => DataBroker.GetValue<bool>(1, "LoopbackMode", false);
         private bool AllowTransmit => DataBroker.GetValue<bool>(0, "AllowTransmit", false);
 
+        // Lock state fields
+        private RadioLockState lockState = null;
+        private int savedRegionId = -1;
+        private int savedChannelId = -1;
+        private bool savedScan = false;
+        private int savedDualWatch = 0;
+
         #endregion
 
         #region Enums
@@ -184,6 +191,10 @@ namespace HTCommander
 
             // Subscribe to SetBssSettings event (for updating beacon settings from UI)
             broker.Subscribe(deviceid, "SetBssSettings", OnSetBssSettingsEvent);
+
+            // Subscribe to lock/unlock events
+            broker.Subscribe(deviceid, "SetLock", OnSetLockEvent);
+            broker.Subscribe(deviceid, "SetUnlock", OnSetUnlockEvent);
         }
 
         /// <summary>
@@ -193,6 +204,9 @@ namespace HTCommander
         {
             if (deviceId != DeviceId) return;
             if (Settings == null) return;
+
+            // Ignore channel changes when radio is locked
+            if (lockState != null) return;
 
             int channelId = (int)data;
 
@@ -219,6 +233,8 @@ namespace HTCommander
             switch (name)
             {
                 case "WriteSettings":
+                    // Ignore WriteSettings when radio is locked
+                    if (lockState != null) return;
                     // Write the new settings to the radio
                     if (data is byte[] settingsData)
                     {
@@ -227,6 +243,8 @@ namespace HTCommander
                     break;
                 case "SetRegion":
                 case "Region":
+                    // Ignore region changes when radio is locked
+                    if (lockState != null) return;
                     // Set the region
                     if (data is int regionId)
                     {
@@ -234,13 +252,15 @@ namespace HTCommander
                     }
                     break;
                 case "SetGPS":
-                    // Toggle GPS
+                    // Toggle GPS (allowed even when locked)
                     if (data is bool gpsState)
                     {
                         GpsEnabled(gpsState);
                     }
                     break;
                 case "DualWatch":
+                    // Ignore dual-watch changes when radio is locked
+                    if (lockState != null) return;
                     // Toggle dual-watch
                     if (Settings != null && data is bool dualWatchEnabled)
                     {
@@ -249,6 +269,8 @@ namespace HTCommander
                     }
                     break;
                 case "Scan":
+                    // Ignore scan changes when radio is locked
+                    if (lockState != null) return;
                     // Toggle scan
                     if (Settings != null && data is bool scanEnabled)
                     {
@@ -307,6 +329,92 @@ namespace HTCommander
             {
                 SetBssSettings(bssSettings);
             }
+        }
+
+        /// <summary>
+        /// Handles SetLock event from the broker to lock the radio to a specific channel/region.
+        /// </summary>
+        private void OnSetLockEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            if (!(data is SetLockData lockData)) return;
+
+            // Ignore if already locked
+            if (lockState != null) return;
+
+            // Ensure we have settings and HtStatus to save current state
+            if (Settings == null || HtStatus == null) return;
+
+            // Save current state
+            savedRegionId = HtStatus.curr_region;
+            savedChannelId = Settings.channel_a;
+            savedScan = Settings.scan;
+            savedDualWatch = Settings.double_channel;
+
+            // Create and store the lock state
+            lockState = new RadioLockState
+            {
+                IsLocked = true,
+                Usage = lockData.Usage,
+                RegionId = lockData.RegionId,
+                ChannelId = lockData.ChannelId
+            };
+
+            // Dispatch that we are now in locked state
+            broker.Dispatch(DeviceId, "LockState", lockState, store: true);
+            Debug($"Radio locked for usage '{lockData.Usage}' - Region: {lockData.RegionId}, Channel: {lockData.ChannelId}");
+
+            // Apply lock settings: disable scanning and dual-watch, change channel
+            // First, change region if different
+            if (lockData.RegionId != HtStatus.curr_region)
+            {
+                SetRegion(lockData.RegionId);
+            }
+
+            // Then write settings with scan disabled, dual-watch disabled, and new channel
+            WriteSettings(Settings.ToByteArray(lockData.ChannelId, Settings.channel_b, 0, false, Settings.squelch_level));
+        }
+
+        /// <summary>
+        /// Handles SetUnlock event from the broker to unlock the radio and restore previous settings.
+        /// </summary>
+        private void OnSetUnlockEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            if (!(data is SetUnlockData unlockData)) return;
+
+            // Ignore if not locked
+            if (lockState == null) return;
+
+            // Ignore if usage doesn't match
+            if (lockState.Usage != unlockData.Usage) return;
+
+            // Ensure we have settings to restore
+            if (Settings == null) return;
+
+            Debug($"Radio unlocked from usage '{unlockData.Usage}' - Restoring previous settings");
+
+            // Restore previous region if different
+            if (HtStatus != null && savedRegionId != HtStatus.curr_region && savedRegionId >= 0)
+            {
+                SetRegion(savedRegionId);
+            }
+
+            // Restore previous settings: channel, scan, dual-watch
+            WriteSettings(Settings.ToByteArray(savedChannelId, Settings.channel_b, savedDualWatch, savedScan, Settings.squelch_level));
+
+            // Clear the lock state
+            lockState = null;
+
+            // Dispatch that we are now unlocked
+            var unlockedState = new RadioLockState
+            {
+                IsLocked = false,
+                Usage = null,
+                RegionId = -1,
+                ChannelId = -1
+            };
+            broker.Dispatch(DeviceId, "LockState", unlockedState, store: true);
         }
 
         public void Dispose() => Disconnect(null, RadioState.Disconnected);
@@ -1190,6 +1298,64 @@ namespace HTCommander
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Data class representing the radio's lock state.
+    /// </summary>
+    public class RadioLockState
+    {
+        /// <summary>
+        /// Whether the radio is currently locked.
+        /// </summary>
+        public bool IsLocked { get; set; }
+
+        /// <summary>
+        /// The usage identifier for the current lock.
+        /// </summary>
+        public string Usage { get; set; }
+
+        /// <summary>
+        /// The locked region ID.
+        /// </summary>
+        public int RegionId { get; set; }
+
+        /// <summary>
+        /// The locked channel ID.
+        /// </summary>
+        public int ChannelId { get; set; }
+    }
+
+    /// <summary>
+    /// Data class for setting a lock on the radio.
+    /// </summary>
+    public class SetLockData
+    {
+        /// <summary>
+        /// The usage identifier for the lock.
+        /// </summary>
+        public string Usage { get; set; }
+
+        /// <summary>
+        /// The region ID to lock to.
+        /// </summary>
+        public int RegionId { get; set; }
+
+        /// <summary>
+        /// The channel ID to lock to.
+        /// </summary>
+        public int ChannelId { get; set; }
+    }
+
+    /// <summary>
+    /// Data class for unlocking the radio.
+    /// </summary>
+    public class SetUnlockData
+    {
+        /// <summary>
+        /// The usage identifier that must match the current lock to unlock.
+        /// </summary>
+        public string Usage { get; set; }
     }
 
     /// <summary>

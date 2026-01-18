@@ -30,6 +30,7 @@ namespace HTCommander.RadioControls
         private string _friendlyName = null;
         private bool _gpsEnabled = false;
         private RadioPosition _position = null;
+        private RadioLockState _lockState = null;
 
         // UI state
         private bool _showAllChannels = false;
@@ -80,7 +81,7 @@ namespace HTCommander.RadioControls
                 if (_deviceId > 0 && broker != null)
                 {
                     // Subscribe to the new device's events
-                    broker.Subscribe(_deviceId, new[] { "State", "HtStatus", "Settings", "Channels", "FriendlyName", "GpsEnabled", "Position" }, OnBrokerEvent);
+                    broker.Subscribe(_deviceId, new[] { "State", "HtStatus", "Settings", "Channels", "FriendlyName", "GpsEnabled", "Position", "LockState" }, OnBrokerEvent);
 
                     // Load initial state from broker
                     LoadInitialState();
@@ -105,6 +106,7 @@ namespace HTCommander.RadioControls
             currentChannels = broker.GetValue<RadioChannelInfo[]>(_deviceId, "Channels", null);
             _gpsEnabled = broker.GetValue<bool>(_deviceId, "GpsEnabled", false);
             _position = broker.GetValue<RadioPosition>(_deviceId, "Position", null);
+            _lockState = broker.GetValue<RadioLockState>(_deviceId, "LockState", null);
 
             // Get FriendlyName from ConnectedRadios list on device id 1
             _friendlyName = GetFriendlyNameFromConnectedRadios(_deviceId);
@@ -179,6 +181,10 @@ namespace HTCommander.RadioControls
                 case "Position":
                     _position = data as RadioPosition;
                     UpdateGpsStatusDisplay();
+                    break;
+                case "LockState":
+                    _lockState = data as RadioLockState;
+                    UpdateRadioDisplay();
                     break;
             }
         }
@@ -413,13 +419,15 @@ namespace HTCommander.RadioControls
                         vfo1Label.Text = "Empty";
                         vfo1FreqLabel.Text = "";
                     }
-                    vfo1StatusLabel.Text = "";
+                    // Show lock status if locked, otherwise empty
+                    vfo1StatusLabel.Text = (_lockState != null && _lockState.IsLocked) ? _lockState.Usage : "";
                 }
                 else
                 {
                     vfo1Label.Text = "";
                     vfo1FreqLabel.Text = "";
-                    vfo1StatusLabel.Text = "";
+                    // Show lock status if locked, otherwise empty
+                    vfo1StatusLabel.Text = (_lockState != null && _lockState.IsLocked) ? _lockState.Usage : "";
                 }
 
                 // Update VFO2 display (Channel B or scanning)
