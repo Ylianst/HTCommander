@@ -59,6 +59,9 @@ namespace HTCommander
             broker.Subscribe(1, "RadioConnectRequest", OnRadioConnectRequest);
             broker.Subscribe(1, "RadioDisconnectRequest", OnRadioDisconnectRequest);
 
+            // Subscribe to ShowSettingsTab to open settings form at a specific tab
+            broker.Subscribe(0, "ShowSettingsTab", OnShowSettingsTab);
+
             // Set initial title bar based on stored values
             UpdateTitleBar();
 
@@ -510,6 +513,27 @@ namespace HTCommander
                     DisconnectRadio(radio);
                 }
             }
+        }
+
+        private void OnShowSettingsTab(int deviceId, string name, object data)
+        {
+            // Show the settings form at the specified tab index
+            int tabIndex = 0;
+            if (data is int tabIndexValue) { tabIndex = tabIndexValue; }
+
+            // If settings form is already open, just focus it and move to the tab
+            if (settingsForm != null && !settingsForm.IsDisposed)
+            {
+                settingsForm.MoveToTab(tabIndex);
+                settingsForm.Focus();
+                return;
+            }
+
+            // Create and show the settings form as non-modal
+            settingsForm = new SettingsForm();
+            settingsForm.FormClosed += (s, args) => { settingsForm = null; };
+            settingsForm.Show(this);
+            settingsForm.MoveToTab(tabIndex);
         }
 
         private void UpdateTitleBar()

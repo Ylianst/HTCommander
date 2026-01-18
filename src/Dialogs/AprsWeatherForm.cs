@@ -1,17 +1,7 @@
 ﻿/*
 Copyright 2026 Ylian Saint-Hilaire
-
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
@@ -22,11 +12,14 @@ namespace HTCommander
 {
     public partial class AprsWeatherForm : Form
     {
-        public string PhoneNumber { get { return locationTextBox.Text; } }
+        private DataBrokerClient _broker;
+
+        public string Location { get { return locationTextBox.Text; } }
 
         public AprsWeatherForm()
         {
             InitializeComponent();
+            _broker = new DataBrokerClient();
         }
 
         public string GetAprsMessage()
@@ -48,9 +41,10 @@ namespace HTCommander
 
         private void okButton_Click(object sender, EventArgs e)
         {
-            //MainForm.g_MainForm.registry.WriteString("WxBotLocation", locationTextBox.Text);
-            //MainForm.g_MainForm.registry.WriteInt("WxBotTime", timeComboBox.SelectedIndex);
-            //MainForm.g_MainForm.registry.WriteInt("WxBotReport", reportComboBox.SelectedIndex);
+            // Save settings to DataBroker
+            _broker.Dispatch(0, "WxBotLocation", locationTextBox.Text);
+            _broker.Dispatch(0, "WxBotTime", timeComboBox.SelectedIndex);
+            _broker.Dispatch(0, "WxBotReport", reportComboBox.SelectedIndex);
             DialogResult = DialogResult.OK;
         }
 
@@ -68,9 +62,30 @@ namespace HTCommander
 
         private void AprsWeatherForm_Load(object sender, EventArgs e)
         {
-            //locationTextBox.Text = MainForm.g_MainForm.registry.ReadString("WxBotLocation", "");
-            //timeComboBox.SelectedIndex = (int)MainForm.g_MainForm.registry.ReadInt("WxBotTime", 0);
-            //reportComboBox.SelectedIndex = (int)MainForm.g_MainForm.registry.ReadInt("WxBotReport", 0);
+            // Load saved settings from DataBroker
+            locationTextBox.Text = _broker.GetValue<string>(0, "WxBotLocation", "");
+            
+            int timeIndex = _broker.GetValue<int>(0, "WxBotTime", 0);
+            if (timeIndex >= 0 && timeIndex < timeComboBox.Items.Count)
+            {
+                timeComboBox.SelectedIndex = timeIndex;
+            }
+            else if (timeComboBox.Items.Count > 0)
+            {
+                timeComboBox.SelectedIndex = 0;
+            }
+
+            int reportIndex = _broker.GetValue<int>(0, "WxBotReport", 0);
+            if (reportIndex >= 0 && reportIndex < reportComboBox.Items.Count)
+            {
+                reportComboBox.SelectedIndex = reportIndex;
+            }
+            else if (reportComboBox.Items.Count > 0)
+            {
+                reportComboBox.SelectedIndex = 0;
+            }
+
+            UpdateInfo();
         }
     }
 }

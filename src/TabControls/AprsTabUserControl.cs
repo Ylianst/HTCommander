@@ -42,6 +42,10 @@ namespace HTCommander.Controls
             // Setup routes combobox
             UpdateAprsRoutesComboBox();
 
+            // Disable transmit menu items by default (enabled when APRS channel is detected)
+            smSMessageToolStripMenuItem.Enabled = false;
+            weatherReportToolStripMenuItem.Enabled = false;
+
             // Initialize the Data Broker client and subscribe to APRS events
             _broker = new DataBrokerClient();
             _broker.Subscribe(1, "AprsFrame", OnAprsFrame);
@@ -431,6 +435,9 @@ namespace HTCommander.Controls
             if (_subscribedRadioDeviceIds.Count == 0)
             {
                 aprsMissingChannelPanel.Visible = false;
+                _hasAprsChannel = false;
+                smSMessageToolStripMenuItem.Enabled = false;
+                weatherReportToolStripMenuItem.Enabled = false;
                 return;
             }
 
@@ -466,6 +473,10 @@ namespace HTCommander.Controls
 
             aprsTextBox.Enabled = hasAprsChannel;
             aprsDestinationComboBox.Enabled = hasAprsChannel;
+
+            // Enable/disable transmit menu items based on APRS channel availability
+            smSMessageToolStripMenuItem.Enabled = hasAprsChannel;
+            weatherReportToolStripMenuItem.Enabled = hasAprsChannel;
 
             UpdateSendButtonState();
         }
@@ -947,12 +958,50 @@ namespace HTCommander.Controls
 
         private void aprsSmsButton_Click(object sender, EventArgs e)
         {
-            // TODO: Implement SMS form via DataBroker
+            using (AprsSmsForm aprsSmsForm = new AprsSmsForm())
+            {
+                if (aprsSmsForm.ShowDialog(this) == DialogResult.OK)
+                {
+                    int radioDeviceId = GetPreferredAprsRadioDeviceId();
+                    if (radioDeviceId == -1) return;
+
+                    string[] route = GetSelectedRoute();
+
+                    var messageData = new AprsSendMessageData
+                    {
+                        Destination = "SMS",
+                        Message = "@" + aprsSmsForm.PhoneNumber + " " + aprsSmsForm.Message,
+                        RadioDeviceId = radioDeviceId,
+                        Route = route
+                    };
+
+                    _broker.Dispatch(1, "SendAprsMessage", messageData, store: false);
+                }
+            }
         }
 
         private void weatherReportToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            // TODO: Implement weather report via DataBroker
+            using (AprsWeatherForm aprsWeatherForm = new AprsWeatherForm())
+            {
+                if (aprsWeatherForm.ShowDialog(this) == DialogResult.OK)
+                {
+                    int radioDeviceId = GetPreferredAprsRadioDeviceId();
+                    if (radioDeviceId == -1) return;
+
+                    string[] route = GetSelectedRoute();
+
+                    var messageData = new AprsSendMessageData
+                    {
+                        Destination = "WXBOT",
+                        Message = aprsWeatherForm.GetAprsMessage(),
+                        RadioDeviceId = radioDeviceId,
+                        Route = route
+                    };
+
+                    _broker.Dispatch(1, "SendAprsMessage", messageData, store: false);
+                }
+            }
         }
 
         private void aprsSetupButton_Click(object sender, EventArgs e)
@@ -967,7 +1016,8 @@ namespace HTCommander.Controls
 
         private void aprsTitleLabel_DoubleClick(object sender, EventArgs e)
         {
-            // TODO: Implement APRS configuration via DataBroker
+            // Dispatch message to open Settings form at APRS tab (tab index 1)
+            _broker.Dispatch(0, "ShowSettingsTab", 1, store: false);
         }
 
         private void aprsChatControl_MouseClick(object sender, MouseEventArgs e)
