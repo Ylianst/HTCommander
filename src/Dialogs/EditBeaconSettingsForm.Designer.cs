@@ -13,9 +13,10 @@
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
+            if (disposing)
             {
-                components.Dispose();
+                _broker?.Dispose();
+                components?.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -29,281 +30,282 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(EditBeaconSettingsForm));
-            this.okButton = new System.Windows.Forms.Button();
-            this.cancelButton = new System.Windows.Forms.Button();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.pictureBox2 = new System.Windows.Forms.PictureBox();
-            this.label4 = new System.Windows.Forms.Label();
-            this.label5 = new System.Windows.Forms.Label();
-            this.packetFormatComboBox = new System.Windows.Forms.ComboBox();
-            this.aprsCallsignTextBox = new System.Windows.Forms.TextBox();
-            this.label1 = new System.Windows.Forms.Label();
-            this.label2 = new System.Windows.Forms.Label();
-            this.intervalComboBox = new System.Windows.Forms.ComboBox();
-            this.label3 = new System.Windows.Forms.Label();
-            this.aprsMessageTextBox = new System.Windows.Forms.TextBox();
-            this.allowPositionCheckBox = new System.Windows.Forms.CheckBox();
-            this.sendVoltageCheckBox = new System.Windows.Forms.CheckBox();
-            this.shareLocationCheckBox = new System.Windows.Forms.CheckBox();
-            this.label7 = new System.Windows.Forms.Label();
-            this.groupBox1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
-            this.SuspendLayout();
+            okButton = new System.Windows.Forms.Button();
+            cancelButton = new System.Windows.Forms.Button();
+            groupBox1 = new System.Windows.Forms.GroupBox();
+            label7 = new System.Windows.Forms.Label();
+            shareLocationCheckBox = new System.Windows.Forms.CheckBox();
+            sendVoltageCheckBox = new System.Windows.Forms.CheckBox();
+            allowPositionCheckBox = new System.Windows.Forms.CheckBox();
+            label3 = new System.Windows.Forms.Label();
+            aprsMessageTextBox = new System.Windows.Forms.TextBox();
+            label2 = new System.Windows.Forms.Label();
+            intervalComboBox = new System.Windows.Forms.ComboBox();
+            label1 = new System.Windows.Forms.Label();
+            aprsCallsignTextBox = new System.Windows.Forms.TextBox();
+            label5 = new System.Windows.Forms.Label();
+            packetFormatComboBox = new System.Windows.Forms.ComboBox();
+            pictureBox2 = new System.Windows.Forms.PictureBox();
+            label4 = new System.Windows.Forms.Label();
+            label6 = new System.Windows.Forms.Label();
+            radioComboBox = new System.Windows.Forms.ComboBox();
+            groupBox1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
+            SuspendLayout();
             // 
             // okButton
             // 
-            this.okButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.okButton.Location = new System.Drawing.Point(231, 354);
-            this.okButton.Margin = new System.Windows.Forms.Padding(4);
-            this.okButton.Name = "okButton";
-            this.okButton.Size = new System.Drawing.Size(100, 28);
-            this.okButton.TabIndex = 18;
-            this.okButton.Text = "OK";
-            this.okButton.UseVisualStyleBackColor = true;
-            this.okButton.Click += new System.EventHandler(this.okButton_Click);
+            okButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+            okButton.Location = new System.Drawing.Point(231, 471);
+            okButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            okButton.Name = "okButton";
+            okButton.Size = new System.Drawing.Size(100, 35);
+            okButton.TabIndex = 18;
+            okButton.Text = "OK";
+            okButton.UseVisualStyleBackColor = true;
+            okButton.Click += okButton_Click;
             // 
             // cancelButton
             // 
-            this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancelButton.Location = new System.Drawing.Point(339, 354);
-            this.cancelButton.Margin = new System.Windows.Forms.Padding(4);
-            this.cancelButton.Name = "cancelButton";
-            this.cancelButton.Size = new System.Drawing.Size(100, 28);
-            this.cancelButton.TabIndex = 17;
-            this.cancelButton.Text = "Cancel";
-            this.cancelButton.UseVisualStyleBackColor = true;
+            cancelButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+            cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
+            cancelButton.Location = new System.Drawing.Point(339, 471);
+            cancelButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            cancelButton.Name = "cancelButton";
+            cancelButton.Size = new System.Drawing.Size(100, 35);
+            cancelButton.TabIndex = 17;
+            cancelButton.Text = "Cancel";
+            cancelButton.UseVisualStyleBackColor = true;
             // 
             // groupBox1
             // 
-            this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.groupBox1.Controls.Add(this.label7);
-            this.groupBox1.Controls.Add(this.shareLocationCheckBox);
-            this.groupBox1.Controls.Add(this.sendVoltageCheckBox);
-            this.groupBox1.Controls.Add(this.allowPositionCheckBox);
-            this.groupBox1.Controls.Add(this.label3);
-            this.groupBox1.Controls.Add(this.aprsMessageTextBox);
-            this.groupBox1.Controls.Add(this.label2);
-            this.groupBox1.Controls.Add(this.intervalComboBox);
-            this.groupBox1.Controls.Add(this.label1);
-            this.groupBox1.Controls.Add(this.aprsCallsignTextBox);
-            this.groupBox1.Controls.Add(this.label5);
-            this.groupBox1.Controls.Add(this.packetFormatComboBox);
-            this.groupBox1.Location = new System.Drawing.Point(12, 79);
-            this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(428, 268);
-            this.groupBox1.TabIndex = 19;
-            this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "Beacon Settings";
-            // 
-            // pictureBox2
-            // 
-            this.pictureBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.pictureBox2.Image = global::HTCommander.Properties.Resources.MapPoint1;
-            this.pictureBox2.Location = new System.Drawing.Point(376, 9);
-            this.pictureBox2.Margin = new System.Windows.Forms.Padding(4);
-            this.pictureBox2.Name = "pictureBox2";
-            this.pictureBox2.Size = new System.Drawing.Size(64, 63);
-            this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.pictureBox2.TabIndex = 21;
-            this.pictureBox2.TabStop = false;
-            // 
-            // label4
-            // 
-            this.label4.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.label4.Location = new System.Drawing.Point(9, 9);
-            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(359, 63);
-            this.label4.TabIndex = 20;
-            this.label4.Text = "Change how the radio will beacon information about itself including position, vol" +
-    "tage and a custom message. Other stations around will be able to see this inform" +
-    "ation.";
-            // 
-            // label5
-            // 
-            this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(7, 32);
-            this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(94, 16);
-            this.label5.TabIndex = 9;
-            this.label5.Text = "Packet Format";
-            // 
-            // packetFormatComboBox
-            // 
-            this.packetFormatComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.packetFormatComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.packetFormatComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.packetFormatComboBox.FormattingEnabled = true;
-            this.packetFormatComboBox.Items.AddRange(new object[] {
-            "BSS",
-            "APRS"});
-            this.packetFormatComboBox.Location = new System.Drawing.Point(176, 28);
-            this.packetFormatComboBox.Margin = new System.Windows.Forms.Padding(4);
-            this.packetFormatComboBox.Name = "packetFormatComboBox";
-            this.packetFormatComboBox.Size = new System.Drawing.Size(237, 25);
-            this.packetFormatComboBox.TabIndex = 8;
-            this.packetFormatComboBox.SelectedIndexChanged += new System.EventHandler(this.packetFormatComboBox_SelectedIndexChanged);
-            // 
-            // aprsCallsignTextBox
-            // 
-            this.aprsCallsignTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.aprsCallsignTextBox.Location = new System.Drawing.Point(177, 93);
-            this.aprsCallsignTextBox.MaxLength = 9;
-            this.aprsCallsignTextBox.Name = "aprsCallsignTextBox";
-            this.aprsCallsignTextBox.Size = new System.Drawing.Size(236, 22);
-            this.aprsCallsignTextBox.TabIndex = 10;
-            this.aprsCallsignTextBox.TextChanged += new System.EventHandler(this.aprsCallsignTextBox_TextChanged);
-            this.aprsCallsignTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.aprsCallsignTextBox_KeyPress);
-            // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(8, 96);
-            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(95, 16);
-            this.label1.TabIndex = 11;
-            this.label1.Text = "APRS Callsign";
-            // 
-            // label2
-            // 
-            this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(7, 65);
-            this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(100, 16);
-            this.label2.TabIndex = 13;
-            this.label2.Text = "Beacon Interval";
-            // 
-            // intervalComboBox
-            // 
-            this.intervalComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.intervalComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.intervalComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.intervalComboBox.FormattingEnabled = true;
-            this.intervalComboBox.Items.AddRange(new object[] {
-            "Off",
-            "Every 10 seconds",
-            "Every 20 seconds",
-            "Every 30 seconds",
-            "Every 40 seconds",
-            "Every 50 seconds",
-            "Every 1 minute",
-            "Every 2 minutes",
-            "Every 3 minutes",
-            "Every 4 minutes",
-            "Every 5 minutes",
-            "Every 6 minutes",
-            "Every 7 minutes",
-            "Every 8 minutes",
-            "Every 9 minutes",
-            "Every 10 minutes",
-            "Every 15 minutes",
-            "Every 20 minutes",
-            "Every 25 minutes",
-            "Every 30 minutes"});
-            this.intervalComboBox.Location = new System.Drawing.Point(176, 61);
-            this.intervalComboBox.Margin = new System.Windows.Forms.Padding(4);
-            this.intervalComboBox.Name = "intervalComboBox";
-            this.intervalComboBox.Size = new System.Drawing.Size(237, 25);
-            this.intervalComboBox.TabIndex = 12;
-            // 
-            // label3
-            // 
-            this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(8, 148);
-            this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(104, 16);
-            this.label3.TabIndex = 15;
-            this.label3.Text = "APRS Message";
-            // 
-            // aprsMessageTextBox
-            // 
-            this.aprsMessageTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.aprsMessageTextBox.Location = new System.Drawing.Point(177, 145);
-            this.aprsMessageTextBox.MaxLength = 18;
-            this.aprsMessageTextBox.Name = "aprsMessageTextBox";
-            this.aprsMessageTextBox.Size = new System.Drawing.Size(236, 22);
-            this.aprsMessageTextBox.TabIndex = 14;
-            // 
-            // allowPositionCheckBox
-            // 
-            this.allowPositionCheckBox.AutoSize = true;
-            this.allowPositionCheckBox.Location = new System.Drawing.Point(176, 230);
-            this.allowPositionCheckBox.Margin = new System.Windows.Forms.Padding(4);
-            this.allowPositionCheckBox.Name = "allowPositionCheckBox";
-            this.allowPositionCheckBox.Size = new System.Drawing.Size(153, 20);
-            this.allowPositionCheckBox.TabIndex = 16;
-            this.allowPositionCheckBox.Text = "Allow Position Check";
-            this.allowPositionCheckBox.UseVisualStyleBackColor = true;
-            // 
-            // sendVoltageCheckBox
-            // 
-            this.sendVoltageCheckBox.AutoSize = true;
-            this.sendVoltageCheckBox.Location = new System.Drawing.Point(176, 202);
-            this.sendVoltageCheckBox.Margin = new System.Windows.Forms.Padding(4);
-            this.sendVoltageCheckBox.Name = "sendVoltageCheckBox";
-            this.sendVoltageCheckBox.Size = new System.Drawing.Size(111, 20);
-            this.sendVoltageCheckBox.TabIndex = 17;
-            this.sendVoltageCheckBox.Text = "Send Voltage";
-            this.sendVoltageCheckBox.UseVisualStyleBackColor = true;
-            // 
-            // shareLocationCheckBox
-            // 
-            this.shareLocationCheckBox.AutoSize = true;
-            this.shareLocationCheckBox.Location = new System.Drawing.Point(176, 174);
-            this.shareLocationCheckBox.Margin = new System.Windows.Forms.Padding(4);
-            this.shareLocationCheckBox.Name = "shareLocationCheckBox";
-            this.shareLocationCheckBox.Size = new System.Drawing.Size(164, 20);
-            this.shareLocationCheckBox.TabIndex = 18;
-            this.shareLocationCheckBox.Text = "Should Share Location";
-            this.shareLocationCheckBox.UseVisualStyleBackColor = true;
+            groupBox1.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            groupBox1.Controls.Add(label6);
+            groupBox1.Controls.Add(radioComboBox);
+            groupBox1.Controls.Add(label7);
+            groupBox1.Controls.Add(shareLocationCheckBox);
+            groupBox1.Controls.Add(sendVoltageCheckBox);
+            groupBox1.Controls.Add(allowPositionCheckBox);
+            groupBox1.Controls.Add(label3);
+            groupBox1.Controls.Add(aprsMessageTextBox);
+            groupBox1.Controls.Add(label2);
+            groupBox1.Controls.Add(intervalComboBox);
+            groupBox1.Controls.Add(label1);
+            groupBox1.Controls.Add(aprsCallsignTextBox);
+            groupBox1.Controls.Add(label5);
+            groupBox1.Controls.Add(packetFormatComboBox);
+            groupBox1.Location = new System.Drawing.Point(12, 99);
+            groupBox1.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            groupBox1.Size = new System.Drawing.Size(428, 364);
+            groupBox1.TabIndex = 19;
+            groupBox1.TabStop = false;
+            groupBox1.Text = "Beacon Settings";
             // 
             // label7
             // 
-            this.label7.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.label7.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
-            this.label7.Location = new System.Drawing.Point(174, 118);
-            this.label7.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(239, 24);
-            this.label7.TabIndex = 19;
-            this.label7.Text = "Enter Callsign - Station ID";
+            label7.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            label7.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
+            label7.Location = new System.Drawing.Point(174, 184);
+            label7.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label7.Name = "label7";
+            label7.Size = new System.Drawing.Size(239, 30);
+            label7.TabIndex = 19;
+            label7.Text = "Enter Callsign - Station ID";
+            // 
+            // shareLocationCheckBox
+            // 
+            shareLocationCheckBox.AutoSize = true;
+            shareLocationCheckBox.Location = new System.Drawing.Point(176, 254);
+            shareLocationCheckBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            shareLocationCheckBox.Name = "shareLocationCheckBox";
+            shareLocationCheckBox.Size = new System.Drawing.Size(179, 24);
+            shareLocationCheckBox.TabIndex = 18;
+            shareLocationCheckBox.Text = "Should Share Location";
+            shareLocationCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // sendVoltageCheckBox
+            // 
+            sendVoltageCheckBox.AutoSize = true;
+            sendVoltageCheckBox.Location = new System.Drawing.Point(176, 288);
+            sendVoltageCheckBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            sendVoltageCheckBox.Name = "sendVoltageCheckBox";
+            sendVoltageCheckBox.Size = new System.Drawing.Size(119, 24);
+            sendVoltageCheckBox.TabIndex = 17;
+            sendVoltageCheckBox.Text = "Send Voltage";
+            sendVoltageCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // allowPositionCheckBox
+            // 
+            allowPositionCheckBox.AutoSize = true;
+            allowPositionCheckBox.Location = new System.Drawing.Point(176, 324);
+            allowPositionCheckBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            allowPositionCheckBox.Name = "allowPositionCheckBox";
+            allowPositionCheckBox.Size = new System.Drawing.Size(168, 24);
+            allowPositionCheckBox.TabIndex = 16;
+            allowPositionCheckBox.Text = "Allow Position Check";
+            allowPositionCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new System.Drawing.Point(8, 221);
+            label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label3.Name = "label3";
+            label3.Size = new System.Drawing.Size(106, 20);
+            label3.TabIndex = 15;
+            label3.Text = "APRS Message";
+            // 
+            // aprsMessageTextBox
+            // 
+            aprsMessageTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            aprsMessageTextBox.Location = new System.Drawing.Point(177, 217);
+            aprsMessageTextBox.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            aprsMessageTextBox.MaxLength = 18;
+            aprsMessageTextBox.Name = "aprsMessageTextBox";
+            aprsMessageTextBox.Size = new System.Drawing.Size(236, 27);
+            aprsMessageTextBox.TabIndex = 14;
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new System.Drawing.Point(7, 117);
+            label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(111, 20);
+            label2.TabIndex = 13;
+            label2.Text = "Beacon Interval";
+            // 
+            // intervalComboBox
+            // 
+            intervalComboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            intervalComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            intervalComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            intervalComboBox.FormattingEnabled = true;
+            intervalComboBox.Items.AddRange(new object[] { "Off", "Every 10 seconds", "Every 20 seconds", "Every 30 seconds", "Every 40 seconds", "Every 50 seconds", "Every 1 minute", "Every 2 minutes", "Every 3 minutes", "Every 4 minutes", "Every 5 minutes", "Every 6 minutes", "Every 7 minutes", "Every 8 minutes", "Every 9 minutes", "Every 10 minutes", "Every 15 minutes", "Every 20 minutes", "Every 25 minutes", "Every 30 minutes" });
+            intervalComboBox.Location = new System.Drawing.Point(176, 112);
+            intervalComboBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            intervalComboBox.Name = "intervalComboBox";
+            intervalComboBox.Size = new System.Drawing.Size(237, 25);
+            intervalComboBox.TabIndex = 12;
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new System.Drawing.Point(8, 156);
+            label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(100, 20);
+            label1.TabIndex = 11;
+            label1.Text = "APRS Callsign";
+            // 
+            // aprsCallsignTextBox
+            // 
+            aprsCallsignTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            aprsCallsignTextBox.Location = new System.Drawing.Point(177, 152);
+            aprsCallsignTextBox.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            aprsCallsignTextBox.MaxLength = 9;
+            aprsCallsignTextBox.Name = "aprsCallsignTextBox";
+            aprsCallsignTextBox.Size = new System.Drawing.Size(236, 27);
+            aprsCallsignTextBox.TabIndex = 10;
+            aprsCallsignTextBox.TextChanged += aprsCallsignTextBox_TextChanged;
+            aprsCallsignTextBox.KeyPress += aprsCallsignTextBox_KeyPress;
+            // 
+            // label5
+            // 
+            label5.AutoSize = true;
+            label5.Location = new System.Drawing.Point(7, 76);
+            label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label5.Name = "label5";
+            label5.Size = new System.Drawing.Size(102, 20);
+            label5.TabIndex = 9;
+            label5.Text = "Packet Format";
+            // 
+            // packetFormatComboBox
+            // 
+            packetFormatComboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            packetFormatComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            packetFormatComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            packetFormatComboBox.FormattingEnabled = true;
+            packetFormatComboBox.Items.AddRange(new object[] { "BSS", "APRS" });
+            packetFormatComboBox.Location = new System.Drawing.Point(176, 71);
+            packetFormatComboBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            packetFormatComboBox.Name = "packetFormatComboBox";
+            packetFormatComboBox.Size = new System.Drawing.Size(237, 25);
+            packetFormatComboBox.TabIndex = 8;
+            packetFormatComboBox.SelectedIndexChanged += packetFormatComboBox_SelectedIndexChanged;
+            // 
+            // pictureBox2
+            // 
+            pictureBox2.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            pictureBox2.Image = Properties.Resources.MapPoint1;
+            pictureBox2.Location = new System.Drawing.Point(376, 11);
+            pictureBox2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            pictureBox2.Name = "pictureBox2";
+            pictureBox2.Size = new System.Drawing.Size(64, 79);
+            pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            pictureBox2.TabIndex = 21;
+            pictureBox2.TabStop = false;
+            // 
+            // label4
+            // 
+            label4.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            label4.Location = new System.Drawing.Point(9, 11);
+            label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label4.Name = "label4";
+            label4.Size = new System.Drawing.Size(359, 79);
+            label4.TabIndex = 20;
+            label4.Text = "Change how the radio will beacon information about itself including position, voltage and a custom message. Other stations around will be able to see this information.";
+            // 
+            // label6
+            // 
+            label6.AutoSize = true;
+            label6.Location = new System.Drawing.Point(7, 34);
+            label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label6.Name = "label6";
+            label6.Size = new System.Drawing.Size(48, 20);
+            label6.TabIndex = 21;
+            label6.Text = "Radio";
+            // 
+            // radioComboBox
+            // 
+            radioComboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            radioComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            radioComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            radioComboBox.FormattingEnabled = true;
+            radioComboBox.Items.AddRange(new object[] { "BSS", "APRS" });
+            radioComboBox.Location = new System.Drawing.Point(176, 29);
+            radioComboBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            radioComboBox.Name = "radioComboBox";
+            radioComboBox.Size = new System.Drawing.Size(237, 25);
+            radioComboBox.TabIndex = 20;
+            radioComboBox.SelectedIndexChanged += radioComboBox_SelectedIndexChanged;
             // 
             // EditBeaconSettingsForm
             // 
-            this.AcceptButton = this.okButton;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.CancelButton = this.cancelButton;
-            this.ClientSize = new System.Drawing.Size(452, 395);
-            this.Controls.Add(this.pictureBox2);
-            this.Controls.Add(this.label4);
-            this.Controls.Add(this.groupBox1);
-            this.Controls.Add(this.okButton);
-            this.Controls.Add(this.cancelButton);
-            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
-            this.Name = "EditBeaconSettingsForm";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "Beacon Settings";
-            this.Load += new System.EventHandler(this.EditBeaconSettingsForm_Load);
-            this.groupBox1.ResumeLayout(false);
-            this.groupBox1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).EndInit();
-            this.ResumeLayout(false);
+            AcceptButton = okButton;
+            AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            CancelButton = cancelButton;
+            ClientSize = new System.Drawing.Size(452, 523);
+            Controls.Add(pictureBox2);
+            Controls.Add(label4);
+            Controls.Add(groupBox1);
+            Controls.Add(okButton);
+            Controls.Add(cancelButton);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
+            Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            MaximizeBox = false;
+            MinimizeBox = false;
+            Name = "EditBeaconSettingsForm";
+            StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+            Text = "Beacon Settings";
+            Load += EditBeaconSettingsForm_Load;
+            groupBox1.ResumeLayout(false);
+            groupBox1.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
+            ResumeLayout(false);
 
         }
 
@@ -326,5 +328,7 @@
         private System.Windows.Forms.CheckBox sendVoltageCheckBox;
         private System.Windows.Forms.CheckBox allowPositionCheckBox;
         private System.Windows.Forms.Label label7;
+        private System.Windows.Forms.Label label6;
+        private System.Windows.Forms.ComboBox radioComboBox;
     }
 }

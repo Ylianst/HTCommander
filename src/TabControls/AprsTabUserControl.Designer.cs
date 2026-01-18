@@ -91,7 +91,7 @@ namespace HTCommander.Controls
             aprsChatControl.Name = "aprsChatControl";
             aprsChatControl.ShadowOffset = 2;
             aprsChatControl.SideMargins = 12;
-            aprsChatControl.Size = new System.Drawing.Size(669, 671);
+            aprsChatControl.Size = new System.Drawing.Size(669, 368);
             aprsChatControl.TabIndex = 5;
             aprsChatControl.TextColor = System.Drawing.Color.Black;
             aprsChatControl.MouseClick += aprsChatControl_MouseClick;
@@ -158,7 +158,7 @@ namespace HTCommander.Controls
             aprsBottomPanel.Controls.Add(aprsTextBox);
             aprsBottomPanel.Controls.Add(aprsSendButton);
             aprsBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            aprsBottomPanel.Location = new System.Drawing.Point(0, 763);
+            aprsBottomPanel.Location = new System.Drawing.Point(0, 460);
             aprsBottomPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             aprsBottomPanel.Name = "aprsBottomPanel";
             aprsBottomPanel.Size = new System.Drawing.Size(669, 59);
@@ -377,7 +377,7 @@ namespace HTCommander.Controls
             Controls.Add(aprsTopPanel);
             Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             Name = "AprsTabUserControl";
-            Size = new System.Drawing.Size(669, 822);
+            Size = new System.Drawing.Size(669, 519);
             aprsMissingChannelPanel.ResumeLayout(false);
             aprsMissingChannelPanel.PerformLayout();
             aprsBottomPanel.ResumeLayout(false);

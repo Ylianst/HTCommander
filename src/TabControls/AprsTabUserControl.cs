@@ -953,7 +953,10 @@ namespace HTCommander.Controls
 
         private void beaconSettingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            // TODO: Implement beacon settings via DataBroker
+            using (EditBeaconSettingsForm beaconSettingsForm = new EditBeaconSettingsForm())
+            {
+                beaconSettingsForm.ShowDialog(this);
+            }
         }
 
         private void aprsSmsButton_Click(object sender, EventArgs e)
@@ -1115,8 +1118,9 @@ namespace HTCommander.Controls
                 e.Cancel = true;
                 return;
             }
-            AprsPacket packet = rightClickedMessage.Tag as AprsPacket;
-            showLocationToolStripMenuItem.Enabled = (packet != null && packet.Position != null);
+            // Enable show location if the message has valid position data
+            bool hasPosition = (rightClickedMessage.Latitude != 0 || rightClickedMessage.Longitude != 0);
+            showLocationToolStripMenuItem.Enabled = hasPosition;
         }
 
         private void detailsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1129,13 +1133,24 @@ namespace HTCommander.Controls
 
         private void showLocationToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (rightClickedMessage != null && rightClickedMessage.Tag is AprsPacket packet)
-            {
-                if (packet.Position != null)
-                {
-                    // TODO: Implement map location via DataBroker
-                }
-            }
+            if (rightClickedMessage == null) return;
+
+            AX25Packet ax25Packet = rightClickedMessage.Tag as AX25Packet;
+            if (ax25Packet == null) return;
+
+            // Get callsign from the message
+            string callsign = rightClickedMessage.SenderCallSign;
+            if (string.IsNullOrEmpty(callsign)) return;
+
+            // Get position from the ChatMessage (stored when packet was added)
+            double latitude = rightClickedMessage.Latitude;
+            double longitude = rightClickedMessage.Longitude;
+
+            if (latitude == 0 && longitude == 0) return;
+
+            // Show the map location form with the callsign and position
+            MapLocationForm mapForm = new MapLocationForm(callsign, latitude, longitude);
+            mapForm.Show();
         }
 
         private void copyMessageToolStripMenuItem_Click(object sender, EventArgs e)

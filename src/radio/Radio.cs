@@ -181,6 +181,9 @@ namespace HTCommander
 
             // Subscribe to TransmitDataFrame event (for transmitting AX.25 packets)
             broker.Subscribe(deviceid, "TransmitDataFrame", OnTransmitDataFrameEvent);
+
+            // Subscribe to SetBssSettings event (for updating beacon settings from UI)
+            broker.Subscribe(deviceid, "SetBssSettings", OnSetBssSettingsEvent);
         }
 
         /// <summary>
@@ -292,6 +295,18 @@ namespace HTCommander
 
             // Transmit the packet
             TransmitTncData(txData.Packet, txData.ChannelId, txData.RegionId);
+        }
+
+        /// <summary>
+        /// Handles SetBssSettings event from the broker (for updating beacon settings from UI).
+        /// </summary>
+        private void OnSetBssSettingsEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            if (data is RadioBssSettings bssSettings)
+            {
+                SetBssSettings(bssSettings);
+            }
         }
 
         public void Dispose() => Disconnect(null, RadioState.Disconnected);
