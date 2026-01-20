@@ -1,59 +1,371 @@
 ﻿/*
 Copyright 2026 Ylian Saint-Hilaire
-
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
 using System.IO;
 using System.Text;
 using System.Linq;
-using System.Windows.Forms;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 
 namespace HTCommander
 {
-    public class Torrent
+    public class Torrent : IDisposable
     {
-        private MainForm parent;
+        private DataBrokerClient broker;
         private bool Active = false;
         public List<TorrentFile> Files = new List<TorrentFile>();
         public TorrentFile Advertised = null;
         public List<TorrentFile> Stations = new List<TorrentFile>();
         public const int DefaultBlockSize = 170;
         public bool FirstDiscovery = true;
+        private List<int> lockedTorrentRadios = new List<int>();
+        private System.Timers.Timer advertisementTimer;
 
-        public Torrent(MainForm parent)
+        public Torrent()
         {
-            this.parent = parent;
+            broker = new DataBrokerClient();
+            
+            // Subscribe to UniqueDataFrame from all devices to receive torrent packets
+            broker.Subscribe(DataBroker.AllDevices, "UniqueDataFrame", OnDataFrameReceived);
+            
+            // Subscribe to LockState from all devices to track locked radios
+            broker.Subscribe(DataBroker.AllDevices, "LockState", OnLockStateChanged);
+            
+            // Subscribe to UI commands
+            broker.Subscribe(0, "TorrentAddFile", OnTorrentAddFile);
+            broker.Subscribe(0, "TorrentRemoveFile", OnTorrentRemoveFile);
+            broker.Subscribe(0, "TorrentSetFileMode", OnTorrentSetFileMode);
+            broker.Subscribe(0, "TorrentGetFiles", OnTorrentGetFiles);
+            broker.Subscribe(0, "TorrentGetStations", OnTorrentGetStations);
+            
+            // Load persisted torrent files from disk
+            LoadTorrentFilesFromDisk();
+            
+            broker.LogInfo("[Torrent] Torrent handler initialized");
+            
+            // Publish initial state
+            PublishFilesUpdate();
+            PublishStationsUpdate();
+            SaveTorrentState();
+        }
+
+        public void Dispose()
+        {
+            StopAdvertising();
+            advertisementTimer?.Dispose();
+            broker?.Dispose();
+        }
+
+        // UI Command Handlers
+        private void OnTorrentAddFile(int deviceId, string name, object data)
+        {
+            if (!(data is TorrentFile file)) return;
+            
+            if (Add(file))
+            {
+                broker.LogInfo($"[Torrent] Added file: {file.FileName}");
+                PublishFilesUpdate();
+            }
+        }
+
+        private void OnTorrentRemoveFile(int deviceId, string name, object data)
+        {
+            if (data == null) return;
+            
+            byte[] fileId = null;
+            
+            // Handle TorrentFile object directly
+            if (data is TorrentFile torrentFile)
+            {
+                fileId = torrentFile.Id;
+            }
+            else
+            {
+                // Handle anonymous type from UI
+                var dataType = data.GetType();
+                fileId = dataType.GetProperty("Id")?.GetValue(data) as byte[];
+            }
+            
+            if (fileId == null) return;
+            
+            // Find file by ID
+            TorrentFile file = Files.FirstOrDefault(f => f.Id != null && f.Id.SequenceEqual(fileId));
+            if (file != null)
+            {
+                Files.Remove(file);
+                UpdateAdvertised();
+                PublishFilesUpdate();
+                SaveTorrentState();
+                broker.LogInfo($"[Torrent] Removed file: {file.FileName}");
+            }
+        }
+
+        private void OnTorrentSetFileMode(int deviceId, string name, object data)
+        {
+            // Expects: { FileId = byte[], Mode = TorrentFile.TorrentModes }
+            if (data == null) return;
+            
+            var dataType = data.GetType();
+            byte[] fileId = dataType.GetProperty("FileId")?.GetValue(data) as byte[];
+            object modeObj = dataType.GetProperty("Mode")?.GetValue(data);
+            
+            if (fileId == null || modeObj == null) return;
+            
+            TorrentFile.TorrentModes mode = (TorrentFile.TorrentModes)modeObj;
+            
+            // Find file by ID
+            TorrentFile file = Files.FirstOrDefault(f => f.Id != null && f.Id.SequenceEqual(fileId));
+            if (file != null && file.Mode != mode)
+            {
+                file.Mode = mode;
+                file.WriteTorrentFile();
+                broker.LogInfo($"[Torrent] Changed mode for {file.FileName} to {mode}");
+                PublishFileUpdate(file);
+                SaveTorrentState();
+            }
+        }
+
+        private void OnTorrentGetFiles(int deviceId, string name, object data)
+        {
+            // Respond with current files list
+            PublishFilesUpdate();
+        }
+
+        private void OnTorrentGetStations(int deviceId, string name, object data)
+        {
+            // Respond with current stations list
+            PublishStationsUpdate();
+        }
+
+        // State Publishing Methods
+        private void PublishFilesUpdate()
+        {
+            var filesList = Files.Select(f => new
+            {
+                Id = f.Id,
+                ShortId = f.ShortId,
+                Callsign = f.Callsign,
+                StationId = f.StationId,
+                FileName = f.FileName,
+                Description = f.Description,
+                Size = f.Size,
+                CompressedSize = f.CompressedSize,
+                Compression = f.Compression.ToString(),
+                Mode = f.Mode.ToString(),
+                Completed = f.Completed,
+                TotalBlocks = f.TotalBlocks,
+                ReceivedBlocks = f.ReceivedBlocks,
+                Progress = f.TotalBlocks > 0 ? (float)f.ReceivedBlocks / f.TotalBlocks : 0f
+            }).ToList();
+            
+            broker.Dispatch(0, "TorrentFiles", filesList, store: false);
+        }
+
+        private void PublishStationsUpdate()
+        {
+            var stationsList = Stations.Select(s => new
+            {
+                Id = s.Id,
+                ShortId = s.ShortId,
+                Callsign = s.Callsign,
+                StationId = s.StationId,
+                Mode = s.Mode.ToString(),
+                Completed = s.Completed,
+                TotalBlocks = s.TotalBlocks,
+                ReceivedBlocks = s.ReceivedBlocks,
+                Progress = s.TotalBlocks > 0 ? (float)s.ReceivedBlocks / s.TotalBlocks : 0f
+            }).ToList();
+            
+            broker.Dispatch(0, "TorrentStations", stationsList, store: false);
+        }
+
+        private void PublishFileUpdate(TorrentFile file)
+        {
+            var fileData = new
+            {
+                Id = file.Id,
+                ShortId = file.ShortId,
+                Callsign = file.Callsign,
+                StationId = file.StationId,
+                FileName = file.FileName,
+                Description = file.Description,
+                Size = file.Size,
+                CompressedSize = file.CompressedSize,
+                Compression = file.Compression.ToString(),
+                Mode = file.Mode.ToString(),
+                Completed = file.Completed,
+                TotalBlocks = file.TotalBlocks,
+                ReceivedBlocks = file.ReceivedBlocks,
+                Progress = file.TotalBlocks > 0 ? (float)file.ReceivedBlocks / file.TotalBlocks : 0f
+            };
+            
+            broker.Dispatch(0, "TorrentFileUpdate", fileData, store: false);
+        }
+
+        private void PublishStationUpdate(TorrentFile station)
+        {
+            var stationData = new
+            {
+                Id = station.Id,
+                ShortId = station.ShortId,
+                Callsign = station.Callsign,
+                StationId = station.StationId,
+                Mode = station.Mode.ToString(),
+                Completed = station.Completed,
+                TotalBlocks = station.TotalBlocks,
+                ReceivedBlocks = station.ReceivedBlocks,
+                Progress = station.TotalBlocks > 0 ? (float)station.ReceivedBlocks / station.TotalBlocks : 0f
+            };
+            
+            broker.Dispatch(0, "TorrentStationUpdate", stationData, store: false);
+        }
+
+        // State persistence methods
+        private void LoadTorrentFilesFromDisk()
+        {
+            try
+            {
+                List<TorrentFile> loadedFiles = TorrentFile.ReadTorrentFiles();
+                Files.AddRange(loadedFiles);
+                broker.LogInfo($"[Torrent] Loaded {loadedFiles.Count} torrent files from disk");
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[Torrent] Error loading torrent files: {ex.Message}");
+            }
+        }
+
+        private void SaveTorrentState()
+        {
+            // Save a summary of torrent state to DataBroker for persistence
+            // Note: Actual file data is saved to disk via TorrentFile.WriteTorrentFile()
+            // This just stores metadata that survives app restarts
+            var torrentState = new
+            {
+                FileCount = Files.Count,
+                LastUpdated = DateTime.Now,
+                Files = Files.Select(f => new
+                {
+                    IdHex = f.Id != null ? Utils.BytesToHex(f.Id) : null,
+                    f.Callsign,
+                    f.StationId,
+                    f.FileName,
+                    f.Description,
+                    f.Size,
+                    f.CompressedSize,
+                    Compression = f.Compression.ToString(),
+                    Mode = f.Mode.ToString(),
+                    f.Completed,
+                    f.TotalBlocks,
+                    f.ReceivedBlocks
+                }).ToList()
+            };
+            
+            broker.Dispatch(0, "TorrentState", torrentState, store: true);
+        }
+
+        private void OnLockStateChanged(int deviceId, string name, object data)
+        {
+            if (!(data is RadioLockState lockState)) return;
+            
+            bool wasActive = lockedTorrentRadios.Count > 0;
+            
+            if (lockState.IsLocked && lockState.Usage == "Torrent")
+            {
+                if (!lockedTorrentRadios.Contains(deviceId))
+                {
+                    lockedTorrentRadios.Add(deviceId);
+                    broker.LogInfo($"[Torrent] Radio {deviceId} locked to Torrent mode");
+                }
+            }
+            else
+            {
+                if (lockedTorrentRadios.Remove(deviceId))
+                {
+                    broker.LogInfo($"[Torrent] Radio {deviceId} unlocked from Torrent mode");
+                }
+            }
+            
+            bool isActive = lockedTorrentRadios.Count > 0;
+            
+            // Start/stop based on active state change
+            if (isActive && !wasActive)
+            {
+                StartAdvertising();
+                FirstDiscovery = true;
+                broker.LogInfo("[Torrent] Started advertising");
+            }
+            else if (!isActive && wasActive)
+            {
+                StopAdvertising();
+                broker.LogInfo("[Torrent] Stopped advertising");
+            }
+        }
+
+        private void OnDataFrameReceived(int deviceId, string name, object data)
+        {
+            if (!(data is TncDataFragment frame)) return;
+            
+            // Only process if usage is "Torrent"
+            if (frame.usage != "Torrent") return;
+            
+            broker.LogInfo($"[Torrent] Received torrent frame from radio {deviceId}");
+            
+            // Convert to AX25Packet for processing
+            List<AX25Address> addresses = new List<AX25Address>();
+            AX25Packet packet = new AX25Packet(addresses, frame.data, frame.time);
+            ProcessFrame(frame, packet);
+        }
+
+        private void StartAdvertising()
+        {
+            if (advertisementTimer == null)
+            {
+                advertisementTimer = new System.Timers.Timer(30000); // 30 seconds
+                advertisementTimer.Elapsed += OnAdvertisementTimer;
+            }
+            advertisementTimer.Start();
+        }
+
+        private void StopAdvertising()
+        {
+            advertisementTimer?.Stop();
+        }
+
+        private void OnAdvertisementTimer(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            SendRequestFrame(FirstDiscovery);
+            FirstDiscovery = false;
         }
 
         public void ChannelIsClear()
         {
-            /*
-            if ((parent.radio == null) || (parent.radio.TransmitQueueLength > 0)) return;
-            SendRequestFrame(FirstDiscovery);
-            FirstDiscovery = false;
-            parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(30));
-            */
+            // This method is no longer needed with DataBroker pattern
+            // Channel clear events are handled by the Radio class
         }
 
         public bool Add(TorrentFile file)
         {
             if (Files.Contains(file)) return false;
+            
+            // Set the callsign and station ID from settings if not already set
+            if (string.IsNullOrEmpty(file.Callsign))
+            {
+                file.Callsign = DataBroker.GetValue<string>(0, "CallSign", "NOCALL");
+            }
+            if (file.StationId == 0)
+            {
+                file.StationId = DataBroker.GetValue<int>(0, "StationId", 0);
+            }
+            
             Files.Add(file);
             UpdateAdvertised();
+            PublishFilesUpdate();
+            SaveTorrentState();
             return true;
         }
 
@@ -62,6 +374,8 @@ namespace HTCommander
             if (!Files.Contains(file)) return false;
             Files.Remove(file);
             UpdateAdvertised();
+            PublishFilesUpdate();
+            SaveTorrentState();
             return true;
         }
 
@@ -71,9 +385,7 @@ namespace HTCommander
             Active = active;
             if (active)
             {
-                //SendRequestFrame(true);
                 FirstDiscovery = true;
-                //parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(5));
             }
         }
 
@@ -112,8 +424,7 @@ namespace HTCommander
 
         private void SendRequestFrame(bool discovery = false)
         {
-            /*
-            if ((parent.activeStationLock == null) || (parent.activeStationLock.StationType != StationInfoClass.StationTypes.Torrent)) return;
+            if (lockedTorrentRadios.Count == 0) return;
 
             MemoryStream ms = new MemoryStream();
             BinaryWriter writer = new BinaryWriter(ms);
@@ -139,12 +450,14 @@ namespace HTCommander
             }
 
             List<Request> requests = GetNextRequests();
-            int currentStationId = parent.stationId;
-            string currentCallsign = parent.callsign;
+            string callsign = DataBroker.GetValue<string>(0, "CallSign", "NOCALL");
+            int stationId = DataBroker.GetValue<int>(0, "StationId", 0);
+            byte currentStationId = (byte)stationId;
+            string currentCallsign = callsign;
             byte[] currentShortId = null;
             foreach (Request request in requests)
             {
-                if ((currentStationId != request.StationId) || (currentStationId != request.StationId))
+                if ((currentStationId != request.StationId) || (currentCallsign != request.Callsign))
                 {
                     writer.Write((byte)2); // Station Id + Callsign
                     writer.Write((byte)request.StationId);
@@ -167,26 +480,45 @@ namespace HTCommander
                 writer.Write((byte)request.BlockCount);
             }
 
-            // Send the packet
-            List<AX25Address> addresses = new List<AX25Address>();
-            addresses.Add(AX25Address.GetAddress(parent.callsign, parent.stationId));
-            AX25Packet packet = new AX25Packet(addresses, ms.ToArray(), DateTime.Now);
-            packet.pid = 162; // Control packet
-            //packet.channel_id = parent.activeChannelIdLock;
-            //packet.channel_name = p.channel_name;
-            packet.tag = "TorrentRequest"; // Tag this packet so we can delete it from the send queue if needed.
-            packet.deadline = DateTime.Now.AddSeconds(30); // If we can't send this in the next 30 seconds, don't bother.
-            //if (parent.activeChannelIdLock >= 0)
-            //{
-            //    parent.radio.TransmitTncData(packet, packet.channel_id);
-            //}
-            */
+            // Send the packet to all locked radios
+            SendTorrentPacket(ms.ToArray(), 162, "TorrentRequest", DateTime.Now.AddSeconds(30));
+        }
+
+        private void SendTorrentPacket(byte[] data, int pid, string tag = null, DateTime? deadline = null)
+        {
+            if (lockedTorrentRadios.Count == 0) return;
+            
+            string callsign = DataBroker.GetValue<string>(0, "CallSign", "NOCALL");
+            int stationId = DataBroker.GetValue<int>(0, "StationId", 0);
+            
+            foreach (int radioDeviceId in lockedTorrentRadios)
+            {
+                var lockState = DataBroker.GetValue<RadioLockState>(radioDeviceId, "LockState", null);
+                if (lockState == null || !lockState.IsLocked || lockState.Usage != "Torrent") continue;
+                
+                List<AX25Address> addresses = new List<AX25Address>();
+                addresses.Add(AX25Address.GetAddress(callsign, stationId));
+                
+                AX25Packet packet = new AX25Packet(addresses, data, DateTime.Now);
+                packet.pid = (byte)pid;
+                packet.tag = tag;
+                packet.deadline = deadline ?? DateTime.Now.AddSeconds(60);
+                
+                var txData = new TransmitDataFrameData
+                {
+                    Packet = packet,
+                    ChannelId = lockState.ChannelId,
+                    RegionId = lockState.RegionId
+                };
+                
+                DataBroker.Dispatch(radioDeviceId, "TransmitDataFrame", txData, store: false);
+            }
         }
 
         private struct Request
         {
             public string Callsign;
-            public int StationId;
+            public byte StationId;
             public byte[] ShortId;
             public int BlockNumber;
             public int BlockCount;
@@ -232,7 +564,7 @@ namespace HTCommander
                             {
                                 Request r = new Request(); // Simple Request
                                 r.Callsign = file.Callsign;
-                                r.StationId = file.StationId;
+                                r.StationId = (byte)file.StationId;
                                 r.ShortId = file.ShortId;
                                 r.BlockNumber = requestBlockIndex;
                                 r.BlockCount = requestBlockCount;
@@ -248,7 +580,7 @@ namespace HTCommander
                             {
                                 Request r = new Request(); // Simple Request
                                 r.Callsign = file.Callsign;
-                                r.StationId = file.StationId;
+                                r.StationId = (byte)file.StationId;
                                 r.ShortId = file.ShortId;
                                 r.BlockNumber = requestBlockIndex;
                                 r.BlockCount = requestBlockCount;
@@ -264,7 +596,7 @@ namespace HTCommander
                     {
                         Request r = new Request(); // Simple Request
                         r.Callsign = file.Callsign;
-                        r.StationId = file.StationId;
+                        r.StationId = (byte)file.StationId;
                         r.ShortId = file.ShortId;
                         r.BlockNumber = requestBlockIndex;
                         r.BlockCount = requestBlockCount;
@@ -337,7 +669,7 @@ namespace HTCommander
                                 sFile.ReceivedLastBlock = true;
                                 sFile.Mode = TorrentFile.TorrentModes.Request;
                                 Stations.Add(sFile);
-                                //parent.radio.SetNextFreeChannelTime(DateTime.Now.AddSeconds(1));
+                                PublishStationsUpdate();
                             }
                             break;
                         case 5: // Short Id
@@ -359,22 +691,14 @@ namespace HTCommander
                                         // Create the block frame
                                         byte[] blockFrame = new byte[block.Length + 8];
                                         Array.Copy(shortId, 0, blockFrame, 0, 6);
-                                        //if (file.StationFile) { blockFrame[5] += 0x02; }
                                         if (i == file.Blocks.Length - 1) { blockFrame[5] += 0x01; }
                                         blockFrame[6] = (byte)(i >> 8);
                                         blockFrame[7] = (byte)(i & 0xFF);
                                         Array.Copy(block, 0, blockFrame, 8, block.Length);
 
                                         // Send the packet
-                                        List<AX25Address> addresses = new List<AX25Address>();
-                                        addresses.Add(AX25Address.GetAddress(file.Callsign, file.StationId));
-                                        AX25Packet packet = new AX25Packet(addresses, blockFrame, DateTime.Now);
-                                        packet.pid = 163; // Data packet
-                                        packet.channel_id = p.channel_id;
-                                        packet.channel_name = p.channel_name;
-                                        packet.tag = file.Callsign + "-" + file.StationId + "-" + Utils.BytesToHex(shortId) + "-" + i; // Tag this packet so we can delete it from the send queue if needed.
-                                        packet.deadline = DateTime.Now.AddSeconds(60); // If we can't send this in the next 60 seconds, don't bother.
-                                        //parent.radio.TransmitTncData(packet, packet.channel_id);
+                                        string packetTag = file.Callsign + "-" + file.StationId + "-" + Utils.BytesToHex(shortId) + "-" + i;
+                                        SendTorrentPacket(blockFrame, 163, packetTag, DateTime.Now.AddSeconds(60));
                                     }
                                 }
                             }
@@ -401,7 +725,7 @@ namespace HTCommander
 
                 // If we just received data that is in the transmit queue, delete it, someone else sent it
                 string packetTag = callsign + "-" + stationId + "-" + Utils.BytesToHex(blockShortId) + "-" + blockNumber;
-                //parent.radio.DeleteTransmitByTag(packetTag);
+                // Note: DeleteTransmitByTag would need to be implemented via DataBroker if needed
 
                 if (isStationFile)
                 {
@@ -426,6 +750,7 @@ namespace HTCommander
                                 int r = file.IsCompleted();
                                 if (r == 1) { file.Completed = true; file.Mode = TorrentFile.TorrentModes.Sharing; UpdateStationAdvertised(file); }
                                 if (r == 2) { file.Mode = TorrentFile.TorrentModes.Error; }
+                                PublishStationUpdate(file);
                             }
                         }
                     }
@@ -453,7 +778,7 @@ namespace HTCommander
                             int r = mfile.IsCompleted();
                             if (r == 1) { mfile.Completed = true; mfile.Mode = TorrentFile.TorrentModes.Sharing; }
                             if (r == 2) { mfile.Mode = TorrentFile.TorrentModes.Error; }
-                            //parent.updateTorrent(mfile);
+                            PublishFileUpdate(mfile);
                         }
                     }
                 }
@@ -568,36 +893,42 @@ namespace HTCommander
 
             // If we have files that are not in the updated list, remove them.
             // TODO
-
-            //if (changed) { parent.updateTorrentList(); }
+            
+            // Publish updates if anything changed
+            if (changed)
+            {
+                PublishFilesUpdate();
+            }
         }
 
         private void UpdateAdvertised()
         {
-            /*
             MemoryStream ms = new MemoryStream();
             BinaryWriter bw = new BinaryWriter(ms);
             byte[] buf;
 
-            buf = Encoding.UTF8.GetBytes(parent.callsign);
+            string callsign = DataBroker.GetValue<string>(0, "CallSign", "NOCALL");
+            int stationId = DataBroker.GetValue<int>(0, "StationId", 0);
+
+            buf = Encoding.UTF8.GetBytes(callsign);
             bw.Write((byte)1); // Version
             bw.Write((byte)1);
 
-            buf = Encoding.UTF8.GetBytes(parent.callsign);
+            buf = Encoding.UTF8.GetBytes(callsign);
             bw.Write((byte)2); // Callsign
             bw.Write((byte)buf.Length);
             bw.Write(buf);
 
-            if (parent.stationId != 0)
+            if (stationId != 0)
             {
                 bw.Write((byte)3); // Station Id
-                bw.Write((byte)parent.stationId);
+                bw.Write((byte)stationId);
             }
 
             int filecount = 0;
             foreach (TorrentFile file in Files)
             {
-                if ((file.Callsign == parent.callsign) && (file.StationId == parent.stationId) && (file.Id.Length == 12))
+                if ((file.Callsign == callsign) && (file.StationId == stationId) && (file.Id.Length == 12))
                 {
                     buf = Encoding.UTF8.GetBytes(file.FileName);
                     bw.Write((byte)4); // Filename
@@ -629,8 +960,8 @@ namespace HTCommander
             TorrentFile torrentFile = new TorrentFile();
             torrentFile.Completed = true;
             torrentFile.StationFile = true;
-            torrentFile.Callsign = parent.callsign;
-            torrentFile.StationId = parent.stationId;
+            torrentFile.Callsign = callsign;
+            torrentFile.StationId = stationId;
             torrentFile.Mode = TorrentFile.TorrentModes.Sharing;
             torrentFile.Size = data0.Length;
 
@@ -675,9 +1006,7 @@ namespace HTCommander
 
             // Done
             Advertised = torrentFile;
-            */
         }
-
     }
 
     public class TorrentFile
@@ -713,7 +1042,7 @@ namespace HTCommander
         public TorrentModes Mode = TorrentModes.Pause; // Sharing mode
         public bool Completed = false; // File complete
         public bool ReceivedLastBlock = false;
-        public ListViewItem ListViewItem;
+        public System.Windows.Forms.ListViewItem ListViewItem;
 
         public int TotalBlocks { get { if (Blocks != null) { return Blocks.Length; } else { return 0; } } }
         public int ReceivedBlocks

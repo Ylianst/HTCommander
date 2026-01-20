@@ -24,6 +24,7 @@ namespace HTCommander
         public int corrections = -1;
         public string RadioMac;
         public int RadioDeviceId;
+        public string usage;
 
         public enum FragmentEncodingType
         {

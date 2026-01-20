@@ -48,6 +48,7 @@ namespace HTCommander
             DataBroker.AddDataHandler("PacketStore", new PacketStore());
             DataBroker.AddDataHandler("LogStore", new LogStore());
             DataBroker.AddDataHandler("AprsHandler", new AprsHandler());
+            DataBroker.AddDataHandler("Torrent", new Torrent());
 
             // Subscribe to CallSign and StationId changes for title bar updates
             broker.Subscribe(0, new[] { "CallSign", "StationId" }, OnCallSignOrStationIdChanged);
@@ -72,7 +73,6 @@ namespace HTCommander
             mailTabUserControl.Initialize(this);
             terminalTabUserControl.Initialize(this);
             bbsTabUserControl.Initialize(this);
-            torrentTabUserControl.Initialize(this);
         }
         private void StartPipeServer()
         {

@@ -1135,6 +1135,13 @@ namespace HTCommander
                 frameAccumulator = null;
                 packet.incoming = true;
                 packet.time = DateTime.Now;
+                
+                // Populate usage field if radio is locked and data received on locked channel
+                if (lockState != null && lockState.IsLocked && packet.channel_id == lockState.ChannelId)
+                {
+                    packet.usage = lockState.Usage;
+                }
+                
                 DispatchDataFrame(packet);
             }
         }
