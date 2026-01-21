@@ -124,7 +124,7 @@ namespace HTCommander.Controls
             terminalInputTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
             terminalInputTextBox.Enabled = false;
             terminalInputTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
-            terminalInputTextBox.Location = new System.Drawing.Point(9, 9);
+            terminalInputTextBox.Location = new System.Drawing.Point(9, 13);
             terminalInputTextBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             terminalInputTextBox.Name = "terminalInputTextBox";
             terminalInputTextBox.Size = new System.Drawing.Size(545, 30);
@@ -135,7 +135,7 @@ namespace HTCommander.Controls
             // 
             terminalSendButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             terminalSendButton.Enabled = false;
-            terminalSendButton.Location = new System.Drawing.Point(565, 6);
+            terminalSendButton.Location = new System.Drawing.Point(565, 10);
             terminalSendButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             terminalSendButton.Name = "terminalSendButton";
             terminalSendButton.Size = new System.Drawing.Size(100, 41);
