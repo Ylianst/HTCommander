@@ -790,19 +790,13 @@ namespace HTCommander
             // Another station may be trying to initiate a connection while we are busy
             if ((Addresses != null) && (packet.addresses[1].CallSignWithId != Addresses[0].CallSignWithId))
             {
-                Trace("Got packet from wrong station: " + packet.addresses[1].CallSignWithId);
-                // TODO: Notify we are busy (?)
-                response.addresses = new List<AX25Address>();
-                response.addresses.Add(AX25Address.GetAddress(packet.addresses[1].ToString()));
-                response.addresses.Add(AX25Address.GetAddress(SessionCallsign, SessionStationId));
-                response.type = FrameType.U_FRAME_DISC;
-                response.command = false;
-                response.pollFinal = true;
-                EmitPacket(response);
+                Trace("Got packet from wrong station: " + packet.addresses[1].CallSignWithId + ", expected: " + Addresses[0].CallSignWithId);
+                // Simply ignore packets from other stations - don't respond
+                // Responding with DM could interfere with other sessions on the same frequency
                 return false;
             }
 
-            // If we are not connected and this is not a connection request, respond with a disconnect
+            // If we are not connected and this is not a connection request, respond with DM (Disconnected Mode)
             if ((Addresses == null) && (packet.type != FrameType.U_FRAME_SABM) && (packet.type != FrameType.U_FRAME_SABME))
             {
                 response.addresses = new List<AX25Address>();
@@ -811,8 +805,9 @@ namespace HTCommander
                 response.command = false;
                 response.pollFinal = true;
 
-                // If this is a disconnect frame and we are not connected, respond with a confirmation
-                if (packet.type == FrameType.U_FRAME_DISC) { response.type = FrameType.U_FRAME_UA; } else { response.type = FrameType.U_FRAME_DISC; }
+                // If this is a disconnect frame and we are not connected, respond with UA confirmation
+                // Otherwise respond with DM to indicate we're not connected
+                if (packet.type == FrameType.U_FRAME_DISC) { response.type = FrameType.U_FRAME_UA; } else { response.type = FrameType.U_FRAME_DM; }
                 EmitPacket(response);
                 return false;
             }

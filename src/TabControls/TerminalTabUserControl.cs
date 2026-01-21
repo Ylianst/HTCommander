@@ -23,6 +23,8 @@ namespace HTCommander.Controls
         private StationInfoClass connectedStation = null;
         private int connectedRadioId = -1;
         private int nextAprsMessageId = 1;
+        private AX25Session ax25Session = null;
+        private bool pendingDisconnect = false; // Flag to track if we're waiting for X25Session to fully disconnect
 
         /// <summary>
         /// Gets or sets whether the "Detach..." menu item is visible.
@@ -343,6 +345,10 @@ namespace HTCommander.Controls
             {
                 SendAprsPacket(sendText);
             }
+            else if (connectedStation.TerminalProtocol == StationInfoClass.TerminalProtocols.X25Session)
+            {
+                SendX25SessionPacket(sendText);
+            }
             else
             {
                 // For other protocols, just dispatch to the radio for now
@@ -595,6 +601,196 @@ namespace HTCommander.Controls
             broker.Dispatch(connectedRadioId, "TransmitDataFrame", txData, store: false);
 
             broker.LogInfo("[TerminalTab] Sent APRS packet (msgId=" + msgId + ") to " + connectedStation.Callsign);
+        }
+
+        /// <summary>
+        /// Sends data over an X25Session connection using the AX25Session instance.
+        /// </summary>
+        private void SendX25SessionPacket(string text)
+        {
+            if (ax25Session == null || ax25Session.CurrentState != AX25Session.ConnectionState.CONNECTED)
+            {
+                AppendTerminalString(false, null, null, "X25 Session not connected");
+                return;
+            }
+
+            // Get our callsign for display
+            string myCallsignWithId = broker.GetValue<string>(0, "Callsign", "N0CALL-0");
+
+            // Send the data through the session
+            ax25Session.Send(text);
+
+            // Display the sent message in the terminal
+            AppendTerminalString(true, myCallsignWithId, connectedStation?.Callsign ?? "UNKNOWN", text);
+
+            broker.LogInfo("[TerminalTab] Sent X25Session data to " + (connectedStation?.Callsign ?? "UNKNOWN"));
+        }
+
+        /// <summary>
+        /// Initializes an AX25Session for X25Session protocol and starts connecting.
+        /// </summary>
+        private void InitializeX25Session(int radioId, StationInfoClass station)
+        {
+            // Dispose any existing session
+            DisposeX25Session();
+
+            // Get our callsign from settings
+            string myCallsignWithId = broker.GetValue<string>(0, "Callsign", "N0CALL-0");
+            string myCallsign;
+            int myStationId;
+            if (!Utils.ParseCallsignWithId(myCallsignWithId, out myCallsign, out myStationId))
+            {
+                myCallsign = myCallsignWithId;
+                myStationId = 0;
+            }
+
+            // Parse the destination callsign
+            string destCallsign;
+            int destStationId;
+            if (!Utils.ParseCallsignWithId(station.Callsign, out destCallsign, out destStationId))
+            {
+                destCallsign = station.Callsign;
+                destStationId = 0;
+            }
+
+            // Create the session
+            ax25Session = new AX25Session(radioId);
+            ax25Session.CallSignOverride = myCallsign;
+            ax25Session.StationIdOverride = myStationId;
+
+            // Subscribe to session events
+            ax25Session.StateChanged += OnX25SessionStateChanged;
+            ax25Session.DataReceivedEvent += OnX25SessionDataReceived;
+            ax25Session.ErrorEvent += OnX25SessionError;
+
+            // Create addresses: destination, source
+            List<AX25Address> addresses = new List<AX25Address>();
+            addresses.Add(AX25Address.GetAddress(destCallsign, destStationId)); // Destination
+            addresses.Add(AX25Address.GetAddress(myCallsign, myStationId)); // Source
+
+            // Display connecting message
+            AppendTerminalString(false, null, null, "Connecting to " + station.Callsign + "...");
+
+            // Start the connection
+            ax25Session.Connect(addresses);
+
+            broker.LogInfo("[TerminalTab] Initiating X25Session connection to " + station.Callsign);
+        }
+
+        /// <summary>
+        /// Disposes the current AX25Session and cleans up resources.
+        /// </summary>
+        private void DisposeX25Session()
+        {
+            if (ax25Session != null)
+            {
+                // Unsubscribe from events
+                ax25Session.StateChanged -= OnX25SessionStateChanged;
+                ax25Session.DataReceivedEvent -= OnX25SessionDataReceived;
+                ax25Session.ErrorEvent -= OnX25SessionError;
+
+                // Disconnect if connected
+                if (ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTED ||
+                    ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTING)
+                {
+                    ax25Session.Disconnect();
+                }
+
+                // Dispose the session
+                ax25Session.Dispose();
+                ax25Session = null;
+
+                broker.LogInfo("[TerminalTab] X25Session disposed");
+            }
+        }
+
+        /// <summary>
+        /// Handles AX25Session state change events.
+        /// </summary>
+        private void OnX25SessionStateChanged(AX25Session sender, AX25Session.ConnectionState state)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<AX25Session, AX25Session.ConnectionState>(OnX25SessionStateChanged), sender, state);
+                return;
+            }
+
+            switch (state)
+            {
+                case AX25Session.ConnectionState.CONNECTED:
+                    AppendTerminalString(false, null, null, "Connected to " + (connectedStation?.Callsign ?? "UNKNOWN"));
+                    break;
+                case AX25Session.ConnectionState.CONNECTING:
+                    // Already displayed "Connecting..." message
+                    break;
+                case AX25Session.ConnectionState.DISCONNECTED:
+                    AppendTerminalString(false, null, null, "Disconnected");
+                    // Always complete the disconnect and unlock the radio when the session is disconnected
+                    // This handles both user-initiated disconnects and remote-initiated disconnects
+                    pendingDisconnect = false;
+                    CompleteX25SessionDisconnect();
+                    break;
+                case AX25Session.ConnectionState.DISCONNECTING:
+                    AppendTerminalString(false, null, null, "Disconnecting...");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Completes the X25Session disconnect by disposing the session and unlocking the radio.
+        /// Called after the session has fully transitioned to DISCONNECTED state.
+        /// </summary>
+        private void CompleteX25SessionDisconnect()
+        {
+            int radioId = connectedRadioId;
+
+            // Dispose the session
+            DisposeX25Session();
+
+            // Unlock the radio
+            if (radioId > 0)
+            {
+                var unlockData = new SetUnlockData { Usage = "Terminal" };
+                broker.Dispatch(radioId, "SetUnlock", unlockData, store: false);
+                broker.LogInfo("[TerminalTab] X25Session fully disconnected, radio " + radioId + " unlocked");
+            }
+
+            // Clear the connected station and radio references
+            connectedStation = null;
+            connectedRadioId = -1;
+        }
+
+        /// <summary>
+        /// Handles AX25Session data received events.
+        /// </summary>
+        private void OnX25SessionDataReceived(AX25Session sender, byte[] data)
+        {
+            if (data == null || data.Length == 0) return;
+
+            // Decode the data as UTF-8 text
+            string text = Encoding.UTF8.GetString(data);
+
+            // Get our callsign for display
+            string myCallsign = broker.GetValue<string>(0, "Callsign", "N0CALL");
+
+            // Get the remote callsign from the session addresses
+            string remoteCallsign = "UNKNOWN";
+            if (sender.Addresses != null && sender.Addresses.Count >= 1)
+            {
+                remoteCallsign = sender.Addresses[0].CallSignWithId;
+            }
+
+            // Display the received message in the terminal
+            AppendTerminalString(false, remoteCallsign, myCallsign, text);
+        }
+
+        /// <summary>
+        /// Handles AX25Session error events.
+        /// </summary>
+        private void OnX25SessionError(AX25Session sender, string error)
+        {
+            AppendTerminalString(false, null, null, "Error: " + error);
+            broker.LogInfo("[TerminalTab] X25Session error: " + error);
         }
 
         /// <summary>
@@ -866,6 +1062,35 @@ namespace HTCommander.Controls
 
             if (activeRadioId > 0)
             {
+                // If we're already waiting for disconnect to complete, don't do anything
+                if (pendingDisconnect)
+                {
+                    broker.LogInfo("[TerminalTab] Already waiting for X25Session disconnect to complete");
+                    return;
+                }
+
+                // Check if we have an active X25Session that needs graceful disconnect
+                // This includes CONNECTED, CONNECTING, or DISCONNECTING states
+                if (ax25Session != null && 
+                    ax25Session.CurrentState != AX25Session.ConnectionState.DISCONNECTED)
+                {
+                    // Start the graceful disconnect process - don't unlock radio yet
+                    // The radio will be unlocked when we receive the DISCONNECTED state change
+                    pendingDisconnect = true;
+                    broker.LogInfo("[TerminalTab] Initiating graceful X25Session disconnect (current state: " + ax25Session.CurrentState + "), waiting for DISCONNECTED state");
+                    
+                    // Only call Disconnect if not already disconnecting
+                    if (ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTED ||
+                        ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTING)
+                    {
+                        ax25Session.Disconnect();
+                    }
+                    return;
+                }
+
+                // No active X25Session, or session already disconnected - proceed with immediate cleanup
+                DisposeX25Session();
+
                 // We have an active Terminal connection - disconnect (unlock the radio)
                 var unlockData = new SetUnlockData { Usage = "Terminal" };
                 broker.Dispatch(activeRadioId, "SetUnlock", unlockData, store: false);
@@ -989,6 +1214,12 @@ namespace HTCommander.Controls
 
             // Dispatch station info to the radio for connection
             broker.Dispatch(radioId, "TerminalStation", station, store: false);
+
+            // For X25Session protocol, initialize the AX25Session and start connecting
+            if (station.TerminalProtocol == StationInfoClass.TerminalProtocols.X25Session)
+            {
+                InitializeX25Session(radioId, station);
+            }
 
             broker.LogInfo("[TerminalTab] Connecting to station " + station.Callsign + " on radio " + radioId + " (Region: " + regionId + ", Channel: " + channelId + ")");
         }
