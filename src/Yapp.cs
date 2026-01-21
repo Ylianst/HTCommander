@@ -34,7 +34,6 @@ namespace HTCommander
     public class YappTransfer
     {
         private readonly AX25Session session;
-        private readonly MainForm parent;
         private Timer timeoutTimer;
         
         // YAPP Control Characters (from specification)
@@ -120,14 +119,13 @@ namespace HTCommander
         public event EventHandler<YappCompleteEventArgs> TransferComplete;
         public event EventHandler<YappErrorEventArgs> TransferError;
         
-        public YappTransfer(AX25Session session, MainForm parent)
+        public YappTransfer(AX25Session session)
         {
             this.session = session ?? throw new ArgumentNullException(nameof(session));
-            this.parent = parent ?? throw new ArgumentNullException(nameof(parent));
             
             // Subscribe to session events
             // Note: We do NOT subscribe to DataReceivedEvent here because ProcessIncomingData
-            // is already being called from MainForm, which prevents duplicate packet processing
+            // is already being called from the caller, which prevents duplicate packet processing
             session.StateChanged += OnSessionStateChanged;
             
             // Setup timeout timer

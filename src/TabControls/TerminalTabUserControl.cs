@@ -24,6 +24,7 @@ namespace HTCommander.Controls
         private int connectedRadioId = -1;
         private int nextAprsMessageId = 1;
         private AX25Session ax25Session = null;
+        private YappTransfer yappTransfer = null;
         private bool pendingDisconnect = false; // Flag to track if we're waiting for X25Session to fully disconnect
 
         /// <summary>
@@ -87,6 +88,9 @@ namespace HTCommander.Controls
             LoadSavedSettings();
 
             broker.LogInfo("[TerminalTab] Terminal tab initialized");
+
+            // Subscribe to the context menu opening event to update menu item states
+            terminalTabContextMenuStrip.Opening += TerminalTabContextMenuStrip_Opening;
         }
 
         private void LoadSavedSettings()
@@ -663,6 +667,13 @@ namespace HTCommander.Controls
             ax25Session.DataReceivedEvent += OnX25SessionDataReceived;
             ax25Session.ErrorEvent += OnX25SessionError;
 
+            // Create and initialize YAPP transfer handler for file transfers
+            yappTransfer = new YappTransfer(ax25Session);
+            yappTransfer.ProgressChanged += OnYappProgressChanged;
+            yappTransfer.TransferComplete += OnYappTransferComplete;
+            yappTransfer.TransferError += OnYappTransferError;
+            yappTransfer.EnableAutoReceive(); // Start listening for incoming file transfers
+
             // Create addresses: destination, source
             List<AX25Address> addresses = new List<AX25Address>();
             addresses.Add(AX25Address.GetAddress(destCallsign, destStationId)); // Destination
@@ -682,6 +693,19 @@ namespace HTCommander.Controls
         /// </summary>
         private void DisposeX25Session()
         {
+            // Dispose YAPP transfer first
+            if (yappTransfer != null)
+            {
+                yappTransfer.ProgressChanged -= OnYappProgressChanged;
+                yappTransfer.TransferComplete -= OnYappTransferComplete;
+                yappTransfer.TransferError -= OnYappTransferError;
+                yappTransfer.Dispose();
+                yappTransfer = null;
+
+                // Hide the file transfer panel
+                UpdateFileTransferProgress(TerminalFileTransferStates.Idle, "", 0, 0);
+            }
+
             if (ax25Session != null)
             {
                 // Unsubscribe from events
@@ -767,6 +791,13 @@ namespace HTCommander.Controls
         {
             if (data == null || data.Length == 0) return;
 
+            // First, try to process through YAPP for file transfers
+            if (yappTransfer != null && yappTransfer.ProcessIncomingData(data))
+            {
+                // Data was handled by YAPP, don't display as terminal text
+                return;
+            }
+
             // Decode the data as UTF-8 text
             string text = Encoding.UTF8.GetString(data);
 
@@ -782,6 +813,36 @@ namespace HTCommander.Controls
 
             // Display the received message in the terminal
             AppendTerminalString(false, remoteCallsign, myCallsign, text);
+        }
+
+        /// <summary>
+        /// Handles YAPP progress changed events to update the file transfer UI.
+        /// </summary>
+        private void OnYappProgressChanged(object sender, YappProgressEventArgs e)
+        {
+            UpdateFileTransferProgress(TerminalFileTransferStates.Receiving, e.Filename, (int)e.FileSize, (int)e.BytesTransferred);
+        }
+
+        /// <summary>
+        /// Handles YAPP transfer complete events.
+        /// </summary>
+        private void OnYappTransferComplete(object sender, YappCompleteEventArgs e)
+        {
+            UpdateFileTransferProgress(TerminalFileTransferStates.Idle, "", 0, 0);
+
+            if (!string.IsNullOrEmpty(e.Filename))
+            {
+                AppendTerminalString(false, null, null, $"File received: {e.Filename} ({e.BytesTransferred} bytes)");
+            }
+        }
+
+        /// <summary>
+        /// Handles YAPP transfer error events.
+        /// </summary>
+        private void OnYappTransferError(object sender, YappErrorEventArgs e)
+        {
+            UpdateFileTransferProgress(TerminalFileTransferStates.Idle, "", 0, 0);
+            AppendTerminalString(false, null, null, $"File transfer error: {e.Error}");
         }
 
         /// <summary>
@@ -1018,6 +1079,27 @@ namespace HTCommander.Controls
             return -1;
         }
 
+        /// <summary>
+        /// Gets all available (unlocked) radios with their friendly names.
+        /// </summary>
+        /// <returns>A list of tuples containing DeviceId and FriendlyName for each available radio.</returns>
+        private List<(int DeviceId, string FriendlyName)> GetAvailableRadiosWithNames()
+        {
+            var availableRadios = new List<(int DeviceId, string FriendlyName)>();
+
+            foreach (var radioId in connectedRadios)
+            {
+                if (!lockStates.TryGetValue(radioId, out RadioLockState lockState) || !lockState.IsLocked)
+                {
+                    // Get the friendly name from the DataBroker
+                    string friendlyName = broker.GetValue<string>(radioId, "FriendlyName", $"Radio {radioId}");
+                    availableRadios.Add((radioId, friendlyName));
+                }
+            }
+
+            return availableRadios;
+        }
+
         private void terminalMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
         {
             terminalTabContextMenuStrip.Show(terminalMenuPictureBox, e.Location);
@@ -1030,30 +1112,106 @@ namespace HTCommander.Controls
             terminalTextBox.WordWrap = wordWrapToolStripMenuItem.Checked;
         }
 
+        /// <summary>
+        /// Handles the context menu opening event to update menu item states dynamically.
+        /// </summary>
+        private void TerminalTabContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            // Check if we're currently connected (busy)
+            int activeRadioId = GetActiveTerminalRadioId();
+            bool isConnected = activeRadioId > 0;
+
+            // Get available radios
+            var availableRadios = GetAvailableRadiosWithNames();
+
+            // Clear any existing sub-items from Wait for Connection
+            waitForConnectionToolStripMenuItem.DropDownItems.Clear();
+
+            if (isConnected)
+            {
+                // Disable Wait for Connection when connected
+                waitForConnectionToolStripMenuItem.Enabled = false;
+            }
+            else if (availableRadios.Count == 0)
+            {
+                // Disable when no radios are available
+                waitForConnectionToolStripMenuItem.Enabled = false;
+            }
+            else if (availableRadios.Count == 1)
+            {
+                // Enable with no sub-menu for single radio
+                waitForConnectionToolStripMenuItem.Enabled = true;
+            }
+            else
+            {
+                // Multiple radios available - create sub-menu
+                waitForConnectionToolStripMenuItem.Enabled = true;
+
+                foreach (var radio in availableRadios)
+                {
+                    ToolStripMenuItem subMenuItem = new ToolStripMenuItem(radio.FriendlyName);
+                    subMenuItem.Tag = radio.DeviceId;
+                    subMenuItem.Click += WaitForConnectionSubMenuItem_Click;
+                    waitForConnectionToolStripMenuItem.DropDownItems.Add(subMenuItem);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles the click event when a radio is selected from the Wait for Connection sub-menu.
+        /// </summary>
+        private void WaitForConnectionSubMenuItem_Click(object sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem menuItem && menuItem.Tag is int radioId)
+            {
+                WaitForConnectionOnRadio(radioId);
+            }
+        }
+
         private void waitForConnectionToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            // TODO: Implement wait for connection functionality through DataBroker
+            // Only handle direct click if there are no sub-items (single radio case)
+            if (waitForConnectionToolStripMenuItem.DropDownItems.Count > 0)
+            {
+                // Has sub-menu, don't do anything on direct click
+                return;
+            }
+
             int radioId = GetAvailableRadioId();
             if (radioId > 0)
             {
-                // Get the current region from HtStatus
-                RadioHtStatus htStatus = broker.GetValue<RadioHtStatus>(radioId, "HtStatus", null);
-                int regionId = htStatus?.curr_region ?? 0;
-
-                // Get the current channel from Settings
-                RadioSettings settings = broker.GetValue<RadioSettings>(radioId, "Settings", null);
-                int channelId = settings?.channel_a ?? 0;
-
-                // Lock the radio to Terminal usage with the current region and channel
-                var lockData = new SetLockData
-                {
-                    Usage = "Terminal",
-                    RegionId = regionId,
-                    ChannelId = channelId
-                };
-                broker.Dispatch(radioId, "SetLock", lockData, store: false);
-                AppendTerminalString(false, null, null, "Waiting for connection...");
+                WaitForConnectionOnRadio(radioId);
             }
+        }
+
+        /// <summary>
+        /// Initiates "Wait for Connection" mode on the specified radio.
+        /// </summary>
+        private void WaitForConnectionOnRadio(int radioId)
+        {
+            if (radioId <= 0) return;
+
+            // Get the current region from HtStatus
+            RadioHtStatus htStatus = broker.GetValue<RadioHtStatus>(radioId, "HtStatus", null);
+            int regionId = htStatus?.curr_region ?? 0;
+
+            // Get the current channel from Settings
+            RadioSettings settings = broker.GetValue<RadioSettings>(radioId, "Settings", null);
+            int channelId = settings?.channel_a ?? 0;
+
+            // Lock the radio to Terminal usage with the current region and channel
+            var lockData = new SetLockData
+            {
+                Usage = "Terminal",
+                RegionId = regionId,
+                ChannelId = channelId
+            };
+            broker.Dispatch(radioId, "SetLock", lockData, store: false);
+
+            // Store the radio as the connected radio (for wait mode)
+            connectedRadioId = radioId;
+
+            AppendTerminalString(false, null, null, "Waiting for connection...");
         }
 
         private void terminalConnectButton_Click(object sender, EventArgs e)
@@ -1102,62 +1260,110 @@ namespace HTCommander.Controls
             }
             else
             {
-                // No active connection - check for available radios first
-                int availableRadioId = GetAvailableRadioId();
-                if (availableRadioId <= 0)
+                // No active connection - check for available radios
+                var availableRadios = GetAvailableRadiosWithNames();
+                if (availableRadios.Count == 0)
                 {
                     MessageBox.Show(this, "No available radio to connect.", "Terminal", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                // Get stations from DataBroker and count terminal stations
-                List<StationInfoClass> stations = broker.GetValue<List<StationInfoClass>>(0, "Stations", new List<StationInfoClass>());
-                int terminalStationCount = 0;
-                foreach (StationInfoClass station in stations)
+                // If multiple radios are available, show a context menu to select one
+                if (availableRadios.Count > 1)
                 {
-                    if (station.StationType == StationInfoClass.StationTypes.Terminal) { terminalStationCount++; }
+                    ShowRadioSelectionMenu(availableRadios);
+                    return;
                 }
 
-                if (terminalStationCount == 0)
+                // Single radio available - proceed with normal flow
+                int availableRadioId = availableRadios[0].DeviceId;
+                ProceedWithConnection(availableRadioId);
+            }
+        }
+
+        /// <summary>
+        /// Shows a context menu for selecting a radio when multiple radios are available.
+        /// </summary>
+        private void ShowRadioSelectionMenu(List<(int DeviceId, string FriendlyName)> availableRadios)
+        {
+            ContextMenuStrip radioMenu = new ContextMenuStrip();
+
+            foreach (var radio in availableRadios)
+            {
+                ToolStripMenuItem menuItem = new ToolStripMenuItem(radio.FriendlyName);
+                menuItem.Tag = radio.DeviceId;
+                menuItem.Click += RadioSelectionMenuItem_Click;
+                radioMenu.Items.Add(menuItem);
+            }
+
+            // Show the menu below the Connect button
+            Point menuLocation = terminalConnectButton.PointToScreen(new Point(0, terminalConnectButton.Height));
+            radioMenu.Show(menuLocation);
+        }
+
+        /// <summary>
+        /// Handles the click event when a radio is selected from the context menu.
+        /// </summary>
+        private void RadioSelectionMenuItem_Click(object sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem menuItem && menuItem.Tag is int radioId)
+            {
+                ProceedWithConnection(radioId);
+            }
+        }
+
+        /// <summary>
+        /// Proceeds with the terminal connection flow using the specified radio.
+        /// </summary>
+        private void ProceedWithConnection(int radioId)
+        {
+            // Get stations from DataBroker and count terminal stations
+            List<StationInfoClass> stations = broker.GetValue<List<StationInfoClass>>(0, "Stations", new List<StationInfoClass>());
+            int terminalStationCount = 0;
+            foreach (StationInfoClass station in stations)
+            {
+                if (station.StationType == StationInfoClass.StationTypes.Terminal) { terminalStationCount++; }
+            }
+
+            if (terminalStationCount == 0)
+            {
+                // No terminal stations - show AddStationForm to create one
+                AddStationForm form = new AddStationForm();
+                form.FixStationType(StationInfoClass.StationTypes.Terminal);
+                if (form.ShowDialog(this) == DialogResult.OK)
                 {
-                    // No terminal stations - show AddStationForm to create one
-                    AddStationForm form = new AddStationForm();
-                    form.FixStationType(StationInfoClass.StationTypes.Terminal);
-                    if (form.ShowDialog(this) == DialogResult.OK)
+                    StationInfoClass station = form.SerializeToObject();
+                    stations.Add(station);
+                    broker.Dispatch(0, "Stations", stations, store: true);
+                    ActiveLockToStation(radioId, station);
+                    terminalInputTextBox.Focus();
+                }
+            }
+            else
+            {
+                // Has terminal stations - show ActiveStationSelectorForm to select one
+                ActiveStationSelectorForm form = new ActiveStationSelectorForm(StationInfoClass.StationTypes.Terminal);
+                DialogResult r = form.ShowDialog(this);
+                if (r == DialogResult.OK)
+                {
+                    if (form.selectedStation != null)
                     {
-                        StationInfoClass station = form.SerializeToObject();
-                        stations.Add(station);
-                        broker.Dispatch(0, "Stations", stations, store: true);
-                        ActiveLockToStation(availableRadioId, station);
+                        ActiveLockToStation(radioId, form.selectedStation);
                         terminalInputTextBox.Focus();
                     }
                 }
-                else
+                else if (r == DialogResult.Yes)
                 {
-                    // Has terminal stations - show ActiveStationSelectorForm to select one
-                    ActiveStationSelectorForm form = new ActiveStationSelectorForm(StationInfoClass.StationTypes.Terminal);
-                    DialogResult r = form.ShowDialog(this);
-                    if (r == DialogResult.OK)
+                    // User clicked "New" button - show AddStationForm
+                    AddStationForm aform = new AddStationForm();
+                    aform.FixStationType(StationInfoClass.StationTypes.Terminal);
+                    if (aform.ShowDialog(this) == DialogResult.OK)
                     {
-                        if (form.selectedStation != null)
-                        {
-                            ActiveLockToStation(availableRadioId, form.selectedStation);
-                            terminalInputTextBox.Focus();
-                        }
-                    }
-                    else if (r == DialogResult.Yes)
-                    {
-                        // User clicked "New" button - show AddStationForm
-                        AddStationForm aform = new AddStationForm();
-                        aform.FixStationType(StationInfoClass.StationTypes.Terminal);
-                        if (aform.ShowDialog(this) == DialogResult.OK)
-                        {
-                            StationInfoClass station = aform.SerializeToObject();
-                            stations.Add(station);
-                            broker.Dispatch(0, "Stations", stations, store: true);
-                            ActiveLockToStation(availableRadioId, station);
-                            terminalInputTextBox.Focus();
-                        }
+                        StationInfoClass station = aform.SerializeToObject();
+                        stations.Add(station);
+                        broker.Dispatch(0, "Stations", stations, store: true);
+                        ActiveLockToStation(radioId, station);
+                        terminalInputTextBox.Focus();
                     }
                 }
             }
@@ -1226,6 +1432,14 @@ namespace HTCommander.Controls
 
         private void terminalFileTransferCancelButton_Click(object sender, EventArgs e)
         {
+            // Cancel YAPP transfer if active
+            if (yappTransfer != null && yappTransfer.CurrentState != YappTransfer.YappState.Idle)
+            {
+                yappTransfer.CancelTransfer("Cancelled by user");
+                return;
+            }
+
+            // Fall back to DataBroker dispatch for other transfer types
             int radioId = GetActiveTerminalRadioId();
             if (radioId > 0)
             {
