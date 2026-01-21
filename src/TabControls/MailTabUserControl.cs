@@ -471,7 +471,7 @@ namespace HTCommander.Controls
             if (mainForm == null) return;
 
             // Select a Winlink gateway station
-            ActiveStationSelectorForm f = new ActiveStationSelectorForm(mainForm, StationInfoClass.StationTypes.Winlink);
+            ActiveStationSelectorForm f = new ActiveStationSelectorForm(StationInfoClass.StationTypes.Winlink);
             if (f.ShowDialog(this) == DialogResult.OK)
             {
                 //mainForm.ActiveLockToStation(f.selectedStation);

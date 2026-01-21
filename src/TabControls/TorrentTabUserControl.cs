@@ -50,11 +50,9 @@ namespace HTCommander.Controls
             // Subscribe to torrent state updates
             broker.Subscribe(0, "TorrentFiles", OnTorrentFilesUpdate);
             broker.Subscribe(0, "TorrentFileUpdate", OnTorrentFileUpdate);
-            broker.Subscribe(0, "TorrentStations", OnTorrentStationsUpdate);
-            broker.Subscribe(0, "TorrentStationUpdate", OnTorrentStationUpdate);
             
             // Subscribe to connected radios and lock state to update activate button
-            broker.Subscribe(0, "ConnectedRadios", OnConnectedRadiosChanged);
+            broker.Subscribe(1, "ConnectedRadios", OnConnectedRadiosChanged);
             broker.Subscribe(DataBroker.AllDevices, "LockState", OnLockStateChanged);
 
             // Enable double buffering for ListViews to prevent flickering
@@ -79,7 +77,6 @@ namespace HTCommander.Controls
             torrentConnectButton.Enabled = false;
             
             broker.LogInfo("[TorrentTab] Torrent tab initialized");
-
         }
 
         private void OnConnectedRadiosChanged(int deviceId, string name, object data)
@@ -100,21 +97,16 @@ namespace HTCommander.Controls
         {
             connectedRadios.Clear();
             
-            if (data is List<int> radioList)
-            {
-                connectedRadios.AddRange(radioList);
-            }
-            else if (data is System.Collections.IEnumerable enumerable)
+            if (data is System.Collections.IEnumerable enumerable)
             {
                 foreach (var item in enumerable)
                 {
-                    if (item is int id)
+                    if (item == null) continue;
+                    var itemType = item.GetType();
+                    int? deviceId = (int?)itemType.GetProperty("DeviceId")?.GetValue(item);
+                    if (deviceId.HasValue)
                     {
-                        connectedRadios.Add(id);
-                    }
-                    else
-                    {
-                        connectedRadios.Add(Convert.ToInt32(item));
+                        connectedRadios.Add(deviceId.Value);
                     }
                 }
             }
@@ -252,17 +244,6 @@ namespace HTCommander.Controls
             }
         }
 
-        private void OnTorrentStationsUpdate(int deviceId, string name, object data)
-        {
-            // Stations are tracked separately but displayed in the same UI
-            // You could add a separate group or visual indicator for stations
-        }
-
-        private void OnTorrentStationUpdate(int deviceId, string name, object data)
-        {
-            // Handle individual station updates
-        }
-
         private TorrentFile CreateTorrentFileFromData(object data)
         {
             if (data == null) return null;
@@ -335,28 +316,6 @@ namespace HTCommander.Controls
                 torrentListView.Items.Remove(file.ListViewItem);
                 file.ListViewItem = null;
             }
-        }
-
-        public void UpdateConnectButton(bool isActive)
-        {
-            if (this.InvokeRequired)
-            {
-                this.BeginInvoke(new Action<bool>(UpdateConnectButton), isActive);
-                return;
-            }
-            
-            torrentConnectButton.Text = isActive ? "&Deactivate" : "&Activate";
-        }
-
-        public void SetConnectButtonEnabled(bool enabled)
-        {
-            if (this.InvokeRequired)
-            {
-                this.BeginInvoke(new Action<bool>(SetConnectButtonEnabled), enabled);
-                return;
-            }
-            
-            torrentConnectButton.Enabled = enabled;
         }
 
         public void AddTorrent(TorrentFile torrentFile)

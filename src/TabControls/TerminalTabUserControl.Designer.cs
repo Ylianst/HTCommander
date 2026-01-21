@@ -17,270 +17,259 @@ namespace HTCommander.Controls
 
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            this.terminalTextBox = new System.Windows.Forms.RichTextBox();
-            this.terminalFileTransferPanel = new System.Windows.Forms.Panel();
-            this.terminalFileTransferProgressBar = new System.Windows.Forms.ProgressBar();
-            this.terminalFileTransferStatusLabel = new System.Windows.Forms.Label();
-            this.terminalFileTransferCancelButton = new System.Windows.Forms.Button();
-            this.terminalBottomPanel = new System.Windows.Forms.Panel();
-            this.terminalInputTextBox = new System.Windows.Forms.TextBox();
-            this.terminalSendButton = new System.Windows.Forms.Button();
-            this.terminalTopPanel = new System.Windows.Forms.Panel();
-            this.terminalConnectButton = new System.Windows.Forms.Button();
-            this.terminalMenuPictureBox = new System.Windows.Forms.PictureBox();
-            this.terminalTitleLabel = new System.Windows.Forms.Label();
-            this.terminalTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.showCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.wordWrapToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.waitForConnectionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
-            this.clearToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
-            this.detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.terminalFileTransferPanel.SuspendLayout();
-            this.terminalBottomPanel.SuspendLayout();
-            this.terminalTopPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.terminalMenuPictureBox)).BeginInit();
-            this.terminalTabContextMenuStrip.SuspendLayout();
-            this.SuspendLayout();
+            components = new System.ComponentModel.Container();
+            terminalTextBox = new System.Windows.Forms.RichTextBox();
+            terminalFileTransferPanel = new System.Windows.Forms.Panel();
+            terminalFileTransferProgressBar = new System.Windows.Forms.ProgressBar();
+            terminalFileTransferStatusLabel = new System.Windows.Forms.Label();
+            terminalFileTransferCancelButton = new System.Windows.Forms.Button();
+            terminalBottomPanel = new System.Windows.Forms.Panel();
+            terminalInputTextBox = new System.Windows.Forms.TextBox();
+            terminalSendButton = new System.Windows.Forms.Button();
+            terminalTopPanel = new System.Windows.Forms.Panel();
+            terminalConnectButton = new System.Windows.Forms.Button();
+            terminalMenuPictureBox = new System.Windows.Forms.PictureBox();
+            terminalTitleLabel = new System.Windows.Forms.Label();
+            terminalTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            showCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            wordWrapToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            waitForConnectionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            clearToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
+            detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            terminalFileTransferPanel.SuspendLayout();
+            terminalBottomPanel.SuspendLayout();
+            terminalTopPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)terminalMenuPictureBox).BeginInit();
+            terminalTabContextMenuStrip.SuspendLayout();
+            SuspendLayout();
             // 
             // terminalTextBox
             // 
-            this.terminalTextBox.BackColor = System.Drawing.Color.Black;
-            this.terminalTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.terminalTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.terminalTextBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold);
-            this.terminalTextBox.ForeColor = System.Drawing.Color.Gainsboro;
-            this.terminalTextBox.Location = new System.Drawing.Point(0, 89);
-            this.terminalTextBox.Margin = new System.Windows.Forms.Padding(4);
-            this.terminalTextBox.Name = "terminalTextBox";
-            this.terminalTextBox.ReadOnly = true;
-            this.terminalTextBox.Size = new System.Drawing.Size(669, 522);
-            this.terminalTextBox.TabIndex = 4;
-            this.terminalTextBox.Text = "";
-            this.terminalTextBox.WordWrap = false;
+            terminalTextBox.BackColor = System.Drawing.Color.Black;
+            terminalTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            terminalTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            terminalTextBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold);
+            terminalTextBox.ForeColor = System.Drawing.Color.Gainsboro;
+            terminalTextBox.Location = new System.Drawing.Point(0, 111);
+            terminalTextBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            terminalTextBox.Name = "terminalTextBox";
+            terminalTextBox.ReadOnly = true;
+            terminalTextBox.Size = new System.Drawing.Size(669, 331);
+            terminalTextBox.TabIndex = 4;
+            terminalTextBox.Text = "";
+            terminalTextBox.WordWrap = false;
             // 
             // terminalFileTransferPanel
             // 
-            this.terminalFileTransferPanel.BackColor = System.Drawing.Color.Silver;
-            this.terminalFileTransferPanel.Controls.Add(this.terminalFileTransferProgressBar);
-            this.terminalFileTransferPanel.Controls.Add(this.terminalFileTransferStatusLabel);
-            this.terminalFileTransferPanel.Controls.Add(this.terminalFileTransferCancelButton);
-            this.terminalFileTransferPanel.Dock = System.Windows.Forms.DockStyle.Top;
-            this.terminalFileTransferPanel.Location = new System.Drawing.Point(0, 37);
-            this.terminalFileTransferPanel.Margin = new System.Windows.Forms.Padding(4);
-            this.terminalFileTransferPanel.Name = "terminalFileTransferPanel";
-            this.terminalFileTransferPanel.Size = new System.Drawing.Size(669, 52);
-            this.terminalFileTransferPanel.TabIndex = 5;
-            this.terminalFileTransferPanel.Visible = false;
+            terminalFileTransferPanel.BackColor = System.Drawing.Color.Silver;
+            terminalFileTransferPanel.Controls.Add(terminalFileTransferProgressBar);
+            terminalFileTransferPanel.Controls.Add(terminalFileTransferStatusLabel);
+            terminalFileTransferPanel.Controls.Add(terminalFileTransferCancelButton);
+            terminalFileTransferPanel.Dock = System.Windows.Forms.DockStyle.Top;
+            terminalFileTransferPanel.Location = new System.Drawing.Point(0, 46);
+            terminalFileTransferPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            terminalFileTransferPanel.Name = "terminalFileTransferPanel";
+            terminalFileTransferPanel.Size = new System.Drawing.Size(669, 65);
+            terminalFileTransferPanel.TabIndex = 5;
+            terminalFileTransferPanel.Visible = false;
             // 
             // terminalFileTransferProgressBar
             // 
-            this.terminalFileTransferProgressBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalFileTransferProgressBar.Location = new System.Drawing.Point(9, 36);
-            this.terminalFileTransferProgressBar.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            this.terminalFileTransferProgressBar.Name = "terminalFileTransferProgressBar";
-            this.terminalFileTransferProgressBar.Size = new System.Drawing.Size(649, 10);
-            this.terminalFileTransferProgressBar.TabIndex = 6;
-            this.terminalFileTransferProgressBar.Value = 65;
+            terminalFileTransferProgressBar.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            terminalFileTransferProgressBar.Location = new System.Drawing.Point(9, 45);
+            terminalFileTransferProgressBar.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            terminalFileTransferProgressBar.Name = "terminalFileTransferProgressBar";
+            terminalFileTransferProgressBar.Size = new System.Drawing.Size(649, 12);
+            terminalFileTransferProgressBar.TabIndex = 6;
+            terminalFileTransferProgressBar.Value = 65;
             // 
             // terminalFileTransferStatusLabel
             // 
-            this.terminalFileTransferStatusLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalFileTransferStatusLabel.Location = new System.Drawing.Point(7, 10);
-            this.terminalFileTransferStatusLabel.Name = "terminalFileTransferStatusLabel";
-            this.terminalFileTransferStatusLabel.Size = new System.Drawing.Size(545, 17);
-            this.terminalFileTransferStatusLabel.TabIndex = 5;
-            this.terminalFileTransferStatusLabel.Text = "Downloading";
+            terminalFileTransferStatusLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            terminalFileTransferStatusLabel.Location = new System.Drawing.Point(7, 12);
+            terminalFileTransferStatusLabel.Name = "terminalFileTransferStatusLabel";
+            terminalFileTransferStatusLabel.Size = new System.Drawing.Size(545, 21);
+            terminalFileTransferStatusLabel.TabIndex = 5;
+            terminalFileTransferStatusLabel.Text = "Downloading";
             // 
             // terminalFileTransferCancelButton
             // 
-            this.terminalFileTransferCancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalFileTransferCancelButton.Enabled = false;
-            this.terminalFileTransferCancelButton.Location = new System.Drawing.Point(558, 4);
-            this.terminalFileTransferCancelButton.Margin = new System.Windows.Forms.Padding(4);
-            this.terminalFileTransferCancelButton.Name = "terminalFileTransferCancelButton";
-            this.terminalFileTransferCancelButton.Size = new System.Drawing.Size(100, 28);
-            this.terminalFileTransferCancelButton.TabIndex = 4;
-            this.terminalFileTransferCancelButton.Text = "C&ancel";
-            this.terminalFileTransferCancelButton.UseVisualStyleBackColor = true;
-            this.terminalFileTransferCancelButton.Click += new System.EventHandler(this.terminalFileTransferCancelButton_Click);
+            terminalFileTransferCancelButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            terminalFileTransferCancelButton.Enabled = false;
+            terminalFileTransferCancelButton.Location = new System.Drawing.Point(558, 5);
+            terminalFileTransferCancelButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            terminalFileTransferCancelButton.Name = "terminalFileTransferCancelButton";
+            terminalFileTransferCancelButton.Size = new System.Drawing.Size(100, 35);
+            terminalFileTransferCancelButton.TabIndex = 4;
+            terminalFileTransferCancelButton.Text = "C&ancel";
+            terminalFileTransferCancelButton.UseVisualStyleBackColor = true;
+            terminalFileTransferCancelButton.Click += terminalFileTransferCancelButton_Click;
             // 
             // terminalBottomPanel
             // 
-            this.terminalBottomPanel.BackColor = System.Drawing.Color.Silver;
-            this.terminalBottomPanel.Controls.Add(this.terminalInputTextBox);
-            this.terminalBottomPanel.Controls.Add(this.terminalSendButton);
-            this.terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.terminalBottomPanel.Location = new System.Drawing.Point(0, 611);
-            this.terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4);
-            this.terminalBottomPanel.Name = "terminalBottomPanel";
-            this.terminalBottomPanel.Size = new System.Drawing.Size(669, 47);
-            this.terminalBottomPanel.TabIndex = 3;
+            terminalBottomPanel.BackColor = System.Drawing.Color.Silver;
+            terminalBottomPanel.Controls.Add(terminalInputTextBox);
+            terminalBottomPanel.Controls.Add(terminalSendButton);
+            terminalBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
+            terminalBottomPanel.Location = new System.Drawing.Point(0, 442);
+            terminalBottomPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            terminalBottomPanel.Name = "terminalBottomPanel";
+            terminalBottomPanel.Size = new System.Drawing.Size(669, 59);
+            terminalBottomPanel.TabIndex = 3;
             // 
             // terminalInputTextBox
             // 
-            this.terminalInputTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalInputTextBox.Enabled = false;
-            this.terminalInputTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.terminalInputTextBox.Location = new System.Drawing.Point(9, 7);
-            this.terminalInputTextBox.Margin = new System.Windows.Forms.Padding(4);
-            this.terminalInputTextBox.Name = "terminalInputTextBox";
-            this.terminalInputTextBox.Size = new System.Drawing.Size(545, 30);
-            this.terminalInputTextBox.TabIndex = 1;
-            this.terminalInputTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.terminalInputTextBox_KeyPress);
+            terminalInputTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            terminalInputTextBox.Enabled = false;
+            terminalInputTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            terminalInputTextBox.Location = new System.Drawing.Point(9, 9);
+            terminalInputTextBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            terminalInputTextBox.Name = "terminalInputTextBox";
+            terminalInputTextBox.Size = new System.Drawing.Size(545, 30);
+            terminalInputTextBox.TabIndex = 1;
+            terminalInputTextBox.KeyPress += terminalInputTextBox_KeyPress;
             // 
             // terminalSendButton
             // 
-            this.terminalSendButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalSendButton.Enabled = false;
-            this.terminalSendButton.Location = new System.Drawing.Point(565, 5);
-            this.terminalSendButton.Margin = new System.Windows.Forms.Padding(4);
-            this.terminalSendButton.Name = "terminalSendButton";
-            this.terminalSendButton.Size = new System.Drawing.Size(100, 33);
-            this.terminalSendButton.TabIndex = 0;
-            this.terminalSendButton.Text = "&Send";
-            this.terminalSendButton.UseVisualStyleBackColor = true;
-            this.terminalSendButton.Click += new System.EventHandler(this.terminalSendButton_Click);
+            terminalSendButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            terminalSendButton.Enabled = false;
+            terminalSendButton.Location = new System.Drawing.Point(565, 6);
+            terminalSendButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            terminalSendButton.Name = "terminalSendButton";
+            terminalSendButton.Size = new System.Drawing.Size(100, 41);
+            terminalSendButton.TabIndex = 0;
+            terminalSendButton.Text = "&Send";
+            terminalSendButton.UseVisualStyleBackColor = true;
+            terminalSendButton.Click += terminalSendButton_Click;
             // 
             // terminalTopPanel
             // 
-            this.terminalTopPanel.BackColor = System.Drawing.Color.Silver;
-            this.terminalTopPanel.Controls.Add(this.terminalConnectButton);
-            this.terminalTopPanel.Controls.Add(this.terminalMenuPictureBox);
-            this.terminalTopPanel.Controls.Add(this.terminalTitleLabel);
-            this.terminalTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
-            this.terminalTopPanel.Location = new System.Drawing.Point(0, 0);
-            this.terminalTopPanel.Margin = new System.Windows.Forms.Padding(4);
-            this.terminalTopPanel.Name = "terminalTopPanel";
-            this.terminalTopPanel.Size = new System.Drawing.Size(669, 37);
-            this.terminalTopPanel.TabIndex = 1;
+            terminalTopPanel.BackColor = System.Drawing.Color.Silver;
+            terminalTopPanel.Controls.Add(terminalConnectButton);
+            terminalTopPanel.Controls.Add(terminalMenuPictureBox);
+            terminalTopPanel.Controls.Add(terminalTitleLabel);
+            terminalTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
+            terminalTopPanel.Location = new System.Drawing.Point(0, 0);
+            terminalTopPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            terminalTopPanel.Name = "terminalTopPanel";
+            terminalTopPanel.Size = new System.Drawing.Size(669, 46);
+            terminalTopPanel.TabIndex = 1;
             // 
             // terminalConnectButton
             // 
-            this.terminalConnectButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalConnectButton.Enabled = false;
-            this.terminalConnectButton.Location = new System.Drawing.Point(526, 4);
-            this.terminalConnectButton.Margin = new System.Windows.Forms.Padding(4);
-            this.terminalConnectButton.Name = "terminalConnectButton";
-            this.terminalConnectButton.Size = new System.Drawing.Size(100, 28);
-            this.terminalConnectButton.TabIndex = 4;
-            this.terminalConnectButton.Text = "&Connect";
-            this.terminalConnectButton.UseVisualStyleBackColor = true;
-            this.terminalConnectButton.Click += new System.EventHandler(this.terminalConnectButton_Click);
+            terminalConnectButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            terminalConnectButton.Enabled = false;
+            terminalConnectButton.Location = new System.Drawing.Point(526, 5);
+            terminalConnectButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            terminalConnectButton.Name = "terminalConnectButton";
+            terminalConnectButton.Size = new System.Drawing.Size(100, 35);
+            terminalConnectButton.TabIndex = 4;
+            terminalConnectButton.Text = "&Connect";
+            terminalConnectButton.UseVisualStyleBackColor = true;
+            terminalConnectButton.Click += terminalConnectButton_Click;
             // 
             // terminalMenuPictureBox
             // 
-            this.terminalMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalMenuPictureBox.Image = global::HTCommander.Properties.Resources.MenuIcon;
-            this.terminalMenuPictureBox.Location = new System.Drawing.Point(637, 6);
-            this.terminalMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
-            this.terminalMenuPictureBox.Name = "terminalMenuPictureBox";
-            this.terminalMenuPictureBox.Size = new System.Drawing.Size(27, 25);
-            this.terminalMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.terminalMenuPictureBox.TabIndex = 3;
-            this.terminalMenuPictureBox.TabStop = false;
-            this.terminalMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.terminalMenuPictureBox_MouseClick);
+            terminalMenuPictureBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            terminalMenuPictureBox.Image = Properties.Resources.MenuIcon;
+            terminalMenuPictureBox.Location = new System.Drawing.Point(637, 8);
+            terminalMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            terminalMenuPictureBox.Name = "terminalMenuPictureBox";
+            terminalMenuPictureBox.Size = new System.Drawing.Size(27, 31);
+            terminalMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            terminalMenuPictureBox.TabIndex = 3;
+            terminalMenuPictureBox.TabStop = false;
+            terminalMenuPictureBox.MouseClick += terminalMenuPictureBox_MouseClick;
             // 
             // terminalTitleLabel
             // 
-            this.terminalTitleLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.terminalTitleLabel.AutoSize = true;
-            this.terminalTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.terminalTitleLabel.Location = new System.Drawing.Point(4, 6);
-            this.terminalTitleLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.terminalTitleLabel.Name = "terminalTitleLabel";
-            this.terminalTitleLabel.Size = new System.Drawing.Size(88, 25);
-            this.terminalTitleLabel.TabIndex = 1;
-            this.terminalTitleLabel.Text = "Terminal";
+            terminalTitleLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            terminalTitleLabel.AutoSize = true;
+            terminalTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            terminalTitleLabel.Location = new System.Drawing.Point(4, 8);
+            terminalTitleLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            terminalTitleLabel.Name = "terminalTitleLabel";
+            terminalTitleLabel.Size = new System.Drawing.Size(88, 25);
+            terminalTitleLabel.TabIndex = 1;
+            terminalTitleLabel.Text = "Terminal";
             // 
             // terminalTabContextMenuStrip
             // 
-            this.terminalTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.terminalTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.showCallsignToolStripMenuItem,
-            this.wordWrapToolStripMenuItem,
-            this.waitForConnectionToolStripMenuItem,
-            this.toolStripSeparator1,
-            this.clearToolStripMenuItem,
-            this.toolStripMenuItemDetachSeparator,
-            this.detachToolStripMenuItem});
-            this.terminalTabContextMenuStrip.Name = "terminalTabContextMenuStrip";
-            this.terminalTabContextMenuStrip.Size = new System.Drawing.Size(211, 136);
+            terminalTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            terminalTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { showCallsignToolStripMenuItem, wordWrapToolStripMenuItem, waitForConnectionToolStripMenuItem, toolStripSeparator1, clearToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
+            terminalTabContextMenuStrip.Name = "terminalTabContextMenuStrip";
+            terminalTabContextMenuStrip.Size = new System.Drawing.Size(211, 136);
             // 
             // showCallsignToolStripMenuItem
             // 
-            this.showCallsignToolStripMenuItem.CheckOnClick = true;
-            this.showCallsignToolStripMenuItem.Name = "showCallsignToolStripMenuItem";
-            this.showCallsignToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
-            this.showCallsignToolStripMenuItem.Text = "&Show Callsign";
-            this.showCallsignToolStripMenuItem.Click += new System.EventHandler(this.showCallsignToolStripMenuItem_Click);
+            showCallsignToolStripMenuItem.CheckOnClick = true;
+            showCallsignToolStripMenuItem.Name = "showCallsignToolStripMenuItem";
+            showCallsignToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            showCallsignToolStripMenuItem.Text = "&Show Callsign";
+            showCallsignToolStripMenuItem.Click += showCallsignToolStripMenuItem_Click;
             // 
             // wordWrapToolStripMenuItem
             // 
-            this.wordWrapToolStripMenuItem.CheckOnClick = true;
-            this.wordWrapToolStripMenuItem.Name = "wordWrapToolStripMenuItem";
-            this.wordWrapToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
-            this.wordWrapToolStripMenuItem.Text = "W&ord Wrap";
-            this.wordWrapToolStripMenuItem.Click += new System.EventHandler(this.wordWrapToolStripMenuItem_Click);
+            wordWrapToolStripMenuItem.CheckOnClick = true;
+            wordWrapToolStripMenuItem.Name = "wordWrapToolStripMenuItem";
+            wordWrapToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            wordWrapToolStripMenuItem.Text = "W&ord Wrap";
+            wordWrapToolStripMenuItem.Click += wordWrapToolStripMenuItem_Click;
             // 
             // waitForConnectionToolStripMenuItem
             // 
-            this.waitForConnectionToolStripMenuItem.Name = "waitForConnectionToolStripMenuItem";
-            this.waitForConnectionToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
-            this.waitForConnectionToolStripMenuItem.Text = "&Wait for Connection";
-            this.waitForConnectionToolStripMenuItem.Click += new System.EventHandler(this.waitForConnectionToolStripMenuItem_Click);
+            waitForConnectionToolStripMenuItem.Name = "waitForConnectionToolStripMenuItem";
+            waitForConnectionToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            waitForConnectionToolStripMenuItem.Text = "&Wait for Connection";
+            waitForConnectionToolStripMenuItem.Click += waitForConnectionToolStripMenuItem_Click;
             // 
             // toolStripSeparator1
             // 
-            this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(207, 6);
+            toolStripSeparator1.Name = "toolStripSeparator1";
+            toolStripSeparator1.Size = new System.Drawing.Size(207, 6);
             // 
             // clearToolStripMenuItem
             // 
-            this.clearToolStripMenuItem.Name = "clearToolStripMenuItem";
-            this.clearToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
-            this.clearToolStripMenuItem.Text = "&Clear";
-            this.clearToolStripMenuItem.Click += new System.EventHandler(this.clearToolStripMenuItem_Click);
+            clearToolStripMenuItem.Name = "clearToolStripMenuItem";
+            clearToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            clearToolStripMenuItem.Text = "&Clear";
+            clearToolStripMenuItem.Click += clearToolStripMenuItem_Click;
             // 
             // toolStripMenuItemDetachSeparator
             // 
-            this.toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
-            this.toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(207, 6);
-            this.toolStripMenuItemDetachSeparator.Visible = false;
+            toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
+            toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(207, 6);
+            toolStripMenuItemDetachSeparator.Visible = false;
             // 
             // detachToolStripMenuItem
             // 
-            this.detachToolStripMenuItem.Name = "detachToolStripMenuItem";
-            this.detachToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
-            this.detachToolStripMenuItem.Text = "Detach...";
-            this.detachToolStripMenuItem.Visible = false;
-            this.detachToolStripMenuItem.Click += new System.EventHandler(this.detachToolStripMenuItem_Click);
+            detachToolStripMenuItem.Name = "detachToolStripMenuItem";
+            detachToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            detachToolStripMenuItem.Text = "Detach...";
+            detachToolStripMenuItem.Visible = false;
+            detachToolStripMenuItem.Click += detachToolStripMenuItem_Click;
             // 
             // TerminalTabUserControl
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.terminalTextBox);
-            this.Controls.Add(this.terminalFileTransferPanel);
-            this.Controls.Add(this.terminalBottomPanel);
-            this.Controls.Add(this.terminalTopPanel);
-            this.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            this.Name = "TerminalTabUserControl";
-            this.Size = new System.Drawing.Size(669, 658);
-            this.terminalFileTransferPanel.ResumeLayout(false);
-            this.terminalBottomPanel.ResumeLayout(false);
-            this.terminalBottomPanel.PerformLayout();
-            this.terminalTopPanel.ResumeLayout(false);
-            this.terminalTopPanel.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.terminalMenuPictureBox)).EndInit();
-            this.terminalTabContextMenuStrip.ResumeLayout(false);
-            this.ResumeLayout(false);
+            AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            Controls.Add(terminalTextBox);
+            Controls.Add(terminalFileTransferPanel);
+            Controls.Add(terminalBottomPanel);
+            Controls.Add(terminalTopPanel);
+            Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            Name = "TerminalTabUserControl";
+            Size = new System.Drawing.Size(669, 501);
+            terminalFileTransferPanel.ResumeLayout(false);
+            terminalBottomPanel.ResumeLayout(false);
+            terminalBottomPanel.PerformLayout();
+            terminalTopPanel.ResumeLayout(false);
+            terminalTopPanel.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)terminalMenuPictureBox).EndInit();
+            terminalTabContextMenuStrip.ResumeLayout(false);
+            ResumeLayout(false);
 
         }
 

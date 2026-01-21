@@ -541,11 +541,9 @@
             terminalTabUserControl.Location = new System.Drawing.Point(0, 0);
             terminalTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             terminalTabUserControl.Name = "terminalTabUserControl";
-            terminalTabUserControl.ShowCallsign = false;
             terminalTabUserControl.ShowDetach = true;
             terminalTabUserControl.Size = new System.Drawing.Size(669, 836);
             terminalTabUserControl.TabIndex = 0;
-            terminalTabUserControl.WordWrap = false;
             // 
             // addressesTabPage
             // 

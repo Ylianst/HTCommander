@@ -13,34 +13,91 @@ using System.Linq;
 
 namespace HTCommander
 {
-    public class AX25Session
+    /// <summary>
+    /// Implements the AX.25 data link layer protocol for connected-mode communication.
+    /// Uses the DataBroker for sending and receiving packets through a specified radio device.
+    /// Supports both standard (modulo-8) and extended (modulo-128) sequence numbering.
+    /// </summary>
+    public class AX25Session : IDisposable
     {
-        private Radio radio = null;
-        private MainForm parent = null;
+        private readonly DataBrokerClient _broker;
+        private readonly int _radioDeviceId;
+        private bool _disposed = false;
+        
+        /// <summary>
+        /// Custom session state dictionary for storing application-specific data.
+        /// This is cleared when the session disconnects.
+        /// </summary>
         public Dictionary<string, object> sessionState = new Dictionary<string, object>();
 
+        /// <summary>Delegate for connection state change events.</summary>
         public delegate void StateChangedHandler(AX25Session sender, ConnectionState state);
+        
+        /// <summary>Raised when the connection state changes.</summary>
         public event StateChangedHandler StateChanged;
 
+        /// <summary>Delegate for data received events.</summary>
         public delegate void DataReceivedHandler(AX25Session sender, byte[] data);
+        
+        /// <summary>Raised when I-frame data is received from the remote station.</summary>
         public event DataReceivedHandler DataReceivedEvent;
+        
+        /// <summary>Raised when UI-frame data is received (connectionless data).</summary>
         public event DataReceivedHandler UiDataReceivedEvent;
 
+        /// <summary>Delegate for error events.</summary>
         public delegate void ErrorHandler(AX25Session sender, string error);
+        
+        /// <summary>Raised when an error occurs in the session.</summary>
         public event ErrorHandler ErrorEvent;
 
+        /// <summary>
+        /// Optional callsign override. If set, uses this callsign instead of the one from DataBroker.
+        /// </summary>
         public string CallSignOverride = null;
-        public int StationIdOverride = -1; // -1 means use the default station ID
+        
+        /// <summary>
+        /// Optional station ID override. If >= 0, uses this ID instead of the one from DataBroker.
+        /// </summary>
+        public int StationIdOverride = -1;
 
-        public string SessionCallsign { get { if (CallSignOverride != null) { return CallSignOverride; } return "parent.callsign"; } }
-        public int SessionStationId { get { if (StationIdOverride >= 0) { return StationIdOverride; } return 0 /*parent.stationId*/; } }
+        /// <summary>
+        /// Gets the callsign to use for this session. Uses override if set, otherwise gets from DataBroker.
+        /// </summary>
+        public string SessionCallsign
+        {
+            get
+            {
+                if (CallSignOverride != null) { return CallSignOverride; }
+                return DataBroker.GetValue<string>(0, "CallSign", "NOCALL");
+            }
+        }
 
+        /// <summary>
+        /// Gets the station ID to use for this session. Uses override if set, otherwise gets from DataBroker.
+        /// </summary>
+        public int SessionStationId
+        {
+            get
+            {
+                if (StationIdOverride >= 0) { return StationIdOverride; }
+                return DataBroker.GetValue<int>(0, "StationId", 0);
+            }
+        }
 
-        private void OnErrorEvent(string error) { Trace("ERROR: " + error); if (ErrorEvent != null) { ErrorEvent(this, error); } }
-        private void OnStateChangedEvent(ConnectionState state) { if (StateChanged != null) { StateChanged(this, state); } }
-        private void OnUiDataReceivedEvent(byte[] data) { if (UiDataReceivedEvent != null) { UiDataReceivedEvent(this, data); } }
-        private void OnDataReceivedEvent(byte[] data) { if (DataReceivedEvent != null) { DataReceivedEvent(this, data); } }
+        /// <summary>
+        /// Gets the radio device ID associated with this session.
+        /// </summary>
+        public int RadioDeviceId => _radioDeviceId;
 
+        private void OnErrorEvent(string error) { Trace("ERROR: " + error); ErrorEvent?.Invoke(this, error); }
+        private void OnStateChangedEvent(ConnectionState state) { StateChanged?.Invoke(this, state); }
+        private void OnUiDataReceivedEvent(byte[] data) { UiDataReceivedEvent?.Invoke(this, data); }
+        private void OnDataReceivedEvent(byte[] data) { DataReceivedEvent?.Invoke(this, data); }
+
+        /// <summary>
+        /// Connection state of the AX.25 session.
+        /// </summary>
         public enum ConnectionState
         {
             DISCONNECTED = 1,
@@ -51,14 +108,31 @@ namespace HTCommander
 
         private enum TimerNames { Connect, Disconnect, T1, T2, T3 }
 
+        /// <summary>Maximum number of outstanding I-frames (window size).</summary>
         public int MaxFrames = 4;
+        
+        /// <summary>Maximum size of data payload in each I-frame.</summary>
         public int PacketLength = 256;
+        
+        /// <summary>Number of retries before giving up on a connection.</summary>
         public int Retries = 3;
+        
+        /// <summary>Baud rate used for timeout calculations.</summary>
         public int HBaud = 1200;
+        
+        /// <summary>Use modulo-128 mode for extended sequence numbers (up to 127 outstanding frames).</summary>
         public bool Modulo128 = false;
+        
+        /// <summary>Enable trace logging for debugging.</summary>
         public bool Tracing = true;
 
-        private void Trace(string msg) { /*if (Tracing) { parent.Debug("X25: " + msg); }*/ }
+        private void Trace(string msg)
+        {
+            if (Tracing && _broker != null)
+            {
+                _broker.LogInfo($"[AX25Session/{_radioDeviceId}] {msg}");
+            }
+        }
 
         private void SetConnectionState(ConnectionState state)
         {
@@ -75,30 +149,66 @@ namespace HTCommander
             }
         }
 
+        /// <summary>
+        /// Internal state for the AX.25 session protocol.
+        /// </summary>
         private class State
         {
+            /// <summary>Current connection state.</summary>
             public ConnectionState Connection { get; set; } = ConnectionState.DISCONNECTED;
+            
+            /// <summary>Next expected receive sequence number (V(R)).</summary>
             public byte ReceiveSequence { get; set; } = 0;
+            
+            /// <summary>Next send sequence number (V(S)).</summary>
             public byte SendSequence { get; set; } = 0;
+            
+            /// <summary>Last acknowledged sequence number from remote (N(R)).</summary>
             public byte RemoteReceiveSequence { get; set; } = 0;
+            
+            /// <summary>Indicates if the remote station is busy (RNR received).</summary>
             public bool RemoteBusy { get; set; } = false;
+            
+            /// <summary>Indicates if we've sent a REJ frame.</summary>
             public bool SentREJ { get; set; } = false;
+            
+            /// <summary>Indicates if we've sent a SREJ frame.</summary>
             public bool SentSREJ { get; set; } = false;
+            
+            /// <summary>Sequence number from received REJ frame, -1 if none.</summary>
             public int GotREJSequenceNum { get; set; } = -1;
+            
+            /// <summary>Sequence number from received SREJ frame, -1 if none.</summary>
             public int GotSREJSequenceNum { get; set; } = -1;
+            
+            /// <summary>Buffer of I-frames waiting to be sent or awaiting acknowledgment.</summary>
             public List<AX25Packet> SendBuffer { get; set; } = new List<AX25Packet>();
-            // Out-of-order receive buffer for I-frames
+            
+            /// <summary>Buffer for out-of-order received I-frames, keyed by sequence number.</summary>
             public Dictionary<byte, AX25Packet> ReceiveBuffer { get; set; } = new Dictionary<byte, AX25Packet>();
         }
         private readonly State _state = new State();
 
+        /// <summary>
+        /// Internal timers for the AX.25 session protocol.
+        /// </summary>
         private class Timers
         {
+            /// <summary>Timer for connection establishment retries.</summary>
             public Timer Connect { get; set; } = new Timer();
+            
+            /// <summary>Timer for disconnection retries.</summary>
             public Timer Disconnect { get; set; } = new Timer();
+            
+            /// <summary>T1: Outstanding I-frame acknowledgment timer.</summary>
             public Timer T1 { get; set; } = new Timer();
+            
+            /// <summary>T2: Response delay timer for received I-frames.</summary>
             public Timer T2 { get; set; } = new Timer();
+            
+            /// <summary>T3: Idle poll timer when no outstanding I-frames.</summary>
             public Timer T3 { get; set; } = new Timer();
+            
             public int ConnectAttempts { get; set; } = 0;
             public int DisconnectAttempts { get; set; } = 0;
             public int T1Attempts { get; set; } = 0;
@@ -106,17 +216,37 @@ namespace HTCommander
         }
         private readonly Timers _timers = new Timers();
 
-        public ConnectionState CurrentState { get { return _state.Connection; } }
+        /// <summary>
+        /// Gets the current connection state of the session.
+        /// </summary>
+        public ConnectionState CurrentState => _state.Connection;
 
+        /// <summary>
+        /// Gets or sets the list of addresses for this session (destination, source, and optional digipeaters).
+        /// </summary>
         public List<AX25Address> Addresses = null;
 
+        /// <summary>
+        /// Gets the number of packets in the send buffer awaiting transmission or acknowledgment.
+        /// </summary>
         public int SendBufferLength => _state.SendBuffer.Count;
+        
+        /// <summary>
+        /// Gets the number of out-of-order packets in the receive buffer.
+        /// </summary>
         public int ReceiveBufferLength => _state.ReceiveBuffer.Count;
 
-        public AX25Session(MainForm parent, Radio radio)
+        /// <summary>
+        /// Creates a new AX25 session using the DataBroker for communication.
+        /// </summary>
+        /// <param name="radioDeviceId">The device ID of the radio to use for transmitting/receiving packets.</param>
+        public AX25Session(int radioDeviceId)
         {
-            this.parent = parent;
-            this.radio = radio;
+            _radioDeviceId = radioDeviceId;
+            _broker = new DataBrokerClient();
+
+            // Subscribe to UniqueDataFrame events to receive incoming packets
+            _broker.Subscribe(DataBroker.AllDevices, "UniqueDataFrame", OnUniqueDataFrame);
 
             // Initialize Timers and their callbacks
             _timers.Connect.Elapsed += ConnectTimerCallback;
@@ -139,13 +269,95 @@ namespace HTCommander
             // no outstanding I-frames). When it times out and RR or RNR should be transmitted
             // and T1 started.
             _timers.T3.Elapsed += T3TimerCallback;
+            
+            _broker.LogInfo($"[AX25Session] Session created for radio device {radioDeviceId}");
         }
 
+        /// <summary>
+        /// Handles incoming UniqueDataFrame events and processes packets for this session.
+        /// </summary>
+        private void OnUniqueDataFrame(int deviceId, string name, object data)
+        {
+            if (!(data is TncDataFragment frame)) return;
+            
+            // Only process frames from our radio device
+            if (frame.RadioDeviceId != _radioDeviceId) return;
+            
+            // Parse the AX.25 packet from the frame data
+            AX25Packet packet = AX25Packet.DecodeAX25Packet(frame);
+            if (packet == null) return;
+            
+            // Process the received packet
+            Receive(packet);
+        }
+
+        /// <summary>
+        /// Transmits an AX.25 packet via the DataBroker to the associated radio.
+        /// </summary>
         private void EmitPacket(AX25Packet packet)
         {
             Trace("EmitPacket");
-            //if (parent.activeChannelIdLock < 0) return;
-            //radio.TransmitTncData(packet, parent.activeChannelIdLock);
+            
+            // Get the lock state to determine which channel to use
+            var lockState = DataBroker.GetValue<RadioLockState>(_radioDeviceId, "LockState", null);
+            int channelId = lockState?.ChannelId ?? -1;
+            int regionId = lockState?.RegionId ?? -1;
+            
+            var txData = new TransmitDataFrameData
+            {
+                Packet = packet,
+                ChannelId = channelId,
+                RegionId = regionId
+            };
+            
+            DataBroker.Dispatch(_radioDeviceId, "TransmitDataFrame", txData, store: false);
+        }
+
+        /// <summary>
+        /// Disposes of resources used by this session.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Disposes of resources used by this session.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+            
+            if (disposing)
+            {
+                _broker?.LogInfo($"[AX25Session] Session disposing for radio device {_radioDeviceId}");
+                
+                // Stop all timers
+                ClearTimer(TimerNames.Connect);
+                ClearTimer(TimerNames.Disconnect);
+                ClearTimer(TimerNames.T1);
+                ClearTimer(TimerNames.T2);
+                ClearTimer(TimerNames.T3);
+                
+                // Dispose timers
+                _timers.Connect?.Dispose();
+                _timers.Disconnect?.Dispose();
+                _timers.T1?.Dispose();
+                _timers.T2?.Dispose();
+                _timers.T3?.Dispose();
+                
+                // Clear state
+                _state.SendBuffer.Clear();
+                _state.ReceiveBuffer.Clear();
+                Addresses = null;
+                sessionState.Clear();
+                
+                // Unsubscribe from broker and dispose
+                _broker?.Dispose();
+            }
+            
+            _disposed = true;
         }
 
         // Milliseconds required to transmit the largest possible packet
@@ -412,6 +624,11 @@ namespace HTCommander
             //SetTimer(TimerNames.T1); // Start T1 to wait for acknowledgement of this RR/RNR
         }
 
+        /// <summary>
+        /// Initiates a connection to a remote station.
+        /// </summary>
+        /// <param name="addresses">List of addresses: destination (index 0), source (index 1), and optional digipeaters.</param>
+        /// <returns>True if the connection attempt was started, false if already connected or invalid addresses.</returns>
         public bool Connect(List<AX25Address> addresses)
         {
             Trace("Connect");
@@ -426,6 +643,9 @@ namespace HTCommander
             return ConnectEx();
         }
 
+        /// <summary>
+        /// Internal method to send SABM/SABME and start connection timer.
+        /// </summary>
         private bool ConnectEx()
         {
             Trace("ConnectEx");
@@ -460,6 +680,9 @@ namespace HTCommander
             return true;
         }
 
+        /// <summary>
+        /// Initiates a disconnection from the remote station.
+        /// </summary>
         public void Disconnect()
         {
             if (_state.Connection == ConnectionState.DISCONNECTED) return;
@@ -506,15 +729,21 @@ namespace HTCommander
             if (!_timers.Disconnect.Enabled) { SetTimer(TimerNames.Disconnect); }
         }
 
+        /// <summary>
+        /// Sends data over the connection as a UTF-8 encoded string.
+        /// </summary>
+        /// <param name="info">The string data to send.</param>
         public void Send(string info)
         {
             Send(UTF8Encoding.UTF8.GetBytes(info));
         }
 
-        // Add a new packet to our send queue.
-        // If the t2 timer is not running, we can just send all the packets.
-        // If the t2 timer is running, we need to wait for it to expire, then
-        // we can send them.
+        /// <summary>
+        /// Sends data over the connection. The data is split into I-frames based on PacketLength.
+        /// If the T2 timer is not running, packets are sent immediately.
+        /// Otherwise, they are queued until the timer expires.
+        /// </summary>
+        /// <param name="info">The byte data to send.</param>
         public void Send(byte[] info)
         {
             Trace("Send");
@@ -535,6 +764,12 @@ namespace HTCommander
             if (!_timers.T2.Enabled) { Drain(false); }
         }
 
+        /// <summary>
+        /// Processes a received AX.25 packet. This is called internally when UniqueDataFrame events
+        /// are received, but can also be called directly to process packets.
+        /// </summary>
+        /// <param name="packet">The received AX.25 packet to process.</param>
+        /// <returns>True if the packet was processed, false if invalid.</returns>
         public bool Receive(AX25Packet packet)
         {
             if ((packet == null) || (packet.addresses.Count < 2)) return false;

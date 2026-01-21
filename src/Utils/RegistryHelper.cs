@@ -32,9 +32,10 @@ namespace HTCommander
             if (string.IsNullOrEmpty(applicationName))
                 throw new ArgumentException("Application name cannot be null or empty.", nameof(applicationName));
 
-            using (var key = Registry.CurrentUser.CreateSubKey($"Software\\{_applicationName}")) { }
-
             _applicationName = applicationName;
+
+            // Ensure the registry key exists
+            using (var key = Registry.CurrentUser.CreateSubKey($"Software\\{_applicationName}")) { }
         }
 
         /// <summary>

@@ -395,7 +395,7 @@ namespace HTCommander
             return StructuralComparisons.StructuralEqualityComparer.Equals(a1, a2);
         }
 
-        private bool ParseCallsignWithId(string callsignWithId, out string xcallsign, out int xstationId)
+        public static bool ParseCallsignWithId(string callsignWithId, out string xcallsign, out int xstationId)
         {
             xcallsign = null;
             xstationId = -1;

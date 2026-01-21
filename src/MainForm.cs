@@ -27,6 +27,7 @@ namespace HTCommander
 
         private string LastUpdateCheck => DataBroker.GetValue<string>(0, "LastUpdateCheck", null);
         private bool CheckForUpdates => DataBroker.GetValue<bool>(0, "CheckForUpdates", false);
+        private int SelectedTabIndex => DataBroker.GetValue<int>(0, "SelectedTabIndex", 0);
 
         public MainForm(string[] args)
         {
@@ -71,7 +72,6 @@ namespace HTCommander
 
             voiceTabUserControl.Initialize(this);
             mailTabUserControl.Initialize(this);
-            terminalTabUserControl.Initialize(this);
             bbsTabUserControl.Initialize(this);
         }
         private void StartPipeServer()
@@ -131,6 +131,16 @@ namespace HTCommander
 
         private void MainForm_Load(object sender, EventArgs e)
         {
+            // Restore selected tab
+            int savedTabIndex = SelectedTabIndex;
+            if (savedTabIndex >= 0 && savedTabIndex < mainTabControl.TabCount)
+            {
+                mainTabControl.SelectedIndex = savedTabIndex;
+            }
+
+            // Subscribe to tab selection changes to save the selected tab
+            mainTabControl.SelectedIndexChanged += MainTabControl_SelectedIndexChanged;
+
             // Check for updates
             checkForUpdatesToolStripMenuItem.Checked = CheckForUpdates;
             if (File.Exists("NoUpdateCheck.txt"))
@@ -725,6 +735,12 @@ namespace HTCommander
             ImportChannelsForm f = new ImportChannelsForm(null, channels);
             f.Text = f.Text + " - " + new FileInfo(filename).Name;
             f.Show(this);
+        }
+
+        private void MainTabControl_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            // Save the currently selected tab index to the DataBroker
+            DataBroker.Dispatch(0, "SelectedTabIndex", mainTabControl.SelectedIndex, store: true);
         }
 
         private void exportChannelsToolStripMenuItem_Click(object sender, EventArgs e)
