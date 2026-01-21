@@ -502,6 +502,9 @@ namespace HTCommander.RadioControls
                     // RSSI is 0-16. rssiProgressBar maximum is set to 16
                     rssiProgressBar.Value = currentHtStatus.rssi;
                     rssiProgressBar.Visible = (currentHtStatus.rssi > 0);
+                    
+                    // Show transmit bar when radio is transmitting
+                    transmitBarPanel.Visible = currentHtStatus.is_in_tx;
                 }
 
                 // Update the VFO colors based on RX/TX state
