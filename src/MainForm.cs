@@ -72,7 +72,6 @@ namespace HTCommander
 
             voiceTabUserControl.Initialize(this);
             mailTabUserControl.Initialize(this);
-            bbsTabUserControl.Initialize(this);
         }
         private void StartPipeServer()
         {

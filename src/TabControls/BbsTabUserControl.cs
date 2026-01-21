@@ -14,7 +14,7 @@ namespace HTCommander.Controls
 {
     public partial class BbsTabUserControl : UserControl
     {
-        private MainForm mainForm;
+        private DataBrokerClient broker;
         private bool _showDetach = false;
 
         /// <summary>
@@ -40,15 +40,127 @@ namespace HTCommander.Controls
         public BbsTabUserControl()
         {
             InitializeComponent();
+
+            broker = new DataBrokerClient();
+
+            // Subscribe to BBS events from the broker
+            broker.Subscribe(0, new[] { "BbsStatsUpdated", "BbsStatsCleared", "BbsTraffic", "BbsControlMessage", "BbsError" }, OnBbsEvent);
+
+            // Load settings from broker (device 0 for app settings)
+            bool viewTraffic = broker.GetValue<int>(0, "ViewBbsTraffic", 1) == 1;
+            viewTrafficToolStripMenuItem.Checked = viewTraffic;
+            bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
         }
 
-        public void Initialize(MainForm mainForm)
+        /// <summary>
+        /// Handles BBS events from the DataBroker.
+        /// </summary>
+        private void OnBbsEvent(int deviceId, string name, object data)
         {
-            this.mainForm = mainForm;
+            switch (name)
+            {
+                case "BbsStatsUpdated":
+                    HandleStatsUpdated(data);
+                    break;
+                case "BbsStatsCleared":
+                    HandleStatsCleared(data);
+                    break;
+                case "BbsTraffic":
+                    HandleTraffic(data);
+                    break;
+                case "BbsControlMessage":
+                    HandleControlMessage(data);
+                    break;
+                case "BbsError":
+                    HandleError(data);
+                    break;
+            }
+        }
 
-            // Load settings from registry
-            //viewTrafficToolStripMenuItem.Checked = (mainForm.registry.ReadInt("ViewBbsTraffic", 1) == 1);
-            bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
+        /// <summary>
+        /// Handles BbsStatsUpdated events.
+        /// </summary>
+        private void HandleStatsUpdated(object data)
+        {
+            // Extract stats from the anonymous type
+            if (data == null) return;
+            var dataType = data.GetType();
+            var statsProp = dataType.GetProperty("Stats");
+            if (statsProp == null) return;
+            var stats = statsProp.GetValue(data) as BBS.StationStats;
+            if (stats != null)
+            {
+                UpdateBbsStats(stats);
+            }
+        }
+
+        /// <summary>
+        /// Handles BbsStatsCleared events.
+        /// </summary>
+        private void HandleStatsCleared(object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<object>(HandleStatsCleared), data);
+                return;
+            }
+            bbsListView.Items.Clear();
+        }
+
+        /// <summary>
+        /// Handles BbsTraffic events.
+        /// </summary>
+        private void HandleTraffic(object data)
+        {
+            if (data == null) return;
+            var dataType = data.GetType();
+            var callsignProp = dataType.GetProperty("Callsign");
+            var outgoingProp = dataType.GetProperty("Outgoing");
+            var messageProp = dataType.GetProperty("Message");
+            if (callsignProp == null || outgoingProp == null || messageProp == null) return;
+
+            string callsign = callsignProp.GetValue(data) as string;
+            bool outgoing = (bool)outgoingProp.GetValue(data);
+            string message = messageProp.GetValue(data) as string;
+
+            if (callsign != null && message != null)
+            {
+                AddBbsTraffic(callsign, outgoing, message);
+            }
+        }
+
+        /// <summary>
+        /// Handles BbsControlMessage events.
+        /// </summary>
+        private void HandleControlMessage(object data)
+        {
+            if (data == null) return;
+            var dataType = data.GetType();
+            var messageProp = dataType.GetProperty("Message");
+            if (messageProp == null) return;
+
+            string message = messageProp.GetValue(data) as string;
+            if (message != null)
+            {
+                AddBbsControlMessage(message);
+            }
+        }
+
+        /// <summary>
+        /// Handles BbsError events.
+        /// </summary>
+        private void HandleError(object data)
+        {
+            if (data == null) return;
+            var dataType = data.GetType();
+            var errorProp = dataType.GetProperty("Error");
+            if (errorProp == null) return;
+
+            string error = errorProp.GetValue(data) as string;
+            if (error != null)
+            {
+                AddBbsControlMessage("Error: " + error);
+            }
         }
 
         public void UpdateBbsStats(BBS.StationStats stats)
@@ -118,12 +230,8 @@ namespace HTCommander.Controls
         public void ClearStats()
         {
             bbsListView.Items.Clear();
-            /*
-            if (mainForm != null && mainForm.bbs != null)
-            {
-                mainForm.bbs.ClearStats();
-            }
-            */
+            // Request stats clear via broker
+            broker?.Dispatch(0, "BbsClearStatsRequest", null, store: false);
         }
 
         private void bbsMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
@@ -133,31 +241,16 @@ namespace HTCommander.Controls
 
         private void bbsConnectButton_Click(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
-            /*
-            if (mainForm.activeStationLock != null)
-            {
-                if (mainForm.activeStationLock.StationType == StationInfoClass.StationTypes.BBS)
-                {
-                    mainForm.ActiveLockToStation(null);
-                }
-            }
-            else
-            {
-                StationInfoClass station = new StationInfoClass();
-                station.StationType = StationInfoClass.StationTypes.BBS;
-                mainForm.ActiveLockToStation(station, mainForm.radio.Settings.channel_a);
-            }
-            */
+            // TODO: Implement BBS connection via broker
+            // Request to lock to BBS station type
+            broker?.Dispatch(0, "BbsConnectRequest", null, store: false);
         }
 
         private void viewTrafficToolStripMenuItem_Click(object sender, EventArgs e)
         {
             bbsSplitContainer.Panel2Collapsed = !viewTrafficToolStripMenuItem.Checked;
-            if (mainForm != null)
-            {
-                //mainForm.registry.WriteInt("ViewBbsTraffic", viewTrafficToolStripMenuItem.Checked ? 1 : 0);
-            }
+            // Save setting via broker (device 0 persists to registry)
+            broker?.Dispatch(0, "ViewBbsTraffic", viewTrafficToolStripMenuItem.Checked ? 1 : 0);
         }
 
         private void clearStatsToolStripMenuItem_Click(object sender, EventArgs e)
