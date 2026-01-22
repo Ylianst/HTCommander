@@ -72,7 +72,6 @@ namespace HTCommander
             PublishConnectedRadios();
 
             voiceTabUserControl.Initialize(this);
-            mailTabUserControl.Initialize(this);
         }
         private void StartPipeServer()
         {

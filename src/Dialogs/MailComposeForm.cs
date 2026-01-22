@@ -1,25 +1,30 @@
-﻿using System;
-using System.Drawing;
+﻿/*
+Copyright 2026 Ylian Saint-Hilaire
+Licensed under the Apache License, Version 2.0 (the "License");
+http://www.apache.org/licenses/LICENSE-2.0
+*/
+
+using System;
 using System.IO;
 using System.Text;
-using System.Text.RegularExpressions;
+using System.Drawing;
 using System.Windows.Forms;
-using HTCommander.radio;
+using System.Text.RegularExpressions;
 
 namespace HTCommander
 {
     public partial class MailComposeForm : Form
     {
-        private MainForm parent;
+        private DataBrokerClient broker;
         private bool MessageSaved = false;
         public WinLinkMail mail = null;
         private bool MessageChanged = false;
 
-        public MailComposeForm(MainForm parent, WinLinkMail mail)
+        public MailComposeForm(WinLinkMail mail)
         {
-            this.parent = parent;
             this.mail = mail;
             InitializeComponent();
+            broker = new DataBrokerClient();
         }
 
         private void MailComposeForm_Load(object sender, EventArgs e)
@@ -51,9 +56,9 @@ namespace HTCommander
             {
                 if ((toTextBox.Text.Length == 0) && (subjectTextBox.Text.Length == 0) && (mainTextBox.Text.Length == 0))
                 {
-                    //parent.mailComposeForm = null;
+                    // Empty message, allow close
                 }
-                else if ((mail == null) && (MessageChanged == true) && MessageBox.Show("Discard this message?", "Main", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
+                else if ((mail == null) && (MessageChanged == true) && MessageBox.Show("Discard this message?", "Mail", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
                 {
                     e.Cancel = true;
                     return;
@@ -63,15 +68,8 @@ namespace HTCommander
                     e.Cancel = true;
                     return;
                 }
-                else
-                {
-                    //parent.mailComposeForm = null;
-                }
             }
-            else
-            {
-                //parent.mailComposeForm = null;
-            }
+            broker?.Dispose();
         }
 
         private void UpdateInfo()
@@ -126,7 +124,7 @@ namespace HTCommander
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
             mail.MID = WinLinkMail.GenerateMID();
             mail.To = toTextBox.Text;
-            //mail.From = parent.callsign;
+            mail.From = broker.GetValue<string>(0, "Callsign", "");
             if (ccTextBox.Text.Length > 0) { mail.Cc = ccTextBox.Text; } else { mail.Cc = null; }
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
@@ -149,9 +147,8 @@ namespace HTCommander
                 mail.Attachments = null;
             }
 
-            //if (addMail) { parent.mailStore.AddMail(mail); } else { parent.mailStore.UpdateMail(mail); }
-            //parent.UpdateMail();
             MessageSaved = true;
+            this.DialogResult = DialogResult.OK;
             Close();
         }
 
@@ -161,7 +158,7 @@ namespace HTCommander
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
             mail.MID = WinLinkMail.GenerateMID();
             mail.To = toTextBox.Text;
-            mail.From = "parent.callsign";
+            mail.From = broker.GetValue<string>(0, "Callsign", "");
             if (ccTextBox.Text.Length > 0) { mail.Cc = ccTextBox.Text; } else { mail.Cc = null; }
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
@@ -184,9 +181,8 @@ namespace HTCommander
                 mail.Attachments = null;
             }
 
-            //if (addMail) { parent.mailStore.AddMail(mail); } else { parent.mailStore.UpdateMail(mail); }
-            //parent.UpdateMail();
             MessageSaved = true;
+            this.DialogResult = DialogResult.OK;
             Close();
         }
 

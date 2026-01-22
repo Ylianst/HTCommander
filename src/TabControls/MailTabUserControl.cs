@@ -8,6 +8,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Drawing;
+using System.Reflection;
 using System.Diagnostics;
 using System.Windows.Forms;
 using System.IO.Compression;
@@ -18,7 +19,7 @@ namespace HTCommander.Controls
 {
     public partial class MailTabUserControl : UserControl
     {
-        private MainForm mainForm;
+        private DataBrokerClient broker;
         private bool _showDetach = false;
 
         /// <summary>
@@ -47,73 +48,75 @@ namespace HTCommander.Controls
         public MailTabUserControl()
         {
             InitializeComponent();
-        }
 
-        public void Initialize(MainForm mainForm)
-        {
-            this.mainForm = mainForm;
+            // Enable double buffering on mailBoxesTreeView to reduce flicker
+            typeof(TreeView).InvokeMember("DoubleBuffered",
+                BindingFlags.SetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
+                null, mailBoxesTreeView, new object[] { true });
 
-            // Load settings from registry
-            //showPreviewToolStripMenuItem.Checked = (mainForm.registry.ReadInt("MailShowPreview", 1) == 1);
+            // Enable double buffering on mailContextMenuStrip to reduce flicker
+            typeof(ToolStripDropDownMenu).InvokeMember("DoubleBuffered",
+                BindingFlags.SetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
+                null, mailContextMenuStrip, new object[] { true });
+
+            // Initialize the Data Broker client
+            broker = new DataBrokerClient();
+
+            // Subscribe to mail-related events
+            broker.Subscribe(0, "Mails", OnMailsChanged);
+            broker.Subscribe(0, "MailShowPreview", OnMailShowPreviewChanged);
+
+            // Load settings from broker (device 0 for app-wide settings)
+            showPreviewToolStripMenuItem.Checked = broker.GetValue<int>(0, "MailShowPreview", 1) == 1;
             mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
-
-            /*
-            // Load toolbar images
-            try
-            {
-                mailReplyToolStripButton.Image = Properties.Resources.Reply;
-                mailReplyAllToolStripButton.Image = Properties.Resources.ReplyAll;
-                mailForwardToolStripButton.Image = Properties.Resources.Forward;
-                mailDeleteToolStripButton.Image = Properties.Resources.Delete;
-            }
-            catch { }
-
-            // Load mailbox images
-            try
-            {
-                mailBoxImageList.Images.Add(Properties.Resources.mailbox_25);
-                mailBoxImageList.Images.Add(Properties.Resources.outbox_25);
-                mailBoxImageList.Images.Add(Properties.Resources.draft_25);
-                mailBoxImageList.Images.Add(Properties.Resources.sent_25);
-                mailBoxImageList.Images.Add(Properties.Resources.archive_25);
-                mailBoxImageList.Images.Add(Properties.Resources.trash_25);
-                mailBoxImageList.Images.Add(Properties.Resources.folder_25);
-                mailBoxImageList.Images.Add(Properties.Resources.junk_25);
-                mailBoxImageList.Images.Add(Properties.Resources.notes_25);
-            }
-            catch { }
-
-            // Load main image list for mail icons
-            try
-            {
-                mainImageList.Images.Add(Properties.Resources.GreenCheck_20);
-                mainImageList.Images.Add(Properties.Resources.mail_20);
-                mainImageList.Images.Add(Properties.Resources.file_20);
-                mainImageList.Images.Add(Properties.Resources.file_empty_20);
-            }
-            catch { }
-            */
-
-            // Subscribe to mail store changes
-            //mainForm.mailStore.MailsChanged += MailStore_MailsChanged;
 
             // Initial mail display
             UpdateMail();
         }
 
-        private void MailStore_MailsChanged(object sender, EventArgs e)
+        private void OnMailsChanged(int deviceId, string name, object data)
         {
             if (this.InvokeRequired)
             {
-                this.BeginInvoke(new EventHandler(MailStore_MailsChanged), sender, e);
+                this.BeginInvoke(new Action<int, string, object>(OnMailsChanged), deviceId, name, data);
                 return;
             }
             UpdateMail();
         }
 
+        private void OnMailShowPreviewChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnMailShowPreviewChanged), deviceId, name, data);
+                return;
+            }
+            if (data is int showPreview)
+            {
+                showPreviewToolStripMenuItem.Checked = showPreview == 1;
+                mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
+            }
+        }
+
+        /// <summary>
+        /// Gets the list of mails from the broker.
+        /// </summary>
+        private List<WinLinkMail> GetMails()
+        {
+            return broker.GetValue<List<WinLinkMail>>(0, "Mails", new List<WinLinkMail>());
+        }
+
+        /// <summary>
+        /// Saves the list of mails to the broker.
+        /// </summary>
+        private void SaveMails(List<WinLinkMail> mails)
+        {
+            broker.Dispatch(0, "Mails", mails);
+        }
+
         public void UpdateMail()
         {
-            if (mainForm == null) return;
+            if (broker == null) return;
 
             // Update the tree view
             if (MailBoxTreeNodes == null)
@@ -143,9 +146,9 @@ namespace HTCommander.Controls
             }
 
             // Update mail counts in tree nodes
+            List<WinLinkMail> mails = GetMails();
             int inboxCount = 0, outboxCount = 0, draftCount = 0, sentCount = 0, archiveCount = 0, trashCount = 0;
-            /*
-            foreach (WinLinkMail mail in mainForm.Mails)
+            foreach (WinLinkMail mail in mails)
             {
                 switch (mail.Mailbox)
                 {
@@ -157,7 +160,6 @@ namespace HTCommander.Controls
                     case "Trash": trashCount++; break;
                 }
             }
-            */
            MailBoxTreeNodes[0].Text = inboxCount > 0 ? $"Inbox ({inboxCount})" : "Inbox";
            MailBoxTreeNodes[1].Text = outboxCount > 0 ? $"Outbox ({outboxCount})" : "Outbox";
            MailBoxTreeNodes[2].Text = draftCount > 0 ? $"Draft ({draftCount})" : "Draft";
@@ -168,8 +170,7 @@ namespace HTCommander.Controls
             // Update the list view
             mailboxListView.BeginUpdate();
             mailboxListView.Items.Clear();
-            /*
-            foreach (WinLinkMail mail in mainForm.Mails)
+            foreach (WinLinkMail mail in mails)
             {
                 if (mail.Mailbox != selectedMailbox) continue;
                 ListViewItem l = new ListViewItem(new string[] { mail.DateTime.ToLocalTime().ToString(), mail.From, mail.Subject });
@@ -177,7 +178,6 @@ namespace HTCommander.Controls
                 l.ImageIndex = (mail.Attachments != null && mail.Attachments.Count > 0) ? 2 : 1;
                 mailboxListView.Items.Add(l);
             }
-            */
             mailboxListView.EndUpdate();
 
             // Update context menu visibility
@@ -220,18 +220,15 @@ namespace HTCommander.Controls
 
         private void newMailButton_Click(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
-            MailComposeForm f = new MailComposeForm(mainForm, null);
+            MailComposeForm f = new MailComposeForm(null);
             if (f.ShowDialog(this) == DialogResult.OK)
             {
-                //mainForm.mailStore.AddMail(f.mail);
-                UpdateMail();
+                AddMail(f.mail);
             }
         }
 
         private void mailboxListView_DoubleClick(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
             if (mailboxListView.SelectedItems.Count == 0) return;
             WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
 
@@ -244,11 +241,10 @@ namespace HTCommander.Controls
             if (selectedMailbox == "Draft" || selectedMailbox == "Outbox")
             {
                 // Edit
-                MailComposeForm f = new MailComposeForm(mainForm, m);
+                MailComposeForm f = new MailComposeForm(m);
                 if (f.ShowDialog(this) == DialogResult.OK)
                 {
-                    //mainForm.mailStore.UpdateMail(f.mail);
-                    UpdateMail();
+                    UpdateMailItem(f.mail);
                 }
             }
             else
@@ -257,6 +253,38 @@ namespace HTCommander.Controls
                 MailViewerForm f = new MailViewerForm(m);
                 f.ShowDialog(this);
             }
+        }
+
+        /// <summary>
+        /// Adds a new mail to the mail store.
+        /// </summary>
+        private void AddMail(WinLinkMail mail)
+        {
+            List<WinLinkMail> mails = GetMails();
+            mails.Add(mail);
+            SaveMails(mails);
+        }
+
+        /// <summary>
+        /// Updates an existing mail in the mail store.
+        /// </summary>
+        private void UpdateMailItem(WinLinkMail mail)
+        {
+            List<WinLinkMail> mails = GetMails();
+            // Remove old mail with same MID
+            mails.RemoveAll(m => m.MID == mail.MID);
+            mails.Add(mail);
+            SaveMails(mails);
+        }
+
+        /// <summary>
+        /// Deletes a mail from the mail store by MID.
+        /// </summary>
+        private void DeleteMail(string mid)
+        {
+            List<WinLinkMail> mails = GetMails();
+            mails.RemoveAll(m => m.MID == mid);
+            SaveMails(mails);
         }
 
         private void mailPreviewTextBox_LinkClicked(object sender, LinkClickedEventArgs e)
@@ -307,21 +335,25 @@ namespace HTCommander.Controls
 
         private void mailBoxesTreeView_DragDrop(object sender, DragEventArgs e)
         {
-            if (mainForm == null) return;
             if (e.Data.GetDataPresent(typeof(List<WinLinkMail>)))
             {
                 Point pt = mailBoxesTreeView.PointToClient(new Point(e.X, e.Y));
                 TreeNode node = mailBoxesTreeView.GetNodeAt(pt);
                 if (node != null)
                 {
-                    List<WinLinkMail> mails = (List<WinLinkMail>)e.Data.GetData(typeof(List<WinLinkMail>));
+                    List<WinLinkMail> draggedMails = (List<WinLinkMail>)e.Data.GetData(typeof(List<WinLinkMail>));
                     string destMailBox = (string)node.Tag;
-                    foreach (WinLinkMail mail in mails)
+                    List<WinLinkMail> allMails = GetMails();
+                    foreach (WinLinkMail draggedMail in draggedMails)
                     {
-                        mail.Mailbox = destMailBox;
-                        //mainForm.mailStore.UpdateMail(mail);
+                        // Find and update the mail in the store
+                        WinLinkMail mailInStore = allMails.Find(m => m.MID == draggedMail.MID);
+                        if (mailInStore != null)
+                        {
+                            mailInStore.Mailbox = destMailBox;
+                        }
                     }
-                    UpdateMail();
+                    SaveMails(allMails);
                 }
             }
         }
@@ -353,57 +385,56 @@ namespace HTCommander.Controls
 
         private void MoveSelectedMailsTo(string mailbox)
         {
-            if (mainForm == null) return;
+            if (mailboxListView.SelectedItems.Count == 0) return;
+            List<WinLinkMail> allMails = GetMails();
             foreach (ListViewItem l in mailboxListView.SelectedItems)
             {
-                WinLinkMail m = (WinLinkMail)l.Tag;
-                m.Mailbox = mailbox;
-                //mainForm.mailStore.UpdateMail(m);
+                WinLinkMail selectedMail = (WinLinkMail)l.Tag;
+                WinLinkMail mailInStore = allMails.Find(m => m.MID == selectedMail.MID);
+                if (mailInStore != null)
+                {
+                    mailInStore.Mailbox = mailbox;
+                }
             }
-            UpdateMail();
+            SaveMails(allMails);
         }
 
         private void deleteMailToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
             if (mailboxListView.SelectedItems.Count == 0) return;
 
             if (MessageBox.Show(this, "Are you sure you want to permanently delete the selected mail(s)?", "Delete Mail", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
+                List<WinLinkMail> allMails = GetMails();
                 foreach (ListViewItem l in mailboxListView.SelectedItems)
                 {
                     WinLinkMail m = (WinLinkMail)l.Tag;
-                    //mainForm.mailStore.DeleteMail(m.MID);
+                    allMails.RemoveAll(mail => mail.MID == m.MID);
                 }
-                UpdateMail();
+                SaveMails(allMails);
             }
         }
 
         private void showPreviewToolStripMenuItem_Click(object sender, EventArgs e)
         {
             mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
-            if (mainForm != null)
-            {
-                //mainForm.registry.WriteInt("MailShowPreview", showPreviewToolStripMenuItem.Checked ? 1 : 0);
-            }
+            broker.Dispatch(0, "MailShowPreview", showPreviewToolStripMenuItem.Checked ? 1 : 0);
         }
 
         private void showTrafficToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
             MailClientDebugForm f = new MailClientDebugForm();
             f.ShowDialog(this);
         }
 
         private void backupMailToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
             if (backupMailSaveFileDialog.ShowDialog(this) == DialogResult.OK)
             {
-                /*
                 try
                 {
-                    string json = Newtonsoft.Json.JsonConvert.SerializeObject(mainForm.Mails, Newtonsoft.Json.Formatting.Indented);
+                    List<WinLinkMail> mails = GetMails();
+                    string json = Newtonsoft.Json.JsonConvert.SerializeObject(mails, Newtonsoft.Json.Formatting.Indented);
                     byte[] data = Encoding.UTF8.GetBytes(json);
                     using (FileStream fs = new FileStream(backupMailSaveFileDialog.FileName, FileMode.Create))
                     using (GZipStream gs = new GZipStream(fs, CompressionMode.Compress))
@@ -416,13 +447,11 @@ namespace HTCommander.Controls
                 {
                     MessageBox.Show(this, "Backup failed: " + ex.Message, "Backup Mail", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
-                */
             }
         }
 
         private void restoreMailToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
             if (restoreMailOpenFileDialog.ShowDialog(this) == DialogResult.OK)
             {
                 try
@@ -433,17 +462,18 @@ namespace HTCommander.Controls
                     {
                         gs.CopyTo(ms);
                         string json = Encoding.UTF8.GetString(ms.ToArray());
-                        List<WinLinkMail> mails = Newtonsoft.Json.JsonConvert.DeserializeObject<List<WinLinkMail>>(json);
+                        List<WinLinkMail> restoredMails = Newtonsoft.Json.JsonConvert.DeserializeObject<List<WinLinkMail>>(json);
+                        List<WinLinkMail> currentMails = GetMails();
                         bool change = false;
-                        foreach (WinLinkMail mail in mails)
+                        foreach (WinLinkMail mail in restoredMails)
                         {
-                            if (!IsMailMidPresent(mail.MID))
+                            if (!IsMailMidPresent(currentMails, mail.MID))
                             {
-                                //mainForm.mailStore.AddMail(mail);
+                                currentMails.Add(mail);
                                 change = true;
                             }
                         }
-                        if (change) { UpdateMail(); }
+                        if (change) { SaveMails(currentMails); }
                         MessageBox.Show(this, "Restore completed successfully.", "Restore Mail", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
@@ -454,27 +484,23 @@ namespace HTCommander.Controls
             }
         }
 
-        private bool IsMailMidPresent(string mid)
+        private bool IsMailMidPresent(List<WinLinkMail> mails, string mid)
         {
-            if (mainForm == null) return false;
-            /*
-            foreach (WinLinkMail mail in mainForm.Mails)
+            foreach (WinLinkMail mail in mails)
             {
                 if (mail.MID == mid) return true;
             }
-            */
             return false;
         }
 
         private void mailConnectButton_Click(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
-
             // Select a Winlink gateway station
             ActiveStationSelectorForm f = new ActiveStationSelectorForm(StationInfoClass.StationTypes.Winlink);
             if (f.ShowDialog(this) == DialogResult.OK)
             {
-                //mainForm.ActiveLockToStation(f.selectedStation);
+                // Dispatch event to lock to the selected station
+                broker.Dispatch(0, "ActiveLockToStation", f.selectedStation, store: false);
             }
         }
 
@@ -522,13 +548,12 @@ namespace HTCommander.Controls
 
         private void mailInternetButton_Click(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
-            //mainForm.ConnectToWinlinkInternet();
+            // Dispatch event to connect to Winlink Internet
+            broker.Dispatch(0, "ConnectToWinlinkInternet", true, store: false);
         }
 
         private void mailReplyToolStripButton_Click(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
             if (mailboxListView.SelectedItems.Count == 0) return;
             WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
 
@@ -537,17 +562,15 @@ namespace HTCommander.Controls
             reply.Subject = m.Subject.StartsWith("Re: ") ? m.Subject : "Re: " + m.Subject;
             reply.Body = $"\r\n\r\n--- Original Message ---\r\nFrom: {m.From}\r\nDate: {m.DateTime.ToLocalTime()}\r\n\r\n{m.Body}";
 
-            MailComposeForm f = new MailComposeForm(mainForm, reply);
+            MailComposeForm f = new MailComposeForm(reply);
             if (f.ShowDialog(this) == DialogResult.OK)
             {
-                //mainForm.mailStore.AddMail(f.mail);
-                UpdateMail();
+                AddMail(f.mail);
             }
         }
 
         private void mailReplyAllToolStripButton_Click(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
             if (mailboxListView.SelectedItems.Count == 0) return;
             WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
 
@@ -557,17 +580,15 @@ namespace HTCommander.Controls
             reply.Subject = m.Subject.StartsWith("Re: ") ? m.Subject : "Re: " + m.Subject;
             reply.Body = $"\r\n\r\n--- Original Message ---\r\nFrom: {m.From}\r\nDate: {m.DateTime.ToLocalTime()}\r\n\r\n{m.Body}";
 
-            MailComposeForm f = new MailComposeForm(mainForm, reply);
+            MailComposeForm f = new MailComposeForm(reply);
             if (f.ShowDialog(this) == DialogResult.OK)
             {
-                //mainForm.mailStore.AddMail(f.mail);
-                UpdateMail();
+                AddMail(f.mail);
             }
         }
 
         private void mailForwardToolStripButton_Click(object sender, EventArgs e)
         {
-            if (mainForm == null) return;
             if (mailboxListView.SelectedItems.Count == 0) return;
             WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
 
@@ -576,11 +597,10 @@ namespace HTCommander.Controls
             forward.Body = $"\r\n\r\n--- Forwarded Message ---\r\nFrom: {m.From}\r\nTo: {m.To}\r\nDate: {m.DateTime.ToLocalTime()}\r\nSubject: {m.Subject}\r\n\r\n{m.Body}";
             if (m.Attachments != null) { forward.Attachments = new List<WinLinkMailAttachement>(m.Attachments); }
 
-            MailComposeForm f = new MailComposeForm(mainForm, forward);
+            MailComposeForm f = new MailComposeForm(forward);
             if (f.ShowDialog(this) == DialogResult.OK)
             {
-                //mainForm.mailStore.AddMail(f.mail);
-                UpdateMail();
+                AddMail(f.mail);
             }
         }
 
