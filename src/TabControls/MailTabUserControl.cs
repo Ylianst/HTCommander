@@ -542,7 +542,8 @@ namespace HTCommander.Controls
         {
             if (mailboxListView.Columns.Count >= 3)
             {
-                mailboxListView.Columns[2].Width = mailboxListView.Width - mailboxListView.Columns[1].Width - mailboxListView.Columns[0].Width - 28;
+                // Use -2 to auto-size column to fill remaining space
+                mailboxListView.Columns[2].Width = -2;
             }
         }
 
