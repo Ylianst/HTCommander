@@ -48,7 +48,7 @@ namespace HTCommander
             _writer.AutoFlush = true;
 
             // Subscribe to log messages
-            _broker.Subscribe(0, new[] { "LogInfo", "LogError" }, OnLogMessage);
+            _broker.Subscribe(1, new[] { "LogInfo", "LogError" }, OnLogMessage);
 
             // Write header
             WriteLog("INFO", "Log file opened: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));

@@ -55,6 +55,9 @@ namespace HTCommander
             // Subscribe to CallSign and StationId changes for title bar updates
             broker.Subscribe(0, new[] { "CallSign", "StationId" }, OnCallSignOrStationIdChanged);
 
+            // Subscribe to AudioState changes from all radio devices
+            broker.Subscribe(DataBroker.AllDevices, "AudioState", OnAudioStateChanged);
+
             // Subscribe to RadioConnect event from device 1 (e.g., from RadioPanelControl)
             broker.Subscribe(1, "RadioConnect", OnRadioConnectRequested);
 
@@ -765,6 +768,46 @@ namespace HTCommander
                 }
                 File.WriteAllText(exportChannelsFileDialog.FileName, content);
             }
+        }
+
+        private void OnAudioStateChanged(int deviceId, string name, object data)
+        {
+            // Update the audio enabled menu item checkbox when the audio state changes
+            // for the radio that radioPanelControl is currently viewing
+            if (deviceId == radioPanelControl.DeviceId)
+            {
+                bool audioEnabled = (data is bool b) && b;
+                audioEnabledToolStripMenuItem.Checked = audioEnabled;
+            }
+        }
+
+        private void audioToolStripMenuItem1_DropDownOpening(object sender, EventArgs e)
+        {
+            int deviceId = radioPanelControl.DeviceId;
+            bool hasRadio = (deviceId > 0) && connectedRadios.Any(r => r.DeviceId == deviceId);
+
+            // Enable/disable audio menu items based on radio connection
+            audioEnabledToolStripMenuItem.Enabled = hasRadio;
+
+            if (!hasRadio)
+            {
+                audioEnabledToolStripMenuItem.Checked = false;
+                return;
+            }
+
+            // Get the current audio state from the broker
+            bool audioEnabled = DataBroker.GetValue<bool>(deviceId, "AudioState", false);
+            audioEnabledToolStripMenuItem.Checked = audioEnabled;
+        }
+
+        private void audioEnabledToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            int deviceId = radioPanelControl.DeviceId;
+            if (deviceId <= 0) return;
+
+            // Toggle audio state - get current state and toggle it
+            bool currentlyEnabled = DataBroker.GetValue<bool>(deviceId, "AudioState", false);
+            DataBroker.Dispatch(deviceId, "SetAudio", !currentlyEnabled, store: false);
         }
 
     }

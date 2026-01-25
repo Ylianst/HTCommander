@@ -48,7 +48,7 @@ namespace HTCommander.Controls
             broker = new DataBrokerClient();
 
             // Subscribe to log messages (info and error)
-            broker.Subscribe(0, new[] { "LogInfo", "LogError" }, OnLogMessage);
+            broker.Subscribe(1, new[] { "LogInfo", "LogError" }, OnLogMessage);
 
             // Subscribe to LogStore file logging state changes
             broker.Subscribe(0, "LogStoreFileActive", OnLogStoreFileActiveChanged);

@@ -268,12 +268,14 @@
             audioToolStripMenuItem1.Name = "audioToolStripMenuItem1";
             audioToolStripMenuItem1.Size = new System.Drawing.Size(63, 24);
             audioToolStripMenuItem1.Text = "A&udio";
+            audioToolStripMenuItem1.DropDownOpening += audioToolStripMenuItem1_DropDownOpening;
             // 
             // audioEnabledToolStripMenuItem
             // 
             audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
             audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
             audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
+            audioEnabledToolStripMenuItem.Click += audioEnabledToolStripMenuItem_Click;
             // 
             // volumeToolStripMenuItem
             // 

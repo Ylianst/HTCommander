@@ -6,28 +6,37 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 using System;
 using System.IO;
-using System.Threading;
+using System.Linq;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using WinBluetooth = Windows.Devices.Bluetooth;
+using WinRfcomm = Windows.Devices.Bluetooth.Rfcomm;
 using HTCommander.radio;
-using InTheHand.Net;
-using InTheHand.Net.Bluetooth;
-using InTheHand.Net.Sockets;
-using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using NAudio.CoreAudioApi;
 using NAudio.Wave.SampleProviders;
 
 namespace HTCommander
 {
-    public class RadioAudio
+    public class RadioAudio : IDisposable
     {
         private Radio parent;
         private const int ReceiveBufferSize = 1024;
-        private BluetoothClient connectionClient;
         private readonly DataBrokerClient broker;
         private readonly int DeviceId;
         private readonly string MacAddress;
+
+        // Bluetooth connection resources
+        private Windows.Networking.Sockets.StreamSocket bluetoothSocket = null;
+        private WinRfcomm.RfcommDeviceService rfcommService = null;
+        private Stream winRtInputStream = null;
+        private Stream winRtOutputStream = null;
+        private CancellationTokenSource audioLoopCts = null;
+        private readonly object connectionLock = new object();
+        private Task audioLoopTask = null;
+        private bool isConnecting = false;
 
         // SBC codec
         private SbcDecoder sbcDecoder;
@@ -128,9 +137,66 @@ namespace HTCommander
             InitializeSoftModem(SoftwareModemModeType.Psk2400);
         }
 
+        /// <summary>
+        /// Disposes of all resources used by RadioAudio, including the data broker.
+        /// </summary>
+        public void Dispose()
+        {
+            // Stop audio streaming first
+            Stop();
+
+            // Clean up software modem resources
+            lock (softModemLock)
+            {
+                CleanupSoftModem();
+                CleanupPacketTransmitter();
+            }
+
+            // Dispose recording if active
+            try { recording?.Dispose(); } catch (Exception) { }
+            recording = null;
+
+            // Dispose speech-to-text engine
+            try
+            {
+                if (speechToTextEngine != null)
+                {
+                    speechToTextEngine.OnDebugMessage -= SpeechToTextEngine_OnDebugMessage;
+                    speechToTextEngine.onProcessingVoice -= SpeechToTextEngine_onProcessingVoice;
+                    speechToTextEngine.onTextReady -= SpeechToTextEngine_onTextReady;
+                    speechToTextEngine.Dispose();
+                }
+            }
+            catch (Exception) { }
+            speechToTextEngine = null;
+
+            // Dispose wave output
+            try { waveOut?.Stop(); } catch (Exception) { }
+            try { waveOut?.Dispose(); } catch (Exception) { }
+            waveOut = null;
+            waveProvider = null;
+            volumeProvider = null;
+
+            // Cancel any ongoing transmission
+            try { transmissionTokenSource?.Cancel(); } catch (Exception) { }
+            try { transmissionTokenSource?.Dispose(); } catch (Exception) { }
+            transmissionTokenSource = null;
+
+            // Clear queues
+            while (pcmQueue.TryDequeue(out _)) { }
+            while (packetQueue.TryDequeue(out _)) { }
+
+            // Dispose the data broker client
+            broker?.Dispose();
+
+            // Clear parent reference
+            parent = null;
+        }
+
+
         public void GotAudioData(byte[] data, int offset, int len, string channelName, bool transmit) { broker.Dispatch(DeviceId, "AudioDataAvailable", new { Data = data, Offset = offset, Length = len, ChannelName = channelName, Transmit = transmit }, store: false); }
-        private void Debug(string msg) { broker.Dispatch(DeviceId, "LogInfo", $"[RadioAudio/{DeviceId}]: {msg}", store: false); }
-        private void DispatchAudioStateChanged(bool enabled) { broker.Dispatch(DeviceId, "AudioStateChanged", enabled, store: false); }
+        private void Debug(string msg) { broker.Dispatch(1, "LogInfo", $"[RadioAudio/{DeviceId}]: {msg}", store: false); }
+        private void DispatchAudioStateChanged(bool enabled) { broker.Dispatch(DeviceId, "AudioState", enabled, store: true); }
         private void DispatchVoiceTransmitStateChanged(bool transmitting) { broker.Dispatch(DeviceId, "VoiceTransmitStateChanged", transmitting, store: false); }
         private void DispatchTextReady(string text, string channel, DateTime time, bool completed) { broker.Dispatch(DeviceId, "TextReady", new { Text = text, Channel = channel, Time = time, Completed = completed }, store: false); }
         private void DispatchProcessingVoice(bool listening, bool processing) { broker.Dispatch(DeviceId, "ProcessingVoice", new { Listening = listening, Processing = processing }, store: false); }
@@ -756,16 +822,62 @@ namespace HTCommander
 
         public void Stop()
         {
-            if (running == false) return;
-            running = false;
-            try { if (audioStream != null) { audioStream.Dispose(); } } catch (Exception) { }
+            lock (connectionLock)
+            {
+                if (running == false && audioLoopTask == null) return;
+                running = false;
+                
+                // Cancel the audio loop
+                try { audioLoopCts?.Cancel(); } catch (Exception) { }
+            }
+            
+            // Wait for the audio loop to finish (with timeout)
+            if (audioLoopTask != null)
+            {
+                try { audioLoopTask.Wait(TimeSpan.FromSeconds(3)); } catch (Exception) { }
+            }
+            
+            lock (connectionLock)
+            {
+                // Dispose Bluetooth resources in correct order
+                // First close streams, then socket, then service
+                try { winRtInputStream?.Close(); } catch (Exception) { }
+                try { winRtInputStream?.Dispose(); } catch (Exception) { }
+                winRtInputStream = null;
+                
+                try { winRtOutputStream?.Close(); } catch (Exception) { }
+                try { winRtOutputStream?.Dispose(); } catch (Exception) { }
+                winRtOutputStream = null;
+                
+                try { bluetoothSocket?.Dispose(); } catch (Exception) { }
+                bluetoothSocket = null;
+                
+                try { rfcommService?.Dispose(); } catch (Exception) { }
+                rfcommService = null;
+                
+                try { audioStream?.Close(); } catch (Exception) { }
+                try { audioStream?.Dispose(); } catch (Exception) { }
+                audioStream = null;
+                
+                try { audioLoopCts?.Dispose(); } catch (Exception) { }
+                audioLoopCts = null;
+                audioLoopTask = null;
+            }
+            
             DispatchAudioStateChanged(false);
+            
+            // Give the OS time to release the socket
+            Thread.Sleep(100);
         }
 
         public void Start()
         {
-            if (running) return;
-            Task.Run(() => { StartAsync(); });
+            lock (connectionLock)
+            {
+                if (running || isConnecting) return;
+                isConnecting = true;
+            }
+            audioLoopTask = Task.Run(() => { StartAsync(); });
         }
 
         public float Volume
@@ -822,32 +934,134 @@ namespace HTCommander
         }
         private async void StartAsync()
         {
-            running = true;
+            CancellationToken cancellationToken;
+            
+            lock (connectionLock)
+            {
+                running = true;
+                audioLoopCts = new CancellationTokenSource();
+                cancellationToken = audioLoopCts.Token;
+            }
+            
             int maxVoiceDecodeTime = 0;
-            Guid rfcommServiceUuid = BluetoothService.GenericAudio;
-            BluetoothAddress address = BluetoothAddress.Parse(MacAddress);
-            BluetoothEndPoint remoteEndPoint = new BluetoothEndPoint(address, rfcommServiceUuid, 2);
-            connectionClient = new BluetoothClient();
-            connectionClient.Client.SendBufferSize = 1024; // Limit the outgoing buffer.
 
-            // Connect to the remote endpoint asynchronously
-            Debug("Attempting to connect...");
+            // Use WinRT Bluetooth APIs to connect to the device
+            WinBluetooth.BluetoothDevice btDevice = null;
+            WinRfcomm.RfcommDeviceService rfcommService = null;
+            Windows.Networking.Sockets.StreamSocket socket = null;
+
+            Debug("Attempting to connect using WinRT APIs...");
             try
             {
-                connectionClient.Connect(remoteEndPoint);
+                // Convert MAC address to the format needed by WinRT (with colons)
+                string macFormatted = MacAddress;
+                if (!macFormatted.Contains(":"))
+                {
+                    macFormatted = string.Join(":", Enumerable.Range(0, 6).Select(i => MacAddress.Substring(i * 2, 2)));
+                }
+
+                // Get the Bluetooth device by MAC address
+                ulong btAddress = Convert.ToUInt64(MacAddress.Replace(":", "").Replace("-", ""), 16);
+                btDevice = await WinBluetooth.BluetoothDevice.FromBluetoothAddressAsync(btAddress);
+                
+                if (btDevice == null)
+                {
+                    Debug("Could not find Bluetooth device with address: " + MacAddress);
+                    running = false;
+                    return;
+                }
+
+                Debug($"Found device: {btDevice.Name}");
+
+                // Get RFCOMM services from the device
+                var rfcommServices = await btDevice.GetRfcommServicesAsync();
+                
+                if (rfcommServices.Services.Count == 0)
+                {
+                    Debug("No RFCOMM services found on device");
+                    running = false;
+                    return;
+                }
+
+                // Find the audio service (GenericAudio UUID: 00001203-0000-1000-8000-00805f9b34fb)
+                // or try to find any available service
+                Guid genericAudioUuid = new Guid("00001203-0000-1000-8000-00805f9b34fb");
+                
+                foreach (var service in rfcommServices.Services)
+                {
+                    Debug($"Found RFCOMM service: {service.ServiceId.Uuid} - {service.ConnectionServiceName}");
+                    if (service.ServiceId.Uuid == genericAudioUuid)
+                    {
+                        rfcommService = service;
+                        break;
+                    }
+                }
+
+                // If GenericAudio not found, try the second service (index 1) as it might be the audio channel
+                if (rfcommService == null && rfcommServices.Services.Count > 1)
+                {
+                    rfcommService = rfcommServices.Services[0];
+                    Debug($"Using service at index 0: {rfcommService.ServiceId.Uuid}");
+                }
+                else if (rfcommService == null && rfcommServices.Services.Count > 0)
+                {
+                    rfcommService = rfcommServices.Services[0];
+                    Debug($"Using first available service: {rfcommService.ServiceId.Uuid}");
+                }
+
+                if (rfcommService == null)
+                {
+                    Debug("Could not find suitable RFCOMM service");
+                    running = false;
+                    return;
+                }
+
+                // Connect to the RFCOMM service
+                bluetoothSocket = new Windows.Networking.Sockets.StreamSocket();
+                this.rfcommService = rfcommService;
+                await bluetoothSocket.ConnectAsync(
+                    rfcommService.ConnectionHostName,
+                    rfcommService.ConnectionServiceName,
+                    Windows.Networking.Sockets.SocketProtectionLevel.BluetoothEncryptionAllowNullAuthentication);
+
+                Debug("Successfully connected to the RFCOMM channel.");
             }
             catch (Exception ex)
             {
                 Debug($"Connection error: {ex.Message}");
-                connectionClient.Dispose();
-                connectionClient = null;
-                running = false;
+                lock (connectionLock)
+                {
+                    try { bluetoothSocket?.Dispose(); } catch (Exception) { }
+                    bluetoothSocket = null;
+                    try { rfcommService?.Dispose(); } catch (Exception) { }
+                    this.rfcommService = null;
+                    running = false;
+                    isConnecting = false;
+                }
                 return;
             }
-            Debug("Successfully connected to the RFCOMM channel.");
 
+            // Create stream wrapper for WinRT socket
             try
             {
+                lock (connectionLock)
+                {
+                    isConnecting = false;
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        running = false;
+                        try { bluetoothSocket?.Dispose(); } catch (Exception) { }
+                        bluetoothSocket = null;
+                        try { rfcommService?.Dispose(); } catch (Exception) { }
+                        this.rfcommService = null;
+                        return;
+                    }
+                    
+                    winRtInputStream = bluetoothSocket.InputStream.AsStreamForRead();
+                    winRtOutputStream = bluetoothSocket.OutputStream.AsStreamForWrite();
+                    audioStream = null; // We use winRtOutputStream directly now
+                }
+
                 // Initialize C# SBC implementation
                 sbcDecoder = new SbcDecoder();
                 sbcEncoder = new SbcEncoder();
@@ -881,79 +1095,84 @@ namespace HTCommander
                 if (waveOut == null) { SetOutputDevice(""); }
 
                 MemoryStream accumulator = new MemoryStream();
-                using (NetworkStream stream = connectionClient.GetStream())
-                {
-                    audioStream = stream;
-                    Debug("Ready to receive data.");
-                    DispatchAudioStateChanged(true);
-                    byte[] receiveBuffer = new byte[ReceiveBufferSize];
+                
+                Debug("Ready to receive data.");
+                DispatchAudioStateChanged(true);
+                byte[] receiveBuffer = new byte[ReceiveBufferSize];
 
-                    while (running && connectionClient.Connected)
+                while (running && !cancellationToken.IsCancellationRequested)
+                {
+                    // Receive data asynchronously from WinRT stream with cancellation support
+                    int bytesRead;
+                    try
                     {
-                        // Receive data asynchronously
-                        int bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
-                        if (bytesRead > 0)
+                        bytesRead = await winRtInputStream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length, cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    if (bytesRead > 0)
+                    {
+                        byte[] frame;
+                        accumulator.Write(receiveBuffer, 0, bytesRead);
+                        while ((frame = ExtractData(ref accumulator)) != null)
                         {
-                            byte[] frame;
-                            accumulator.Write(receiveBuffer, 0, bytesRead);
-                            while ((frame = ExtractData(ref accumulator)) != null)
+                            int uframeLength = UnescapeBytesInPlace(frame);
+                            if (uframeLength == 0) break;
+                            switch (frame[0])
                             {
-                                int uframeLength = UnescapeBytesInPlace(frame);
-                                if (uframeLength == 0) break;
-                                switch (frame[0])
-                                {
-                                    case 0x00: // Audio normal
-                                    case 0x03: // Audio odd
-                                        if (speechToText && (speechToTextEngine == null))
-                                        {
-                                            speechToTextEngine = new WhisperEngine(voiceModel, voiceLanguage);
-                                            speechToTextEngine.OnDebugMessage += SpeechToTextEngine_OnDebugMessage;
-                                            speechToTextEngine.onProcessingVoice += SpeechToTextEngine_onProcessingVoice;
-                                            speechToTextEngine.onTextReady += SpeechToTextEngine_onTextReady;
-                                            speechToTextEngine.StartVoiceSegment();
-                                            maxVoiceDecodeTime = 0;
-                                            DispatchProcessingVoice(true, false);
-                                        }
-                                        if (!speechToText && (speechToTextEngine != null))
-                                        {
-                                            speechToTextEngine.ResetVoiceSegment();
-                                            speechToTextEngine.OnDebugMessage -= SpeechToTextEngine_OnDebugMessage;
-                                            speechToTextEngine.onProcessingVoice -= SpeechToTextEngine_onProcessingVoice;
-                                            speechToTextEngine.onTextReady -= SpeechToTextEngine_onTextReady;
-                                            speechToTextEngine.Dispose();
-                                            speechToTextEngine = null;
-                                            DispatchProcessingVoice(false, false);
-                                        }
-                                        DecodeSbcFrame(frame, 1, uframeLength - 1);
-                                        maxVoiceDecodeTime += (uframeLength - 1);
-                                        if ((speechToTextEngine != null) && (maxVoiceDecodeTime > 19200000)) // 5 minutes (32k * 2 * 60 & 5)
-                                        {
-                                            speechToTextEngine.ResetVoiceSegment();
-                                            maxVoiceDecodeTime = 0;
-                                        }
-                                        break;
-                                    case 0x01: // Audio end
-                                        //Debug("Command: 0x01, Audio End, Size: " + uframeLength);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
-                                        if (speechToTextEngine != null)
-                                        {
-                                            speechToTextEngine.ResetVoiceSegment();
-                                            maxVoiceDecodeTime = 0;
-                                        }
-                                        break;
-                                    case 0x02: // Audio ACK
-                                        //Debug("Command: 0x02, Audio Ack, Size: " + uframeLength);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
-                                        break;
-                                    default:
-                                        Debug($"Unknown command: {frame[0]}");
-                                        break;
-                                }
+                                case 0x00: // Audio normal
+                                case 0x03: // Audio odd
+                                    if (speechToText && (speechToTextEngine == null))
+                                    {
+                                        speechToTextEngine = new WhisperEngine(voiceModel, voiceLanguage);
+                                        speechToTextEngine.OnDebugMessage += SpeechToTextEngine_OnDebugMessage;
+                                        speechToTextEngine.onProcessingVoice += SpeechToTextEngine_onProcessingVoice;
+                                        speechToTextEngine.onTextReady += SpeechToTextEngine_onTextReady;
+                                        speechToTextEngine.StartVoiceSegment();
+                                        maxVoiceDecodeTime = 0;
+                                        DispatchProcessingVoice(true, false);
+                                    }
+                                    if (!speechToText && (speechToTextEngine != null))
+                                    {
+                                        speechToTextEngine.ResetVoiceSegment();
+                                        speechToTextEngine.OnDebugMessage -= SpeechToTextEngine_OnDebugMessage;
+                                        speechToTextEngine.onProcessingVoice -= SpeechToTextEngine_onProcessingVoice;
+                                        speechToTextEngine.onTextReady -= SpeechToTextEngine_onTextReady;
+                                        speechToTextEngine.Dispose();
+                                        speechToTextEngine = null;
+                                        DispatchProcessingVoice(false, false);
+                                    }
+                                    DecodeSbcFrame(frame, 1, uframeLength - 1);
+                                    maxVoiceDecodeTime += (uframeLength - 1);
+                                    if ((speechToTextEngine != null) && (maxVoiceDecodeTime > 19200000)) // 5 minutes (32k * 2 * 60 & 5)
+                                    {
+                                        speechToTextEngine.ResetVoiceSegment();
+                                        maxVoiceDecodeTime = 0;
+                                    }
+                                    break;
+                                case 0x01: // Audio end
+                                    //Debug("Command: 0x01, Audio End, Size: " + uframeLength);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
+                                    if (speechToTextEngine != null)
+                                    {
+                                        speechToTextEngine.ResetVoiceSegment();
+                                        maxVoiceDecodeTime = 0;
+                                    }
+                                    break;
+                                case 0x02: // Audio ACK
+                                    //Debug("Command: 0x02, Audio Ack, Size: " + uframeLength);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
+                                    break;
+                                default:
+                                    Debug($"Unknown command: {frame[0]}");
+                                    break;
                             }
                         }
-                        else if (bytesRead == 0)
-                        {
-                            if (running) { Debug("Connection closed by remote host."); }
-                            break;
-                        }
+                    }
+                    else if (bytesRead == 0)
+                    {
+                        if (running) { Debug("Connection closed by remote host."); }
+                        break;
                     }
                 }
             }
@@ -963,7 +1182,11 @@ namespace HTCommander
             }
             finally
             {
-                running = false;
+                lock (connectionLock)
+                {
+                    running = false;
+                    isConnecting = false;
+                }
 
                 if (speechToTextEngine != null)
                 {
@@ -975,13 +1198,32 @@ namespace HTCommander
                     speechToTextEngine = null;
                 }
 
-                if (speechToTextEngine != null) { speechToTextEngine.Dispose(); speechToTextEngine = null; }
                 DispatchAudioStateChanged(false);
-                connectionClient?.Close();
                 waveOut?.Stop();
                 waveOut?.Dispose();
                 waveOut = null;
-                audioStream = null;
+
+                // Dispose Bluetooth resources in correct order
+                lock (connectionLock)
+                {
+                    try { winRtInputStream?.Close(); } catch (Exception) { }
+                    try { winRtInputStream?.Dispose(); } catch (Exception) { }
+                    winRtInputStream = null;
+                    
+                    try { winRtOutputStream?.Close(); } catch (Exception) { }
+                    try { winRtOutputStream?.Dispose(); } catch (Exception) { }
+                    winRtOutputStream = null;
+                    
+                    try { bluetoothSocket?.Dispose(); } catch (Exception) { }
+                    bluetoothSocket = null;
+                    
+                    try { rfcommService?.Dispose(); } catch (Exception) { }
+                    rfcommService = null;
+                    
+                    try { audioStream?.Close(); } catch (Exception) { }
+                    try { audioStream?.Dispose(); } catch (Exception) { }
+                    audioStream = null;
+                }
 
                 // SBC cleanup
                 sbcDecoder = null;
@@ -1500,7 +1742,7 @@ namespace HTCommander
         // Transmit packet audio through radio
         private async Task TransmitPacketAudioAsync(byte[] pcmData, bool playLocally)
         {
-            if (audioStream == null || !running)
+            if (winRtOutputStream == null || !running)
             {
                 Debug("Cannot transmit packet: radio not connected");
                 return;
@@ -1524,8 +1766,8 @@ namespace HTCommander
                         if (EncodeSbcFrame(pcmData, offset, chunkSize, out encodedSbcFrame, out bytesConsumed))
                         {
                             byte[] escaped = EscapeBytes(0, encodedSbcFrame, encodedSbcFrame.Length);
-                            await audioStream.WriteAsync(escaped, 0, escaped.Length);
-                            await audioStream.FlushAsync();
+                            await winRtOutputStream.WriteAsync(escaped, 0, escaped.Length);
+                            await winRtOutputStream.FlushAsync();
                             
                             if (playLocally && waveProvider != null)
                             {
@@ -1597,8 +1839,11 @@ namespace HTCommander
                     // Send end audio frame
                     ReminderTransmitPcmAudio = null;
                     byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
-                    await audioStream.WriteAsync(endAudio, 0, endAudio.Length);
-                    await audioStream.FlushAsync();
+                    if (winRtOutputStream != null)
+                    {
+                        await winRtOutputStream.WriteAsync(endAudio, 0, endAudio.Length);
+                        await winRtOutputStream.FlushAsync();
+                    }
                 }
                 finally
                 {
@@ -1634,8 +1879,11 @@ namespace HTCommander
 
                 // Send the audio frame to the radio
                 byte[] escaped = EscapeBytes(0, encodedSbcFrame, encodedSbcFrame.Length);
-                await audioStream.WriteAsync(escaped, 0, escaped.Length);
-                await audioStream.FlushAsync();
+                if (winRtOutputStream != null)
+                {
+                    await winRtOutputStream.WriteAsync(escaped, 0, escaped.Length);
+                    await winRtOutputStream.FlushAsync();
+                }
 
                 // Do extra processing if needed
                 if (recording != null)

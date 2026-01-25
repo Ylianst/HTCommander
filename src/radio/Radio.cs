@@ -146,11 +146,11 @@ namespace HTCommander
         public bool HardwareModemEnabled = true;
 
         public RadioState State => state;
-        public bool Recording => RadioAudio.Recording;
+        public bool Recording => RadioAudio?.Recording ?? false;
         public int TransmitQueueLength => TncFragmentQueue.Count;
-        public bool AudioState => RadioAudio.IsAudioEnabled;
-        public float OutputVolume { get => RadioAudio.Volume; set => RadioAudio.Volume = value; }
-        public bool AudioToTextState => RadioAudio.speechToText;
+        public bool AudioState => RadioAudio?.IsAudioEnabled ?? false;
+        public float OutputVolume { get => RadioAudio?.Volume ?? 0; set { if (RadioAudio != null) RadioAudio.Volume = value; } }
+        public bool AudioToTextState => RadioAudio?.speechToText ?? false;
 
         public RadioAudio.SoftwareModemModeType SoftwareModemMode
         {
@@ -195,6 +195,9 @@ namespace HTCommander
             // Subscribe to lock/unlock events
             broker.Subscribe(deviceid, "SetLock", OnSetLockEvent);
             broker.Subscribe(deviceid, "SetUnlock", OnSetUnlockEvent);
+
+            // Subscribe to audio control events
+            broker.Subscribe(deviceid, "SetAudio", OnSetAudioEvent);
         }
 
         /// <summary>
@@ -376,6 +379,18 @@ namespace HTCommander
         }
 
         /// <summary>
+        /// Handles SetAudio event from the broker to enable/disable audio streaming.
+        /// </summary>
+        private void OnSetAudioEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            if (data is bool audioEnabled)
+            {
+                AudioEnabled(audioEnabled);
+            }
+        }
+
+        /// <summary>
         /// Handles SetUnlock event from the broker to unlock the radio and restore previous settings.
         /// </summary>
         private void OnSetUnlockEvent(int deviceId, string name, object data)
@@ -443,13 +458,40 @@ namespace HTCommander
             AudioEnabled(false);
             UpdateState(newstate);
             radioTransport.Disconnect();
+
+            // Dispose RadioAudio to clean up its resources and data broker
+            RadioAudio?.Dispose();
+            RadioAudio = null;
+
+            // Dispatch null values through the Data Broker to notify subscribers of disconnection
+            broker.Dispatch(DeviceId, "Info", null, store: true);
+            broker.Dispatch(DeviceId, "Channels", null, store: true);
+            broker.Dispatch(DeviceId, "HtStatus", null, store: true);
+            broker.Dispatch(DeviceId, "Settings", null, store: true);
+            broker.Dispatch(DeviceId, "BssSettings", null, store: true);
+            broker.Dispatch(DeviceId, "Position", null, store: true);
+            broker.Dispatch(DeviceId, "AllChannelsLoaded", false, store: true);
+            broker.Dispatch(DeviceId, "GpsEnabled", false, store: true);
+            broker.Dispatch(DeviceId, "LockState", null, store: true);
+            broker.Dispatch(DeviceId, "Volume", 0, store: true);
+            broker.Dispatch(DeviceId, "BatteryAsPercentage", 0, store: true);
+            broker.Dispatch(DeviceId, "BatteryLevel", 0, store: true);
+            broker.Dispatch(DeviceId, "BatteryVoltage", 0f, store: true);
+            broker.Dispatch(DeviceId, "RcBatteryLevel", 0, store: true);
+
+            // Clear local state
             Info = null;
             Channels = null;
             HtStatus = null;
             Settings = null;
+            BssSettings = null;
+            Position = null;
             frameAccumulator = null;
             TncFragmentQueue.Clear();
             TncFragmentInFlight = false;
+            lockState = null;
+            _gpsEnabled = false;
+
             DataBroker.DeleteDevice(DeviceId);
         }
 
@@ -475,6 +517,7 @@ namespace HTCommander
 
         public void AudioEnabled(bool enabled)
         {
+            if (RadioAudio == null) return;
             if (enabled) RadioAudio.Start();
             else RadioAudio.Stop();
         }
@@ -533,7 +576,7 @@ namespace HTCommander
 
         private void UpdateCurrentChannelName()
         {
-            if (HtStatus == null) return;
+            if (HtStatus == null || RadioAudio == null) return;
             RadioAudio.currentChannelId = HtStatus.curr_ch_id;
             RadioAudio.currentChannelName = GetChannelNameById(HtStatus.curr_ch_id);
         }
@@ -749,7 +792,7 @@ namespace HTCommander
             {
                 TransmitLoopback(fragment, outboundData, channelId, regionId, t, fragmentChannelName);
             }
-            else if (RadioAudio.IsAudioEnabled && RadioAudio.SoftwareModemMode != RadioAudio.SoftwareModemModeType.Disabled && Settings.channel_a == channelId)
+            else if (RadioAudio != null && RadioAudio.IsAudioEnabled && RadioAudio.SoftwareModemMode != RadioAudio.SoftwareModemModeType.Disabled && Settings.channel_a == channelId)
             {
                 TransmitSoftwareModem(fragment);
             }
@@ -1281,7 +1324,7 @@ namespace HTCommander
 
         #region Dispatch Helpers
 
-        public void Debug(string msg) => broker.Dispatch(0, "LogInfo", $"[Radio/{DeviceId}]: {msg}", store: false);
+        public void Debug(string msg) => broker.Dispatch(1, "LogInfo", $"[Radio/{DeviceId}]: {msg}", store: false);
         private void DispatchDataFrame(TncDataFragment frame)
         {
             frame.RadioMac = MacAddress;

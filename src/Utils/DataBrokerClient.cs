@@ -148,23 +148,23 @@ namespace HTCommander
         }
 
         /// <summary>
-        /// Publishes an informational log message to device 0 under "LogInfo".
+        /// Publishes an informational log message to device 1 under "LogInfo".
         /// </summary>
         /// <param name="msg">The log message.</param>
         public void LogInfo(string msg)
         {
             if (_disposed) throw new ObjectDisposedException(nameof(DataBrokerClient));
-            DataBroker.Dispatch(0, "LogInfo", msg, store: false);
+            DataBroker.Dispatch(1, "LogInfo", msg, store: false);
         }
 
         /// <summary>
-        /// Publishes an error log message to device 0 under "LogError".
+        /// Publishes an error log message to device 1 under "LogError".
         /// </summary>
         /// <param name="msg">The error message.</param>
         public void LogError(string msg)
         {
             if (_disposed) throw new ObjectDisposedException(nameof(DataBrokerClient));
-            DataBroker.Dispatch(0, "LogError", msg, store: false);
+            DataBroker.Dispatch(1, "LogError", msg, store: false);
         }
 
         /// <summary>
