@@ -150,7 +150,6 @@ namespace HTCommander
         public int TransmitQueueLength => TncFragmentQueue.Count;
         public bool AudioState => RadioAudio?.IsAudioEnabled ?? false;
         public float OutputVolume { get => RadioAudio?.Volume ?? 0; set { if (RadioAudio != null) RadioAudio.Volume = value; } }
-        public bool AudioToTextState => RadioAudio?.speechToText ?? false;
 
         public RadioAudio.SoftwareModemModeType SoftwareModemMode
         {

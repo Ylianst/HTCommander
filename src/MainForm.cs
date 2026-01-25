@@ -47,6 +47,7 @@ namespace HTCommander
             // Add the data handlers
             DataBroker.AddDataHandler("FrameDeduplicator", new FrameDeduplicator());
             DataBroker.AddDataHandler("PacketStore", new PacketStore());
+            DataBroker.AddDataHandler("VoiceHandler", new VoiceHandler());
             DataBroker.AddDataHandler("LogStore", new LogStore());
             DataBroker.AddDataHandler("AprsHandler", new AprsHandler());
             DataBroker.AddDataHandler("Torrent", new Torrent());

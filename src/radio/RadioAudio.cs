@@ -48,12 +48,8 @@ namespace HTCommander
         private byte[] pcmFrame = new byte[16000];
         private bool running = false;
         private NetworkStream audioStream;
-        public bool speechToText = false;
-        private WhisperEngine speechToTextEngine = null;
         public string currentChannelName = "";
         public int currentChannelId = 0;
-        public string voiceLanguage = "auto";
-        public string voiceModel = null;
         private int pcmInputSizePerFrame; // Expected PCM bytes per encode call
         //private int sbcOutputSizePerFrame; // Max SBC bytes generated per encode call
         private byte[] sbcOutputBuffer; // Reusable buffer for SBC frame output
@@ -156,20 +152,6 @@ namespace HTCommander
             try { recording?.Dispose(); } catch (Exception) { }
             recording = null;
 
-            // Dispose speech-to-text engine
-            try
-            {
-                if (speechToTextEngine != null)
-                {
-                    speechToTextEngine.OnDebugMessage -= SpeechToTextEngine_OnDebugMessage;
-                    speechToTextEngine.onProcessingVoice -= SpeechToTextEngine_onProcessingVoice;
-                    speechToTextEngine.onTextReady -= SpeechToTextEngine_onTextReady;
-                    speechToTextEngine.Dispose();
-                }
-            }
-            catch (Exception) { }
-            speechToTextEngine = null;
-
             // Dispose wave output
             try { waveOut?.Stop(); } catch (Exception) { }
             try { waveOut?.Dispose(); } catch (Exception) { }
@@ -198,8 +180,6 @@ namespace HTCommander
         private void Debug(string msg) { broker.Dispatch(1, "LogInfo", $"[RadioAudio/{DeviceId}]: {msg}", store: false); }
         private void DispatchAudioStateChanged(bool enabled) { broker.Dispatch(DeviceId, "AudioState", enabled, store: true); }
         private void DispatchVoiceTransmitStateChanged(bool transmitting) { broker.Dispatch(DeviceId, "VoiceTransmitStateChanged", transmitting, store: false); }
-        private void DispatchTextReady(string text, string channel, DateTime time, bool completed) { broker.Dispatch(DeviceId, "TextReady", new { Text = text, Channel = channel, Time = time, Completed = completed }, store: false); }
-        private void DispatchProcessingVoice(bool listening, bool processing) { broker.Dispatch(DeviceId, "ProcessingVoice", new { Listening = listening, Processing = processing }, store: false); }
         private void DispatchSoftModemPacketDecoded(TncDataFragment fragment) { broker.Dispatch(DeviceId, "SoftModemPacketDecoded", fragment, store: false); }
         private void DispatchAudioDataAvailable(byte[] data, int offset, int length, string channelName, bool transmit) { broker.Dispatch(DeviceId, "AudioDataAvailable", new { Data = data, Offset = offset, Length = length, ChannelName = channelName, Transmit = transmit }, store: false); }
 
@@ -926,12 +906,6 @@ namespace HTCommander
             waveOut.Play();
         }
 
-        public void StartAudioToText(string language, string model)
-        {
-            voiceLanguage = language;
-            voiceModel = model;
-            speechToText = true;
-        }
         private async void StartAsync()
         {
             CancellationToken cancellationToken;
@@ -942,8 +916,6 @@ namespace HTCommander
                 audioLoopCts = new CancellationTokenSource();
                 cancellationToken = audioLoopCts.Token;
             }
-            
-            int maxVoiceDecodeTime = 0;
 
             // Use WinRT Bluetooth APIs to connect to the device
             WinBluetooth.BluetoothDevice btDevice = null;
@@ -1124,41 +1096,10 @@ namespace HTCommander
                             {
                                 case 0x00: // Audio normal
                                 case 0x03: // Audio odd
-                                    if (speechToText && (speechToTextEngine == null))
-                                    {
-                                        speechToTextEngine = new WhisperEngine(voiceModel, voiceLanguage);
-                                        speechToTextEngine.OnDebugMessage += SpeechToTextEngine_OnDebugMessage;
-                                        speechToTextEngine.onProcessingVoice += SpeechToTextEngine_onProcessingVoice;
-                                        speechToTextEngine.onTextReady += SpeechToTextEngine_onTextReady;
-                                        speechToTextEngine.StartVoiceSegment();
-                                        maxVoiceDecodeTime = 0;
-                                        DispatchProcessingVoice(true, false);
-                                    }
-                                    if (!speechToText && (speechToTextEngine != null))
-                                    {
-                                        speechToTextEngine.ResetVoiceSegment();
-                                        speechToTextEngine.OnDebugMessage -= SpeechToTextEngine_OnDebugMessage;
-                                        speechToTextEngine.onProcessingVoice -= SpeechToTextEngine_onProcessingVoice;
-                                        speechToTextEngine.onTextReady -= SpeechToTextEngine_onTextReady;
-                                        speechToTextEngine.Dispose();
-                                        speechToTextEngine = null;
-                                        DispatchProcessingVoice(false, false);
-                                    }
                                     DecodeSbcFrame(frame, 1, uframeLength - 1);
-                                    maxVoiceDecodeTime += (uframeLength - 1);
-                                    if ((speechToTextEngine != null) && (maxVoiceDecodeTime > 19200000)) // 5 minutes (32k * 2 * 60 & 5)
-                                    {
-                                        speechToTextEngine.ResetVoiceSegment();
-                                        maxVoiceDecodeTime = 0;
-                                    }
                                     break;
                                 case 0x01: // Audio end
                                     //Debug("Command: 0x01, Audio End, Size: " + uframeLength);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
-                                    if (speechToTextEngine != null)
-                                    {
-                                        speechToTextEngine.ResetVoiceSegment();
-                                        maxVoiceDecodeTime = 0;
-                                    }
                                     break;
                                 case 0x02: // Audio ACK
                                     //Debug("Command: 0x02, Audio Ack, Size: " + uframeLength);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
@@ -1186,16 +1127,6 @@ namespace HTCommander
                 {
                     running = false;
                     isConnecting = false;
-                }
-
-                if (speechToTextEngine != null)
-                {
-                    speechToTextEngine.ResetVoiceSegment();
-                    speechToTextEngine.OnDebugMessage -= SpeechToTextEngine_OnDebugMessage;
-                    speechToTextEngine.onProcessingVoice -= SpeechToTextEngine_onProcessingVoice;
-                    speechToTextEngine.onTextReady -= SpeechToTextEngine_onTextReady;
-                    speechToTextEngine.Dispose();
-                    speechToTextEngine = null;
                 }
 
                 DispatchAudioStateChanged(false);
@@ -1231,20 +1162,6 @@ namespace HTCommander
 
                 Debug("Bluetooth connection closed.");
             }
-        }
-
-        private void SpeechToTextEngine_OnDebugMessage(string msg)
-        {
-            Debug("Whisper: " + msg);
-        }
-
-        private void SpeechToTextEngine_onTextReady(string text, string channel, DateTime time, bool completed)
-        {
-            DispatchTextReady(text, channel, time, completed);
-        }
-        private void SpeechToTextEngine_onProcessingVoice(bool processing)
-        {
-            DispatchProcessingVoice(speechToTextEngine != null, processing);
         }
 
         private int DecodeSbcFrame(byte[] sbcFrame, int start, int length)
@@ -1308,11 +1225,6 @@ namespace HTCommander
                         {
                             try { recording.Write(pcmFrame, 0, totalWritten); }
                             catch (Exception ex) { Debug("Recording Write Error: " + ex.ToString()); }
-                        }
-                        if (speechToTextEngine != null)
-                        {
-                            try { speechToTextEngine.ProcessAudioChunk(pcmFrame, 0, totalWritten, currentChannelName); }
-                            catch (Exception ex) { Debug("ProcessAudioChunk Error: " + ex.ToString()); }
                         }
                         GotAudioData(pcmFrame, 0, totalWritten, currentChannelName, false);
                     }
