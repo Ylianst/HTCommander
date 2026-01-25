@@ -73,8 +73,6 @@ namespace HTCommander
 
             // Publish initial empty connected radios list
             PublishConnectedRadios();
-
-            voiceTabUserControl.Initialize(this);
         }
         private void StartPipeServer()
         {
