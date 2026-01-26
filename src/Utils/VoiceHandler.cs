@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.IO;
 using HTCommander.radio;
 
 namespace HTCommander
@@ -24,7 +25,7 @@ namespace HTCommander
         private WhisperEngine _speechToTextEngine = null;
         private string _currentChannelName = "";
         private int _maxVoiceDecodeTime = 0;
-        private const int MaxVoiceDecodeTimeLimit = 19200000; // 5 minutes (32k * 2 * 60 * 5)
+        private const int MaxVoiceDecodeTimeLimit = (32000 * 2 * 60 * 1); // 1 minute (32k * 2 * 60 * 1)
 
         /// <summary>
         /// Initializes the VoiceHandler and subscribes to Data Broker events.
@@ -185,20 +186,59 @@ namespace HTCommander
 
             try
             {
-                _speechToTextEngine = new WhisperEngine(_voiceModel, _voiceLanguage);
+                // Construct the full path to the model file
+                // Model name is stored as e.g., "Tiny", "Base.en", etc.
+                // Full path is: %LOCALAPPDATA%\HTCommander\ggml-{model}.bin
+                string modelPath = GetModelFullPath(_voiceModel);
+                
+                if (string.IsNullOrEmpty(modelPath))
+                {
+                    broker.LogError("[VoiceHandler] No voice model specified");
+                    return;
+                }
+
+                if (!File.Exists(modelPath))
+                {
+                    broker.LogError($"[VoiceHandler] Voice model file not found: {modelPath}");
+                    return;
+                }
+
+                _speechToTextEngine = new WhisperEngine(modelPath, _voiceLanguage);
                 _speechToTextEngine.OnDebugMessage += OnWhisperDebugMessage;
                 _speechToTextEngine.onProcessingVoice += OnWhisperProcessingVoice;
                 _speechToTextEngine.onTextReady += OnWhisperTextReady;
                 _speechToTextEngine.StartVoiceSegment();
 
                 DispatchProcessingVoice(true, false);
-                broker.LogInfo("[VoiceHandler] Speech engine initialized");
+                broker.LogInfo($"[VoiceHandler] Speech engine initialized with model: {modelPath}");
             }
             catch (Exception ex)
             {
                 broker.LogError($"[VoiceHandler] Failed to initialize speech engine: {ex.Message}");
                 _speechToTextEngine = null;
             }
+        }
+
+        /// <summary>
+        /// Gets the full path to the voice model file.
+        /// </summary>
+        /// <param name="modelName">The model name (e.g., "Tiny", "Base.en").</param>
+        /// <returns>The full path to the model file, or null if model name is empty.</returns>
+        private string GetModelFullPath(string modelName)
+        {
+            if (string.IsNullOrEmpty(modelName))
+            {
+                return null;
+            }
+
+            // Model files are stored in: %LOCALAPPDATA%\HTCommander\ggml-{model}.bin
+            string filename = "ggml-" + modelName.ToLower() + ".bin";
+            string appDataPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "HTCommander",
+                filename);
+
+            return appDataPath;
         }
 
         /// <summary>

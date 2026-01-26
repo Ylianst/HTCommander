@@ -35,238 +35,231 @@ namespace HTCommander.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            this.cancelVoiceButton = new System.Windows.Forms.Button();
-            this.voiceHistoryTextBox = new System.Windows.Forms.RichTextBox();
-            this.voiceBottomPanel = new System.Windows.Forms.Panel();
-            this.speakTextBox = new System.Windows.Forms.TextBox();
-            this.speakButton = new System.Windows.Forms.Button();
-            this.speakContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.speakToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.morseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.voiceTopPanel = new System.Windows.Forms.Panel();
-            this.voiceProcessingLabel = new System.Windows.Forms.Label();
-            this.voiceEnableButton = new System.Windows.Forms.Button();
-            this.voiceMenuPictureBox = new System.Windows.Forms.PictureBox();
-            this.voiceTitleLabel = new System.Windows.Forms.Label();
-            this.voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
-            this.detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.voiceBottomPanel.SuspendLayout();
-            this.speakContextMenuStrip.SuspendLayout();
-            this.voiceTopPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.voiceMenuPictureBox)).BeginInit();
-            this.voiceTabContextMenuStrip.SuspendLayout();
-            this.SuspendLayout();
+            components = new System.ComponentModel.Container();
+            cancelVoiceButton = new System.Windows.Forms.Button();
+            voiceHistoryTextBox = new System.Windows.Forms.RichTextBox();
+            voiceBottomPanel = new System.Windows.Forms.Panel();
+            speakTextBox = new System.Windows.Forms.TextBox();
+            speakButton = new System.Windows.Forms.Button();
+            speakContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            speakToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            morseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            voiceTopPanel = new System.Windows.Forms.Panel();
+            voiceProcessingLabel = new System.Windows.Forms.Label();
+            voiceEnableButton = new System.Windows.Forms.Button();
+            voiceMenuPictureBox = new System.Windows.Forms.PictureBox();
+            voiceTitleLabel = new System.Windows.Forms.Label();
+            voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
+            detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            voiceBottomPanel.SuspendLayout();
+            speakContextMenuStrip.SuspendLayout();
+            voiceTopPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)voiceMenuPictureBox).BeginInit();
+            voiceTabContextMenuStrip.SuspendLayout();
+            SuspendLayout();
             // 
             // cancelVoiceButton
             // 
-            this.cancelVoiceButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.cancelVoiceButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.cancelVoiceButton.Location = new System.Drawing.Point(507, 486);
-            this.cancelVoiceButton.Margin = new System.Windows.Forms.Padding(4);
-            this.cancelVoiceButton.Name = "cancelVoiceButton";
-            this.cancelVoiceButton.Size = new System.Drawing.Size(121, 64);
-            this.cancelVoiceButton.TabIndex = 6;
-            this.cancelVoiceButton.Text = "Cancel";
-            this.cancelVoiceButton.UseVisualStyleBackColor = true;
-            this.cancelVoiceButton.Visible = false;
-            this.cancelVoiceButton.Click += new System.EventHandler(this.cancelVoiceButton_Click);
+            cancelVoiceButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+            cancelVoiceButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, 0);
+            cancelVoiceButton.Location = new System.Drawing.Point(507, 294);
+            cancelVoiceButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            cancelVoiceButton.Name = "cancelVoiceButton";
+            cancelVoiceButton.Size = new System.Drawing.Size(121, 80);
+            cancelVoiceButton.TabIndex = 6;
+            cancelVoiceButton.Text = "Cancel";
+            cancelVoiceButton.UseVisualStyleBackColor = true;
+            cancelVoiceButton.Visible = false;
+            cancelVoiceButton.Click += cancelVoiceButton_Click;
             // 
             // voiceHistoryTextBox
             // 
-            this.voiceHistoryTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.voiceHistoryTextBox.Location = new System.Drawing.Point(0, 37);
-            this.voiceHistoryTextBox.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.voiceHistoryTextBox.Name = "voiceHistoryTextBox";
-            this.voiceHistoryTextBox.ReadOnly = true;
-            this.voiceHistoryTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.ForcedVertical;
-            this.voiceHistoryTextBox.Size = new System.Drawing.Size(669, 574);
-            this.voiceHistoryTextBox.TabIndex = 0;
-            this.voiceHistoryTextBox.Text = "";
+            voiceHistoryTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            voiceHistoryTextBox.Location = new System.Drawing.Point(0, 46);
+            voiceHistoryTextBox.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
+            voiceHistoryTextBox.Name = "voiceHistoryTextBox";
+            voiceHistoryTextBox.ReadOnly = true;
+            voiceHistoryTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.ForcedVertical;
+            voiceHistoryTextBox.Size = new System.Drawing.Size(669, 403);
+            voiceHistoryTextBox.TabIndex = 0;
+            voiceHistoryTextBox.Text = "";
             // 
             // voiceBottomPanel
             // 
-            this.voiceBottomPanel.BackColor = System.Drawing.Color.Silver;
-            this.voiceBottomPanel.Controls.Add(this.speakTextBox);
-            this.voiceBottomPanel.Controls.Add(this.speakButton);
-            this.voiceBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.voiceBottomPanel.Location = new System.Drawing.Point(0, 611);
-            this.voiceBottomPanel.Margin = new System.Windows.Forms.Padding(4);
-            this.voiceBottomPanel.Name = "voiceBottomPanel";
-            this.voiceBottomPanel.Size = new System.Drawing.Size(669, 47);
-            this.voiceBottomPanel.TabIndex = 5;
+            voiceBottomPanel.BackColor = System.Drawing.Color.Silver;
+            voiceBottomPanel.Controls.Add(speakTextBox);
+            voiceBottomPanel.Controls.Add(speakButton);
+            voiceBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
+            voiceBottomPanel.Location = new System.Drawing.Point(0, 449);
+            voiceBottomPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            voiceBottomPanel.Name = "voiceBottomPanel";
+            voiceBottomPanel.Size = new System.Drawing.Size(669, 59);
+            voiceBottomPanel.TabIndex = 5;
             // 
             // speakTextBox
             // 
-            this.speakTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.speakTextBox.Enabled = false;
-            this.speakTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.speakTextBox.Location = new System.Drawing.Point(9, 9);
-            this.speakTextBox.Margin = new System.Windows.Forms.Padding(4);
-            this.speakTextBox.MaxLength = 1000;
-            this.speakTextBox.Name = "speakTextBox";
-            this.speakTextBox.Size = new System.Drawing.Size(545, 30);
-            this.speakTextBox.TabIndex = 1;
-            this.speakTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.speakTextBox_KeyPress);
+            speakTextBox.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            speakTextBox.Enabled = false;
+            speakTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            speakTextBox.Location = new System.Drawing.Point(9, 11);
+            speakTextBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            speakTextBox.MaxLength = 1000;
+            speakTextBox.Name = "speakTextBox";
+            speakTextBox.Size = new System.Drawing.Size(545, 30);
+            speakTextBox.TabIndex = 1;
+            speakTextBox.KeyPress += speakTextBox_KeyPress;
             // 
             // speakButton
             // 
-            this.speakButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.speakButton.ContextMenuStrip = this.speakContextMenuStrip;
-            this.speakButton.Enabled = false;
-            this.speakButton.Location = new System.Drawing.Point(565, 6);
-            this.speakButton.Margin = new System.Windows.Forms.Padding(4);
-            this.speakButton.Name = "speakButton";
-            this.speakButton.Size = new System.Drawing.Size(100, 33);
-            this.speakButton.TabIndex = 0;
-            this.speakButton.Text = "&Speak";
-            this.speakButton.UseVisualStyleBackColor = true;
-            this.speakButton.Click += new System.EventHandler(this.speakButton_Click);
+            speakButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+            speakButton.ContextMenuStrip = speakContextMenuStrip;
+            speakButton.Enabled = false;
+            speakButton.Location = new System.Drawing.Point(565, 8);
+            speakButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            speakButton.Name = "speakButton";
+            speakButton.Size = new System.Drawing.Size(100, 41);
+            speakButton.TabIndex = 0;
+            speakButton.Text = "&Speak";
+            speakButton.UseVisualStyleBackColor = true;
+            speakButton.Click += speakButton_Click;
             // 
             // speakContextMenuStrip
             // 
-            this.speakContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.speakContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.speakToolStripMenuItem,
-            this.morseToolStripMenuItem});
-            this.speakContextMenuStrip.Name = "speakContextMenuStrip";
-            this.speakContextMenuStrip.Size = new System.Drawing.Size(120, 56);
+            speakContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            speakContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { speakToolStripMenuItem, morseToolStripMenuItem });
+            speakContextMenuStrip.Name = "speakContextMenuStrip";
+            speakContextMenuStrip.Size = new System.Drawing.Size(120, 56);
             // 
             // speakToolStripMenuItem
             // 
-            this.speakToolStripMenuItem.Checked = true;
-            this.speakToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.speakToolStripMenuItem.Name = "speakToolStripMenuItem";
-            this.speakToolStripMenuItem.Size = new System.Drawing.Size(119, 26);
-            this.speakToolStripMenuItem.Text = "&Speak";
-            this.speakToolStripMenuItem.Click += new System.EventHandler(this.speakToolStripMenuItem_Click);
+            speakToolStripMenuItem.Checked = true;
+            speakToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
+            speakToolStripMenuItem.Name = "speakToolStripMenuItem";
+            speakToolStripMenuItem.Size = new System.Drawing.Size(119, 26);
+            speakToolStripMenuItem.Text = "&Speak";
+            speakToolStripMenuItem.Click += speakToolStripMenuItem_Click;
             // 
             // morseToolStripMenuItem
             // 
-            this.morseToolStripMenuItem.Name = "morseToolStripMenuItem";
-            this.morseToolStripMenuItem.Size = new System.Drawing.Size(119, 26);
-            this.morseToolStripMenuItem.Text = "&Morse";
-            this.morseToolStripMenuItem.Click += new System.EventHandler(this.morseToolStripMenuItem_Click);
+            morseToolStripMenuItem.Name = "morseToolStripMenuItem";
+            morseToolStripMenuItem.Size = new System.Drawing.Size(119, 26);
+            morseToolStripMenuItem.Text = "&Morse";
+            morseToolStripMenuItem.Click += morseToolStripMenuItem_Click;
             // 
             // voiceTopPanel
             // 
-            this.voiceTopPanel.BackColor = System.Drawing.Color.Silver;
-            this.voiceTopPanel.Controls.Add(this.voiceProcessingLabel);
-            this.voiceTopPanel.Controls.Add(this.voiceEnableButton);
-            this.voiceTopPanel.Controls.Add(this.voiceMenuPictureBox);
-            this.voiceTopPanel.Controls.Add(this.voiceTitleLabel);
-            this.voiceTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
-            this.voiceTopPanel.Location = new System.Drawing.Point(0, 0);
-            this.voiceTopPanel.Margin = new System.Windows.Forms.Padding(4);
-            this.voiceTopPanel.Name = "voiceTopPanel";
-            this.voiceTopPanel.Size = new System.Drawing.Size(669, 37);
-            this.voiceTopPanel.TabIndex = 2;
+            voiceTopPanel.BackColor = System.Drawing.Color.Silver;
+            voiceTopPanel.Controls.Add(voiceProcessingLabel);
+            voiceTopPanel.Controls.Add(voiceEnableButton);
+            voiceTopPanel.Controls.Add(voiceMenuPictureBox);
+            voiceTopPanel.Controls.Add(voiceTitleLabel);
+            voiceTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
+            voiceTopPanel.Location = new System.Drawing.Point(0, 0);
+            voiceTopPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            voiceTopPanel.Name = "voiceTopPanel";
+            voiceTopPanel.Size = new System.Drawing.Size(669, 46);
+            voiceTopPanel.TabIndex = 2;
             // 
             // voiceProcessingLabel
             // 
-            this.voiceProcessingLabel.AutoSize = true;
-            this.voiceProcessingLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.voiceProcessingLabel.ForeColor = System.Drawing.Color.LightGray;
-            this.voiceProcessingLabel.Location = new System.Drawing.Point(72, 6);
-            this.voiceProcessingLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.voiceProcessingLabel.Name = "voiceProcessingLabel";
-            this.voiceProcessingLabel.Size = new System.Drawing.Size(24, 25);
-            this.voiceProcessingLabel.TabIndex = 7;
-            this.voiceProcessingLabel.Text = "●";
-            this.voiceProcessingLabel.Visible = false;
+            voiceProcessingLabel.AutoSize = true;
+            voiceProcessingLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            voiceProcessingLabel.ForeColor = System.Drawing.Color.LightGray;
+            voiceProcessingLabel.Location = new System.Drawing.Point(72, 8);
+            voiceProcessingLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            voiceProcessingLabel.Name = "voiceProcessingLabel";
+            voiceProcessingLabel.Size = new System.Drawing.Size(24, 25);
+            voiceProcessingLabel.TabIndex = 7;
+            voiceProcessingLabel.Text = "●";
+            voiceProcessingLabel.Visible = false;
             // 
             // voiceEnableButton
             // 
-            this.voiceEnableButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.voiceEnableButton.Enabled = false;
-            this.voiceEnableButton.Location = new System.Drawing.Point(529, 4);
-            this.voiceEnableButton.Margin = new System.Windows.Forms.Padding(4);
-            this.voiceEnableButton.Name = "voiceEnableButton";
-            this.voiceEnableButton.Size = new System.Drawing.Size(100, 28);
-            this.voiceEnableButton.TabIndex = 6;
-            this.voiceEnableButton.Text = "&Enable";
-            this.voiceEnableButton.UseVisualStyleBackColor = true;
-            this.voiceEnableButton.Click += new System.EventHandler(this.voiceEnableButton_Click);
+            voiceEnableButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            voiceEnableButton.Enabled = false;
+            voiceEnableButton.Location = new System.Drawing.Point(529, 5);
+            voiceEnableButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            voiceEnableButton.Name = "voiceEnableButton";
+            voiceEnableButton.Size = new System.Drawing.Size(100, 35);
+            voiceEnableButton.TabIndex = 6;
+            voiceEnableButton.Text = "&Enable";
+            voiceEnableButton.UseVisualStyleBackColor = true;
+            voiceEnableButton.Click += voiceEnableButton_Click;
             // 
             // voiceMenuPictureBox
             // 
-            this.voiceMenuPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.voiceMenuPictureBox.Image = global::HTCommander.Properties.Resources.MenuIcon;
-            this.voiceMenuPictureBox.Location = new System.Drawing.Point(637, 6);
-            this.voiceMenuPictureBox.Margin = new System.Windows.Forms.Padding(4);
-            this.voiceMenuPictureBox.Name = "voiceMenuPictureBox";
-            this.voiceMenuPictureBox.Size = new System.Drawing.Size(27, 25);
-            this.voiceMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.voiceMenuPictureBox.TabIndex = 3;
-            this.voiceMenuPictureBox.TabStop = false;
-            this.voiceMenuPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.voiceMenuPictureBox_MouseClick);
+            voiceMenuPictureBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            voiceMenuPictureBox.Image = Properties.Resources.MenuIcon;
+            voiceMenuPictureBox.Location = new System.Drawing.Point(637, 8);
+            voiceMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            voiceMenuPictureBox.Name = "voiceMenuPictureBox";
+            voiceMenuPictureBox.Size = new System.Drawing.Size(27, 31);
+            voiceMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            voiceMenuPictureBox.TabIndex = 3;
+            voiceMenuPictureBox.TabStop = false;
+            voiceMenuPictureBox.MouseClick += voiceMenuPictureBox_MouseClick;
             // 
             // voiceTitleLabel
             // 
-            this.voiceTitleLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.voiceTitleLabel.AutoSize = true;
-            this.voiceTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.voiceTitleLabel.Location = new System.Drawing.Point(4, 6);
-            this.voiceTitleLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.voiceTitleLabel.Name = "voiceTitleLabel";
-            this.voiceTitleLabel.Size = new System.Drawing.Size(62, 25);
-            this.voiceTitleLabel.TabIndex = 1;
-            this.voiceTitleLabel.Text = "Voice";
+            voiceTitleLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            voiceTitleLabel.AutoSize = true;
+            voiceTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            voiceTitleLabel.Location = new System.Drawing.Point(4, 8);
+            voiceTitleLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            voiceTitleLabel.Name = "voiceTitleLabel";
+            voiceTitleLabel.Size = new System.Drawing.Size(62, 25);
+            voiceTitleLabel.TabIndex = 1;
+            voiceTitleLabel.Text = "Voice";
             // 
             // voiceTabContextMenuStrip
             // 
-            this.voiceTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.voiceTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.clearHistoryToolStripMenuItem,
-            this.toolStripMenuItemDetachSeparator,
-            this.detachToolStripMenuItem});
-            this.voiceTabContextMenuStrip.Name = "voiceTabContextMenuStrip";
-            this.voiceTabContextMenuStrip.Size = new System.Drawing.Size(164, 58);
+            voiceTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            voiceTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { clearHistoryToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
+            voiceTabContextMenuStrip.Name = "voiceTabContextMenuStrip";
+            voiceTabContextMenuStrip.Size = new System.Drawing.Size(164, 58);
             // 
             // clearHistoryToolStripMenuItem
             // 
-            this.clearHistoryToolStripMenuItem.Name = "clearHistoryToolStripMenuItem";
-            this.clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
-            this.clearHistoryToolStripMenuItem.Text = "&Clear History";
-            this.clearHistoryToolStripMenuItem.Click += new System.EventHandler(this.clearHistoryToolStripMenuItem_Click);
+            clearHistoryToolStripMenuItem.Name = "clearHistoryToolStripMenuItem";
+            clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
+            clearHistoryToolStripMenuItem.Text = "&Clear History";
+            clearHistoryToolStripMenuItem.Click += clearHistoryToolStripMenuItem_Click;
             // 
             // toolStripMenuItemDetachSeparator
             // 
-            this.toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
-            this.toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(160, 6);
-            this.toolStripMenuItemDetachSeparator.Visible = false;
+            toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
+            toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(160, 6);
+            toolStripMenuItemDetachSeparator.Visible = false;
             // 
             // detachToolStripMenuItem
             // 
-            this.detachToolStripMenuItem.Name = "detachToolStripMenuItem";
-            this.detachToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
-            this.detachToolStripMenuItem.Text = "Detach...";
-            this.detachToolStripMenuItem.Visible = false;
-            this.detachToolStripMenuItem.Click += new System.EventHandler(this.detachToolStripMenuItem_Click);
+            detachToolStripMenuItem.Name = "detachToolStripMenuItem";
+            detachToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
+            detachToolStripMenuItem.Text = "Detach...";
+            detachToolStripMenuItem.Visible = false;
+            detachToolStripMenuItem.Click += detachToolStripMenuItem_Click;
             // 
             // VoiceTabUserControl
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.cancelVoiceButton);
-            this.Controls.Add(this.voiceHistoryTextBox);
-            this.Controls.Add(this.voiceBottomPanel);
-            this.Controls.Add(this.voiceTopPanel);
-            this.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            this.Name = "VoiceTabUserControl";
-            this.Size = new System.Drawing.Size(669, 658);
-            this.voiceBottomPanel.ResumeLayout(false);
-            this.voiceBottomPanel.PerformLayout();
-            this.speakContextMenuStrip.ResumeLayout(false);
-            this.voiceTopPanel.ResumeLayout(false);
-            this.voiceTopPanel.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.voiceMenuPictureBox)).EndInit();
-            this.voiceTabContextMenuStrip.ResumeLayout(false);
-            this.ResumeLayout(false);
+            AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            Controls.Add(cancelVoiceButton);
+            Controls.Add(voiceHistoryTextBox);
+            Controls.Add(voiceBottomPanel);
+            Controls.Add(voiceTopPanel);
+            Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
+            Name = "VoiceTabUserControl";
+            Size = new System.Drawing.Size(669, 508);
+            voiceBottomPanel.ResumeLayout(false);
+            voiceBottomPanel.PerformLayout();
+            speakContextMenuStrip.ResumeLayout(false);
+            voiceTopPanel.ResumeLayout(false);
+            voiceTopPanel.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)voiceMenuPictureBox).EndInit();
+            voiceTabContextMenuStrip.ResumeLayout(false);
+            ResumeLayout(false);
 
         }
 

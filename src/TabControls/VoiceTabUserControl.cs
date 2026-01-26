@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using HTCommander.Dialogs;
@@ -18,6 +19,23 @@ namespace HTCommander.Controls
         private bool _isListening = false;
         private bool _isProcessing = false;
         private bool _isTransmitting = false;
+
+        // Voice handler state tracking
+        private List<ConnectedRadioInfo> _connectedRadios = new List<ConnectedRadioInfo>();
+        private bool _voiceHandlerEnabled = false;
+        private int _voiceHandlerTargetDeviceId = -1;
+
+        // Context menu for radio selection when multiple radios are connected
+        private ContextMenuStrip _radioSelectContextMenuStrip;
+
+        /// <summary>
+        /// Simple class to hold connected radio information.
+        /// </summary>
+        private class ConnectedRadioInfo
+        {
+            public int DeviceId { get; set; }
+            public string FriendlyName { get; set; }
+        }
 
         /// <summary>
         /// Gets or sets whether the "Detach..." menu item is visible.
@@ -48,6 +66,20 @@ namespace HTCommander.Controls
 
             // Subscribe to ProcessingVoice, TextReady, and VoiceTransmitStateChanged from all radios
             broker.Subscribe(DataBroker.AllDevices, new string[] { "ProcessingVoice", "TextReady", "VoiceTransmitStateChanged" }, OnBrokerEvent);
+
+            // Subscribe to ConnectedRadios changes to track radio connections
+            broker.Subscribe(1, "ConnectedRadios", OnConnectedRadiosChanged);
+
+            // Subscribe to VoiceHandlerState changes to track voice handler state
+            broker.Subscribe(0, "VoiceHandlerState", OnVoiceHandlerStateChanged);
+
+            // Create context menu for radio selection
+            _radioSelectContextMenuStrip = new ContextMenuStrip();
+
+            // Load initial state
+            LoadConnectedRadios();
+            LoadVoiceHandlerState();
+            UpdateEnableButtonState();
         }
 
         /// <summary>
@@ -163,7 +195,7 @@ namespace HTCommander.Controls
             else if (_isListening)
             {
                 // Listening - show green indicator
-                voiceProcessingLabel.ForeColor = Color.LimeGreen;
+                voiceProcessingLabel.ForeColor = Color.DarkGreen;
                 voiceProcessingLabel.Visible = true;
             }
             else
@@ -240,9 +272,23 @@ namespace HTCommander.Controls
 
         private void voiceEnableButton_Click(object sender, EventArgs e)
         {
-            // Toggle voice enable state - dispatch event to the broker
-            // The radio will handle enabling/disabling speech-to-text
-            broker?.Dispatch(DataBroker.AllDevices, "VoiceEnableToggle", null, store: false);
+            if (_voiceHandlerEnabled)
+            {
+                // Voice handler is active - disable it
+                DisableVoiceHandler();
+            }
+            else if (_connectedRadios.Count == 1)
+            {
+                // Only one radio connected - enable for that radio directly
+                EnableVoiceHandler(_connectedRadios[0].DeviceId);
+            }
+            else if (_connectedRadios.Count > 1)
+            {
+                // Multiple radios connected - show dropdown menu to select
+                PopulateRadioSelectMenu();
+                _radioSelectContextMenuStrip.Show(voiceEnableButton, new Point(0, voiceEnableButton.Height));
+            }
+            // If no radios connected, button should be disabled so this case shouldn't happen
         }
 
         private void speakButton_Click(object sender, EventArgs e)
@@ -298,5 +344,195 @@ namespace HTCommander.Controls
             var form = DetachedTabForm.Create<VoiceTabUserControl>("Voice");
             form.Show();
         }
+
+        #region Voice Handler State Management
+
+        /// <summary>
+        /// Handles ConnectedRadios changes from the DataBroker.
+        /// </summary>
+        private void OnConnectedRadiosChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnConnectedRadiosChanged), deviceId, name, data);
+                return;
+            }
+
+            LoadConnectedRadios();
+            UpdateEnableButtonState();
+        }
+
+        /// <summary>
+        /// Handles VoiceHandlerState changes from the DataBroker.
+        /// </summary>
+        private void OnVoiceHandlerStateChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnVoiceHandlerStateChanged), deviceId, name, data);
+                return;
+            }
+
+            ProcessVoiceHandlerState(data);
+            UpdateEnableButtonState();
+        }
+
+        /// <summary>
+        /// Loads the list of connected radios from the DataBroker.
+        /// </summary>
+        private void LoadConnectedRadios()
+        {
+            _connectedRadios.Clear();
+
+            var connectedRadios = broker.GetValue<object>(1, "ConnectedRadios", null);
+            if (connectedRadios == null) return;
+
+            if (connectedRadios is System.Collections.IEnumerable enumerable)
+            {
+                foreach (var item in enumerable)
+                {
+                    if (item == null) continue;
+                    var itemType = item.GetType();
+                    int? radioDeviceId = (int?)itemType.GetProperty("DeviceId")?.GetValue(item);
+                    string friendlyName = (string)itemType.GetProperty("FriendlyName")?.GetValue(item);
+
+                    if (radioDeviceId.HasValue)
+                    {
+                        var radioInfo = new ConnectedRadioInfo
+                        {
+                            DeviceId = radioDeviceId.Value,
+                            FriendlyName = friendlyName ?? $"Radio {radioDeviceId.Value}"
+                        };
+                        _connectedRadios.Add(radioInfo);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Loads the current VoiceHandlerState from the DataBroker.
+        /// </summary>
+        private void LoadVoiceHandlerState()
+        {
+            var state = broker.GetValue<object>(0, "VoiceHandlerState", null);
+            ProcessVoiceHandlerState(state);
+        }
+
+        /// <summary>
+        /// Processes the VoiceHandlerState data object.
+        /// </summary>
+        private void ProcessVoiceHandlerState(object data)
+        {
+            if (data == null)
+            {
+                _voiceHandlerEnabled = false;
+                _voiceHandlerTargetDeviceId = -1;
+                return;
+            }
+
+            try
+            {
+                var type = data.GetType();
+                var enabledProp = type.GetProperty("Enabled");
+                var targetDeviceIdProp = type.GetProperty("TargetDeviceId");
+
+                if (enabledProp != null)
+                {
+                    _voiceHandlerEnabled = (bool)enabledProp.GetValue(data);
+                }
+
+                if (targetDeviceIdProp != null)
+                {
+                    _voiceHandlerTargetDeviceId = (int)targetDeviceIdProp.GetValue(data);
+                }
+            }
+            catch (Exception)
+            {
+                _voiceHandlerEnabled = false;
+                _voiceHandlerTargetDeviceId = -1;
+            }
+        }
+
+        /// <summary>
+        /// Updates the Enable button state based on connected radios and voice handler state.
+        /// </summary>
+        private void UpdateEnableButtonState()
+        {
+            if (_voiceHandlerEnabled)
+            {
+                // Voice handler is active - show "Disable" button
+                voiceEnableButton.Text = "&Disable";
+                voiceEnableButton.Enabled = true;
+            }
+            else if (_connectedRadios.Count == 0)
+            {
+                // No radios connected - show "Enable" but disabled
+                voiceEnableButton.Text = "&Enable";
+                voiceEnableButton.Enabled = false;
+            }
+            else
+            {
+                // Radios connected, voice handler not active - show "Enable" and enabled
+                voiceEnableButton.Text = "&Enable";
+                voiceEnableButton.Enabled = true;
+            }
+        }
+
+        /// <summary>
+        /// Enables the voice handler for the specified radio device.
+        /// </summary>
+        private void EnableVoiceHandler(int deviceId)
+        {
+            // Get voice settings from DataBroker
+            string language = broker.GetValue<string>(0, "VoiceLanguage", "en");
+            string model = broker.GetValue<string>(0, "VoiceModel", "");
+
+            // Dispatch VoiceHandlerEnable command
+            broker.Dispatch(0, "VoiceHandlerEnable", new
+            {
+                DeviceId = deviceId,
+                Language = language,
+                Model = model
+            }, store: false);
+        }
+
+        /// <summary>
+        /// Disables the voice handler.
+        /// </summary>
+        private void DisableVoiceHandler()
+        {
+            broker.Dispatch(0, "VoiceHandlerDisable", null, store: false);
+        }
+
+        /// <summary>
+        /// Populates the radio selection context menu with connected radios.
+        /// </summary>
+        private void PopulateRadioSelectMenu()
+        {
+            _radioSelectContextMenuStrip.Items.Clear();
+
+            foreach (var radio in _connectedRadios)
+            {
+                var menuItem = new ToolStripMenuItem(radio.FriendlyName)
+                {
+                    Tag = radio.DeviceId
+                };
+                menuItem.Click += RadioSelectMenuItem_Click;
+                _radioSelectContextMenuStrip.Items.Add(menuItem);
+            }
+        }
+
+        /// <summary>
+        /// Handles click on a radio selection menu item.
+        /// </summary>
+        private void RadioSelectMenuItem_Click(object sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem menuItem && menuItem.Tag is int deviceId)
+            {
+                EnableVoiceHandler(deviceId);
+            }
+        }
+
+        #endregion
     }
 }
