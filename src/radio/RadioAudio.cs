@@ -175,13 +175,16 @@ namespace HTCommander
             parent = null;
         }
 
-
-        public void GotAudioData(byte[] data, int offset, int len, string channelName, bool transmit) { broker.Dispatch(DeviceId, "AudioDataAvailable", new { Data = data, Offset = offset, Length = len, ChannelName = channelName, Transmit = transmit }, store: false); }
         private void Debug(string msg) { broker.Dispatch(1, "LogInfo", $"[RadioAudio/{DeviceId}]: {msg}", store: false); }
         private void DispatchAudioStateChanged(bool enabled) { broker.Dispatch(DeviceId, "AudioState", enabled, store: true); }
         private void DispatchVoiceTransmitStateChanged(bool transmitting) { broker.Dispatch(DeviceId, "VoiceTransmitStateChanged", transmitting, store: false); }
         private void DispatchSoftModemPacketDecoded(TncDataFragment fragment) { broker.Dispatch(DeviceId, "SoftModemPacketDecoded", fragment, store: false); }
         private void DispatchAudioDataAvailable(byte[] data, int offset, int length, string channelName, bool transmit) { broker.Dispatch(DeviceId, "AudioDataAvailable", new { Data = data, Offset = offset, Length = length, ChannelName = channelName, Transmit = transmit }, store: false); }
+        private void DispatchAudioDataStart() { broker.Dispatch(DeviceId, "AudioDataStart", null, store: false); }
+        private void DispatchAudioDataEnd() { broker.Dispatch(DeviceId, "AudioDataEnd", null, store: false); }
+
+        // Audio run state tracking
+        private bool inAudioRun = false;
 
         public enum SoftwareModemModeType
         {
@@ -1096,10 +1099,17 @@ namespace HTCommander
                             {
                                 case 0x00: // Audio normal
                                 case 0x03: // Audio odd
+                                    if (!inAudioRun)
+                                    {
+                                        inAudioRun = true;
+                                        DispatchAudioDataStart();
+                                    }
                                     DecodeSbcFrame(frame, 1, uframeLength - 1);
                                     break;
                                 case 0x01: // Audio end
                                     //Debug("Command: 0x01, Audio End, Size: " + uframeLength);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
+                                    inAudioRun = false;
+                                    DispatchAudioDataEnd();
                                     break;
                                 case 0x02: // Audio ACK
                                     //Debug("Command: 0x02, Audio Ack, Size: " + uframeLength);// + ", HEX: " + BytesToHex(uframe, 0, uframe.Length));
@@ -1226,7 +1236,7 @@ namespace HTCommander
                             try { recording.Write(pcmFrame, 0, totalWritten); }
                             catch (Exception ex) { Debug("Recording Write Error: " + ex.ToString()); }
                         }
-                        GotAudioData(pcmFrame, 0, totalWritten, currentChannelName, false);
+                        DispatchAudioDataAvailable(pcmFrame, 0, totalWritten, currentChannelName, false);
                     }
 
                     // We need to send the audio into the AFPK1200 or 9600 software modem for decoding
@@ -1806,7 +1816,7 @@ namespace HTCommander
                 {
                     try { PlayPcmBufferAsync(pcmData, pcmOffset, bytesConsumed); } catch (Exception ex) { Debug("PlayPcmBufferAsync error: " + ex.Message); }
                 }
-                try { GotAudioData(pcmData, pcmOffset, bytesConsumed, currentChannelName, true); } catch (Exception ex) { Debug("GotAudioData error: " + ex.Message); }
+                try { DispatchAudioDataAvailable(pcmData, pcmOffset, bytesConsumed, currentChannelName, true); } catch (Exception ex) { Debug("GotAudioData error: " + ex.Message); }
 
                 pcmOffset += bytesConsumed;
                 pcmLength -= bytesConsumed;

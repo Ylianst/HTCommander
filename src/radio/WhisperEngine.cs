@@ -220,6 +220,12 @@ namespace HTCommander.radio // Use your original namespace
             ProcessAudioChunk(null, 0, 0, null);
         }
 
+        // Complete finishes the current segment, forcing processing of any remaining audio
+        public void CompleteVoiceSegment()
+        {
+            ProcessAudioChunk(null, 0, 0, null);
+        }
+
         int segmentsOverlap = 512000;
 
         public void ProcessAudioChunk(byte[] data, int index, int length, string channel)

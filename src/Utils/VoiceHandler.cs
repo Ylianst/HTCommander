@@ -81,6 +81,9 @@ namespace HTCommander
             // Subscribe to radio State changes from all devices to detect disconnection
             broker.Subscribe(DataBroker.AllDevices, "State", OnRadioStateChanged);
 
+            // Subscribe to AudioDataEnd from all devices to flush speech-to-text on audio segment end
+            broker.Subscribe(DataBroker.AllDevices, "AudioDataEnd", OnAudioDataEnd);
+
             // Subscribe to ClearVoiceText command
             broker.Subscribe(1, "ClearVoiceText", OnClearVoiceText);
 
@@ -91,6 +94,30 @@ namespace HTCommander
             DispatchDecodedTextHistory();
 
             broker.LogInfo("[VoiceHandler] Voice Handler initialized");
+        }
+
+        /// <summary>
+        /// Handles the AudioDataEnd event - forces speech-to-text to process remaining audio.
+        /// This is called when the radio signals the end of an audio segment.
+        /// </summary>
+        private void OnAudioDataEnd(int deviceId, string name, object data)
+        {
+            // Only care about audio end events for the radio we're monitoring
+            if (deviceId != _targetDeviceId || !_enabled || _speechToTextEngine == null)
+            {
+                return;
+            }
+
+            try
+            {
+                // Force the speech-to-text engine to process any remaining audio
+                _speechToTextEngine.CompleteVoiceSegment();
+                _maxVoiceDecodeTime = 0;
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[VoiceHandler] Error in OnAudioDataEnd: {ex.Message}");
+            }
         }
 
         /// <summary>

@@ -372,6 +372,15 @@ namespace HTCommander.Controls
 
         private void clearHistoryToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            // Ask for confirmation before clearing
+            DialogResult result = MessageBox.Show(
+                "Are you sure you want to clear the voice history?",
+                "Clear History",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result != DialogResult.Yes) return;
+
             // Clear the voice history text box
             voiceHistoryTextBox.Clear();
 
