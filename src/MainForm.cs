@@ -29,6 +29,12 @@ namespace HTCommander
         private bool CheckForUpdates => DataBroker.GetValue<bool>(0, "CheckForUpdates", false);
         private int SelectedTabIndex => DataBroker.GetValue<int>(0, "SelectedTabIndex", 0);
 
+        // Track transmit-dependent tabs for show/hide based on AllowTransmit
+        private bool _transmitTabsVisible = true;
+        private int _bbsTabIndex = -1;
+        private int _terminalTabIndex = -1;
+        private int _torrentTabIndex = -1;
+
         public MainForm(string[] args)
         {
             bool multiInstance = false;
@@ -68,6 +74,9 @@ namespace HTCommander
 
             // Subscribe to ShowSettingsTab to open settings form at a specific tab
             broker.Subscribe(0, "ShowSettingsTab", OnShowSettingsTab);
+
+            // Subscribe to AllowTransmit changes to show/hide transmit-dependent tabs
+            broker.Subscribe(0, "AllowTransmit", OnAllowTransmitChanged);
 
             // Set initial title bar based on stored values
             UpdateTitleBar();
@@ -132,6 +141,9 @@ namespace HTCommander
 
         private void MainForm_Load(object sender, EventArgs e)
         {
+            // Load initial AllowTransmit state and update tab visibility
+            LoadAllowTransmitState();
+
             // Restore selected tab
             int savedTabIndex = SelectedTabIndex;
             if (savedTabIndex >= 0 && savedTabIndex < mainTabControl.TabCount)
@@ -808,6 +820,88 @@ namespace HTCommander
             bool currentlyEnabled = DataBroker.GetValue<bool>(deviceId, "AudioState", false);
             DataBroker.Dispatch(deviceId, "SetAudio", !currentlyEnabled, store: false);
         }
+
+        #region AllowTransmit Tab Visibility
+
+        /// <summary>
+        /// Handles AllowTransmit changes from the DataBroker.
+        /// </summary>
+        private void OnAllowTransmitChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnAllowTransmitChanged), deviceId, name, data);
+                return;
+            }
+
+            bool allowTransmit = false;
+            if (data is int intValue) { allowTransmit = intValue == 1; }
+            else if (data is bool boolValue) { allowTransmit = boolValue; }
+
+            UpdateTransmitTabsVisibility(allowTransmit);
+        }
+
+        /// <summary>
+        /// Loads the initial AllowTransmit state and updates tab visibility.
+        /// </summary>
+        private void LoadAllowTransmitState()
+        {
+            bool allowTransmit = DataBroker.GetValue<int>(0, "AllowTransmit", 0) == 1;
+            UpdateTransmitTabsVisibility(allowTransmit);
+        }
+
+        /// <summary>
+        /// Updates the visibility of transmit-dependent tabs (BBS, Terminal, Torrent) based on AllowTransmit setting.
+        /// </summary>
+        private void UpdateTransmitTabsVisibility(bool allowTransmit)
+        {
+            if (allowTransmit && !_transmitTabsVisible)
+            {
+                // Show the tabs - add them back at their original positions
+                // We need to insert them in reverse order of their indices to maintain correct positions
+                var tabsToInsert = new List<(TabPage tab, int index)>();
+
+                if (_bbsTabIndex >= 0 && !mainTabControl.TabPages.Contains(bbsTabPage))
+                    tabsToInsert.Add((bbsTabPage, _bbsTabIndex));
+                if (_terminalTabIndex >= 0 && !mainTabControl.TabPages.Contains(terminalTabPage))
+                    tabsToInsert.Add((terminalTabPage, _terminalTabIndex));
+                if (_torrentTabIndex >= 0 && !mainTabControl.TabPages.Contains(torrentTabPage))
+                    tabsToInsert.Add((torrentTabPage, _torrentTabIndex));
+
+                // Sort by index ascending to insert in correct order
+                tabsToInsert.Sort((a, b) => a.index.CompareTo(b.index));
+
+                foreach (var (tab, index) in tabsToInsert)
+                {
+                    // Clamp the index to valid range
+                    int insertIndex = Math.Min(index, mainTabControl.TabPages.Count);
+                    mainTabControl.TabPages.Insert(insertIndex, tab);
+                }
+
+                _transmitTabsVisible = true;
+            }
+            else if (!allowTransmit && _transmitTabsVisible)
+            {
+                // Hide the tabs - store their indices and remove them
+                // Store indices before removing (indices will shift as we remove)
+                _bbsTabIndex = mainTabControl.TabPages.IndexOf(bbsTabPage);
+                _terminalTabIndex = mainTabControl.TabPages.IndexOf(terminalTabPage);
+                _torrentTabIndex = mainTabControl.TabPages.IndexOf(torrentTabPage);
+
+                // Remove tabs (remove in reverse index order to preserve indices)
+                var indicesToRemove = new List<int> { _bbsTabIndex, _terminalTabIndex, _torrentTabIndex };
+                indicesToRemove = indicesToRemove.Where(i => i >= 0).OrderByDescending(i => i).ToList();
+
+                foreach (int idx in indicesToRemove)
+                {
+                    mainTabControl.TabPages.RemoveAt(idx);
+                }
+
+                _transmitTabsVisible = false;
+            }
+        }
+
+        #endregion
 
     }
 }
