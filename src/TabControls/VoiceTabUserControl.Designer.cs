@@ -64,7 +64,7 @@ namespace HTCommander.Controls
             // 
             cancelVoiceButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
             cancelVoiceButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, 0);
-            cancelVoiceButton.Location = new System.Drawing.Point(507, 294);
+            cancelVoiceButton.Location = new System.Drawing.Point(519, 359);
             cancelVoiceButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             cancelVoiceButton.Name = "cancelVoiceButton";
             cancelVoiceButton.Size = new System.Drawing.Size(121, 80);
@@ -151,8 +151,8 @@ namespace HTCommander.Controls
             // voiceTopPanel
             // 
             voiceTopPanel.BackColor = System.Drawing.Color.Silver;
-            voiceTopPanel.Controls.Add(voiceProcessingLabel);
             voiceTopPanel.Controls.Add(voiceEnableButton);
+            voiceTopPanel.Controls.Add(voiceProcessingLabel);
             voiceTopPanel.Controls.Add(voiceMenuPictureBox);
             voiceTopPanel.Controls.Add(voiceTitleLabel);
             voiceTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
@@ -164,10 +164,11 @@ namespace HTCommander.Controls
             // 
             // voiceProcessingLabel
             // 
+            voiceProcessingLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             voiceProcessingLabel.AutoSize = true;
             voiceProcessingLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
             voiceProcessingLabel.ForeColor = System.Drawing.Color.LightGray;
-            voiceProcessingLabel.Location = new System.Drawing.Point(72, 8);
+            voiceProcessingLabel.Location = new System.Drawing.Point(506, 8);
             voiceProcessingLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             voiceProcessingLabel.Name = "voiceProcessingLabel";
             voiceProcessingLabel.Size = new System.Drawing.Size(24, 25);

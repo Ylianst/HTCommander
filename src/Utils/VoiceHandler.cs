@@ -5,11 +5,23 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using HTCommander.radio;
 
 namespace HTCommander
 {
+    /// <summary>
+    /// Represents a decoded text entry from speech-to-text conversion.
+    /// </summary>
+    public class DecodedTextEntry
+    {
+        public string Text { get; set; }
+        public string Channel { get; set; }
+        public DateTime Time { get; set; }
+    }
+
     /// <summary>
     /// Voice Handler - Listens to audio data from radios and converts speech to text using Whisper.
     /// This is a Data Broker handler that can be enabled/disabled and configured to listen to specific radios.
@@ -27,18 +39,41 @@ namespace HTCommander
         private int _maxVoiceDecodeTime = 0;
         private const int MaxVoiceDecodeTimeLimit = (32000 * 2 * 60 * 1); // 1 minute (32k * 2 * 60 * 1)
 
+        // Decoded text history
+        private readonly List<DecodedTextEntry> _decodedTextHistory = new List<DecodedTextEntry>();
+        private readonly object _historyLock = new object();
+        private DecodedTextEntry _currentEntry = null;
+        private const int MaxHistorySize = 1000;
+
+        // File persistence
+        private const string VoiceTextFileName = "voicetext.json";
+        private readonly string _appDataPath;
+
+        // Flag to track if voice text history has been loaded
+        private bool _voiceTextHistoryLoaded = false;
+
         /// <summary>
         /// Initializes the VoiceHandler and subscribes to Data Broker events.
         /// </summary>
         public VoiceHandler()
         {
+            // Set up app data path for persistence
+            _appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander");
+            if (!Directory.Exists(_appDataPath))
+            {
+                Directory.CreateDirectory(_appDataPath);
+            }
+
             broker = new DataBrokerClient();
 
-            // Subscribe to VoiceHandlerEnable command (from device 0 or any device)
-            broker.Subscribe(0, "VoiceHandlerEnable", OnVoiceHandlerEnable);
+            // Load saved voice text history from file
+            LoadVoiceTextHistory();
+
+            // Subscribe to VoiceHandlerEnable command (from device 1 - global voice handler commands)
+            broker.Subscribe(1, "VoiceHandlerEnable", OnVoiceHandlerEnable);
 
             // Subscribe to VoiceHandlerDisable command
-            broker.Subscribe(0, "VoiceHandlerDisable", OnVoiceHandlerDisable);
+            broker.Subscribe(1, "VoiceHandlerDisable", OnVoiceHandlerDisable);
 
             // Subscribe to AudioDataAvailable from all devices (we'll filter by target device)
             broker.Subscribe(DataBroker.AllDevices, "AudioDataAvailable", OnAudioDataAvailable);
@@ -46,8 +81,14 @@ namespace HTCommander
             // Subscribe to radio State changes from all devices to detect disconnection
             broker.Subscribe(DataBroker.AllDevices, "State", OnRadioStateChanged);
 
+            // Subscribe to ClearVoiceText command
+            broker.Subscribe(1, "ClearVoiceText", OnClearVoiceText);
+
             // Dispatch initial state (not monitoring any radio)
             DispatchVoiceHandlerState();
+
+            // Dispatch initial empty history
+            DispatchDecodedTextHistory();
 
             broker.LogInfo("[VoiceHandler] Voice Handler initialized");
         }
@@ -134,6 +175,15 @@ namespace HTCommander
                 return;
             }
 
+            // Check if audio is enabled for this radio, and enable it if not
+            // Voice processing requires audio streaming from the radio
+            bool audioEnabled = DataBroker.GetValue<bool>(deviceId, "AudioState", false);
+            if (!audioEnabled)
+            {
+                broker.LogInfo($"[VoiceHandler] Audio not enabled for device {deviceId}, enabling audio streaming");
+                broker.Dispatch(deviceId, "SetAudio", true, store: false);
+            }
+
             // Disable first if already enabled
             if (_enabled)
             {
@@ -162,11 +212,22 @@ namespace HTCommander
         {
             if (!_enabled) return;
 
+            int previousDeviceId = _targetDeviceId;
             _enabled = false;
             _targetDeviceId = -1;
 
             // Clean up the speech engine
             CleanupSpeechEngine();
+
+            // Dispatch ProcessingVoice to indicate we're no longer listening/processing
+            if (previousDeviceId > 0)
+            {
+                broker.Dispatch(previousDeviceId, "ProcessingVoice", new
+                {
+                    Listening = false,
+                    Processing = false
+                }, store: false);
+            }
 
             // Dispatch the updated state
             DispatchVoiceHandlerState();
@@ -363,7 +424,220 @@ namespace HTCommander
         /// </summary>
         private void OnWhisperTextReady(string text, string channel, DateTime time, bool completed)
         {
+            // Update the decoded text history
+            UpdateDecodedTextHistory(text, channel, time, completed);
+
+            // Dispatch the individual TextReady event
             DispatchTextReady(text, channel, time, completed);
+        }
+
+        /// <summary>
+        /// Updates the decoded text history with new text.
+        /// </summary>
+        private void UpdateDecodedTextHistory(string text, string channel, DateTime time, bool completed)
+        {
+            lock (_historyLock)
+            {
+                if (!completed)
+                {
+                    // In-progress text: update or create current entry
+                    if (_currentEntry == null)
+                    {
+                        _currentEntry = new DecodedTextEntry();
+                    }
+                    _currentEntry.Text = text;
+                    _currentEntry.Channel = channel;
+                    _currentEntry.Time = time;
+                }
+                else
+                {
+                    // Completed text: finalize the entry
+                    if (_currentEntry != null)
+                    {
+                        // Update with final values
+                        _currentEntry.Text = text;
+                        _currentEntry.Channel = channel;
+                        _currentEntry.Time = time;
+
+                        // Add to history
+                        _decodedTextHistory.Add(_currentEntry);
+
+                        // Trim if exceeds max size
+                        while (_decodedTextHistory.Count > MaxHistorySize)
+                        {
+                            _decodedTextHistory.RemoveAt(0);
+                        }
+
+                        _currentEntry = null;
+                    }
+                    else
+                    {
+                        // No current entry, create and add directly
+                        var entry = new DecodedTextEntry
+                        {
+                            Text = text,
+                            Channel = channel,
+                            Time = time
+                        };
+                        _decodedTextHistory.Add(entry);
+
+                        // Trim if exceeds max size
+                        while (_decodedTextHistory.Count > MaxHistorySize)
+                        {
+                            _decodedTextHistory.RemoveAt(0);
+                        }
+                    }
+
+                    // Save to file and dispatch updated history
+                    SaveVoiceTextHistory();
+                    DispatchDecodedTextHistory();
+                    DispatchCurrentEntry();
+                }
+            }
+
+            // Dispatch current entry state (whether it's set or cleared)
+            if (!completed)
+            {
+                DispatchCurrentEntry();
+            }
+        }
+
+        /// <summary>
+        /// Handles the ClearVoiceText command to clear all decoded text history.
+        /// </summary>
+        private void OnClearVoiceText(int deviceId, string name, object data)
+        {
+            lock (_historyLock)
+            {
+                _decodedTextHistory.Clear();
+                _currentEntry = null;
+            }
+
+            // Save empty history to file
+            SaveVoiceTextHistory();
+            DispatchDecodedTextHistory();
+            DispatchCurrentEntry();
+
+            // Notify all UI components to clear their voice text displays
+            broker.Dispatch(1, "VoiceTextCleared", null, store: false);
+
+            broker.LogInfo("[VoiceHandler] Decoded text history cleared");
+        }
+
+        /// <summary>
+        /// Loads the voice text history from the JSON file.
+        /// </summary>
+        private void LoadVoiceTextHistory()
+        {
+            string filePath = Path.Combine(_appDataPath, VoiceTextFileName);
+
+            try
+            {
+                if (File.Exists(filePath))
+                {
+                    string json = File.ReadAllText(filePath);
+                    if (!string.IsNullOrWhiteSpace(json))
+                    {
+                        var entries = JsonSerializer.Deserialize<List<DecodedTextEntry>>(json);
+                        if (entries != null)
+                        {
+                            lock (_historyLock)
+                            {
+                                _decodedTextHistory.Clear();
+                                _decodedTextHistory.AddRange(entries);
+
+                                // Trim if exceeds max size (in case file was manually edited)
+                                while (_decodedTextHistory.Count > MaxHistorySize)
+                                {
+                                    _decodedTextHistory.RemoveAt(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Ignore load errors - start with empty history
+            }
+
+            // Mark history as loaded and dispatch the loaded event
+            _voiceTextHistoryLoaded = true;
+            DispatchDecodedTextHistory();
+            DispatchVoiceTextHistoryLoaded();
+        }
+
+        /// <summary>
+        /// Dispatches the VoiceTextHistoryLoaded event to notify subscribers that history is ready.
+        /// </summary>
+        private void DispatchVoiceTextHistoryLoaded()
+        {
+            broker.Dispatch(1, "VoiceTextHistoryLoaded", _voiceTextHistoryLoaded, store: true);
+        }
+
+        /// <summary>
+        /// Saves the voice text history to the JSON file.
+        /// </summary>
+        private void SaveVoiceTextHistory()
+        {
+            string filePath = Path.Combine(_appDataPath, VoiceTextFileName);
+
+            try
+            {
+                List<DecodedTextEntry> entriesToSave;
+                lock (_historyLock)
+                {
+                    entriesToSave = new List<DecodedTextEntry>(_decodedTextHistory);
+                }
+
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(entriesToSave, options);
+                File.WriteAllText(filePath, json);
+            }
+            catch (Exception)
+            {
+                // Ignore save errors
+            }
+        }
+
+        /// <summary>
+        /// Dispatches the decoded text history to the Data Broker.
+        /// </summary>
+        private void DispatchDecodedTextHistory()
+        {
+            List<DecodedTextEntry> historyCopy;
+            lock (_historyLock)
+            {
+                // Create a copy of the list for dispatch
+                historyCopy = new List<DecodedTextEntry>(_decodedTextHistory);
+            }
+
+            // Store under device ID 1 (global) since only one radio can do speech-to-text at a time
+            broker.Dispatch(1, "DecodedTextHistory", historyCopy, store: true);
+        }
+
+        /// <summary>
+        /// Dispatches the current entry (in-progress text) to the Data Broker.
+        /// This allows new subscribers to see any text currently being decoded.
+        /// </summary>
+        private void DispatchCurrentEntry()
+        {
+            DecodedTextEntry entryCopy = null;
+            lock (_historyLock)
+            {
+                if (_currentEntry != null)
+                {
+                    entryCopy = new DecodedTextEntry
+                    {
+                        Text = _currentEntry.Text,
+                        Channel = _currentEntry.Channel,
+                        Time = _currentEntry.Time
+                    };
+                }
+            }
+
+            // Store under device ID 1 (global) - null means no current entry
+            broker.Dispatch(1, "CurrentDecodedTextEntry", entryCopy, store: true);
         }
 
         /// <summary>
@@ -407,12 +681,12 @@ namespace HTCommander
         }
 
         /// <summary>
-        /// Dispatches the current VoiceHandler state to the Data Broker on device 0.
+        /// Dispatches the current VoiceHandler state to the Data Broker on device 1.
         /// This indicates which radio (if any) is being monitored for speech-to-text.
         /// </summary>
         private void DispatchVoiceHandlerState()
         {
-            broker.Dispatch(0, "VoiceHandlerState", new
+            broker.Dispatch(1, "VoiceHandlerState", new
             {
                 Enabled = _enabled,
                 TargetDeviceId = _targetDeviceId,

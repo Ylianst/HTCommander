@@ -402,9 +402,26 @@ namespace HTCommander.RadioControls
                 }
 
                 // Update VFO1 display (Channel A)
-                if (channelA != null)
+                // Check for NOAA channel - use curr_ch_id from HtStatus since channel_a in settings may differ
+                bool isNoaaChannel = (currentHtStatus != null && currentHtStatus.curr_ch_id >= 254) || 
+                                     (channelA != null && channelA.channel_id >= 254);
+                
+                if (isNoaaChannel && currentHtStatus != null && currentHtStatus.curr_ch_id >= 254)
                 {
-                    if (channelA.name_str.Length > 0)
+                    // NOAA channel detected via HtStatus
+                    vfo1Label.Text = "NOAA";
+                    vfo1FreqLabel.Text = "";
+                    vfo1StatusLabel.Text = (_lockState != null && _lockState.IsLocked) ? _lockState.Usage : "";
+                }
+                else if (channelA != null)
+                {
+                    // Check for NOAA channel (channel_id >= 254) in channel info
+                    if (channelA.channel_id >= 254)
+                    {
+                        vfo1Label.Text = "NOAA";
+                        vfo1FreqLabel.Text = (((float)channelA.rx_freq) / 1000000).ToString("F3") + " MHz";
+                    }
+                    else if (channelA.name_str.Length > 0)
                     {
                         vfo1Label.Text = channelA.name_str;
                         vfo1FreqLabel.Text = (((float)channelA.rx_freq) / 1000000).ToString("F3") + " MHz";

@@ -10,6 +10,8 @@ using System.Drawing;
 using System.Windows.Forms;
 using HTCommander.Dialogs;
 
+// DecodedTextEntry is defined in the HTCommander namespace (VoiceHandler.cs)
+
 namespace HTCommander.Controls
 {
     public partial class VoiceTabUserControl : UserControl
@@ -27,6 +29,13 @@ namespace HTCommander.Controls
 
         // Context menu for radio selection when multiple radios are connected
         private ContextMenuStrip _radioSelectContextMenuStrip;
+
+        // Track the AllowTransmit setting
+        private bool _allowTransmit = false;
+
+        // Track if we're currently showing a partial (in-progress) entry
+        private bool _hasPartialEntry = false;
+        private int _partialEntryTextStart = -1; // Start position of the text portion (after header)
 
         /// <summary>
         /// Simple class to hold connected radio information.
@@ -71,7 +80,16 @@ namespace HTCommander.Controls
             broker.Subscribe(1, "ConnectedRadios", OnConnectedRadiosChanged);
 
             // Subscribe to VoiceHandlerState changes to track voice handler state
-            broker.Subscribe(0, "VoiceHandlerState", OnVoiceHandlerStateChanged);
+            broker.Subscribe(1, "VoiceHandlerState", OnVoiceHandlerStateChanged);
+
+            // Subscribe to VoiceTextCleared to clear the voice history text box
+            broker.Subscribe(1, "VoiceTextCleared", OnVoiceTextCleared);
+
+            // Subscribe to VoiceTextHistoryLoaded to load history when VoiceHandler finishes loading
+            broker.Subscribe(1, "VoiceTextHistoryLoaded", OnVoiceTextHistoryLoaded);
+
+            // Subscribe to AllowTransmit changes to show/hide the bottom panel
+            broker.Subscribe(0, "AllowTransmit", OnAllowTransmitChanged);
 
             // Create context menu for radio selection
             _radioSelectContextMenuStrip = new ContextMenuStrip();
@@ -79,7 +97,11 @@ namespace HTCommander.Controls
             // Load initial state
             LoadConnectedRadios();
             LoadVoiceHandlerState();
+            LoadAllowTransmitState();
             UpdateEnableButtonState();
+
+            // Load existing decoded text history from the Data Broker
+            LoadDecodedTextHistory();
         }
 
         /// <summary>
@@ -189,7 +211,7 @@ namespace HTCommander.Controls
             if (_isProcessing)
             {
                 // Processing - show yellow/orange indicator
-                voiceProcessingLabel.ForeColor = Color.Orange;
+                voiceProcessingLabel.ForeColor = Color.Red;
                 voiceProcessingLabel.Visible = true;
             }
             else if (_isListening)
@@ -215,40 +237,60 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
-        /// Appends transcribed text to the voice history
+        /// Appends transcribed text to the voice history with nice formatting.
+        /// Header (time/channel) is shown in smaller gray text, main text in normal font.
         /// </summary>
         private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed)
         {
-            string timeStr = time.ToString("HH:mm:ss");
-            string prefix = string.IsNullOrEmpty(channel) ? "" : $"[{channel}] ";
-            string line = $"{timeStr} {prefix}{text}";
-
-            if (completed)
+            if (!_hasPartialEntry)
             {
-                voiceHistoryTextBox.AppendText(line + Environment.NewLine);
+                // Starting a new entry - add header first
+                string timeStr = time.ToString("HH:mm:ss");
+                string header = string.IsNullOrEmpty(channel) ? $"{timeStr}" : $"{timeStr} [{channel}]";
+
+                // Add the header in smaller, gray font
+                int headerStart = voiceHistoryTextBox.TextLength;
+                voiceHistoryTextBox.AppendText(header + Environment.NewLine);
+                voiceHistoryTextBox.Select(headerStart, header.Length + 1);
+                voiceHistoryTextBox.SelectionFont = new Font(voiceHistoryTextBox.Font.FontFamily, voiceHistoryTextBox.Font.Size - 1, FontStyle.Regular);
+                voiceHistoryTextBox.SelectionColor = Color.Gray;
+
+                // Mark where the text content starts
+                _partialEntryTextStart = voiceHistoryTextBox.TextLength;
+                _hasPartialEntry = true;
+
+                // Add the text content in normal font (trimmed)
+                string trimmedText = text.Trim();
+                voiceHistoryTextBox.AppendText(trimmedText);
+                voiceHistoryTextBox.Select(_partialEntryTextStart, trimmedText.Length);
+                voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
+                voiceHistoryTextBox.SelectionColor = voiceHistoryTextBox.ForeColor;
             }
             else
             {
-                // For partial results, update the last line if it exists
-                // or append a new line
-                if (voiceHistoryTextBox.Lines.Length > 0)
-                {
-                    // Find the last line and check if it's a partial result
-                    int lastLineStart = voiceHistoryTextBox.GetFirstCharIndexFromLine(voiceHistoryTextBox.Lines.Length - 1);
-                    int lastLineLength = voiceHistoryTextBox.TextLength - lastLineStart;
-                    
-                    // Replace the last line with the updated partial result
-                    voiceHistoryTextBox.Select(lastLineStart, lastLineLength);
-                    voiceHistoryTextBox.SelectedText = line;
-                }
-                else
-                {
-                    voiceHistoryTextBox.AppendText(line);
-                }
+                // Update existing partial entry - replace just the text portion (trimmed)
+                string trimmedText = text.Trim();
+                int textLength = voiceHistoryTextBox.TextLength - _partialEntryTextStart;
+                voiceHistoryTextBox.Select(_partialEntryTextStart, textLength);
+                voiceHistoryTextBox.SelectedText = trimmedText;
+
+                // Re-apply normal font to the new text
+                voiceHistoryTextBox.Select(_partialEntryTextStart, trimmedText.Length);
+                voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
+                voiceHistoryTextBox.SelectionColor = voiceHistoryTextBox.ForeColor;
             }
 
-            // Scroll to the end
+            if (completed)
+            {
+                // Finalize the entry - add spacing for the next entry
+                voiceHistoryTextBox.AppendText(Environment.NewLine + Environment.NewLine);
+                _hasPartialEntry = false;
+                _partialEntryTextStart = -1;
+            }
+
+            // Scroll to the end and deselect
             voiceHistoryTextBox.SelectionStart = voiceHistoryTextBox.TextLength;
+            voiceHistoryTextBox.SelectionLength = 0;
             voiceHistoryTextBox.ScrollToCaret();
         }
 
@@ -332,6 +374,77 @@ namespace HTCommander.Controls
         {
             // Clear the voice history text box
             voiceHistoryTextBox.Clear();
+
+            // Also clear the history in the VoiceHandler via Data Broker
+            broker?.Dispatch(1, "ClearVoiceText", null, store: false);
+        }
+
+        /// <summary>
+        /// Loads the existing decoded text history from the Data Broker.
+        /// </summary>
+        private void LoadDecodedTextHistory()
+        {
+            var history = broker.GetValue<List<HTCommander.DecodedTextEntry>>(1, "DecodedTextHistory", null);
+            
+            // Populate the voice history text box with existing entries using the same formatting
+            if (history != null && history.Count > 0)
+            {
+                foreach (var entry in history)
+                {
+                    // Add header in smaller, gray font
+                    string timeStr = entry.Time.ToString("HH:mm:ss");
+                    string header = string.IsNullOrEmpty(entry.Channel) ? $"{timeStr}" : $"{timeStr} [{entry.Channel}]";
+
+                    int headerStart = voiceHistoryTextBox.TextLength;
+                    voiceHistoryTextBox.AppendText(header + Environment.NewLine);
+                    voiceHistoryTextBox.Select(headerStart, header.Length + 1);
+                    voiceHistoryTextBox.SelectionFont = new Font(voiceHistoryTextBox.Font.FontFamily, voiceHistoryTextBox.Font.Size - 1, FontStyle.Regular);
+                    voiceHistoryTextBox.SelectionColor = Color.Gray;
+
+                    // Add text content in normal font (trimmed)
+                    string trimmedText = entry.Text.Trim();
+                    int textStart = voiceHistoryTextBox.TextLength;
+                    voiceHistoryTextBox.AppendText(trimmedText);
+                    voiceHistoryTextBox.Select(textStart, trimmedText.Length);
+                    voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
+                    voiceHistoryTextBox.SelectionColor = voiceHistoryTextBox.ForeColor;
+
+                    // Add spacing between entries
+                    voiceHistoryTextBox.AppendText(Environment.NewLine + Environment.NewLine);
+                }
+            }
+
+            // Also load any current (in-progress) entry
+            var currentEntry = broker.GetValue<HTCommander.DecodedTextEntry>(1, "CurrentDecodedTextEntry", null);
+            if (currentEntry != null && !string.IsNullOrEmpty(currentEntry.Text))
+            {
+                // Display the current entry as a partial entry (in-progress)
+                string timeStr = currentEntry.Time.ToString("HH:mm:ss");
+                string header = string.IsNullOrEmpty(currentEntry.Channel) ? $"{timeStr}" : $"{timeStr} [{currentEntry.Channel}]";
+
+                // Add the header in smaller, gray font
+                int headerStart = voiceHistoryTextBox.TextLength;
+                voiceHistoryTextBox.AppendText(header + Environment.NewLine);
+                voiceHistoryTextBox.Select(headerStart, header.Length + 1);
+                voiceHistoryTextBox.SelectionFont = new Font(voiceHistoryTextBox.Font.FontFamily, voiceHistoryTextBox.Font.Size - 1, FontStyle.Regular);
+                voiceHistoryTextBox.SelectionColor = Color.Gray;
+
+                // Mark where the text content starts (for future updates)
+                _partialEntryTextStart = voiceHistoryTextBox.TextLength;
+                _hasPartialEntry = true;
+
+                // Add the text content in normal font (trimmed)
+                string trimmedText = currentEntry.Text.Trim();
+                voiceHistoryTextBox.AppendText(trimmedText);
+                voiceHistoryTextBox.Select(_partialEntryTextStart, trimmedText.Length);
+                voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
+                voiceHistoryTextBox.SelectionColor = voiceHistoryTextBox.ForeColor;
+            }
+
+            // Scroll to the end and deselect
+            voiceHistoryTextBox.SelectionStart = voiceHistoryTextBox.TextLength;
+            voiceHistoryTextBox.SelectionLength = 0;
+            voiceHistoryTextBox.ScrollToCaret();
         }
 
         private void voiceMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
@@ -378,6 +491,42 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
+        /// Handles VoiceTextCleared event from the DataBroker - clears the voice history text box.
+        /// </summary>
+        private void OnVoiceTextCleared(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnVoiceTextCleared), deviceId, name, data);
+                return;
+            }
+
+            // Clear the voice history text box and reset partial entry tracking
+            voiceHistoryTextBox.Clear();
+            _hasPartialEntry = false;
+            _partialEntryTextStart = -1;
+        }
+
+        /// <summary>
+        /// Handles VoiceTextHistoryLoaded event from the DataBroker - loads history when VoiceHandler finishes loading.
+        /// This handles the race condition where VoiceHandler may load history after this control is initialized.
+        /// </summary>
+        private void OnVoiceTextHistoryLoaded(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnVoiceTextHistoryLoaded), deviceId, name, data);
+                return;
+            }
+
+            // Only load if we don't already have content (avoid duplicates)
+            if (voiceHistoryTextBox.TextLength == 0)
+            {
+                LoadDecodedTextHistory();
+            }
+        }
+
+        /// <summary>
         /// Loads the list of connected radios from the DataBroker.
         /// </summary>
         private void LoadConnectedRadios()
@@ -414,7 +563,7 @@ namespace HTCommander.Controls
         /// </summary>
         private void LoadVoiceHandlerState()
         {
-            var state = broker.GetValue<object>(0, "VoiceHandlerState", null);
+            var state = broker.GetValue<object>(1, "VoiceHandlerState", null);
             ProcessVoiceHandlerState(state);
         }
 
@@ -488,7 +637,7 @@ namespace HTCommander.Controls
             string model = broker.GetValue<string>(0, "VoiceModel", "");
 
             // Dispatch VoiceHandlerEnable command
-            broker.Dispatch(0, "VoiceHandlerEnable", new
+            broker.Dispatch(1, "VoiceHandlerEnable", new
             {
                 DeviceId = deviceId,
                 Language = language,
@@ -501,7 +650,7 @@ namespace HTCommander.Controls
         /// </summary>
         private void DisableVoiceHandler()
         {
-            broker.Dispatch(0, "VoiceHandlerDisable", null, store: false);
+            broker.Dispatch(1, "VoiceHandlerDisable", null, store: false);
         }
 
         /// <summary>
@@ -531,6 +680,50 @@ namespace HTCommander.Controls
             {
                 EnableVoiceHandler(deviceId);
             }
+        }
+
+        #endregion
+
+        #region AllowTransmit State Management
+
+        /// <summary>
+        /// Handles AllowTransmit changes from the DataBroker.
+        /// </summary>
+        private void OnAllowTransmitChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnAllowTransmitChanged), deviceId, name, data);
+                return;
+            }
+
+            if (data is int allowTransmitValue)
+            {
+                _allowTransmit = allowTransmitValue == 1;
+            }
+            else
+            {
+                _allowTransmit = false;
+            }
+
+            UpdateBottomPanelVisibility();
+        }
+
+        /// <summary>
+        /// Loads the initial AllowTransmit state from the DataBroker.
+        /// </summary>
+        private void LoadAllowTransmitState()
+        {
+            _allowTransmit = broker.GetValue<int>(0, "AllowTransmit", 0) == 1;
+            UpdateBottomPanelVisibility();
+        }
+
+        /// <summary>
+        /// Updates the visibility of the voiceBottomPanel based on AllowTransmit setting.
+        /// </summary>
+        private void UpdateBottomPanelVisibility()
+        {
+            voiceBottomPanel.Visible = _allowTransmit;
         }
 
         #endregion
