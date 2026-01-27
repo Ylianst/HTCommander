@@ -400,6 +400,8 @@ namespace HTCommander.Controls
             {
                 foreach (var entry in history)
                 {
+                    if (entry.Text == null) continue;
+
                     // Add header in smaller, gray font
                     string timeStr = entry.Time.ToString("HH:mm:ss");
                     string header = string.IsNullOrEmpty(entry.Channel) ? $"{timeStr}" : $"{timeStr} [{entry.Channel}]";

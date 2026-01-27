@@ -81,6 +81,9 @@ namespace HTCommander
             // Subscribe to radio State changes from all devices to detect disconnection
             broker.Subscribe(DataBroker.AllDevices, "State", OnRadioStateChanged);
 
+            // Subscribe to AudioState changes from all devices to detect when audio is disabled
+            broker.Subscribe(DataBroker.AllDevices, "AudioState", OnAudioStateChanged);
+
             // Subscribe to AudioDataEnd from all devices to flush speech-to-text on audio segment end
             broker.Subscribe(DataBroker.AllDevices, "AudioDataEnd", OnAudioDataEnd);
 
@@ -135,6 +138,29 @@ namespace HTCommander
             if (state == "Disconnected" || state == "UnableToConnect" || state == "BluetoothNotAvailable" || state == "AccessDenied")
             {
                 broker.LogInfo($"[VoiceHandler] Target radio {deviceId} disconnected (state: {state}), disabling voice handler");
+                Disable();
+            }
+        }
+
+        /// <summary>
+        /// Handles AudioState change events. If audio is disabled for the target radio, disable speech-to-text.
+        /// </summary>
+        private void OnAudioStateChanged(int deviceId, string name, object data)
+        {
+            // Only care about audio state changes for the radio we're monitoring
+            if (deviceId != _targetDeviceId || !_enabled) return;
+
+            // Check if audio state is false (audio disabled)
+            bool audioEnabled = false;
+            if (data is bool boolValue)
+            {
+                audioEnabled = boolValue;
+            }
+
+            // If audio is disabled, disable the voice handler
+            if (!audioEnabled)
+            {
+                broker.LogInfo($"[VoiceHandler] Audio disabled on target radio {deviceId}, disabling speech-to-text processing");
                 Disable();
             }
         }
