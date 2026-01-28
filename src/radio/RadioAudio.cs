@@ -130,7 +130,68 @@ namespace HTCommander
             DeviceId = deviceid;
             MacAddress = mac;
             broker = new DataBrokerClient();
+            
+            // Subscribe to Data Broker commands for audio control
+            broker.Subscribe(DeviceId, "SetOutputAudioDevice", OnSetOutputAudioDevice);
+            broker.Subscribe(DeviceId, "SetOutputVolume", OnSetOutputVolume);
+            broker.Subscribe(DeviceId, "TransmitVoicePCM", OnTransmitVoicePCM);
+            broker.Subscribe(DeviceId, "StartRecording", OnStartRecording);
+            broker.Subscribe(DeviceId, "StopRecording", OnStopRecording);
+            
+            // Initialize output volume from stored value
+            OutputVolume = broker.GetValue<float>(DeviceId, "OutputVolume", 1.0f);
+            
             InitializeSoftModem(SoftwareModemModeType.Psk2400);
+        }
+        
+        // Data Broker event handlers
+        private void OnSetOutputAudioDevice(int deviceId, string name, object data)
+        {
+            if (data is string audioDeviceId)
+            {
+                SetOutputDevice(audioDeviceId);
+                broker.Dispatch(DeviceId, "OutputAudioDevice", audioDeviceId, store: true);
+            }
+        }
+        
+        private void OnSetOutputVolume(int deviceId, string name, object data)
+        {
+            if (data is float volume)
+            {
+                OutputVolume = volume;
+                if (volumeProvider != null) { volumeProvider.Volume = volume; }
+                broker.Dispatch(DeviceId, "OutputVolume", volume, store: true);
+            }
+            else if (data is int volumeInt)
+            {
+                float vol = volumeInt / 100f;
+                OutputVolume = vol;
+                if (volumeProvider != null) { volumeProvider.Volume = vol; }
+                broker.Dispatch(DeviceId, "OutputVolume", vol, store: true);
+            }
+        }
+        
+        private void OnTransmitVoicePCM(int deviceId, string name, object data)
+        {
+            if (data is byte[] pcmData && pcmData.Length > 0)
+            {
+                TransmitVoice(pcmData, 0, pcmData.Length, false);
+            }
+        }
+        
+        private void OnStartRecording(int deviceId, string name, object data)
+        {
+            if (data is string filename && !string.IsNullOrEmpty(filename))
+            {
+                StartRecording(filename);
+                broker.Dispatch(DeviceId, "Recording", true, store: true);
+            }
+        }
+        
+        private void OnStopRecording(int deviceId, string name, object data)
+        {
+            StopRecording();
+            broker.Dispatch(DeviceId, "Recording", false, store: true);
         }
 
         /// <summary>
@@ -176,12 +237,34 @@ namespace HTCommander
         }
 
         private void Debug(string msg) { broker.Dispatch(1, "LogInfo", $"[RadioAudio/{DeviceId}]: {msg}", store: false); }
+        
+        /// <summary>
+        /// Fast calculation of max amplitude from 16-bit PCM data, normalized to 0.0-1.0
+        /// </summary>
+        private static unsafe float CalculatePcmAmplitude(byte[] pcmData, int bytesRecorded)
+        {
+            if (pcmData == null || bytesRecorded < 2) return 0f;
+            short max = 0;
+            fixed (byte* ptr = pcmData)
+            {
+                short* samples = (short*)ptr;
+                int count = bytesRecorded / 2;
+                for (int i = 0; i < count; i++)
+                {
+                    short val = samples[i];
+                    if (val < 0) val = (short)-val; // Absolute value
+                    if (val > max) max = val;
+                }
+            }
+            return Math.Min(1.0f, max / 32768f);
+        }
+        
         private void DispatchAudioStateChanged(bool enabled) { broker.Dispatch(DeviceId, "AudioState", enabled, store: true); }
         private void DispatchVoiceTransmitStateChanged(bool transmitting) { broker.Dispatch(DeviceId, "VoiceTransmitStateChanged", transmitting, store: false); }
         private void DispatchSoftModemPacketDecoded(TncDataFragment fragment) { broker.Dispatch(DeviceId, "SoftModemPacketDecoded", fragment, store: false); }
         private void DispatchAudioDataAvailable(byte[] data, int offset, int length, string channelName, bool transmit) { broker.Dispatch(DeviceId, "AudioDataAvailable", new { Data = data, Offset = offset, Length = length, ChannelName = channelName, Transmit = transmit }, store: false); }
         private void DispatchAudioDataStart() { broker.Dispatch(DeviceId, "AudioDataStart", null, store: false); }
-        private void DispatchAudioDataEnd() { broker.Dispatch(DeviceId, "AudioDataEnd", null, store: false); }
+        private void DispatchAudioDataEnd() { broker.Dispatch(DeviceId, "AudioDataEnd", null, store: false); broker.Dispatch(DeviceId, "OutputAmplitude", 0f, store: false); }
 
         // Audio run state tracking
         private bool inAudioRun = false;
@@ -1237,6 +1320,11 @@ namespace HTCommander
                             catch (Exception ex) { Debug("Recording Write Error: " + ex.ToString()); }
                         }
                         DispatchAudioDataAvailable(pcmFrame, 0, totalWritten, currentChannelName, false);
+                        
+                        // Calculate and dispatch output amplitude (after volume is applied conceptually)
+                        // Fast calculation: find max sample and normalize to 0.0-1.0, scaled by output volume
+                        float amplitude = CalculatePcmAmplitude(pcmFrame, totalWritten) * OutputVolume;
+                        broker.Dispatch(DeviceId, "OutputAmplitude", amplitude, store: false);
                     }
 
                     // We need to send the audio into the AFPK1200 or 9600 software modem for decoding

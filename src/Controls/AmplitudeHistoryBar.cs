@@ -66,6 +66,11 @@ namespace HTCommander
             if (this.Visible) { AddSample(Math.Min(1.0F, FindMaxSampleUnsafe(buffer, bytesRecorded) / 32768F)); }
         }
 
+        public void ProcessAudioData(float value)
+        {
+            if (this.Visible) { AddSample(Math.Min(1.0F, Math.Max(0.0F, value))); }
+        }
+
         public void AddSample(float amplitude)
         {
             lock (amplitudeHistory)

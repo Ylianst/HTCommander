@@ -197,6 +197,34 @@ namespace HTCommander
 
             // Subscribe to audio control events
             broker.Subscribe(deviceid, "SetAudio", OnSetAudioEvent);
+            
+            // Subscribe to volume and squelch control events
+            broker.Subscribe(deviceid, "SetVolumeLevel", OnSetVolumeLevelEvent);
+            broker.Subscribe(deviceid, "SetSquelchLevel", OnSetSquelchLevelEvent);
+        }
+        
+        /// <summary>
+        /// Handles SetVolumeLevel event from the broker (for setting radio hardware volume).
+        /// </summary>
+        private void OnSetVolumeLevelEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            if (data is int level)
+            {
+                SetVolumeLevel(level);
+            }
+        }
+        
+        /// <summary>
+        /// Handles SetSquelchLevel event from the broker (for setting squelch level).
+        /// </summary>
+        private void OnSetSquelchLevelEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            if (data is int level && Settings != null)
+            {
+                SetSquelchLevel(level);
+            }
         }
 
         /// <summary>

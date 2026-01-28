@@ -903,5 +903,37 @@ namespace HTCommander
 
         #endregion
 
+        private void volumeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            int deviceId = radioPanelControl.DeviceId;
+            if (deviceId <= 0)
+            {
+                MessageBox.Show(this, "No radio selected.", "Audio Controls", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Open a new instance of RadioAudioForm for the currently selected radio
+            RadioAudioForm audioForm = new RadioAudioForm(deviceId);
+            audioForm.Show(this);
+        }
+
+        private void spectrogramToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            int deviceId = radioPanelControl.DeviceId;
+
+            SpectrogramForm spectrogramForm;
+            if (deviceId > 0 && connectedRadios.Any(r => r.DeviceId == deviceId))
+            {
+                // Radio is connected - show spectrogram with radio audio
+                spectrogramForm = new SpectrogramForm(deviceId);
+            }
+            else
+            {
+                // No radio connected - show spectrogram with default audio input
+                spectrogramForm = new SpectrogramForm((string)null);
+            }
+
+            spectrogramForm.Show(this);
+        }
     }
 }

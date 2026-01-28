@@ -273,33 +273,35 @@
             // audioEnabledToolStripMenuItem
             // 
             audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
-            audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
             audioEnabledToolStripMenuItem.Click += audioEnabledToolStripMenuItem_Click;
             // 
             // volumeToolStripMenuItem
             // 
             volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            volumeToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            volumeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             volumeToolStripMenuItem.Text = "Audio &Controls...";
+            volumeToolStripMenuItem.Click += volumeToolStripMenuItem_Click;
             // 
             // audioClipsToolStripMenuItem
             // 
             audioClipsToolStripMenuItem.Name = "audioClipsToolStripMenuItem";
-            audioClipsToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            audioClipsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             audioClipsToolStripMenuItem.Text = "Audio C&lips...";
             // 
             // spectrogramToolStripMenuItem
-            // 
+            //
             spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";
-            spectrogramToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            spectrogramToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             spectrogramToolStripMenuItem.Text = "Spectrogram...";
+            spectrogramToolStripMenuItem.Click += spectrogramToolStripMenuItem_Click;
             // 
             // softwareModemToolStripMenuItem
             // 
             softwareModemToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { disabledToolStripMenuItem, aFK1200ToolStripMenuItem, pSK2400ToolStripMenuItem, pSK4800ToolStripMenuItem, g9600ToolStripMenuItem });
             softwareModemToolStripMenuItem.Name = "softwareModemToolStripMenuItem";
-            softwareModemToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            softwareModemToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             softwareModemToolStripMenuItem.Text = "Software &Modem";
             // 
             // disabledToolStripMenuItem
@@ -453,6 +455,7 @@
             // 
             // aprsTabUserControl
             // 
+            aprsTabUserControl.Callsign = "";
             aprsTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             aprsTabUserControl.Location = new System.Drawing.Point(0, 0);
             aprsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
@@ -460,6 +463,7 @@
             aprsTabUserControl.SelectedAprsRoute = 0;
             aprsTabUserControl.ShowDetach = true;
             aprsTabUserControl.Size = new System.Drawing.Size(669, 836);
+            aprsTabUserControl.StationId = "";
             aprsTabUserControl.TabIndex = 0;
             // 
             // mapTabPage
@@ -628,6 +632,7 @@
             packetCaptureTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             packetCaptureTabUserControl.Name = "packetCaptureTabUserControl";
             packetCaptureTabUserControl.ShowDetach = true;
+            packetCaptureTabUserControl.ShowTitle = false;
             packetCaptureTabUserControl.Size = new System.Drawing.Size(669, 836);
             packetCaptureTabUserControl.TabIndex = 0;
             // 
@@ -710,6 +715,7 @@
             radioPanelControl.ShowAllChannels = false;
             radioPanelControl.Size = new System.Drawing.Size(368, 840);
             radioPanelControl.TabIndex = 0;
+            radioPanelControl.Click += volumeToolStripMenuItem_Click;
             // 
             // importChannelsFileDialog
             // 

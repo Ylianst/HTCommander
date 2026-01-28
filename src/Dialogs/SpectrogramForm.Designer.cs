@@ -182,12 +182,10 @@
             // 
             // sourceToolStripMenuItem
             // 
-            this.sourceToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.radioToolStripMenuItem,
-            this.microphoneToolStripMenuItem});
             this.sourceToolStripMenuItem.Name = "sourceToolStripMenuItem";
             this.sourceToolStripMenuItem.Size = new System.Drawing.Size(68, 26);
             this.sourceToolStripMenuItem.Text = "&Source";
+            this.sourceToolStripMenuItem.DropDownOpening += new System.EventHandler(this.sourceToolStripMenuItem_DropDownOpening);
             // 
             // radioToolStripMenuItem
             // 
