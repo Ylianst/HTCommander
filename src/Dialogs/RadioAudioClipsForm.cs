@@ -37,19 +37,21 @@ namespace HTCommander
         private Timer uiTimer;
         private AudioClip currentRecordingClip;
         private List<byte> recordedBytes;
-        private Radio radio;
-        private RegistryHelper registry;
+        private DataBrokerClient broker;
+        private int deviceId;
         private Stopwatch playbackTimer;
         private string currentPlayingClipName;
         private int sortColumn = -1;
         private SortOrder sortOrder = SortOrder.None;
 
-        public RadioAudioClipsForm(Radio radio)
+        public RadioAudioClipsForm(int deviceId)
         {
-            /*
             InitializeComponent();
-            this.radio = radio;
-            this.registry = MainForm.g_MainForm.registry;
+            this.deviceId = deviceId;
+            
+            // Create the broker for subscribing to events and accessing settings
+            broker = new DataBrokerClient();
+            
             clipManager = new AudioClipManager();
             recordingTimer = new Stopwatch();
             playbackTimer = new Stopwatch();
@@ -63,7 +65,88 @@ namespace HTCommander
             uiTimer = new Timer();
             uiTimer.Interval = 100;
             uiTimer.Tick += UiTimer_Tick;
-            */
+            
+            // Set initial title with friendly name
+            UpdateTitle();
+            
+            // Only subscribe to radio-specific events if we have a valid radio device
+            if (deviceId > 0)
+            {
+                broker.Subscribe(deviceId, "State", OnRadioStateChanged);
+                broker.Subscribe(deviceId, "AudioState", OnAudioStateChanged);
+                broker.Subscribe(deviceId, "FriendlyName", OnFriendlyNameChanged);
+            }
+            broker.Subscribe(0, "AllowTransmit", OnAllowTransmitChanged);
+            
+            // Subscribe to audio clips changes (for syncing multiple form instances)
+            broker.Subscribe(0, "AudioClipsChanged", OnAudioClipsChanged);
+            
+            this.FormClosed += (s, e) => { broker?.Dispose(); };
+        }
+        
+        private void OnRadioStateChanged(int devId, string name, object data)
+        {
+            if (InvokeRequired) { BeginInvoke(new Action(() => OnRadioStateChanged(devId, name, data))); return; }
+            
+            // Check if the radio has disconnected
+            string stateStr = data as string;
+            if (stateStr == "Disconnected")
+            {
+                // Radio disconnected, close the form
+                this.Close();
+                return;
+            }
+            
+            UpdateUI();
+        }
+        
+        private void OnAudioStateChanged(int devId, string name, object data)
+        {
+            if (InvokeRequired) { BeginInvoke(new Action(() => OnAudioStateChanged(devId, name, data))); return; }
+            UpdateUI();
+        }
+        
+        private void OnFriendlyNameChanged(int devId, string name, object data)
+        {
+            if (InvokeRequired) { BeginInvoke(new Action(() => OnFriendlyNameChanged(devId, name, data))); return; }
+            UpdateTitle();
+        }
+        
+        private void OnAllowTransmitChanged(int devId, string name, object data)
+        {
+            if (InvokeRequired) { BeginInvoke(new Action(() => OnAllowTransmitChanged(devId, name, data))); return; }
+            UpdateUI();
+        }
+        
+        private void OnAudioClipsChanged(int devId, string name, object data)
+        {
+            if (InvokeRequired) { BeginInvoke(new Action(() => OnAudioClipsChanged(devId, name, data))); return; }
+            
+            // Reload clips from disk and refresh the list
+            clipManager.LoadClips();
+            RefreshClipsList();
+            UpdateUI();
+        }
+        
+        /// <summary>
+        /// Notifies other instances that the audio clips list has changed.
+        /// </summary>
+        private void NotifyClipsChanged()
+        {
+            broker.Dispatch(0, "AudioClipsChanged", DateTime.Now.Ticks, store: false);
+        }
+        
+        private void UpdateTitle()
+        {
+            string friendlyName = broker.GetValue<string>(deviceId, "FriendlyName", null);
+            if (string.IsNullOrEmpty(friendlyName))
+            {
+                this.Text = "Audio Clips";
+            }
+            else
+            {
+                this.Text = "Audio Clips - " + friendlyName;
+            }
         }
 
         private void RadioAudioClipsForm_Load(object sender, EventArgs e)
@@ -123,10 +206,19 @@ namespace HTCommander
 
         public void UpdateUI()
         {
-            /*
+            // Don't update if the form is disposed or disposing
+            if (IsDisposed || Disposing) return;
+            
             bool hasSelection = clipsListView.SelectedItems.Count > 0;
             bool canOperate = !isRecording && !isPlaying;
-            bool canTransmit = canOperate && hasSelection && radio != null && (radio.State == Radio.RadioState.Connected) && MainForm.g_MainForm.AudioEnabled;
+            
+            // Get state from broker
+            string stateStr = broker.GetValue<string>(deviceId, "State", "Disconnected");
+            bool isConnected = stateStr == "Connected";
+            bool audioEnabled = broker.GetValue<bool>(deviceId, "AudioState", false);
+            bool allowTransmit = broker.GetValue<int>(0, "AllowTransmit", 0) == 1;
+            
+            bool canTransmit = canOperate && hasSelection && isConnected && audioEnabled && allowTransmit;
             
             // Update buttons
             recordButton.Enabled = canOperate;
@@ -156,7 +248,6 @@ namespace HTCommander
                 recordButton.ForeColor = SystemColors.ControlText;
                 recordButton.Font = new Font(recordButton.Font, FontStyle.Bold);
             }
-            */
         }
 
         private void recordButton_Click(object sender, EventArgs e)
@@ -283,6 +374,7 @@ namespace HTCommander
                         // Add to manager
                         clipManager.AddClip(currentRecordingClip);
                         RefreshClipsList();
+                        NotifyClipsChanged();
                         
                         // Select the new clip
                         foreach (ListViewItem item in clipsListView.Items)
@@ -429,9 +521,28 @@ namespace HTCommander
 
         private void PlayClipOverRadio(AudioClip clip)
         {
-            if (radio == null || !(radio.State == Radio.RadioState.Connected))
+            string stateStr = broker.GetValue<string>(deviceId, "State", "Disconnected");
+            bool isConnected = stateStr == "Connected";
+            bool audioEnabled = broker.GetValue<bool>(deviceId, "AudioState", false);
+            bool allowTransmit = broker.GetValue<int>(0, "AllowTransmit", 0) == 1;
+            
+            if (!isConnected)
             {
                 MessageBox.Show(this, "Not connected to radio.", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            
+            if (!audioEnabled)
+            {
+                MessageBox.Show(this, "Audio is not enabled.", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            
+            if (!allowTransmit)
+            {
+                MessageBox.Show(this, "Transmit is not allowed.", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -473,12 +584,12 @@ namespace HTCommander
                     mainToolStripStatusLabel.Text = "Transmitting 00:00";
                     UpdateUI();
                     
-                    // Read WAV file and transmit using radio's TransmitVoice method
+                    // Read WAV file and transmit using Data Broker
                     using (var reader = new WaveFileReader(clip.GetFullPath()))
                     {
                         var buffer = new byte[reader.Length];
                         int bytesRead = reader.Read(buffer, 0, buffer.Length);
-                        radio.RadioAudio.TransmitVoice(buffer, 0, bytesRead, true);
+                        broker.Dispatch(deviceId, "TransmitVoicePCM", buffer, store: false);
                     }
 
                     transmitUiTimer.Stop();
@@ -529,6 +640,7 @@ namespace HTCommander
                     if (clipManager.RenameClip(clip, newName))
                     {
                         RefreshClipsList();
+                        NotifyClipsChanged();
                         
                         // Re-select the renamed clip
                         foreach (ListViewItem item in clipsListView.Items)
@@ -582,6 +694,7 @@ namespace HTCommander
                 }
                 
                 RefreshClipsList();
+                NotifyClipsChanged();
                 UpdateStatusLabel();
                 UpdateUI();
             }
@@ -631,21 +744,24 @@ namespace HTCommander
 
         private void clipsContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            /*
             // Update menu item states to match button states
             bool hasSelection = clipsListView.SelectedItems.Count > 0;
             bool canOperate = !isRecording && !isPlaying;
-            bool canTransmit = canOperate && hasSelection && radio != null && (radio.State == Radio.RadioState.Connected) && MainForm.g_MainForm.AudioEnabled;
             
-            //recordMenuItem.Enabled = canOperate;
-            //stopMenuItem.Enabled = isRecording || isPlaying;
+            // Get state from broker
+            string stateStr = broker.GetValue<string>(deviceId, "State", "Disconnected");
+            bool isConnected = stateStr == "Connected";
+            bool audioEnabled = broker.GetValue<bool>(deviceId, "AudioState", false);
+            bool allowTransmit = broker.GetValue<int>(0, "AllowTransmit", 0) == 1;
+            
+            bool canTransmit = canOperate && hasSelection && isConnected && audioEnabled && allowTransmit;
+            
             playMenuItem.Enabled = canOperate && hasSelection;
             playRadioMenuItem.Enabled = canTransmit;
             duplicateMenuItem.Enabled = canOperate && hasSelection;
             boostVolumeMenuItem.Enabled = canOperate && hasSelection;
             renameMenuItem.Enabled = canOperate && hasSelection;
             deleteMenuItem.Enabled = canOperate && hasSelection;
-            */
         }
 
         private void RadioAudioClipsForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -672,18 +788,18 @@ namespace HTCommander
         {
             try
             {
-                int? x = registry.ReadInt("AudioClipsFormX", -1);
-                int? y = registry.ReadInt("AudioClipsFormY", -1);
-                int? width = registry.ReadInt("AudioClipsFormWidth", 784);
-                int? height = registry.ReadInt("AudioClipsFormHeight", 561);
+                int x = broker.GetValue<int>(0, "AudioClipsFormX", -1);
+                int y = broker.GetValue<int>(0, "AudioClipsFormY", -1);
+                int width = broker.GetValue<int>(0, "AudioClipsFormWidth", 784);
+                int height = broker.GetValue<int>(0, "AudioClipsFormHeight", 561);
                 
                 if (x >= 0 && y >= 0)
                 {
                     this.StartPosition = FormStartPosition.Manual;
-                    this.Location = new Point(x.Value, y.Value);
+                    this.Location = new Point(x, y);
                 }
                 
-                this.Size = new Size(width.Value, height.Value);
+                this.Size = new Size(width, height);
             }
             catch { }
         }
@@ -694,10 +810,10 @@ namespace HTCommander
             {
                 if (this.WindowState == FormWindowState.Normal)
                 {
-                    registry.WriteInt("AudioClipsFormX", this.Location.X);
-                    registry.WriteInt("AudioClipsFormY", this.Location.Y);
-                    registry.WriteInt("AudioClipsFormWidth", this.Size.Width);
-                    registry.WriteInt("AudioClipsFormHeight", this.Size.Height);
+                    broker.Dispatch(0, "AudioClipsFormX", this.Location.X);
+                    broker.Dispatch(0, "AudioClipsFormY", this.Location.Y);
+                    broker.Dispatch(0, "AudioClipsFormWidth", this.Size.Width);
+                    broker.Dispatch(0, "AudioClipsFormHeight", this.Size.Height);
                 }
             }
             catch { }
@@ -803,6 +919,7 @@ namespace HTCommander
                 // Add to manager
                 clipManager.AddClip(newClip);
                 RefreshClipsList();
+                NotifyClipsChanged();
 
                 // Select the new clip
                 foreach (ListViewItem item in clipsListView.Items)
@@ -910,6 +1027,7 @@ namespace HTCommander
 
                 clipManager.SaveClips();
                 RefreshClipsList();
+                NotifyClipsChanged();
 
                 // Reselect the clip
                 foreach (ListViewItem item in clipsListView.Items)

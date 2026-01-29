@@ -12,6 +12,22 @@ using HTCommander.RadioControls;
 
 namespace HTCommander
 {
+    /// <summary>
+    /// Wrapper class for drag & drop operations that includes both channel info and source device ID.
+    /// This allows distinguishing between channels from different radios.
+    /// </summary>
+    public class ChannelDragData
+    {
+        public RadioChannelInfo Channel { get; set; }
+        public int SourceDeviceId { get; set; }
+
+        public ChannelDragData(RadioChannelInfo channel, int sourceDeviceId)
+        {
+            Channel = channel;
+            SourceDeviceId = sourceDeviceId;
+        }
+    }
+
     public partial class RadioChannelControl : UserControl
     {
         private RadioChannelInfo channel;
@@ -130,16 +146,21 @@ namespace HTCommander
         {
             if (e.Button == MouseButtons.Left)
             {
-                DoDragDrop((object)channel, DragDropEffects.Copy | DragDropEffects.Move);
+                int sourceDeviceId = parent?.DeviceId ?? -1;
+                ChannelDragData dragData = new ChannelDragData(channel, sourceDeviceId);
+                DoDragDrop(dragData, DragDropEffects.Copy | DragDropEffects.Move);
             }
         }
 
         private void RadioChannelControl_DragEnter(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(typeof(RadioChannelInfo)))
+            if (e.Data.GetDataPresent(typeof(ChannelDragData)))
             {
-                RadioChannelInfo c = (RadioChannelInfo)e.Data.GetData(typeof(RadioChannelInfo));
-                if (c.channel_id == channel.channel_id)
+                ChannelDragData dragData = (ChannelDragData)e.Data.GetData(typeof(ChannelDragData));
+                int targetDeviceId = parent?.DeviceId ?? -1;
+                
+                // Only block the drop if it's the same channel on the same radio
+                if (dragData.Channel.channel_id == channel.channel_id && dragData.SourceDeviceId == targetDeviceId)
                 {
                     e.Effect = DragDropEffects.None;
                 }
@@ -168,10 +189,14 @@ namespace HTCommander
 
         private void RadioChannelControl_DragDrop(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(typeof(RadioChannelInfo)))
+            if (e.Data.GetDataPresent(typeof(ChannelDragData)))
             {
-                RadioChannelInfo c = (RadioChannelInfo)e.Data.GetData(typeof(RadioChannelInfo));
-                if (c.channel_id == channel.channel_id) return;
+                ChannelDragData dragData = (ChannelDragData)e.Data.GetData(typeof(ChannelDragData));
+                RadioChannelInfo c = dragData.Channel;
+                int targetDeviceId = parent?.DeviceId ?? -1;
+                
+                // Don't allow dropping the same channel on itself on the same radio
+                if (c.channel_id == channel.channel_id && dragData.SourceDeviceId == targetDeviceId) return;
                 if (parent == null) return;
 
                 if (MessageBox.Show(parent, string.Format("Copy \"{0}\" to channel {1}?", c.name_str, (channel.channel_id + 1)), "Channel", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)

@@ -380,13 +380,23 @@ namespace HTCommander.RadioControls
                     channelB = currentChannels[currentSettings.channel_b];
                 }
 
+                // Check for NOAA channel - use curr_ch_id from HtStatus since channel_a in settings may differ
+                bool isNoaaChannel = (currentHtStatus != null && currentHtStatus.curr_ch_id >= 254) || 
+                                     (channelA != null && channelA.channel_id >= 254);
+
                 // Update channel control highlighting
+                // Don't highlight any channels if NOAA is active, since the radio is not using channelA/B
                 if (channelControls != null)
                 {
                     foreach (RadioChannelControl c in channelControls)
                     {
                         if (c == null) continue;
-                        if ((channelA != null) && (((int)c.Tag) == channelA.channel_id))
+                        if (isNoaaChannel)
+                        {
+                            // NOAA is active - no channel highlighting
+                            c.BackColor = Color.DarkKhaki;
+                        }
+                        else if ((channelA != null) && (((int)c.Tag) == channelA.channel_id))
                         {
                             c.BackColor = Color.PaleGoldenrod;
                         }
@@ -402,9 +412,6 @@ namespace HTCommander.RadioControls
                 }
 
                 // Update VFO1 display (Channel A)
-                // Check for NOAA channel - use curr_ch_id from HtStatus since channel_a in settings may differ
-                bool isNoaaChannel = (currentHtStatus != null && currentHtStatus.curr_ch_id >= 254) || 
-                                     (channelA != null && channelA.channel_id >= 254);
                 
                 if (isNoaaChannel && currentHtStatus != null && currentHtStatus.curr_ch_id >= 254)
                 {
@@ -591,7 +598,12 @@ namespace HTCommander.RadioControls
 
         private void radioPictureBox_Click(object sender, EventArgs e)
         {
-            //if (parent != null) { parent.volumeToolStripMenuItem_Click(sender, e); }
+            // Only open the audio form if we are connected
+            if (currentState != "Connected" || _deviceId <= 0) return;
+
+            // Open a new RadioAudioForm for this radio
+            RadioAudioForm audioForm = new RadioAudioForm(_deviceId);
+            audioForm.Show();
         }
 
         private void radioPictureBox_DragEnter(object sender, DragEventArgs e)

@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Collections.Generic;
 using NAudio.CoreAudioApi;
@@ -32,8 +33,6 @@ namespace HTCommander
         private bool isTransmitting = false;
         private int inputBoostValue = 0; // Cached boost value to avoid cross-thread access
 
-        public int Volume { get { return volumeTrackBar.Value; } set { volumeTrackBar.Value = value; } }
-
         public RadioAudioForm(int deviceId)
         {
             InitializeComponent();
@@ -45,33 +44,26 @@ namespace HTCommander
             // Set initial title with friendly name
             UpdateTitle();
 
-            // Load settings from the broker (per-device settings)
+            // Load lightweight settings from the broker (per-device settings)
             SelectedOutputDeviceId = broker.GetValue<string>(deviceId, "OutputAudioDevice", "");
             SelectedInputDeviceId = broker.GetValue<string>(deviceId, "InputAudioDevice", "");
 
-            deviceEnumerator.RegisterEndpointNotificationCallback(this);
-            LoadAudioDevices();
+            // Set default images immediately
             transmitButton.Image = microphoneImageList.Images[0];
             recordButton.Image = microphoneImageList.Images[6];
 
-            // Load volume settings
+            // Load volume settings (lightweight)
             outputTrackBar.Value = broker.GetValue<int>(deviceId, "OutputAudioVolume", 100);
-            broker.Dispatch(deviceId, "SetOutputVolume", outputTrackBar.Value);
             inputTrackBar.Value = broker.GetValue<int>(deviceId, "InputAudioVolume", 100);
-            if (inputDevice != null) { inputDevice.AudioEndpointVolume.MasterVolumeLevelScalar = inputTrackBar.Value / 100f; }
-
-            // Set output audio device
-            broker.Dispatch(deviceId, "SetOutputAudioDevice", SelectedOutputDeviceId);
-            UpdateInfo();
-
             inputBoostTrackBar.Value = broker.GetValue<int>(deviceId, "InputAudioBoost", 0);
             inputBoostValue = inputBoostTrackBar.Value;
             spacebarPTTToolStripMenuItem.Checked = (broker.GetValue<int>(0, "SpacebarPTT", 0) != 0);
 
-            // Subscribe to radio state changes
+            // Subscribe to radio state changes (lightweight)
             broker.Subscribe(deviceId, "State", OnRadioStateChanged);
             broker.Subscribe(deviceId, "AudioState", OnAudioStateChanged);
             broker.Subscribe(deviceId, "Settings", OnSettingsChanged);
+            broker.Subscribe(deviceId, "HtStatus", OnHtStatusChanged);
             broker.Subscribe(deviceId, "Volume", OnVolumeLevelChanged);
             broker.Subscribe(deviceId, "Recording", OnRecordingStateChanged);
             broker.Subscribe(deviceId, "OutputAmplitude", OnOutputAmplitudeChanged);
@@ -82,6 +74,43 @@ namespace HTCommander
                 StopMicrophoneCapture();
                 broker?.Dispose();
             };
+
+            // Defer heavy initialization until after the form is shown
+            this.Shown += RadioAudioForm_Shown;
+        }
+
+        private async void RadioAudioForm_Shown(object sender, EventArgs e)
+        {
+            // Unsubscribe to avoid multiple calls
+            this.Shown -= RadioAudioForm_Shown;
+
+            // Perform heavy initialization on a background thread, then update UI on main thread
+            await Task.Run(() => {
+                // Register for device notifications (this is thread-safe)
+                deviceEnumerator.RegisterEndpointNotificationCallback(this);
+
+                // Pre-enumerate devices on background thread to cache results
+                // This forces the slow device enumeration to happen off the UI thread
+                try
+                {
+                    deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                    deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
+                    foreach (var device in deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active)) { }
+                    foreach (var device in deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active)) { }
+                }
+                catch (Exception) { }
+            });
+
+            // Now back on UI thread - load devices into UI (fast since enumeration is cached)
+            LoadAudioDevices();
+
+            // Dispatch volume settings
+            broker.Dispatch(deviceId, "SetOutputVolume", outputTrackBar.Value);
+            if (inputDevice != null) { inputDevice.AudioEndpointVolume.MasterVolumeLevelScalar = inputTrackBar.Value / 100f; }
+
+            // Set output audio device
+            broker.Dispatch(deviceId, "SetOutputAudioDevice", SelectedOutputDeviceId);
+            UpdateInfo();
 
             // Start continuous microphone capture for amplitude display (after inputDevice is set)
             StartMicrophoneCapture();
@@ -120,6 +149,12 @@ namespace HTCommander
             UpdateInfo();
         }
 
+        private void OnHtStatusChanged(int devId, string name, object data)
+        {
+            if (InvokeRequired) { BeginInvoke(new Action(() => OnHtStatusChanged(devId, name, data))); return; }
+            UpdateInfo();
+        }
+
         private void OnVolumeLevelChanged(int devId, string name, object data)
         {
             if (InvokeRequired) { BeginInvoke(new Action(() => OnVolumeLevelChanged(devId, name, data))); return; }
@@ -139,6 +174,15 @@ namespace HTCommander
         private void OnOutputAmplitudeChanged(int devId, string name, object data)
         {
             if (InvokeRequired) { BeginInvoke(new Action(() => OnOutputAmplitudeChanged(devId, name, data))); return; }
+            
+            // If audio channel is disabled, show 0 amplitude
+            bool audioEnabled = broker.GetValue<bool>(deviceId, "AudioState", false);
+            if (!audioEnabled)
+            {
+                outputAmplitudeHistoryBar.ProcessAudioData(0f);
+                return;
+            }
+            
             float amplitude = 0f;
             if (data is float f) { amplitude = f; }
             else if (data is double d) { amplitude = (float)d; }
@@ -210,7 +254,12 @@ namespace HTCommander
                 volumeTrackBar.Enabled = true;
                 audioButton.Enabled = true;
                 recordButton.Enabled = audioEnabled;
-                transmitButton.Enabled = audioEnabled && allowTransmit && (inputDevice != null);
+                
+                // Check for NOAA channel - disable transmit if on NOAA channel
+                var htStatus = broker.GetValue<RadioHtStatus>(deviceId, "HtStatus", null);
+                bool isNoaaChannel = (htStatus != null && htStatus.curr_ch_id >= 254);
+                transmitButton.Enabled = audioEnabled && allowTransmit && (inputDevice != null) && !isNoaaChannel;
+                
                 squelchTrackBar.Enabled = true;
                 
                 // Get squelch from settings

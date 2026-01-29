@@ -289,7 +289,8 @@
             audioClipsToolStripMenuItem.Name = "audioClipsToolStripMenuItem";
             audioClipsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             audioClipsToolStripMenuItem.Text = "Audio C&lips...";
-            // 
+            audioClipsToolStripMenuItem.Click += new System.EventHandler(this.audioClipsToolStripMenuItem_Click);
+            //
             // spectrogramToolStripMenuItem
             //
             spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";

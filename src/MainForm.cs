@@ -799,6 +799,7 @@ namespace HTCommander
 
             // Enable/disable audio menu items based on radio connection
             audioEnabledToolStripMenuItem.Enabled = hasRadio;
+            volumeToolStripMenuItem.Enabled = hasRadio;
 
             if (!hasRadio)
             {
@@ -934,6 +935,21 @@ namespace HTCommander
             }
 
             spectrogramForm.Show(this);
+        }
+
+        private void audioClipsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            int deviceId = radioPanelControl.DeviceId;
+            
+            // If no radio is connected, pass 0 to allow managing clips without a radio
+            if (deviceId <= 0)
+            {
+                deviceId = 0;
+            }
+
+            // Open a new instance of RadioAudioClipsForm for the currently selected radio (or 0 if none)
+            RadioAudioClipsForm audioClipsForm = new RadioAudioClipsForm(deviceId);
+            audioClipsForm.Show(this);
         }
     }
 }

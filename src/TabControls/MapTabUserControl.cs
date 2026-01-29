@@ -53,7 +53,7 @@ namespace HTCommander.Controls
 
         // Radio markers keyed by device ID
         private Dictionary<int, GMapMarker> radioMarkers = new Dictionary<int, GMapMarker>();
-        
+
         // Index for cycling through radio positions when clicking "Center to GPS"
         private int centerToGpsCycleIndex = 0;
 
@@ -107,12 +107,12 @@ namespace HTCommander.Controls
             foreach (var radioObj in connectedRadios)
             {
                 if (radioObj == null) continue;
-                
+
                 // Get DeviceId from the anonymous type
                 var radioType = radioObj.GetType();
                 var deviceIdProp = radioType.GetProperty("DeviceId");
                 if (deviceIdProp == null) continue;
-                
+
                 int deviceId = (int)deviceIdProp.GetValue(radioObj);
                 if (deviceId <= 0) continue;
 
@@ -123,7 +123,7 @@ namespace HTCommander.Controls
                     UpdateRadioMarker(deviceId, position);
                 }
             }
-            
+
             // Update button state after loading initial positions
             UpdateCenterToGpsButtonState();
         }
@@ -198,7 +198,7 @@ namespace HTCommander.Controls
                     RemoveRadioMarker(deviceId);
                 }
             }
-            
+
             // Update the Center to GPS button state based on available radio markers
             UpdateCenterToGpsButtonState();
         }
@@ -219,12 +219,12 @@ namespace HTCommander.Controls
             else
             {
                 // Create new marker (blue for connected radios)
-                GMarkerGoogleType markerType = largeMarkersToolStripMenuItem.Checked 
-                    ? GMarkerGoogleType.blue_dot 
+                GMarkerGoogleType markerType = largeMarkersToolStripMenuItem.Checked
+                    ? GMarkerGoogleType.blue_dot
                     : GMarkerGoogleType.blue_small;
-                
+
                 GMapMarker marker = new GMarkerGoogle(
-                    new PointLatLng(position.Latitude, position.Longitude), 
+                    new PointLatLng(position.Latitude, position.Longitude),
                     markerType);
                 marker.Tag = position.ReceivedTime;
                 marker.ToolTipText = tooltipText;
@@ -243,7 +243,7 @@ namespace HTCommander.Controls
             {
                 mapMarkersOverlay.Markers.Remove(marker);
                 radioMarkers.Remove(deviceId);
-                
+
                 // Reset cycle index if it's now out of bounds
                 if (centerToGpsCycleIndex >= radioMarkers.Count)
                 {
@@ -392,7 +392,7 @@ namespace HTCommander.Controls
             {
                 // Skip radio markers (they're managed separately)
                 if (radioMarkers.ContainsValue(m)) continue;
-                
+
                 m.IsVisible = ((mapFilterMinutes == 0) || (now.CompareTo(((DateTime)m.Tag).AddMinutes(mapFilterMinutes)) <= 0));
             }
             foreach (GMapRoute r in mapMarkersOverlay.Routes)
@@ -447,7 +447,7 @@ namespace HTCommander.Controls
 
             // Get list of device IDs with valid positions
             List<int> deviceIds = new List<int>(radioMarkers.Keys);
-            
+
             // Ensure cycle index is valid
             if (centerToGpsCycleIndex >= deviceIds.Count)
             {
@@ -457,21 +457,21 @@ namespace HTCommander.Controls
             // Try to find a valid position starting from current cycle index
             int startIndex = centerToGpsCycleIndex;
             int attempts = 0;
-            
+
             while (attempts < deviceIds.Count)
             {
                 int deviceId = deviceIds[centerToGpsCycleIndex];
                 RadioPosition position = broker.GetValue<RadioPosition>(deviceId, "Position", null);
-                
+
                 // Move to next index for the next click (cycle)
                 centerToGpsCycleIndex = (centerToGpsCycleIndex + 1) % deviceIds.Count;
-                
+
                 if (position != null && position.IsGpsLocked())
                 {
                     mapControl.Position = new PointLatLng(position.Latitude, position.Longitude);
                     return;
                 }
-                
+
                 attempts++;
             }
         }
@@ -578,7 +578,7 @@ namespace HTCommander.Controls
                 marker.IsVisible = m.IsVisible;
                 markersToReplace.Add(marker);
             }
-            
+
             // Update radio markers dictionary with new marker references
             Dictionary<int, GMapMarker> newRadioMarkers = new Dictionary<int, GMapMarker>();
             foreach (var kvp in radioMarkers)
@@ -589,7 +589,7 @@ namespace HTCommander.Controls
                     newRadioMarkers[kvp.Key] = markersToReplace[index];
                 }
             }
-            
+
             mapMarkersOverlay.Markers.Clear();
             foreach (GMarkerGoogle marker in markersToReplace) { mapMarkersOverlay.Markers.Add(marker); }
             radioMarkers = newRadioMarkers;

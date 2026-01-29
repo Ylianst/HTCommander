@@ -237,6 +237,21 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
+        /// Formats a DateTime for display. Shows only time if same day as today, otherwise shows date and time.
+        /// </summary>
+        private string FormatDateTime(DateTime time)
+        {
+            if (time.Date == DateTime.Today)
+            {
+                return time.ToString("HH:mm:ss");
+            }
+            else
+            {
+                return time.ToString("d") + " " + time.ToString("HH:mm:ss");
+            }
+        }
+
+        /// <summary>
         /// Appends transcribed text to the voice history with nice formatting.
         /// Header (time/channel) is shown in smaller gray text, main text in normal font.
         /// </summary>
@@ -245,7 +260,7 @@ namespace HTCommander.Controls
             if (!_hasPartialEntry)
             {
                 // Starting a new entry - add header first
-                string timeStr = time.ToString("HH:mm:ss");
+                string timeStr = FormatDateTime(time);
                 string header = string.IsNullOrEmpty(channel) ? $"{timeStr}" : $"{timeStr} [{channel}]";
 
                 // Add the header in smaller, gray font
@@ -403,7 +418,7 @@ namespace HTCommander.Controls
                     if (entry.Text == null) continue;
 
                     // Add header in smaller, gray font
-                    string timeStr = entry.Time.ToString("HH:mm:ss");
+                    string timeStr = FormatDateTime(entry.Time);
                     string header = string.IsNullOrEmpty(entry.Channel) ? $"{timeStr}" : $"{timeStr} [{entry.Channel}]";
 
                     int headerStart = voiceHistoryTextBox.TextLength;
@@ -430,7 +445,7 @@ namespace HTCommander.Controls
             if (currentEntry != null && !string.IsNullOrEmpty(currentEntry.Text))
             {
                 // Display the current entry as a partial entry (in-progress)
-                string timeStr = currentEntry.Time.ToString("HH:mm:ss");
+                string timeStr = FormatDateTime(currentEntry.Time);
                 string header = string.IsNullOrEmpty(currentEntry.Channel) ? $"{timeStr}" : $"{timeStr} [{currentEntry.Channel}]";
 
                 // Add the header in smaller, gray font

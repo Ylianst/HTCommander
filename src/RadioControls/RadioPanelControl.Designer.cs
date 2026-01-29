@@ -275,7 +275,7 @@ namespace HTCommander.RadioControls
             // radioPictureBox
             // 
             radioPictureBox.Image = (System.Drawing.Image)resources.GetObject("radioPictureBox.Image");
-            radioPictureBox.Location = new System.Drawing.Point(11, -1);
+            radioPictureBox.Location = new System.Drawing.Point(11, -4);
             radioPictureBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             radioPictureBox.Name = "radioPictureBox";
             radioPictureBox.Size = new System.Drawing.Size(341, 848);
