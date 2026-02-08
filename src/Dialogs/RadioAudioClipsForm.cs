@@ -592,6 +592,10 @@ namespace HTCommander
                         broker.Dispatch(deviceId, "TransmitVoicePCM", buffer, store: false);
                     }
 
+                    // Record the voice clip transmission in VoiceHandler history
+                    string channelName = GetVfoAChannelName();
+                    broker.Dispatch(deviceId, "VoiceClipTransmitted", new { ClipName = clip.Name, ChannelName = channelName }, store: false);
+
                     transmitUiTimer.Stop();
                     transmitUiTimer.Dispose();
                     transmitTimer.Stop();
@@ -605,6 +609,69 @@ namespace HTCommander
                     UpdateStatusLabel();
                     UpdateUI();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Gets the current VFO A channel name from the radio.
+        /// VFO A is always used for transmission.
+        /// </summary>
+        /// <returns>The channel name, or empty string if not available.</returns>
+        private string GetVfoAChannelName()
+        {
+            try
+            {
+                // Get Settings from the radio to find channel_a ID
+                var settings = broker.GetValue<object>(deviceId, "Settings", null);
+                if (settings == null) return "";
+
+                var settingsType = settings.GetType();
+                
+                // channel_a is a field, not a property
+                var channelAField = settingsType.GetField("channel_a");
+                if (channelAField == null) return "";
+
+                object channelAValue = channelAField.GetValue(settings);
+                if (channelAValue == null) return "";
+
+                int channelAId = Convert.ToInt32(channelAValue);
+
+                // Get Channels array from the radio
+                var channels = broker.GetValue<object>(deviceId, "Channels", null) as Array;
+                if (channels == null || channelAId < 0 || channelAId >= channels.Length) return "";
+
+                var channelInfo = channels.GetValue(channelAId);
+                if (channelInfo == null) return "";
+
+                // Get the channel name - name_str is a field, not a property
+                var channelType = channelInfo.GetType();
+                var nameStrField = channelType.GetField("name_str");
+                if (nameStrField != null)
+                {
+                    string name = nameStrField.GetValue(channelInfo) as string;
+                    if (!string.IsNullOrEmpty(name)) return name;
+                }
+
+                // If no name, try to get the frequency as a fallback
+                var rxFreqField = channelType.GetField("rx_freq");
+                if (rxFreqField != null)
+                {
+                    object freqValue = rxFreqField.GetValue(channelInfo);
+                    if (freqValue != null)
+                    {
+                        long freq = Convert.ToInt64(freqValue);
+                        if (freq > 0)
+                        {
+                            return ((double)freq / 1000000).ToString("F3") + " MHz";
+                        }
+                    }
+                }
+
+                return "";
+            }
+            catch (Exception)
+            {
+                return "";
             }
         }
 

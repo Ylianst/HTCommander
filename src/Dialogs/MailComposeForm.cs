@@ -123,7 +123,14 @@ namespace HTCommander
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
             mail.MID = WinLinkMail.GenerateMID();
             mail.To = toTextBox.Text;
-            mail.From = broker.GetValue<string>(0, "Callsign", "");
+            string fromCallsign = broker.GetValue<string>(0, "Callsign", "");
+            bool useStationId = broker.GetValue<int>(0, "WinlinkUseStationId", 0) == 1;
+            if (useStationId)
+            {
+                int stationId = broker.GetValue<int>(0, "StationId", 0);
+                if (stationId > 0) { fromCallsign += "-" + stationId; }
+            }
+            mail.From = fromCallsign;
             if (ccTextBox.Text.Length > 0) { mail.Cc = ccTextBox.Text; } else { mail.Cc = null; }
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
@@ -157,7 +164,14 @@ namespace HTCommander
             if (mail == null) { mail = new WinLinkMail(); addMail = true; }
             mail.MID = WinLinkMail.GenerateMID();
             mail.To = toTextBox.Text;
-            mail.From = broker.GetValue<string>(0, "Callsign", "");
+            string fromCallsignDraft = broker.GetValue<string>(0, "Callsign", "");
+            bool useStationIdDraft = broker.GetValue<int>(0, "WinlinkUseStationId", 0) == 1;
+            if (useStationIdDraft)
+            {
+                int stationIdDraft = broker.GetValue<int>(0, "StationId", 0);
+                if (stationIdDraft > 0) { fromCallsignDraft += "-" + stationIdDraft; }
+            }
+            mail.From = fromCallsignDraft;
             if (ccTextBox.Text.Length > 0) { mail.Cc = ccTextBox.Text; } else { mail.Cc = null; }
             mail.Subject = subjectTextBox.Text;
             mail.Body = mainTextBox.Text;
@@ -252,12 +266,12 @@ namespace HTCommander
             int i = t.IndexOf('@');
             if (i == -1)
             {
-                // Callsign
+                // Callsign (e.g., "kk7vzt" or "kk7vzt-6")
                 if (t.Length > 10) return false;
-                // Returns true is t only contains alphanumeric values
+                // Returns true if t only contains alphanumeric values and optional hyphen with SSID
                 try
                 {
-                    if (Regex.IsMatch(t, "^[a-zA-Z0-9]+$") == false) return false;
+                    if (Regex.IsMatch(t, "^[a-zA-Z0-9]+(-[0-9]{1,2})?$") == false) return false;
                 }
                 catch (Exception) { return false; }
             }

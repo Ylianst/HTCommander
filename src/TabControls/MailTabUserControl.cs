@@ -104,6 +104,8 @@ namespace HTCommander.Controls
             broker.Subscribe(0, "MailsChanged", OnMailsChanged);
             broker.Subscribe(0, "MailList", OnMailListReceived);
             broker.Subscribe(0, "MailShowPreview", OnMailShowPreviewChanged);
+            broker.Subscribe(0, "MailStoreReady", OnMailStoreReady);
+            broker.Subscribe(0, "DataHandlerAdded", OnDataHandlerAdded);
             broker.Subscribe(1, "WinlinkBusy", OnWinlinkBusyChanged);
             broker.Subscribe(1, "WinlinkStateMessage", OnWinlinkStateMessageChanged);
 
@@ -149,6 +151,21 @@ namespace HTCommander.Controls
             // If we need immediate access to the mail list after requesting it, this is where we'd handle it
             // For now, we just update the display
             InvokeIfRequired(() => UpdateMail());
+        }
+
+        private void OnMailStoreReady(int deviceId, string name, object data)
+        {
+            // MailStore is now ready - refresh the mail display to show correct counts
+            InvokeIfRequired(() => UpdateMail());
+        }
+
+        private void OnDataHandlerAdded(int deviceId, string name, object data)
+        {
+            // Check if MailStore was just added - if so, refresh the mail display
+            if (data is string handlerName && handlerName == "MailStore")
+            {
+                InvokeIfRequired(() => UpdateMail());
+            }
         }
 
         private void OnMailShowPreviewChanged(int deviceId, string name, object data)

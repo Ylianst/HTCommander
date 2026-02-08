@@ -26,6 +26,7 @@ namespace HTCommander
         public int StationId { get { return stationIdComboBox.SelectedIndex; } set { stationIdComboBox.SelectedIndex = value; } }
         public string AprsRoutes { get { return GetAprsRoutes(); } set { SetAprsRoutes(value); } }
         public string WinlinkPassword { get { return winlinkPasswordTextBox.Text; } set { winlinkPasswordTextBox.Text = value; } }
+        public bool WinlinkUseStationId { get { return winlinkStationIdCheckBox.Checked; } set { winlinkStationIdCheckBox.Checked = value; } }
         public bool WebServerEnabled { get { return webServerEnabledCheckBox.Checked; } set { webServerEnabledCheckBox.Checked = value; } }
         public int WebServerPort { get { return (int)webPortNumericUpDown.Value; } set { if (value > 0) { webPortNumericUpDown.Value = value; } else { webPortNumericUpDown.Value = 8080; }; } }
         public bool AgwpeServerEnabled { get { return agwpeServerEnabledCheckBox.Checked; } set { agwpeServerEnabledCheckBox.Checked = value; } }
@@ -214,6 +215,7 @@ namespace HTCommander
 
             // Winlink Settings
             WinlinkPassword = DataBroker.GetValue<string>(0, "WinlinkPassword", "");
+            WinlinkUseStationId = DataBroker.GetValue<int>(0, "WinlinkUseStationId", 0) == 1;
         }
 
         private void SaveSettingsToDataBroker()
@@ -235,6 +237,7 @@ namespace HTCommander
 
             // Winlink Settings
             DataBroker.Dispatch(0, "WinlinkPassword", WinlinkPassword);
+            DataBroker.Dispatch(0, "WinlinkUseStationId", WinlinkUseStationId ? 1 : 0);
         }
 
         private string GetAprsRoutes()

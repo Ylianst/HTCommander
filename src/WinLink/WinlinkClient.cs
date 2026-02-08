@@ -836,9 +836,10 @@ namespace HTCommander
                     // Get callsign and stationId from broker (device 0 for persistent settings)
                     string callsign = broker.GetValue<string>(0, "CallSign", "");
                     int stationId = broker.GetValue<int>(0, "StationId", 0);
+                    bool useStationId = broker.GetValue<int>(0, "WinlinkUseStationId", 0) == 1;
                     
                     string callsignResponse = callsign;
-                    //if (stationId > 0) { callsignResponse += "-" + stationId; }
+                    if (useStationId && stationId > 0) { callsignResponse += "-" + stationId; }
                     callsignResponse += "\r";
                     TransportSend(callsignResponse);
                     StateMessage("Sent callsign: " + callsignResponse.Trim());

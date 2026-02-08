@@ -21,7 +21,8 @@ namespace HTCommander
     public enum VoiceTextEncodingType
     {
         Voice,
-        Morse
+        Morse,
+        VoiceClip
     }
 
     /// <summary>
@@ -126,6 +127,10 @@ namespace HTCommander
             // Subscribe to Morse command from all devices for morse code transmission
             // Similar to Speak: device 1 uses voice-enabled radio, device 100+ uses that device directly
             broker.Subscribe(DataBroker.AllDevices, "Morse", OnMorse);
+
+            // Subscribe to VoiceClipTransmitted command from all devices
+            // Records when a voice clip is transmitted over a radio
+            broker.Subscribe(DataBroker.AllDevices, "VoiceClipTransmitted", OnVoiceClipTransmitted);
 
             // Subscribe to Voice setting changes (device 0 stores global settings)
             broker.Subscribe(0, "Voice", OnVoiceChanged);
@@ -417,6 +422,47 @@ namespace HTCommander
             catch (Exception ex)
             {
                 broker.LogError($"[VoiceHandler] Error generating morse code: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handles the VoiceClipTransmitted command to record voice clip transmission in history.
+        /// Expected data: { ClipName: string, ChannelName: string }
+        /// </summary>
+        private void OnVoiceClipTransmitted(int deviceId, string name, object data)
+        {
+            if (data == null) return;
+            
+            try
+            {
+                // Use reflection to extract properties from the anonymous object
+                var dataType = data.GetType();
+                var clipNameProp = dataType.GetProperty("ClipName");
+                var channelNameProp = dataType.GetProperty("ChannelName");
+                
+                if (clipNameProp == null || channelNameProp == null)
+                {
+                    broker.LogError("[VoiceHandler] Invalid VoiceClipTransmitted data format");
+                    return;
+                }
+                
+                string clipName = (string)clipNameProp.GetValue(data);
+                string channelName = (string)channelNameProp.GetValue(data);
+                
+                if (string.IsNullOrEmpty(clipName))
+                {
+                    broker.LogError("[VoiceHandler] VoiceClipTransmitted: ClipName is empty");
+                    return;
+                }
+                
+                broker.LogInfo($"[VoiceHandler] Voice clip transmitted on device {deviceId}: {clipName}");
+                
+                // Add to history as a transmitted voice clip entry
+                AddTransmittedTextToHistory(clipName, channelName ?? "", VoiceTextEncodingType.VoiceClip);
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[VoiceHandler] Error in OnVoiceClipTransmitted: {ex.Message}");
             }
         }
 

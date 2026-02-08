@@ -75,6 +75,12 @@ namespace HTCommander
             // Load initial data
             _cachedMails = LoadMailsFromDatabase();
 
+            // Initialize the DataBroker client and subscribe to mail events
+            InitializeBroker();
+
+            // Notify that MailStore is ready (after broker is initialized)
+            _broker?.Dispatch(0, "MailStoreReady", true, store: false);
+
             // Set up file watcher for multi-instance synchronization
             _watcher = new FileSystemWatcher(storagePath)
             {
@@ -84,9 +90,6 @@ namespace HTCommander
             _watcher.Changed += OnSignalFileChanged;
             _watcher.Created += OnSignalFileChanged;
             _watcher.EnableRaisingEvents = true;
-
-            // Initialize the DataBroker client and subscribe to mail events
-            InitializeBroker();
         }
 
         /// <summary>
