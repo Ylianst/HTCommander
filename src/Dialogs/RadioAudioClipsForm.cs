@@ -589,7 +589,7 @@ namespace HTCommander
                     {
                         var buffer = new byte[reader.Length];
                         int bytesRead = reader.Read(buffer, 0, buffer.Length);
-                        broker.Dispatch(deviceId, "TransmitVoicePCM", buffer, store: false);
+                        broker.Dispatch(deviceId, "TransmitVoicePCM", new { Data = buffer, PlayLocally = true }, store: false);
                     }
 
                     // Record the voice clip transmission in VoiceHandler history
