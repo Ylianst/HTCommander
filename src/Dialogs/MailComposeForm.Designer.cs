@@ -29,308 +29,242 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MailComposeForm));
-            this.panel2 = new System.Windows.Forms.Panel();
-            this.ccTextBox = new System.Windows.Forms.TextBox();
-            this.toTextBox = new System.Windows.Forms.TextBox();
-            this.label3 = new System.Windows.Forms.Label();
-            this.mailPictureBox = new System.Windows.Forms.PictureBox();
-            this.label2 = new System.Windows.Forms.Label();
-            this.label1 = new System.Windows.Forms.Label();
-            this.subjectTextBox = new System.Windows.Forms.TextBox();
-            this.mainTextBox = new System.Windows.Forms.TextBox();
-            this.panel1 = new System.Windows.Forms.Panel();
-            this.statusLabel = new System.Windows.Forms.Label();
-            this.draftButton = new System.Windows.Forms.Button();
-            this.sendButton = new System.Windows.Forms.Button();
-            this.cancelButton = new System.Windows.Forms.Button();
-            this.mainMenuStrip = new System.Windows.Forms.MenuStrip();
-            this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.draftToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.cancelToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
-            this.sendToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.attachmentsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.addToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.attachmentsFlowLayoutPanel = new System.Windows.Forms.FlowLayoutPanel();
-            this.addAttachementPpenFileDialog = new System.Windows.Forms.OpenFileDialog();
-            this.panel2.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.mailPictureBox)).BeginInit();
-            this.panel1.SuspendLayout();
-            this.mainMenuStrip.SuspendLayout();
-            this.SuspendLayout();
+            panel2 = new System.Windows.Forms.Panel();
+            sendButton = new System.Windows.Forms.Button();
+            ccTextBox = new System.Windows.Forms.TextBox();
+            toTextBox = new System.Windows.Forms.TextBox();
+            label3 = new System.Windows.Forms.Label();
+            mailPictureBox = new System.Windows.Forms.PictureBox();
+            label2 = new System.Windows.Forms.Label();
+            label1 = new System.Windows.Forms.Label();
+            subjectTextBox = new System.Windows.Forms.TextBox();
+            mainTextBox = new System.Windows.Forms.TextBox();
+            mainMenuStrip = new System.Windows.Forms.MenuStrip();
+            fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            draftToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            cancelToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
+            sendToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            attachmentsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            addToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            attachmentsFlowLayoutPanel = new System.Windows.Forms.FlowLayoutPanel();
+            addAttachementPpenFileDialog = new System.Windows.Forms.OpenFileDialog();
+            panel2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)mailPictureBox).BeginInit();
+            mainMenuStrip.SuspendLayout();
+            SuspendLayout();
             // 
             // panel2
             // 
-            this.panel2.BackColor = System.Drawing.Color.Silver;
-            this.panel2.Controls.Add(this.ccTextBox);
-            this.panel2.Controls.Add(this.toTextBox);
-            this.panel2.Controls.Add(this.label3);
-            this.panel2.Controls.Add(this.mailPictureBox);
-            this.panel2.Controls.Add(this.label2);
-            this.panel2.Controls.Add(this.label1);
-            this.panel2.Controls.Add(this.subjectTextBox);
-            this.panel2.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panel2.Location = new System.Drawing.Point(0, 28);
-            this.panel2.Margin = new System.Windows.Forms.Padding(4);
-            this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(582, 100);
-            this.panel2.TabIndex = 3;
-            // 
-            // ccTextBox
-            // 
-            this.ccTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.ccTextBox.Location = new System.Drawing.Point(95, 39);
-            this.ccTextBox.Name = "ccTextBox";
-            this.ccTextBox.Size = new System.Drawing.Size(416, 22);
-            this.ccTextBox.TabIndex = 11;
-            this.ccTextBox.TextChanged += new System.EventHandler(this.ccTextBox_TextChanged);
-            this.ccTextBox.Leave += new System.EventHandler(this.ccTextBox_Leave);
-            // 
-            // toTextBox
-            // 
-            this.toTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.toTextBox.Location = new System.Drawing.Point(95, 9);
-            this.toTextBox.Name = "toTextBox";
-            this.toTextBox.Size = new System.Drawing.Size(416, 22);
-            this.toTextBox.TabIndex = 10;
-            this.toTextBox.TextChanged += new System.EventHandler(this.toTextBox_TextChanged);
-            this.toTextBox.Leave += new System.EventHandler(this.toTextBox_Leave);
-            // 
-            // label3
-            // 
-            this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(13, 42);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(25, 16);
-            this.label3.TabIndex = 12;
-            this.label3.Text = "CC";
-            // 
-            // mailPictureBox
-            // 
-            this.mailPictureBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.mailPictureBox.Image = global::HTCommander.Properties.Resources.Mail;
-            this.mailPictureBox.Location = new System.Drawing.Point(518, 3);
-            this.mailPictureBox.Name = "mailPictureBox";
-            this.mailPictureBox.Size = new System.Drawing.Size(60, 60);
-            this.mailPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.mailPictureBox.TabIndex = 8;
-            this.mailPictureBox.TabStop = false;
-            // 
-            // label2
-            // 
-            this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(13, 73);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(52, 16);
-            this.label2.TabIndex = 9;
-            this.label2.Text = "Subject";
-            // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(12, 12);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(24, 16);
-            this.label1.TabIndex = 7;
-            this.label1.Text = "To";
-            // 
-            // subjectTextBox
-            // 
-            this.subjectTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.subjectTextBox.Location = new System.Drawing.Point(95, 70);
-            this.subjectTextBox.Name = "subjectTextBox";
-            this.subjectTextBox.Size = new System.Drawing.Size(416, 22);
-            this.subjectTextBox.TabIndex = 12;
-            this.subjectTextBox.TextChanged += new System.EventHandler(this.subjectTextBox_TextChanged);
-            // 
-            // mainTextBox
-            // 
-            this.mainTextBox.AllowDrop = true;
-            this.mainTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.mainTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.mainTextBox.Location = new System.Drawing.Point(0, 128);
-            this.mainTextBox.Multiline = true;
-            this.mainTextBox.Name = "mainTextBox";
-            this.mainTextBox.Size = new System.Drawing.Size(582, 382);
-            this.mainTextBox.TabIndex = 19;
-            this.mainTextBox.TextChanged += new System.EventHandler(this.mainTextBox_TextChanged);
-            this.mainTextBox.DragDrop += new System.Windows.Forms.DragEventHandler(this.mainTextBox_DragDrop);
-            this.mainTextBox.DragEnter += new System.Windows.Forms.DragEventHandler(this.mainTextBox_DragEnter);
-            // 
-            // panel1
-            // 
-            this.panel1.BackColor = System.Drawing.Color.Silver;
-            this.panel1.Controls.Add(this.statusLabel);
-            this.panel1.Controls.Add(this.draftButton);
-            this.panel1.Controls.Add(this.sendButton);
-            this.panel1.Controls.Add(this.cancelButton);
-            this.panel1.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panel1.Location = new System.Drawing.Point(0, 516);
-            this.panel1.Margin = new System.Windows.Forms.Padding(4);
-            this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(582, 37);
-            this.panel1.TabIndex = 7;
-            // 
-            // statusLabel
-            // 
-            this.statusLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.statusLabel.Location = new System.Drawing.Point(13, 11);
-            this.statusLabel.Name = "statusLabel";
-            this.statusLabel.Size = new System.Drawing.Size(233, 16);
-            this.statusLabel.TabIndex = 23;
-            // 
-            // draftButton
-            // 
-            this.draftButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.draftButton.Enabled = false;
-            this.draftButton.Location = new System.Drawing.Point(253, 5);
-            this.draftButton.Margin = new System.Windows.Forms.Padding(4);
-            this.draftButton.Name = "draftButton";
-            this.draftButton.Size = new System.Drawing.Size(100, 28);
-            this.draftButton.TabIndex = 20;
-            this.draftButton.Text = "&Draft";
-            this.draftButton.UseVisualStyleBackColor = true;
-            this.draftButton.Click += new System.EventHandler(this.draftButton_Click);
+            panel2.BackColor = System.Drawing.Color.Silver;
+            panel2.Controls.Add(sendButton);
+            panel2.Controls.Add(ccTextBox);
+            panel2.Controls.Add(toTextBox);
+            panel2.Controls.Add(label3);
+            panel2.Controls.Add(mailPictureBox);
+            panel2.Controls.Add(label2);
+            panel2.Controls.Add(label1);
+            panel2.Controls.Add(subjectTextBox);
+            panel2.Dock = System.Windows.Forms.DockStyle.Top;
+            panel2.Location = new System.Drawing.Point(0, 24);
+            panel2.Margin = new System.Windows.Forms.Padding(4);
+            panel2.Name = "panel2";
+            panel2.Size = new System.Drawing.Size(511, 94);
+            panel2.TabIndex = 3;
+            panel2.Paint += panel2_Paint;
             // 
             // sendButton
             // 
-            this.sendButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.sendButton.Enabled = false;
-            this.sendButton.Location = new System.Drawing.Point(361, 5);
-            this.sendButton.Margin = new System.Windows.Forms.Padding(4);
-            this.sendButton.Name = "sendButton";
-            this.sendButton.Size = new System.Drawing.Size(100, 28);
-            this.sendButton.TabIndex = 21;
-            this.sendButton.Text = "&Outbox";
-            this.sendButton.UseVisualStyleBackColor = true;
-            this.sendButton.Click += new System.EventHandler(this.sendButton_Click);
+            sendButton.Location = new System.Drawing.Point(447, 64);
+            sendButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            sendButton.Name = "sendButton";
+            sendButton.Size = new System.Drawing.Size(57, 25);
+            sendButton.TabIndex = 14;
+            sendButton.Text = "Send";
+            sendButton.UseVisualStyleBackColor = true;
+            sendButton.Click += sendButton_Click;
             // 
-            // cancelButton
+            // ccTextBox
             // 
-            this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancelButton.Location = new System.Drawing.Point(469, 5);
-            this.cancelButton.Margin = new System.Windows.Forms.Padding(4);
-            this.cancelButton.Name = "cancelButton";
-            this.cancelButton.Size = new System.Drawing.Size(100, 28);
-            this.cancelButton.TabIndex = 22;
-            this.cancelButton.Text = "&Cancel";
-            this.cancelButton.UseVisualStyleBackColor = true;
-            this.cancelButton.Click += new System.EventHandler(this.cancelButton_Click);
+            ccTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            ccTextBox.Location = new System.Drawing.Point(83, 37);
+            ccTextBox.Name = "ccTextBox";
+            ccTextBox.Size = new System.Drawing.Size(360, 23);
+            ccTextBox.TabIndex = 11;
+            ccTextBox.TextChanged += ccTextBox_TextChanged;
+            ccTextBox.Leave += ccTextBox_Leave;
+            // 
+            // toTextBox
+            // 
+            toTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            toTextBox.Location = new System.Drawing.Point(83, 8);
+            toTextBox.Name = "toTextBox";
+            toTextBox.Size = new System.Drawing.Size(360, 23);
+            toTextBox.TabIndex = 10;
+            toTextBox.TextChanged += toTextBox_TextChanged;
+            toTextBox.Leave += toTextBox_Leave;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new System.Drawing.Point(11, 39);
+            label3.Name = "label3";
+            label3.Size = new System.Drawing.Size(23, 15);
+            label3.TabIndex = 12;
+            label3.Text = "CC";
+            // 
+            // mailPictureBox
+            // 
+            mailPictureBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            mailPictureBox.Image = Properties.Resources.Letter;
+            mailPictureBox.Location = new System.Drawing.Point(447, 8);
+            mailPictureBox.Name = "mailPictureBox";
+            mailPictureBox.Size = new System.Drawing.Size(57, 52);
+            mailPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            mailPictureBox.TabIndex = 8;
+            mailPictureBox.TabStop = false;
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new System.Drawing.Point(11, 68);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(46, 15);
+            label2.TabIndex = 9;
+            label2.Text = "Subject";
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new System.Drawing.Point(10, 11);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(20, 15);
+            label1.TabIndex = 7;
+            label1.Text = "To";
+            // 
+            // subjectTextBox
+            // 
+            subjectTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            subjectTextBox.Location = new System.Drawing.Point(83, 66);
+            subjectTextBox.Name = "subjectTextBox";
+            subjectTextBox.Size = new System.Drawing.Size(360, 23);
+            subjectTextBox.TabIndex = 12;
+            subjectTextBox.TextChanged += subjectTextBox_TextChanged;
+            // 
+            // mainTextBox
+            // 
+            mainTextBox.AllowDrop = true;
+            mainTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            mainTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            mainTextBox.Location = new System.Drawing.Point(0, 118);
+            mainTextBox.Multiline = true;
+            mainTextBox.Name = "mainTextBox";
+            mainTextBox.Size = new System.Drawing.Size(511, 394);
+            mainTextBox.TabIndex = 13;
+            mainTextBox.TextChanged += mainTextBox_TextChanged;
+            mainTextBox.DragDrop += mainTextBox_DragDrop;
+            mainTextBox.DragEnter += mainTextBox_DragEnter;
             // 
             // mainMenuStrip
             // 
-            this.mainMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.mainMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.fileToolStripMenuItem,
-            this.attachmentsToolStripMenuItem});
-            this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
-            this.mainMenuStrip.Name = "mainMenuStrip";
-            this.mainMenuStrip.Size = new System.Drawing.Size(582, 28);
-            this.mainMenuStrip.TabIndex = 20;
-            this.mainMenuStrip.Text = "menuStrip1";
+            mainMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            mainMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { fileToolStripMenuItem, attachmentsToolStripMenuItem });
+            mainMenuStrip.Location = new System.Drawing.Point(0, 0);
+            mainMenuStrip.Name = "mainMenuStrip";
+            mainMenuStrip.Padding = new System.Windows.Forms.Padding(5, 2, 0, 2);
+            mainMenuStrip.Size = new System.Drawing.Size(511, 24);
+            mainMenuStrip.TabIndex = 20;
+            mainMenuStrip.Text = "menuStrip1";
             // 
             // fileToolStripMenuItem
             // 
-            this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.draftToolStripMenuItem,
-            this.cancelToolStripMenuItem,
-            this.toolStripMenuItem1,
-            this.sendToolStripMenuItem});
-            this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
-            this.fileToolStripMenuItem.Text = "&File";
+            fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { draftToolStripMenuItem, cancelToolStripMenuItem, toolStripMenuItem1, sendToolStripMenuItem });
+            fileToolStripMenuItem.Name = "fileToolStripMenuItem";
+            fileToolStripMenuItem.Size = new System.Drawing.Size(37, 20);
+            fileToolStripMenuItem.Text = "&File";
             // 
             // draftToolStripMenuItem
             // 
-            this.draftToolStripMenuItem.Name = "draftToolStripMenuItem";
-            this.draftToolStripMenuItem.Size = new System.Drawing.Size(141, 26);
-            this.draftToolStripMenuItem.Text = "&Draft";
-            this.draftToolStripMenuItem.Click += new System.EventHandler(this.draftButton_Click);
+            draftToolStripMenuItem.Name = "draftToolStripMenuItem";
+            draftToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            draftToolStripMenuItem.Text = "&Drafts";
+            draftToolStripMenuItem.Click += draftButton_Click;
             // 
             // cancelToolStripMenuItem
             // 
-            this.cancelToolStripMenuItem.Name = "cancelToolStripMenuItem";
-            this.cancelToolStripMenuItem.Size = new System.Drawing.Size(141, 26);
-            this.cancelToolStripMenuItem.Text = "&Cancel";
-            this.cancelToolStripMenuItem.Click += new System.EventHandler(this.cancelButton_Click);
+            cancelToolStripMenuItem.Name = "cancelToolStripMenuItem";
+            cancelToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            cancelToolStripMenuItem.Text = "&Cancel";
+            cancelToolStripMenuItem.Click += cancelButton_Click;
             // 
             // toolStripMenuItem1
             // 
-            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(138, 6);
+            toolStripMenuItem1.Name = "toolStripMenuItem1";
+            toolStripMenuItem1.Size = new System.Drawing.Size(177, 6);
             // 
             // sendToolStripMenuItem
             // 
-            this.sendToolStripMenuItem.Name = "sendToolStripMenuItem";
-            this.sendToolStripMenuItem.Size = new System.Drawing.Size(141, 26);
-            this.sendToolStripMenuItem.Text = "&Outbox";
-            this.sendToolStripMenuItem.Click += new System.EventHandler(this.sendButton_Click);
+            sendToolStripMenuItem.Name = "sendToolStripMenuItem";
+            sendToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            sendToolStripMenuItem.Text = "&Send";
+            sendToolStripMenuItem.Click += sendButton_Click;
             // 
             // attachmentsToolStripMenuItem
             // 
-            this.attachmentsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.addToolStripMenuItem});
-            this.attachmentsToolStripMenuItem.Name = "attachmentsToolStripMenuItem";
-            this.attachmentsToolStripMenuItem.Size = new System.Drawing.Size(106, 24);
-            this.attachmentsToolStripMenuItem.Text = "&Attachments";
+            attachmentsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { addToolStripMenuItem });
+            attachmentsToolStripMenuItem.Name = "attachmentsToolStripMenuItem";
+            attachmentsToolStripMenuItem.Size = new System.Drawing.Size(87, 20);
+            attachmentsToolStripMenuItem.Text = "&Attachments";
             // 
             // addToolStripMenuItem
             // 
-            this.addToolStripMenuItem.Name = "addToolStripMenuItem";
-            this.addToolStripMenuItem.Size = new System.Drawing.Size(129, 26);
-            this.addToolStripMenuItem.Text = "&Add...";
-            this.addToolStripMenuItem.Click += new System.EventHandler(this.addToolStripMenuItem_Click);
+            addToolStripMenuItem.Name = "addToolStripMenuItem";
+            addToolStripMenuItem.Size = new System.Drawing.Size(105, 22);
+            addToolStripMenuItem.Text = "&Add...";
+            addToolStripMenuItem.Click += addToolStripMenuItem_Click;
             // 
             // attachmentsFlowLayoutPanel
             // 
-            this.attachmentsFlowLayoutPanel.AllowDrop = true;
-            this.attachmentsFlowLayoutPanel.AutoSize = true;
-            this.attachmentsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.attachmentsFlowLayoutPanel.Location = new System.Drawing.Point(0, 510);
-            this.attachmentsFlowLayoutPanel.Name = "attachmentsFlowLayoutPanel";
-            this.attachmentsFlowLayoutPanel.Padding = new System.Windows.Forms.Padding(3);
-            this.attachmentsFlowLayoutPanel.Size = new System.Drawing.Size(582, 6);
-            this.attachmentsFlowLayoutPanel.TabIndex = 21;
-            this.attachmentsFlowLayoutPanel.DragDrop += new System.Windows.Forms.DragEventHandler(this.mainTextBox_DragDrop);
-            this.attachmentsFlowLayoutPanel.DragEnter += new System.Windows.Forms.DragEventHandler(this.mainTextBox_DragEnter);
+            attachmentsFlowLayoutPanel.AllowDrop = true;
+            attachmentsFlowLayoutPanel.AutoSize = true;
+            attachmentsFlowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
+            attachmentsFlowLayoutPanel.Location = new System.Drawing.Point(0, 512);
+            attachmentsFlowLayoutPanel.Name = "attachmentsFlowLayoutPanel";
+            attachmentsFlowLayoutPanel.Padding = new System.Windows.Forms.Padding(3);
+            attachmentsFlowLayoutPanel.Size = new System.Drawing.Size(511, 6);
+            attachmentsFlowLayoutPanel.TabIndex = 21;
+            attachmentsFlowLayoutPanel.DragDrop += mainTextBox_DragDrop;
+            attachmentsFlowLayoutPanel.DragEnter += mainTextBox_DragEnter;
             // 
             // addAttachementPpenFileDialog
             // 
-            this.addAttachementPpenFileDialog.Filter = "All files|*.*";
-            this.addAttachementPpenFileDialog.Title = "Add Attachement";
+            addAttachementPpenFileDialog.Filter = "All files|*.*";
+            addAttachementPpenFileDialog.Title = "Add Attachement";
             // 
             // MailComposeForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.CancelButton = this.cancelButton;
-            this.ClientSize = new System.Drawing.Size(582, 553);
-            this.Controls.Add(this.mainTextBox);
-            this.Controls.Add(this.attachmentsFlowLayoutPanel);
-            this.Controls.Add(this.panel2);
-            this.Controls.Add(this.panel1);
-            this.Controls.Add(this.mainMenuStrip);
-            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.MinimumSize = new System.Drawing.Size(600, 400);
-            this.Name = "MailComposeForm";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "New Mail";
-            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MailComposeForm_FormClosing);
-            this.Load += new System.EventHandler(this.MailComposeForm_Load);
-            this.Shown += new System.EventHandler(this.MailComposeForm_Shown);
-            this.panel2.ResumeLayout(false);
-            this.panel2.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.mailPictureBox)).EndInit();
-            this.panel1.ResumeLayout(false);
-            this.mainMenuStrip.ResumeLayout(false);
-            this.mainMenuStrip.PerformLayout();
-            this.ResumeLayout(false);
-            this.PerformLayout();
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            ClientSize = new System.Drawing.Size(511, 518);
+            Controls.Add(mainTextBox);
+            Controls.Add(attachmentsFlowLayoutPanel);
+            Controls.Add(panel2);
+            Controls.Add(mainMenuStrip);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
+            MinimumSize = new System.Drawing.Size(527, 376);
+            Name = "MailComposeForm";
+            StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+            Text = "New Mail";
+            FormClosing += MailComposeForm_FormClosing;
+            Load += MailComposeForm_Load;
+            Shown += MailComposeForm_Shown;
+            panel2.ResumeLayout(false);
+            panel2.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)mailPictureBox).EndInit();
+            mainMenuStrip.ResumeLayout(false);
+            mainMenuStrip.PerformLayout();
+            ResumeLayout(false);
+            PerformLayout();
 
         }
 
@@ -341,11 +275,6 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.TextBox subjectTextBox;
         private System.Windows.Forms.TextBox mainTextBox;
-        private System.Windows.Forms.Panel panel1;
-        private System.Windows.Forms.Button sendButton;
-        private System.Windows.Forms.Button cancelButton;
-        private System.Windows.Forms.PictureBox mailPictureBox;
-        private System.Windows.Forms.Button draftButton;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.MenuStrip mainMenuStrip;
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
@@ -359,6 +288,7 @@
         private System.Windows.Forms.TextBox ccTextBox;
         private System.Windows.Forms.TextBox toTextBox;
         private System.Windows.Forms.OpenFileDialog addAttachementPpenFileDialog;
-        private System.Windows.Forms.Label statusLabel;
+        private System.Windows.Forms.Button sendButton;
+        private System.Windows.Forms.PictureBox mailPictureBox;
     }
 }

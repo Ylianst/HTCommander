@@ -43,6 +43,14 @@ namespace HTCommander
         private string remoteAddress = "";
         private ConnectionState currentState = ConnectionState.DISCONNECTED;
         private bool useTls = false;
+        
+        // Radio lock fields for X25 transport
+        private int lockedRadioId = -1;
+        private StationInfoClass connectedStation = null;
+        
+        // AX25Session for X25 transport
+        private AX25Session ax25Session = null;
+        private bool pendingDisconnect = false;
 
         // Debug traffic history buffer (last 1000 entries)
         private const int MaxDebugHistorySize = 1000;
@@ -64,8 +72,12 @@ namespace HTCommander
         {
             if (_disposed) return;
             
-            // Start sync - data should contain server info
-            // Expected: { Server = "server.winlink.org", Port = 8772, UseTls = true }
+            // Ignore if we are already busy (not disconnected)
+            if (currentState != ConnectionState.DISCONNECTED) return;
+            
+            // Start sync - data should contain server info or radio/station info
+            // Expected for TCP: { Server = "server.winlink.org", Port = 8772, UseTls = true }
+            // Expected for Radio: { RadioId = int, Station = StationInfoClass }
             if (data == null) return;
             
             var dataType = data.GetType();
@@ -82,8 +94,216 @@ namespace HTCommander
             }
             else
             {
-                // X25/Radio sync - X25 connection is handled externally via ProcessStreamState/ProcessStream
-                transportType = TransportType.X25;
+                // X25/Radio sync - check for RadioId and Station
+                int? radioId = (int?)dataType.GetProperty("RadioId")?.GetValue(data);
+                object stationObj = dataType.GetProperty("Station")?.GetValue(data);
+                
+                if (radioId.HasValue && stationObj is StationInfoClass station)
+                {
+                    StartRadioSync(radioId.Value, station);
+                }
+                else
+                {
+                    // Legacy X25 connection handling
+                    transportType = TransportType.X25;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Starts a Winlink sync using a radio with the specified station.
+        /// Locks the radio and begins the X25 connection process.
+        /// </summary>
+        private void StartRadioSync(int radioId, StationInfoClass station)
+        {
+            if (radioId <= 0 || station == null) return;
+            
+            // Get the current region from HtStatus
+            RadioHtStatus htStatus = broker.GetValue<RadioHtStatus>(radioId, "HtStatus", null);
+            int regionId = htStatus?.curr_region ?? 0;
+            
+            // Look up the channel ID from the channel name
+            int channelId = -1;
+            if (!string.IsNullOrEmpty(station.Channel))
+            {
+                RadioChannelInfo[] channels = broker.GetValue<RadioChannelInfo[]>(radioId, "Channels", null);
+                if (channels != null)
+                {
+                    for (int i = 0; i < channels.Length; i++)
+                    {
+                        if (channels[i] != null && channels[i].name_str == station.Channel)
+                        {
+                            channelId = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // If no channel found, report error and don't lock the radio
+            if (channelId < 0)
+            {
+                StateMessage("Channel '" + station.Channel + "' not found on radio.");
+                return;
+            }
+            
+            // Store the radio and station for later unlock
+            lockedRadioId = radioId;
+            connectedStation = station;
+            
+            // Lock the radio to Winlink usage
+            var lockData = new SetLockData
+            {
+                Usage = "Winlink",
+                RegionId = regionId,
+                ChannelId = channelId
+            };
+            broker.Dispatch(radioId, "SetLock", lockData, store: false);
+            
+            // Set up X25 transport
+            transportType = TransportType.X25;
+            
+            // Clear debug history for new session
+            broker.Dispatch(1, "WinlinkDebugClear", true, store: false);
+            
+            StateMessage("Connecting to " + station.Callsign + " via radio...");
+            
+            // Initialize the AX25Session and start the connection
+            InitializeAX25Session(radioId, station);
+        }
+        
+        /// <summary>
+        /// Initializes an AX25Session and starts connecting to the station.
+        /// </summary>
+        private void InitializeAX25Session(int radioId, StationInfoClass station)
+        {
+            // Dispose any existing session
+            DisposeAX25Session();
+            
+            // Get our callsign from settings
+            string myCallsignWithId = broker.GetValue<string>(0, "Callsign", "N0CALL-0");
+            string myCallsign;
+            int myStationId;
+            if (!Utils.ParseCallsignWithId(myCallsignWithId, out myCallsign, out myStationId))
+            {
+                myCallsign = myCallsignWithId;
+                myStationId = 0;
+            }
+            
+            // Parse the destination callsign
+            string destCallsign;
+            int destStationId;
+            if (!Utils.ParseCallsignWithId(station.Callsign, out destCallsign, out destStationId))
+            {
+                destCallsign = station.Callsign;
+                destStationId = 0;
+            }
+            
+            // Create the session
+            ax25Session = new AX25Session(radioId);
+            ax25Session.CallSignOverride = myCallsign;
+            ax25Session.StationIdOverride = myStationId;
+            
+            // Subscribe to session events
+            ax25Session.StateChanged += OnAX25SessionStateChanged;
+            ax25Session.DataReceivedEvent += OnAX25SessionDataReceived;
+            ax25Session.ErrorEvent += OnAX25SessionError;
+            
+            // Create addresses: destination, source
+            List<AX25Address> addresses = new List<AX25Address>();
+            addresses.Add(AX25Address.GetAddress(destCallsign, destStationId)); // Destination
+            addresses.Add(AX25Address.GetAddress(myCallsign, myStationId)); // Source
+            
+            // Start the connection
+            ax25Session.Connect(addresses);
+        }
+        
+        /// <summary>
+        /// Disposes the current AX25Session and cleans up resources.
+        /// </summary>
+        private void DisposeAX25Session()
+        {
+            if (ax25Session != null)
+            {
+                // Unsubscribe from events
+                ax25Session.StateChanged -= OnAX25SessionStateChanged;
+                ax25Session.DataReceivedEvent -= OnAX25SessionDataReceived;
+                ax25Session.ErrorEvent -= OnAX25SessionError;
+                
+                // Disconnect if connected
+                if (ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTED ||
+                    ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTING)
+                {
+                    ax25Session.Disconnect();
+                }
+                
+                // Dispose the session
+                ax25Session.Dispose();
+                ax25Session = null;
+            }
+        }
+        
+        /// <summary>
+        /// Handles AX25Session state change events.
+        /// </summary>
+        private void OnAX25SessionStateChanged(AX25Session sender, AX25Session.ConnectionState state)
+        {
+            switch (state)
+            {
+                case AX25Session.ConnectionState.CONNECTED:
+                    SetConnectionState(ConnectionState.CONNECTED);
+                    break;
+                case AX25Session.ConnectionState.CONNECTING:
+                    SetConnectionState(ConnectionState.CONNECTING);
+                    break;
+                case AX25Session.ConnectionState.DISCONNECTED:
+                    pendingDisconnect = false;
+                    SetConnectionState(ConnectionState.DISCONNECTED);
+                    DisposeAX25Session();
+                    break;
+                case AX25Session.ConnectionState.DISCONNECTING:
+                    SetConnectionState(ConnectionState.DISCONNECTING);
+                    break;
+            }
+        }
+        
+        /// <summary>
+        /// Handles AX25Session data received events.
+        /// </summary>
+        private void OnAX25SessionDataReceived(AX25Session sender, byte[] data)
+        {
+            if (data == null || data.Length == 0) return;
+            
+            // Copy session state from AX25Session
+            sessionState = sender.sessionState;
+            if (sender.Addresses != null && sender.Addresses.Count > 0)
+            {
+                remoteAddress = sender.Addresses[0].ToString();
+            }
+            
+            // Process the received data
+            ProcessStream(data);
+        }
+        
+        /// <summary>
+        /// Handles AX25Session error events.
+        /// </summary>
+        private void OnAX25SessionError(AX25Session sender, string error)
+        {
+            StateMessage("Session error: " + error);
+        }
+        
+        /// <summary>
+        /// Unlocks the radio that was locked for Winlink usage.
+        /// </summary>
+        private void UnlockRadio()
+        {
+            if (lockedRadioId > 0)
+            {
+                var unlockData = new SetUnlockData { Usage = "Winlink" };
+                broker.Dispatch(lockedRadioId, "SetUnlock", unlockData, store: false);
+                lockedRadioId = -1;
+                connectedStation = null;
             }
         }
 
@@ -94,6 +314,35 @@ namespace HTCommander
             if (transportType == TransportType.TCP)
             {
                 DisconnectTcp();
+            }
+            else if (transportType == TransportType.X25)
+            {
+                DisconnectX25();
+            }
+        }
+        
+        /// <summary>
+        /// Disconnects the X25/AX25 session.
+        /// </summary>
+        private void DisconnectX25()
+        {
+            if (ax25Session == null) return;
+            
+            // If we're already waiting for disconnect to complete, don't do anything
+            if (pendingDisconnect) return;
+            
+            // Start the graceful disconnect process
+            if (ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTED ||
+                ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTING)
+            {
+                pendingDisconnect = true;
+                ax25Session.Disconnect();
+            }
+            else
+            {
+                // Session is already disconnected or disconnecting
+                DisposeAX25Session();
+                SetConnectionState(ConnectionState.DISCONNECTED);
             }
         }
 
@@ -208,6 +457,9 @@ namespace HTCommander
                 {
                     sessionState.Clear();
                     remoteAddress = "";
+                    
+                    // Unlock the radio when disconnected
+                    UnlockRadio();
                 }
             }
         }
@@ -236,11 +488,13 @@ namespace HTCommander
                 // Dispatch clear command via broker (device 1 for non-persistent state)
                 broker.Dispatch(1, "WinlinkDebugClear", true, store: false);
                 
+                StateMessage("Connecting to " + server + "...");
                 tcpClient = new TcpClient();
                 await tcpClient.ConnectAsync(server, port);
                 
                 if (useTls)
                 {
+                    StateMessage("Establishing secure connection...");
                     // Wrap the network stream with SSL/TLS
                     NetworkStream networkStream = tcpClient.GetStream();
                     SslStream sslStream = new SslStream(
@@ -254,7 +508,7 @@ namespace HTCommander
                     {
                         await sslStream.AuthenticateAsClientAsync(server);
                         tcpStream = sslStream;
-                        StateMessage("TLS/SSL connection established.");
+                        StateMessage("Secure connection established.");
                     }
                     catch (Exception ex)
                     {
@@ -668,12 +922,14 @@ namespace HTCommander
                         TransportSend(sb.ToString());
                         sessionState["OutMails"] = proposedMails;
                         sessionState["OutMailBlocks"] = proposedMailsBinary;
+                        StateMessage("Proposing " + mailSendCount + " mail(s) to send...");
                     }
                     else
                     {
                         // No mail proposals sent, give a chance to the server to send us mails.
                         sb.Append("FF\r");
                         TransportSend(sb.ToString());
+                        StateMessage("Checking for new mail...");
                     }
                 }
                 else
@@ -901,8 +1157,18 @@ namespace HTCommander
                 // Disconnect if connected
                 if (currentState != ConnectionState.DISCONNECTED)
                 {
-                    DisconnectTcp();
+                    if (transportType == TransportType.TCP)
+                    {
+                        DisconnectTcp();
+                    }
+                    else if (transportType == TransportType.X25)
+                    {
+                        DisposeAX25Session();
+                    }
                 }
+                
+                // Make sure to unlock any radio
+                UnlockRadio();
                 
                 // Dispose the broker client
                 broker?.Dispose();

@@ -21,6 +21,44 @@ namespace HTCommander.Controls
     {
         private DataBrokerClient broker;
         private bool _showDetach = false;
+        private List<int> connectedRadios = new List<int>();
+        private Dictionary<int, RadioLockState> lockStates = new Dictionary<int, RadioLockState>();
+        private ContextMenuStrip mailConnectContextMenuStrip;
+
+        /// <summary>
+        /// Helper method to invoke an action on the UI thread if required.
+        /// </summary>
+        private void InvokeIfRequired(Action action)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(action);
+            }
+            else
+            {
+                action();
+            }
+        }
+
+        /// <summary>
+        /// Gets the currently selected mailbox name from the tree view.
+        /// </summary>
+        private string GetSelectedMailbox()
+        {
+            if (mailBoxesTreeView.SelectedNode != null)
+            {
+                return (string)mailBoxesTreeView.SelectedNode.Tag;
+            }
+            return "Inbox";
+        }
+
+        /// <summary>
+        /// Formats a mailbox name with its count for display in the tree view.
+        /// </summary>
+        private string FormatMailboxNodeText(string name, int count)
+        {
+            return count > 0 ? $"{name} ({count})" : name;
+        }
 
         /// <summary>
         /// Gets or sets whether the "Detach..." menu item is visible.
@@ -66,6 +104,14 @@ namespace HTCommander.Controls
             broker.Subscribe(0, "Mails", OnMailsChanged);
             broker.Subscribe(0, "MailShowPreview", OnMailShowPreviewChanged);
             broker.Subscribe(1, "WinlinkBusy", OnWinlinkBusyChanged);
+            broker.Subscribe(1, "WinlinkStateMessage", OnWinlinkStateMessageChanged);
+
+            // Subscribe to connected radios and lock state to update connect button
+            broker.Subscribe(1, "ConnectedRadios", OnConnectedRadiosChanged);
+            broker.Subscribe(DataBroker.AllDevices, "LockState", OnLockStateChanged);
+
+            // Initialize the context menu for the connect button
+            mailConnectContextMenuStrip = new ContextMenuStrip();
 
             // Load settings from broker (device 0 for app-wide settings)
             showPreviewToolStripMenuItem.Checked = broker.GetValue<int>(0, "MailShowPreview", 1) == 1;
@@ -75,44 +121,147 @@ namespace HTCommander.Controls
             mailPreviewTextBox.Visible = false;
             mailToolStrip.Visible = false;
 
+            // Check initial WinlinkBusy state to set connect button state
+            bool isBusy = broker.GetValue<bool>(1, "WinlinkBusy", false);
+            mailConnectButton.Enabled = !isBusy;
+
+            // Check initial WinlinkStateMessage state
+            string stateMessage = broker.GetValue<string>(1, "WinlinkStateMessage", null);
+            if (!string.IsNullOrEmpty(stateMessage))
+            {
+                mailTransferStatusLabel.Text = stateMessage;
+                mailTransferStatusPanel.Visible = true;
+            }
+
             // Initial mail display
             UpdateMail();
         }
 
         private void OnMailsChanged(int deviceId, string name, object data)
         {
-            if (this.InvokeRequired)
-            {
-                this.BeginInvoke(new Action<int, string, object>(OnMailsChanged), deviceId, name, data);
-                return;
-            }
-            UpdateMail();
+            InvokeIfRequired(() => UpdateMail());
         }
 
         private void OnMailShowPreviewChanged(int deviceId, string name, object data)
         {
-            if (this.InvokeRequired)
+            InvokeIfRequired(() =>
             {
-                this.BeginInvoke(new Action<int, string, object>(OnMailShowPreviewChanged), deviceId, name, data);
-                return;
-            }
-            if (data is int showPreview)
-            {
-                showPreviewToolStripMenuItem.Checked = showPreview == 1;
-                mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
-            }
+                if (data is int showPreview)
+                {
+                    showPreviewToolStripMenuItem.Checked = showPreview == 1;
+                    mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
+                }
+            });
         }
 
         private void OnWinlinkBusyChanged(int deviceId, string name, object data)
         {
+            InvokeIfRequired(() =>
+            {
+                bool isBusy = (data is bool b) && b;
+                mailConnectButton.Enabled = !isBusy;
+            });
+        }
+
+        private void OnWinlinkStateMessageChanged(int deviceId, string name, object data)
+        {
+            InvokeIfRequired(() =>
+            {
+                string status = data as string;
+                if (string.IsNullOrEmpty(status))
+                {
+                    mailTransferStatusPanel.Visible = false;
+                }
+                else
+                {
+                    mailTransferStatusLabel.Text = status;
+                    mailTransferStatusPanel.Visible = true;
+                }
+            });
+        }
+
+        private void OnConnectedRadiosChanged(int deviceId, string name, object data)
+        {
+            if (data == null) return;
+
             if (this.InvokeRequired)
             {
-                this.BeginInvoke(new Action<int, string, object>(OnWinlinkBusyChanged), deviceId, name, data);
-                return;
+                this.BeginInvoke(new Action(() => ProcessConnectedRadiosChanged(data)));
             }
-            bool isBusy = (data is bool b) && b;
-            mailInternetButton.Enabled = !isBusy;
-            mailConnectButton.Enabled = !isBusy;
+            else
+            {
+                ProcessConnectedRadiosChanged(data);
+            }
+        }
+
+        private void ProcessConnectedRadiosChanged(object data)
+        {
+            connectedRadios.Clear();
+
+            if (data is System.Collections.IEnumerable enumerable)
+            {
+                foreach (var item in enumerable)
+                {
+                    if (item == null) continue;
+                    var itemType = item.GetType();
+                    int? deviceIdValue = (int?)itemType.GetProperty("DeviceId")?.GetValue(item);
+                    if (deviceIdValue.HasValue)
+                    {
+                        connectedRadios.Add(deviceIdValue.Value);
+                    }
+                }
+            }
+
+            UpdateConnectButtonState();
+        }
+
+        private void OnLockStateChanged(int deviceId, string name, object data)
+        {
+            if (!(data is RadioLockState lockState)) return;
+
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => ProcessLockStateChanged(deviceId, lockState)));
+            }
+            else
+            {
+                ProcessLockStateChanged(deviceId, lockState);
+            }
+        }
+
+        private void ProcessLockStateChanged(int deviceId, RadioLockState lockState)
+        {
+            lockStates[deviceId] = lockState;
+            UpdateConnectButtonState();
+        }
+
+        private void UpdateConnectButtonState()
+        {
+            // Button is enabled if we have internet or at least one unlocked radio
+            bool hasAvailableRadio = GetAvailableRadiosWithNames().Count > 0;
+            // Always have internet option available (unless busy, handled by WinlinkBusy)
+            mailConnectButton.Enabled = true;
+        }
+
+        /// <summary>
+        /// Gets all available (unlocked) radios with their friendly names.
+        /// </summary>
+        /// <returns>A list of tuples containing DeviceId and FriendlyName for each available radio.</returns>
+        private List<(int DeviceId, string FriendlyName)> GetAvailableRadiosWithNames()
+        {
+            var availableRadios = new List<(int DeviceId, string FriendlyName)>();
+
+            foreach (var radioId in connectedRadios)
+            {
+                if (!lockStates.TryGetValue(radioId, out RadioLockState lockState) || !lockState.IsLocked)
+                {
+                    // Get the friendly name from the DataBroker
+                    string friendlyName = broker.GetValue<string>(radioId, "FriendlyName", $"Radio {radioId}");
+                    availableRadios.Add((radioId, friendlyName));
+                }
+            }
+
+            return availableRadios;
         }
 
         /// <summary>
@@ -156,33 +305,26 @@ namespace HTCommander.Controls
             }
 
             // Get selected mailbox
-            string selectedMailbox = "Inbox";
-            if (mailBoxesTreeView.SelectedNode != null)
-            {
-                selectedMailbox = (string)mailBoxesTreeView.SelectedNode.Tag;
-            }
+            string selectedMailbox = GetSelectedMailbox();
 
-            // Update mail counts in tree nodes
+            // Update mail counts in tree nodes using dictionary for cleaner code
             List<WinLinkMail> mails = GetMails();
-            int inboxCount = 0, outboxCount = 0, draftCount = 0, sentCount = 0, archiveCount = 0, trashCount = 0;
+            Dictionary<string, int> mailCounts = new Dictionary<string, int>
+            {
+                { "Inbox", 0 }, { "Outbox", 0 }, { "Draft", 0 },
+                { "Sent", 0 }, { "Archive", 0 }, { "Trash", 0 }
+            };
             foreach (WinLinkMail mail in mails)
             {
-                switch (mail.Mailbox)
+                if (mailCounts.ContainsKey(mail.Mailbox))
                 {
-                    case "Inbox": inboxCount++; break;
-                    case "Outbox": outboxCount++; break;
-                    case "Draft": draftCount++; break;
-                    case "Sent": sentCount++; break;
-                    case "Archive": archiveCount++; break;
-                    case "Trash": trashCount++; break;
+                    mailCounts[mail.Mailbox]++;
                 }
             }
-           MailBoxTreeNodes[0].Text = inboxCount > 0 ? $"Inbox ({inboxCount})" : "Inbox";
-           MailBoxTreeNodes[1].Text = outboxCount > 0 ? $"Outbox ({outboxCount})" : "Outbox";
-           MailBoxTreeNodes[2].Text = draftCount > 0 ? $"Draft ({draftCount})" : "Draft";
-           MailBoxTreeNodes[3].Text = sentCount > 0 ? $"Sent ({sentCount})" : "Sent";
-           MailBoxTreeNodes[4].Text = archiveCount > 0 ? $"Archive ({archiveCount})" : "Archive";
-           MailBoxTreeNodes[5].Text = trashCount > 0 ? $"Trash ({trashCount})" : "Trash";
+            for (int i = 0; i < MailBoxesNames.Length; i++)
+            {
+                MailBoxTreeNodes[i].Text = FormatMailboxNodeText(MailBoxesNames[i], mailCounts[MailBoxesNames[i]]);
+            }
 
             // Update the list view
             mailboxListView.BeginUpdate();
@@ -217,23 +359,16 @@ namespace HTCommander.Controls
 
         public void SetTransferStatus(string status, bool visible)
         {
-            if (this.InvokeRequired)
+            InvokeIfRequired(() =>
             {
-                this.BeginInvoke(new Action<string, bool>(SetTransferStatus), status, visible);
-                return;
-            }
-            mailTransferStatusLabel.Text = status;
-            mailTransferStatusPanel.Visible = visible;
+                mailTransferStatusLabel.Text = status;
+                mailTransferStatusPanel.Visible = visible;
+            });
         }
 
         public void SetConnectButtonEnabled(bool enabled)
         {
-            if (this.InvokeRequired)
-            {
-                this.BeginInvoke(new Action<bool>(SetConnectButtonEnabled), enabled);
-                return;
-            }
-            mailConnectButton.Enabled = enabled;
+            InvokeIfRequired(() => mailConnectButton.Enabled = enabled);
         }
 
         private void mailMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
@@ -271,11 +406,7 @@ namespace HTCommander.Controls
             if (mailboxListView.SelectedItems.Count == 0) return;
             WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
 
-            string selectedMailbox = "Inbox";
-            if (mailBoxesTreeView.SelectedNode != null)
-            {
-                selectedMailbox = (string)mailBoxesTreeView.SelectedNode.Tag;
-            }
+            string selectedMailbox = GetSelectedMailbox();
 
             if (selectedMailbox == "Draft" || selectedMailbox == "Outbox")
             {
@@ -435,11 +566,7 @@ namespace HTCommander.Controls
             if (mailboxListView.SelectedItems.Count == 0) return;
 
             // Get the current mailbox
-            string selectedMailbox = "Inbox";
-            if (mailBoxesTreeView.SelectedNode != null)
-            {
-                selectedMailbox = (string)mailBoxesTreeView.SelectedNode.Tag;
-            }
+            string selectedMailbox = GetSelectedMailbox();
 
             if (selectedMailbox == "Trash")
             {
@@ -587,12 +714,87 @@ namespace HTCommander.Controls
 
         private void mailConnectButton_Click(object sender, EventArgs e)
         {
-            // Select a Winlink gateway station
-            ActiveStationSelectorForm f = new ActiveStationSelectorForm(StationInfoClass.StationTypes.Winlink);
-            if (f.ShowDialog(this) == DialogResult.OK)
+            // Build and show the connect dropdown menu
+            BuildConnectMenu();
+            mailConnectContextMenuStrip.Show(mailConnectButton, new Point(0, mailConnectButton.Height));
+        }
+
+        /// <summary>
+        /// Builds the connect dropdown menu with Internet and available radio options.
+        /// </summary>
+        private void BuildConnectMenu()
+        {
+            mailConnectContextMenuStrip.Items.Clear();
+
+            // Add Internet option first
+            ToolStripMenuItem internetItem = new ToolStripMenuItem("Internet (Winlink Server)");
+            internetItem.Click += ConnectInternetMenuItem_Click;
+            mailConnectContextMenuStrip.Items.Add(internetItem);
+
+            // Get available radios
+            var availableRadios = GetAvailableRadiosWithNames();
+
+            // Add separator and radio options if there are any available radios
+            if (availableRadios.Count > 0)
             {
-                // Dispatch event to lock to the selected station
-                broker.Dispatch(0, "ActiveLockToStation", f.selectedStation, store: false);
+                mailConnectContextMenuStrip.Items.Add(new ToolStripSeparator());
+
+                foreach (var radio in availableRadios)
+                {
+                    ToolStripMenuItem radioItem = new ToolStripMenuItem(radio.FriendlyName);
+                    radioItem.Tag = radio.DeviceId;
+                    radioItem.Click += ConnectRadioMenuItem_Click;
+                    mailConnectContextMenuStrip.Items.Add(radioItem);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles the Internet connection menu item click.
+        /// </summary>
+        private void ConnectInternetMenuItem_Click(object sender, EventArgs e)
+        {
+            // Dispatch event to connect to Winlink via Internet
+            broker.Dispatch(1, "WinlinkSync", new { Server = "server.winlink.org", Port = 8773, UseTls = true }, store: false);
+        }
+
+        /// <summary>
+        /// Handles a radio connection menu item click.
+        /// </summary>
+        private void ConnectRadioMenuItem_Click(object sender, EventArgs e)
+        {
+            if (!(sender is ToolStripMenuItem menuItem)) return;
+            if (!(menuItem.Tag is int radioId)) return;
+
+            // Show station selector for Winlink stations
+            ActiveStationSelectorForm f = new ActiveStationSelectorForm(StationInfoClass.StationTypes.Winlink);
+            DialogResult result = f.ShowDialog(this);
+
+            if (result == DialogResult.OK && f.selectedStation != null)
+            {
+                // Dispatch WinlinkSync with both the radio ID and station info
+                broker.Dispatch(1, "WinlinkSync", new { RadioId = radioId, Station = f.selectedStation }, store: false);
+            }
+            else if (result == DialogResult.Yes)
+            {
+                // User wants to create a new Winlink station
+                AddStationForm addForm = new AddStationForm();
+                addForm.FixStationType(StationInfoClass.StationTypes.Winlink);
+
+                if (addForm.ShowDialog(this) == DialogResult.OK)
+                {
+                    // Get the new station and save it
+                    StationInfoClass newStation = addForm.SerializeToObject();
+                    List<StationInfoClass> stations = broker.GetValue<List<StationInfoClass>>(0, "Stations", new List<StationInfoClass>());
+
+                    // Remove any existing station with same callsign and type
+                    stations.RemoveAll(s => s.Callsign == newStation.Callsign && s.StationType == newStation.StationType);
+                    stations.Add(newStation);
+                    broker.Dispatch(0, "Stations", stations, store: true);
+
+                    // Use the newly created station for the connection
+                    broker.Dispatch(1, "WinlinkSync", new { RadioId = radioId, Station = newStation }, store: false);
+                }
             }
         }
 
@@ -639,62 +841,60 @@ namespace HTCommander.Controls
             }
         }
 
-        private void mailInternetButton_Click(object sender, EventArgs e)
+        /// <summary>
+        /// Gets the currently selected mail from the list view, or null if none selected.
+        /// </summary>
+        private WinLinkMail GetSelectedMail()
         {
-            // Dispatch event to connect to Winlink via Internet
-            broker.Dispatch(1, "WinlinkSync", new { Server = "server.winlink.org", Port = 8773, UseTls = true }, store: false);
+            if (mailboxListView.SelectedItems.Count == 0) return null;
+            return (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
+        }
+
+        /// <summary>
+        /// Creates a new mail based on the selected mail and shows the compose form.
+        /// </summary>
+        private void ComposeNewMailFrom(Func<WinLinkMail, WinLinkMail> createMail)
+        {
+            WinLinkMail original = GetSelectedMail();
+            if (original == null) return;
+
+            WinLinkMail newMail = createMail(original);
+            MailComposeForm f = new MailComposeForm(newMail);
+            if (f.ShowDialog(this) == DialogResult.OK)
+            {
+                AddMail(f.mail);
+            }
         }
 
         private void mailReplyToolStripButton_Click(object sender, EventArgs e)
         {
-            if (mailboxListView.SelectedItems.Count == 0) return;
-            WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
-
-            WinLinkMail reply = new WinLinkMail();
-            reply.To = m.From;
-            reply.Subject = m.Subject.StartsWith("Re: ") ? m.Subject : "Re: " + m.Subject;
-            reply.Body = $"\r\n\r\n--- Original Message ---\r\nFrom: {m.From}\r\nDate: {m.DateTime.ToLocalTime()}\r\n\r\n{m.Body}";
-
-            MailComposeForm f = new MailComposeForm(reply);
-            if (f.ShowDialog(this) == DialogResult.OK)
+            ComposeNewMailFrom(m => new WinLinkMail
             {
-                AddMail(f.mail);
-            }
+                To = m.From,
+                Subject = m.Subject.StartsWith("Re: ") ? m.Subject : "Re: " + m.Subject,
+                Body = $"\r\n\r\n--- Original Message ---\r\nFrom: {m.From}\r\nDate: {m.DateTime.ToLocalTime()}\r\n\r\n{m.Body}"
+            });
         }
 
         private void mailReplyAllToolStripButton_Click(object sender, EventArgs e)
         {
-            if (mailboxListView.SelectedItems.Count == 0) return;
-            WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
-
-            WinLinkMail reply = new WinLinkMail();
-            reply.To = m.From;
-            if (!string.IsNullOrEmpty(m.Cc)) { reply.Cc = m.Cc; }
-            reply.Subject = m.Subject.StartsWith("Re: ") ? m.Subject : "Re: " + m.Subject;
-            reply.Body = $"\r\n\r\n--- Original Message ---\r\nFrom: {m.From}\r\nDate: {m.DateTime.ToLocalTime()}\r\n\r\n{m.Body}";
-
-            MailComposeForm f = new MailComposeForm(reply);
-            if (f.ShowDialog(this) == DialogResult.OK)
+            ComposeNewMailFrom(m => new WinLinkMail
             {
-                AddMail(f.mail);
-            }
+                To = m.From,
+                Cc = m.Cc,
+                Subject = m.Subject.StartsWith("Re: ") ? m.Subject : "Re: " + m.Subject,
+                Body = $"\r\n\r\n--- Original Message ---\r\nFrom: {m.From}\r\nDate: {m.DateTime.ToLocalTime()}\r\n\r\n{m.Body}"
+            });
         }
 
         private void mailForwardToolStripButton_Click(object sender, EventArgs e)
         {
-            if (mailboxListView.SelectedItems.Count == 0) return;
-            WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
-
-            WinLinkMail forward = new WinLinkMail();
-            forward.Subject = m.Subject.StartsWith("Fwd: ") ? m.Subject : "Fwd: " + m.Subject;
-            forward.Body = $"\r\n\r\n--- Forwarded Message ---\r\nFrom: {m.From}\r\nTo: {m.To}\r\nDate: {m.DateTime.ToLocalTime()}\r\nSubject: {m.Subject}\r\n\r\n{m.Body}";
-            if (m.Attachments != null) { forward.Attachments = new List<WinLinkMailAttachement>(m.Attachments); }
-
-            MailComposeForm f = new MailComposeForm(forward);
-            if (f.ShowDialog(this) == DialogResult.OK)
+            ComposeNewMailFrom(m => new WinLinkMail
             {
-                AddMail(f.mail);
-            }
+                Subject = m.Subject.StartsWith("Fwd: ") ? m.Subject : "Fwd: " + m.Subject,
+                Body = $"\r\n\r\n--- Forwarded Message ---\r\nFrom: {m.From}\r\nTo: {m.To}\r\nDate: {m.DateTime.ToLocalTime()}\r\nSubject: {m.Subject}\r\n\r\n{m.Body}",
+                Attachments = m.Attachments != null ? new List<WinLinkMailAttachement>(m.Attachments) : null
+            });
         }
 
         private void mailDeleteToolStripButton_Click(object sender, EventArgs e)
@@ -706,6 +906,12 @@ namespace HTCommander.Controls
         {
             var form = DetachedTabForm.Create<MailTabUserControl>("Mail");
             form.Show();
+        }
+
+        private void disconnectButton_Click(object sender, EventArgs e)
+        {
+            // Dispatch WinlinkDisconnect to stop the current Winlink session
+            broker.Dispatch(1, "WinlinkDisconnect", null, store: false);
         }
     }
 }

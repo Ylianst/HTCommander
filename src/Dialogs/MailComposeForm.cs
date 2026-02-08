@@ -37,7 +37,7 @@ namespace HTCommander
                 mainTextBox.Text = mail.Body;
                 if (mail.Attachments != null)
                 {
-                    foreach (WinLinkMailAttachement a in  mail.Attachments)
+                    foreach (WinLinkMailAttachement a in mail.Attachments)
                     {
                         MailAttachmentControl mailAttachmentControl = new MailAttachmentControl();
                         mailAttachmentControl.AllowRemove = true;
@@ -76,7 +76,6 @@ namespace HTCommander
         {
             bool tov = validateToLine(toTextBox.Text);
             bool ccv = validateToLine(ccTextBox.Text);
-            draftButton.Enabled = true;
             sendButton.Enabled = tov && ccv && (toTextBox.Text.Length > 0) && (subjectTextBox.Text.Length > 0) && (mainTextBox.Text.Length > 0);
             toTextBox.BackColor = tov ? subjectTextBox.BackColor : Color.Bisque;
             ccTextBox.BackColor = ccv ? subjectTextBox.BackColor : Color.Bisque;
@@ -280,7 +279,8 @@ namespace HTCommander
         {
             StringBuilder sb = new StringBuilder();
             string[] s = t.Replace(' ', ';').Split(';');
-            foreach (string s2 in s) {
+            foreach (string s2 in s)
+            {
                 string s3 = s2.Trim();
                 if (s3.Length > 0) { if (sb.Length > 0) { sb.Append(";"); } sb.Append(s3); }
             }
@@ -295,6 +295,11 @@ namespace HTCommander
         private void ccTextBox_Leave(object sender, EventArgs e)
         {
             ccTextBox.Text = CleanString(ccTextBox.Text);
+        }
+
+        private void panel2_Paint(object sender, PaintEventArgs e)
+        {
+
         }
     }
 }

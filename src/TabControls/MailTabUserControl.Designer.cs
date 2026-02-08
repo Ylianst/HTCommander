@@ -57,9 +57,9 @@ namespace HTCommander.Controls
             toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             mailDeleteToolStripButton = new System.Windows.Forms.ToolStripButton();
             mailTransferStatusPanel = new System.Windows.Forms.Panel();
+            disconnectButton = new System.Windows.Forms.Button();
             mailTransferStatusLabel = new System.Windows.Forms.Label();
             mailTopPanel = new System.Windows.Forms.Panel();
-            mailInternetButton = new System.Windows.Forms.Button();
             newMailButton = new System.Windows.Forms.Button();
             mailConnectButton = new System.Windows.Forms.Button();
             mailMenuPictureBox = new System.Windows.Forms.PictureBox();
@@ -351,6 +351,7 @@ namespace HTCommander.Controls
             // mailTransferStatusPanel
             // 
             mailTransferStatusPanel.BackColor = System.Drawing.Color.Silver;
+            mailTransferStatusPanel.Controls.Add(disconnectButton);
             mailTransferStatusPanel.Controls.Add(mailTransferStatusLabel);
             mailTransferStatusPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
             mailTransferStatusPanel.Location = new System.Drawing.Point(0, 510);
@@ -360,6 +361,18 @@ namespace HTCommander.Controls
             mailTransferStatusPanel.TabIndex = 8;
             mailTransferStatusPanel.Visible = false;
             // 
+            // disconnectButton
+            // 
+            disconnectButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            disconnectButton.Location = new System.Drawing.Point(565, 4);
+            disconnectButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            disconnectButton.Name = "disconnectButton";
+            disconnectButton.Size = new System.Drawing.Size(100, 35);
+            disconnectButton.TabIndex = 6;
+            disconnectButton.Text = "Disconnect";
+            disconnectButton.UseVisualStyleBackColor = true;
+            disconnectButton.Click += disconnectButton_Click;
+            // 
             // mailTransferStatusLabel
             // 
             mailTransferStatusLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
@@ -367,14 +380,13 @@ namespace HTCommander.Controls
             mailTransferStatusLabel.Location = new System.Drawing.Point(4, 8);
             mailTransferStatusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             mailTransferStatusLabel.Name = "mailTransferStatusLabel";
-            mailTransferStatusLabel.Size = new System.Drawing.Size(658, 31);
+            mailTransferStatusLabel.Size = new System.Drawing.Size(553, 31);
             mailTransferStatusLabel.TabIndex = 1;
             mailTransferStatusLabel.Text = "Disconnected";
             // 
             // mailTopPanel
             // 
             mailTopPanel.BackColor = System.Drawing.Color.Silver;
-            mailTopPanel.Controls.Add(mailInternetButton);
             mailTopPanel.Controls.Add(newMailButton);
             mailTopPanel.Controls.Add(mailConnectButton);
             mailTopPanel.Controls.Add(mailMenuPictureBox);
@@ -386,22 +398,10 @@ namespace HTCommander.Controls
             mailTopPanel.Size = new System.Drawing.Size(669, 46);
             mailTopPanel.TabIndex = 2;
             // 
-            // mailInternetButton
-            // 
-            mailInternetButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            mailInternetButton.Location = new System.Drawing.Point(418, 5);
-            mailInternetButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            mailInternetButton.Name = "mailInternetButton";
-            mailInternetButton.Size = new System.Drawing.Size(100, 35);
-            mailInternetButton.TabIndex = 7;
-            mailInternetButton.Text = "&Internet";
-            mailInternetButton.UseVisualStyleBackColor = true;
-            mailInternetButton.Click += mailInternetButton_Click;
-            // 
             // newMailButton
             // 
             newMailButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            newMailButton.Location = new System.Drawing.Point(310, 5);
+            newMailButton.Location = new System.Drawing.Point(418, 5);
             newMailButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             newMailButton.Name = "newMailButton";
             newMailButton.Size = new System.Drawing.Size(100, 35);
@@ -579,7 +579,6 @@ namespace HTCommander.Controls
         private System.Windows.Forms.Panel mailTransferStatusPanel;
         private System.Windows.Forms.Label mailTransferStatusLabel;
         private System.Windows.Forms.Panel mailTopPanel;
-        private System.Windows.Forms.Button mailInternetButton;
         private System.Windows.Forms.Button newMailButton;
         private System.Windows.Forms.Button mailConnectButton;
         private System.Windows.Forms.PictureBox mailMenuPictureBox;
@@ -594,5 +593,6 @@ namespace HTCommander.Controls
         private System.Windows.Forms.OpenFileDialog restoreMailOpenFileDialog;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
         private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
+        private System.Windows.Forms.Button disconnectButton;
     }
 }
