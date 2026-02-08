@@ -1,41 +1,40 @@
 ﻿/*
 Copyright 2026 Ylian Saint-Hilaire
-
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.IO;
 using System.Text;
 using System.Diagnostics;
-using System.Windows.Forms;
-using System.Collections.Generic;
-using HTCommander.radio;
-using System.IO;
 using System.Net.Sockets;
-using System.Threading.Tasks;
 using System.Net.Security;
+using System.Windows.Forms;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 
 namespace HTCommander
 {
-    public class WinlinkClient
+    // Class to hold debug traffic entries
+    public class WinlinkDebugEntry
+    {
+        public string Address { get; set; }
+        public bool Outgoing { get; set; }
+        public string Data { get; set; }
+        public bool IsStateMessage { get; set; }
+    }
+
+    public class WinlinkClient : IDisposable
     {
         public enum TransportType { X25, TCP }
         public enum ConnectionState { DISCONNECTED, CONNECTED, CONNECTING, DISCONNECTING }
 
-        private MainForm parent;
-        private TransportType transportType;
+        private DataBrokerClient broker;
+        private TransportType transportType = TransportType.TCP;
         private Dictionary<string, object> sessionState = new Dictionary<string, object>();
+        private bool _disposed = false;
         
         // TCP specific fields
         private TcpClient tcpClient;
@@ -45,10 +44,106 @@ namespace HTCommander
         private ConnectionState currentState = ConnectionState.DISCONNECTED;
         private bool useTls = false;
 
-        public WinlinkClient(MainForm parent, TransportType transportType)
+        // Debug traffic history buffer (last 1000 entries)
+        private const int MaxDebugHistorySize = 1000;
+        private List<WinlinkDebugEntry> debugHistory = new List<WinlinkDebugEntry>();
+        private readonly object debugHistoryLock = new object();
+
+        public WinlinkClient()
         {
-            this.parent = parent;
-            this.transportType = transportType;
+            this.broker = new DataBrokerClient();
+            
+            // Subscribe to broker events to start syncing
+            broker.Subscribe(1, "WinlinkSync", OnWinlinkSync);
+            broker.Subscribe(1, "WinlinkDisconnect", OnWinlinkDisconnect);
+            broker.Subscribe(1, "WinlinkDebugClear", OnWinlinkDebugClearHistory);
+            broker.Subscribe(1, "WinlinkDebugHistoryRequest", OnWinlinkDebugHistoryRequest);
+        }
+
+        private void OnWinlinkSync(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+            
+            // Start sync - data should contain server info
+            // Expected: { Server = "server.winlink.org", Port = 8772, UseTls = true }
+            if (data == null) return;
+            
+            var dataType = data.GetType();
+            string server = (string)dataType.GetProperty("Server")?.GetValue(data);
+            
+            if (!string.IsNullOrEmpty(server))
+            {
+                // TCP/Internet sync
+                int port = (int)(dataType.GetProperty("Port")?.GetValue(data) ?? 8772);
+                bool useTls = (bool)(dataType.GetProperty("UseTls")?.GetValue(data) ?? true);
+                
+                transportType = TransportType.TCP;
+                _ = ConnectTcp(server, port, useTls);
+            }
+            else
+            {
+                // X25/Radio sync - X25 connection is handled externally via ProcessStreamState/ProcessStream
+                transportType = TransportType.X25;
+            }
+        }
+
+        private void OnWinlinkDisconnect(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+            
+            if (transportType == TransportType.TCP)
+            {
+                DisconnectTcp();
+            }
+        }
+
+        private void OnWinlinkDebugClearHistory(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+            
+            // Clear the debug history buffer
+            lock (debugHistoryLock)
+            {
+                debugHistory.Clear();
+            }
+        }
+
+        private void OnWinlinkDebugHistoryRequest(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+            
+            // Send the debug history to the requester
+            List<WinlinkDebugEntry> historyCopy;
+            lock (debugHistoryLock)
+            {
+                historyCopy = new List<WinlinkDebugEntry>(debugHistory);
+            }
+            
+            // Dispatch the history via broker
+            broker.Dispatch(1, "WinlinkDebugHistory", historyCopy, store: false);
+        }
+
+        private void AddToDebugHistory(string address, bool outgoing, string data, bool isStateMessage = false)
+        {
+            if (string.IsNullOrEmpty(data)) return;
+            
+            lock (debugHistoryLock)
+            {
+                // Add new entry
+                debugHistory.Add(new WinlinkDebugEntry
+                {
+                    Address = address,
+                    Outgoing = outgoing,
+                    Data = data,
+                    IsStateMessage = isStateMessage
+                });
+                
+                // Trim to max size if needed
+                while (debugHistory.Count > MaxDebugHistorySize)
+                {
+                    debugHistory.RemoveAt(0);
+                }
+            }
         }
 
         private void TransportSend(string output)
@@ -59,7 +154,11 @@ namespace HTCommander
                 foreach (string str in dataStrs)
                 {
                     if (str.Length == 0) continue;
-                    //parent.mailClientDebugForm.AddBbsTraffic(remoteAddress, true, str.Trim());
+                    string trimmedStr = str.Trim();
+                    // Add to debug history
+                    AddToDebugHistory(remoteAddress, true, trimmedStr, false);
+                    // Use broker to dispatch debug traffic (device 1 for non-persistent state)
+                    broker.Dispatch(1, "WinlinkTraffic", new { Address = remoteAddress, Outgoing = true, Data = trimmedStr }, store: false);
                 }
 
                 if (transportType == TransportType.TCP)
@@ -82,8 +181,13 @@ namespace HTCommander
 
         private void StateMessage(string msg)
         {
-            //parent.MailStateMessage(msg);
-            //parent.mailClientDebugForm.AddBbsControlMessage(msg);
+            // Add to debug history (state messages are special entries)
+            if (!string.IsNullOrEmpty(msg))
+            {
+                AddToDebugHistory(remoteAddress, false, msg, true);
+            }
+            // Dispatch state message via broker (device 1 for non-persistent state)
+            broker.Dispatch(1, "WinlinkStateMessage", msg, store: false);
         }
 
         private void SetConnectionState(ConnectionState state)
@@ -92,6 +196,13 @@ namespace HTCommander
             {
                 currentState = state;
                 ProcessTransportStateChange(state);
+                
+                // Dispatch connection state change via broker (device 1 for non-persistent state)
+                broker.Dispatch(1, "WinlinkConnectionState", state.ToString(), store: false);
+                
+                // Dispatch busy state - busy when not disconnected
+                bool isBusy = (state != ConnectionState.DISCONNECTED);
+                broker.Dispatch(1, "WinlinkBusy", isBusy, store: false);
                 
                 if (state == ConnectionState.DISCONNECTED)
                 {
@@ -121,7 +232,9 @@ namespace HTCommander
                 SetConnectionState(ConnectionState.CONNECTING);
                 remoteAddress = server + ":" + port;
                 this.useTls = useTls;
-                //parent.mailClientDebugForm.Clear();
+                
+                // Dispatch clear command via broker (device 1 for non-persistent state)
+                broker.Dispatch(1, "WinlinkDebugClear", true, store: false);
                 
                 tcpClient = new TcpClient();
                 await tcpClient.ConnectAsync(server, port);
@@ -278,10 +391,8 @@ namespace HTCommander
                         byte[] data = new byte[bytesRead];
                         Array.Copy(buffer, 0, data, 0, bytesRead);
                         
-                        // Process received data on UI thread
-                        parent.Invoke(new Action(() => {
-                            ProcessStream(data);
-                        }));
+                        // Process received data - broker handles UI thread marshalling
+                        ProcessStream(data);
                     }
                     else
                     {
@@ -293,9 +404,7 @@ namespace HTCommander
                 {
                     if (tcpRunning)
                     {
-                        parent.Invoke(new Action(() => {
-                            StateMessage("TCP Receive error: " + ex.Message);
-                        }));
+                        StateMessage("TCP Receive error: " + ex.Message);
                     }
                     break;
                 }
@@ -304,9 +413,7 @@ namespace HTCommander
             // Connection closed
             if (tcpRunning)
             {
-                parent.Invoke(new Action(() => {
-                    DisconnectTcp();
-                }));
+                DisconnectTcp();
             }
         }
 
@@ -328,7 +435,7 @@ namespace HTCommander
                     break;
                 case AX25Session.ConnectionState.CONNECTING:
                     newState = ConnectionState.CONNECTING;
-                    //parent.mailClientDebugForm.Clear();
+                    broker.Dispatch(1, "WinlinkDebugClear", true, store: false);
                     break;
                 case AX25Session.ConnectionState.DISCONNECTING:
                     newState = ConnectionState.DISCONNECTING;
@@ -414,7 +521,10 @@ namespace HTCommander
                 List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)sessionState["OutMailBlocks"];
                 string[] proposalResponses = ParseProposalResponses((string)sessionState["MailProposals"]);
 
-                // Look at proposal responses
+                // Get the current mails from the persistent store
+                List<WinLinkMail> allMails = broker.GetValue<List<WinLinkMail>>(0, "Mails", new List<WinLinkMail>());
+
+                // Look at proposal responses and update the mails in the store
                 int mailsChanges = 0;
                 if (proposalResponses.Length == proposedMails.Count)
                 {
@@ -422,16 +532,23 @@ namespace HTCommander
                     {
                         if ((proposalResponses[j] == "Y") || (proposalResponses[j] == "N"))
                         {
-                            proposedMails[j].Mailbox = "Sent";
-                            //parent.mailStore.UpdateMail(proposedMails[j]);
-                            mailsChanges++;
+                            // Find this mail in the persistent store and update its mailbox
+                            string mid = proposedMails[j].MID;
+                            WinLinkMail mailInStore = allMails.Find(m => m.MID == mid);
+                            if (mailInStore != null)
+                            {
+                                mailInStore.Mailbox = "Sent";
+                                mailsChanges++;
+                            }
                         }
                     }
                 }
 
                 if (mailsChanges > 0)
                 {
-                    //parent.UpdateMail();
+                    // Save the updated mails back to the persistent store (device 0, "Mails")
+                    // This will trigger the MailTabUserControl to refresh via its subscription
+                    broker.Dispatch(0, "Mails", allMails);
                 }
             }
         }
@@ -439,7 +556,6 @@ namespace HTCommander
         // Process stream data (unified for both TCP and X25)
         private void ProcessStream(byte[] data)
         {
-            /*
             if ((data == null) || (data.Length == 0)) return;
 
             // This is embedded mail sent in compressed format
@@ -470,14 +586,21 @@ namespace HTCommander
             foreach (string str in dataStrs)
             {
                 if (str.Length == 0) continue;
-                parent.mailClientDebugForm.AddBbsTraffic(remoteAddress, false, str);
+                
+                // Add to debug history (incoming traffic)
+                AddToDebugHistory(remoteAddress, false, str, false);
+                // Dispatch traffic via broker (device 1 for non-persistent state)
+                broker.Dispatch(1, "WinlinkTraffic", new { Address = remoteAddress, Outgoing = false, Data = str }, store: false);
 
                 // Handle TCP callsign prompt
                 if ((transportType == TransportType.TCP) && str.Trim().Equals("Callsign :", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Send our callsign with station ID
-                    string callsignResponse = parent.callsign;
-                    if (parent.stationId > 0) { callsignResponse += "-" + parent.stationId; }
+                    // Get callsign and stationId from broker (device 0 for persistent settings)
+                    string callsign = broker.GetValue<string>(0, "CallSign", "");
+                    int stationId = broker.GetValue<int>(0, "StationId", 0);
+                    
+                    string callsignResponse = callsign;
+                    //if (stationId > 0) { callsignResponse += "-" + stationId; }
                     callsignResponse += "\r";
                     TransportSend(callsignResponse);
                     StateMessage("Sent callsign: " + callsignResponse.Trim());
@@ -506,16 +629,21 @@ namespace HTCommander
                     // Send Authentication
                     if (sessionState.ContainsKey("WinlinkAuth"))
                     {
-                        string authResponse = WinlinkSecurity.SecureLoginResponse((string)sessionState["WinlinkAuth"], parent.winlinkPassword);
-                        if (!string.IsNullOrEmpty(parent.winlinkPassword)) { sb.Append(";PR: " + authResponse + "\r"); }
+                        // Get password from broker (device 0 for persistent settings)
+                        string winlinkPassword = broker.GetValue<string>(0, "WinlinkPassword", "");
+                        string authResponse = WinlinkSecurity.SecureLoginResponse((string)sessionState["WinlinkAuth"], winlinkPassword);
+                        if (!string.IsNullOrEmpty(winlinkPassword)) { sb.Append(";PR: " + authResponse + "\r"); }
                         StateMessage("Authenticating...");
                     }
+
+                    // Get mails from broker (device 0 for persistent mails)
+                    List<WinLinkMail> mails = broker.GetValue<List<WinLinkMail>>(0, "Mails", new List<WinLinkMail>());
 
                     // Send proposals with checksum
                     List<WinLinkMail> proposedMails = new List<WinLinkMail>();
                     List<List<Byte[]>> proposedMailsBinary = new List<List<Byte[]>>();
                     int checksum = 0, mailSendCount = 0;
-                    foreach (WinLinkMail mail in parent.Mails)
+                    foreach (WinLinkMail mail in mails)
                     {
                         if ((mail.Mailbox != "Outbox") || string.IsNullOrEmpty(mail.MID) || (mail.MID.Length != 12)) continue;
 
@@ -543,7 +671,7 @@ namespace HTCommander
                     }
                     else
                     {
-                        // No mail proposals sent, give a change to the server to send us mails.
+                        // No mail proposals sent, give a chance to the server to send us mails.
                         sb.Append("FF\r");
                         TransportSend(sb.ToString());
                     }
@@ -554,7 +682,10 @@ namespace HTCommander
                     int i = str.IndexOf(' ');
                     if (i > 0) { key = str.Substring(0, i).ToUpper(); value = str.Substring(i + 1); }
 
-                    if ((key == ";PQ:") && (!string.IsNullOrEmpty(parent.winlinkPassword)))
+                    // Get password from broker (device 0 for persistent settings)
+                    string winlinkPassword = broker.GetValue<string>(0, "WinlinkPassword", "");
+                    
+                    if ((key == ";PQ:") && (!string.IsNullOrEmpty(winlinkPassword)))
                     {   // Winlink Authentication Request
                         sessionState["WinlinkAuth"] = value;
                     }
@@ -697,7 +828,6 @@ namespace HTCommander
                     }
                 }
             }
-            */
         }
 
         private bool ExtractMail(MemoryStream blocks)
@@ -736,9 +866,21 @@ namespace HTCommander
             }
             proposals.RemoveAt(0);
 
-            // Process the mail
-            //parent.mailStore.AddMail(mail);
-            //parent.UpdateMail();
+            // Set the mailbox to Inbox for received mail
+            mail.Mailbox = "Inbox";
+
+            // Add the received mail to the persistent store
+            List<WinLinkMail> allMails = broker.GetValue<List<WinLinkMail>>(0, "Mails", new List<WinLinkMail>());
+            
+            // Check if we already have this mail (by MID) to avoid duplicates
+            if (!allMails.Exists(m => m.MID == mail.MID))
+            {
+                allMails.Add(mail);
+                // Save the updated mails back to the persistent store (device 0, "Mails")
+                // This will trigger the MailTabUserControl to refresh via its subscription
+                broker.Dispatch(0, "Mails", allMails);
+            }
+
             StateMessage("Got mail for " + mail.To + ".");
 
             return (proposals.Count == 0);
@@ -746,8 +888,28 @@ namespace HTCommander
 
         private bool WeHaveEmail(string mid)
         {
-            //foreach (WinLinkMail mail in parent.Mails) { if (mail.MID == mid) return true; }
+            // Get mails from broker and check if we have this email (device 0 for persistent mails)
+            List<WinLinkMail> mails = broker.GetValue<List<WinLinkMail>>(0, "Mails", new List<WinLinkMail>());
+            foreach (WinLinkMail mail in mails) { if (mail.MID == mid) return true; }
             return false;
+        }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                // Disconnect if connected
+                if (currentState != ConnectionState.DISCONNECTED)
+                {
+                    DisconnectTcp();
+                }
+                
+                // Dispose the broker client
+                broker?.Dispose();
+                broker = null;
+                
+                _disposed = true;
+            }
         }
     }
 }

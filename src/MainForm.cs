@@ -58,6 +58,7 @@ namespace HTCommander
             DataBroker.AddDataHandler("AprsHandler", new AprsHandler());
             DataBroker.AddDataHandler("Torrent", new Torrent());
             DataBroker.AddDataHandler("BbsHandler", new BbsHandler());
+            DataBroker.AddDataHandler("WinlinkClient", new WinlinkClient());
 
             // Subscribe to CallSign and StationId changes for title bar updates
             broker.Subscribe(0, new[] { "CallSign", "StationId" }, OnCallSignOrStationIdChanged);

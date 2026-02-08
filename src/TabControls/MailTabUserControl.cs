@@ -65,10 +65,15 @@ namespace HTCommander.Controls
             // Subscribe to mail-related events
             broker.Subscribe(0, "Mails", OnMailsChanged);
             broker.Subscribe(0, "MailShowPreview", OnMailShowPreviewChanged);
+            broker.Subscribe(1, "WinlinkBusy", OnWinlinkBusyChanged);
 
             // Load settings from broker (device 0 for app-wide settings)
             showPreviewToolStripMenuItem.Checked = broker.GetValue<int>(0, "MailShowPreview", 1) == 1;
             mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
+
+            // Hide preview controls initially (no mail selected)
+            mailPreviewTextBox.Visible = false;
+            mailToolStrip.Visible = false;
 
             // Initial mail display
             UpdateMail();
@@ -96,6 +101,18 @@ namespace HTCommander.Controls
                 showPreviewToolStripMenuItem.Checked = showPreview == 1;
                 mailboxHorizontalSplitContainer.Panel2Collapsed = !showPreviewToolStripMenuItem.Checked;
             }
+        }
+
+        private void OnWinlinkBusyChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnWinlinkBusyChanged), deviceId, name, data);
+                return;
+            }
+            bool isBusy = (data is bool b) && b;
+            mailInternetButton.Enabled = !isBusy;
+            mailConnectButton.Enabled = !isBusy;
         }
 
         /// <summary>
@@ -173,12 +190,24 @@ namespace HTCommander.Controls
             foreach (WinLinkMail mail in mails)
             {
                 if (mail.Mailbox != selectedMailbox) continue;
-                ListViewItem l = new ListViewItem(new string[] { mail.DateTime.ToLocalTime().ToString(), mail.From, mail.Subject });
+                string fromDisplay = mail.From;
+                if (fromDisplay.StartsWith("SMTP:", StringComparison.OrdinalIgnoreCase))
+                {
+                    fromDisplay = fromDisplay.Substring(5);
+                }
+                ListViewItem l = new ListViewItem(new string[] { mail.DateTime.ToLocalTime().ToString(), fromDisplay, mail.Subject });
                 l.Tag = mail;
-                l.ImageIndex = (mail.Attachments != null && mail.Attachments.Count > 0) ? 2 : 1;
+                l.ImageIndex = 0;//  (mail.Attachments != null && mail.Attachments.Count > 0) ? 2 : 1;
                 mailboxListView.Items.Add(l);
             }
             mailboxListView.EndUpdate();
+
+            // Automatically select the first item if available
+            if (mailboxListView.Items.Count > 0)
+            {
+                mailboxListView.Items[0].Selected = true;
+                mailboxListView.Items[0].Focused = true;
+            }
 
             // Update context menu visibility
             bool isEditable = (selectedMailbox == "Draft" || selectedMailbox == "Outbox");
@@ -214,8 +243,18 @@ namespace HTCommander.Controls
 
         private void mailBoxesTreeView_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
         {
-            mailBoxesTreeView.SelectedNode = e.Node;
-            UpdateMail();
+            // Only clear preview and update if switching to a different mailbox
+            if (mailBoxesTreeView.SelectedNode != e.Node)
+            {
+                mailBoxesTreeView.SelectedNode = e.Node;
+
+                // Clear the preview when switching mailboxes
+                mailPreviewTextBox.Text = "";
+                mailPreviewTextBox.Visible = false;
+                mailToolStrip.Visible = false;
+
+                UpdateMail();
+            }
         }
 
         private void newMailButton_Click(object sender, EventArgs e)
@@ -296,9 +335,22 @@ namespace HTCommander.Controls
         {
             if (mailboxListView.SelectedItems.Count == 0)
             {
-                mailPreviewTextBox.Text = "";
+                // Defer the hide check to avoid flickering when clicking between emails.
+                // When selecting a new item, the old selection is cleared first (Count == 0),
+                // then the new item is selected. By deferring, we check after both events complete.
+                BeginInvoke(new Action(() =>
+                {
+                    if (mailboxListView.SelectedItems.Count == 0)
+                    {
+                        mailPreviewTextBox.Text = "";
+                        mailPreviewTextBox.Visible = false;
+                        mailToolStrip.Visible = false;
+                    }
+                }));
                 return;
             }
+            mailPreviewTextBox.Visible = true;
+            mailToolStrip.Visible = true;
             WinLinkMail m = (WinLinkMail)mailboxListView.SelectedItems[0].Tag;
             StringBuilder sb = new StringBuilder();
             sb.AppendLine($"From: {m.From}");
@@ -380,7 +432,47 @@ namespace HTCommander.Controls
 
         private void moveToTrashToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            MoveSelectedMailsTo("Trash");
+            if (mailboxListView.SelectedItems.Count == 0) return;
+
+            // Get the current mailbox
+            string selectedMailbox = "Inbox";
+            if (mailBoxesTreeView.SelectedNode != null)
+            {
+                selectedMailbox = (string)mailBoxesTreeView.SelectedNode.Tag;
+            }
+
+            if (selectedMailbox == "Trash")
+            {
+                // Already in Trash - permanently delete
+                int count = mailboxListView.SelectedItems.Count;
+                string message = count == 1
+                    ? "This message will be permanently deleted. Are you sure?"
+                    : $"These {count} messages will be permanently deleted. Are you sure?";
+
+                if (MessageBox.Show(this, message, "Delete Permanently", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                {
+                    List<WinLinkMail> allMails = GetMails();
+                    foreach (ListViewItem l in mailboxListView.SelectedItems)
+                    {
+                        WinLinkMail m = (WinLinkMail)l.Tag;
+                        allMails.RemoveAll(mail => mail.MID == m.MID);
+                    }
+                    SaveMails(allMails);
+                }
+            }
+            else
+            {
+                // Not in Trash - move to Trash with confirmation
+                int count = mailboxListView.SelectedItems.Count;
+                string message = count == 1
+                    ? "Move the selected message to Trash?"
+                    : $"Move the selected {count} messages to Trash?";
+
+                if (MessageBox.Show(this, message, "Move to Trash", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    MoveSelectedMailsTo("Trash");
+                }
+            }
         }
 
         private void MoveSelectedMailsTo(string mailbox)
@@ -424,7 +516,7 @@ namespace HTCommander.Controls
         private void showTrafficToolStripMenuItem_Click(object sender, EventArgs e)
         {
             MailClientDebugForm f = new MailClientDebugForm();
-            f.ShowDialog(this);
+            f.Show(this);
         }
 
         private void backupMailToolStripMenuItem_Click(object sender, EventArgs e)
@@ -549,8 +641,8 @@ namespace HTCommander.Controls
 
         private void mailInternetButton_Click(object sender, EventArgs e)
         {
-            // Dispatch event to connect to Winlink Internet
-            broker.Dispatch(0, "ConnectToWinlinkInternet", true, store: false);
+            // Dispatch event to connect to Winlink via Internet
+            broker.Dispatch(1, "WinlinkSync", new { Server = "server.winlink.org", Port = 8773, UseTls = true }, store: false);
         }
 
         private void mailReplyToolStripButton_Click(object sender, EventArgs e)

@@ -49,7 +49,6 @@ namespace HTCommander.Controls
             moveToTrashToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItem15 = new System.Windows.Forms.ToolStripSeparator();
             deleteMailToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            mainImageList = new System.Windows.Forms.ImageList(components);
             mailPreviewTextBox = new System.Windows.Forms.RichTextBox();
             mailToolStrip = new System.Windows.Forms.ToolStrip();
             mailReplyToolStripButton = new System.Windows.Forms.ToolStripButton();
@@ -178,7 +177,7 @@ namespace HTCommander.Controls
             mailboxListView.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             mailboxListView.Name = "mailboxListView";
             mailboxListView.Size = new System.Drawing.Size(514, 250);
-            mailboxListView.SmallImageList = mainImageList;
+            mailboxListView.SmallImageList = mailBoxImageList;
             mailboxListView.TabIndex = 5;
             mailboxListView.UseCompatibleStateImageBehavior = false;
             mailboxListView.View = System.Windows.Forms.View.Details;
@@ -280,22 +279,16 @@ namespace HTCommander.Controls
             deleteMailToolStripMenuItem.Text = "&Delete";
             deleteMailToolStripMenuItem.Click += deleteMailToolStripMenuItem_Click;
             // 
-            // mainImageList
-            // 
-            mainImageList.ColorDepth = System.Windows.Forms.ColorDepth.Depth32Bit;
-            mainImageList.ImageSize = new System.Drawing.Size(20, 20);
-            mainImageList.TransparentColor = System.Drawing.Color.Transparent;
-            // 
             // mailPreviewTextBox
             // 
             mailPreviewTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
             mailPreviewTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
             mailPreviewTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
-            mailPreviewTextBox.Location = new System.Drawing.Point(0, 25);
+            mailPreviewTextBox.Location = new System.Drawing.Point(0, 27);
             mailPreviewTextBox.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             mailPreviewTextBox.Name = "mailPreviewTextBox";
             mailPreviewTextBox.ReadOnly = true;
-            mailPreviewTextBox.Size = new System.Drawing.Size(669, 184);
+            mailPreviewTextBox.Size = new System.Drawing.Size(669, 182);
             mailPreviewTextBox.TabIndex = 0;
             mailPreviewTextBox.Text = "";
             mailPreviewTextBox.LinkClicked += mailPreviewTextBox_LinkClicked;
@@ -306,48 +299,52 @@ namespace HTCommander.Controls
             mailToolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { mailReplyToolStripButton, mailReplyAllToolStripButton, mailForwardToolStripButton, toolStripSeparator2, mailDeleteToolStripButton });
             mailToolStrip.Location = new System.Drawing.Point(0, 0);
             mailToolStrip.Name = "mailToolStrip";
-            mailToolStrip.Size = new System.Drawing.Size(669, 25);
+            mailToolStrip.Size = new System.Drawing.Size(669, 27);
             mailToolStrip.TabIndex = 1;
             mailToolStrip.Text = "toolStrip1";
             // 
             // mailReplyToolStripButton
             // 
             mailReplyToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            mailReplyToolStripButton.Image = (System.Drawing.Image)resources.GetObject("mailReplyToolStripButton.Image");
             mailReplyToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             mailReplyToolStripButton.Name = "mailReplyToolStripButton";
-            mailReplyToolStripButton.Size = new System.Drawing.Size(29, 22);
+            mailReplyToolStripButton.Size = new System.Drawing.Size(29, 24);
             mailReplyToolStripButton.Text = "Reply";
             mailReplyToolStripButton.Click += mailReplyToolStripButton_Click;
             // 
             // mailReplyAllToolStripButton
             // 
             mailReplyAllToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            mailReplyAllToolStripButton.Image = (System.Drawing.Image)resources.GetObject("mailReplyAllToolStripButton.Image");
             mailReplyAllToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             mailReplyAllToolStripButton.Name = "mailReplyAllToolStripButton";
-            mailReplyAllToolStripButton.Size = new System.Drawing.Size(29, 22);
+            mailReplyAllToolStripButton.Size = new System.Drawing.Size(29, 24);
             mailReplyAllToolStripButton.Text = "Reply All";
             mailReplyAllToolStripButton.Click += mailReplyAllToolStripButton_Click;
             // 
             // mailForwardToolStripButton
             // 
             mailForwardToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            mailForwardToolStripButton.Image = (System.Drawing.Image)resources.GetObject("mailForwardToolStripButton.Image");
             mailForwardToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             mailForwardToolStripButton.Name = "mailForwardToolStripButton";
-            mailForwardToolStripButton.Size = new System.Drawing.Size(29, 22);
+            mailForwardToolStripButton.Size = new System.Drawing.Size(29, 24);
             mailForwardToolStripButton.Text = "Forward";
             mailForwardToolStripButton.Click += mailForwardToolStripButton_Click;
             // 
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
-            toolStripSeparator2.Size = new System.Drawing.Size(6, 25);
+            toolStripSeparator2.Size = new System.Drawing.Size(6, 27);
             // 
             // mailDeleteToolStripButton
             // 
             mailDeleteToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            mailDeleteToolStripButton.Image = (System.Drawing.Image)resources.GetObject("mailDeleteToolStripButton.Image");
             mailDeleteToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             mailDeleteToolStripButton.Name = "mailDeleteToolStripButton";
-            mailDeleteToolStripButton.Size = new System.Drawing.Size(29, 22);
+            mailDeleteToolStripButton.Size = new System.Drawing.Size(29, 24);
             mailDeleteToolStripButton.Text = "Delete";
             mailDeleteToolStripButton.Click += mailDeleteToolStripButton_Click;
             // 
@@ -572,7 +569,6 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem moveToTrashToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem15;
         private System.Windows.Forms.ToolStripMenuItem deleteMailToolStripMenuItem;
-        private System.Windows.Forms.ImageList mainImageList;
         private System.Windows.Forms.RichTextBox mailPreviewTextBox;
         private System.Windows.Forms.ToolStrip mailToolStrip;
         private System.Windows.Forms.ToolStripButton mailReplyToolStripButton;
