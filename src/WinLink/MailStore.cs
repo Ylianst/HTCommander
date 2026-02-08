@@ -29,6 +29,7 @@ namespace HTCommander
         private DateTime _lastSignalTime = DateTime.MinValue;
         private bool _disposed = false;
         private readonly SynchronizationContext _syncContext;
+        private DataBrokerClient _broker;
 
         public event EventHandler MailsChanged;
 
@@ -83,6 +84,200 @@ namespace HTCommander
             _watcher.Changed += OnSignalFileChanged;
             _watcher.Created += OnSignalFileChanged;
             _watcher.EnableRaisingEvents = true;
+
+            // Initialize the DataBroker client and subscribe to mail events
+            InitializeBroker();
+        }
+
+        /// <summary>
+        /// Initializes the DataBroker client and subscribes to mail-related events.
+        /// </summary>
+        private void InitializeBroker()
+        {
+            _broker = new DataBrokerClient();
+
+            // Subscribe to mail operations (device 0 for persistent/global operations)
+            _broker.Subscribe(0, "MailAdd", OnMailAdd);
+            _broker.Subscribe(0, "MailUpdate", OnMailUpdate);
+            _broker.Subscribe(0, "MailDelete", OnMailDelete);
+            _broker.Subscribe(0, "MailMove", OnMailMove);
+            _broker.Subscribe(0, "MailGetAll", OnMailGetAll);
+            _broker.Subscribe(0, "MailGet", OnMailGet);
+            _broker.Subscribe(0, "MailExists", OnMailExists);
+        }
+
+        /// <summary>
+        /// Handles the MailAdd event - adds a new mail to the store.
+        /// </summary>
+        private void OnMailAdd(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+            if (!(data is WinLinkMail mail)) return;
+
+            try
+            {
+                // Check if mail already exists
+                if (!MailExists(mail.MID))
+                {
+                    AddMail(mail);
+                    NotifyMailsChanged();
+                }
+            }
+            catch (Exception)
+            {
+                // Ignore errors - mail might already exist
+            }
+        }
+
+        /// <summary>
+        /// Handles the MailUpdate event - updates an existing mail in the store.
+        /// </summary>
+        private void OnMailUpdate(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+            if (!(data is WinLinkMail mail)) return;
+
+            try
+            {
+                UpdateMail(mail);
+                NotifyMailsChanged();
+            }
+            catch (Exception)
+            {
+                // Ignore errors
+            }
+        }
+
+        /// <summary>
+        /// Handles the MailDelete event - deletes a mail from the store by MID.
+        /// </summary>
+        private void OnMailDelete(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+            
+            string mid = data as string;
+            if (string.IsNullOrEmpty(mid)) return;
+
+            try
+            {
+                DeleteMail(mid);
+                NotifyMailsChanged();
+            }
+            catch (Exception)
+            {
+                // Ignore errors
+            }
+        }
+
+        /// <summary>
+        /// Handles the MailMove event - moves a mail to a different mailbox.
+        /// Expected data: object with MID and Mailbox properties.
+        /// </summary>
+        private void OnMailMove(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+            if (data == null) return;
+
+            try
+            {
+                var dataType = data.GetType();
+                string mid = dataType.GetProperty("MID")?.GetValue(data) as string;
+                string mailbox = dataType.GetProperty("Mailbox")?.GetValue(data) as string;
+
+                if (string.IsNullOrEmpty(mid) || string.IsNullOrEmpty(mailbox)) return;
+
+                WinLinkMail mail = GetMail(mid);
+                if (mail != null)
+                {
+                    mail.Mailbox = mailbox;
+                    UpdateMail(mail);
+                    NotifyMailsChanged();
+                }
+            }
+            catch (Exception)
+            {
+                // Ignore errors
+            }
+        }
+
+        /// <summary>
+        /// Handles the MailGetAll event - dispatches all mails via the broker.
+        /// </summary>
+        private void OnMailGetAll(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+
+            try
+            {
+                List<WinLinkMail> mails = GetAllMails();
+                _broker.Dispatch(0, "MailList", mails, store: false);
+            }
+            catch (Exception)
+            {
+                // Dispatch empty list on error
+                _broker.Dispatch(0, "MailList", new List<WinLinkMail>(), store: false);
+            }
+        }
+
+        /// <summary>
+        /// Handles the MailGet event - dispatches a single mail by MID.
+        /// </summary>
+        private void OnMailGet(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+
+            string mid = data as string;
+            if (string.IsNullOrEmpty(mid))
+            {
+                _broker.Dispatch(0, "Mail", null, store: false);
+                return;
+            }
+
+            try
+            {
+                WinLinkMail mail = GetMail(mid);
+                _broker.Dispatch(0, "Mail", mail, store: false);
+            }
+            catch (Exception)
+            {
+                _broker.Dispatch(0, "Mail", null, store: false);
+            }
+        }
+
+        /// <summary>
+        /// Handles the MailExists event - checks if a mail with the given MID exists.
+        /// </summary>
+        private void OnMailExists(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+
+            string mid = data as string;
+            bool exists = false;
+
+            if (!string.IsNullOrEmpty(mid))
+            {
+                try
+                {
+                    exists = MailExists(mid);
+                }
+                catch (Exception)
+                {
+                    exists = false;
+                }
+            }
+
+            _broker.Dispatch(0, "MailExistsResult", new { MID = mid, Exists = exists }, store: false);
+        }
+
+        /// <summary>
+        /// Notifies subscribers that the mail list has changed.
+        /// </summary>
+        private void NotifyMailsChanged()
+        {
+            if (_broker != null && !_disposed)
+            {
+                _broker.Dispatch(0, "MailsChanged", null, store: false);
+            }
         }
 
         private static string GetDefaultStoragePath()
@@ -675,6 +870,8 @@ namespace HTCommander
             if (!_disposed)
             {
                 _disposed = true;
+                _broker?.Dispose();
+                _broker = null;
                 _watcher?.Dispose();
                 _connection?.Close();
                 _connection?.Dispose();

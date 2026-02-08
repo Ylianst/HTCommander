@@ -775,34 +775,18 @@ namespace HTCommander
                 List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)sessionState["OutMailBlocks"];
                 string[] proposalResponses = ParseProposalResponses((string)sessionState["MailProposals"]);
 
-                // Get the current mails from the persistent store
-                List<WinLinkMail> allMails = broker.GetValue<List<WinLinkMail>>(0, "Mails", new List<WinLinkMail>());
-
                 // Look at proposal responses and update the mails in the store
-                int mailsChanges = 0;
                 if (proposalResponses.Length == proposedMails.Count)
                 {
                     for (int j = 0; j < proposalResponses.Length; j++)
                     {
                         if ((proposalResponses[j] == "Y") || (proposalResponses[j] == "N"))
                         {
-                            // Find this mail in the persistent store and update its mailbox
+                            // Move this mail to Sent mailbox using the broker event
                             string mid = proposedMails[j].MID;
-                            WinLinkMail mailInStore = allMails.Find(m => m.MID == mid);
-                            if (mailInStore != null)
-                            {
-                                mailInStore.Mailbox = "Sent";
-                                mailsChanges++;
-                            }
+                            broker.Dispatch(0, "MailMove", new { MID = mid, Mailbox = "Sent" }, store: false);
                         }
                     }
-                }
-
-                if (mailsChanges > 0)
-                {
-                    // Save the updated mails back to the persistent store (device 0, "Mails")
-                    // This will trigger the MailTabUserControl to refresh via its subscription
-                    broker.Dispatch(0, "Mails", allMails);
                 }
             }
         }
@@ -890,8 +874,9 @@ namespace HTCommander
                         StateMessage("Authenticating...");
                     }
 
-                    // Get mails from broker (device 0 for persistent mails)
-                    List<WinLinkMail> mails = broker.GetValue<List<WinLinkMail>>(0, "Mails", new List<WinLinkMail>());
+                    // Get mails from MailStore via DataBroker handler
+                    MailStore mailStore = DataBroker.GetDataHandler<MailStore>("MailStore");
+                    List<WinLinkMail> mails = mailStore?.GetAllMails() ?? new List<WinLinkMail>();
 
                     // Send proposals with checksum
                     List<WinLinkMail> proposedMails = new List<WinLinkMail>();
@@ -1125,17 +1110,9 @@ namespace HTCommander
             // Set the mailbox to Inbox for received mail
             mail.Mailbox = "Inbox";
 
-            // Add the received mail to the persistent store
-            List<WinLinkMail> allMails = broker.GetValue<List<WinLinkMail>>(0, "Mails", new List<WinLinkMail>());
-            
-            // Check if we already have this mail (by MID) to avoid duplicates
-            if (!allMails.Exists(m => m.MID == mail.MID))
-            {
-                allMails.Add(mail);
-                // Save the updated mails back to the persistent store (device 0, "Mails")
-                // This will trigger the MailTabUserControl to refresh via its subscription
-                broker.Dispatch(0, "Mails", allMails);
-            }
+            // Add the received mail to the persistent store using broker event
+            // The MailStore will check for duplicates internally
+            broker.Dispatch(0, "MailAdd", mail, store: false);
 
             StateMessage("Got mail for " + mail.To + ".");
 
@@ -1144,10 +1121,9 @@ namespace HTCommander
 
         private bool WeHaveEmail(string mid)
         {
-            // Get mails from broker and check if we have this email (device 0 for persistent mails)
-            List<WinLinkMail> mails = broker.GetValue<List<WinLinkMail>>(0, "Mails", new List<WinLinkMail>());
-            foreach (WinLinkMail mail in mails) { if (mail.MID == mid) return true; }
-            return false;
+            // Check if mail exists using MailStore via DataBroker handler
+            MailStore mailStore = DataBroker.GetDataHandler<MailStore>("MailStore");
+            return mailStore?.MailExists(mid) ?? false;
         }
 
         public void Dispose()

@@ -101,7 +101,8 @@ namespace HTCommander.Controls
             broker = new DataBrokerClient();
 
             // Subscribe to mail-related events
-            broker.Subscribe(0, "Mails", OnMailsChanged);
+            broker.Subscribe(0, "MailsChanged", OnMailsChanged);
+            broker.Subscribe(0, "MailList", OnMailListReceived);
             broker.Subscribe(0, "MailShowPreview", OnMailShowPreviewChanged);
             broker.Subscribe(1, "WinlinkBusy", OnWinlinkBusyChanged);
             broker.Subscribe(1, "WinlinkStateMessage", OnWinlinkStateMessageChanged);
@@ -139,6 +140,14 @@ namespace HTCommander.Controls
 
         private void OnMailsChanged(int deviceId, string name, object data)
         {
+            InvokeIfRequired(() => UpdateMail());
+        }
+
+        private void OnMailListReceived(int deviceId, string name, object data)
+        {
+            // This is called in response to MailGetAll - the data contains the mail list
+            // If we need immediate access to the mail list after requesting it, this is where we'd handle it
+            // For now, we just update the display
             InvokeIfRequired(() => UpdateMail());
         }
 
@@ -265,19 +274,49 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
-        /// Gets the list of mails from the broker.
+        /// Gets the list of mails from the MailStore via DataBroker.
         /// </summary>
         private List<WinLinkMail> GetMails()
         {
-            return broker.GetValue<List<WinLinkMail>>(0, "Mails", new List<WinLinkMail>());
+            // Get the MailStore handler directly for synchronous access
+            MailStore mailStore = DataBroker.GetDataHandler<MailStore>("MailStore");
+            if (mailStore != null)
+            {
+                return mailStore.GetAllMails();
+            }
+            return new List<WinLinkMail>();
         }
 
         /// <summary>
-        /// Saves the list of mails to the broker.
+        /// Adds a single mail using the broker event.
         /// </summary>
-        private void SaveMails(List<WinLinkMail> mails)
+        private void AddMailToBroker(WinLinkMail mail)
         {
-            broker.Dispatch(0, "Mails", mails);
+            broker.Dispatch(0, "MailAdd", mail, store: false);
+        }
+
+        /// <summary>
+        /// Updates a single mail using the broker event.
+        /// </summary>
+        private void UpdateMailInBroker(WinLinkMail mail)
+        {
+            broker.Dispatch(0, "MailUpdate", mail, store: false);
+        }
+
+        /// <summary>
+        /// Deletes a mail by MID using the broker event.
+        /// </summary>
+        private void DeleteMailFromBroker(string mid)
+        {
+            broker.Dispatch(0, "MailDelete", mid, store: false);
+        }
+
+        /// <summary>
+        /// Moves a mail to a different mailbox using the broker event.
+        /// </summary>
+        private void MoveMailInBroker(string mid, string mailbox)
+        {
+            broker.Dispatch(0, "MailMove", new { MID = mid, Mailbox = mailbox }, store: false);
         }
 
         public void UpdateMail()
@@ -430,9 +469,7 @@ namespace HTCommander.Controls
         /// </summary>
         private void AddMail(WinLinkMail mail)
         {
-            List<WinLinkMail> mails = GetMails();
-            mails.Add(mail);
-            SaveMails(mails);
+            AddMailToBroker(mail);
         }
 
         /// <summary>
@@ -440,11 +477,7 @@ namespace HTCommander.Controls
         /// </summary>
         private void UpdateMailItem(WinLinkMail mail)
         {
-            List<WinLinkMail> mails = GetMails();
-            // Remove old mail with same MID
-            mails.RemoveAll(m => m.MID == mail.MID);
-            mails.Add(mail);
-            SaveMails(mails);
+            UpdateMailInBroker(mail);
         }
 
         /// <summary>
@@ -452,9 +485,7 @@ namespace HTCommander.Controls
         /// </summary>
         private void DeleteMail(string mid)
         {
-            List<WinLinkMail> mails = GetMails();
-            mails.RemoveAll(m => m.MID == mid);
-            SaveMails(mails);
+            DeleteMailFromBroker(mid);
         }
 
         private void mailPreviewTextBox_LinkClicked(object sender, LinkClickedEventArgs e)
@@ -526,17 +557,11 @@ namespace HTCommander.Controls
                 {
                     List<WinLinkMail> draggedMails = (List<WinLinkMail>)e.Data.GetData(typeof(List<WinLinkMail>));
                     string destMailBox = (string)node.Tag;
-                    List<WinLinkMail> allMails = GetMails();
                     foreach (WinLinkMail draggedMail in draggedMails)
                     {
-                        // Find and update the mail in the store
-                        WinLinkMail mailInStore = allMails.Find(m => m.MID == draggedMail.MID);
-                        if (mailInStore != null)
-                        {
-                            mailInStore.Mailbox = destMailBox;
-                        }
+                        // Move mail to the destination mailbox
+                        MoveMailInBroker(draggedMail.MID, destMailBox);
                     }
-                    SaveMails(allMails);
                 }
             }
         }
@@ -578,13 +603,11 @@ namespace HTCommander.Controls
 
                 if (MessageBox.Show(this, message, "Delete Permanently", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                 {
-                    List<WinLinkMail> allMails = GetMails();
                     foreach (ListViewItem l in mailboxListView.SelectedItems)
                     {
                         WinLinkMail m = (WinLinkMail)l.Tag;
-                        allMails.RemoveAll(mail => mail.MID == m.MID);
+                        DeleteMailFromBroker(m.MID);
                     }
-                    SaveMails(allMails);
                 }
             }
             else
@@ -605,17 +628,11 @@ namespace HTCommander.Controls
         private void MoveSelectedMailsTo(string mailbox)
         {
             if (mailboxListView.SelectedItems.Count == 0) return;
-            List<WinLinkMail> allMails = GetMails();
             foreach (ListViewItem l in mailboxListView.SelectedItems)
             {
                 WinLinkMail selectedMail = (WinLinkMail)l.Tag;
-                WinLinkMail mailInStore = allMails.Find(m => m.MID == selectedMail.MID);
-                if (mailInStore != null)
-                {
-                    mailInStore.Mailbox = mailbox;
-                }
+                MoveMailInBroker(selectedMail.MID, mailbox);
             }
-            SaveMails(allMails);
         }
 
         private void deleteMailToolStripMenuItem_Click(object sender, EventArgs e)
@@ -624,13 +641,11 @@ namespace HTCommander.Controls
 
             if (MessageBox.Show(this, "Are you sure you want to permanently delete the selected mail(s)?", "Delete Mail", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                List<WinLinkMail> allMails = GetMails();
                 foreach (ListViewItem l in mailboxListView.SelectedItems)
                 {
                     WinLinkMail m = (WinLinkMail)l.Tag;
-                    allMails.RemoveAll(mail => mail.MID == m.MID);
+                    DeleteMailFromBroker(m.MID);
                 }
-                SaveMails(allMails);
             }
         }
 
@@ -683,16 +698,13 @@ namespace HTCommander.Controls
                         string json = Encoding.UTF8.GetString(ms.ToArray());
                         List<WinLinkMail> restoredMails = Newtonsoft.Json.JsonConvert.DeserializeObject<List<WinLinkMail>>(json);
                         List<WinLinkMail> currentMails = GetMails();
-                        bool change = false;
                         foreach (WinLinkMail mail in restoredMails)
                         {
                             if (!IsMailMidPresent(currentMails, mail.MID))
                             {
-                                currentMails.Add(mail);
-                                change = true;
+                                AddMailToBroker(mail);
                             }
                         }
-                        if (change) { SaveMails(currentMails); }
                         MessageBox.Show(this, "Restore completed successfully.", "Restore Mail", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
