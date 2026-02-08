@@ -137,6 +137,7 @@ namespace HTCommander
             broker.Subscribe(DeviceId, "TransmitVoicePCM", OnTransmitVoicePCM);
             broker.Subscribe(DeviceId, "StartRecording", OnStartRecording);
             broker.Subscribe(DeviceId, "StopRecording", OnStopRecording);
+            broker.Subscribe(DeviceId, "CancelVoiceTransmit", OnCancelVoiceTransmit);
             
             // Initialize output volume from stored value
             OutputVolume = broker.GetValue<float>(DeviceId, "OutputVolume", 1.0f);
@@ -173,9 +174,43 @@ namespace HTCommander
         
         private void OnTransmitVoicePCM(int deviceId, string name, object data)
         {
-            if (data is byte[] pcmData && pcmData.Length > 0)
+            if (data == null) return;
+            
+            // Support both simple byte[] and object with PlayLocally flag
+            byte[] pcmData = null;
+            bool playLocally = false;
+            
+            if (data is byte[] directPcmData)
             {
-                TransmitVoice(pcmData, 0, pcmData.Length, false);
+                // Simple byte array - default to no local playback
+                pcmData = directPcmData;
+                playLocally = false;
+            }
+            else
+            {
+                // Try to extract from anonymous object with Data and PlayLocally properties
+                try
+                {
+                    var type = data.GetType();
+                    var dataProp = type.GetProperty("Data");
+                    var playLocallyProp = type.GetProperty("PlayLocally");
+                    
+                    if (dataProp != null)
+                    {
+                        pcmData = dataProp.GetValue(data) as byte[];
+                    }
+                    if (playLocallyProp != null)
+                    {
+                        object playValue = playLocallyProp.GetValue(data);
+                        if (playValue is bool b) playLocally = b;
+                    }
+                }
+                catch (Exception) { return; }
+            }
+            
+            if (pcmData != null && pcmData.Length > 0)
+            {
+                TransmitVoice(pcmData, 0, pcmData.Length, playLocally);
             }
         }
         
@@ -192,6 +227,11 @@ namespace HTCommander
         {
             StopRecording();
             broker.Dispatch(DeviceId, "Recording", false, store: true);
+        }
+        
+        private void OnCancelVoiceTransmit(int deviceId, string name, object data)
+        {
+            CancelVoiceTransmit();
         }
 
         /// <summary>
@@ -1409,9 +1449,27 @@ namespace HTCommander
 
         public void CancelVoiceTransmit()
         {
-            waveProvider.ClearBuffer();
             VoiceTransmitCancel = true;
             transmissionTokenSource?.Cancel();
+            
+            // Clear local playback buffer
+            try { waveProvider?.ClearBuffer(); } catch { }
+            
+            // Clear any pending PCM data in the queue
+            while (pcmQueue.TryDequeue(out _)) { }
+            ReminderTransmitPcmAudio = null;
+            
+            // Immediately send end audio frame to tell the radio to stop transmitting
+            byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
+            if (winRtOutputStream != null)
+            {
+                try
+                {
+                    winRtOutputStream.Write(endAudio, 0, endAudio.Length);
+                    winRtOutputStream.Flush();
+                }
+                catch { }
+            }
         }
 
         // Voice transmission fields
@@ -1421,6 +1479,7 @@ namespace HTCommander
         private TaskCompletionSource<bool> newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         private bool PlayInputBack = false;
         private byte[] ReminderTransmitPcmAudio = null;
+        private volatile bool isPlayingBack = false; // Track if PlayPcmBufferAsync is actively streaming
 
         // Packet transmission fields
         private ConcurrentQueue<TncDataFragment> packetQueue = new ConcurrentQueue<TncDataFragment>();
@@ -1834,7 +1893,7 @@ namespace HTCommander
                         }
                         else
                         {
-                            // Wait for up to 100ms for more data. If none arrives, exit the loop.
+                            // Wait for up to 100ms for more data. If none arrives, check if playback is still active.
                             Task delayTask = Task.Delay(100, token);
                             Task signalTask = newDataAvailable.Task;
                             Task completedTask = await Task.WhenAny(delayTask, signalTask);
@@ -1842,6 +1901,11 @@ namespace HTCommander
                             {
                                 // New data arrived, reset the signal
                                 newDataAvailable = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                            }
+                            else if (isPlayingBack || (waveProvider != null && waveProvider.BufferedBytes > 0))
+                            {
+                                // Still playing back audio - wait for it to finish
+                                continue;
                             }
                             else { break; }
                         }
@@ -1880,7 +1944,12 @@ namespace HTCommander
                 ReminderTransmitPcmAudio = null;
             }
 
-            // TODO: Run up to 7 loops of this before using the PCM/SBC data
+            // Real-time pacing: send audio at approximately the playback rate (32kHz, 16-bit, mono = 64KB/sec)
+            // This ensures the radio only has ~1 second of audio buffered at any time for faster cancel response
+            const int bytesPerSecond = 32000 * 2; // 32kHz, 16-bit mono
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            int totalBytesSent = 0;
+
             while ((pcmLength >= pcmInputSizePerFrame) && (!token.IsCancellationRequested))
             {
                 int bytesConsumed = 0;
@@ -1908,6 +1977,17 @@ namespace HTCommander
 
                 pcmOffset += bytesConsumed;
                 pcmLength -= bytesConsumed;
+                totalBytesSent += bytesConsumed;
+
+                // Real-time pacing: wait if we're sending faster than real-time playback
+                // Allow up to 1 second of "ahead" time to keep the buffer primed
+                int expectedElapsedMs = (int)((totalBytesSent * 1000L) / bytesPerSecond) - 1000; // Allow 1 second ahead
+                int actualElapsedMs = (int)stopwatch.ElapsedMilliseconds;
+                int waitMs = expectedElapsedMs - actualElapsedMs;
+                if (waitMs > 0 && !token.IsCancellationRequested)
+                {
+                    await Task.Delay(Math.Min(waitMs, 100), token).ContinueWith(_ => { }); // Cap at 100ms per wait
+                }
             }
 
             // If there are remaining bytes, keep them for the next call
@@ -1920,23 +2000,56 @@ namespace HTCommander
 
         public void PlayPcmBufferAsync(byte[] pcmInputData, int pcmOffset, int pcmLength)
         {
-            Task.Run(() =>
-           {
-               int bytesPerMillisecond = waveProvider.WaveFormat.AverageBytesPerSecond / 1000;
-               int chunkMilliseconds = 20;
-               int chunkSize = bytesPerMillisecond * chunkMilliseconds;
-               for (int offset = pcmOffset; offset < pcmOffset + pcmLength; offset += chunkSize)
-               {
-                   int bytesToCopy = Math.Min(chunkSize, pcmOffset + pcmLength - offset);
-                   while ((waveProvider.BufferedBytes + bytesToCopy > waveProvider.BufferLength) && (VoiceTransmitCancel == false)) { Thread.Sleep(5); }
-                   if (VoiceTransmitCancel == true)
-                   {
-                       waveProvider.ClearBuffer();
-                       return;
-                   }
-                   waveProvider.AddSamples(pcmInputData, offset, bytesToCopy);
-               }
-           });
+            var provider = waveProvider; // Capture local reference to avoid null issues
+            if (provider == null) return;
+
+            isPlayingBack = true; // Mark that we're actively streaming audio
+            try
+            {
+                int bufferLength = provider.BufferLength;
+                int currentOffset = pcmOffset;
+                int remainingBytes = pcmLength;
+
+                // Add all samples, waiting for buffer space as needed
+                while (remainingBytes > 0 && !VoiceTransmitCancel)
+                {
+                    // Calculate how much we can add (limited by remaining data)
+                    int bytesToAdd = Math.Min(remainingBytes, 1280); // ~20ms at 32kHz mono 16-bit
+
+                    // Wait until there's space in the buffer for this chunk
+                    while (provider.BufferedBytes + bytesToAdd > bufferLength && !VoiceTransmitCancel)
+                    {
+                        Thread.Sleep(10); // Short sleep to keep buffer topped up
+                    }
+
+                    if (VoiceTransmitCancel)
+                    {
+                        try { provider.ClearBuffer(); } catch { }
+                        return;
+                    }
+
+                    try
+                    {
+                        provider.AddSamples(pcmInputData, currentOffset, bytesToAdd);
+                        currentOffset += bytesToAdd;
+                        remainingBytes -= bytesToAdd;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Buffer full - wait briefly and retry (don't advance offset)
+                        Thread.Sleep(10);
+                    }
+                }
+
+                if (VoiceTransmitCancel)
+                {
+                    try { provider.ClearBuffer(); } catch { }
+                }
+            }
+            finally
+            {
+                isPlayingBack = false; // Done streaming this chunk
+            }
         }
 
         public static void ParseSbcFrame(byte[] data)

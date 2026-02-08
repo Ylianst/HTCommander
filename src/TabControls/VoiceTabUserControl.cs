@@ -99,6 +99,7 @@ namespace HTCommander.Controls
             LoadVoiceHandlerState();
             LoadAllowTransmitState();
             UpdateEnableButtonState();
+            UpdateSpeakButtonState();
 
             // Load existing decoded text history from the Data Broker
             LoadDecodedTextHistory();
@@ -109,6 +110,17 @@ namespace HTCommander.Controls
         /// </summary>
         private void OnBrokerEvent(int deviceId, string name, object data)
         {
+            // Marshal to UI thread if needed
+            if (this.InvokeRequired)
+            {
+                try
+                {
+                    this.BeginInvoke(new Action(() => OnBrokerEvent(deviceId, name, data)));
+                }
+                catch (Exception) { }
+                return;
+            }
+
             switch (name)
             {
                 case "ProcessingVoice":
@@ -159,12 +171,14 @@ namespace HTCommander.Controls
 
             try
             {
-                // Extract Text, Channel, Time, and Completed from the anonymous type
+                // Extract Text, Channel, Time, Completed, IsReceived, and Encoding from the anonymous type
                 var type = data.GetType();
                 var textProp = type.GetProperty("Text");
                 var channelProp = type.GetProperty("Channel");
                 var timeProp = type.GetProperty("Time");
                 var completedProp = type.GetProperty("Completed");
+                var isReceivedProp = type.GetProperty("IsReceived");
+                var encodingProp = type.GetProperty("Encoding");
 
                 if (textProp != null)
                 {
@@ -172,10 +186,24 @@ namespace HTCommander.Controls
                     string channel = channelProp?.GetValue(data) as string ?? "";
                     DateTime time = timeProp != null ? (DateTime)timeProp.GetValue(data) : DateTime.Now;
                     bool completed = completedProp != null && (bool)completedProp.GetValue(data);
+                    bool isReceived = isReceivedProp != null ? (bool)isReceivedProp.GetValue(data) : true;
+                    VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice;
+                    if (encodingProp != null)
+                    {
+                        object encodingValue = encodingProp.GetValue(data);
+                        if (encodingValue is VoiceTextEncodingType e)
+                        {
+                            encoding = e;
+                        }
+                        else if (encodingValue is int ei)
+                        {
+                            encoding = (VoiceTextEncodingType)ei;
+                        }
+                    }
 
                     if (!string.IsNullOrEmpty(text))
                     {
-                        AppendVoiceHistory(text, channel, time, completed);
+                        AppendVoiceHistory(text, channel, time, completed, isReceived, encoding);
                     }
                 }
             }
@@ -252,16 +280,39 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
-        /// Appends transcribed text to the voice history with nice formatting.
-        /// Header (time/channel) is shown in smaller gray text, main text in normal font.
+        /// Gets the display name for a VoiceTextEncodingType.
         /// </summary>
-        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed)
+        private string GetEncodingTypeName(VoiceTextEncodingType encoding)
+        {
+            switch (encoding)
+            {
+                case VoiceTextEncodingType.Voice: return "Voice";
+                case VoiceTextEncodingType.Morse: return "Morse";
+                default: return encoding.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Appends transcribed text to the voice history with nice formatting.
+        /// Header (time/channel/encoding) is shown in smaller gray text, main text in normal font.
+        /// For sent entries: text is dark blue and right-justified.
+        /// </summary>
+        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice)
         {
             if (!_hasPartialEntry)
             {
                 // Starting a new entry - add header first
                 string timeStr = FormatDateTime(time);
-                string header = string.IsNullOrEmpty(channel) ? $"{timeStr}" : $"{timeStr} [{channel}]";
+                string encodingStr = GetEncodingTypeName(encoding);
+                string header;
+                if (string.IsNullOrEmpty(channel))
+                {
+                    header = $"{timeStr} - {encodingStr}";
+                }
+                else
+                {
+                    header = $"{timeStr} [{channel}] - {encodingStr}";
+                }
 
                 // Add the header in smaller, gray font
                 int headerStart = voiceHistoryTextBox.TextLength;
@@ -269,17 +320,21 @@ namespace HTCommander.Controls
                 voiceHistoryTextBox.Select(headerStart, header.Length + 1);
                 voiceHistoryTextBox.SelectionFont = new Font(voiceHistoryTextBox.Font.FontFamily, voiceHistoryTextBox.Font.Size - 1, FontStyle.Regular);
                 voiceHistoryTextBox.SelectionColor = Color.Gray;
+                // Right-align header for sent entries
+                voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
 
                 // Mark where the text content starts
                 _partialEntryTextStart = voiceHistoryTextBox.TextLength;
                 _hasPartialEntry = true;
 
                 // Add the text content in normal font (trimmed)
+                // For sent entries: dark blue and right-justified
                 string trimmedText = text.Trim();
                 voiceHistoryTextBox.AppendText(trimmedText);
                 voiceHistoryTextBox.Select(_partialEntryTextStart, trimmedText.Length);
                 voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
-                voiceHistoryTextBox.SelectionColor = voiceHistoryTextBox.ForeColor;
+                voiceHistoryTextBox.SelectionColor = isReceived ? voiceHistoryTextBox.ForeColor : Color.DarkBlue;
+                voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
             }
             else
             {
@@ -289,10 +344,11 @@ namespace HTCommander.Controls
                 voiceHistoryTextBox.Select(_partialEntryTextStart, textLength);
                 voiceHistoryTextBox.SelectedText = trimmedText;
 
-                // Re-apply normal font to the new text
+                // Re-apply font and color to the new text
                 voiceHistoryTextBox.Select(_partialEntryTextStart, trimmedText.Length);
                 voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
-                voiceHistoryTextBox.SelectionColor = voiceHistoryTextBox.ForeColor;
+                voiceHistoryTextBox.SelectionColor = isReceived ? voiceHistoryTextBox.ForeColor : Color.DarkBlue;
+                voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
             }
 
             if (completed)
@@ -350,14 +406,39 @@ namespace HTCommander.Controls
 
         private void speakButton_Click(object sender, EventArgs e)
         {
-            // Send speak request to the broker
+            // Send speak request to transmit text as voice
             if (string.IsNullOrWhiteSpace(speakTextBox.Text)) return;
+            if (!_voiceHandlerEnabled) return; // Voice must be enabled (button should already be disabled)
 
             string text = speakTextBox.Text.Trim();
             bool isMorseMode = !IsSpeakMode;
 
-            broker?.Dispatch(DataBroker.AllDevices, "SpeakRequest", new { Text = text, MorseMode = isMorseMode }, store: false);
+            if (isMorseMode)
+            {
+                // Morse mode - dispatch MorseRequest to device 1 (uses voice-enabled radio)
+                broker?.Dispatch(1, "Morse", text, store: false);
+            }
+            else
+            {
+                // Speak mode - dispatch Speak command to device 1 (VoiceHandler routes to voice-enabled radio)
+                broker?.Dispatch(1, "Speak", text, store: false);
+            }
+            
             speakTextBox.Clear();
+        }
+
+        private void speakTextBox_TextChanged(object sender, EventArgs e)
+        {
+            UpdateSpeakButtonState();
+        }
+
+        /// <summary>
+        /// Updates the speak button enabled state based on text box content, voice enabled state, and transmit state.
+        /// </summary>
+        private void UpdateSpeakButtonState()
+        {
+            bool hasText = !string.IsNullOrWhiteSpace(speakTextBox.Text);
+            speakButton.Enabled = hasText && _voiceHandlerEnabled && !_isTransmitting;
         }
 
         private void speakTextBox_KeyPress(object sender, KeyPressEventArgs e)
@@ -381,8 +462,21 @@ namespace HTCommander.Controls
 
         private void cancelVoiceButton_Click(object sender, EventArgs e)
         {
-            // Cancel voice transmission - dispatch event to the broker
-            broker?.Dispatch(DataBroker.AllDevices, "CancelVoiceTransmit", null, store: false);
+            // Cancel voice transmission - dispatch to the target device
+            int targetDeviceId = -1;
+            if (_voiceHandlerTargetDeviceId > 0)
+            {
+                targetDeviceId = _voiceHandlerTargetDeviceId;
+            }
+            else if (_connectedRadios.Count > 0)
+            {
+                targetDeviceId = _connectedRadios[0].DeviceId;
+            }
+
+            if (targetDeviceId > 0)
+            {
+                broker?.Dispatch(targetDeviceId, "CancelVoiceTransmit", null, store: false);
+            }
         }
 
         private void clearHistoryToolStripMenuItem_Click(object sender, EventArgs e)
@@ -417,23 +511,38 @@ namespace HTCommander.Controls
                 {
                     if (entry.Text == null) continue;
 
-                    // Add header in smaller, gray font
+                    bool isReceived = entry.IsReceived;
+                    VoiceTextEncodingType encoding = entry.Encoding;
+
+                    // Add header in smaller, gray font with encoding type and direction
                     string timeStr = FormatDateTime(entry.Time);
-                    string header = string.IsNullOrEmpty(entry.Channel) ? $"{timeStr}" : $"{timeStr} [{entry.Channel}]";
+                    string encodingStr = GetEncodingTypeName(encoding);
+                    string header;
+                    if (string.IsNullOrEmpty(entry.Channel))
+                    {
+                        header = $"{timeStr} - {encodingStr}";
+                    }
+                    else
+                    {
+                        header = $"{timeStr} [{entry.Channel}] - {encodingStr}";
+                    }
 
                     int headerStart = voiceHistoryTextBox.TextLength;
                     voiceHistoryTextBox.AppendText(header + Environment.NewLine);
                     voiceHistoryTextBox.Select(headerStart, header.Length + 1);
                     voiceHistoryTextBox.SelectionFont = new Font(voiceHistoryTextBox.Font.FontFamily, voiceHistoryTextBox.Font.Size - 1, FontStyle.Regular);
                     voiceHistoryTextBox.SelectionColor = Color.Gray;
+                    voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
 
                     // Add text content in normal font (trimmed)
+                    // For sent entries: dark blue and right-justified
                     string trimmedText = entry.Text.Trim();
                     int textStart = voiceHistoryTextBox.TextLength;
                     voiceHistoryTextBox.AppendText(trimmedText);
                     voiceHistoryTextBox.Select(textStart, trimmedText.Length);
                     voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
-                    voiceHistoryTextBox.SelectionColor = voiceHistoryTextBox.ForeColor;
+                    voiceHistoryTextBox.SelectionColor = isReceived ? voiceHistoryTextBox.ForeColor : Color.DarkBlue;
+                    voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
 
                     // Add spacing between entries
                     voiceHistoryTextBox.AppendText(Environment.NewLine + Environment.NewLine);
@@ -444,9 +553,21 @@ namespace HTCommander.Controls
             var currentEntry = broker.GetValue<HTCommander.DecodedTextEntry>(1, "CurrentDecodedTextEntry", null);
             if (currentEntry != null && !string.IsNullOrEmpty(currentEntry.Text))
             {
+                bool isReceived = currentEntry.IsReceived;
+                VoiceTextEncodingType encoding = currentEntry.Encoding;
+
                 // Display the current entry as a partial entry (in-progress)
                 string timeStr = FormatDateTime(currentEntry.Time);
-                string header = string.IsNullOrEmpty(currentEntry.Channel) ? $"{timeStr}" : $"{timeStr} [{currentEntry.Channel}]";
+                string encodingStr = GetEncodingTypeName(encoding);
+                string header;
+                if (string.IsNullOrEmpty(currentEntry.Channel))
+                {
+                    header = $"{timeStr} - {encodingStr}";
+                }
+                else
+                {
+                    header = $"{timeStr} [{currentEntry.Channel}] - {encodingStr}";
+                }
 
                 // Add the header in smaller, gray font
                 int headerStart = voiceHistoryTextBox.TextLength;
@@ -454,17 +575,20 @@ namespace HTCommander.Controls
                 voiceHistoryTextBox.Select(headerStart, header.Length + 1);
                 voiceHistoryTextBox.SelectionFont = new Font(voiceHistoryTextBox.Font.FontFamily, voiceHistoryTextBox.Font.Size - 1, FontStyle.Regular);
                 voiceHistoryTextBox.SelectionColor = Color.Gray;
+                voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
 
                 // Mark where the text content starts (for future updates)
                 _partialEntryTextStart = voiceHistoryTextBox.TextLength;
                 _hasPartialEntry = true;
 
                 // Add the text content in normal font (trimmed)
+                // For sent entries: dark blue and right-justified
                 string trimmedText = currentEntry.Text.Trim();
                 voiceHistoryTextBox.AppendText(trimmedText);
                 voiceHistoryTextBox.Select(_partialEntryTextStart, trimmedText.Length);
                 voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
-                voiceHistoryTextBox.SelectionColor = voiceHistoryTextBox.ForeColor;
+                voiceHistoryTextBox.SelectionColor = isReceived ? voiceHistoryTextBox.ForeColor : Color.DarkBlue;
+                voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
             }
 
             // Scroll to the end and deselect
@@ -508,7 +632,15 @@ namespace HTCommander.Controls
         {
             if (this.InvokeRequired)
             {
-                this.BeginInvoke(new Action<int, string, object>(OnVoiceHandlerStateChanged), deviceId, name, data);
+                try
+                {
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        ProcessVoiceHandlerState(data);
+                        UpdateEnableButtonState();
+                    }));
+                }
+                catch (Exception) { }
                 return;
             }
 
@@ -598,34 +730,47 @@ namespace HTCommander.Controls
         /// </summary>
         private void ProcessVoiceHandlerState(object data)
         {
-            if (data == null)
-            {
-                _voiceHandlerEnabled = false;
-                _voiceHandlerTargetDeviceId = -1;
-                return;
-            }
+            bool enabled = false;
+            int targetDeviceId = -1;
 
-            try
+            if (data != null)
             {
-                var type = data.GetType();
-                var enabledProp = type.GetProperty("Enabled");
-                var targetDeviceIdProp = type.GetProperty("TargetDeviceId");
-
-                if (enabledProp != null)
+                try
                 {
-                    _voiceHandlerEnabled = (bool)enabledProp.GetValue(data);
-                }
+                    var type = data.GetType();
+                    var enabledProp = type.GetProperty("Enabled");
+                    var targetDeviceIdProp = type.GetProperty("TargetDeviceId");
 
-                if (targetDeviceIdProp != null)
+                    if (enabledProp != null)
+                    {
+                        object enabledValue = enabledProp.GetValue(data);
+                        if (enabledValue is bool b)
+                        {
+                            enabled = b;
+                        }
+                    }
+
+                    if (targetDeviceIdProp != null)
+                    {
+                        object targetValue = targetDeviceIdProp.GetValue(data);
+                        if (targetValue is int i)
+                        {
+                            targetDeviceId = i;
+                        }
+                    }
+                }
+                catch (Exception)
                 {
-                    _voiceHandlerTargetDeviceId = (int)targetDeviceIdProp.GetValue(data);
+                    // Ignore parsing errors
                 }
             }
-            catch (Exception)
-            {
-                _voiceHandlerEnabled = false;
-                _voiceHandlerTargetDeviceId = -1;
-            }
+
+            _voiceHandlerEnabled = enabled;
+            _voiceHandlerTargetDeviceId = targetDeviceId;
+
+            // Enable/disable speakTextBox and speakButton based on voice enabled state
+            speakTextBox.Enabled = _voiceHandlerEnabled;
+            UpdateSpeakButtonState();
         }
 
         /// <summary>

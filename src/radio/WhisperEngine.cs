@@ -34,7 +34,8 @@ namespace HTCommander.radio // Use your original namespace
             {
                 synthesizer = new SpeechSynthesizer();
                 synthesizer.SetOutputToAudioStream(audioStream, new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
-                try { synthesizer.SelectVoice("Microsoft Zira Desktop"); } catch (Exception) { } // Default to Zira if not specified
+                string selectedVoice = DataBroker.GetValue<string>(0, "Voice", "Microsoft Zira Desktop");
+                try { synthesizer.SelectVoice(selectedVoice); } catch (Exception) { } // Use voice from settings, default to Zira
                 synthesizer.Rate = 0; // Set the rate to 0 for normal speed
                 synthesizer.Volume = 100; // Set volume to maximum
                 synthesizer.SpeakCompleted += Synthesizer_SpeakCompleted;

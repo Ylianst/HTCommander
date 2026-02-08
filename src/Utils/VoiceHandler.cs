@@ -8,18 +8,38 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Speech.Synthesis;
+using System.Speech.AudioFormat;
 using HTCommander.radio;
+using static HTCommander.radio.MorseCodeEngine;
 
 namespace HTCommander
 {
     /// <summary>
-    /// Represents a decoded text entry from speech-to-text conversion.
+    /// Encoding type for voice text entries.
+    /// </summary>
+    public enum VoiceTextEncodingType
+    {
+        Voice,
+        Morse
+    }
+
+    /// <summary>
+    /// Represents a voice text entry (received or transmitted).
     /// </summary>
     public class DecodedTextEntry
     {
         public string Text { get; set; }
         public string Channel { get; set; }
         public DateTime Time { get; set; }
+        /// <summary>
+        /// True if this entry was received (decoded), false if it was sent (transmitted).
+        /// </summary>
+        public bool IsReceived { get; set; } = true;
+        /// <summary>
+        /// The encoding type used for this entry (Voice, Morse, etc.).
+        /// </summary>
+        public VoiceTextEncodingType Encoding { get; set; } = VoiceTextEncodingType.Voice;
     }
 
     /// <summary>
@@ -51,6 +71,14 @@ namespace HTCommander
 
         // Flag to track if voice text history has been loaded
         private bool _voiceTextHistoryLoaded = false;
+
+        // Text-to-speech fields
+        private SpeechSynthesizer _synthesizer = null;
+        private MemoryStream _ttsAudioStream = null;
+        private bool _ttsAvailable = false;
+        private string _currentVoice = "Microsoft Zira Desktop";
+        private int _ttsPendingDeviceId = -1;
+        private readonly object _ttsLock = new object();
 
         /// <summary>
         /// Initializes the VoiceHandler and subscribes to Data Broker events.
@@ -90,6 +118,21 @@ namespace HTCommander
             // Subscribe to ClearVoiceText command
             broker.Subscribe(1, "ClearVoiceText", OnClearVoiceText);
 
+            // Subscribe to Speak command from all devices for text-to-speech transmission
+            // If received on device 1, use the currently voice-enabled radio (_targetDeviceId)
+            // If received on device 100+, use that device ID directly
+            broker.Subscribe(DataBroker.AllDevices, "Speak", OnSpeak);
+
+            // Subscribe to Morse command from all devices for morse code transmission
+            // Similar to Speak: device 1 uses voice-enabled radio, device 100+ uses that device directly
+            broker.Subscribe(DataBroker.AllDevices, "Morse", OnMorse);
+
+            // Subscribe to Voice setting changes (device 0 stores global settings)
+            broker.Subscribe(0, "Voice", OnVoiceChanged);
+
+            // Initialize text-to-speech synthesizer
+            InitializeTextToSpeech();
+
             // Dispatch initial state (not monitoring any radio)
             DispatchVoiceHandlerState();
 
@@ -97,6 +140,337 @@ namespace HTCommander
             DispatchDecodedTextHistory();
 
             broker.LogInfo("[VoiceHandler] Voice Handler initialized");
+        }
+
+        /// <summary>
+        /// Initializes the text-to-speech synthesizer.
+        /// </summary>
+        private void InitializeTextToSpeech()
+        {
+            try
+            {
+                _ttsAudioStream = new MemoryStream();
+                _synthesizer = new SpeechSynthesizer();
+                // Output to memory stream at 32kHz, 16-bit, mono (matches radio audio format)
+                _synthesizer.SetOutputToAudioStream(_ttsAudioStream, new SpeechAudioFormatInfo(32000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
+                
+                // Load the voice setting from DataBroker
+                _currentVoice = DataBroker.GetValue<string>(0, "Voice", "Microsoft Zira Desktop");
+                try { _synthesizer.SelectVoice(_currentVoice); } catch (Exception) { }
+                
+                _synthesizer.Rate = 0; // Normal speed
+                _synthesizer.Volume = 100; // Maximum volume
+                _synthesizer.SpeakCompleted += Synthesizer_SpeakCompleted;
+                _ttsAvailable = true;
+                
+                broker.LogInfo($"[VoiceHandler] Text-to-speech initialized with voice: {_currentVoice}");
+            }
+            catch (System.Runtime.InteropServices.COMException ex)
+            {
+                broker.LogError($"[VoiceHandler] Text-to-Speech not available: {ex.Message}");
+                _ttsAvailable = false;
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[VoiceHandler] Failed to initialize Text-to-Speech: {ex.Message}");
+                _ttsAvailable = false;
+            }
+        }
+
+        /// <summary>
+        /// Handles voice setting changes from DataBroker.
+        /// </summary>
+        private void OnVoiceChanged(int deviceId, string name, object data)
+        {
+            if (data == null) return;
+            
+            string newVoice = data as string;
+            if (string.IsNullOrEmpty(newVoice)) return;
+            
+            lock (_ttsLock)
+            {
+                if (_currentVoice != newVoice)
+                {
+                    _currentVoice = newVoice;
+                    if (_synthesizer != null && _ttsAvailable)
+                    {
+                        try
+                        {
+                            _synthesizer.SelectVoice(_currentVoice);
+                            broker.LogInfo($"[VoiceHandler] Voice changed to: {_currentVoice}");
+                        }
+                        catch (Exception ex)
+                        {
+                            broker.LogError($"[VoiceHandler] Failed to change voice: {ex.Message}");
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the current VFO A channel name from the radio.
+        /// VFO A is always used for transmission.
+        /// </summary>
+        /// <param name="radioDeviceId">The device ID of the radio.</param>
+        /// <returns>The channel name, or empty string if not available.</returns>
+        private string GetVfoAChannelName(int radioDeviceId)
+        {
+            try
+            {
+                // Get Settings from the radio to find channel_a ID
+                var settings = DataBroker.GetValue(radioDeviceId, "Settings");
+                if (settings == null) return "";
+
+                var settingsType = settings.GetType();
+                
+                // channel_a is a field, not a property
+                var channelAField = settingsType.GetField("channel_a");
+                if (channelAField == null) return "";
+
+                object channelAValue = channelAField.GetValue(settings);
+                if (channelAValue == null) return "";
+
+                int channelAId = Convert.ToInt32(channelAValue);
+
+                // Get Channels array from the radio
+                var channels = DataBroker.GetValue(radioDeviceId, "Channels") as Array;
+                if (channels == null || channelAId < 0 || channelAId >= channels.Length) return "";
+
+                var channelInfo = channels.GetValue(channelAId);
+                if (channelInfo == null) return "";
+
+                // Get the channel name - name_str is a field, not a property
+                var channelType = channelInfo.GetType();
+                var nameStrField = channelType.GetField("name_str");
+                if (nameStrField != null)
+                {
+                    string name = nameStrField.GetValue(channelInfo) as string;
+                    if (!string.IsNullOrEmpty(name)) return name;
+                }
+
+                // If no name, try to get the frequency as a fallback
+                var rxFreqField = channelType.GetField("rx_freq");
+                if (rxFreqField != null)
+                {
+                    object freqValue = rxFreqField.GetValue(channelInfo);
+                    if (freqValue != null)
+                    {
+                        long freq = Convert.ToInt64(freqValue);
+                        if (freq > 0)
+                        {
+                            return ((double)freq / 1000000).ToString("F3") + " MHz";
+                        }
+                    }
+                }
+
+                return "";
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[VoiceHandler] Error getting VFO A channel name: {ex.Message}");
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Handles the Speak command to generate and transmit speech.
+        /// If received on device 1, use the currently voice-enabled radio (_targetDeviceId).
+        /// If received on device 100+, use that device ID directly for transmission.
+        /// Expected data: string (the text to speak)
+        /// </summary>
+        private void OnSpeak(int deviceId, string name, object data)
+        {
+            if (data == null) return;
+            
+            string textToSpeak = data as string;
+            if (string.IsNullOrEmpty(textToSpeak)) return;
+            
+            // Determine the target device for transmission
+            int transmitDeviceId;
+            if (deviceId == 1)
+            {
+                // Device 1: use the currently voice-enabled radio
+                transmitDeviceId = _targetDeviceId;
+                if (transmitDeviceId <= 0)
+                {
+                    broker.LogError("[VoiceHandler] Cannot speak: No radio is voice-enabled");
+                    return;
+                }
+            }
+            else if (deviceId >= 100)
+            {
+                // Device 100+: use that device ID directly
+                transmitDeviceId = deviceId;
+            }
+            else
+            {
+                // Other device IDs (2-99): ignore
+                return;
+            }
+            
+            lock (_ttsLock)
+            {
+                if (!_ttsAvailable || _synthesizer == null)
+                {
+                    broker.LogError("[VoiceHandler] Cannot speak: Text-to-Speech not available");
+                    return;
+                }
+                
+                if (_ttsPendingDeviceId != -1)
+                {
+                    broker.LogError("[VoiceHandler] Cannot speak: Already processing another speech request");
+                    return;
+                }
+                
+                // Store the target device ID for when speech completes
+                _ttsPendingDeviceId = transmitDeviceId;
+                
+                // Clear the audio stream
+                _ttsAudioStream.SetLength(0);
+                
+                // Get the VFO A channel name for history
+                string channelName = GetVfoAChannelName(transmitDeviceId);
+                
+                broker.LogInfo($"[VoiceHandler] Speaking on device {transmitDeviceId}: {textToSpeak}");
+                
+                // Add to history as a transmitted voice entry
+                AddTransmittedTextToHistory(textToSpeak, channelName, VoiceTextEncodingType.Voice);
+                
+                // Start async speech generation
+                _synthesizer.SpeakAsync(textToSpeak);
+            }
+        }
+
+        /// <summary>
+        /// Handles the Morse command to generate and transmit morse code.
+        /// If received on device 1, use the currently voice-enabled radio (_targetDeviceId).
+        /// If received on device 100+, use that device ID directly for transmission.
+        /// Expected data: string (the text to convert to morse)
+        /// </summary>
+        private void OnMorse(int deviceId, string name, object data)
+        {
+            if (data == null) return;
+            
+            string textToMorse = data as string;
+            if (string.IsNullOrEmpty(textToMorse)) return;
+            
+            // Determine the target device for transmission
+            int transmitDeviceId;
+            if (deviceId == 1)
+            {
+                // Device 1: use the currently voice-enabled radio
+                transmitDeviceId = _targetDeviceId;
+                if (transmitDeviceId <= 0)
+                {
+                    broker.LogError("[VoiceHandler] Cannot transmit morse: No radio is voice-enabled");
+                    return;
+                }
+            }
+            else if (deviceId >= 100)
+            {
+                // Device 100+: use that device ID directly
+                transmitDeviceId = deviceId;
+            }
+            else
+            {
+                // Other device IDs (2-99): ignore
+                return;
+            }
+            
+            try
+            {
+                // Get the VFO A channel name for history
+                string channelName = GetVfoAChannelName(transmitDeviceId);
+                
+                broker.LogInfo($"[VoiceHandler] Generating morse code on device {transmitDeviceId}: {textToMorse}");
+                
+                // Add to history as a transmitted morse entry
+                AddTransmittedTextToHistory(textToMorse, channelName, VoiceTextEncodingType.Morse);
+                
+                // Generate morse code PCM (8-bit unsigned, 32kHz)
+                byte[] morsePcm8bit = MorseCodeEngine.GenerateMorsePcm(textToMorse);
+                
+                if (morsePcm8bit == null || morsePcm8bit.Length == 0)
+                {
+                    broker.LogError("[VoiceHandler] Failed to generate morse code PCM");
+                    return;
+                }
+                
+                // Convert 8-bit unsigned PCM to 16-bit signed PCM
+                // 8-bit unsigned: 0-255, with 128 as center (silence)
+                // 16-bit signed: -32768 to 32767, with 0 as center (silence)
+                byte[] pcmData = new byte[morsePcm8bit.Length * 2];
+                for (int i = 0; i < morsePcm8bit.Length; i++)
+                {
+                    // Convert 8-bit unsigned (0-255, center 128) to 16-bit signed (-32768 to 32767, center 0)
+                    short sample16 = (short)((morsePcm8bit[i] - 128) * 256);
+                    pcmData[i * 2] = (byte)(sample16 & 0xFF);
+                    pcmData[i * 2 + 1] = (byte)((sample16 >> 8) & 0xFF);
+                }
+                
+                // Send PCM data to the radio for transmission via DataBroker
+                // Include PlayLocally=true so the user can hear the morse output
+                broker.Dispatch(transmitDeviceId, "TransmitVoicePCM", new { Data = pcmData, PlayLocally = true }, store: false);
+                broker.LogInfo($"[VoiceHandler] Transmitted {pcmData.Length} bytes of morse PCM to device {transmitDeviceId}");
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[VoiceHandler] Error generating morse code: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Called when speech synthesis is complete.
+        /// </summary>
+        private void Synthesizer_SpeakCompleted(object sender, SpeakCompletedEventArgs e)
+        {
+            int targetDeviceId;
+            byte[] pcmData;
+            
+            lock (_ttsLock)
+            {
+                targetDeviceId = _ttsPendingDeviceId;
+                _ttsPendingDeviceId = -1;
+                
+                if (targetDeviceId <= 0)
+                {
+                    return;
+                }
+                
+                pcmData = _ttsAudioStream.ToArray();
+                _ttsAudioStream.SetLength(0);
+            }
+            
+            if (pcmData.Length > 0)
+            {
+                // Boost volume to match radio audio levels
+                BoostVolume(pcmData, pcmData.Length, 5f);
+                
+                // Send PCM data to the radio for transmission via DataBroker
+                // Include PlayLocally=true so the user can hear the TTS output
+                broker.Dispatch(targetDeviceId, "TransmitVoicePCM", new { Data = pcmData, PlayLocally = true }, store: false);
+                broker.LogInfo($"[VoiceHandler] Transmitted {pcmData.Length} bytes of speech PCM to device {targetDeviceId}");
+            }
+        }
+
+        /// <summary>
+        /// Boosts the volume of PCM audio data.
+        /// </summary>
+        private void BoostVolume(byte[] buffer, int bytesRecorded, float volume)
+        {
+            for (int i = 0; i < bytesRecorded; i += 2)
+            {
+                short sample = (short)(buffer[i] | (buffer[i + 1] << 8));
+                int boosted = (int)(sample * volume);
+
+                // Clamp to prevent clipping
+                if (boosted > short.MaxValue) boosted = short.MaxValue;
+                if (boosted < short.MinValue) boosted = short.MinValue;
+
+                buffer[i] = (byte)(boosted & 0xFF);
+                buffer[i + 1] = (byte)((boosted >> 8) & 0xFF);
+            }
         }
 
         /// <summary>
@@ -477,17 +851,49 @@ namespace HTCommander
         /// </summary>
         private void OnWhisperTextReady(string text, string channel, DateTime time, bool completed)
         {
-            // Update the decoded text history
-            UpdateDecodedTextHistory(text, channel, time, completed);
+            // Update the decoded text history (received voice)
+            UpdateDecodedTextHistory(text, channel, time, completed, true, VoiceTextEncodingType.Voice);
 
             // Dispatch the individual TextReady event
             DispatchTextReady(text, channel, time, completed);
         }
 
         /// <summary>
+        /// Adds a transmitted text entry to the history.
+        /// </summary>
+        private void AddTransmittedTextToHistory(string text, string channel, VoiceTextEncodingType encoding)
+        {
+            lock (_historyLock)
+            {
+                var entry = new DecodedTextEntry
+                {
+                    Text = text,
+                    Channel = channel,
+                    Time = DateTime.Now,
+                    IsReceived = false,
+                    Encoding = encoding
+                };
+                _decodedTextHistory.Add(entry);
+
+                // Trim if exceeds max size
+                while (_decodedTextHistory.Count > MaxHistorySize)
+                {
+                    _decodedTextHistory.RemoveAt(0);
+                }
+            }
+
+            // Save to file and dispatch updated history
+            SaveVoiceTextHistory();
+            DispatchDecodedTextHistory();
+
+            // Dispatch a TextReady event for transmitted text so UI updates
+            DispatchTextReady(text, channel, DateTime.Now, true, false, encoding);
+        }
+
+        /// <summary>
         /// Updates the decoded text history with new text.
         /// </summary>
-        private void UpdateDecodedTextHistory(string text, string channel, DateTime time, bool completed)
+        private void UpdateDecodedTextHistory(string text, string channel, DateTime time, bool completed, bool isReceived, VoiceTextEncodingType encoding)
         {
             lock (_historyLock)
             {
@@ -501,6 +907,8 @@ namespace HTCommander
                     _currentEntry.Text = text;
                     _currentEntry.Channel = channel;
                     _currentEntry.Time = time;
+                    _currentEntry.IsReceived = isReceived;
+                    _currentEntry.Encoding = encoding;
                 }
                 else
                 {
@@ -511,6 +919,8 @@ namespace HTCommander
                         _currentEntry.Text = text;
                         _currentEntry.Channel = channel;
                         _currentEntry.Time = time;
+                        _currentEntry.IsReceived = isReceived;
+                        _currentEntry.Encoding = encoding;
 
                         // Add to history
                         _decodedTextHistory.Add(_currentEntry);
@@ -530,7 +940,9 @@ namespace HTCommander
                         {
                             Text = text,
                             Channel = channel,
-                            Time = time
+                            Time = time,
+                            IsReceived = isReceived,
+                            Encoding = encoding
                         };
                         _decodedTextHistory.Add(entry);
 
@@ -704,7 +1116,7 @@ namespace HTCommander
         /// <summary>
         /// Dispatches a TextReady event to the Data Broker.
         /// </summary>
-        private void DispatchTextReady(string text, string channel, DateTime time, bool completed)
+        private void DispatchTextReady(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice)
         {
             if (_targetDeviceId > 0)
             {
@@ -713,7 +1125,9 @@ namespace HTCommander
                     Text = text,
                     Channel = channel,
                     Time = time,
-                    Completed = completed
+                    Completed = completed,
+                    IsReceived = isReceived,
+                    Encoding = encoding
                 }, store: false);
             }
         }
@@ -769,10 +1183,34 @@ namespace HTCommander
                 {
                     broker?.LogInfo("[VoiceHandler] Voice Handler disposing");
 
-                    // Disable and clean up
+                    // Disable and clean up speech-to-text
                     if (_enabled)
                     {
                         Disable();
+                    }
+
+                    // Clean up text-to-speech resources
+                    lock (_ttsLock)
+                    {
+                        if (_synthesizer != null)
+                        {
+                            try
+                            {
+                                _synthesizer.SpeakCompleted -= Synthesizer_SpeakCompleted;
+                                _synthesizer.Dispose();
+                            }
+                            catch (Exception) { }
+                            _synthesizer = null;
+                        }
+                        
+                        if (_ttsAudioStream != null)
+                        {
+                            try { _ttsAudioStream.Dispose(); }
+                            catch (Exception) { }
+                            _ttsAudioStream = null;
+                        }
+                        
+                        _ttsAvailable = false;
                     }
 
                     // Dispose the broker client

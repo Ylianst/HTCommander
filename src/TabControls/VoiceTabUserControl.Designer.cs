@@ -45,8 +45,8 @@ namespace HTCommander.Controls
             speakToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             morseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             voiceTopPanel = new System.Windows.Forms.Panel();
-            voiceProcessingLabel = new System.Windows.Forms.Label();
             voiceEnableButton = new System.Windows.Forms.Button();
+            voiceProcessingLabel = new System.Windows.Forms.Label();
             voiceMenuPictureBox = new System.Windows.Forms.PictureBox();
             voiceTitleLabel = new System.Windows.Forms.Label();
             voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
@@ -62,12 +62,12 @@ namespace HTCommander.Controls
             // 
             // cancelVoiceButton
             // 
-            cancelVoiceButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+            cancelVoiceButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
             cancelVoiceButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, 0);
-            cancelVoiceButton.Location = new System.Drawing.Point(519, 359);
+            cancelVoiceButton.Location = new System.Drawing.Point(9, 8);
             cancelVoiceButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             cancelVoiceButton.Name = "cancelVoiceButton";
-            cancelVoiceButton.Size = new System.Drawing.Size(121, 80);
+            cancelVoiceButton.Size = new System.Drawing.Size(548, 41);
             cancelVoiceButton.TabIndex = 6;
             cancelVoiceButton.Text = "Cancel";
             cancelVoiceButton.UseVisualStyleBackColor = true;
@@ -89,6 +89,7 @@ namespace HTCommander.Controls
             // voiceBottomPanel
             // 
             voiceBottomPanel.BackColor = System.Drawing.Color.Silver;
+            voiceBottomPanel.Controls.Add(cancelVoiceButton);
             voiceBottomPanel.Controls.Add(speakTextBox);
             voiceBottomPanel.Controls.Add(speakButton);
             voiceBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -101,7 +102,6 @@ namespace HTCommander.Controls
             // speakTextBox
             // 
             speakTextBox.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            speakTextBox.Enabled = false;
             speakTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
             speakTextBox.Location = new System.Drawing.Point(9, 11);
             speakTextBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
@@ -109,6 +109,7 @@ namespace HTCommander.Controls
             speakTextBox.Name = "speakTextBox";
             speakTextBox.Size = new System.Drawing.Size(545, 30);
             speakTextBox.TabIndex = 1;
+            speakTextBox.TextChanged += speakTextBox_TextChanged;
             speakTextBox.KeyPress += speakTextBox_KeyPress;
             // 
             // speakButton
@@ -162,6 +163,19 @@ namespace HTCommander.Controls
             voiceTopPanel.Size = new System.Drawing.Size(669, 46);
             voiceTopPanel.TabIndex = 2;
             // 
+            // voiceEnableButton
+            // 
+            voiceEnableButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            voiceEnableButton.Enabled = false;
+            voiceEnableButton.Location = new System.Drawing.Point(529, 5);
+            voiceEnableButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            voiceEnableButton.Name = "voiceEnableButton";
+            voiceEnableButton.Size = new System.Drawing.Size(100, 35);
+            voiceEnableButton.TabIndex = 6;
+            voiceEnableButton.Text = "&Enable";
+            voiceEnableButton.UseVisualStyleBackColor = true;
+            voiceEnableButton.Click += voiceEnableButton_Click;
+            // 
             // voiceProcessingLabel
             // 
             voiceProcessingLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
@@ -175,19 +189,6 @@ namespace HTCommander.Controls
             voiceProcessingLabel.TabIndex = 7;
             voiceProcessingLabel.Text = "●";
             voiceProcessingLabel.Visible = false;
-            // 
-            // voiceEnableButton
-            // 
-            voiceEnableButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            voiceEnableButton.Enabled = false;
-            voiceEnableButton.Location = new System.Drawing.Point(529, 5);
-            voiceEnableButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            voiceEnableButton.Name = "voiceEnableButton";
-            voiceEnableButton.Size = new System.Drawing.Size(100, 35);
-            voiceEnableButton.TabIndex = 6;
-            voiceEnableButton.Text = "&Enable";
-            voiceEnableButton.UseVisualStyleBackColor = true;
-            voiceEnableButton.Click += voiceEnableButton_Click;
             // 
             // voiceMenuPictureBox
             // 
@@ -246,7 +247,6 @@ namespace HTCommander.Controls
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            Controls.Add(cancelVoiceButton);
             Controls.Add(voiceHistoryTextBox);
             Controls.Add(voiceBottomPanel);
             Controls.Add(voiceTopPanel);
