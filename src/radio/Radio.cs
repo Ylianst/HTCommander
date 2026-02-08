@@ -34,7 +34,6 @@ namespace HTCommander
         private System.Timers.Timer ClearChannelTimer = new System.Timers.Timer();
         private DateTime nextMinFreeChannelTime = DateTime.MaxValue;
         private int nextChannelTimeRandomMS = 800;
-        private RadioAudio.SoftwareModemModeType _SoftwareModemMode = RadioAudio.SoftwareModemModeType.Disabled;
         private bool PacketTrace => DataBroker.GetValue<bool>(0, "BluetoothFramesDebug", false);
         private bool LoopbackMode => DataBroker.GetValue<bool>(1, "LoopbackMode", false);
         private bool AllowTransmit => DataBroker.GetValue<bool>(0, "AllowTransmit", false);
@@ -151,12 +150,6 @@ namespace HTCommander
         public bool AudioState => RadioAudio?.IsAudioEnabled ?? false;
         public float OutputVolume { get => RadioAudio?.Volume ?? 0; set { if (RadioAudio != null) RadioAudio.Volume = value; } }
 
-        public RadioAudio.SoftwareModemModeType SoftwareModemMode
-        {
-            get => _SoftwareModemMode;
-            set { _SoftwareModemMode = value; if (RadioAudio != null) RadioAudio.SoftwareModemMode = value; }
-        }
-
         #endregion
 
         #region Constructor and Disposal
@@ -168,7 +161,6 @@ namespace HTCommander
             broker = new DataBrokerClient();
 
             RadioAudio = new RadioAudio(this, deviceid, mac);
-            RadioAudio.SoftwareModemMode = _SoftwareModemMode;
 
             ClearChannelTimer.Elapsed += ClearFrequencyTimer_Elapsed;
             ClearChannelTimer.Enabled = false;
@@ -819,7 +811,7 @@ namespace HTCommander
             {
                 TransmitLoopback(fragment, outboundData, channelId, regionId, t, fragmentChannelName);
             }
-            else if (RadioAudio != null && RadioAudio.IsAudioEnabled && RadioAudio.SoftwareModemMode != RadioAudio.SoftwareModemModeType.Disabled && Settings.channel_a == channelId)
+            else if (IsSoftwareModemEnabled() && RadioAudio != null && RadioAudio.IsAudioEnabled && Settings.channel_a == channelId)
             {
                 TransmitSoftwareModem(fragment);
             }
@@ -829,6 +821,15 @@ namespace HTCommander
             }
 
             return outboundData.Length;
+        }
+
+        /// <summary>
+        /// Checks if software modem is enabled by querying device 0.
+        /// </summary>
+        private bool IsSoftwareModemEnabled()
+        {
+            string mode = DataBroker.GetValue<string>(0, "SoftwareModemMode", "None");
+            return !string.IsNullOrEmpty(mode) && !mode.Equals("None", StringComparison.OrdinalIgnoreCase);
         }
 
         private string GetFragmentChannelName(int channelId, string fallback)
@@ -865,17 +866,28 @@ namespace HTCommander
 
         private void TransmitSoftwareModem(TncDataFragment fragment)
         {
-            fragment.encoding = RadioAudio.SoftwareModemMode switch
+            // Get encoding type from the software modem mode
+            string mode = DataBroker.GetValue<string>(0, "SoftwareModemMode", "None");
+            switch (mode.ToUpperInvariant())
             {
-                RadioAudio.SoftwareModemModeType.Afsk1200 => TncDataFragment.FragmentEncodingType.SoftwareAfsk1200,
-                RadioAudio.SoftwareModemModeType.G3RUH9600 => TncDataFragment.FragmentEncodingType.SoftwareG3RUH9600,
-                RadioAudio.SoftwareModemModeType.Psk2400 => TncDataFragment.FragmentEncodingType.SoftwarePsk2400,
-                RadioAudio.SoftwareModemModeType.Psk4800 => TncDataFragment.FragmentEncodingType.SoftwarePsk4800,
-                _ => fragment.encoding
-            };
+                case "AFSK1200":
+                    fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareAfsk1200;
+                    break;
+                case "G3RUH9600":
+                    fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwareG3RUH9600;
+                    break;
+                case "PSK2400":
+                    fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwarePsk2400;
+                    break;
+                case "PSK4800":
+                    fragment.encoding = TncDataFragment.FragmentEncodingType.SoftwarePsk4800;
+                    break;
+            }
             fragment.frame_type = TncDataFragment.FragmentFrameType.FX25;
             DispatchDataFrame(fragment);
-            RadioAudio.TransmitPacket(fragment);
+            
+            // Dispatch to SoftwareModem handler via Data Broker
+            broker.Dispatch(DeviceId, "SoftModemTransmitPacket", fragment, store: false);
         }
 
         private void TransmitHardwareModem(TncDataFragment fragment, byte[] outboundData, int channelId, int regionId, AX25Packet packet)

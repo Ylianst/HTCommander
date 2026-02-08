@@ -52,6 +52,7 @@ namespace HTCommander
 
             // Add the data handlers
             DataBroker.AddDataHandler("FrameDeduplicator", new FrameDeduplicator());
+            DataBroker.AddDataHandler("SoftwareModem", new SoftwareModem());
             DataBroker.AddDataHandler("PacketStore", new PacketStore());
             DataBroker.AddDataHandler("VoiceHandler", new VoiceHandler());
             DataBroker.AddDataHandler("LogStore", new LogStore());
@@ -78,6 +79,9 @@ namespace HTCommander
 
             // Subscribe to AllowTransmit changes to show/hide transmit-dependent tabs
             broker.Subscribe(0, "AllowTransmit", OnAllowTransmitChanged);
+
+            // Subscribe to SoftwareModemMode changes to update menu checkmarks
+            broker.Subscribe(0, "SoftwareModemMode", OnSoftwareModemModeChanged);
 
             // Set initial title bar based on stored values
             UpdateTitleBar();
@@ -901,6 +905,91 @@ namespace HTCommander
 
                 _transmitTabsVisible = false;
             }
+        }
+
+        #endregion
+
+        #region Software Modem Menu Handlers
+
+        /// <summary>
+        /// Handles the opening of the Software Modem submenu to set the correct checkmarks.
+        /// </summary>
+        private void softwareModemToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
+        {
+            UpdateSoftwareModemMenuChecks();
+        }
+
+        /// <summary>
+        /// Handles SoftwareModemMode changes from the DataBroker.
+        /// </summary>
+        private void OnSoftwareModemModeChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<int, string, object>(OnSoftwareModemModeChanged), deviceId, name, data);
+                return;
+            }
+            UpdateSoftwareModemMenuChecks();
+        }
+
+        /// <summary>
+        /// Updates the Software Modem menu checkmarks based on current mode.
+        /// </summary>
+        private void UpdateSoftwareModemMenuChecks()
+        {
+            string currentMode = DataBroker.GetValue<string>(0, "SoftwareModemMode", "None");
+            
+            // Uncheck all items first
+            disabledToolStripMenuItem.Checked = false;
+            aFK1200ToolStripMenuItem.Checked = false;
+            pSK2400ToolStripMenuItem.Checked = false;
+            pSK4800ToolStripMenuItem.Checked = false;
+            g9600ToolStripMenuItem.Checked = false;
+            
+            // Check the appropriate item based on current mode
+            switch (currentMode?.ToUpperInvariant())
+            {
+                case "AFSK1200":
+                    aFK1200ToolStripMenuItem.Checked = true;
+                    break;
+                case "PSK2400":
+                    pSK2400ToolStripMenuItem.Checked = true;
+                    break;
+                case "PSK4800":
+                    pSK4800ToolStripMenuItem.Checked = true;
+                    break;
+                case "G3RUH9600":
+                    g9600ToolStripMenuItem.Checked = true;
+                    break;
+                default: // "None" or null
+                    disabledToolStripMenuItem.Checked = true;
+                    break;
+            }
+        }
+
+        private void disabledToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            DataBroker.Dispatch(0, "SetSoftwareModemMode", "None", store: false);
+        }
+
+        private void aFK1200ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            DataBroker.Dispatch(0, "SetSoftwareModemMode", "AFSK1200", store: false);
+        }
+
+        private void pSK2400ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            DataBroker.Dispatch(0, "SetSoftwareModemMode", "PSK2400", store: false);
+        }
+
+        private void pSK4800ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            DataBroker.Dispatch(0, "SetSoftwareModemMode", "PSK4800", store: false);
+        }
+
+        private void g9600ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            DataBroker.Dispatch(0, "SetSoftwareModemMode", "G3RUH9600", store: false);
         }
 
         #endregion

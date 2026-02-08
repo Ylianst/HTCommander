@@ -118,23 +118,23 @@
             // 
             mainStatusStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             mainStatusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { mainToolStripStatusLabel, batteryToolStripStatusLabel });
-            mainStatusStrip.Location = new System.Drawing.Point(0, 870);
+            mainStatusStrip.Location = new System.Drawing.Point(0, 612);
             mainStatusStrip.Name = "mainStatusStrip";
-            mainStatusStrip.Padding = new System.Windows.Forms.Padding(1, 0, 19, 0);
-            mainStatusStrip.Size = new System.Drawing.Size(1084, 22);
+            mainStatusStrip.Padding = new System.Windows.Forms.Padding(1, 0, 17, 0);
+            mainStatusStrip.Size = new System.Drawing.Size(948, 22);
             mainStatusStrip.TabIndex = 0;
             mainStatusStrip.Text = "statusStrip1";
             // 
             // mainToolStripStatusLabel
             // 
             mainToolStripStatusLabel.Name = "mainToolStripStatusLabel";
-            mainToolStripStatusLabel.Size = new System.Drawing.Size(1064, 16);
+            mainToolStripStatusLabel.Size = new System.Drawing.Size(930, 17);
             mainToolStripStatusLabel.Spring = true;
             // 
             // batteryToolStripStatusLabel
             // 
             batteryToolStripStatusLabel.Name = "batteryToolStripStatusLabel";
-            batteryToolStripStatusLabel.Size = new System.Drawing.Size(56, 20);
+            batteryToolStripStatusLabel.Size = new System.Drawing.Size(44, 17);
             batteryToolStripStatusLabel.Text = "Battery";
             batteryToolStripStatusLabel.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             batteryToolStripStatusLabel.Visible = false;
@@ -145,8 +145,8 @@
             mainMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { fileToolStripMenuItem, toolStripMenuItem21, audioToolStripMenuItem1, viewToolStripMenuItem, aboutToolStripMenuItem });
             mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             mainMenuStrip.Name = "mainMenuStrip";
-            mainMenuStrip.Padding = new System.Windows.Forms.Padding(5, 1, 0, 1);
-            mainMenuStrip.Size = new System.Drawing.Size(1084, 26);
+            mainMenuStrip.Padding = new System.Windows.Forms.Padding(4, 1, 0, 1);
+            mainMenuStrip.Size = new System.Drawing.Size(948, 24);
             mainMenuStrip.TabIndex = 1;
             mainMenuStrip.Text = "menuStrip1";
             // 
@@ -154,14 +154,14 @@
             // 
             fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { connectToolStripMenuItem, disconnectToolStripMenuItem, toolStripMenuItem1, settingsToolStripMenuItem, launchAnotherInstanceToolStripMenuItem, toolStripMenuItem4, exitToolStripMenuItem });
             fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
+            fileToolStripMenuItem.Size = new System.Drawing.Size(37, 22);
             fileToolStripMenuItem.Text = "&File";
             fileToolStripMenuItem.DropDownOpening += fileToolStripMenuItem_DropDownOpening;
             // 
             // connectToolStripMenuItem
             // 
             connectToolStripMenuItem.Name = "connectToolStripMenuItem";
-            connectToolStripMenuItem.Size = new System.Drawing.Size(253, 26);
+            connectToolStripMenuItem.Size = new System.Drawing.Size(206, 22);
             connectToolStripMenuItem.Text = "&Connect...";
             connectToolStripMenuItem.Click += connectToolStripMenuItem_Click;
             // 
@@ -169,38 +169,38 @@
             // 
             disconnectToolStripMenuItem.Enabled = false;
             disconnectToolStripMenuItem.Name = "disconnectToolStripMenuItem";
-            disconnectToolStripMenuItem.Size = new System.Drawing.Size(253, 26);
+            disconnectToolStripMenuItem.Size = new System.Drawing.Size(206, 22);
             disconnectToolStripMenuItem.Text = "&Disconnect";
             disconnectToolStripMenuItem.Click += disconnectToolStripMenuItem_Click;
             // 
             // toolStripMenuItem1
             // 
             toolStripMenuItem1.Name = "toolStripMenuItem1";
-            toolStripMenuItem1.Size = new System.Drawing.Size(250, 6);
+            toolStripMenuItem1.Size = new System.Drawing.Size(203, 6);
             // 
             // settingsToolStripMenuItem
             // 
             settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
-            settingsToolStripMenuItem.Size = new System.Drawing.Size(253, 26);
+            settingsToolStripMenuItem.Size = new System.Drawing.Size(206, 22);
             settingsToolStripMenuItem.Text = "&Settings...";
             settingsToolStripMenuItem.Click += settingsToolStripMenuItem_Click;
             // 
             // launchAnotherInstanceToolStripMenuItem
             // 
             launchAnotherInstanceToolStripMenuItem.Name = "launchAnotherInstanceToolStripMenuItem";
-            launchAnotherInstanceToolStripMenuItem.Size = new System.Drawing.Size(253, 26);
+            launchAnotherInstanceToolStripMenuItem.Size = new System.Drawing.Size(206, 22);
             launchAnotherInstanceToolStripMenuItem.Text = "Launch Another Instance";
             launchAnotherInstanceToolStripMenuItem.Visible = false;
             // 
             // toolStripMenuItem4
             // 
             toolStripMenuItem4.Name = "toolStripMenuItem4";
-            toolStripMenuItem4.Size = new System.Drawing.Size(250, 6);
+            toolStripMenuItem4.Size = new System.Drawing.Size(203, 6);
             // 
             // exitToolStripMenuItem
             // 
             exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            exitToolStripMenuItem.Size = new System.Drawing.Size(253, 26);
+            exitToolStripMenuItem.Size = new System.Drawing.Size(206, 22);
             exitToolStripMenuItem.Text = "E&xit";
             exitToolStripMenuItem.Click += exitToolStripMenuItem_Click;
             // 
@@ -208,7 +208,7 @@
             // 
             toolStripMenuItem21.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { dualWatchToolStripMenuItem, scanToolStripMenuItem, regionToolStripMenuItem, gPSEnabledToolStripMenuItem, toolStripSeparator1, exportChannelsToolStripMenuItem, importChannelsToolStripMenuItem });
             toolStripMenuItem21.Name = "toolStripMenuItem21";
-            toolStripMenuItem21.Size = new System.Drawing.Size(76, 24);
+            toolStripMenuItem21.Size = new System.Drawing.Size(61, 22);
             toolStripMenuItem21.Text = "&Settings";
             toolStripMenuItem21.DropDownOpening += settingsMenuToolStripMenuItem_DropDownOpening;
             // 
@@ -216,7 +216,7 @@
             // 
             dualWatchToolStripMenuItem.Enabled = false;
             dualWatchToolStripMenuItem.Name = "dualWatchToolStripMenuItem";
-            dualWatchToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            dualWatchToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             dualWatchToolStripMenuItem.Text = "&Dual-Watch";
             dualWatchToolStripMenuItem.Click += dualWatchToolStripMenuItem_Click;
             // 
@@ -224,7 +224,7 @@
             // 
             scanToolStripMenuItem.Enabled = false;
             scanToolStripMenuItem.Name = "scanToolStripMenuItem";
-            scanToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            scanToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             scanToolStripMenuItem.Text = "&Scan";
             scanToolStripMenuItem.Click += scanToolStripMenuItem_Click;
             // 
@@ -232,33 +232,33 @@
             // 
             regionToolStripMenuItem.Enabled = false;
             regionToolStripMenuItem.Name = "regionToolStripMenuItem";
-            regionToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            regionToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             regionToolStripMenuItem.Text = "&Regions";
             // 
             // gPSEnabledToolStripMenuItem
             // 
             gPSEnabledToolStripMenuItem.Name = "gPSEnabledToolStripMenuItem";
-            gPSEnabledToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            gPSEnabledToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             gPSEnabledToolStripMenuItem.Text = "&GPS Enabled";
             gPSEnabledToolStripMenuItem.Click += gPSEnabledToolStripMenuItem_Click;
             // 
             // toolStripSeparator1
             // 
             toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new System.Drawing.Size(206, 6);
+            toolStripSeparator1.Size = new System.Drawing.Size(168, 6);
             // 
             // exportChannelsToolStripMenuItem
             // 
             exportChannelsToolStripMenuItem.Enabled = false;
             exportChannelsToolStripMenuItem.Name = "exportChannelsToolStripMenuItem";
-            exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            exportChannelsToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             exportChannelsToolStripMenuItem.Text = "&Export Channels...";
             exportChannelsToolStripMenuItem.Click += exportChannelsToolStripMenuItem_Click;
             // 
             // importChannelsToolStripMenuItem
             // 
             importChannelsToolStripMenuItem.Name = "importChannelsToolStripMenuItem";
-            importChannelsToolStripMenuItem.Size = new System.Drawing.Size(209, 26);
+            importChannelsToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             importChannelsToolStripMenuItem.Text = "&Import Channels...";
             importChannelsToolStripMenuItem.Click += importChannelsToolStripMenuItem_Click;
             // 
@@ -266,90 +266,88 @@
             // 
             audioToolStripMenuItem1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { audioEnabledToolStripMenuItem, volumeToolStripMenuItem, audioClipsToolStripMenuItem, spectrogramToolStripMenuItem, softwareModemToolStripMenuItem });
             audioToolStripMenuItem1.Name = "audioToolStripMenuItem1";
-            audioToolStripMenuItem1.Size = new System.Drawing.Size(63, 24);
+            audioToolStripMenuItem1.Size = new System.Drawing.Size(51, 22);
             audioToolStripMenuItem1.Text = "A&udio";
             audioToolStripMenuItem1.DropDownOpening += audioToolStripMenuItem1_DropDownOpening;
             // 
             // audioEnabledToolStripMenuItem
             // 
             audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
-            audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
             audioEnabledToolStripMenuItem.Click += audioEnabledToolStripMenuItem_Click;
             // 
             // volumeToolStripMenuItem
             // 
             volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            volumeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            volumeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             volumeToolStripMenuItem.Text = "Audio &Controls...";
             volumeToolStripMenuItem.Click += volumeToolStripMenuItem_Click;
             // 
             // audioClipsToolStripMenuItem
             // 
             audioClipsToolStripMenuItem.Name = "audioClipsToolStripMenuItem";
-            audioClipsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            audioClipsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             audioClipsToolStripMenuItem.Text = "Audio C&lips...";
-            audioClipsToolStripMenuItem.Click += new System.EventHandler(this.audioClipsToolStripMenuItem_Click);
-            //
+            audioClipsToolStripMenuItem.Click += audioClipsToolStripMenuItem_Click;
+            // 
             // spectrogramToolStripMenuItem
-            //
+            // 
             spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";
-            spectrogramToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            spectrogramToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             spectrogramToolStripMenuItem.Text = "Spectrogram...";
             spectrogramToolStripMenuItem.Click += spectrogramToolStripMenuItem_Click;
             // 
             // softwareModemToolStripMenuItem
-            // 
+            //
+            softwareModemToolStripMenuItem.DropDownOpening += new System.EventHandler(this.softwareModemToolStripMenuItem_DropDownOpening);
             softwareModemToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { disabledToolStripMenuItem, aFK1200ToolStripMenuItem, pSK2400ToolStripMenuItem, pSK4800ToolStripMenuItem, g9600ToolStripMenuItem });
             softwareModemToolStripMenuItem.Name = "softwareModemToolStripMenuItem";
-            softwareModemToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            softwareModemToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             softwareModemToolStripMenuItem.Text = "Software &Modem";
             // 
             // disabledToolStripMenuItem
             // 
             disabledToolStripMenuItem.Checked = true;
-            disabledToolStripMenuItem.CheckOnClick = true;
             disabledToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             disabledToolStripMenuItem.Name = "disabledToolStripMenuItem";
-            disabledToolStripMenuItem.Size = new System.Drawing.Size(154, 26);
+            disabledToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             disabledToolStripMenuItem.Text = "&Disabled";
-            // 
+            disabledToolStripMenuItem.Click += new System.EventHandler(this.disabledToolStripMenuItem_Click);
+            //
             // aFK1200ToolStripMenuItem
             // 
-            aFK1200ToolStripMenuItem.CheckOnClick = true;
             aFK1200ToolStripMenuItem.Name = "aFK1200ToolStripMenuItem";
-            aFK1200ToolStripMenuItem.Size = new System.Drawing.Size(154, 26);
+            aFK1200ToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             aFK1200ToolStripMenuItem.Text = "AFK &1200";
-            // 
+            aFK1200ToolStripMenuItem.Click += new System.EventHandler(this.aFK1200ToolStripMenuItem_Click);
+            //
             // pSK2400ToolStripMenuItem
             // 
-            pSK2400ToolStripMenuItem.CheckOnClick = true;
             pSK2400ToolStripMenuItem.Name = "pSK2400ToolStripMenuItem";
-            pSK2400ToolStripMenuItem.Size = new System.Drawing.Size(154, 26);
+            pSK2400ToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             pSK2400ToolStripMenuItem.Text = "PSK &2400";
-            pSK2400ToolStripMenuItem.Visible = false;
-            // 
+            pSK2400ToolStripMenuItem.Click += new System.EventHandler(this.pSK2400ToolStripMenuItem_Click);
+            //
             // pSK4800ToolStripMenuItem
             // 
-            pSK4800ToolStripMenuItem.CheckOnClick = true;
             pSK4800ToolStripMenuItem.Name = "pSK4800ToolStripMenuItem";
-            pSK4800ToolStripMenuItem.Size = new System.Drawing.Size(154, 26);
+            pSK4800ToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             pSK4800ToolStripMenuItem.Text = "PSK &4800";
-            pSK4800ToolStripMenuItem.Visible = false;
-            // 
+            pSK4800ToolStripMenuItem.Click += new System.EventHandler(this.pSK4800ToolStripMenuItem_Click);
+            //
             // g9600ToolStripMenuItem
             // 
-            g9600ToolStripMenuItem.CheckOnClick = true;
             g9600ToolStripMenuItem.Name = "g9600ToolStripMenuItem";
-            g9600ToolStripMenuItem.Size = new System.Drawing.Size(154, 26);
-            g9600ToolStripMenuItem.Text = "G &9600";
-            g9600ToolStripMenuItem.Visible = false;
-            // 
+            g9600ToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            g9600ToolStripMenuItem.Text = "G3RUH &9600";
+            g9600ToolStripMenuItem.Click += new System.EventHandler(this.g9600ToolStripMenuItem_Click);
+            //
             // viewToolStripMenuItem
             // 
             viewToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { radioToolStripMenuItem, radioWindowToolStripMenuItem, allChannelsToolStripMenuItem });
             viewToolStripMenuItem.Name = "viewToolStripMenuItem";
-            viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
+            viewToolStripMenuItem.Size = new System.Drawing.Size(44, 22);
             viewToolStripMenuItem.Text = "&View";
             viewToolStripMenuItem.DropDownOpening += viewToolStripMenuItem_DropDownOpening;
             // 
@@ -359,21 +357,21 @@
             radioToolStripMenuItem.CheckOnClick = true;
             radioToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             radioToolStripMenuItem.Name = "radioToolStripMenuItem";
-            radioToolStripMenuItem.Size = new System.Drawing.Size(199, 26);
+            radioToolStripMenuItem.Size = new System.Drawing.Size(160, 22);
             radioToolStripMenuItem.Text = "&Radio";
             radioToolStripMenuItem.CheckedChanged += radioToolStripMenuItem_CheckedChanged;
             // 
             // radioWindowToolStripMenuItem
             // 
             radioWindowToolStripMenuItem.Name = "radioWindowToolStripMenuItem";
-            radioWindowToolStripMenuItem.Size = new System.Drawing.Size(199, 26);
+            radioWindowToolStripMenuItem.Size = new System.Drawing.Size(160, 22);
             radioWindowToolStripMenuItem.Text = "Radio Window...";
             radioWindowToolStripMenuItem.Click += radioWindowToolStripMenuItem_Click;
             // 
             // allChannelsToolStripMenuItem
             // 
             allChannelsToolStripMenuItem.Name = "allChannelsToolStripMenuItem";
-            allChannelsToolStripMenuItem.Size = new System.Drawing.Size(199, 26);
+            allChannelsToolStripMenuItem.Size = new System.Drawing.Size(160, 22);
             allChannelsToolStripMenuItem.Text = "All Channels";
             allChannelsToolStripMenuItem.Click += allChannelsToolStripMenuItem_Click;
             // 
@@ -381,7 +379,7 @@
             // 
             aboutToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { radioInformationToolStripMenuItem, localWebSiteToolStripMenuItem, toolStripMenuItem5, checkForUpdatesToolStripMenuItem, aboutToolStripMenuItem1 });
             aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
+            aboutToolStripMenuItem.Size = new System.Drawing.Size(52, 22);
             aboutToolStripMenuItem.Text = "&About";
             aboutToolStripMenuItem.DropDownOpening += aboutToolStripMenuItem_DropDownOpening;
             // 
@@ -389,34 +387,34 @@
             // 
             radioInformationToolStripMenuItem.Enabled = false;
             radioInformationToolStripMenuItem.Name = "radioInformationToolStripMenuItem";
-            radioInformationToolStripMenuItem.Size = new System.Drawing.Size(222, 26);
+            radioInformationToolStripMenuItem.Size = new System.Drawing.Size(179, 22);
             radioInformationToolStripMenuItem.Text = "Radio Information...";
             radioInformationToolStripMenuItem.Click += radioInformationToolStripMenuItem_Click;
             // 
             // localWebSiteToolStripMenuItem
             // 
             localWebSiteToolStripMenuItem.Name = "localWebSiteToolStripMenuItem";
-            localWebSiteToolStripMenuItem.Size = new System.Drawing.Size(222, 26);
+            localWebSiteToolStripMenuItem.Size = new System.Drawing.Size(179, 22);
             localWebSiteToolStripMenuItem.Text = "Local Web Site...";
             localWebSiteToolStripMenuItem.Visible = false;
             // 
             // toolStripMenuItem5
             // 
             toolStripMenuItem5.Name = "toolStripMenuItem5";
-            toolStripMenuItem5.Size = new System.Drawing.Size(219, 6);
+            toolStripMenuItem5.Size = new System.Drawing.Size(176, 6);
             // 
             // checkForUpdatesToolStripMenuItem
             // 
             checkForUpdatesToolStripMenuItem.CheckOnClick = true;
             checkForUpdatesToolStripMenuItem.Name = "checkForUpdatesToolStripMenuItem";
-            checkForUpdatesToolStripMenuItem.Size = new System.Drawing.Size(222, 26);
+            checkForUpdatesToolStripMenuItem.Size = new System.Drawing.Size(179, 22);
             checkForUpdatesToolStripMenuItem.Text = "Check for Updates";
             checkForUpdatesToolStripMenuItem.Click += checkForUpdatesToolStripMenuItem_Click;
             // 
             // aboutToolStripMenuItem1
             // 
             aboutToolStripMenuItem1.Name = "aboutToolStripMenuItem1";
-            aboutToolStripMenuItem1.Size = new System.Drawing.Size(222, 26);
+            aboutToolStripMenuItem1.Size = new System.Drawing.Size(179, 22);
             aboutToolStripMenuItem1.Text = "&About...";
             aboutToolStripMenuItem1.Click += aboutToolStripMenuItem1_Click;
             // 
@@ -435,12 +433,12 @@
             mainTabControl.Controls.Add(debugTabPage);
             mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             mainTabControl.ImageList = tabsImageList;
-            mainTabControl.Location = new System.Drawing.Point(372, 26);
-            mainTabControl.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            mainTabControl.Location = new System.Drawing.Point(326, 24);
+            mainTabControl.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             mainTabControl.Multiline = true;
             mainTabControl.Name = "mainTabControl";
             mainTabControl.SelectedIndex = 0;
-            mainTabControl.Size = new System.Drawing.Size(712, 844);
+            mainTabControl.Size = new System.Drawing.Size(622, 588);
             mainTabControl.TabIndex = 3;
             // 
             // aprsTabPage
@@ -448,9 +446,9 @@
             aprsTabPage.Controls.Add(aprsTabUserControl);
             aprsTabPage.ImageIndex = 3;
             aprsTabPage.Location = new System.Drawing.Point(4, 4);
-            aprsTabPage.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            aprsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             aprsTabPage.Name = "aprsTabPage";
-            aprsTabPage.Size = new System.Drawing.Size(669, 836);
+            aprsTabPage.Size = new System.Drawing.Size(579, 580);
             aprsTabPage.TabIndex = 3;
             aprsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -459,11 +457,11 @@
             aprsTabUserControl.Callsign = "";
             aprsTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             aprsTabUserControl.Location = new System.Drawing.Point(0, 0);
-            aprsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            aprsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             aprsTabUserControl.Name = "aprsTabUserControl";
             aprsTabUserControl.SelectedAprsRoute = 0;
             aprsTabUserControl.ShowDetach = true;
-            aprsTabUserControl.Size = new System.Drawing.Size(669, 836);
+            aprsTabUserControl.Size = new System.Drawing.Size(579, 580);
             aprsTabUserControl.StationId = "";
             aprsTabUserControl.TabIndex = 0;
             // 
@@ -472,9 +470,9 @@
             mapTabPage.Controls.Add(mapTabUserControl);
             mapTabPage.ImageIndex = 1;
             mapTabPage.Location = new System.Drawing.Point(4, 4);
-            mapTabPage.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            mapTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             mapTabPage.Name = "mapTabPage";
-            mapTabPage.Size = new System.Drawing.Size(669, 836);
+            mapTabPage.Size = new System.Drawing.Size(580, 625);
             mapTabPage.TabIndex = 0;
             mapTabPage.ToolTipText = "APRS";
             mapTabPage.UseVisualStyleBackColor = true;
@@ -483,10 +481,10 @@
             // 
             mapTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             mapTabUserControl.Location = new System.Drawing.Point(0, 0);
-            mapTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            mapTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             mapTabUserControl.Name = "mapTabUserControl";
             mapTabUserControl.ShowDetach = true;
-            mapTabUserControl.Size = new System.Drawing.Size(669, 836);
+            mapTabUserControl.Size = new System.Drawing.Size(580, 625);
             mapTabUserControl.TabIndex = 0;
             // 
             // voiceTabPage
@@ -496,7 +494,7 @@
             voiceTabPage.Location = new System.Drawing.Point(4, 4);
             voiceTabPage.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             voiceTabPage.Name = "voiceTabPage";
-            voiceTabPage.Size = new System.Drawing.Size(669, 836);
+            voiceTabPage.Size = new System.Drawing.Size(580, 625);
             voiceTabPage.TabIndex = 9;
             voiceTabPage.UseVisualStyleBackColor = true;
             // 
@@ -507,7 +505,7 @@
             voiceTabUserControl.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             voiceTabUserControl.Name = "voiceTabUserControl";
             voiceTabUserControl.ShowDetach = true;
-            voiceTabUserControl.Size = new System.Drawing.Size(669, 836);
+            voiceTabUserControl.Size = new System.Drawing.Size(580, 625);
             voiceTabUserControl.TabIndex = 0;
             // 
             // mailTabPage
@@ -515,9 +513,9 @@
             mailTabPage.Controls.Add(mailTabUserControl);
             mailTabPage.ImageIndex = 5;
             mailTabPage.Location = new System.Drawing.Point(4, 4);
-            mailTabPage.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            mailTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             mailTabPage.Name = "mailTabPage";
-            mailTabPage.Size = new System.Drawing.Size(669, 836);
+            mailTabPage.Size = new System.Drawing.Size(580, 625);
             mailTabPage.TabIndex = 5;
             mailTabPage.UseVisualStyleBackColor = true;
             // 
@@ -525,10 +523,10 @@
             // 
             mailTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             mailTabUserControl.Location = new System.Drawing.Point(0, 0);
-            mailTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            mailTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             mailTabUserControl.Name = "mailTabUserControl";
             mailTabUserControl.ShowDetach = true;
-            mailTabUserControl.Size = new System.Drawing.Size(669, 836);
+            mailTabUserControl.Size = new System.Drawing.Size(580, 625);
             mailTabUserControl.TabIndex = 0;
             // 
             // terminalTabPage
@@ -536,9 +534,9 @@
             terminalTabPage.Controls.Add(terminalTabUserControl);
             terminalTabPage.ImageKey = "terminal-32.png";
             terminalTabPage.Location = new System.Drawing.Point(4, 4);
-            terminalTabPage.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            terminalTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             terminalTabPage.Name = "terminalTabPage";
-            terminalTabPage.Size = new System.Drawing.Size(669, 836);
+            terminalTabPage.Size = new System.Drawing.Size(580, 625);
             terminalTabPage.TabIndex = 2;
             terminalTabPage.UseVisualStyleBackColor = true;
             // 
@@ -546,10 +544,10 @@
             // 
             terminalTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             terminalTabUserControl.Location = new System.Drawing.Point(0, 0);
-            terminalTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            terminalTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             terminalTabUserControl.Name = "terminalTabUserControl";
             terminalTabUserControl.ShowDetach = true;
-            terminalTabUserControl.Size = new System.Drawing.Size(669, 836);
+            terminalTabUserControl.Size = new System.Drawing.Size(580, 625);
             terminalTabUserControl.TabIndex = 0;
             // 
             // addressesTabPage
@@ -557,9 +555,9 @@
             addressesTabPage.Controls.Add(contactsTabUserControl);
             addressesTabPage.ImageIndex = 4;
             addressesTabPage.Location = new System.Drawing.Point(4, 4);
-            addressesTabPage.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            addressesTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             addressesTabPage.Name = "addressesTabPage";
-            addressesTabPage.Size = new System.Drawing.Size(669, 836);
+            addressesTabPage.Size = new System.Drawing.Size(580, 625);
             addressesTabPage.TabIndex = 4;
             addressesTabPage.UseVisualStyleBackColor = true;
             // 
@@ -567,10 +565,10 @@
             // 
             contactsTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             contactsTabUserControl.Location = new System.Drawing.Point(0, 0);
-            contactsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            contactsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             contactsTabUserControl.Name = "contactsTabUserControl";
             contactsTabUserControl.ShowDetach = true;
-            contactsTabUserControl.Size = new System.Drawing.Size(669, 836);
+            contactsTabUserControl.Size = new System.Drawing.Size(580, 625);
             contactsTabUserControl.TabIndex = 0;
             // 
             // bbsTabPage
@@ -578,9 +576,9 @@
             bbsTabPage.Controls.Add(bbsTabUserControl);
             bbsTabPage.ImageIndex = 8;
             bbsTabPage.Location = new System.Drawing.Point(4, 4);
-            bbsTabPage.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            bbsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             bbsTabPage.Name = "bbsTabPage";
-            bbsTabPage.Size = new System.Drawing.Size(669, 836);
+            bbsTabPage.Size = new System.Drawing.Size(580, 625);
             bbsTabPage.TabIndex = 7;
             bbsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -588,10 +586,10 @@
             // 
             bbsTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             bbsTabUserControl.Location = new System.Drawing.Point(0, 0);
-            bbsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            bbsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             bbsTabUserControl.Name = "bbsTabUserControl";
             bbsTabUserControl.ShowDetach = true;
-            bbsTabUserControl.Size = new System.Drawing.Size(669, 836);
+            bbsTabUserControl.Size = new System.Drawing.Size(580, 625);
             bbsTabUserControl.TabIndex = 0;
             // 
             // torrentTabPage
@@ -601,7 +599,7 @@
             torrentTabPage.Location = new System.Drawing.Point(4, 4);
             torrentTabPage.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             torrentTabPage.Name = "torrentTabPage";
-            torrentTabPage.Size = new System.Drawing.Size(669, 836);
+            torrentTabPage.Size = new System.Drawing.Size(580, 625);
             torrentTabPage.TabIndex = 8;
             torrentTabPage.UseVisualStyleBackColor = true;
             // 
@@ -609,10 +607,10 @@
             // 
             torrentTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             torrentTabUserControl.Location = new System.Drawing.Point(0, 0);
-            torrentTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            torrentTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             torrentTabUserControl.Name = "torrentTabUserControl";
             torrentTabUserControl.ShowDetach = true;
-            torrentTabUserControl.Size = new System.Drawing.Size(669, 836);
+            torrentTabUserControl.Size = new System.Drawing.Size(580, 625);
             torrentTabUserControl.TabIndex = 0;
             // 
             // packetsTabPage
@@ -620,9 +618,9 @@
             packetsTabPage.Controls.Add(packetCaptureTabUserControl);
             packetsTabPage.ImageIndex = 6;
             packetsTabPage.Location = new System.Drawing.Point(4, 4);
-            packetsTabPage.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            packetsTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             packetsTabPage.Name = "packetsTabPage";
-            packetsTabPage.Size = new System.Drawing.Size(669, 836);
+            packetsTabPage.Size = new System.Drawing.Size(580, 625);
             packetsTabPage.TabIndex = 6;
             packetsTabPage.UseVisualStyleBackColor = true;
             // 
@@ -630,11 +628,11 @@
             // 
             packetCaptureTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             packetCaptureTabUserControl.Location = new System.Drawing.Point(0, 0);
-            packetCaptureTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            packetCaptureTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             packetCaptureTabUserControl.Name = "packetCaptureTabUserControl";
             packetCaptureTabUserControl.ShowDetach = true;
             packetCaptureTabUserControl.ShowTitle = false;
-            packetCaptureTabUserControl.Size = new System.Drawing.Size(669, 836);
+            packetCaptureTabUserControl.Size = new System.Drawing.Size(580, 625);
             packetCaptureTabUserControl.TabIndex = 0;
             // 
             // debugTabPage
@@ -642,9 +640,9 @@
             debugTabPage.Controls.Add(debugTabUserControl);
             debugTabPage.ImageIndex = 0;
             debugTabPage.Location = new System.Drawing.Point(4, 4);
-            debugTabPage.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            debugTabPage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             debugTabPage.Name = "debugTabPage";
-            debugTabPage.Size = new System.Drawing.Size(669, 836);
+            debugTabPage.Size = new System.Drawing.Size(580, 625);
             debugTabPage.TabIndex = 1;
             debugTabPage.ToolTipText = "Debug";
             debugTabPage.UseVisualStyleBackColor = true;
@@ -653,10 +651,10 @@
             // 
             debugTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             debugTabUserControl.Location = new System.Drawing.Point(0, 0);
-            debugTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            debugTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             debugTabUserControl.Name = "debugTabUserControl";
             debugTabUserControl.ShowDetach = true;
-            debugTabUserControl.Size = new System.Drawing.Size(669, 836);
+            debugTabUserControl.Size = new System.Drawing.Size(580, 625);
             debugTabUserControl.TabIndex = 0;
             // 
             // tabsImageList
@@ -698,10 +696,10 @@
             radioPanel.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
             radioPanel.Controls.Add(radioPanelControl);
             radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
-            radioPanel.Location = new System.Drawing.Point(0, 26);
-            radioPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            radioPanel.Location = new System.Drawing.Point(0, 24);
+            radioPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             radioPanel.Name = "radioPanel";
-            radioPanel.Size = new System.Drawing.Size(372, 844);
+            radioPanel.Size = new System.Drawing.Size(326, 588);
             radioPanel.TabIndex = 2;
             // 
             // radioPanelControl
@@ -711,10 +709,10 @@
             radioPanelControl.DeviceId = -1;
             radioPanelControl.Dock = System.Windows.Forms.DockStyle.Fill;
             radioPanelControl.Location = new System.Drawing.Point(0, 0);
-            radioPanelControl.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            radioPanelControl.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             radioPanelControl.Name = "radioPanelControl";
             radioPanelControl.ShowAllChannels = false;
-            radioPanelControl.Size = new System.Drawing.Size(368, 840);
+            radioPanelControl.Size = new System.Drawing.Size(322, 584);
             radioPanelControl.TabIndex = 0;
             radioPanelControl.Click += volumeToolStripMenuItem_Click;
             // 
@@ -732,17 +730,17 @@
             // 
             // MainForm
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1084, 892);
+            ClientSize = new System.Drawing.Size(948, 634);
             Controls.Add(mainTabControl);
             Controls.Add(radioPanel);
             Controls.Add(mainStatusStrip);
             Controls.Add(mainMenuStrip);
             Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             MainMenuStrip = mainMenuStrip;
-            Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            MinimumSize = new System.Drawing.Size(1097, 928);
+            Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            MinimumSize = new System.Drawing.Size(962, 620);
             Name = "MainForm";
             Text = "Handi-Talkie Commander";
             Load += MainForm_Load;
