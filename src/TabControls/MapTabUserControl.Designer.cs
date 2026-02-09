@@ -170,6 +170,7 @@ namespace HTCommander.Controls
             mapControl.OnMapZoomChanged += mapControl_OnMapZoomChanged;
             mapControl.Paint += mapControl_Paint;
             mapControl.MouseDown += mapControl_MouseDown;
+            mapControl.MouseEnter += mapControl_MouseEnter;
             mapControl.MouseMove += mapControl_MouseMove;
             mapControl.MouseUp += mapControl_MouseUp;
             // 

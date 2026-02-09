@@ -33,6 +33,8 @@ namespace HTCommander
                 channelsComboBox2.DropDownStyle = ComboBoxStyle.DropDownList;
                 foreach (string channelName in channelNames)
                 {
+                    // Skip "APRS" channel - not valid for terminal or winlink work
+                    if (string.Equals(channelName, "APRS", StringComparison.OrdinalIgnoreCase)) continue;
                     channelsComboBox.Items.Add(channelName);
                     channelsComboBox2.Items.Add(channelName);
                 }

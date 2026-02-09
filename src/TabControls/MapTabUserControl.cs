@@ -82,16 +82,10 @@ namespace HTCommander.Controls
             // Subscribe to APRS events for map markers
             broker.Subscribe(1, "AprsFrame", OnAprsFrame);
             broker.Subscribe(1, "AprsStoreReady", OnAprsStoreReady);
+            broker.Subscribe(1, "AprsPacketList", OnAprsPacketList);
 
-            // Check if the APRS store is already ready (in case we subscribed after it was dispatched)
-            if (broker.HasValue(1, "AprsStoreReady"))
-            {
-                List<AprsPacket> historicalPackets = broker.GetValue<List<AprsPacket>>(1, "AprsStoreReady", null);
-                if (historicalPackets != null)
-                {
-                    LoadHistoricalAprsPackets(historicalPackets);
-                }
-            }
+            // Request the current packet list from AprsHandler on-demand
+            broker.Dispatch(1, "RequestAprsPackets", null, store: false);
         }
 
         private void LoadInitialRadioPositions()
@@ -138,6 +132,7 @@ namespace HTCommander.Controls
             mapControl.MouseWheelZoomType = GMap.NET.MouseWheelZoomType.MousePositionAndCenter;
             mapControl.IgnoreMarkerOnMouseWheel = true;
             mapControl.DragButton = MouseButtons.Left;
+            mapControl.DisableFocusOnMouseEnter = true;
 
             // Load saved position and zoom from DataBroker (device 0 persists to registry)
             double zoom = broker.GetValue<int>(0, "MapZoom", 3);
@@ -268,13 +263,30 @@ namespace HTCommander.Controls
 
         #region APRS Marker Code
 
+        // Flag to prevent loading historical packets multiple times
+        private bool _historicalPacketsLoaded = false;
+
         /// <summary>
-        /// Handles the AprsStoreReady event - loads historical APRS packets onto the map.
+        /// Handles the AprsStoreReady event - the store is now ready, request packets.
         /// </summary>
         private void OnAprsStoreReady(int deviceId, string name, object data)
         {
-            if (!(data is List<AprsPacket> historicalPackets)) return;
-            LoadHistoricalAprsPackets(historicalPackets);
+            // Ignore if we've already loaded historical packets
+            if (_historicalPacketsLoaded) return;
+            // The APRS store is ready, request the packet list
+            broker.Dispatch(1, "RequestAprsPackets", null, store: false);
+        }
+
+        /// <summary>
+        /// Handles the AprsPacketList event - loads APRS packets from the on-demand request.
+        /// </summary>
+        private void OnAprsPacketList(int deviceId, string name, object data)
+        {
+            // Ignore if we've already loaded historical packets
+            if (_historicalPacketsLoaded) return;
+            if (!(data is List<AprsPacket> packets)) return;
+            _historicalPacketsLoaded = true;
+            LoadHistoricalAprsPackets(packets);
         }
 
         /// <summary>
@@ -593,6 +605,12 @@ namespace HTCommander.Controls
             mapMarkersOverlay.Markers.Clear();
             foreach (GMarkerGoogle marker in markersToReplace) { mapMarkersOverlay.Markers.Add(marker); }
             radioMarkers = newRadioMarkers;
+        }
+
+        private void mapControl_MouseEnter(object sender, EventArgs e)
+        {
+            // Prevent the GMap control from bringing the form to the front
+            // by not allowing the control to take focus when mouse enters
         }
 
         private void mapControl_MouseDown(object sender, MouseEventArgs e)

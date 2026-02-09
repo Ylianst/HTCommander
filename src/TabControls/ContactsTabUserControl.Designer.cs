@@ -161,6 +161,7 @@ namespace HTCommander.Controls
             // mainAddressBookListView
             // 
             mainAddressBookListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] { columnHeader7, columnHeader8, columnHeader9 });
+            mainAddressBookListView.ContextMenuStrip = stationsTabContextMenuStrip;
             mainAddressBookListView.Dock = System.Windows.Forms.DockStyle.Fill;
             mainAddressBookListView.FullRowSelect = true;
             mainAddressBookListView.GridLines = true;
