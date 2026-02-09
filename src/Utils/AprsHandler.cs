@@ -246,6 +246,24 @@ namespace HTCommander
             };
 
             _broker.Dispatch(messageData.RadioDeviceId, "TransmitDataFrame", txData, store: false);
+
+            // Parse and dispatch the outgoing packet so it appears in the UI immediately as a sent message
+            AprsPacket aprsPacket = AprsPacket.Parse(ax25Packet);
+            if (aprsPacket != null)
+            {
+                // Store the frame in history
+                lock (_lock)
+                {
+                    _aprsFrames.Add(aprsPacket);
+                    while (_aprsFrames.Count > MaxFrameHistory)
+                    {
+                        _aprsFrames.RemoveAt(0);
+                    }
+                }
+
+                // Dispatch the AprsFrame event so the UI shows it as sent
+                _broker.Dispatch(1, "AprsFrame", new AprsFrameEventArgs(aprsPacket, ax25Packet, null), store: false);
+            }
         }
 
         /// <summary>
@@ -465,6 +483,212 @@ namespace HTCommander
 
             // Dispatch the AprsFrame event via Data Broker (only for new frames, not startup-loaded frames)
             _broker.Dispatch(1, "AprsFrame", new AprsFrameEventArgs(aprsPacket, ax25Packet, frame), store: false);
+
+            // Check if we need to send an ACK for this message
+            SendAckIfNeeded(aprsPacket, ax25Packet, frame);
+        }
+
+        /// <summary>
+        /// Sends an ACK message if the received packet is a message addressed to our station.
+        /// </summary>
+        /// <param name="aprsPacket">The parsed APRS packet.</param>
+        /// <param name="ax25Packet">The underlying AX.25 packet.</param>
+        /// <param name="frame">The original TNC data fragment.</param>
+        private void SendAckIfNeeded(AprsPacket aprsPacket, AX25Packet ax25Packet, TncDataFragment frame)
+        {
+            // Only process message packets
+            if (aprsPacket.DataType != PacketDataType.Message) return;
+            if (aprsPacket.MessageData == null) return;
+
+            // Don't ACK ACKs or REJs
+            if (aprsPacket.MessageData.MsgType == aprsparser.MessageType.mtAck) return;
+            if (aprsPacket.MessageData.MsgType == aprsparser.MessageType.mtRej) return;
+
+            // Only ACK messages that have a sequence ID
+            if (string.IsNullOrEmpty(aprsPacket.MessageData.SeqId)) return;
+
+            // Check if the message is addressed to us
+            string localCallsign;
+            lock (_lock)
+            {
+                localCallsign = _localCallsignWithId;
+            }
+            if (string.IsNullOrEmpty(localCallsign)) return;
+
+            // Compare addressee with our callsign (case-insensitive)
+            string addressee = aprsPacket.MessageData.Addressee;
+            if (string.IsNullOrEmpty(addressee)) return;
+
+            // Also check against callsign without station ID
+            string callsignOnly = _broker.GetValue<string>(0, "CallSign", "");
+            bool isForUs = addressee.Equals(localCallsign, StringComparison.OrdinalIgnoreCase) ||
+                           addressee.Equals(callsignOnly, StringComparison.OrdinalIgnoreCase);
+
+            if (!isForUs) return;
+
+            // Get the source callsign (who sent the message)
+            if (ax25Packet.addresses == null || ax25Packet.addresses.Count < 2) return;
+            string senderCallsign = ax25Packet.addresses[1].CallSignWithId;
+
+            // Find a radio with an APRS channel to send the ACK
+            int radioDeviceId = FindRadioWithAprsChannel();
+            if (radioDeviceId < 0) return;
+
+            // Build the ACK message
+            // Format: :SENDER   :ack{seqId} or with auth: :SENDER   :ack{seqId}}authCode
+            string ackMessage = "ack" + aprsPacket.MessageData.SeqId;
+            DateTime now = DateTime.Now;
+
+            // Check if we should include authentication in the ACK
+            // Include auth if the incoming message had valid authentication
+            bool useAuth = (ax25Packet.authState == AX25Packet.AuthState.Success);
+            bool authApplied = false;
+            string aprsContent;
+
+            if (useAuth)
+            {
+                // Use the AddAprsAuthNoMsgId method since ACKs don't have their own message ID
+                aprsContent = AddAprsAckAuth(localCallsign, senderCallsign, ackMessage, now, out authApplied);
+            }
+            else
+            {
+                // No authentication needed
+                string paddedAddr = senderCallsign;
+                while (paddedAddr.Length < 9) { paddedAddr += " "; }
+                aprsContent = ":" + paddedAddr + ":" + ackMessage;
+            }
+
+            // Build the address list for the AX.25 frame
+            List<AX25Address> addresses = new List<AX25Address>();
+            addresses.Add(AX25Address.GetAddress("APRS")); // Destination
+            addresses.Add(AX25Address.GetAddress(localCallsign)); // Source (us)
+
+            // Create the AX.25 UI frame for the ACK
+            AX25Packet ackAx25Packet = new AX25Packet(addresses, aprsContent, now);
+            ackAx25Packet.type = AX25Packet.FrameType.U_FRAME_UI;
+            ackAx25Packet.pid = 240; // No layer 3 protocol
+            ackAx25Packet.command = true;
+            ackAx25Packet.incoming = false;
+            ackAx25Packet.sent = false;
+            ackAx25Packet.authState = authApplied ? AX25Packet.AuthState.Success : AX25Packet.AuthState.None;
+
+            // Get the APRS channel ID
+            int aprsChannelId = GetAprsChannelId(radioDeviceId);
+            if (aprsChannelId < 0) return;
+
+            ackAx25Packet.channel_id = aprsChannelId;
+            ackAx25Packet.channel_name = "APRS";
+
+            // Dispatch the TransmitDataFrame event to the radio
+            var txData = new TransmitDataFrameData
+            {
+                Packet = ackAx25Packet,
+                ChannelId = aprsChannelId,
+                RegionId = -1
+            };
+
+            _broker.Dispatch(radioDeviceId, "TransmitDataFrame", txData, store: false);
+
+            // Parse and dispatch the ACK packet so it appears in the UI as sent
+            AprsPacket ackAprsPacket = AprsPacket.Parse(ackAx25Packet);
+            if (ackAprsPacket != null)
+            {
+                lock (_lock)
+                {
+                    _aprsFrames.Add(ackAprsPacket);
+                    while (_aprsFrames.Count > MaxFrameHistory)
+                    {
+                        _aprsFrames.RemoveAt(0);
+                    }
+                }
+
+                _broker.Dispatch(1, "AprsFrame", new AprsFrameEventArgs(ackAprsPacket, ackAx25Packet, null), store: false);
+            }
+        }
+
+        /// <summary>
+        /// Finds a radio device that has an APRS channel configured.
+        /// </summary>
+        /// <returns>The device ID of a radio with an APRS channel, or -1 if none found.</returns>
+        private int FindRadioWithAprsChannel()
+        {
+            // Get the list of connected radios from the DataBroker
+            var connectedRadios = _broker.GetValue<object>(1, "ConnectedRadios", null);
+            if (connectedRadios == null) return -1;
+
+            if (connectedRadios is System.Collections.IEnumerable radioList)
+            {
+                foreach (var radio in radioList)
+                {
+                    var radioType = radio.GetType();
+                    var deviceIdProp = radioType.GetProperty("DeviceId");
+                    if (deviceIdProp != null)
+                    {
+                        int radioDeviceId = (int)deviceIdProp.GetValue(radio);
+                        int channelId = GetAprsChannelId(radioDeviceId);
+                        if (channelId >= 0)
+                        {
+                            return radioDeviceId;
+                        }
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// Adds APRS authentication to an ACK message (no message ID).
+        /// </summary>
+        /// <param name="srcAddress">The source callsign with station ID.</param>
+        /// <param name="destAddress">The destination callsign.</param>
+        /// <param name="ackMessage">The ACK message content (e.g., "ack123").</param>
+        /// <param name="time">The timestamp for authentication.</param>
+        /// <param name="authApplied">Output: whether authentication was applied.</param>
+        /// <returns>The formatted APRS ACK message with optional authentication.</returns>
+        private string AddAprsAckAuth(string srcAddress, string destAddress, string ackMessage, DateTime time, out bool authApplied)
+        {
+            // APRS Address - pad to 9 characters
+            string aprsAddr = destAddress;
+            while (aprsAddr.Length < 9) { aprsAddr += " "; }
+
+            // Search for an APRS authentication key for the destination (the original sender)
+            string authPassword = null;
+            lock (_lock)
+            {
+                foreach (StationInfoClass station in _stations)
+                {
+                    if ((station.StationType == StationInfoClass.StationTypes.APRS) &&
+                        (station.Callsign.Equals(destAddress, StringComparison.OrdinalIgnoreCase)) &&
+                        !string.IsNullOrEmpty(station.AuthPassword))
+                    {
+                        authPassword = station.AuthPassword;
+                        break;
+                    }
+                }
+            }
+
+            // If the auth key is not present, send without authentication
+            if (string.IsNullOrEmpty(authPassword))
+            {
+                authApplied = false;
+                return ":" + aprsAddr + ":" + ackMessage;
+            }
+
+            // Compute the current time in minutes since Unix epoch
+            DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            TimeSpan timeSinceEpoch = time.ToUniversalTime() - unixEpoch;
+            long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes;
+
+            // Compute authentication token
+            byte[] authKey = Utils.ComputeSha256Hash(Encoding.UTF8.GetBytes(authPassword));
+            string hashInput = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + ackMessage;
+            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, Encoding.UTF8.GetBytes(hashInput));
+            string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
+
+            // Add authentication token to APRS message
+            authApplied = true;
+            return ":" + aprsAddr + ":" + ackMessage + "}" + authCodeBase64;
         }
 
         /// <summary>

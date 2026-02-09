@@ -719,17 +719,9 @@ namespace HTCommander.Controls
             if (!(data is AprsFrameEventArgs args)) return;
             if (args.AX25Packet == null) return;
 
-            bool isSender = false;
-            if (args.AX25Packet.addresses != null && args.AX25Packet.addresses.Count >= 2)
-            {
-                string srcCallsign = args.AX25Packet.addresses[1].CallSignWithId;
-                string localCallsignWithId = string.IsNullOrEmpty(_stationId) ? _callsign : _callsign + "-" + _stationId;
-                if (!string.IsNullOrEmpty(localCallsignWithId) &&
-                    srcCallsign.Equals(localCallsignWithId, StringComparison.OrdinalIgnoreCase))
-                {
-                    isSender = true;
-                }
-            }
+            // Use the incoming property to determine if we're the sender
+            // This matches the logic in LoadHistoricalAprsPackets
+            bool isSender = !args.AX25Packet.incoming;
 
             AddAprsPacket(args.AprsPacket, isSender);
         }
