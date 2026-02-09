@@ -26,6 +26,7 @@ namespace HTCommander.Controls
         private AX25Session ax25Session = null;
         private YappTransfer yappTransfer = null;
         private bool pendingDisconnect = false; // Flag to track if we're waiting for X25Session to fully disconnect
+        private bool waitingForConnection = false; // Flag to track if we're waiting for an incoming connection
 
         /// <summary>
         /// Gets or sets whether the "Detach..." menu item is visible.
@@ -331,10 +332,19 @@ namespace HTCommander.Controls
         private void terminalSendButton_Click(object sender, EventArgs e)
         {
             if (terminalInputTextBox.Text.Length == 0) return;
-            if (connectedStation == null || connectedRadioId <= 0) return;
 
             string sendText = terminalInputTextBox.Text;
             terminalInputTextBox.Clear();
+
+            // Check if we have an active X25Session (either outgoing or incoming connection)
+            if (ax25Session != null && ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTED)
+            {
+                SendX25SessionPacket(sendText);
+                return;
+            }
+
+            // For other protocols, we need a connectedStation
+            if (connectedStation == null || connectedRadioId <= 0) return;
 
             // Send based on terminal protocol
             if (connectedStation.TerminalProtocol == StationInfoClass.TerminalProtocols.RawX25)
@@ -600,13 +610,24 @@ namespace HTCommander.Controls
             int myStationId = broker.GetValue<int>(0, "StationId", 0);
             string myCallsignWithId = myCallsign + "-" + myStationId;
 
+            // Get the remote callsign - either from connectedStation (outgoing) or session addresses (incoming)
+            string remoteCallsign = "UNKNOWN";
+            if (connectedStation != null)
+            {
+                remoteCallsign = connectedStation.Callsign;
+            }
+            else if (ax25Session.Addresses != null && ax25Session.Addresses.Count >= 1)
+            {
+                remoteCallsign = ax25Session.Addresses[0].CallSignWithId;
+            }
+
             // Send the data through the session
             ax25Session.Send(text);
 
             // Display the sent message in the terminal
-            AppendTerminalString(true, myCallsignWithId, connectedStation?.Callsign ?? "UNKNOWN", text);
+            AppendTerminalString(true, myCallsignWithId, remoteCallsign, text);
 
-            broker.LogInfo("[TerminalTab] Sent X25Session data to " + (connectedStation?.Callsign ?? "UNKNOWN"));
+            broker.LogInfo("[TerminalTab] Sent X25Session data to " + remoteCallsign);
         }
 
         /// <summary>
@@ -715,7 +736,23 @@ namespace HTCommander.Controls
             switch (state)
             {
                 case AX25Session.ConnectionState.CONNECTED:
-                    AppendTerminalString(false, null, null, "Connected to " + (connectedStation?.Callsign ?? "UNKNOWN"));
+                    if (waitingForConnection)
+                    {
+                        // Incoming connection established
+                        waitingForConnection = false;
+                        string remoteCallsign = "UNKNOWN";
+                        if (sender.Addresses != null && sender.Addresses.Count >= 1)
+                        {
+                            remoteCallsign = sender.Addresses[0].CallSignWithId;
+                        }
+                        AppendTerminalString(false, null, null, "Connected from " + remoteCallsign);
+                        broker.LogInfo("[TerminalTab] Incoming connection established from " + remoteCallsign);
+                    }
+                    else
+                    {
+                        // Outgoing connection established
+                        AppendTerminalString(false, null, null, "Connected to " + (connectedStation?.Callsign ?? "UNKNOWN"));
+                    }
                     break;
                 case AX25Session.ConnectionState.CONNECTING:
                     // Already displayed "Connecting..." message
@@ -725,6 +762,7 @@ namespace HTCommander.Controls
                     // Always complete the disconnect and unlock the radio when the session is disconnected
                     // This handles both user-initiated disconnects and remote-initiated disconnects
                     pendingDisconnect = false;
+                    waitingForConnection = false;
                     CompleteX25SessionDisconnect();
                     break;
                 case AX25Session.ConnectionState.DISCONNECTING:
@@ -1163,32 +1201,52 @@ namespace HTCommander.Controls
 
         /// <summary>
         /// Initiates "Wait for Connection" mode on the specified radio.
+        /// Creates an AX25Session to listen for incoming connection requests.
         /// </summary>
         private void WaitForConnectionOnRadio(int radioId)
         {
             if (radioId <= 0) return;
 
-            // Get the current region from HtStatus
-            RadioHtStatus htStatus = broker.GetValue<RadioHtStatus>(radioId, "HtStatus", null);
-            int regionId = htStatus?.curr_region ?? 0;
+            // Dispose any existing session
+            DisposeX25Session();
 
-            // Get the current channel from Settings
-            RadioSettings settings = broker.GetValue<RadioSettings>(radioId, "Settings", null);
-            int channelId = settings?.channel_a ?? 0;
-
-            // Lock the radio to Terminal usage with the current region and channel
+            // Lock the radio to Terminal usage with current region and channel
+            // Pass -1 to let Radio.cs use the current values
             var lockData = new SetLockData
             {
                 Usage = "Terminal",
-                RegionId = regionId,
-                ChannelId = channelId
+                RegionId = -1,
+                ChannelId = -1
             };
             broker.Dispatch(radioId, "SetLock", lockData, store: false);
 
             // Store the radio as the connected radio (for wait mode)
             connectedRadioId = radioId;
+            waitingForConnection = true;
+
+            // Get our callsign and station ID from settings
+            string myCallsign = broker.GetValue<string>(0, "CallSign", "N0CALL");
+            int myStationId = broker.GetValue<int>(0, "StationId", 0);
+
+            // Create the session for listening to incoming connections
+            ax25Session = new AX25Session(radioId);
+            ax25Session.CallSignOverride = myCallsign;
+            ax25Session.StationIdOverride = myStationId;
+
+            // Subscribe to session events
+            ax25Session.StateChanged += OnX25SessionStateChanged;
+            ax25Session.DataReceivedEvent += OnX25SessionDataReceived;
+            ax25Session.ErrorEvent += OnX25SessionError;
+
+            // Create and initialize YAPP transfer handler for file transfers
+            yappTransfer = new YappTransfer(ax25Session);
+            yappTransfer.ProgressChanged += OnYappProgressChanged;
+            yappTransfer.TransferComplete += OnYappTransferComplete;
+            yappTransfer.TransferError += OnYappTransferError;
+            yappTransfer.EnableAutoReceive(); // Start listening for incoming file transfers
 
             AppendTerminalString(false, null, null, "Waiting for connection...");
+            broker.LogInfo("[TerminalTab] Waiting for incoming connection on radio " + radioId);
         }
 
         private void terminalConnectButton_Click(object sender, EventArgs e)
