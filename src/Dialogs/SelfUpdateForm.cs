@@ -21,6 +21,7 @@ using System.Net.Http;
 using System.Diagnostics;
 using System.Windows.Forms;
 using System.Threading.Tasks;
+using System.ComponentModel;
 using HTCommander.radio;
 
 namespace HTCommander
@@ -44,13 +45,21 @@ namespace HTCommander
         }
 
         private string updateUrlEx = null;
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string updateUrl { get { return updateUrlEx; } set { updateUrlEx = value; } }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string currentVersionText
         {
             get { return currentVersionLabel.Text; }
             set { currentVersionLabel.Text = value; }
         }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string onlineVersionText
         {
             get { return onlineVersionLabel.Text; }

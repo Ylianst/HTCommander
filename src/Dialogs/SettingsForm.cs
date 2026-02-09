@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using System.Speech.Synthesis;
+using System.ComponentModel;
 using HTCommander.radio;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
@@ -21,28 +22,63 @@ namespace HTCommander
         private readonly FileDownloader _downloader;
         private CancellationTokenSource _cts;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public bool AllowTransmit { get { return allowTransmitCheckBox.Checked; } set { allowTransmitCheckBox.Checked = value; } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string CallSign { get { return callsignTextBox.Text; } set { callsignTextBox.Text = value; } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public int StationId { get { return stationIdComboBox.SelectedIndex; } set { stationIdComboBox.SelectedIndex = value; } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string AprsRoutes { get { return GetAprsRoutes(); } set { SetAprsRoutes(value); } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string WinlinkPassword { get { return winlinkPasswordTextBox.Text; } set { winlinkPasswordTextBox.Text = value; } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public bool WinlinkUseStationId { get { return winlinkStationIdCheckBox.Checked; } set { winlinkStationIdCheckBox.Checked = value; } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public bool WebServerEnabled { get { return webServerEnabledCheckBox.Checked; } set { webServerEnabledCheckBox.Checked = value; } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public int WebServerPort { get { return (int)webPortNumericUpDown.Value; } set { if (value > 0) { webPortNumericUpDown.Value = value; } else { webPortNumericUpDown.Value = 8080; }; } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public bool AgwpeServerEnabled { get { return agwpeServerEnabledCheckBox.Checked; } set { agwpeServerEnabledCheckBox.Checked = value; } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public int AgwpeServerPort { get { return (int)agwpePortNumericUpDown.Value; } set { if (value > 0) { agwpePortNumericUpDown.Value = value; } else { agwpePortNumericUpDown.Value = 8000; }; } }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string VoiceLanguage {
             get { Utils.ComboBoxItem selected = (Utils.ComboBoxItem)languageComboBox.SelectedItem; return selected.Value; }
             set { foreach (Utils.ComboBoxItem item in languageComboBox.Items) { if (item.Value == value) { languageComboBox.SelectedItem = item; break; } } }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string VoiceModel
         {
             get { Utils.ComboBoxItem selected = (Utils.ComboBoxItem)modelsComboBox.SelectedItem; return selected.Value; }
             set { if (value == "") { modelsComboBox.SelectedIndex = 0; return; } foreach(Utils.ComboBoxItem item in modelsComboBox.Items) { if (item.Value == value) { modelsComboBox.SelectedItem = item; break; } } }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string Voice
         {
             get { return (string)voicesComboBox.SelectedItem; }

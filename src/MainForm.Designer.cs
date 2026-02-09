@@ -454,15 +454,12 @@
             // 
             // aprsTabUserControl
             // 
-            aprsTabUserControl.Callsign = "";
             aprsTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
             aprsTabUserControl.Location = new System.Drawing.Point(0, 0);
             aprsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             aprsTabUserControl.Name = "aprsTabUserControl";
-            aprsTabUserControl.SelectedAprsRoute = 0;
             aprsTabUserControl.ShowDetach = true;
             aprsTabUserControl.Size = new System.Drawing.Size(579, 580);
-            aprsTabUserControl.StationId = "";
             aprsTabUserControl.TabIndex = 0;
             // 
             // mapTabPage

@@ -16,11 +16,14 @@ limitations under the License.
 
 using System;
 using System.Windows.Forms;
+using System.ComponentModel;
 
 namespace HTCommander
 {
     public partial class AudioClipRenameDialog : Form
     {
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string ClipName
         {
             get { return clipNameTextBox.Text.Trim(); }

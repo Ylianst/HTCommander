@@ -68,6 +68,9 @@ namespace HTCommander
             // Subscribe to SendAprsMessage events from the UI
             _broker.Subscribe(1, "SendAprsMessage", OnSendAprsMessage);
 
+            // Subscribe to RequestAprsPackets to provide current packet list on-demand
+            _broker.Subscribe(1, "RequestAprsPackets", OnRequestAprsPackets);
+
             // Subscribe to Stations updates from device 0
             _broker.Subscribe(0, "Stations", OnStationsUpdate);
 
@@ -379,8 +382,26 @@ namespace HTCommander
             _storeReady = true;
 
             // Notify subscribers that AprsHandler is ready with historical data
-            // Include the packet list so subscribers don't need to access the handler directly
-            _broker.Dispatch(1, "AprsStoreReady", new List<AprsPacket>(_aprsFrames), store: true);
+            // Use store: false since we now use on-demand request pattern
+            _broker.Dispatch(1, "AprsStoreReady", true, store: false);
+        }
+
+        /// <summary>
+        /// Handles RequestAprsPackets events to provide the current packet list on-demand.
+        /// </summary>
+        private void OnRequestAprsPackets(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+            if (!_storeReady) return; // Not ready yet
+
+            List<AprsPacket> packets;
+            lock (_lock)
+            {
+                packets = new List<AprsPacket>(_aprsFrames);
+            }
+
+            // Dispatch the current packet list to the requester
+            _broker.Dispatch(1, "AprsPacketList", packets, store: false);
         }
 
         /// <summary>
@@ -484,8 +505,8 @@ namespace HTCommander
             // Dispatch the AprsFrame event via Data Broker (only for new frames, not startup-loaded frames)
             _broker.Dispatch(1, "AprsFrame", new AprsFrameEventArgs(aprsPacket, ax25Packet, frame), store: false);
 
-            // Check if we need to send an ACK for this message
-            SendAckIfNeeded(aprsPacket, ax25Packet, frame);
+            // Check if we need to send an ACK for this message (use the same radio that received it)
+            SendAckIfNeeded(aprsPacket, ax25Packet, frame, deviceId);
         }
 
         /// <summary>
@@ -494,7 +515,8 @@ namespace HTCommander
         /// <param name="aprsPacket">The parsed APRS packet.</param>
         /// <param name="ax25Packet">The underlying AX.25 packet.</param>
         /// <param name="frame">The original TNC data fragment.</param>
-        private void SendAckIfNeeded(AprsPacket aprsPacket, AX25Packet ax25Packet, TncDataFragment frame)
+        /// <param name="radioDeviceId">The device ID of the radio that received the packet.</param>
+        private void SendAckIfNeeded(AprsPacket aprsPacket, AX25Packet ax25Packet, TncDataFragment frame, int radioDeviceId)
         {
             // Only process message packets
             if (aprsPacket.DataType != PacketDataType.Message) return;
@@ -530,9 +552,9 @@ namespace HTCommander
             if (ax25Packet.addresses == null || ax25Packet.addresses.Count < 2) return;
             string senderCallsign = ax25Packet.addresses[1].CallSignWithId;
 
-            // Find a radio with an APRS channel to send the ACK
-            int radioDeviceId = FindRadioWithAprsChannel();
-            if (radioDeviceId < 0) return;
+            // Verify the radio has an APRS channel before sending ACK
+            int aprsChannelId = GetAprsChannelId(radioDeviceId);
+            if (aprsChannelId < 0) return;
 
             // Build the ACK message
             // Format: :SENDER   :ack{seqId} or with auth: :SENDER   :ack{seqId}}authCode
@@ -571,10 +593,6 @@ namespace HTCommander
             ackAx25Packet.incoming = false;
             ackAx25Packet.sent = false;
             ackAx25Packet.authState = authApplied ? AX25Packet.AuthState.Success : AX25Packet.AuthState.None;
-
-            // Get the APRS channel ID
-            int aprsChannelId = GetAprsChannelId(radioDeviceId);
-            if (aprsChannelId < 0) return;
 
             ackAx25Packet.channel_id = aprsChannelId;
             ackAx25Packet.channel_name = "APRS";

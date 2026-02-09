@@ -8,6 +8,7 @@ using System;
 using System.Drawing;
 using System.Diagnostics;
 using System.Windows.Forms;
+using System.ComponentModel;
 
 namespace HTCommander
 {
@@ -65,6 +66,8 @@ namespace HTCommander
         /// <summary>
         /// Sets the channels to populate the dropdown.
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public RadioChannelInfo[] Channels
         {
             set { _channels = value; }

@@ -7,6 +7,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 using System;
 using System.IO;
 using System.Windows.Forms;
+using System.ComponentModel;
 using HTCommander.Dialogs;
 using HTCommander.RadioControls;
 
@@ -49,6 +50,8 @@ namespace HTCommander
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public RadioChannelInfo Channel
         {
             get

@@ -8,6 +8,7 @@ using System;
 using System.IO;
 using System.Drawing;
 using System.Windows.Forms;
+using System.ComponentModel;
 using HTCommander.radio;
 
 namespace HTCommander.RadioControls
@@ -54,6 +55,8 @@ namespace HTCommander.RadioControls
         /// Setting this property will subscribe to broker events for that device.
         /// Set to -1 to disconnect from any device.
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public int DeviceId
         {
             get { return _deviceId; }
@@ -764,6 +767,8 @@ namespace HTCommander.RadioControls
         /// <summary>
         /// Gets or sets whether all channels should be shown, including empty ones.
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
+        [DefaultValue(false)]
         public bool ShowAllChannels
         {
             get { return _showAllChannels; }

@@ -19,26 +19,74 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Drawing.Drawing2D;
 using System.Collections.Generic;
+using System.ComponentModel;
 
 namespace HTCommander
 {
     public partial class ChatControl : UserControl
     {
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public List<ChatMessage> Messages = new List<ChatMessage>();
+
+        [Category("Appearance")]
+        [DefaultValue(10)]
         public int CornerRadius { get; set; } = 10;
+
+        [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Color MessageBoxColor { get { return messageBoxColor; } set { messageBoxColor = value; messageBoxBrush = new SolidBrush(messageBoxColor); } }
+
+        [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Color MessageBoxAuthColor { get { return messageBoxAuthColor; } set { messageBoxAuthColor = value; messageBoxAuthBrush = new SolidBrush(messageBoxAuthColor); } }
+
+        [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Color MessageBoxBadColor { get { return messageBoxBadColor; } set { messageBoxBadColor = value; messageBoxBadBrush = new SolidBrush(messageBoxBadColor); } }
+
+        [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Color CallsignTextColor { get { return callsignTextColor; } set { callsignTextColor = value; callsignTextBrush = new SolidBrush(callsignTextColor); } }
+
+        [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Color TextColor { get { return textColor; } set { textColor = value; } }
+
+        [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Font CallsignFont { get; set; } = new Font("Arial", 8);
+
+        [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Font MessageFont { get; set; } = new Font("Arial", 10);
+
+        [Category("Layout")]
+        [DefaultValue(100)]
         public int MinWidth { get; set; } = 100;
+
+        [Category("Layout")]
+        [DefaultValue(300)]
         public int MaxWidth { get; set; } = 300;
+
+        [Category("Layout")]
+        [DefaultValue(12)]
         public int MessageBoxMargin { get; set; } = 12;
+
+        [Category("Layout")]
+        [DefaultValue(10)]
         public int SideMargins { get; set; } = 10;
+
+        [Category("Layout")]
+        [DefaultValue(4)]
         public int InterMessageMargin { get; set; } = 4;
+
+        [Category("Layout")]
+        [DefaultValue(2)]
         public int ShadowOffset { get; set; } = 2;
+
+        [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public ImageList Images { get; set; }
 
 

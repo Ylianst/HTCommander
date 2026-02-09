@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
+using System.ComponentModel;
 
 namespace HTCommander.Dialogs
 {
@@ -10,6 +11,8 @@ namespace HTCommander.Dialogs
         private bool _isPlaceholderActive = false;
         private Color _normalForeColor;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string RadioName
         {
             get => _isPlaceholderActive ? "" : radioNameTextBox.Text;
@@ -27,6 +30,8 @@ namespace HTCommander.Dialogs
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string PlaceholderText
         {
             get => _placeholderText;

@@ -9,9 +9,16 @@ namespace HTCommander
 {
     public partial class MailAttachmentControl : UserControl
     {
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public string Filename { get { return filenameLabel.Text; } set { filenameLabel.Text = value; } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public byte[] FileData;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public bool AllowRemove
         {
             get { return removePictureBox.Visible; }
@@ -32,6 +39,8 @@ namespace HTCommander
 
         [Category("Appearance")]
         [Description("The radius of the rounded corners.")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
+        [DefaultValue(4)]
         public int CornerRadius
         {
             get { return _cornerRadius; }

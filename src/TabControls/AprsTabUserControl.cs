@@ -30,6 +30,7 @@ namespace HTCommander.Controls
         private HashSet<int> _subscribedRadioDeviceIds = new HashSet<int>();
         private List<StationInfoClass> _cachedStations = new List<StationInfoClass>();
         private bool _hasAprsChannel = false;
+        private bool _historicalPacketsLoaded = false;
 
         #endregion
 
@@ -49,6 +50,7 @@ namespace HTCommander.Controls
             // Initialize the Data Broker client and subscribe to APRS events
             _broker = new DataBrokerClient();
             _broker.Subscribe(1, "AprsFrame", OnAprsFrame);
+            _broker.Subscribe(1, "AprsPacketList", OnAprsPacketList);
             _broker.Subscribe(1, "AprsStoreReady", OnAprsStoreReady);
 
             // Subscribe to settings changes from device 0
@@ -89,15 +91,8 @@ namespace HTCommander.Controls
                 aprsDestinationComboBox.Text = savedDestination;
             }
 
-            // Check if the store is already ready (in case we subscribed after it was dispatched)
-            if (_broker.HasValue(1, "AprsStoreReady"))
-            {
-                List<AprsPacket> historicalPackets = _broker.GetValue<List<AprsPacket>>(1, "AprsStoreReady", null);
-                if (historicalPackets != null)
-                {
-                    LoadHistoricalAprsPackets(historicalPackets);
-                }
-            }
+            // Request the current packet list from AprsHandler on-demand
+            _broker.Dispatch(1, "RequestAprsPackets", null, store: false);
 
             // Subscribe to ConnectedRadios changes to track radio connections and check for APRS channel
             _broker.Subscribe(1, "ConnectedRadios", OnConnectedRadiosChanged);
@@ -118,24 +113,6 @@ namespace HTCommander.Controls
         #region Properties
 
         /// <summary>
-        /// Gets or sets the local callsign (without station ID).
-        /// </summary>
-        public string Callsign
-        {
-            get { return _callsign; }
-            set { _callsign = value ?? ""; }
-        }
-
-        /// <summary>
-        /// Gets or sets the station ID.
-        /// </summary>
-        public string StationId
-        {
-            get { return _stationId; }
-            set { _stationId = value ?? ""; }
-        }
-
-        /// <summary>
         /// Gets or sets whether the "Detach..." menu item is visible.
         /// </summary>
         [System.ComponentModel.Category("Behavior")]
@@ -153,15 +130,6 @@ namespace HTCommander.Controls
                     toolStripMenuItemDetachSeparator.Visible = value;
                 }
             }
-        }
-
-        /// <summary>
-        /// Gets or sets the index of the currently selected APRS route.
-        /// </summary>
-        public int SelectedAprsRoute
-        {
-            get { return selectedAprsRoute; }
-            set { selectedAprsRoute = value; }
         }
 
         #endregion
@@ -266,6 +234,7 @@ namespace HTCommander.Controls
                 {
                     if (forSelf)
                     {
+                        bool updated = false;
                         foreach (ChatMessage n in aprsChatControl.Messages)
                         {
                             if (n.Sender && (n.MessageId == aprsPacket.MessageData.SeqId))
@@ -275,8 +244,13 @@ namespace HTCommander.Controls
                                     ((n.AuthState == AX25Packet.AuthState.None) && (aprsPacket.Packet.authState == AX25Packet.AuthState.None)))
                                 {
                                     n.ImageIndex = 0;
+                                    updated = true;
                                 }
                             }
+                        }
+                        if (updated)
+                        {
+                            aprsChatControl.UpdateMessages(true);
                         }
                     }
                     return;
@@ -703,12 +677,26 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
-        /// Handles the AprsStoreReady event - loads historical APRS packets.
+        /// Handles the AprsStoreReady event - the store is now ready, request packets.
         /// </summary>
         private void OnAprsStoreReady(int deviceId, string name, object data)
         {
-            if (!(data is List<AprsPacket> historicalPackets)) return;
-            LoadHistoricalAprsPackets(historicalPackets);
+            // Ignore if we've already loaded historical packets
+            if (_historicalPacketsLoaded) return;
+            // The APRS store is ready, request the packet list
+            _broker.Dispatch(1, "RequestAprsPackets", null, store: false);
+        }
+
+        /// <summary>
+        /// Handles the AprsPacketList event - loads APRS packets from the on-demand request.
+        /// </summary>
+        private void OnAprsPacketList(int deviceId, string name, object data)
+        {
+            // Ignore if we've already loaded historical packets
+            if (_historicalPacketsLoaded) return;
+            if (!(data is List<AprsPacket> packets)) return;
+            _historicalPacketsLoaded = true;
+            LoadHistoricalAprsPackets(packets);
         }
 
         /// <summary>
