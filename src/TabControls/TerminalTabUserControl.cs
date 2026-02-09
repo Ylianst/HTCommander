@@ -367,18 +367,10 @@ namespace HTCommander.Controls
         {
             if (connectedStation == null || connectedRadioId <= 0) return;
 
-            // Get our callsign from settings (should be in format "CALLSIGN-ID")
-            string myCallsignWithId = broker.GetValue<string>(0, "Callsign", "N0CALL-0");
-
-            // Parse our callsign to get callsign and station ID
-            string myCallsign;
-            int myStationId;
-            if (!Utils.ParseCallsignWithId(myCallsignWithId, out myCallsign, out myStationId))
-            {
-                // If parsing fails, use the whole string as callsign with ID 0
-                myCallsign = myCallsignWithId;
-                myStationId = 0;
-            }
+            // Get our callsign and station ID from settings
+            string myCallsign = broker.GetValue<string>(0, "CallSign", "N0CALL");
+            int myStationId = broker.GetValue<int>(0, "StationId", 0);
+            string myCallsignWithId = myCallsign + "-" + myStationId;
 
             // Parse the destination callsign to get callsign and station ID
             string destCallsign;
@@ -435,17 +427,10 @@ namespace HTCommander.Controls
         {
             if (connectedStation == null || connectedRadioId <= 0) return;
 
-            // Get our callsign from settings (should be in format "CALLSIGN-ID")
-            string myCallsignWithId = broker.GetValue<string>(0, "Callsign", "N0CALL-0");
-
-            // Parse our callsign to get callsign and station ID
-            string myCallsign;
-            int myStationId;
-            if (!Utils.ParseCallsignWithId(myCallsignWithId, out myCallsign, out myStationId))
-            {
-                myCallsign = myCallsignWithId;
-                myStationId = 0;
-            }
+            // Get our callsign and station ID from settings
+            string myCallsign = broker.GetValue<string>(0, "CallSign", "N0CALL");
+            int myStationId = broker.GetValue<int>(0, "StationId", 0);
+            string myCallsignWithId = myCallsign + "-" + myStationId;
 
             // Parse the destination callsign to get callsign and station ID
             string destCallsign;
@@ -530,17 +515,9 @@ namespace HTCommander.Controls
         {
             if (connectedStation == null || connectedRadioId <= 0) return;
 
-            // Get our callsign from settings (should be in format "CALLSIGN-ID")
-            string myCallsignWithId = broker.GetValue<string>(0, "Callsign", "N0CALL-0");
-
-            // Parse our callsign to get callsign and station ID
-            string myCallsign;
-            int myStationId;
-            if (!Utils.ParseCallsignWithId(myCallsignWithId, out myCallsign, out myStationId))
-            {
-                myCallsign = myCallsignWithId;
-                myStationId = 0;
-            }
+            // Get our callsign and station ID from settings
+            string myCallsign = broker.GetValue<string>(0, "CallSign", "N0CALL");
+            int myStationId = broker.GetValue<int>(0, "StationId", 0);
 
             // Parse the destination callsign to get callsign and station ID
             string destCallsign;
@@ -618,8 +595,10 @@ namespace HTCommander.Controls
                 return;
             }
 
-            // Get our callsign for display
-            string myCallsignWithId = broker.GetValue<string>(0, "Callsign", "N0CALL-0");
+            // Get our callsign and station ID for display
+            string myCallsign = broker.GetValue<string>(0, "CallSign", "N0CALL");
+            int myStationId = broker.GetValue<int>(0, "StationId", 0);
+            string myCallsignWithId = myCallsign + "-" + myStationId;
 
             // Send the data through the session
             ax25Session.Send(text);
@@ -638,15 +617,9 @@ namespace HTCommander.Controls
             // Dispose any existing session
             DisposeX25Session();
 
-            // Get our callsign from settings
-            string myCallsignWithId = broker.GetValue<string>(0, "Callsign", "N0CALL-0");
-            string myCallsign;
-            int myStationId;
-            if (!Utils.ParseCallsignWithId(myCallsignWithId, out myCallsign, out myStationId))
-            {
-                myCallsign = myCallsignWithId;
-                myStationId = 0;
-            }
+            // Get our callsign and station ID from settings
+            string myCallsign = broker.GetValue<string>(0, "CallSign", "N0CALL");
+            int myStationId = broker.GetValue<int>(0, "StationId", 0);
 
             // Parse the destination callsign
             string destCallsign;
@@ -801,8 +774,9 @@ namespace HTCommander.Controls
             // Decode the data as UTF-8 text
             string text = Encoding.UTF8.GetString(data);
 
-            // Get our callsign for display
-            string myCallsign = broker.GetValue<string>(0, "Callsign", "N0CALL");
+            // Get our callsign and station ID for display
+            string myCallsign = broker.GetValue<string>(0, "CallSign", "N0CALL");
+            int myStationId = broker.GetValue<int>(0, "StationId", 0);
 
             // Get the remote callsign from the session addresses
             string remoteCallsign = "UNKNOWN";
@@ -903,8 +877,9 @@ namespace HTCommander.Controls
                 fromCallsign = packet.addresses[1].ToString(); // Source is second address
             }
 
-            // Get our callsign
-            string myCallsign = broker.GetValue<string>(0, "Callsign", "N0CALL");
+            // Get our callsign and station ID
+            string myCallsign = broker.GetValue<string>(0, "CallSign", "N0CALL");
+            int myStationId = broker.GetValue<int>(0, "StationId", 0);
 
             // Decode the data as UTF-8 text
             string text = "";
@@ -939,8 +914,9 @@ namespace HTCommander.Controls
                 fromCallsign = packet.addresses[1].ToString(); // Source is second address
             }
 
-            // Get our callsign
-            string myCallsign = broker.GetValue<string>(0, "Callsign", "N0CALL");
+            // Get our callsign and station ID
+            string myCallsign = broker.GetValue<string>(0, "CallSign", "N0CALL");
+            int myStationId = broker.GetValue<int>(0, "StationId", 0);
 
             // Decode the data based on compression type (pid)
             string text = "";
@@ -1003,8 +979,9 @@ namespace HTCommander.Controls
                 fromCallsign = packet.addresses[1].CallSignWithId; // Source is second address
             }
 
-            // Get our callsign
-            string myCallsign = broker.GetValue<string>(0, "Callsign", "N0CALL");
+            // Get our callsign and station ID
+            string myCallsign = broker.GetValue<string>(0, "CallSign", "N0CALL");
+            int myStationId = broker.GetValue<int>(0, "StationId", 0);
 
             // Get the APRS message data
             string aprsData = packet.dataStr;

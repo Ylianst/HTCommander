@@ -153,7 +153,7 @@ namespace HTCommander
         /// <param name="msg">The log message.</param>
         public void LogInfo(string msg)
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(DataBrokerClient));
+            if (_disposed) return;
             DataBroker.Dispatch(1, "LogInfo", msg, store: false);
         }
 
@@ -163,7 +163,7 @@ namespace HTCommander
         /// <param name="msg">The error message.</param>
         public void LogError(string msg)
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(DataBrokerClient));
+            if (_disposed) return;
             DataBroker.Dispatch(1, "LogError", msg, store: false);
         }
 
