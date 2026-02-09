@@ -1,0 +1,23 @@
+<Project Sdk="WixToolset.Sdk/5.0.0">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <OutputName>HTCommander</OutputName>
+    <ProductVersion>0.50.0</ProductVersion>
+    <HarvestFileSuppressUniqueIds>true</HarvestFileSuppressUniqueIds>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>Debug</DefineConstants>
+    <SourceDir>..\src\bin\Debug\net9.0-windows10.0.19041.0</SourceDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DefineConstants>Release</DefineConstants>
+    <SourceDir>..\src\bin\Release\net9.0-windows10.0.19041.0</SourceDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.0" />
+  </ItemGroup>
+</Project>

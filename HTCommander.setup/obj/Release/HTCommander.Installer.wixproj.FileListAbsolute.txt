@@ -1,0 +1,6 @@
+c:\Code\HTCommander\HTCommander.setup\obj\Release\HTCommander.Installer.wixproj.CoreCompileInputs.cache
+c:\Code\HTCommander\HTCommander.setup\bin\Release\HTCommander.msi
+c:\Code\HTCommander\HTCommander.setup\bin\Release\HTCommander.wixpdb
+c:\Code\HTCommander\HTCommander.setup\obj\Release\HTCommander.msi
+c:\Code\HTCommander\HTCommander.setup\obj\Release\HTCommander.wixpdb
+c:\Code\HTCommander\HTCommander.setup\obj\Release\HTCommander.Installer.wixproj.BindTracking-neutral.txt

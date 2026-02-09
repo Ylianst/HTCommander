@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
@@ -37,6 +38,8 @@ namespace HTCommander.Dialogs
         /// <summary>
         /// Gets or sets the device ID that this form's RadioPanelControl monitors.
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
         public int DeviceId
         {
             get { return radioPanelControl.DeviceId; }
