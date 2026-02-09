@@ -78,7 +78,7 @@ namespace HTCommander.Controls
             broker.Subscribe(DataBroker.AllDevices, "LockState", OnLockStateChanged);
 
             // Subscribe to UniqueDataFrame to receive incoming packets with "Terminal" usage
-            broker.Subscribe(1, "UniqueDataFrame", OnUniqueDataFrame);
+            broker.Subscribe(DataBroker.AllDevices, "UniqueDataFrame", OnUniqueDataFrame);
 
             // Set initial button state (disabled until we know radio state)
             terminalConnectButton.Text = "&Connect";

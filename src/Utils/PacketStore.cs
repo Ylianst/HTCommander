@@ -69,7 +69,7 @@ namespace HTCommander
             _broker = new DataBrokerClient();
 
             // Subscribe to UniqueDataFrame events on device 1
-            _broker.Subscribe(1, "UniqueDataFrame", OnUniqueDataFrame);
+            _broker.Subscribe(DataBroker.AllDevices, "UniqueDataFrame", OnUniqueDataFrame);
 
             // Subscribe to requests for the packet list on device 1
             _broker.Subscribe(1, "RequestPacketList", OnRequestPacketList);

@@ -77,10 +77,10 @@ namespace HTCommander
                 }
             }
 
-            // Dispatch UniqueDataFrame on device 1 if the frame is unique
+            // Dispatch UniqueDataFrame on the same device we received it from
             if (isUnique)
             {
-                _broker.Dispatch(1, "UniqueDataFrame", frame, store: false);
+                _broker.Dispatch(deviceId, "UniqueDataFrame", frame, store: false);
             }
         }
 

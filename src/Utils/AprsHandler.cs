@@ -56,8 +56,8 @@ namespace HTCommander
         {
             _broker = new DataBrokerClient();
 
-            // Subscribe to UniqueDataFrame events from device 1
-            _broker.Subscribe(1, "UniqueDataFrame", OnUniqueDataFrame);
+            // Subscribe to UniqueDataFrame events from all devices
+            _broker.Subscribe(DataBroker.AllDevices, "UniqueDataFrame", OnUniqueDataFrame);
 
             // Subscribe to PacketStoreReady to know when we can request historical packets
             _broker.Subscribe(1, "PacketStoreReady", OnPacketStoreReady);
