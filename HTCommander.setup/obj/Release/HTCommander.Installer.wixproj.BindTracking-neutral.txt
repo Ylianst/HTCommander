@@ -1,5 +1,5 @@
-BuiltPdbOutput	c:\Code\HTCommander\HTCommander.setup\obj\Release\HTCommander.wixpdb
-BuiltTargetOutput	c:\Code\HTCommander\HTCommander.setup\obj\Release\HTCommander.msi
+BuiltPdbOutput	C:\Code\HTCommander\HTCommander.setup\obj\Release\HTCommander.wixpdb
+BuiltTargetOutput	C:\Code\HTCommander\HTCommander.setup\obj\Release\HTCommander.msi
 Input	..\src\bin\Release\net9.0-windows10.0.19041.0\EntityFramework.dll
 Input	..\src\bin\Release\net9.0-windows10.0.19041.0\EntityFramework.SqlServer.dll
 Input	..\src\bin\Release\net9.0-windows10.0.19041.0\FftSharp.dll
@@ -38,10 +38,10 @@ Input	..\src\HTCommander.ico
 Input	..\src\Web\index.html
 Input	C:\Users\Default.DESKTOP-SHJ77EM\.nuget\packages\wixtoolset.ui.wixext\5.0.0\wixext5\WixToolset.UI.wixext.dll
 Input	DialogImage.bmp
-Intermediate	c:\Code\HTCommander\HTCommander.setup\obj\Release\#cab1.cab
-Intermediate	c:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\bannrbmp.bmp
-Intermediate	c:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\exclamic.ico
-Intermediate	c:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\info.ico
-Intermediate	c:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\new.ico
-Intermediate	c:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\uica.dll-1
-Intermediate	c:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\up.ico
+Intermediate	C:\Code\HTCommander\HTCommander.setup\obj\Release\#cab1.cab
+Intermediate	C:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\bannrbmp.bmp
+Intermediate	C:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\exclamic.ico
+Intermediate	C:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\info.ico
+Intermediate	C:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\new.ico
+Intermediate	C:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\uica.dll-1
+Intermediate	C:\Code\HTCommander\HTCommander.setup\obj\Release\WixToolset.UI.wixext_BOor3KBe3nWFwKwkrIw_s8OcIvY\wix-ir\up.ico

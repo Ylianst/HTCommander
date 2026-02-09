@@ -45,10 +45,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM Build the WiX installer
+REM Build the WiX installer (force rebuild with --no-incremental)
 echo.
 echo Building MSI installer...
-dotnet build HTCommander.Installer.wixproj -c %CONFIG%
+dotnet build HTCommander.Installer.wixproj -c %CONFIG% --no-incremental
 if errorlevel 1 (
     echo.
     echo ERROR: Failed to build MSI installer

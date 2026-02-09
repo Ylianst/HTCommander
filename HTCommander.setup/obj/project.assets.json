@@ -38,11 +38,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Code\\HTCommander\\HTCommander.setup\\HTCommander.Installer.wixproj",
+      "projectUniqueName": "C:\\Code\\HTCommander\\HTCommander.setup\\HTCommander.Installer.wixproj",
       "projectName": "HTCommander",
-      "projectPath": "c:\\Code\\HTCommander\\HTCommander.setup\\HTCommander.Installer.wixproj",
+      "projectPath": "C:\\Code\\HTCommander\\HTCommander.setup\\HTCommander.Installer.wixproj",
       "packagesPath": "C:\\Users\\Default.DESKTOP-SHJ77EM\\.nuget\\packages\\",
-      "outputPath": "c:\\Code\\HTCommander\\HTCommander.setup\\obj\\",
+      "outputPath": "C:\\Code\\HTCommander\\HTCommander.setup\\obj\\",
       "projectStyle": "PackageReference",
       "UsingMicrosoftNETSdk": false,
       "fallbackFolders": [
