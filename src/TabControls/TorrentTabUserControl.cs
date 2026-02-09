@@ -480,12 +480,13 @@ namespace HTCommander.Controls
                 if (lockState != null && lockState.IsLocked && lockState.Usage == "Torrent")
                 {
                     // Deactivate - unlock the radio
-                    broker.Dispatch(radioId, "SetUnlock", null, store: false);
+                    broker.Dispatch(radioId, "SetUnlock", new SetUnlockData { Usage = "Torrent" }, store: false);
                 }
                 else if (lockState == null || !lockState.IsLocked)
                 {
-                    // Activate - lock the radio to Torrent usage
-                    broker.Dispatch(radioId, "SetLock", "Torrent", store: false);
+                    // Activate - lock the radio to Torrent usage with current channel/region
+                    // Pass -1 for RegionId and ChannelId to use current values
+                    broker.Dispatch(radioId, "SetLock", new SetLockData { Usage = "Torrent", RegionId = -1, ChannelId = -1 }, store: false);
                 }
             }
             // TODO: Handle multi-radio cases

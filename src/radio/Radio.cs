@@ -373,28 +373,32 @@ namespace HTCommander
             savedScan = Settings.scan;
             savedDualWatch = Settings.double_channel;
 
+            // Use current region/channel if -1 is passed
+            int targetRegionId = lockData.RegionId >= 0 ? lockData.RegionId : HtStatus.curr_region;
+            int targetChannelId = lockData.ChannelId >= 0 ? lockData.ChannelId : Settings.channel_a;
+
             // Create and store the lock state
             lockState = new RadioLockState
             {
                 IsLocked = true,
                 Usage = lockData.Usage,
-                RegionId = lockData.RegionId,
-                ChannelId = lockData.ChannelId
+                RegionId = targetRegionId,
+                ChannelId = targetChannelId
             };
 
             // Dispatch that we are now in locked state
             broker.Dispatch(DeviceId, "LockState", lockState, store: true);
-            Debug($"Radio locked for usage '{lockData.Usage}' - Region: {lockData.RegionId}, Channel: {lockData.ChannelId}");
+            Debug($"Radio locked for usage '{lockData.Usage}' - Region: {targetRegionId}, Channel: {targetChannelId}");
 
             // Apply lock settings: disable scanning and dual-watch, change channel
             // First, change region if different
-            if (lockData.RegionId != HtStatus.curr_region)
+            if (targetRegionId != HtStatus.curr_region)
             {
-                SetRegion(lockData.RegionId);
+                SetRegion(targetRegionId);
             }
 
             // Then write settings with scan disabled, dual-watch disabled, and new channel
-            WriteSettings(Settings.ToByteArray(lockData.ChannelId, Settings.channel_b, 0, false, Settings.squelch_level));
+            WriteSettings(Settings.ToByteArray(targetChannelId, Settings.channel_b, 0, false, Settings.squelch_level));
         }
 
         /// <summary>

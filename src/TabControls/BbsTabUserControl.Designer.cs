@@ -36,6 +36,7 @@ namespace HTCommander.Controls
             System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Generic Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("APRS Stations", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Terminal Stations", System.Windows.Forms.HorizontalAlignment.Left);
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(BbsTabUserControl));
             bbsSplitContainer = new System.Windows.Forms.SplitContainer();
             bbsListView = new System.Windows.Forms.ListView();
             columnHeader10 = new System.Windows.Forms.ColumnHeader();
@@ -65,8 +66,8 @@ namespace HTCommander.Controls
             // bbsSplitContainer
             // 
             bbsSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            bbsSplitContainer.Location = new System.Drawing.Point(0, 46);
-            bbsSplitContainer.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            bbsSplitContainer.Location = new System.Drawing.Point(0, 34);
+            bbsSplitContainer.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             bbsSplitContainer.Name = "bbsSplitContainer";
             bbsSplitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -77,9 +78,8 @@ namespace HTCommander.Controls
             // bbsSplitContainer.Panel2
             // 
             bbsSplitContainer.Panel2.Controls.Add(bbsTextBox);
-            bbsSplitContainer.Size = new System.Drawing.Size(669, 446);
-            bbsSplitContainer.SplitterDistance = 79;
-            bbsSplitContainer.SplitterWidth = 6;
+            bbsSplitContainer.Size = new System.Drawing.Size(585, 335);
+            bbsSplitContainer.SplitterDistance = 59;
             bbsSplitContainer.TabIndex = 7;
             // 
             // bbsListView
@@ -97,9 +97,9 @@ namespace HTCommander.Controls
             bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] { listViewGroup1, listViewGroup2, listViewGroup3 });
             bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             bbsListView.Location = new System.Drawing.Point(0, 0);
-            bbsListView.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            bbsListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             bbsListView.Name = "bbsListView";
-            bbsListView.Size = new System.Drawing.Size(669, 79);
+            bbsListView.Size = new System.Drawing.Size(585, 59);
             bbsListView.SmallImageList = mainImageList;
             bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             bbsListView.TabIndex = 6;
@@ -125,8 +125,9 @@ namespace HTCommander.Controls
             // mainImageList
             // 
             mainImageList.ColorDepth = System.Windows.Forms.ColorDepth.Depth32Bit;
-            mainImageList.ImageSize = new System.Drawing.Size(16, 16);
+            mainImageList.ImageStream = (System.Windows.Forms.ImageListStreamer)resources.GetObject("mainImageList.ImageStream");
             mainImageList.TransparentColor = System.Drawing.Color.Transparent;
+            mainImageList.Images.SetKeyName(0, "talking.ico");
             // 
             // bbsTextBox
             // 
@@ -136,10 +137,10 @@ namespace HTCommander.Controls
             bbsTextBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold);
             bbsTextBox.ForeColor = System.Drawing.Color.Gainsboro;
             bbsTextBox.Location = new System.Drawing.Point(0, 0);
-            bbsTextBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            bbsTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             bbsTextBox.Name = "bbsTextBox";
             bbsTextBox.ReadOnly = true;
-            bbsTextBox.Size = new System.Drawing.Size(669, 361);
+            bbsTextBox.Size = new System.Drawing.Size(585, 272);
             bbsTextBox.TabIndex = 5;
             bbsTextBox.Text = "";
             // 
@@ -151,19 +152,19 @@ namespace HTCommander.Controls
             bbsTopPanel.Controls.Add(bbsTitleLabel);
             bbsTopPanel.Dock = System.Windows.Forms.DockStyle.Top;
             bbsTopPanel.Location = new System.Drawing.Point(0, 0);
-            bbsTopPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            bbsTopPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             bbsTopPanel.Name = "bbsTopPanel";
-            bbsTopPanel.Size = new System.Drawing.Size(669, 46);
+            bbsTopPanel.Size = new System.Drawing.Size(585, 34);
             bbsTopPanel.TabIndex = 5;
             // 
             // bbsMenuPictureBox
             // 
             bbsMenuPictureBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             bbsMenuPictureBox.Image = Properties.Resources.MenuIcon;
-            bbsMenuPictureBox.Location = new System.Drawing.Point(637, 8);
-            bbsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            bbsMenuPictureBox.Location = new System.Drawing.Point(557, 6);
+            bbsMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             bbsMenuPictureBox.Name = "bbsMenuPictureBox";
-            bbsMenuPictureBox.Size = new System.Drawing.Size(27, 31);
+            bbsMenuPictureBox.Size = new System.Drawing.Size(24, 23);
             bbsMenuPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             bbsMenuPictureBox.TabIndex = 4;
             bbsMenuPictureBox.TabStop = false;
@@ -172,10 +173,10 @@ namespace HTCommander.Controls
             // bbsConnectButton
             // 
             bbsConnectButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            bbsConnectButton.Location = new System.Drawing.Point(527, 5);
-            bbsConnectButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            bbsConnectButton.Location = new System.Drawing.Point(461, 4);
+            bbsConnectButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             bbsConnectButton.Name = "bbsConnectButton";
-            bbsConnectButton.Size = new System.Drawing.Size(100, 35);
+            bbsConnectButton.Size = new System.Drawing.Size(88, 26);
             bbsConnectButton.TabIndex = 2;
             bbsConnectButton.Text = "&Activate";
             bbsConnectButton.UseVisualStyleBackColor = true;
@@ -186,10 +187,10 @@ namespace HTCommander.Controls
             bbsTitleLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
             bbsTitleLabel.AutoSize = true;
             bbsTitleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
-            bbsTitleLabel.Location = new System.Drawing.Point(7, 8);
+            bbsTitleLabel.Location = new System.Drawing.Point(6, 6);
             bbsTitleLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             bbsTitleLabel.Name = "bbsTitleLabel";
-            bbsTitleLabel.Size = new System.Drawing.Size(52, 25);
+            bbsTitleLabel.Size = new System.Drawing.Size(42, 20);
             bbsTitleLabel.TabIndex = 0;
             bbsTitleLabel.Text = "BBS";
             // 
@@ -198,7 +199,7 @@ namespace HTCommander.Controls
             bbsTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             bbsTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { viewTrafficToolStripMenuItem, toolStripMenuItem11, clearStatsToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
             bbsTabContextMenuStrip.Name = "debugTabContextMenuStrip";
-            bbsTabContextMenuStrip.Size = new System.Drawing.Size(156, 94);
+            bbsTabContextMenuStrip.Size = new System.Drawing.Size(136, 82);
             // 
             // viewTrafficToolStripMenuItem
             // 
@@ -206,45 +207,44 @@ namespace HTCommander.Controls
             viewTrafficToolStripMenuItem.CheckOnClick = true;
             viewTrafficToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             viewTrafficToolStripMenuItem.Name = "viewTrafficToolStripMenuItem";
-            viewTrafficToolStripMenuItem.Size = new System.Drawing.Size(155, 26);
+            viewTrafficToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
             viewTrafficToolStripMenuItem.Text = "&View Traffic";
             viewTrafficToolStripMenuItem.Click += viewTrafficToolStripMenuItem_Click;
             // 
             // toolStripMenuItem11
             // 
             toolStripMenuItem11.Name = "toolStripMenuItem11";
-            toolStripMenuItem11.Size = new System.Drawing.Size(152, 6);
+            toolStripMenuItem11.Size = new System.Drawing.Size(132, 6);
             // 
             // clearStatsToolStripMenuItem
             // 
             clearStatsToolStripMenuItem.Name = "clearStatsToolStripMenuItem";
-            clearStatsToolStripMenuItem.Size = new System.Drawing.Size(155, 26);
+            clearStatsToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
             clearStatsToolStripMenuItem.Text = "&Clear Stats";
             clearStatsToolStripMenuItem.Click += clearStatsToolStripMenuItem_Click;
             // 
             // toolStripMenuItemDetachSeparator
             // 
             toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
-            toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(152, 6);
+            toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(132, 6);
             toolStripMenuItemDetachSeparator.Visible = false;
             // 
             // detachToolStripMenuItem
             // 
             detachToolStripMenuItem.Name = "detachToolStripMenuItem";
-            detachToolStripMenuItem.Size = new System.Drawing.Size(155, 26);
+            detachToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
             detachToolStripMenuItem.Text = "Detach...";
             detachToolStripMenuItem.Visible = false;
             detachToolStripMenuItem.Click += detachToolStripMenuItem_Click;
             // 
             // BbsTabUserControl
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             Controls.Add(bbsSplitContainer);
             Controls.Add(bbsTopPanel);
-            Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             Name = "BbsTabUserControl";
-            Size = new System.Drawing.Size(669, 492);
+            Size = new System.Drawing.Size(585, 369);
             bbsSplitContainer.Panel1.ResumeLayout(false);
             bbsSplitContainer.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)bbsSplitContainer).EndInit();

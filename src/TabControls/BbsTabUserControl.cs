@@ -7,6 +7,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 using System;
 using System.Text;
 using System.Drawing;
+using System.Reflection;
 using System.Windows.Forms;
 using System.Collections.Generic;
 using HTCommander.Dialogs;
@@ -64,6 +65,19 @@ namespace HTCommander.Controls
             // Set initial button state (disabled until we know radio state)
             bbsConnectButton.Text = "&Activate";
             bbsConnectButton.Enabled = false;
+
+            // Enable double buffering on the ListView to prevent flickering
+            EnableDoubleBuffering(bbsListView);
+        }
+
+        /// <summary>
+        /// Enables double buffering on a ListView control to prevent flickering during updates.
+        /// </summary>
+        private void EnableDoubleBuffering(ListView listView)
+        {
+            // Use reflection to set the protected DoubleBuffered property
+            PropertyInfo prop = typeof(ListView).GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic);
+            prop?.SetValue(listView, true, null);
         }
 
         #region Radio State Management
@@ -264,47 +278,57 @@ namespace HTCommander.Controls
         /// </summary>
         private void UpdateMergedStats(List<MergedStationStats> statsList)
         {
-            // Build a dictionary of existing items by callsign for efficient lookup
-            Dictionary<string, ListViewItem> existingItems = new Dictionary<string, ListViewItem>(StringComparer.OrdinalIgnoreCase);
-            foreach (ListViewItem item in bbsListView.Items)
+            // Suspend drawing to prevent flickering during batch updates
+            bbsListView.BeginUpdate();
+            try
             {
-                if (item.Tag is string callsign)
+                // Build a dictionary of existing items by callsign for efficient lookup
+                Dictionary<string, ListViewItem> existingItems = new Dictionary<string, ListViewItem>(StringComparer.OrdinalIgnoreCase);
+                foreach (ListViewItem item in bbsListView.Items)
                 {
-                    existingItems[callsign] = item;
+                    if (item.Tag is string callsign)
+                    {
+                        existingItems[callsign] = item;
+                    }
+                }
+
+                // Track which callsigns are still present
+                HashSet<string> presentCallsigns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var stats in statsList)
+                {
+                    presentCallsigns.Add(stats.Callsign);
+
+                    if (existingItems.TryGetValue(stats.Callsign, out ListViewItem existingItem))
+                    {
+                        // Update existing item
+                        existingItem.SubItems[1].Text = stats.LastSeen.ToString();
+                        existingItem.SubItems[2].Text = FormatStatsDetails(stats);
+                    }
+                    else
+                    {
+                        // Create new item
+                        ListViewItem newItem = new ListViewItem(new string[] { stats.Callsign, stats.LastSeen.ToString(), FormatStatsDetails(stats) });
+                        newItem.ImageIndex = 0;
+                        newItem.Tag = stats.Callsign;
+                        bbsListView.Items.Add(newItem);
+                    }
+                }
+
+                // Remove items that are no longer in the stats list
+                for (int i = bbsListView.Items.Count - 1; i >= 0; i--)
+                {
+                    ListViewItem item = bbsListView.Items[i];
+                    if (item.Tag is string callsign && !presentCallsigns.Contains(callsign))
+                    {
+                        bbsListView.Items.RemoveAt(i);
+                    }
                 }
             }
-
-            // Track which callsigns are still present
-            HashSet<string> presentCallsigns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var stats in statsList)
+            finally
             {
-                presentCallsigns.Add(stats.Callsign);
-
-                if (existingItems.TryGetValue(stats.Callsign, out ListViewItem existingItem))
-                {
-                    // Update existing item
-                    existingItem.SubItems[1].Text = stats.LastSeen.ToString();
-                    existingItem.SubItems[2].Text = FormatStatsDetails(stats);
-                }
-                else
-                {
-                    // Create new item
-                    ListViewItem newItem = new ListViewItem(new string[] { stats.Callsign, stats.LastSeen.ToString(), FormatStatsDetails(stats) });
-                    newItem.ImageIndex = 7;
-                    newItem.Tag = stats.Callsign;
-                    bbsListView.Items.Add(newItem);
-                }
-            }
-
-            // Remove items that are no longer in the stats list
-            for (int i = bbsListView.Items.Count - 1; i >= 0; i--)
-            {
-                ListViewItem item = bbsListView.Items[i];
-                if (item.Tag is string callsign && !presentCallsigns.Contains(callsign))
-                {
-                    bbsListView.Items.RemoveAt(i);
-                }
+                // Resume drawing
+                bbsListView.EndUpdate();
             }
         }
 
