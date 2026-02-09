@@ -51,6 +51,7 @@ namespace HTCommander
             PublishFilesUpdate();
             PublishStationsUpdate();
             SaveTorrentState();
+            UpdateAdvertised();
         }
 
         public void Dispose()
