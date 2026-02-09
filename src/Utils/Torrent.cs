@@ -317,7 +317,7 @@ namespace HTCommander
             
             // Convert to AX25Packet for processing
             List<AX25Address> addresses = new List<AX25Address>();
-            AX25Packet packet = new AX25Packet(addresses, frame.data, frame.time);
+            AX25Packet packet = AX25Packet.DecodeAX25Packet(frame);
             ProcessFrame(frame, packet);
         }
 
