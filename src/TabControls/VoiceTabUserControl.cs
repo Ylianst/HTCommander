@@ -14,6 +14,16 @@ using HTCommander.Dialogs;
 
 namespace HTCommander.Controls
 {
+    /// <summary>
+    /// Enum representing the available voice transmission modes.
+    /// </summary>
+    public enum VoiceTransmitMode
+    {
+        Chat,
+        Speak,
+        Morse
+    }
+
     public partial class VoiceTabUserControl : UserControl
     {
         private DataBrokerClient broker;
@@ -21,6 +31,9 @@ namespace HTCommander.Controls
         private bool _isListening = false;
         private bool _isProcessing = false;
         private bool _isTransmitting = false;
+
+        // Current voice transmit mode
+        private VoiceTransmitMode _currentMode = VoiceTransmitMode.Chat;
 
         // Voice handler state tracking
         private List<ConnectedRadioInfo> _connectedRadios = new List<ConnectedRadioInfo>();
@@ -374,13 +387,25 @@ namespace HTCommander.Controls
         public Label VoiceProcessingLabel => voiceProcessingLabel;
         public Panel VoiceBottomPanel => voiceBottomPanel;
 
-        public bool IsSpeakMode => speakToolStripMenuItem.Checked;
+        /// <summary>
+        /// Gets the current voice transmit mode.
+        /// </summary>
+        public VoiceTransmitMode CurrentMode => _currentMode;
 
-        public void SetSpeakMode(bool speakMode)
+        /// <summary>
+        /// Sets the current voice transmit mode and updates UI accordingly.
+        /// </summary>
+        public void SetMode(VoiceTransmitMode mode)
         {
-            speakToolStripMenuItem.Checked = speakMode;
-            morseToolStripMenuItem.Checked = !speakMode;
-            speakButton.Text = speakMode ? "&Speak" : "&Morse";
+            _currentMode = mode;
+
+            // Update menu item checked states
+            chatToolStripMenuItem.Checked = (mode == VoiceTransmitMode.Chat);
+            speakToolStripMenuItem.Checked = (mode == VoiceTransmitMode.Speak);
+            morseToolStripMenuItem.Checked = (mode == VoiceTransmitMode.Morse);
+
+            // Update button text to reflect current mode
+            speakButton.Text = "&" + mode.ToString();
         }
 
         private void voiceEnableButton_Click(object sender, EventArgs e)
@@ -406,24 +431,30 @@ namespace HTCommander.Controls
 
         private void speakButton_Click(object sender, EventArgs e)
         {
-            // Send speak request to transmit text as voice
+            // Send request based on current mode
             if (string.IsNullOrWhiteSpace(speakTextBox.Text)) return;
             if (!_voiceHandlerEnabled) return; // Voice must be enabled (button should already be disabled)
 
             string text = speakTextBox.Text.Trim();
-            bool isMorseMode = !IsSpeakMode;
 
-            if (isMorseMode)
+            switch (_currentMode)
             {
-                // Morse mode - dispatch MorseRequest to device 1 (uses voice-enabled radio)
-                broker?.Dispatch(1, "Morse", text, store: false);
+                case VoiceTransmitMode.Chat:
+                    // Chat mode - dispatch Chat command to device 1
+                    broker?.Dispatch(1, "Chat", text, store: false);
+                    break;
+
+                case VoiceTransmitMode.Speak:
+                    // Speak mode - dispatch Speak command to device 1 (VoiceHandler routes to voice-enabled radio)
+                    broker?.Dispatch(1, "Speak", text, store: false);
+                    break;
+
+                case VoiceTransmitMode.Morse:
+                    // Morse mode - dispatch Morse command to device 1 (uses voice-enabled radio)
+                    broker?.Dispatch(1, "Morse", text, store: false);
+                    break;
             }
-            else
-            {
-                // Speak mode - dispatch Speak command to device 1 (VoiceHandler routes to voice-enabled radio)
-                broker?.Dispatch(1, "Speak", text, store: false);
-            }
-            
+
             speakTextBox.Clear();
         }
 
@@ -450,14 +481,19 @@ namespace HTCommander.Controls
             }
         }
 
+        private void chatToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            SetMode(VoiceTransmitMode.Chat);
+        }
+
         private void speakToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            SetSpeakMode(true);
+            SetMode(VoiceTransmitMode.Speak);
         }
 
         private void morseToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            SetSpeakMode(false);
+            SetMode(VoiceTransmitMode.Morse);
         }
 
         private void cancelVoiceButton_Click(object sender, EventArgs e)
@@ -503,7 +539,7 @@ namespace HTCommander.Controls
         private void LoadDecodedTextHistory()
         {
             var history = broker.GetValue<List<HTCommander.DecodedTextEntry>>(1, "DecodedTextHistory", null);
-            
+
             // Populate the voice history text box with existing entries using the same formatting
             if (history != null && history.Count > 0)
             {
@@ -898,5 +934,6 @@ namespace HTCommander.Controls
         }
 
         #endregion
+
     }
 }

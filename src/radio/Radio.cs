@@ -324,21 +324,44 @@ namespace HTCommander
         }
 
         /// <summary>
-        /// Handles TransmitDataFrame event from the broker (for transmitting AX.25 packets).
+        /// Handles TransmitDataFrame event from the broker (for transmitting AX.25 or BSS packets).
         /// </summary>
         private void OnTransmitDataFrameEvent(int deviceId, string name, object data)
         {
             if (deviceId != DeviceId) return;
             if (!(data is TransmitDataFrameData txData)) return;
 
-            // Set the channel ID on the packet if provided
-            if (txData.ChannelId >= 0)
+            byte[] outboundData;
+            string channelName;
+            string tag = null;
+            DateTime deadline = DateTime.MaxValue;
+
+            if (txData.Packet != null)
             {
-                txData.Packet.channel_id = txData.ChannelId;
+                // Handle AX.25 packet
+                if (txData.ChannelId >= 0)
+                {
+                    txData.Packet.channel_id = txData.ChannelId;
+                }
+                outboundData = txData.Packet.ToByteArray();
+                channelName = txData.Packet.channel_name;
+                tag = txData.Packet.tag;
+                deadline = txData.Packet.deadline;
+            }
+            else if (txData.BSSPacket != null)
+            {
+                // Handle BSS packet
+                outboundData = txData.BSSPacket.Encode();
+                channelName = null; // BSS packets don't have a channel name property
+            }
+            else
+            {
+                // No packet provided
+                return;
             }
 
             // Transmit the packet
-            TransmitTncData(txData.Packet, txData.ChannelId, txData.RegionId);
+            TransmitTncData(outboundData, channelName, txData.ChannelId, txData.RegionId, tag, deadline);
         }
 
         /// <summary>
@@ -801,14 +824,23 @@ namespace HTCommander
 
         #region Data Transmission
 
-        public int TransmitTncData(AX25Packet packet, int channelId = -1, int regionId = -1)
+        public int TransmitTncData(byte[] outboundData, string channel_name, int channelId = -1, int regionId = -1, string tag = null, DateTime? deadline = null)
         {
             if (AllowTransmit == false) return 0; // Make sure not to transmit if not allowed
-            byte[] outboundData = packet.ToByteArray();
             if (outboundData == null) return 0;
 
+            // Fill in channel and region from current VFO A settings if not specified
+            if (channelId == -1 && Settings != null) { channelId = Settings.channel_a; }
+            if (regionId == -1 && HtStatus != null) { regionId = HtStatus.curr_region; }
+            
+            // Fill in channel name from Channels array if not specified but we have a valid channel ID
+            if (string.IsNullOrEmpty(channel_name) && channelId >= 0 && Channels != null && channelId < Channels.Length && Channels[channelId] != null)
+            {
+                channel_name = Channels[channelId].name_str;
+            }
+
             DateTime t = DateTime.Now;
-            string fragmentChannelName = GetFragmentChannelName(channelId, packet.channel_name);
+            string fragmentChannelName = GetFragmentChannelName(channelId, channel_name);
             TncDataFragment fragment = CreateOutboundFragment(outboundData, channelId, regionId, t, fragmentChannelName);
 
             if (LoopbackMode)
@@ -821,7 +853,7 @@ namespace HTCommander
             }
             else if (HardwareModemEnabled)
             {
-                TransmitHardwareModem(fragment, outboundData, channelId, regionId, packet);
+                TransmitHardwareModem(fragment, outboundData, channelId, regionId, tag, deadline ?? DateTime.MaxValue);
             }
 
             return outboundData.Length;
@@ -894,7 +926,7 @@ namespace HTCommander
             broker.Dispatch(DeviceId, "SoftModemTransmitPacket", fragment, store: false);
         }
 
-        private void TransmitHardwareModem(TncDataFragment fragment, byte[] outboundData, int channelId, int regionId, AX25Packet packet)
+        private void TransmitHardwareModem(TncDataFragment fragment, byte[] outboundData, int channelId, int regionId, string tag, DateTime deadline)
         {
             fragment.encoding = TncDataFragment.FragmentEncodingType.HardwareAfsk1200;
             fragment.frame_type = TncDataFragment.FragmentFrameType.AX25;
@@ -912,8 +944,8 @@ namespace HTCommander
                 var tncFragment = new TncDataFragment(isLast, fragid, fragmentData, channelId, regionId);
                 var fragmentInQueue = new FragmentInQueue(tncFragment.toByteArray(), isLast, fragid)
                 {
-                    tag = packet.tag,
-                    deadline = packet.deadline
+                    tag = tag,
+                    deadline = deadline
                 };
                 TncFragmentQueue.Add(fragmentInQueue);
 
@@ -1460,6 +1492,11 @@ namespace HTCommander
         /// The AX.25 packet to transmit.
         /// </summary>
         public AX25Packet Packet { get; set; }
+
+        /// <summary>
+        /// The BSS packet to transmit.
+        /// </summary>
+        public BSSPacket BSSPacket { get; set; }
 
         /// <summary>
         /// The channel ID to transmit on. Use -1 to use the current channel.

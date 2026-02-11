@@ -517,7 +517,12 @@ namespace HTCommander.Controls
                 foreach (var item in decodedMessage)
                 {
                     if (item.Key == 0x20) { addPacketDecodeLine(7, "Callsign", UTF8Encoding.UTF8.GetString(item.Value)); }
+                    else if (item.Key == 0x21) { addPacketDecodeLine(7, "Destination", UTF8Encoding.UTF8.GetString(item.Value)); }
                     else if (item.Key == 0x24) { addPacketDecodeLine(7, "Message", UTF8Encoding.UTF8.GetString(item.Value)); }
+                    else if (item.Key == 0x25) {
+                        addPacketDecodeLine(7, "Location HEX", Utils.BytesToHex(item.Value));
+                        addPacketDecodeLine(7, "Location", GpsLocation.DecodeGpsBytes(item.Value).ToString());
+                    }
                     else addPacketDecodeLine(7, $"Key: {item.Key}", Utils.BytesToHex(item.Value));
                 }
             }

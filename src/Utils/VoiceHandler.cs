@@ -22,7 +22,9 @@ namespace HTCommander
     {
         Voice,
         Morse,
-        VoiceClip
+        VoiceClip,
+        AX25,
+        BSS
     }
 
     /// <summary>
@@ -135,6 +137,13 @@ namespace HTCommander
             // Subscribe to Voice setting changes (device 0 stores global settings)
             broker.Subscribe(0, "Voice", OnVoiceChanged);
 
+            // Subscribe to UniqueDataFrame events from all devices for AX.25 packet logging
+            broker.Subscribe(DataBroker.AllDevices, "UniqueDataFrame", OnUniqueDataFrame);
+
+            // Subscribe to Chat command from all devices for BSS chat message transmission
+            // Similar to Speak: device 1 uses voice-enabled radio, device 100+ uses that device directly
+            broker.Subscribe(DataBroker.AllDevices, "Chat", OnChat);
+
             // Initialize text-to-speech synthesizer
             InitializeTextToSpeech();
 
@@ -180,6 +189,128 @@ namespace HTCommander
                 broker.LogError($"[VoiceHandler] Failed to initialize Text-to-Speech: {ex.Message}");
                 _ttsAvailable = false;
             }
+        }
+
+        /// <summary>
+        /// Handles incoming UniqueDataFrame events and processes unassigned AX.25 packets.
+        /// Creates DecodedTextEntry for packets with no usage, not on APRS channel, and of type U_FRAME_UI or U_FRAME.
+        /// </summary>
+        private void OnUniqueDataFrame(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+            if (!(data is TncDataFragment frame)) return;
+
+            // Only process frames with null or empty usage (unassigned packets)
+            if (!string.IsNullOrEmpty(frame.usage)) return;
+
+            // Skip frames from the APRS channel
+            if (frame.channel_name == "APRS") return;
+
+            BSSPacket bssPacket = BSSPacket.Decode(frame.data);
+            if (bssPacket != null)
+            {
+                // Only add to history if this is an incoming BSS packet
+                // Outgoing BSS packets are already recorded by OnChat()
+                if (!frame.incoming) return;
+
+                // Don't create entry if message is empty
+                if (string.IsNullOrEmpty(bssPacket.Message)) return;
+
+                // Create a DecodedTextEntry for the BSS packet
+                string bssText = $"{bssPacket.Callsign}: {bssPacket.Message}";
+                if (bssPacket.Destination != null)
+                {
+                    bssText = $"{bssPacket.Callsign} > {bssPacket.Destination}: {bssPacket.Message}";
+                }
+                if (!string.IsNullOrEmpty(bssText))
+                {
+                    lock (_historyLock)
+                    {
+                        var entry = new DecodedTextEntry
+                        {
+                            Text = bssText,
+                            Channel = frame.channel_name ?? "",
+                            Time = frame.time,
+                            IsReceived = frame.incoming,
+                            Encoding = VoiceTextEncodingType.BSS
+                        };
+                        _decodedTextHistory.Add(entry);
+
+                        // Trim if exceeds max size
+                        while (_decodedTextHistory.Count > MaxHistorySize)
+                        {
+                            _decodedTextHistory.RemoveAt(0);
+                        }
+                    }
+
+                    // Save to file and dispatch updated history
+                    SaveVoiceTextHistory();
+                    DispatchDecodedTextHistory();
+
+                    // Dispatch a TextReady event for the BSS packet
+                    DispatchTextReady(bssText, frame.channel_name ?? "", frame.time, true, frame.incoming, VoiceTextEncodingType.BSS);
+                }
+
+                return;
+            }
+
+            // Decode the frame as AX.25
+            AX25Packet ax25Packet = AX25Packet.DecodeAX25Packet(frame);
+            if (ax25Packet == null) return;
+
+            // Only process U_FRAME_UI or U_FRAME (unnumbered information frames)
+            if (ax25Packet.type != AX25Packet.FrameType.U_FRAME_UI && ax25Packet.type != AX25Packet.FrameType.U_FRAME) return;
+
+            // Extract source and destination from the AX.25 packet
+            if (ax25Packet.addresses == null || ax25Packet.addresses.Count < 2) return;
+
+            string destination = ax25Packet.addresses[0].CallSignWithId;
+            string source = ax25Packet.addresses[1].CallSignWithId;
+
+            // Get the message/data content
+            string messageText = ax25Packet.dataStr;
+            if (string.IsNullOrEmpty(messageText) && ax25Packet.data != null && ax25Packet.data.Length > 0)
+            {
+                // Try to convert binary data to string if dataStr is empty
+                try
+                {
+                    messageText = System.Text.Encoding.ASCII.GetString(ax25Packet.data);
+                }
+                catch
+                {
+                    messageText = "[Binary data]";
+                }
+            }
+
+            // Format the text as: "Source > Destination: Message"
+            string formattedText = $"{source} > {destination}: {messageText ?? ""}";
+
+            // Add to history as a received AX.25 entry
+            lock (_historyLock)
+            {
+                var entry = new DecodedTextEntry
+                {
+                    Text = formattedText,
+                    Channel = frame.channel_name ?? "",
+                    Time = frame.time,
+                    IsReceived = true,
+                    Encoding = VoiceTextEncodingType.AX25
+                };
+                _decodedTextHistory.Add(entry);
+
+                // Trim if exceeds max size
+                while (_decodedTextHistory.Count > MaxHistorySize)
+                {
+                    _decodedTextHistory.RemoveAt(0);
+                }
+            }
+
+            // Save to file and dispatch updated history
+            SaveVoiceTextHistory();
+            DispatchDecodedTextHistory();
+
+            // Dispatch a TextReady event for the AX.25 packet
+            DispatchTextReady(formattedText, frame.channel_name ?? "", frame.time, true, true, VoiceTextEncodingType.AX25);
         }
 
         /// <summary>
@@ -422,6 +553,91 @@ namespace HTCommander
             catch (Exception ex)
             {
                 broker.LogError($"[VoiceHandler] Error generating morse code: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handles the Chat command to transmit a BSS chat message.
+        /// If received on device 1, use the currently voice-enabled radio (_targetDeviceId).
+        /// If received on device 100+, use that device ID directly for transmission.
+        /// Expected data: string (the message to send)
+        /// </summary>
+        private void OnChat(int deviceId, string name, object data)
+        {
+            if (data == null) return;
+            
+            string message = data as string;
+            if (string.IsNullOrEmpty(message)) return;
+            
+            // Validate message length (must be > 0 and < 255 characters)
+            if (message.Length == 0 || message.Length >= 255)
+            {
+                broker.LogError($"[VoiceHandler] Cannot send chat: Message length must be between 1 and 254 characters (got {message.Length})");
+                return;
+            }
+            
+            // Determine the target device for transmission
+            int transmitDeviceId;
+            if (deviceId == 1)
+            {
+                // Device 1: use the currently voice-enabled radio
+                transmitDeviceId = _targetDeviceId;
+                if (transmitDeviceId <= 0)
+                {
+                    broker.LogError("[VoiceHandler] Cannot send chat: No radio is voice-enabled");
+                    return;
+                }
+            }
+            else if (deviceId >= 100)
+            {
+                // Device 100+: use that device ID directly
+                transmitDeviceId = deviceId;
+            }
+            else
+            {
+                // Other device IDs (2-99): ignore
+                return;
+            }
+            
+            try
+            {
+                // Get our callsign from settings (without station ID)
+                string callsign = broker.GetValue<string>(0, "CallSign", "");
+                if (string.IsNullOrEmpty(callsign))
+                {
+                    broker.LogError("[VoiceHandler] Cannot send chat: Callsign not configured");
+                    return;
+                }
+                
+                // Get the VFO A channel name for history
+                string channelName = GetVfoAChannelName(transmitDeviceId);
+                
+                broker.LogInfo($"[VoiceHandler] Sending chat on device {transmitDeviceId}: {callsign}: {message}");
+                
+                // Create a BSS packet with callsign and message
+                BSSPacket bssPacket = new BSSPacket(callsign, null, message);
+                byte[] bssData = bssPacket.Encode();
+                
+                // Don't create entry if message is empty
+                if (string.IsNullOrEmpty(message)) return;
+
+                // Add to history as a transmitted BSS entry (just the message text)
+                AddTransmittedTextToHistory(message, channelName, VoiceTextEncodingType.BSS);
+                
+                // Create TransmitDataFrameData and dispatch to the radio
+                var txData = new TransmitDataFrameData
+                {
+                    BSSPacket = bssPacket,
+                    ChannelId = -1, // Use current channel
+                    RegionId = -1
+                };
+                
+                broker.Dispatch(transmitDeviceId, "TransmitDataFrame", txData, store: false);
+                broker.LogInfo($"[VoiceHandler] Transmitted BSS chat packet to device {transmitDeviceId}");
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[VoiceHandler] Error sending chat: {ex.Message}");
             }
         }
 

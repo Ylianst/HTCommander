@@ -53,6 +53,7 @@ namespace HTCommander.Controls
             clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
             detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            chatToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             voiceBottomPanel.SuspendLayout();
             speakContextMenuStrip.SuspendLayout();
             voiceTopPanel.SuspendLayout();
@@ -122,30 +123,28 @@ namespace HTCommander.Controls
             speakButton.Name = "speakButton";
             speakButton.Size = new System.Drawing.Size(100, 41);
             speakButton.TabIndex = 0;
-            speakButton.Text = "&Speak";
+            speakButton.Text = "&Chat";
             speakButton.UseVisualStyleBackColor = true;
             speakButton.Click += speakButton_Click;
             // 
             // speakContextMenuStrip
             // 
             speakContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            speakContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { speakToolStripMenuItem, morseToolStripMenuItem });
+            speakContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { chatToolStripMenuItem, speakToolStripMenuItem, morseToolStripMenuItem });
             speakContextMenuStrip.Name = "speakContextMenuStrip";
-            speakContextMenuStrip.Size = new System.Drawing.Size(120, 56);
+            speakContextMenuStrip.Size = new System.Drawing.Size(211, 110);
             // 
             // speakToolStripMenuItem
             // 
-            speakToolStripMenuItem.Checked = true;
-            speakToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             speakToolStripMenuItem.Name = "speakToolStripMenuItem";
-            speakToolStripMenuItem.Size = new System.Drawing.Size(119, 26);
+            speakToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
             speakToolStripMenuItem.Text = "&Speak";
             speakToolStripMenuItem.Click += speakToolStripMenuItem_Click;
             // 
             // morseToolStripMenuItem
             // 
             morseToolStripMenuItem.Name = "morseToolStripMenuItem";
-            morseToolStripMenuItem.Size = new System.Drawing.Size(119, 26);
+            morseToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
             morseToolStripMenuItem.Text = "&Morse";
             morseToolStripMenuItem.Click += morseToolStripMenuItem_Click;
             // 
@@ -243,6 +242,15 @@ namespace HTCommander.Controls
             detachToolStripMenuItem.Visible = false;
             detachToolStripMenuItem.Click += detachToolStripMenuItem_Click;
             // 
+            // chatToolStripMenuItem
+            // 
+            chatToolStripMenuItem.Checked = true;
+            chatToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
+            chatToolStripMenuItem.Name = "chatToolStripMenuItem";
+            chatToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
+            chatToolStripMenuItem.Text = "&Chat";
+            chatToolStripMenuItem.Click += chatToolStripMenuItem_Click;
+            // 
             // VoiceTabUserControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
@@ -283,5 +291,6 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem clearHistoryToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
         private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem chatToolStripMenuItem;
     }
 }

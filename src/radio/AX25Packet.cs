@@ -94,28 +94,6 @@ namespace HTCommander
             byte[] data = frame.data;
             if ((data == null) || (data.Length < 6)) return null;
 
-            // This is an odd packet, not a AX.25 packet
-            if (data[0] == 1)
-            {
-                int callsignLen = data[1];
-                if (data.Length < (3 + callsignLen)) return null;
-                int controlLen = data[2 + callsignLen];
-                if (data.Length < (4 + callsignLen + controlLen)) return null;
-                int messageLen = data[3 + callsignLen + controlLen];
-                List<AX25Address> xaddresses = new List<AX25Address>();
-                xaddresses.Add(AX25Address.GetAddress(UTF8Encoding.Default.GetString(data, 3, callsignLen - 1), 0));
-                string xxdata = UTF8Encoding.Default.GetString(data, 5 + callsignLen + controlLen, messageLen - 1);
-                byte[] xxdata2 = new byte[messageLen - 1];
-                Array.Copy(data, 5 + callsignLen + controlLen, xxdata2, 0, messageLen - 1);
-                AX25Packet xpacket = new AX25Packet(xaddresses, xxdata, frame.time);
-                xpacket.data = xxdata2;
-                xpacket.channel_id = frame.channel_id;
-                xpacket.channel_name = frame.channel_name;
-                xpacket.incoming = frame.incoming;
-                xpacket.frame_size = data.Length;
-                return xpacket;
-            }
-
             // Decode the headers
             int i = 0;
             bool done = false;
@@ -312,7 +290,7 @@ namespace HTCommander
             U_FRAME_TEST = 3 | (1 << 5) | (1 << 6) | (1 << 7),                 // Test
             U_FRAME_MASK = 3 | (1 << 2) | (1 << 3) | (1 << 5) | (1 << 6) | (1 << 7),
             A_CRH = 0x80                                                       // C/R Bit Hardened (Control/Repeated bit in Repeater Path SSID) -  Value 128 (0x80) is a common assumption for this bit.
-    }
+        }
 
     public enum Defs : int
         {
