@@ -17,6 +17,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <GenerateDocumentationFile>False</GenerateDocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
