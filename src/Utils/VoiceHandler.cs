@@ -218,7 +218,7 @@ namespace HTCommander
 
                 // Create a DecodedTextEntry for the BSS packet
                 string bssText = $"{bssPacket.Callsign}: {bssPacket.Message}";
-                if (bssPacket.Destination != null)
+                if (!string.IsNullOrEmpty(bssPacket.Destination))
                 {
                     bssText = $"{bssPacket.Callsign} > {bssPacket.Destination}: {bssPacket.Message}";
                 }
