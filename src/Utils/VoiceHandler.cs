@@ -5,13 +5,12 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Speech.Synthesis;
 using System.Speech.AudioFormat;
+using System.Collections.Generic;
 using HTCommander.radio;
-using static HTCommander.radio.MorseCodeEngine;
 
 namespace HTCommander
 {

@@ -10,7 +10,7 @@ using aprsparser;
 
 namespace HTCommander
 {
-    public class ChatMessage
+    public class VoiceMessage
     {
         public string Route;
         public string SenderCallSign;
@@ -29,7 +29,7 @@ namespace HTCommander
         public double Longitude = 0;
         public AX25Packet.AuthState AuthState = AX25Packet.AuthState.Unknown;
 
-        public ChatMessage(string Route, string SenderCallSign, string Message, DateTime Time, bool Sender, int ImageIndex = -1)
+        public VoiceMessage(string Route, string SenderCallSign, string Message, DateTime Time, bool Sender, int ImageIndex = -1)
         {
             this.Route = Route;
             this.SenderCallSign = SenderCallSign;
