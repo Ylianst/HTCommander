@@ -36,12 +36,13 @@ namespace HTCommander.Controls
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(VoiceTabUserControl));
             cancelVoiceButton = new System.Windows.Forms.Button();
-            voiceHistoryTextBox = new System.Windows.Forms.RichTextBox();
             voiceBottomPanel = new System.Windows.Forms.Panel();
             speakTextBox = new System.Windows.Forms.TextBox();
             speakButton = new System.Windows.Forms.Button();
             speakContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            chatToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             speakToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             morseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             voiceTopPanel = new System.Windows.Forms.Panel();
@@ -53,7 +54,8 @@ namespace HTCommander.Controls
             clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
             detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            chatToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            voiceControl = new VoiceControl();
+            mainImageList = new System.Windows.Forms.ImageList(components);
             voiceBottomPanel.SuspendLayout();
             speakContextMenuStrip.SuspendLayout();
             voiceTopPanel.SuspendLayout();
@@ -68,24 +70,12 @@ namespace HTCommander.Controls
             cancelVoiceButton.Location = new System.Drawing.Point(9, 8);
             cancelVoiceButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             cancelVoiceButton.Name = "cancelVoiceButton";
-            cancelVoiceButton.Size = new System.Drawing.Size(548, 41);
+            cancelVoiceButton.Size = new System.Drawing.Size(544, 41);
             cancelVoiceButton.TabIndex = 6;
             cancelVoiceButton.Text = "Cancel";
             cancelVoiceButton.UseVisualStyleBackColor = true;
             cancelVoiceButton.Visible = false;
             cancelVoiceButton.Click += cancelVoiceButton_Click;
-            // 
-            // voiceHistoryTextBox
-            // 
-            voiceHistoryTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            voiceHistoryTextBox.Location = new System.Drawing.Point(0, 46);
-            voiceHistoryTextBox.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            voiceHistoryTextBox.Name = "voiceHistoryTextBox";
-            voiceHistoryTextBox.ReadOnly = true;
-            voiceHistoryTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.ForcedVertical;
-            voiceHistoryTextBox.Size = new System.Drawing.Size(669, 403);
-            voiceHistoryTextBox.TabIndex = 0;
-            voiceHistoryTextBox.Text = "";
             // 
             // voiceBottomPanel
             // 
@@ -108,7 +98,7 @@ namespace HTCommander.Controls
             speakTextBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             speakTextBox.MaxLength = 1000;
             speakTextBox.Name = "speakTextBox";
-            speakTextBox.Size = new System.Drawing.Size(545, 30);
+            speakTextBox.Size = new System.Drawing.Size(544, 30);
             speakTextBox.TabIndex = 1;
             speakTextBox.TextChanged += speakTextBox_TextChanged;
             speakTextBox.KeyPress += speakTextBox_KeyPress;
@@ -118,7 +108,7 @@ namespace HTCommander.Controls
             speakButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
             speakButton.ContextMenuStrip = speakContextMenuStrip;
             speakButton.Enabled = false;
-            speakButton.Location = new System.Drawing.Point(565, 8);
+            speakButton.Location = new System.Drawing.Point(561, 8);
             speakButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             speakButton.Name = "speakButton";
             speakButton.Size = new System.Drawing.Size(100, 41);
@@ -132,19 +122,28 @@ namespace HTCommander.Controls
             speakContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             speakContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { chatToolStripMenuItem, speakToolStripMenuItem, morseToolStripMenuItem });
             speakContextMenuStrip.Name = "speakContextMenuStrip";
-            speakContextMenuStrip.Size = new System.Drawing.Size(211, 110);
+            speakContextMenuStrip.Size = new System.Drawing.Size(120, 82);
+            // 
+            // chatToolStripMenuItem
+            // 
+            chatToolStripMenuItem.Checked = true;
+            chatToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
+            chatToolStripMenuItem.Name = "chatToolStripMenuItem";
+            chatToolStripMenuItem.Size = new System.Drawing.Size(119, 26);
+            chatToolStripMenuItem.Text = "&Chat";
+            chatToolStripMenuItem.Click += chatToolStripMenuItem_Click;
             // 
             // speakToolStripMenuItem
             // 
             speakToolStripMenuItem.Name = "speakToolStripMenuItem";
-            speakToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
+            speakToolStripMenuItem.Size = new System.Drawing.Size(119, 26);
             speakToolStripMenuItem.Text = "&Speak";
             speakToolStripMenuItem.Click += speakToolStripMenuItem_Click;
             // 
             // morseToolStripMenuItem
             // 
             morseToolStripMenuItem.Name = "morseToolStripMenuItem";
-            morseToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
+            morseToolStripMenuItem.Size = new System.Drawing.Size(119, 26);
             morseToolStripMenuItem.Text = "&Morse";
             morseToolStripMenuItem.Click += morseToolStripMenuItem_Click;
             // 
@@ -210,9 +209,9 @@ namespace HTCommander.Controls
             voiceTitleLabel.Location = new System.Drawing.Point(4, 8);
             voiceTitleLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             voiceTitleLabel.Name = "voiceTitleLabel";
-            voiceTitleLabel.Size = new System.Drawing.Size(62, 25);
+            voiceTitleLabel.Size = new System.Drawing.Size(148, 25);
             voiceTitleLabel.TabIndex = 1;
-            voiceTitleLabel.Text = "Voice";
+            voiceTitleLabel.Text = "Communication";
             // 
             // voiceTabContextMenuStrip
             // 
@@ -242,20 +241,41 @@ namespace HTCommander.Controls
             detachToolStripMenuItem.Visible = false;
             detachToolStripMenuItem.Click += detachToolStripMenuItem_Click;
             // 
-            // chatToolStripMenuItem
+            // voiceControl
             // 
-            chatToolStripMenuItem.Checked = true;
-            chatToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
-            chatToolStripMenuItem.Name = "chatToolStripMenuItem";
-            chatToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
-            chatToolStripMenuItem.Text = "&Chat";
-            chatToolStripMenuItem.Click += chatToolStripMenuItem_Click;
+            voiceControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
+            voiceControl.CallsignTextColor = System.Drawing.Color.Gray;
+            voiceControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            voiceControl.Images = mainImageList;
+            voiceControl.Location = new System.Drawing.Point(0, 46);
+            voiceControl.MessageBoxAuthColor = System.Drawing.Color.LightGreen;
+            voiceControl.MessageBoxBadColor = System.Drawing.Color.Pink;
+            voiceControl.MessageBoxColor = System.Drawing.Color.LightBlue;
+            voiceControl.MessageFont = new System.Drawing.Font("Arial", 10F);
+            voiceControl.Name = "voiceControl";
+            voiceControl.Size = new System.Drawing.Size(669, 403);
+            voiceControl.TabIndex = 6;
+            voiceControl.TextColor = System.Drawing.Color.Black;
+            // 
+            // mainImageList
+            // 
+            mainImageList.ColorDepth = System.Windows.Forms.ColorDepth.Depth16Bit;
+            mainImageList.ImageStream = (System.Windows.Forms.ImageListStreamer)resources.GetObject("mainImageList.ImageStream");
+            mainImageList.TransparentColor = System.Drawing.Color.Transparent;
+            mainImageList.Images.SetKeyName(0, "GreenCheck.png");
+            mainImageList.Images.SetKeyName(1, "RedCheck.png");
+            mainImageList.Images.SetKeyName(2, "info.ico");
+            mainImageList.Images.SetKeyName(3, "LocationPin2.png");
+            mainImageList.Images.SetKeyName(4, "left-arrow.png");
+            mainImageList.Images.SetKeyName(5, "right-arrow.png");
+            mainImageList.Images.SetKeyName(6, "terminal-32.png");
+            mainImageList.Images.SetKeyName(7, "talking.ico");
             // 
             // VoiceTabUserControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            Controls.Add(voiceHistoryTextBox);
+            Controls.Add(voiceControl);
             Controls.Add(voiceBottomPanel);
             Controls.Add(voiceTopPanel);
             Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
@@ -275,7 +295,6 @@ namespace HTCommander.Controls
         #endregion
 
         private System.Windows.Forms.Button cancelVoiceButton;
-        private System.Windows.Forms.RichTextBox voiceHistoryTextBox;
         private System.Windows.Forms.Panel voiceBottomPanel;
         private System.Windows.Forms.TextBox speakTextBox;
         private System.Windows.Forms.Button speakButton;
@@ -292,5 +311,7 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
         private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem chatToolStripMenuItem;
+        private VoiceControl voiceControl;
+        private System.Windows.Forms.ImageList mainImageList;
     }
 }

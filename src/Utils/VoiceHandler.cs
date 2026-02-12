@@ -42,6 +42,14 @@ namespace HTCommander
         /// The encoding type used for this entry (Voice, Morse, etc.).
         /// </summary>
         public VoiceTextEncodingType Encoding { get; set; } = VoiceTextEncodingType.Voice;
+        /// <summary>
+        /// Latitude coordinate if location data is available.
+        /// </summary>
+        public double Latitude { get; set; } = 0;
+        /// <summary>
+        /// Longitude coordinate if location data is available.
+        /// </summary>
+        public double Longitude { get; set; } = 0;
     }
 
     /// <summary>
@@ -215,6 +223,15 @@ namespace HTCommander
                 // Don't create entry if message is empty
                 if (string.IsNullOrEmpty(bssPacket.Message)) return;
 
+                // Extract location data if available
+                double latitude = 0;
+                double longitude = 0;
+                if (bssPacket.Location != null)
+                {
+                    latitude = bssPacket.Location.Latitude;
+                    longitude = bssPacket.Location.Longitude;
+                }
+
                 // Create a DecodedTextEntry for the BSS packet
                 string bssText = $"{bssPacket.Callsign}: {bssPacket.Message}";
                 if (!string.IsNullOrEmpty(bssPacket.Destination))
@@ -231,7 +248,9 @@ namespace HTCommander
                             Channel = frame.channel_name ?? "",
                             Time = frame.time,
                             IsReceived = frame.incoming,
-                            Encoding = VoiceTextEncodingType.BSS
+                            Encoding = VoiceTextEncodingType.BSS,
+                            Latitude = latitude,
+                            Longitude = longitude
                         };
                         _decodedTextHistory.Add(entry);
 
@@ -246,8 +265,8 @@ namespace HTCommander
                     SaveVoiceTextHistory();
                     DispatchDecodedTextHistory();
 
-                    // Dispatch a TextReady event for the BSS packet
-                    DispatchTextReady(bssText, frame.channel_name ?? "", frame.time, true, frame.incoming, VoiceTextEncodingType.BSS);
+                    // Dispatch a TextReady event for the BSS packet (including location)
+                    DispatchTextReady(bssText, frame.channel_name ?? "", frame.time, true, frame.incoming, VoiceTextEncodingType.BSS, latitude, longitude);
                 }
 
                 return;
@@ -1377,7 +1396,7 @@ namespace HTCommander
         /// <summary>
         /// Dispatches a TextReady event to the Data Broker.
         /// </summary>
-        private void DispatchTextReady(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice)
+        private void DispatchTextReady(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0)
         {
             if (_targetDeviceId > 0)
             {
@@ -1388,7 +1407,9 @@ namespace HTCommander
                     Time = time,
                     Completed = completed,
                     IsReceived = isReceived,
-                    Encoding = encoding
+                    Encoding = encoding,
+                    Latitude = latitude,
+                    Longitude = longitude
                 }, store: false);
             }
         }

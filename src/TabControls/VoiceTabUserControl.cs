@@ -46,10 +46,6 @@ namespace HTCommander.Controls
         // Track the AllowTransmit setting
         private bool _allowTransmit = false;
 
-        // Track if we're currently showing a partial (in-progress) entry
-        private bool _hasPartialEntry = false;
-        private int _partialEntryTextStart = -1; // Start position of the text portion (after header)
-
         /// <summary>
         /// Simple class to hold connected radio information.
         /// </summary>
@@ -95,7 +91,7 @@ namespace HTCommander.Controls
             // Subscribe to VoiceHandlerState changes to track voice handler state
             broker.Subscribe(1, "VoiceHandlerState", OnVoiceHandlerStateChanged);
 
-            // Subscribe to VoiceTextCleared to clear the voice history text box
+            // Subscribe to VoiceTextCleared to clear the voice control
             broker.Subscribe(1, "VoiceTextCleared", OnVoiceTextCleared);
 
             // Subscribe to VoiceTextHistoryLoaded to load history when VoiceHandler finishes loading
@@ -184,7 +180,7 @@ namespace HTCommander.Controls
 
             try
             {
-                // Extract Text, Channel, Time, Completed, IsReceived, and Encoding from the anonymous type
+                // Extract Text, Channel, Time, Completed, IsReceived, Encoding, Latitude, and Longitude from the anonymous type
                 var type = data.GetType();
                 var textProp = type.GetProperty("Text");
                 var channelProp = type.GetProperty("Channel");
@@ -192,6 +188,8 @@ namespace HTCommander.Controls
                 var completedProp = type.GetProperty("Completed");
                 var isReceivedProp = type.GetProperty("IsReceived");
                 var encodingProp = type.GetProperty("Encoding");
+                var latitudeProp = type.GetProperty("Latitude");
+                var longitudeProp = type.GetProperty("Longitude");
 
                 if (textProp != null)
                 {
@@ -213,10 +211,22 @@ namespace HTCommander.Controls
                             encoding = (VoiceTextEncodingType)ei;
                         }
                     }
+                    double latitude = 0;
+                    double longitude = 0;
+                    if (latitudeProp != null)
+                    {
+                        object latValue = latitudeProp.GetValue(data);
+                        if (latValue is double d) latitude = d;
+                    }
+                    if (longitudeProp != null)
+                    {
+                        object lonValue = longitudeProp.GetValue(data);
+                        if (lonValue is double d) longitude = d;
+                    }
 
                     if (!string.IsNullOrEmpty(text))
                     {
-                        AppendVoiceHistory(text, channel, time, completed, isReceived, encoding);
+                        AppendVoiceHistory(text, channel, time, completed, isReceived, encoding, latitude, longitude);
                     }
                 }
             }
@@ -278,108 +288,15 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
-        /// Formats a DateTime for display. Shows only time if same day as today, otherwise shows date and time.
+        /// Appends transcribed text to the voice history using the VoiceControl.
         /// </summary>
-        private string FormatDateTime(DateTime time)
+        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0)
         {
-            if (time.Date == DateTime.Today)
-            {
-                return time.ToString("HH:mm:ss");
-            }
-            else
-            {
-                return time.ToString("d") + " " + time.ToString("HH:mm:ss");
-            }
-        }
-
-        /// <summary>
-        /// Gets the display name for a VoiceTextEncodingType.
-        /// </summary>
-        private string GetEncodingTypeName(VoiceTextEncodingType encoding)
-        {
-            switch (encoding)
-            {
-                case VoiceTextEncodingType.Voice: return "Voice";
-                case VoiceTextEncodingType.Morse: return "Morse";
-                default: return encoding.ToString();
-            }
-        }
-
-        /// <summary>
-        /// Appends transcribed text to the voice history with nice formatting.
-        /// Header (time/channel/encoding) is shown in smaller gray text, main text in normal font.
-        /// For sent entries: text is dark blue and right-justified.
-        /// </summary>
-        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice)
-        {
-            if (!_hasPartialEntry)
-            {
-                // Starting a new entry - add header first
-                string timeStr = FormatDateTime(time);
-                string encodingStr = GetEncodingTypeName(encoding);
-                string header;
-                if (string.IsNullOrEmpty(channel))
-                {
-                    header = $"{timeStr} - {encodingStr}";
-                }
-                else
-                {
-                    header = $"{timeStr} [{channel}] - {encodingStr}";
-                }
-
-                // Add the header in smaller, gray font
-                int headerStart = voiceHistoryTextBox.TextLength;
-                voiceHistoryTextBox.AppendText(header + Environment.NewLine);
-                voiceHistoryTextBox.Select(headerStart, header.Length + 1);
-                voiceHistoryTextBox.SelectionFont = new Font(voiceHistoryTextBox.Font.FontFamily, voiceHistoryTextBox.Font.Size - 1, FontStyle.Regular);
-                voiceHistoryTextBox.SelectionColor = Color.Gray;
-                // Right-align header for sent entries
-                voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-
-                // Mark where the text content starts
-                _partialEntryTextStart = voiceHistoryTextBox.TextLength;
-                _hasPartialEntry = true;
-
-                // Add the text content in normal font (trimmed)
-                // For sent entries: dark blue and right-justified
-                string trimmedText = text.Trim();
-                voiceHistoryTextBox.AppendText(trimmedText);
-                voiceHistoryTextBox.Select(_partialEntryTextStart, trimmedText.Length);
-                voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
-                voiceHistoryTextBox.SelectionColor = isReceived ? voiceHistoryTextBox.ForeColor : Color.DarkBlue;
-                voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-            }
-            else
-            {
-                // Update existing partial entry - replace just the text portion (trimmed)
-                string trimmedText = text.Trim();
-                int textLength = voiceHistoryTextBox.TextLength - _partialEntryTextStart;
-                voiceHistoryTextBox.Select(_partialEntryTextStart, textLength);
-                voiceHistoryTextBox.SelectedText = trimmedText;
-
-                // Re-apply font and color to the new text
-                voiceHistoryTextBox.Select(_partialEntryTextStart, trimmedText.Length);
-                voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
-                voiceHistoryTextBox.SelectionColor = isReceived ? voiceHistoryTextBox.ForeColor : Color.DarkBlue;
-                voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-            }
-
-            if (completed)
-            {
-                // Finalize the entry - add spacing for the next entry
-                voiceHistoryTextBox.AppendText(Environment.NewLine + Environment.NewLine);
-                _hasPartialEntry = false;
-                _partialEntryTextStart = -1;
-            }
-
-            // Scroll to the end and deselect
-            voiceHistoryTextBox.SelectionStart = voiceHistoryTextBox.TextLength;
-            voiceHistoryTextBox.SelectionLength = 0;
-            voiceHistoryTextBox.ScrollToCaret();
+            voiceControl.UpdatePartialMessage(text, channel, time, completed, isReceived, encoding, latitude, longitude);
         }
 
         // Properties to access internal controls
-        public RichTextBox VoiceHistoryTextBox => voiceHistoryTextBox;
+        public VoiceControl VoiceHistoryControl => voiceControl;
         public TextBox SpeakTextBox => speakTextBox;
         public Button SpeakButton => speakButton;
         public Button VoiceEnableButton => voiceEnableButton;
@@ -526,8 +443,8 @@ namespace HTCommander.Controls
 
             if (result != DialogResult.Yes) return;
 
-            // Clear the voice history text box
-            voiceHistoryTextBox.Clear();
+            // Clear the voice control
+            voiceControl.Clear();
 
             // Also clear the history in the VoiceHandler via Data Broker
             broker?.Dispatch(1, "ClearVoiceText", null, store: false);
@@ -540,97 +457,94 @@ namespace HTCommander.Controls
         {
             var history = broker.GetValue<List<HTCommander.DecodedTextEntry>>(1, "DecodedTextHistory", null);
 
-            // Populate the voice history text box with existing entries using the same formatting
+            // Populate the voice control with existing entries
             if (history != null && history.Count > 0)
             {
                 foreach (var entry in history)
                 {
-                    if (entry.Text == null) continue;
+                    // Skip entries with null or empty text after trimming
+                    string trimmedText = entry.Text?.Trim();
+                    if (string.IsNullOrEmpty(trimmedText)) continue;
 
-                    bool isReceived = entry.IsReceived;
-                    VoiceTextEncodingType encoding = entry.Encoding;
+                    // Determine if message has a valid location (set ImageIndex = 3 for location icon)
+                    bool hasLocation = (entry.Latitude != 0 || entry.Longitude != 0);
+                    int imageIndex = hasLocation ? 3 : -1;
 
-                    // Add header in smaller, gray font with encoding type and direction
-                    string timeStr = FormatDateTime(entry.Time);
-                    string encodingStr = GetEncodingTypeName(encoding);
-                    string header;
-                    if (string.IsNullOrEmpty(entry.Channel))
-                    {
-                        header = $"{timeStr} - {encodingStr}";
-                    }
-                    else
-                    {
-                        header = $"{timeStr} [{entry.Channel}] - {encodingStr}";
-                    }
-
-                    int headerStart = voiceHistoryTextBox.TextLength;
-                    voiceHistoryTextBox.AppendText(header + Environment.NewLine);
-                    voiceHistoryTextBox.Select(headerStart, header.Length + 1);
-                    voiceHistoryTextBox.SelectionFont = new Font(voiceHistoryTextBox.Font.FontFamily, voiceHistoryTextBox.Font.Size - 1, FontStyle.Regular);
-                    voiceHistoryTextBox.SelectionColor = Color.Gray;
-                    voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-
-                    // Add text content in normal font (trimmed)
-                    // For sent entries: dark blue and right-justified
-                    string trimmedText = entry.Text.Trim();
-                    int textStart = voiceHistoryTextBox.TextLength;
-                    voiceHistoryTextBox.AppendText(trimmedText);
-                    voiceHistoryTextBox.Select(textStart, trimmedText.Length);
-                    voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
-                    voiceHistoryTextBox.SelectionColor = isReceived ? voiceHistoryTextBox.ForeColor : Color.DarkBlue;
-                    voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-
-                    // Add spacing between entries
-                    voiceHistoryTextBox.AppendText(Environment.NewLine + Environment.NewLine);
+                    var message = new VoiceMessage(
+                        FormatRoute(entry.Channel, entry.Encoding),
+                        null,
+                        trimmedText,
+                        entry.Time,
+                        !entry.IsReceived,
+                        imageIndex,
+                        entry.Encoding
+                    );
+                    message.IsCompleted = true;
+                    message.Latitude = entry.Latitude;
+                    message.Longitude = entry.Longitude;
+                    voiceControl.Messages.Add(message);
                 }
             }
 
             // Also load any current (in-progress) entry
             var currentEntry = broker.GetValue<HTCommander.DecodedTextEntry>(1, "CurrentDecodedTextEntry", null);
-            if (currentEntry != null && !string.IsNullOrEmpty(currentEntry.Text))
+            if (currentEntry != null)
             {
-                bool isReceived = currentEntry.IsReceived;
-                VoiceTextEncodingType encoding = currentEntry.Encoding;
-
-                // Display the current entry as a partial entry (in-progress)
-                string timeStr = FormatDateTime(currentEntry.Time);
-                string encodingStr = GetEncodingTypeName(encoding);
-                string header;
-                if (string.IsNullOrEmpty(currentEntry.Channel))
+                // Skip entries with null or empty text after trimming
+                string trimmedText = currentEntry.Text?.Trim();
+                if (!string.IsNullOrEmpty(trimmedText))
                 {
-                    header = $"{timeStr} - {encodingStr}";
+                    // Determine if message has a valid location (set ImageIndex = 3 for location icon)
+                    bool hasLocation = (currentEntry.Latitude != 0 || currentEntry.Longitude != 0);
+                    int imageIndex = hasLocation ? 3 : -1;
+
+                    var message = new VoiceMessage(
+                        FormatRoute(currentEntry.Channel, currentEntry.Encoding),
+                        null,
+                        trimmedText,
+                        currentEntry.Time,
+                        !currentEntry.IsReceived,
+                        imageIndex,
+                        currentEntry.Encoding
+                    );
+                    message.IsCompleted = false;
+                    message.Latitude = currentEntry.Latitude;
+                    message.Longitude = currentEntry.Longitude;
+                    voiceControl.Messages.Add(message);
                 }
-                else
-                {
-                    header = $"{timeStr} [{currentEntry.Channel}] - {encodingStr}";
-                }
-
-                // Add the header in smaller, gray font
-                int headerStart = voiceHistoryTextBox.TextLength;
-                voiceHistoryTextBox.AppendText(header + Environment.NewLine);
-                voiceHistoryTextBox.Select(headerStart, header.Length + 1);
-                voiceHistoryTextBox.SelectionFont = new Font(voiceHistoryTextBox.Font.FontFamily, voiceHistoryTextBox.Font.Size - 1, FontStyle.Regular);
-                voiceHistoryTextBox.SelectionColor = Color.Gray;
-                voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-
-                // Mark where the text content starts (for future updates)
-                _partialEntryTextStart = voiceHistoryTextBox.TextLength;
-                _hasPartialEntry = true;
-
-                // Add the text content in normal font (trimmed)
-                // For sent entries: dark blue and right-justified
-                string trimmedText = currentEntry.Text.Trim();
-                voiceHistoryTextBox.AppendText(trimmedText);
-                voiceHistoryTextBox.Select(_partialEntryTextStart, trimmedText.Length);
-                voiceHistoryTextBox.SelectionFont = voiceHistoryTextBox.Font;
-                voiceHistoryTextBox.SelectionColor = isReceived ? voiceHistoryTextBox.ForeColor : Color.DarkBlue;
-                voiceHistoryTextBox.SelectionAlignment = isReceived ? HorizontalAlignment.Left : HorizontalAlignment.Right;
             }
 
-            // Scroll to the end and deselect
-            voiceHistoryTextBox.SelectionStart = voiceHistoryTextBox.TextLength;
-            voiceHistoryTextBox.SelectionLength = 0;
-            voiceHistoryTextBox.ScrollToCaret();
+            // Update and scroll to bottom
+            voiceControl.UpdateMessages(true);
+        }
+
+        /// <summary>
+        /// Formats the route string to include encoding type.
+        /// </summary>
+        private string FormatRoute(string channel, VoiceTextEncodingType encoding)
+        {
+            string encodingStr = GetEncodingTypeName(encoding);
+            if (string.IsNullOrEmpty(channel))
+            {
+                return encodingStr;
+            }
+            return $"[{channel}] {encodingStr}";
+        }
+
+        /// <summary>
+        /// Gets the display name for a VoiceTextEncodingType.
+        /// </summary>
+        private string GetEncodingTypeName(VoiceTextEncodingType encoding)
+        {
+            switch (encoding)
+            {
+                case VoiceTextEncodingType.Voice: return "Voice";
+                case VoiceTextEncodingType.Morse: return "Morse";
+                case VoiceTextEncodingType.VoiceClip: return "Clip";
+                case VoiceTextEncodingType.AX25: return "AX.25";
+                case VoiceTextEncodingType.BSS: return "Chat";
+                default: return encoding.ToString();
+            }
         }
 
         private void voiceMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
@@ -640,7 +554,7 @@ namespace HTCommander.Controls
 
         private void detachToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = DetachedTabForm.Create<VoiceTabUserControl>("Voice");
+            var form = DetachedTabForm.Create<VoiceTabUserControl>("Communication");
             form.Show();
         }
 
@@ -685,7 +599,7 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
-        /// Handles VoiceTextCleared event from the DataBroker - clears the voice history text box.
+        /// Handles VoiceTextCleared event from the DataBroker - clears the voice control.
         /// </summary>
         private void OnVoiceTextCleared(int deviceId, string name, object data)
         {
@@ -695,10 +609,8 @@ namespace HTCommander.Controls
                 return;
             }
 
-            // Clear the voice history text box and reset partial entry tracking
-            voiceHistoryTextBox.Clear();
-            _hasPartialEntry = false;
-            _partialEntryTextStart = -1;
+            // Clear the voice control
+            voiceControl.Clear();
         }
 
         /// <summary>
@@ -714,7 +626,7 @@ namespace HTCommander.Controls
             }
 
             // Only load if we don't already have content (avoid duplicates)
-            if (voiceHistoryTextBox.TextLength == 0)
+            if (voiceControl.Messages.Count == 0)
             {
                 LoadDecodedTextHistory();
             }

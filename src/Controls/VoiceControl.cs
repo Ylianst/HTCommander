@@ -55,9 +55,18 @@ namespace HTCommander
         [DefaultValue(100)]
         public int MinWidth { get; set; } = 100;
 
-        [Category("Layout")]
-        [DefaultValue(300)]
-        public int MaxWidth { get; set; } = 300;
+        /// <summary>
+        /// Gets the effective maximum width for message boxes (80% of control width minus scrollbar).
+        /// </summary>
+        [Browsable(false)]
+        public int EffectiveMaxWidth
+        {
+            get
+            {
+                int controlWidth = Width - chatScrollBar.Width - (SideMargins * 2) - (MessageBoxMargin * 2);
+                return (int)(controlWidth * 0.9);
+            }
+        }
 
         [Category("Layout")]
         [DefaultValue(12)]
@@ -199,13 +208,15 @@ namespace HTCommander
             SizeF callSignSize = SizeF.Empty;
             if (!string.IsNullOrEmpty(voiceMessage.Route) && ((previousVoiceMessage == null) || (previousVoiceMessage.Route != voiceMessage.Route)))
             {
-                callSignSize = TextRenderer.MeasureText(voiceMessage.Message, CallsignFont);
+                callSignSize = TextRenderer.MeasureText(voiceMessage.Route, CallsignFont);
             }
             SizeF messageSize = SizeF.Empty;
             if (!string.IsNullOrEmpty(voiceMessage.Message))
             {
-                int maxWidth = (int)((Width - chatScrollBar.Width) * 0.8);
-                messageSize = TextRenderer.MeasureText(voiceMessage.Message, MessageFont, new Size((int)maxWidth, int.MaxValue));
+                // Calculate the maximum width for the message box (80% of control width)
+                int maxMessageWidth = Math.Max(EffectiveMaxWidth, MinWidth);
+                
+                messageSize = TextRenderer.MeasureText(voiceMessage.Message, MessageFont, new Size(maxMessageWidth, int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
             }
             return timeLineSize.Height + callSignSize.Height + messageSize.Height + (MessageBoxMargin * 2) + InterMessageMargin;
         }
@@ -243,8 +254,10 @@ namespace HTCommander
             SizeF messageSize = SizeF.Empty;
             if (!string.IsNullOrEmpty(voiceMessage.Message))
             {
-                int maxWidth = (int)((Width - chatScrollBar.Width) * 0.8);
-                messageSize = TextRenderer.MeasureText(voiceMessage.Message, MessageFont, new Size((int)maxWidth, int.MaxValue));
+                // Calculate the maximum width for the message box (80% of control width, same as GetVoiceMessageHeight)
+                int maxMessageWidth = Math.Max(EffectiveMaxWidth, MinWidth);
+                
+                messageSize = TextRenderer.MeasureText(voiceMessage.Message, MessageFont, new Size(maxMessageWidth, int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
 
                 // Draw Shadow
                 RectangleF r = new RectangleF(
@@ -287,13 +300,13 @@ namespace HTCommander
                     messageSize.Height + (MessageBoxMargin * 2));
 
                 // Draw Message
-                RectangleF r3 = new RectangleF(
-                    voiceMessage.Sender ? Width - messageSize.Width - MessageBoxMargin - chatScrollBar.Width - SideMargins : MessageBoxMargin + SideMargins,
-                    top + timeLineSize.Height + callSignSize.Height + MessageBoxMargin + 2,
-                    messageSize.Width,
-                    messageSize.Height);
+                Rectangle textRect = new Rectangle(
+                    (int)(voiceMessage.Sender ? Width - messageSize.Width - MessageBoxMargin - chatScrollBar.Width - SideMargins : MessageBoxMargin + SideMargins),
+                    (int)(top + timeLineSize.Height + callSignSize.Height + MessageBoxMargin + 2),
+                    (int)messageSize.Width,
+                    (int)messageSize.Height);
 
-                TextRenderer.DrawText(g, voiceMessage.Message, MessageFont, new Point((int)(r3.X), (int)(r3.Y)), textColor, TextFormatFlags.Left | TextFormatFlags.WordBreak);
+                TextRenderer.DrawText(g, voiceMessage.Message, MessageFont, textRect, textColor, TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
 
                 // Draw the image
                 if ((Images != null) && (voiceMessage.ImageIndex >= 0) && (voiceMessage.ImageIndex < Images.Images.Count))
@@ -337,6 +350,148 @@ namespace HTCommander
             {
                 chatScrollBar.Value = chatScrollBar.Maximum;
             }
+            Invalidate();
+        }
+
+        /// <summary>
+        /// Clears all messages from the control.
+        /// </summary>
+        public void Clear()
+        {
+            Messages.Clear();
+            resized = true;
+            totalHeight = -1;
+            chatScrollBar.Value = 0;
+            Invalidate();
+        }
+
+        /// <summary>
+        /// Adds a new message to the control.
+        /// </summary>
+        /// <param name="message">The message to add.</param>
+        /// <param name="scrollToBottom">Whether to scroll to the bottom after adding.</param>
+        public void AddMessage(VoiceMessage message, bool scrollToBottom = true)
+        {
+            Messages.Add(message);
+            UpdateMessages(scrollToBottom);
+        }
+
+        /// <summary>
+        /// Gets the current partial (incomplete) message if one exists.
+        /// </summary>
+        /// <returns>The partial message, or null if none exists.</returns>
+        public VoiceMessage GetPartialMessage()
+        {
+            if (Messages.Count == 0) return null;
+            var lastMessage = Messages[Messages.Count - 1];
+            return lastMessage.IsCompleted ? null : lastMessage;
+        }
+
+        /// <summary>
+        /// Updates or creates a partial message. Used for in-progress speech-to-text.
+        /// If the last message is incomplete, it updates it. Otherwise, it creates a new one.
+        /// If the message text is null or empty after trimming, no entry is created.
+        /// </summary>
+        /// <param name="text">The message text.</param>
+        /// <param name="channel">The channel/route.</param>
+        /// <param name="time">The timestamp.</param>
+        /// <param name="completed">Whether the message is complete.</param>
+        /// <param name="isReceived">Whether the message was received (true) or sent (false).</param>
+        /// <param name="encoding">The encoding type.</param>
+        /// <param name="latitude">Latitude coordinate if location data is available.</param>
+        /// <param name="longitude">Longitude coordinate if location data is available.</param>
+        public void UpdatePartialMessage(string text, string channel, DateTime time, bool completed, bool isReceived, VoiceTextEncodingType encoding, double latitude = 0, double longitude = 0)
+        {
+            string trimmedText = text?.Trim() ?? "";
+            var partial = GetPartialMessage();
+            
+            // Determine if message has a valid location
+            bool hasLocation = (latitude != 0 || longitude != 0);
+            int imageIndex = hasLocation ? 3 : -1;
+            
+            if (partial != null)
+            {
+                if (string.IsNullOrEmpty(trimmedText) && completed)
+                {
+                    // Empty completed message - remove the partial entry
+                    Messages.Remove(partial);
+                }
+                else
+                {
+                    // Update existing partial message
+                    partial.Message = trimmedText;
+                    partial.Route = FormatRoute(channel, encoding);
+                    partial.Time = time;
+                    partial.Sender = !isReceived;
+                    partial.Encoding = encoding;
+                    partial.IsCompleted = completed;
+                    partial.Latitude = latitude;
+                    partial.Longitude = longitude;
+                    partial.ImageIndex = imageIndex;
+                }
+            }
+            else
+            {
+                // Don't create new message if text is empty
+                if (string.IsNullOrEmpty(trimmedText))
+                {
+                    return;
+                }
+                
+                // Create new message
+                var message = new VoiceMessage(
+                    FormatRoute(channel, encoding),
+                    null,
+                    trimmedText,
+                    time,
+                    !isReceived,
+                    imageIndex,
+                    encoding
+                );
+                message.IsCompleted = completed;
+                message.Latitude = latitude;
+                message.Longitude = longitude;
+                Messages.Add(message);
+            }
+            
+            UpdateMessages(true);
+        }
+
+        /// <summary>
+        /// Formats the route string to include encoding type.
+        /// </summary>
+        private string FormatRoute(string channel, VoiceTextEncodingType encoding)
+        {
+            string encodingStr = GetEncodingTypeName(encoding);
+            if (string.IsNullOrEmpty(channel))
+            {
+                return encodingStr;
+            }
+            return $"[{channel}] {encodingStr}";
+        }
+
+        /// <summary>
+        /// Gets the display name for a VoiceTextEncodingType.
+        /// </summary>
+        private string GetEncodingTypeName(VoiceTextEncodingType encoding)
+        {
+            switch (encoding)
+            {
+                case VoiceTextEncodingType.Voice: return "Voice";
+                case VoiceTextEncodingType.Morse: return "Morse";
+                case VoiceTextEncodingType.VoiceClip: return "Clip";
+                case VoiceTextEncodingType.AX25: return "AX.25";
+                case VoiceTextEncodingType.BSS: return "Chat";
+                default: return encoding.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Scrolls the control to the bottom.
+        /// </summary>
+        public void ScrollToBottom()
+        {
+            chatScrollBar.Value = chatScrollBar.Maximum;
             Invalidate();
         }
 

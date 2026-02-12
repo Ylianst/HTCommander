@@ -15,8 +15,6 @@ namespace HTCommander
         public string Route;
         public string SenderCallSign;
         public string Message;
-        public string MessageId;
-        public PacketDataType MessageType;
         public DateTime Time;
         public bool Sender;
         public float DrawTop;
@@ -28,8 +26,10 @@ namespace HTCommander
         public double Latitude = 0;
         public double Longitude = 0;
         public AX25Packet.AuthState AuthState = AX25Packet.AuthState.Unknown;
+        public VoiceTextEncodingType Encoding = VoiceTextEncodingType.Voice;
+        public bool IsCompleted = true;
 
-        public VoiceMessage(string Route, string SenderCallSign, string Message, DateTime Time, bool Sender, int ImageIndex = -1)
+        public VoiceMessage(string Route, string SenderCallSign, string Message, DateTime Time, bool Sender, int ImageIndex = -1, VoiceTextEncodingType Encoding = VoiceTextEncodingType.Voice)
         {
             this.Route = Route;
             this.SenderCallSign = SenderCallSign;
@@ -37,6 +37,7 @@ namespace HTCommander
             this.Time = Time;
             this.Sender = Sender;
             this.ImageIndex = ImageIndex;
+            this.Encoding = Encoding;
         }
     }
 }
