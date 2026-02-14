@@ -59,7 +59,7 @@ namespace HTCommander.radio
             [' '] = " " // space between words
         };
 
-        public static byte[] GenerateMorsePcm(string text, int frequency = 500, int wpm = 8)
+        public static byte[] GenerateMorsePcm(string text, int frequency = 500, int wpm = 15)
         {
             double unit = 1.2 / wpm; // seconds per dit (ITU standard)
             int samplesPerUnit = (int)(SampleRate * unit);

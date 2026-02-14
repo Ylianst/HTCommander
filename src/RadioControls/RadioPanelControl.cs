@@ -408,7 +408,7 @@ namespace HTCommander.RadioControls
                         }
                         else if ((channelB != null) && (currentSettings.double_channel == 1) && (((int)c.Tag) == channelB.channel_id))
                         {
-                            c.BackColor = Color.PaleGoldenrod;
+                            c.BackColor = Color.Khaki;
                         }
                         else
                         {
