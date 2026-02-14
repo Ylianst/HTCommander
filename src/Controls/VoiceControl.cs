@@ -110,6 +110,53 @@ namespace HTCommander
         private StringFormat centerFormat = new StringFormat { Alignment = StringAlignment.Center };
         private StringFormat farFormat = new StringFormat { Alignment = StringAlignment.Far };
 
+        // Cache for SSTV thumbnail images (filename -> scaled bitmap)
+        private readonly Dictionary<string, Image> _sstvImageCache = new Dictionary<string, Image>();
+        private const int SstvThumbnailHeight = 100;
+
+        /// <summary>
+        /// Gets the full path to an SSTV image file.
+        /// </summary>
+        private static string GetSstvImagePath(string filename)
+        {
+            return System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "HTCommander", "SSTV", filename);
+        }
+
+        /// <summary>
+        /// Gets a cached thumbnail for the given SSTV filename, scaled to SstvThumbnailHeight pixels tall.
+        /// Returns null if the file does not exist or cannot be loaded.
+        /// </summary>
+        private Image GetSstvThumbnail(string filename)
+        {
+            if (string.IsNullOrEmpty(filename)) return null;
+            if (_sstvImageCache.TryGetValue(filename, out Image cached)) return cached;
+
+            try
+            {
+                string fullPath = GetSstvImagePath(filename);
+                if (!System.IO.File.Exists(fullPath)) return null;
+
+                using (var original = Image.FromFile(fullPath))
+                {
+                    int thumbWidth = (int)((double)original.Width / original.Height * SstvThumbnailHeight);
+                    var thumb = new Bitmap(thumbWidth, SstvThumbnailHeight);
+                    using (var g = Graphics.FromImage(thumb))
+                    {
+                        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        g.DrawImage(original, 0, 0, thumbWidth, SstvThumbnailHeight);
+                    }
+                    _sstvImageCache[filename] = thumb;
+                    return thumb;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
 
         public VoiceControl()
         {
@@ -211,7 +258,21 @@ namespace HTCommander
                 callSignSize = TextRenderer.MeasureText(voiceMessage.Route, CallsignFont);
             }
             SizeF messageSize = SizeF.Empty;
-            if (!string.IsNullOrEmpty(voiceMessage.Message))
+            if (voiceMessage.Encoding == VoiceTextEncodingType.Picture && !string.IsNullOrEmpty(voiceMessage.Filename))
+            {
+                // For picture messages, size is based on the thumbnail image
+                Image thumb = GetSstvThumbnail(voiceMessage.Filename);
+                if (thumb != null)
+                {
+                    messageSize = new SizeF(thumb.Width, thumb.Height);
+                }
+                else if (!string.IsNullOrEmpty(voiceMessage.Message))
+                {
+                    int maxMessageWidth = Math.Max(EffectiveMaxWidth, MinWidth);
+                    messageSize = TextRenderer.MeasureText(voiceMessage.Message, MessageFont, new Size(maxMessageWidth, int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
+                }
+            }
+            else if (!string.IsNullOrEmpty(voiceMessage.Message))
             {
                 // Calculate the maximum width for the message box (80% of control width)
                 int maxMessageWidth = Math.Max(EffectiveMaxWidth, MinWidth);
@@ -252,13 +313,23 @@ namespace HTCommander
             }
 
             SizeF messageSize = SizeF.Empty;
-            if (!string.IsNullOrEmpty(voiceMessage.Message))
+            bool isPicture = voiceMessage.Encoding == VoiceTextEncodingType.Picture && !string.IsNullOrEmpty(voiceMessage.Filename);
+            Image sstvThumb = isPicture ? GetSstvThumbnail(voiceMessage.Filename) : null;
+
+            if (isPicture && sstvThumb != null)
+            {
+                messageSize = new SizeF(sstvThumb.Width, sstvThumb.Height);
+            }
+            else if (!string.IsNullOrEmpty(voiceMessage.Message))
             {
                 // Calculate the maximum width for the message box (80% of control width, same as GetVoiceMessageHeight)
                 int maxMessageWidth = Math.Max(EffectiveMaxWidth, MinWidth);
                 
                 messageSize = TextRenderer.MeasureText(voiceMessage.Message, MessageFont, new Size(maxMessageWidth, int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
+            }
 
+            if (messageSize.Width > 0 && messageSize.Height > 0)
+            {
                 // Draw Shadow
                 RectangleF r = new RectangleF(
                     voiceMessage.Sender ? Width - messageSize.Width - (MessageBoxMargin * 2) - chatScrollBar.Width - SideMargins + ShadowOffset : ShadowOffset + SideMargins,
@@ -299,16 +370,29 @@ namespace HTCommander
                     messageSize.Width + (MessageBoxMargin * 2),
                     messageSize.Height + (MessageBoxMargin * 2));
 
-                // Draw Message
-                Rectangle textRect = new Rectangle(
-                    (int)(voiceMessage.Sender ? Width - messageSize.Width - MessageBoxMargin - chatScrollBar.Width - SideMargins : MessageBoxMargin + SideMargins),
-                    (int)(top + timeLineSize.Height + callSignSize.Height + MessageBoxMargin + 2),
-                    (int)messageSize.Width,
-                    (int)messageSize.Height);
+                if (isPicture && sstvThumb != null)
+                {
+                    // Draw the SSTV thumbnail image inside the message box
+                    Rectangle imgRect = new Rectangle(
+                        (int)(voiceMessage.Sender ? Width - messageSize.Width - MessageBoxMargin - chatScrollBar.Width - SideMargins : MessageBoxMargin + SideMargins),
+                        (int)(top + timeLineSize.Height + callSignSize.Height + MessageBoxMargin),
+                        sstvThumb.Width,
+                        sstvThumb.Height);
+                    g.DrawImage(sstvThumb, imgRect);
+                }
+                else
+                {
+                    // Draw Message text
+                    Rectangle textRect = new Rectangle(
+                        (int)(voiceMessage.Sender ? Width - messageSize.Width - MessageBoxMargin - chatScrollBar.Width - SideMargins : MessageBoxMargin + SideMargins),
+                        (int)(top + timeLineSize.Height + callSignSize.Height + MessageBoxMargin + 2),
+                        (int)messageSize.Width,
+                        (int)messageSize.Height);
 
-                TextRenderer.DrawText(g, voiceMessage.Message, MessageFont, textRect, textColor, TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
+                    TextRenderer.DrawText(g, voiceMessage.Message, MessageFont, textRect, textColor, TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
+                }
 
-                // Draw the image
+                // Draw the image icon (e.g., location pin)
                 if ((Images != null) && (voiceMessage.ImageIndex >= 0) && (voiceMessage.ImageIndex < Images.Images.Count))
                 {
                     // Retrieve the image from resources
@@ -400,7 +484,7 @@ namespace HTCommander
         /// <param name="encoding">The encoding type.</param>
         /// <param name="latitude">Latitude coordinate if location data is available.</param>
         /// <param name="longitude">Longitude coordinate if location data is available.</param>
-        public void UpdatePartialMessage(string text, string channel, DateTime time, bool completed, bool isReceived, VoiceTextEncodingType encoding, double latitude = 0, double longitude = 0, string source = null, string destination = null)
+        public void UpdatePartialMessage(string text, string channel, DateTime time, bool completed, bool isReceived, VoiceTextEncodingType encoding, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null)
         {
             string trimmedText = text?.Trim() ?? "";
             var partial = GetPartialMessage();
@@ -429,6 +513,7 @@ namespace HTCommander
                     partial.Latitude = latitude;
                     partial.Longitude = longitude;
                     partial.ImageIndex = imageIndex;
+                    partial.Filename = filename;
                 }
             }
             else
@@ -452,6 +537,7 @@ namespace HTCommander
                 message.IsCompleted = completed;
                 message.Latitude = latitude;
                 message.Longitude = longitude;
+                message.Filename = filename;
                 Messages.Add(message);
             }
             
@@ -490,6 +576,7 @@ namespace HTCommander
                 case VoiceTextEncodingType.VoiceClip: return "Clip";
                 case VoiceTextEncodingType.AX25: return "AX.25";
                 case VoiceTextEncodingType.BSS: return "Chat";
+                case VoiceTextEncodingType.Picture: return "SSTV";
                 default: return encoding.ToString();
             }
         }

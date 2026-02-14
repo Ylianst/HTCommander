@@ -249,6 +249,7 @@ namespace HTCommander.Controls
             // 
             // voiceControl
             // 
+            voiceControl.AllowDrop = true;
             voiceControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
             voiceControl.CallsignTextColor = System.Drawing.Color.Gray;
             voiceControl.ContextMenuStrip = voiceMsgContextMenuStrip;
@@ -263,6 +264,8 @@ namespace HTCommander.Controls
             voiceControl.Size = new System.Drawing.Size(669, 403);
             voiceControl.TabIndex = 6;
             voiceControl.TextColor = System.Drawing.Color.Black;
+            voiceControl.DragEnter += voiceControl_DragEnter;
+            voiceControl.DragDrop += voiceControl_DragDrop;
             // 
             // mainImageList
             // 

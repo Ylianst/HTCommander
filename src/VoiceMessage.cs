@@ -28,6 +28,7 @@ namespace HTCommander
         public AX25Packet.AuthState AuthState = AX25Packet.AuthState.Unknown;
         public VoiceTextEncodingType Encoding = VoiceTextEncodingType.Voice;
         public bool IsCompleted = true;
+        public string Filename;
 
         public VoiceMessage(string Route, string SenderCallSign, string Message, DateTime Time, bool Sender, int ImageIndex = -1, VoiceTextEncodingType Encoding = VoiceTextEncodingType.Voice)
         {

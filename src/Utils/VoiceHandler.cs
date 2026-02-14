@@ -24,7 +24,8 @@ namespace HTCommander
         VoiceClip,
         AX25,
         BSS,
-        Recording
+        Recording,
+        Picture
     }
 
     /// <summary>
@@ -59,6 +60,10 @@ namespace HTCommander
         /// Longitude coordinate if location data is available.
         /// </summary>
         public double Longitude { get; set; } = 0;
+        /// <summary>
+        /// Filename for picture entries (SSTV images).
+        /// </summary>
+        public string Filename { get; set; }
     }
 
     /// <summary>
@@ -172,6 +177,10 @@ namespace HTCommander
             // Subscribe to VoiceClipTransmitted command from all devices
             // Records when a voice clip is transmitted over a radio
             broker.Subscribe(DataBroker.AllDevices, "VoiceClipTransmitted", OnVoiceClipTransmitted);
+
+            // Subscribe to PictureTransmitted command from all devices
+            // Records when an SSTV picture is transmitted over a radio
+            broker.Subscribe(DataBroker.AllDevices, "PictureTransmitted", OnPictureTransmitted);
 
             // Subscribe to Voice setting changes (device 0 stores global settings)
             broker.Subscribe(0, "Voice", OnVoiceChanged);
@@ -725,6 +734,50 @@ namespace HTCommander
             catch (Exception ex)
             {
                 broker.LogError($"[VoiceHandler] Error in OnVoiceClipTransmitted: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handles the PictureTransmitted command to record SSTV picture transmission in history.
+        /// Expected data: { ModeName: string, Filename: string }
+        /// </summary>
+        private void OnPictureTransmitted(int deviceId, string name, object data)
+        {
+            if (data == null) return;
+
+            try
+            {
+                var dataType = data.GetType();
+                var modeNameProp = dataType.GetProperty("ModeName");
+                var filenameProp = dataType.GetProperty("Filename");
+
+                if (modeNameProp == null || filenameProp == null)
+                {
+                    broker.LogError("[VoiceHandler] Invalid PictureTransmitted data format");
+                    return;
+                }
+
+                string modeName = (string)modeNameProp.GetValue(data);
+                string filename = (string)filenameProp.GetValue(data);
+
+                if (string.IsNullOrEmpty(filename))
+                {
+                    broker.LogError("[VoiceHandler] PictureTransmitted: Filename is empty");
+                    return;
+                }
+
+                // Determine the transmit device for channel name lookup
+                int transmitDeviceId = (deviceId >= 100) ? deviceId : _targetDeviceId;
+                string channelName = (transmitDeviceId > 0) ? GetVfoAChannelName(transmitDeviceId) : "";
+
+                broker.LogInfo($"[VoiceHandler] SSTV picture transmitted on device {deviceId}: {modeName}, file: {filename}");
+
+                // Add to history as a transmitted picture entry
+                AddTransmittedTextToHistory(modeName ?? "SSTV", channelName, VoiceTextEncodingType.Picture, filename: filename);
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[VoiceHandler] Error in OnPictureTransmitted: {ex.Message}");
             }
         }
 
@@ -1441,7 +1494,7 @@ namespace HTCommander
         /// <summary>
         /// Adds a transmitted text entry to the history.
         /// </summary>
-        private void AddTransmittedTextToHistory(string text, string channel, VoiceTextEncodingType encoding, string source = null, string destination = null)
+        private void AddTransmittedTextToHistory(string text, string channel, VoiceTextEncodingType encoding, string source = null, string destination = null, string filename = null)
         {
             lock (_historyLock)
             {
@@ -1453,7 +1506,8 @@ namespace HTCommander
                     IsReceived = false,
                     Encoding = encoding,
                     Source = source,
-                    Destination = destination
+                    Destination = destination,
+                    Filename = filename
                 };
                 _decodedTextHistory.Add(entry);
 
@@ -1469,7 +1523,7 @@ namespace HTCommander
             DispatchDecodedTextHistory();
 
             // Dispatch a TextReady event for transmitted text so UI updates
-            DispatchTextReady(text, channel, DateTime.Now, true, false, encoding, source: source, destination: destination);
+            DispatchTextReady(text, channel, DateTime.Now, true, false, encoding, source: source, destination: destination, filename: filename);
         }
 
         /// <summary>
@@ -1698,7 +1752,7 @@ namespace HTCommander
         /// <summary>
         /// Dispatches a TextReady event to the Data Broker.
         /// </summary>
-        private void DispatchTextReady(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null)
+        private void DispatchTextReady(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null)
         {
             if (_targetDeviceId > 0)
             {
@@ -1713,7 +1767,8 @@ namespace HTCommander
                     Latitude = latitude,
                     Longitude = longitude,
                     Source = source,
-                    Destination = destination
+                    Destination = destination,
+                    Filename = filename
                 }, store: false);
             }
         }

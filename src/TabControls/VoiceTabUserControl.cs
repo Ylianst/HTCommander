@@ -7,7 +7,9 @@ http://www.apache.org/licenses/LICENSE-2.0
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using HTCommander.Dialogs;
 
@@ -208,6 +210,7 @@ namespace HTCommander.Controls
                 var longitudeProp = type.GetProperty("Longitude");
                 var sourceProp = type.GetProperty("Source");
                 var destinationProp = type.GetProperty("Destination");
+                var filenameProp = type.GetProperty("Filename");
 
                 if (textProp != null)
                 {
@@ -243,10 +246,11 @@ namespace HTCommander.Controls
                     }
                     string source = sourceProp?.GetValue(data) as string;
                     string destination = destinationProp?.GetValue(data) as string;
+                    string filename = filenameProp?.GetValue(data) as string;
 
                     if (!string.IsNullOrEmpty(text))
                     {
-                        AppendVoiceHistory(text, channel, time, completed, isReceived, encoding, latitude, longitude, source, destination);
+                        AppendVoiceHistory(text, channel, time, completed, isReceived, encoding, latitude, longitude, source, destination, filename);
                     }
                 }
             }
@@ -310,9 +314,9 @@ namespace HTCommander.Controls
         /// <summary>
         /// Appends transcribed text to the voice history using the VoiceControl.
         /// </summary>
-        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null)
+        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null)
         {
-            voiceControl.UpdatePartialMessage(text, channel, time, completed, isReceived, encoding, latitude, longitude, source, destination);
+            voiceControl.UpdatePartialMessage(text, channel, time, completed, isReceived, encoding, latitude, longitude, source, destination, filename);
         }
 
         // Properties to access internal controls
@@ -511,6 +515,7 @@ namespace HTCommander.Controls
                     message.IsCompleted = true;
                     message.Latitude = entry.Latitude;
                     message.Longitude = entry.Longitude;
+                    message.Filename = entry.Filename;
                     voiceControl.Messages.Add(message);
                 }
             }
@@ -539,6 +544,7 @@ namespace HTCommander.Controls
                     message.IsCompleted = false;
                     message.Latitude = currentEntry.Latitude;
                     message.Longitude = currentEntry.Longitude;
+                    message.Filename = currentEntry.Filename;
                     voiceControl.Messages.Add(message);
                 }
             }
@@ -579,6 +585,7 @@ namespace HTCommander.Controls
                 case VoiceTextEncodingType.VoiceClip: return "Clip";
                 case VoiceTextEncodingType.AX25: return "AX.25";
                 case VoiceTextEncodingType.BSS: return "Chat";
+                case VoiceTextEncodingType.Picture: return "SSTV";
                 default: return encoding.ToString();
             }
         }
@@ -900,6 +907,137 @@ namespace HTCommander.Controls
             {
                 Clipboard.SetText(rightClickedVoiceMessage.SenderCallSign);
             }
+        }
+
+        #endregion
+
+        #region Drag and Drop for SSTV
+
+        private void voiceControl_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                if (files != null && files.Length == 1 && IsImageFile(files[0]))
+                {
+                    e.Effect = DragDropEffects.Copy;
+                    return;
+                }
+            }
+            e.Effect = DragDropEffects.None;
+        }
+
+        private void voiceControl_DragDrop(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+
+            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            if (files == null || files.Length != 1) return;
+
+            string filePath = files[0];
+            if (!IsImageFile(filePath)) return;
+
+            try
+            {
+                using (var image = Image.FromFile(filePath))
+                {
+                    using (var form = new SstvSendForm())
+                    {
+                        form.SetImage(image);
+                        if (form.ShowDialog(this) == DialogResult.OK)
+                        {
+                            string modeName = form.SelectedMode;
+                            Image scaledImage = form.ScaledImage;
+                            int targetDeviceId = _voiceHandlerTargetDeviceId;
+
+                            if (targetDeviceId < 0)
+                            {
+                                MessageBox.Show("No radio is connected for voice transmission.", "SSTV", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                return;
+                            }
+
+                            // Save the scaled image to the SSTV application folder
+                            string sstvFolder = System.IO.Path.Combine(
+                                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                                "HTCommander", "SSTV");
+                            if (!System.IO.Directory.Exists(sstvFolder))
+                            {
+                                System.IO.Directory.CreateDirectory(sstvFolder);
+                            }
+                            DateTime now = DateTime.Now;
+                            string safeMode = modeName.Replace(" ", "_").Replace("\u2013", "-");
+                            string imageFilename = $"SSTV_{now:yyyy-MM-dd}_{now:HH-mm-ss}_{safeMode}.png";
+                            string imageFullPath = System.IO.Path.Combine(sstvFolder, imageFilename);
+                            scaledImage.Save(imageFullPath, System.Drawing.Imaging.ImageFormat.Png);
+
+                            // Extract ARGB pixel data from the scaled image
+                            Bitmap bmp = new Bitmap(scaledImage);
+                            int w = bmp.Width;
+                            int h = bmp.Height;
+                            int[] pixels = new int[w * h];
+                            BitmapData bmpData = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+                            System.Runtime.InteropServices.Marshal.Copy(bmpData.Scan0, pixels, 0, pixels.Length);
+                            bmp.UnlockBits(bmpData);
+                            bmp.Dispose();
+
+                            // Notify VoiceHandler to record the picture transmission in history
+                            broker.Dispatch(targetDeviceId, "PictureTransmitted", new { ModeName = modeName, Filename = imageFilename }, store: false);
+
+                            // Encode and transmit on a background thread to keep the UI responsive
+                            Task.Run(() =>
+                            {
+                                try
+                                {
+                                    // Encode the image to SSTV audio at 32 kHz
+                                    var encoder = new SSTV.Encoder(32000);
+                                    float[] samples = encoder.Encode(pixels, w, h, modeName);
+
+                                    // Convert float samples to 16-bit signed PCM byte array
+                                    byte[] pcmData = new byte[samples.Length * 2];
+                                    for (int i = 0; i < samples.Length; i++)
+                                    {
+                                        float s = samples[i];
+                                        if (s > 1f) s = 1f;
+                                        else if (s < -1f) s = -1f;
+                                        short sample16 = (short)(s * 32767);
+                                        pcmData[i * 2] = (byte)(sample16 & 0xFF);
+                                        pcmData[i * 2 + 1] = (byte)((sample16 >> 8) & 0xFF);
+                                    }
+
+                                    // Send PCM data to the radio for transmission
+                                    broker.Dispatch(targetDeviceId, "TransmitVoicePCM", new { Data = pcmData, PlayLocally = true }, store: false);
+                                }
+                                catch (Exception ex)
+                                {
+                                    this.BeginInvoke((Action)(() =>
+                                    {
+                                        MessageBox.Show("SSTV encoding failed: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                    }));
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Failed to load image: " + ex.Message,
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Checks if a file path refers to a supported image format.
+        /// </summary>
+        private static bool IsImageFile(string path)
+        {
+            string ext = System.IO.Path.GetExtension(path);
+            if (string.IsNullOrEmpty(ext)) return false;
+            ext = ext.ToLowerInvariant();
+            return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".gif" || ext == ".tif" || ext == ".tiff" || ext == ".ico" || ext == ".webp";
         }
 
         #endregion
