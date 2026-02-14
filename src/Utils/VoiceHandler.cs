@@ -44,6 +44,14 @@ namespace HTCommander
         /// </summary>
         public VoiceTextEncodingType Encoding { get; set; } = VoiceTextEncodingType.Voice;
         /// <summary>
+        /// Source callsign (for BSS packets).
+        /// </summary>
+        public string Source { get; set; }
+        /// <summary>
+        /// Destination callsign (for BSS packets, may be null for broadcast).
+        /// </summary>
+        public string Destination { get; set; }
+        /// <summary>
         /// Latitude coordinate if location data is available.
         /// </summary>
         public double Latitude { get; set; } = 0;
@@ -257,22 +265,19 @@ namespace HTCommander
                 }
 
                 // Create a DecodedTextEntry for the BSS packet
-                string bssText = $"{bssPacket.Callsign}: {bssPacket.Message}";
-                if (!string.IsNullOrEmpty(bssPacket.Destination))
-                {
-                    bssText = $"{bssPacket.Callsign} > {bssPacket.Destination}: {bssPacket.Message}";
-                }
-                if (!string.IsNullOrEmpty(bssText))
+                if (!string.IsNullOrEmpty(bssPacket.Message))
                 {
                     lock (_historyLock)
                     {
                         var entry = new DecodedTextEntry
                         {
-                            Text = bssText,
+                            Text = bssPacket.Message,
                             Channel = frame.channel_name ?? "",
                             Time = frame.time,
                             IsReceived = frame.incoming,
                             Encoding = VoiceTextEncodingType.BSS,
+                            Source = bssPacket.Callsign,
+                            Destination = bssPacket.Destination,
                             Latitude = latitude,
                             Longitude = longitude
                         };
@@ -290,7 +295,7 @@ namespace HTCommander
                     DispatchDecodedTextHistory();
 
                     // Dispatch a TextReady event for the BSS packet (including location)
-                    DispatchTextReady(bssText, frame.channel_name ?? "", frame.time, true, frame.incoming, VoiceTextEncodingType.BSS, latitude, longitude);
+                    DispatchTextReady(bssPacket.Message, frame.channel_name ?? "", frame.time, true, frame.incoming, VoiceTextEncodingType.BSS, latitude, longitude, source: bssPacket.Callsign, destination: bssPacket.Destination);
                 }
 
                 return;
@@ -324,19 +329,18 @@ namespace HTCommander
                 }
             }
 
-            // Format the text as: "Source > Destination: Message"
-            string formattedText = $"{source} > {destination}: {messageText ?? ""}";
-
             // Add to history as a received AX.25 entry
             lock (_historyLock)
             {
                 var entry = new DecodedTextEntry
                 {
-                    Text = formattedText,
+                    Text = messageText,
                     Channel = frame.channel_name ?? "",
                     Time = frame.time,
                     IsReceived = true,
-                    Encoding = VoiceTextEncodingType.AX25
+                    Encoding = VoiceTextEncodingType.AX25,
+                    Source = source,
+                    Destination = destination
                 };
                 _decodedTextHistory.Add(entry);
 
@@ -352,7 +356,7 @@ namespace HTCommander
             DispatchDecodedTextHistory();
 
             // Dispatch a TextReady event for the AX.25 packet
-            DispatchTextReady(formattedText, frame.channel_name ?? "", frame.time, true, true, VoiceTextEncodingType.AX25);
+            DispatchTextReady(messageText, frame.channel_name ?? "", frame.time, true, true, VoiceTextEncodingType.AX25, source: source, destination: destination);
         }
 
         /// <summary>
@@ -664,7 +668,7 @@ namespace HTCommander
                 if (string.IsNullOrEmpty(message)) return;
 
                 // Add to history as a transmitted BSS entry (just the message text)
-                AddTransmittedTextToHistory(message, channelName, VoiceTextEncodingType.BSS);
+                AddTransmittedTextToHistory(message, channelName, VoiceTextEncodingType.BSS, source: callsign);
                 
                 // Create TransmitDataFrameData and dispatch to the radio
                 var txData = new TransmitDataFrameData
@@ -1437,7 +1441,7 @@ namespace HTCommander
         /// <summary>
         /// Adds a transmitted text entry to the history.
         /// </summary>
-        private void AddTransmittedTextToHistory(string text, string channel, VoiceTextEncodingType encoding)
+        private void AddTransmittedTextToHistory(string text, string channel, VoiceTextEncodingType encoding, string source = null, string destination = null)
         {
             lock (_historyLock)
             {
@@ -1447,7 +1451,9 @@ namespace HTCommander
                     Channel = channel,
                     Time = DateTime.Now,
                     IsReceived = false,
-                    Encoding = encoding
+                    Encoding = encoding,
+                    Source = source,
+                    Destination = destination
                 };
                 _decodedTextHistory.Add(entry);
 
@@ -1463,7 +1469,7 @@ namespace HTCommander
             DispatchDecodedTextHistory();
 
             // Dispatch a TextReady event for transmitted text so UI updates
-            DispatchTextReady(text, channel, DateTime.Now, true, false, encoding);
+            DispatchTextReady(text, channel, DateTime.Now, true, false, encoding, source: source, destination: destination);
         }
 
         /// <summary>
@@ -1692,7 +1698,7 @@ namespace HTCommander
         /// <summary>
         /// Dispatches a TextReady event to the Data Broker.
         /// </summary>
-        private void DispatchTextReady(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0)
+        private void DispatchTextReady(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null)
         {
             if (_targetDeviceId > 0)
             {
@@ -1705,7 +1711,9 @@ namespace HTCommander
                     IsReceived = isReceived,
                     Encoding = encoding,
                     Latitude = latitude,
-                    Longitude = longitude
+                    Longitude = longitude,
+                    Source = source,
+                    Destination = destination
                 }, store: false);
             }
         }

@@ -206,6 +206,8 @@ namespace HTCommander.Controls
                 var encodingProp = type.GetProperty("Encoding");
                 var latitudeProp = type.GetProperty("Latitude");
                 var longitudeProp = type.GetProperty("Longitude");
+                var sourceProp = type.GetProperty("Source");
+                var destinationProp = type.GetProperty("Destination");
 
                 if (textProp != null)
                 {
@@ -239,10 +241,12 @@ namespace HTCommander.Controls
                         object lonValue = longitudeProp.GetValue(data);
                         if (lonValue is double d) longitude = d;
                     }
+                    string source = sourceProp?.GetValue(data) as string;
+                    string destination = destinationProp?.GetValue(data) as string;
 
                     if (!string.IsNullOrEmpty(text))
                     {
-                        AppendVoiceHistory(text, channel, time, completed, isReceived, encoding, latitude, longitude);
+                        AppendVoiceHistory(text, channel, time, completed, isReceived, encoding, latitude, longitude, source, destination);
                     }
                 }
             }
@@ -306,9 +310,9 @@ namespace HTCommander.Controls
         /// <summary>
         /// Appends transcribed text to the voice history using the VoiceControl.
         /// </summary>
-        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0)
+        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null)
         {
-            voiceControl.UpdatePartialMessage(text, channel, time, completed, isReceived, encoding, latitude, longitude);
+            voiceControl.UpdatePartialMessage(text, channel, time, completed, isReceived, encoding, latitude, longitude, source, destination);
         }
 
         // Properties to access internal controls
@@ -496,8 +500,8 @@ namespace HTCommander.Controls
                     int imageIndex = hasLocation ? 3 : -1;
 
                     var message = new VoiceMessage(
-                        FormatRoute(entry.Channel, entry.Encoding),
-                        null,
+                        FormatRoute(entry.Channel, entry.Encoding, entry.Source, entry.Destination),
+                        entry.Source,
                         trimmedText,
                         entry.Time,
                         !entry.IsReceived,
@@ -524,8 +528,8 @@ namespace HTCommander.Controls
                     int imageIndex = hasLocation ? 3 : -1;
 
                     var message = new VoiceMessage(
-                        FormatRoute(currentEntry.Channel, currentEntry.Encoding),
-                        null,
+                        FormatRoute(currentEntry.Channel, currentEntry.Encoding, currentEntry.Source, currentEntry.Destination),
+                        currentEntry.Source,
                         trimmedText,
                         currentEntry.Time,
                         !currentEntry.IsReceived,
@@ -546,14 +550,21 @@ namespace HTCommander.Controls
         /// <summary>
         /// Formats the route string to include encoding type.
         /// </summary>
-        private string FormatRoute(string channel, VoiceTextEncodingType encoding)
+        private string FormatRoute(string channel, VoiceTextEncodingType encoding, string source = null, string destination = null)
         {
             string encodingStr = GetEncodingTypeName(encoding);
+            string callsignPart = "";
+            if (!string.IsNullOrEmpty(source))
+            {
+                callsignPart = !string.IsNullOrEmpty(destination)
+                    ? $" {source} > {destination}"
+                    : $" {source}";
+            }
             if (string.IsNullOrEmpty(channel))
             {
-                return encodingStr;
+                return encodingStr + callsignPart;
             }
-            return $"[{channel}] {encodingStr}";
+            return $"[{channel}] {encodingStr}{callsignPart}";
         }
 
         /// <summary>

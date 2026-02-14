@@ -400,7 +400,7 @@ namespace HTCommander
         /// <param name="encoding">The encoding type.</param>
         /// <param name="latitude">Latitude coordinate if location data is available.</param>
         /// <param name="longitude">Longitude coordinate if location data is available.</param>
-        public void UpdatePartialMessage(string text, string channel, DateTime time, bool completed, bool isReceived, VoiceTextEncodingType encoding, double latitude = 0, double longitude = 0)
+        public void UpdatePartialMessage(string text, string channel, DateTime time, bool completed, bool isReceived, VoiceTextEncodingType encoding, double latitude = 0, double longitude = 0, string source = null, string destination = null)
         {
             string trimmedText = text?.Trim() ?? "";
             var partial = GetPartialMessage();
@@ -420,7 +420,8 @@ namespace HTCommander
                 {
                     // Update existing partial message
                     partial.Message = trimmedText;
-                    partial.Route = FormatRoute(channel, encoding);
+                    partial.Route = FormatRoute(channel, encoding, source, destination);
+                    partial.SenderCallSign = source;
                     partial.Time = time;
                     partial.Sender = !isReceived;
                     partial.Encoding = encoding;
@@ -440,8 +441,8 @@ namespace HTCommander
                 
                 // Create new message
                 var message = new VoiceMessage(
-                    FormatRoute(channel, encoding),
-                    null,
+                    FormatRoute(channel, encoding, source, destination),
+                    source,
                     trimmedText,
                     time,
                     !isReceived,
@@ -460,14 +461,21 @@ namespace HTCommander
         /// <summary>
         /// Formats the route string to include encoding type.
         /// </summary>
-        private string FormatRoute(string channel, VoiceTextEncodingType encoding)
+        private string FormatRoute(string channel, VoiceTextEncodingType encoding, string source = null, string destination = null)
         {
             string encodingStr = GetEncodingTypeName(encoding);
+            string callsignPart = "";
+            if (!string.IsNullOrEmpty(source))
+            {
+                callsignPart = !string.IsNullOrEmpty(destination)
+                    ? $" {source} > {destination}"
+                    : $" {source}";
+            }
             if (string.IsNullOrEmpty(channel))
             {
-                return encodingStr;
+                return encodingStr + callsignPart;
             }
-            return $"[{channel}] {encodingStr}";
+            return $"[{channel}] {encodingStr}{callsignPart}";
         }
 
         /// <summary>
