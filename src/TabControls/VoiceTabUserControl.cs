@@ -56,6 +56,9 @@ namespace HTCommander.Controls
         // Context menu for radio selection when multiple radios are connected
         private ContextMenuStrip _radioSelectContextMenuStrip;
 
+        // Track right-clicked voice message for context menu
+        private VoiceMessage rightClickedVoiceMessage = null;
+
         // Track the AllowTransmit setting
         private bool _allowTransmit = false;
 
@@ -820,6 +823,71 @@ namespace HTCommander.Controls
             if (sender is ToolStripMenuItem menuItem && menuItem.Tag is int deviceId)
             {
                 EnableVoiceHandler(deviceId);
+            }
+        }
+
+        #endregion
+
+        #region Voice Message Context Menu Handlers
+
+        private void voiceMsgContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            // Determine which message was right-clicked using cursor position
+            System.Drawing.Point pt = voiceControl.PointToClient(Cursor.Position);
+            rightClickedVoiceMessage = voiceControl.GetVoiceMessageAtXY(pt.X, pt.Y);
+
+            if (rightClickedVoiceMessage == null)
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            // Enable show location if the message has valid position data
+            bool hasPosition = (rightClickedVoiceMessage.Latitude != 0 || rightClickedVoiceMessage.Longitude != 0);
+            showLocationToolStripMenuItem.Enabled = hasPosition;
+
+            // Enable copy callsign only if callsign is available
+            copyCallsignToolStripMenuItem.Enabled = !string.IsNullOrEmpty(rightClickedVoiceMessage.SenderCallSign);
+        }
+
+        private void voiceDetailsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (rightClickedVoiceMessage == null) return;
+
+            VoiceDetailsForm form = new VoiceDetailsForm();
+            form.SetMessage(rightClickedVoiceMessage);
+            form.ShowDialog(this);
+        }
+
+        private void voiceShowLocationToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (rightClickedVoiceMessage == null) return;
+
+            double latitude = rightClickedVoiceMessage.Latitude;
+            double longitude = rightClickedVoiceMessage.Longitude;
+            if (latitude == 0 && longitude == 0) return;
+
+            // Use the route or callsign as the label
+            string label = rightClickedVoiceMessage.SenderCallSign;
+            if (string.IsNullOrEmpty(label)) label = rightClickedVoiceMessage.Route ?? "Unknown";
+
+            MapLocationForm mapForm = new MapLocationForm(label, latitude, longitude);
+            mapForm.Show();
+        }
+
+        private void voiceCopyMessageToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (rightClickedVoiceMessage != null && !string.IsNullOrEmpty(rightClickedVoiceMessage.Message))
+            {
+                Clipboard.SetText(rightClickedVoiceMessage.Message);
+            }
+        }
+
+        private void voiceCopyCallsignToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (rightClickedVoiceMessage != null && !string.IsNullOrEmpty(rightClickedVoiceMessage.SenderCallSign))
+            {
+                Clipboard.SetText(rightClickedVoiceMessage.SenderCallSign);
             }
         }
 

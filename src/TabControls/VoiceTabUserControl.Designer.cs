@@ -56,11 +56,17 @@ namespace HTCommander.Controls
             detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             voiceControl = new VoiceControl();
             mainImageList = new System.Windows.Forms.ImageList(components);
+            voiceMsgContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            detailsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            showLocationToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            copyMessageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            copyCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             voiceBottomPanel.SuspendLayout();
             speakContextMenuStrip.SuspendLayout();
             voiceTopPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)voiceMenuPictureBox).BeginInit();
             voiceTabContextMenuStrip.SuspendLayout();
+            voiceMsgContextMenuStrip.SuspendLayout();
             SuspendLayout();
             // 
             // cancelVoiceButton
@@ -245,6 +251,7 @@ namespace HTCommander.Controls
             // 
             voiceControl.CallsignFont = new System.Drawing.Font("Arial", 8F);
             voiceControl.CallsignTextColor = System.Drawing.Color.Gray;
+            voiceControl.ContextMenuStrip = voiceMsgContextMenuStrip;
             voiceControl.Dock = System.Windows.Forms.DockStyle.Fill;
             voiceControl.Images = mainImageList;
             voiceControl.Location = new System.Drawing.Point(0, 46);
@@ -271,6 +278,43 @@ namespace HTCommander.Controls
             mainImageList.Images.SetKeyName(6, "terminal-32.png");
             mainImageList.Images.SetKeyName(7, "talking.ico");
             // 
+            // voiceMsgContextMenuStrip
+            // 
+            voiceMsgContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            voiceMsgContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { detailsToolStripMenuItem, showLocationToolStripMenuItem, copyMessageToolStripMenuItem, copyCallsignToolStripMenuItem });
+            voiceMsgContextMenuStrip.Name = "voiceMsgContextMenuStrip";
+            voiceMsgContextMenuStrip.Size = new System.Drawing.Size(185, 100);
+            voiceMsgContextMenuStrip.Opening += voiceMsgContextMenuStrip_Opening;
+            // 
+            // detailsToolStripMenuItem
+            // 
+            detailsToolStripMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, 0);
+            detailsToolStripMenuItem.Name = "detailsToolStripMenuItem";
+            detailsToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            detailsToolStripMenuItem.Text = "&Details...";
+            detailsToolStripMenuItem.Click += voiceDetailsToolStripMenuItem_Click;
+            // 
+            // showLocationToolStripMenuItem
+            // 
+            showLocationToolStripMenuItem.Name = "showLocationToolStripMenuItem";
+            showLocationToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            showLocationToolStripMenuItem.Text = "Show Location...";
+            showLocationToolStripMenuItem.Click += voiceShowLocationToolStripMenuItem_Click;
+            // 
+            // copyMessageToolStripMenuItem
+            // 
+            copyMessageToolStripMenuItem.Name = "copyMessageToolStripMenuItem";
+            copyMessageToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            copyMessageToolStripMenuItem.Text = "Copy Message";
+            copyMessageToolStripMenuItem.Click += voiceCopyMessageToolStripMenuItem_Click;
+            // 
+            // copyCallsignToolStripMenuItem
+            // 
+            copyCallsignToolStripMenuItem.Name = "copyCallsignToolStripMenuItem";
+            copyCallsignToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            copyCallsignToolStripMenuItem.Text = "Copy Callsign";
+            copyCallsignToolStripMenuItem.Click += voiceCopyCallsignToolStripMenuItem_Click;
+            // 
             // VoiceTabUserControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
@@ -288,6 +332,7 @@ namespace HTCommander.Controls
             voiceTopPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)voiceMenuPictureBox).EndInit();
             voiceTabContextMenuStrip.ResumeLayout(false);
+            voiceMsgContextMenuStrip.ResumeLayout(false);
             ResumeLayout(false);
 
         }
@@ -313,5 +358,10 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem chatToolStripMenuItem;
         private VoiceControl voiceControl;
         private System.Windows.Forms.ImageList mainImageList;
+        private System.Windows.Forms.ContextMenuStrip voiceMsgContextMenuStrip;
+        private System.Windows.Forms.ToolStripMenuItem detailsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem showLocationToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem copyMessageToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem copyCallsignToolStripMenuItem;
     }
 }
