@@ -23,7 +23,8 @@ namespace HTCommander
         Morse,
         VoiceClip,
         AX25,
-        BSS
+        BSS,
+        Recording
     }
 
     /// <summary>
@@ -90,6 +91,15 @@ namespace HTCommander
         private int _ttsPendingDeviceId = -1;
         private readonly object _ttsLock = new object();
 
+        // Recording fields
+        private bool _recordingEnabled = false;
+        private readonly string _recordingsPath;
+        private NAudio.Wave.WaveFileWriter _currentRecordingWriter = null;
+        private DateTime _currentRecordingStartTime;
+        private string _currentRecordingChannel = "";
+        private string _currentRecordingFilename = "";
+        private readonly object _recordingLock = new object();
+
         /// <summary>
         /// Initializes the VoiceHandler and subscribes to Data Broker events.
         /// </summary>
@@ -100,6 +110,13 @@ namespace HTCommander
             if (!Directory.Exists(_appDataPath))
             {
                 Directory.CreateDirectory(_appDataPath);
+            }
+
+            // Set up recordings folder
+            _recordingsPath = Path.Combine(_appDataPath, "Recordings");
+            if (!Directory.Exists(_recordingsPath))
+            {
+                Directory.CreateDirectory(_recordingsPath);
             }
 
             broker = new DataBrokerClient();
@@ -122,8 +139,15 @@ namespace HTCommander
             // Subscribe to AudioState changes from all devices to detect when audio is disabled
             broker.Subscribe(DataBroker.AllDevices, "AudioState", OnAudioStateChanged);
 
+            // Subscribe to AudioDataStart from all devices to start recording when audio begins
+            broker.Subscribe(DataBroker.AllDevices, "AudioDataStart", OnAudioDataStart);
+
             // Subscribe to AudioDataEnd from all devices to flush speech-to-text on audio segment end
             broker.Subscribe(DataBroker.AllDevices, "AudioDataEnd", OnAudioDataEnd);
+
+            // Subscribe to recording enable/disable commands
+            broker.Subscribe(1, "RecordingEnable", OnRecordingEnable);
+            broker.Subscribe(1, "RecordingDisable", OnRecordingDisable);
 
             // Subscribe to ClearVoiceText command
             broker.Subscribe(1, "ClearVoiceText", OnClearVoiceText);
@@ -754,27 +778,264 @@ namespace HTCommander
         }
 
         /// <summary>
-        /// Handles the AudioDataEnd event - forces speech-to-text to process remaining audio.
+        /// Handles the AudioDataEnd event - forces speech-to-text to process remaining audio and finalizes recordings.
         /// This is called when the radio signals the end of an audio segment.
         /// </summary>
         private void OnAudioDataEnd(int deviceId, string name, object data)
         {
-            // Only care about audio end events for the radio we're monitoring
-            if (deviceId != _targetDeviceId || !_enabled || _speechToTextEngine == null)
+            // Handle speech-to-text completion
+            if (deviceId == _targetDeviceId && _enabled && _speechToTextEngine != null)
+            {
+                try
+                {
+                    // Force the speech-to-text engine to process any remaining audio
+                    _speechToTextEngine.CompleteVoiceSegment();
+                    _maxVoiceDecodeTime = 0;
+                }
+                catch (Exception ex)
+                {
+                    broker.LogError($"[VoiceHandler] Error in OnAudioDataEnd (speech-to-text): {ex.Message}");
+                }
+            }
+
+            // Handle recording completion
+            if (_recordingEnabled && deviceId == _targetDeviceId)
+            {
+                FinalizeCurrentRecording();
+            }
+        }
+
+        /// <summary>
+        /// Handles the AudioDataStart event - starts a new recording if recording is enabled.
+        /// Expected data: { StartTime: DateTime, ChannelName: string }
+        /// </summary>
+        private void OnAudioDataStart(int deviceId, string name, object data)
+        {
+            // Only care about audio start events for the radio we're monitoring
+            if (!_recordingEnabled || deviceId != _targetDeviceId)
             {
                 return;
             }
 
             try
             {
-                // Force the speech-to-text engine to process any remaining audio
-                _speechToTextEngine.CompleteVoiceSegment();
-                _maxVoiceDecodeTime = 0;
+                // Get the start time and channel name from the event data
+                DateTime startTime = DateTime.UtcNow;
+                string channelName = _currentChannelName;
+
+                if (data != null)
+                {
+                    // Try to extract from anonymous object with StartTime and ChannelName properties
+                    var dataType = data.GetType();
+                    var startTimeProp = dataType.GetProperty("StartTime");
+                    var channelNameProp = dataType.GetProperty("ChannelName");
+
+                    if (startTimeProp != null)
+                    {
+                        object startTimeValue = startTimeProp.GetValue(data);
+                        if (startTimeValue is DateTime dt)
+                        {
+                            startTime = dt;
+                        }
+                    }
+
+                    if (channelNameProp != null)
+                    {
+                        object channelNameValue = channelNameProp.GetValue(data);
+                        if (channelNameValue is string cn && !string.IsNullOrEmpty(cn))
+                        {
+                            channelName = cn;
+                            _currentChannelName = cn; // Update current channel name
+                        }
+                    }
+                }
+
+                // Start a new recording
+                StartNewRecording(startTime, channelName);
             }
             catch (Exception ex)
             {
-                broker.LogError($"[VoiceHandler] Error in OnAudioDataEnd: {ex.Message}");
+                broker.LogError($"[VoiceHandler] Error in OnAudioDataStart: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Handles the RecordingEnable command to enable automatic recording of voice clips.
+        /// </summary>
+        private void OnRecordingEnable(int deviceId, string name, object data)
+        {
+            if (_recordingEnabled) return;
+
+            _recordingEnabled = true;
+            DispatchRecordingState();
+            broker.LogInfo("[VoiceHandler] Recording enabled");
+        }
+
+        /// <summary>
+        /// Handles the RecordingDisable command to disable automatic recording of voice clips.
+        /// </summary>
+        private void OnRecordingDisable(int deviceId, string name, object data)
+        {
+            if (!_recordingEnabled) return;
+
+            // Finalize any current recording before disabling
+            FinalizeCurrentRecording();
+
+            _recordingEnabled = false;
+            DispatchRecordingState();
+            broker.LogInfo("[VoiceHandler] Recording disabled");
+        }
+
+        /// <summary>
+        /// Starts a new recording with the given start time and channel name.
+        /// </summary>
+        private void StartNewRecording(DateTime startTime, string channelName)
+        {
+            lock (_recordingLock)
+            {
+                // If there's already an active recording, finalize it first
+                if (_currentRecordingWriter != null)
+                {
+                    FinalizeCurrentRecordingInternal();
+                }
+
+                try
+                {
+                    // Generate filename: Recording_{date}_{time}_{channel}.wav
+                    string sanitizedChannel = SanitizeFilename(channelName);
+                    string filename = $"Recording_{startTime:yyyy-MM-dd}_{startTime:HH-mm-ss}_{sanitizedChannel}.wav";
+                    string fullPath = Path.Combine(_recordingsPath, filename);
+
+                    // Create the WAV file writer (32kHz, 16-bit, mono)
+                    _currentRecordingWriter = new NAudio.Wave.WaveFileWriter(fullPath, new NAudio.Wave.WaveFormat(32000, 16, 1));
+                    _currentRecordingStartTime = startTime;
+                    _currentRecordingChannel = channelName;
+                    _currentRecordingFilename = filename;
+
+                    broker.LogInfo($"[VoiceHandler] Started recording: {filename}");
+                }
+                catch (Exception ex)
+                {
+                    broker.LogError($"[VoiceHandler] Failed to start recording: {ex.Message}");
+                    _currentRecordingWriter = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Finalizes the current recording, adds it to history, and closes the file.
+        /// </summary>
+        private void FinalizeCurrentRecording()
+        {
+            lock (_recordingLock)
+            {
+                FinalizeCurrentRecordingInternal();
+            }
+        }
+
+        /// <summary>
+        /// Internal method to finalize recording (must be called within lock).
+        /// </summary>
+        private void FinalizeCurrentRecordingInternal()
+        {
+            if (_currentRecordingWriter == null) return;
+
+            try
+            {
+                // Calculate the duration in seconds
+                // Audio format is 32kHz, 16-bit, mono = 64000 bytes per second
+                long totalBytes = _currentRecordingWriter.Length;
+                double durationSeconds = totalBytes / 64000.0;
+
+                // Close and dispose the writer
+                _currentRecordingWriter.Dispose();
+                _currentRecordingWriter = null;
+
+                // Only add to history if the recording has some content (at least 0.1 seconds)
+                if (durationSeconds >= 0.1)
+                {
+                    // Format: "filename (X.X sec)"
+                    string text = $"{_currentRecordingFilename} ({durationSeconds:F1} sec)";
+
+                    // Add to history as a received recording entry
+                    lock (_historyLock)
+                    {
+                        var entry = new DecodedTextEntry
+                        {
+                            Text = text,
+                            Channel = _currentRecordingChannel,
+                            Time = _currentRecordingStartTime,
+                            IsReceived = true,
+                            Encoding = VoiceTextEncodingType.Recording
+                        };
+                        _decodedTextHistory.Add(entry);
+
+                        // Trim if exceeds max size
+                        while (_decodedTextHistory.Count > MaxHistorySize)
+                        {
+                            _decodedTextHistory.RemoveAt(0);
+                        }
+                    }
+
+                    // Save to file and dispatch updated history
+                    SaveVoiceTextHistory();
+                    DispatchDecodedTextHistory();
+
+                    // Dispatch TextReady event for the recording
+                    DispatchTextReady(text, _currentRecordingChannel, _currentRecordingStartTime, true, true, VoiceTextEncodingType.Recording);
+
+                    broker.LogInfo($"[VoiceHandler] Completed recording: {_currentRecordingFilename} ({durationSeconds:F1} sec)");
+                }
+                else
+                {
+                    // Delete very short recordings
+                    try
+                    {
+                        string fullPath = Path.Combine(_recordingsPath, _currentRecordingFilename);
+                        if (File.Exists(fullPath))
+                        {
+                            File.Delete(fullPath);
+                        }
+                    }
+                    catch (Exception) { }
+
+                    broker.LogInfo($"[VoiceHandler] Discarded short recording: {_currentRecordingFilename}");
+                }
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[VoiceHandler] Error finalizing recording: {ex.Message}");
+                try { _currentRecordingWriter?.Dispose(); } catch { }
+                _currentRecordingWriter = null;
+            }
+
+            // Clear recording state
+            _currentRecordingFilename = "";
+            _currentRecordingChannel = "";
+        }
+
+        /// <summary>
+        /// Sanitizes a string for use in a filename by replacing invalid characters.
+        /// </summary>
+        private string SanitizeFilename(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return "Unknown";
+
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            string result = input;
+            foreach (char c in invalidChars)
+            {
+                result = result.Replace(c, '_');
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Dispatches the current recording state to the Data Broker.
+        /// </summary>
+        private void DispatchRecordingState()
+        {
+            broker.Dispatch(1, "RecordingState", _recordingEnabled, store: true);
         }
 
         /// <summary>
@@ -1045,10 +1306,16 @@ namespace HTCommander
         /// </summary>
         private void OnAudioDataAvailable(int deviceId, string name, object data)
         {
-            if (!_enabled || deviceId != _targetDeviceId || _speechToTextEngine == null || data == null)
+            // Check if we need to process this audio (for speech-to-text or recording)
+            bool needsSpeechToText = _enabled && deviceId == _targetDeviceId && _speechToTextEngine != null;
+            bool needsRecording = _recordingEnabled && deviceId == _targetDeviceId;
+
+            if (!needsSpeechToText && !needsRecording)
             {
                 return;
             }
+
+            if (data == null) return;
 
             try
             {
@@ -1080,12 +1347,41 @@ namespace HTCommander
                 // Update current channel name
                 _currentChannelName = channelName;
 
-                // Process the audio chunk
-                ProcessAudioChunk(audioData, offset, length, channelName);
+                // Process the audio chunk for speech-to-text
+                if (needsSpeechToText)
+                {
+                    ProcessAudioChunk(audioData, offset, length, channelName);
+                }
+
+                // Write audio data to recording file
+                if (needsRecording)
+                {
+                    WriteAudioToRecording(audioData, offset, length);
+                }
             }
             catch (Exception ex)
             {
                 broker.LogError($"[VoiceHandler] Error processing audio data: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Writes audio data to the current recording file.
+        /// </summary>
+        private void WriteAudioToRecording(byte[] audioData, int offset, int length)
+        {
+            lock (_recordingLock)
+            {
+                if (_currentRecordingWriter == null) return;
+
+                try
+                {
+                    _currentRecordingWriter.Write(audioData, offset, length);
+                }
+                catch (Exception ex)
+                {
+                    broker.LogError($"[VoiceHandler] Error writing to recording: {ex.Message}");
+                }
             }
         }
 

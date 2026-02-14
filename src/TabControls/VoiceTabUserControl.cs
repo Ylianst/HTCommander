@@ -7,6 +7,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using HTCommander.Dialogs;
 
@@ -24,9 +25,21 @@ namespace HTCommander.Controls
         Morse
     }
 
-    public partial class VoiceTabUserControl : UserControl
+    public partial class VoiceTabUserControl : UserControl, IRadioDeviceSelector
     {
+        private int _preferredRadioDeviceId = -1;
         private DataBrokerClient broker;
+
+        /// <summary>
+        /// Gets or sets the preferred radio device ID for this control.
+        /// </summary>
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public int PreferredRadioDeviceId
+        {
+            get { return _preferredRadioDeviceId; }
+            set { _preferredRadioDeviceId = value; }
+        }
         private bool _showDetach = false;
         private bool _isListening = false;
         private bool _isProcessing = false;
@@ -339,9 +352,18 @@ namespace HTCommander.Controls
             }
             else if (_connectedRadios.Count > 1)
             {
-                // Multiple radios connected - show dropdown menu to select
-                PopulateRadioSelectMenu();
-                _radioSelectContextMenuStrip.Show(voiceEnableButton, new Point(0, voiceEnableButton.Height));
+                // Multiple radios connected - check if PreferredRadioDeviceId is set (>= 100) and connected
+                if (_preferredRadioDeviceId >= 100 && _connectedRadios.Any(r => r.DeviceId == _preferredRadioDeviceId))
+                {
+                    // Use the preferred radio directly
+                    EnableVoiceHandler(_preferredRadioDeviceId);
+                }
+                else
+                {
+                    // Show dropdown menu to select
+                    PopulateRadioSelectMenu();
+                    _radioSelectContextMenuStrip.Show(voiceEnableButton, new Point(0, voiceEnableButton.Height));
+                }
             }
             // If no radios connected, button should be disabled so this case shouldn't happen
         }

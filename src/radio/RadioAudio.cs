@@ -239,7 +239,7 @@ namespace HTCommander
         private void DispatchAudioStateChanged(bool enabled) { broker.Dispatch(DeviceId, "AudioState", enabled, store: true); }
         private void DispatchVoiceTransmitStateChanged(bool transmitting) { broker.Dispatch(DeviceId, "VoiceTransmitStateChanged", transmitting, store: false); }
         private void DispatchAudioDataAvailable(byte[] data, int offset, int length, string channelName, bool transmit) { broker.Dispatch(DeviceId, "AudioDataAvailable", new { Data = data, Offset = offset, Length = length, ChannelName = channelName, Transmit = transmit, AudioRunStartTime = audioRunStartTime }, store: false); }
-        private void DispatchAudioDataStart() { audioRunStartTime = DateTime.UtcNow; broker.Dispatch(DeviceId, "AudioDataStart", audioRunStartTime, store: false); }
+        private void DispatchAudioDataStart() { audioRunStartTime = DateTime.UtcNow; broker.Dispatch(DeviceId, "AudioDataStart", new { StartTime = audioRunStartTime, ChannelName = currentChannelName }, store: false); }
         private void DispatchAudioDataEnd() { broker.Dispatch(DeviceId, "AudioDataEnd", audioRunStartTime, store: false); broker.Dispatch(DeviceId, "OutputAmplitude", 0f, store: false); }
 
         // Audio run state tracking
@@ -474,7 +474,6 @@ namespace HTCommander
             // Use WinRT Bluetooth APIs to connect to the device
             WinBluetooth.BluetoothDevice btDevice = null;
             WinRfcomm.RfcommDeviceService rfcommService = null;
-            Windows.Networking.Sockets.StreamSocket socket = null;
 
             Debug("Attempting to connect using WinRT APIs...");
             try

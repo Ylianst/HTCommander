@@ -1086,7 +1086,14 @@ namespace HTCommander
                 using (var reader = new WaveFileReader(filePath))
                 {
                     byte[] audioData = new byte[reader.Length];
-                    reader.Read(audioData, 0, audioData.Length);
+                    int totalBytesRead = 0;
+                    int bytesToRead = audioData.Length;
+                    while (totalBytesRead < bytesToRead)
+                    {
+                        int bytesRead = reader.Read(audioData, totalBytesRead, bytesToRead - totalBytesRead);
+                        if (bytesRead == 0) break;
+                        totalBytesRead += bytesRead;
+                    }
                     clip.WaveformData = WaveformGenerator.GenerateWaveformFromRecording(
                         audioData, 
                         reader.WaveFormat);

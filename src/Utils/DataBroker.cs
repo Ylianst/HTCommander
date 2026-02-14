@@ -235,7 +235,7 @@ namespace HTCommander
                     {
                         return (T)Convert.ChangeType(value, typeof(T));
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
                         return defaultValue;
                     }

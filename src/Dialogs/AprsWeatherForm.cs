@@ -14,7 +14,7 @@ namespace HTCommander
     {
         private DataBrokerClient _broker;
 
-        public string Location { get { return locationTextBox.Text; } }
+        public new string Location { get { return locationTextBox.Text; } }
 
         public AprsWeatherForm()
         {

@@ -13,9 +13,11 @@ using HTCommander.Dialogs;
 
 namespace HTCommander.Controls
 {
-    public partial class AprsTabUserControl : UserControl
+    public partial class AprsTabUserControl : UserControl, IRadioDeviceSelector
     {
         #region Fields
+
+        private int _preferredRadioDeviceId = -1;
 
         private ChatMessage rightClickedMessage = null;
         private ChatMessage selectedAprsMessage = null;
@@ -111,6 +113,17 @@ namespace HTCommander.Controls
         #endregion
 
         #region Properties
+
+        /// <summary>
+        /// Gets or sets the preferred radio device ID for this control.
+        /// </summary>
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public int PreferredRadioDeviceId
+        {
+            get { return _preferredRadioDeviceId; }
+            set { _preferredRadioDeviceId = value; }
+        }
 
         /// <summary>
         /// Gets or sets whether the "Detach..." menu item is visible.
@@ -495,10 +508,34 @@ namespace HTCommander.Controls
 
         /// <summary>
         /// Gets the device ID of the preferred radio for APRS transmission.
+        /// If PreferredRadioDeviceId is set (>= 100), it will be used first if it has an APRS channel.
         /// </summary>
         /// <returns>The device ID of the preferred APRS radio, or -1 if none found.</returns>
         private int GetPreferredAprsRadioDeviceId()
         {
+            // If PreferredRadioDeviceId is set (>= 100), check if it has an APRS channel first
+            if (_preferredRadioDeviceId >= 100 && _subscribedRadioDeviceIds.Contains(_preferredRadioDeviceId))
+            {
+                bool allChannelsLoaded = _broker.GetValue<bool>(_preferredRadioDeviceId, "AllChannelsLoaded", false);
+                if (allChannelsLoaded)
+                {
+                    RadioChannelInfo[] channels = _broker.GetValue<RadioChannelInfo[]>(_preferredRadioDeviceId, "Channels", null);
+                    if (channels != null)
+                    {
+                        foreach (RadioChannelInfo channel in channels)
+                        {
+                            if (channel != null &&
+                                !string.IsNullOrEmpty(channel.name_str) &&
+                                channel.name_str.Equals("APRS", StringComparison.OrdinalIgnoreCase))
+                            {
+                                return _preferredRadioDeviceId;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fall back to finding any radio with an APRS channel
             int preferredDeviceId = -1;
 
             foreach (int deviceId in _subscribedRadioDeviceIds)

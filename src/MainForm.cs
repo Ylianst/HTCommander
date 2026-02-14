@@ -13,6 +13,7 @@ using System.Windows.Forms;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using HTCommander.Dialogs;
+using HTCommander.Controls;
 
 namespace HTCommander
 {
@@ -89,6 +90,9 @@ namespace HTCommander
 
             // Publish initial empty connected radios list
             PublishConnectedRadios();
+
+            // Subscribe to DeviceId changes from radioPanelControl
+            radioPanelControl.DeviceIdChanged += OnRadioPanelDeviceIdChanged;
         }
         private void StartPipeServer()
         {
@@ -906,6 +910,29 @@ namespace HTCommander
 
                 _transmitTabsVisible = false;
             }
+        }
+
+        #endregion
+
+        #region RadioPanelControl DeviceId Change Handler
+
+        /// <summary>
+        /// Handles DeviceId changes from the radioPanelControl.
+        /// Updates all tab controls that implement IRadioDeviceSelector with the new preferred radio device ID.
+        /// </summary>
+        private void OnRadioPanelDeviceIdChanged(object sender, int newDeviceId)
+        {
+            // Update all tab controls that implement IRadioDeviceSelector
+            aprsTabUserControl.PreferredRadioDeviceId = newDeviceId;
+            mapTabUserControl.PreferredRadioDeviceId = newDeviceId;
+            voiceTabUserControl.PreferredRadioDeviceId = newDeviceId;
+            mailTabUserControl.PreferredRadioDeviceId = newDeviceId;
+            terminalTabUserControl.PreferredRadioDeviceId = newDeviceId;
+            contactsTabUserControl.PreferredRadioDeviceId = newDeviceId;
+            bbsTabUserControl.PreferredRadioDeviceId = newDeviceId;
+            torrentTabUserControl.PreferredRadioDeviceId = newDeviceId;
+            packetCaptureTabUserControl.PreferredRadioDeviceId = newDeviceId;
+            debugTabUserControl.PreferredRadioDeviceId = newDeviceId;
         }
 
         #endregion

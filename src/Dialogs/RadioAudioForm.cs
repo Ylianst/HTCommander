@@ -65,7 +65,7 @@ namespace HTCommander
             broker.Subscribe(deviceId, "Settings", OnSettingsChanged);
             broker.Subscribe(deviceId, "HtStatus", OnHtStatusChanged);
             broker.Subscribe(deviceId, "Volume", OnVolumeLevelChanged);
-            broker.Subscribe(deviceId, "Recording", OnRecordingStateChanged);
+            broker.Subscribe(1, "RecordingState", OnRecordingStateChanged);
             broker.Subscribe(deviceId, "OutputAmplitude", OnOutputAmplitudeChanged);
             broker.Subscribe(0, "AllowTransmit", OnAllowTransmitChanged);
             broker.Subscribe(deviceId, "FriendlyName", OnFriendlyNameChanged);
@@ -844,24 +844,14 @@ namespace HTCommander
 
         private void recordButton_Click(object sender, EventArgs e)
         {
-            bool recording = broker.GetValue<bool>(deviceId, "Recording", false);
+            bool recording = broker.GetValue<bool>(1, "RecordingState", false);
             if (recording == true)
             {
-                if (MessageBox.Show(this, "Stop Recording?", "Audio") == DialogResult.OK)
-                {
-                    broker.Dispatch(deviceId, "StopRecording", true);
-                }
+                broker.Dispatch(1, "RecordingDisable", null);
             }
             else
             {
-                if (saveFileDialog.ShowDialog(this) == DialogResult.OK)
-                {
-                    string fileName = saveFileDialog.FileName;
-                    if (fileName != null && fileName.Length > 0)
-                    {
-                        broker.Dispatch(deviceId, "StartRecording", fileName);
-                    }
-                }
+                broker.Dispatch(1, "RecordingEnable", null);
             }
         }
 

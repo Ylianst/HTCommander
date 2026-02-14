@@ -18,19 +18,32 @@ namespace HTCommander.Controls
     /// User control that displays captured packets and provides packet decode functionality.
     /// Uses the DataBroker pattern to receive packets from the PacketStore data handler.
     /// </summary>
-    public partial class PacketCaptureTabUserControl : UserControl
+    public partial class PacketCaptureTabUserControl : UserControl, IRadioDeviceSelector
     {
         #region Private Fields
+
+        private int _preferredRadioDeviceId = -1;
 
         /// <summary>
         /// Client for subscribing to and dispatching messages through the DataBroker.
         /// </summary>
         private DataBrokerClient broker;
 
+        #endregion
+
+        #region IRadioDeviceSelector Implementation
+
         /// <summary>
-        /// Indicates whether this control is in file viewing mode (no broker subscriptions).
+        /// Gets or sets the preferred radio device ID for this control.
         /// </summary>
-        private bool _fileViewMode = false;
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public int PreferredRadioDeviceId
+        {
+            get { return _preferredRadioDeviceId; }
+            set { _preferredRadioDeviceId = value; }
+        }
+
 
         /// <summary>
         /// The path to the packet capture file (when in file viewing mode).
@@ -93,7 +106,7 @@ namespace HTCommander.Controls
             InitializeComponent();
             InitializeDoubleBuffering();
 
-            _fileViewMode = true;
+            // Note: We're in file view mode (no broker subscriptions)
 
             // Hide the title panel in file view mode
             titlePanel.Visible = false;
@@ -219,7 +232,6 @@ namespace HTCommander.Controls
                 _filename = value;
                 if (!string.IsNullOrEmpty(value) && !DesignMode)
                 {
-                    _fileViewMode = true;
                     LoadPacketsFromFile(value);
                 }
             }

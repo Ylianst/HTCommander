@@ -41,9 +41,9 @@ namespace HTCommander
                 listenerThread.Start();
                 //mainForm.Debug($"SMTP server started on port {Port}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //mainForm.Debug($"SMTP server failed to start: {ex.Message}");
+                // SMTP server failed to start
             }
         }
 
@@ -151,9 +151,9 @@ namespace HTCommander
                     {
                         bytesRead = stream.Read(buffer, 0, buffer.Length);
                     }
-                    catch (IOException ioEx)
+                    catch (IOException)
                     {
-                        //mainForm.Debug($"SMTP: Read timeout or connection closed: {ioEx.Message}");
+                        // Read timeout or connection closed
                         break;
                     }
                     
@@ -197,10 +197,9 @@ namespace HTCommander
                     lineBuffer.Append(bufferedText);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //mainForm.Debug($"SMTP session error: {ex.Message}");
-                //mainForm.Debug($"SMTP stack trace: {ex.StackTrace}");
+                // SMTP session error
             }
             finally
             {
@@ -450,9 +449,9 @@ namespace HTCommander
                 //mainForm.Debug($"SMTP: Email queued to Outbox - From: {from}, To: {to}, Subject: {subject}");
                 SendResponse("250 OK: Message accepted for delivery");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //mainForm.Debug($"SMTP: Error processing email: {ex.Message}");
+                // Error processing email
                 SendResponse("554 Transaction failed");
             }
             finally

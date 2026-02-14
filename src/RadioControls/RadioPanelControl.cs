@@ -81,6 +81,9 @@ namespace HTCommander.RadioControls
 
                 _deviceId = value;
 
+                // Raise event to notify subscribers of the device ID change
+                DeviceIdChanged?.Invoke(this, _deviceId);
+
                 if (_deviceId > 0 && broker != null)
                 {
                     // Subscribe to the new device's events
@@ -676,6 +679,9 @@ namespace HTCommander.RadioControls
             radioPositionForm.FormClosed += (s, args) => { radioPositionForm = null; };
             radioPositionForm.Show();
         }
+
+        // Event that fires when DeviceId changes
+        public event EventHandler<int> DeviceIdChanged;
 
         // Event that parent can subscribe to for bluetooth check
         public event EventHandler CheckBluetoothRequested;

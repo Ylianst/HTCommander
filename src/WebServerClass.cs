@@ -97,10 +97,10 @@ namespace HTCommander
                         // Task was cancelled, exit loop
                         break;
                     }
-                    catch (Exception ex)
-                    {
-                        _parent.Debug($"Error sending data to {Id}: {ex.Message}");
-                    }
+                catch (Exception)
+                {
+                    // Wait task cleanup failed, ignore
+                }
                     finally
                     {
                         _sendLock.Release(); // Release the lock
@@ -111,10 +111,10 @@ namespace HTCommander
             {
                 _parent.Debug($"Sending task for {Id} cancelled.");
             }
-            catch (Exception ex)
-            {
-                _parent.Debug($"Fatal error in sending task for {Id}: {ex.Message}");
-            }
+                    catch (Exception)
+                    {
+                        // Socket close error, ignore
+                    }
             */
             return null;
         }
@@ -178,10 +178,10 @@ namespace HTCommander
                     _serverTask.Wait(TimeSpan.FromSeconds(5));
                 }
                 catch (OperationCanceledException) { }
-                catch (Exception ex)
-                {
-                    //parent.Debug($"Error waiting for server task to complete: {ex.Message}");
-                }
+                    catch (Exception)
+                    {
+                        // Failed to get HTTP context, ignore
+                    }
             }
 
             foreach (var kvp in _webSockets)
@@ -196,10 +196,10 @@ namespace HTCommander
                     {
                         ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Server shutting down", CancellationToken.None).Wait();
                     }
-                    catch (Exception ex)
-                    {
-                        //parent.Debug($"Error closing WebSocket {id}: {ex.Message}");
-                    }
+            catch (Exception)
+            {
+                // Server error, exit loop
+            }
                 }
                 wsSender.Dispose(); // Dispose the WebSocketSender, which disposes the WebSocket
             }
@@ -235,9 +235,9 @@ namespace HTCommander
                         //parent.Debug($"HttpListenerException: {ex.Message}");
                         continue;
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-                        //parent.Debug($"Error getting HTTP context: {ex.Message}");
+                        // Error getting HTTP context
                         continue;
                     }
 
@@ -255,9 +255,9 @@ namespace HTCommander
             {
                 //parent.Debug("Server task cancelled.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //parent.Debug("Server error: " + ex.Message);
+                // Server error
             }
             finally
             {

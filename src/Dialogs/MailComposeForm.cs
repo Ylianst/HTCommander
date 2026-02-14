@@ -119,8 +119,7 @@ namespace HTCommander
 
         private void sendButton_Click(object sender, EventArgs e)
         {
-            bool addMail = false;
-            if (mail == null) { mail = new WinLinkMail(); addMail = true; }
+            if (mail == null) { mail = new WinLinkMail(); }
             mail.MID = WinLinkMail.GenerateMID();
             mail.To = toTextBox.Text;
             string fromCallsign = broker.GetValue<string>(0, "Callsign", "");
@@ -160,8 +159,7 @@ namespace HTCommander
 
         private void draftButton_Click(object sender, EventArgs e)
         {
-            bool addMail = false;
-            if (mail == null) { mail = new WinLinkMail(); addMail = true; }
+            if (mail == null) { mail = new WinLinkMail(); }
             mail.MID = WinLinkMail.GenerateMID();
             mail.To = toTextBox.Text;
             string fromCallsignDraft = broker.GetValue<string>(0, "Callsign", "");

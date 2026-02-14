@@ -19,14 +19,31 @@ namespace HTCommander.Controls
     /// debug settings across the application. Settings like the debug file path and Bluetooth
     /// frames debug flag are persisted to the registry.
     /// </remarks>
-    public partial class DebugTabUserControl : UserControl
+    public partial class DebugTabUserControl : UserControl, IRadioDeviceSelector
     {
         #region Private Fields
+
+        private int _preferredRadioDeviceId = -1;
 
         /// <summary>
         /// Client for subscribing to and dispatching messages through the DataBroker.
         /// </summary>
         private DataBrokerClient broker;
+
+        #endregion
+
+        #region Public Properties
+
+        /// <summary>
+        /// Gets or sets the preferred radio device ID for this control.
+        /// </summary>
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public int PreferredRadioDeviceId
+        {
+            get { return _preferredRadioDeviceId; }
+            set { _preferredRadioDeviceId = value; }
+        }
 
         /// <summary>
         /// Backing field for ShowDetach property.

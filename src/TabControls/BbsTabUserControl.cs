@@ -14,12 +14,24 @@ using HTCommander.Dialogs;
 
 namespace HTCommander.Controls
 {
-    public partial class BbsTabUserControl : UserControl
+    public partial class BbsTabUserControl : UserControl, IRadioDeviceSelector
     {
+        private int _preferredRadioDeviceId = -1;
         private DataBrokerClient broker;
         private bool _showDetach = false;
         private List<int> connectedRadios = new List<int>();
         private Dictionary<int, RadioLockState> lockStates = new Dictionary<int, RadioLockState>();
+
+        /// <summary>
+        /// Gets or sets the preferred radio device ID for this control.
+        /// </summary>
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public int PreferredRadioDeviceId
+        {
+            get { return _preferredRadioDeviceId; }
+            set { _preferredRadioDeviceId = value; }
+        }
 
         /// <summary>
         /// Gets or sets whether the "Detach..." menu item is visible.

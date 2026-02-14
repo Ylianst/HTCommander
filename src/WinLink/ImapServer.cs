@@ -42,9 +42,9 @@ namespace HTCommander
                 listenerThread.Start();
                 //mainForm.Debug($"IMAP server started on port {Port}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //mainForm.Debug($"IMAP server failed to start: {ex.Message}");
+                // IMAP server failed to start
             }
         }
 
@@ -104,8 +104,10 @@ namespace HTCommander
         private TcpClient client;
         private StreamReader reader;
         private StreamWriter writer;
+#pragma warning disable CS0649 // Field is never assigned to (login code is commented out)
         private bool authenticated;
-        private string username;
+#pragma warning restore CS0649
+        // private string username; // Reserved for future use
         private int selectedMailbox = -1;
         private Dictionary<int, uint> messageUids = new Dictionary<int, uint>();
         private Dictionary<int, HashSet<string>> messageFlags = new Dictionary<int, HashSet<string>>();
@@ -165,17 +167,13 @@ namespace HTCommander
             {
                 // Stream/socket was disposed, normal during shutdown
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
-                // This is expected when LOGOUT is called, don't log as error
-                //if (!ex.Message.Contains("LOGOUT"))
-                //    mainForm.Debug($"IMAP session error: {ex.Message}");
+                // This is expected when LOGOUT is called
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                // Only log if not a connection-related error
-                //if (!ex.Message.Contains("Cannot access a disposed object"))
-                //    mainForm.Debug($"IMAP session error: {ex.Message}");
+                // Session error - connection closed or disposed
             }
             finally
             {
