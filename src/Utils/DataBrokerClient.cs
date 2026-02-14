@@ -107,7 +107,7 @@ namespace HTCommander
         /// <param name="store">If true, the value is stored in the broker; if false, only broadcast.</param>
         public void Dispatch(int deviceId, string name, object data, bool store = true)
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(DataBrokerClient));
+            if (_disposed) return;
             DataBroker.Dispatch(deviceId, name, data, store);
         }
 

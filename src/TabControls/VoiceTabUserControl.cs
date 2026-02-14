@@ -5,12 +5,12 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Drawing;
 using System.Windows.Forms;
+using System.Drawing.Imaging;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 using HTCommander.Dialogs;
 
 // DecodedTextEntry is defined in the HTCommander namespace (VoiceHandler.cs)
@@ -309,6 +309,9 @@ namespace HTCommander.Controls
         {
             cancelVoiceButton.Visible = _isTransmitting;
             speakButton.Enabled = !_isTransmitting && speakTextBox.Enabled;
+            bool canTransmit = _voiceHandlerEnabled && !_isTransmitting;
+            imageToolStripMenuItem.Enabled = canTransmit;
+            audioToolStripMenuItem.Enabled = canTransmit;
         }
 
         /// <summary>
@@ -420,6 +423,9 @@ namespace HTCommander.Controls
         {
             bool hasText = !string.IsNullOrWhiteSpace(speakTextBox.Text);
             speakButton.Enabled = hasText && _voiceHandlerEnabled && !_isTransmitting;
+            bool canTransmit = _voiceHandlerEnabled && !_isTransmitting;
+            imageToolStripMenuItem.Enabled = canTransmit;
+            audioToolStripMenuItem.Enabled = canTransmit;
         }
 
         private void speakTextBox_KeyPress(object sender, KeyPressEventArgs e)
@@ -860,12 +866,20 @@ namespace HTCommander.Controls
                 return;
             }
 
-            // Enable show location if the message has valid position data
+            // Hide show location if the message has no valid position data
             bool hasPosition = (rightClickedVoiceMessage.Latitude != 0 || rightClickedVoiceMessage.Longitude != 0);
-            showLocationToolStripMenuItem.Enabled = hasPosition;
+            showLocationToolStripMenuItem.Visible = hasPosition;
 
-            // Enable copy callsign only if callsign is available
-            copyCallsignToolStripMenuItem.Enabled = !string.IsNullOrEmpty(rightClickedVoiceMessage.SenderCallSign);
+            // Hide copy callsign if callsign is not available
+            copyCallsignToolStripMenuItem.Visible = !string.IsNullOrEmpty(rightClickedVoiceMessage.SenderCallSign);
+
+            // Hide copy message if message text is not available
+            copyMessageToolStripMenuItem.Visible = !string.IsNullOrEmpty(rightClickedVoiceMessage.Message);
+
+            // Show "View..." and "Copy Image" only for picture messages with a valid file
+            bool hasImage = (rightClickedVoiceMessage.Encoding == VoiceTextEncodingType.Picture) && !string.IsNullOrEmpty(rightClickedVoiceMessage.Filename);
+            viewToolStripMenuItem.Visible = hasImage;
+            copyImageToolStripMenuItem.Visible = hasImage;
         }
 
         private void voiceDetailsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -909,6 +923,151 @@ namespace HTCommander.Controls
             }
         }
 
+        private void voiceCopyImageToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (rightClickedVoiceMessage == null || string.IsNullOrEmpty(rightClickedVoiceMessage.Filename)) return;
+            try
+            {
+                string fullPath = VoiceControl.GetSstvImagePath(rightClickedVoiceMessage.Filename);
+                if (!System.IO.File.Exists(fullPath)) return;
+                using (var image = System.Drawing.Image.FromFile(fullPath))
+                {
+                    Clipboard.SetImage(image);
+                }
+            }
+            catch { }
+        }
+
+        private void voiceViewToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (rightClickedVoiceMessage == null || string.IsNullOrEmpty(rightClickedVoiceMessage.Filename)) return;
+            string fullPath = VoiceControl.GetSstvImagePath(rightClickedVoiceMessage.Filename);
+            if (!System.IO.File.Exists(fullPath)) return;
+            ImagePreviewForm form = new ImagePreviewForm(fullPath);
+            form.Show(this);
+        }
+
+        private void voiceControl_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            VoiceMessage msg = voiceControl.GetVoiceMessageAtXY(e.X, e.Y);
+            if (msg == null) return;
+
+            if (msg.Encoding == VoiceTextEncodingType.Picture && !string.IsNullOrEmpty(msg.Filename))
+            {
+                // Show image preview for picture messages
+                string fullPath = VoiceControl.GetSstvImagePath(msg.Filename);
+                if (System.IO.File.Exists(fullPath))
+                {
+                    ImagePreviewForm form = new ImagePreviewForm(fullPath);
+                    form.Show(this);
+                }
+            }
+            else
+            {
+                // Show details for all other message types
+                VoiceDetailsForm form = new VoiceDetailsForm();
+                form.SetMessage(msg);
+                form.ShowDialog(this);
+            }
+        }
+
+        #endregion
+
+        #region Image and Audio file selection
+
+        private void imageToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (var dlg = new OpenFileDialog())
+            {
+                dlg.Title = "Select Image for SSTV";
+                dlg.Filter = "Image Files|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff;*.ico;*.webp|All Files|*.*";
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+                string filePath = dlg.FileName;
+                if (!IsImageFile(filePath)) return;
+
+                try
+                {
+                    using (var image = Image.FromFile(filePath))
+                    {
+                        SendSstvImage(image);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Failed to load image: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void audioToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (var dlg = new OpenFileDialog())
+            {
+                dlg.Title = "Select Audio File";
+                dlg.Filter = "WAV Files|*.wav|All Files|*.*";
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+                string filePath = dlg.FileName;
+                string fileName = System.IO.Path.GetFileName(filePath);
+
+                if (MessageBox.Show($"Transmit audio file \"{fileName}\"?", "Transmit Audio", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
+
+                int targetDeviceId = _voiceHandlerTargetDeviceId;
+                if (targetDeviceId < 0)
+                {
+                    MessageBox.Show("No radio is connected for voice transmission.", "Transmit Audio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        // Read the WAV file and convert to 32kHz 16-bit mono PCM
+                        byte[] pcmData;
+                        using (var reader = new NAudio.Wave.AudioFileReader(filePath))
+                        {
+                            // Resample to 32kHz mono
+                            var targetFormat = new NAudio.Wave.WaveFormat(32000, 16, 1);
+                            using (var resampler = new NAudio.Wave.MediaFoundationResampler(reader, targetFormat))
+                            {
+                                resampler.ResamplerQuality = 60;
+                                using (var ms = new System.IO.MemoryStream())
+                                {
+                                    byte[] buf = new byte[8192];
+                                    int bytesRead;
+                                    while ((bytesRead = resampler.Read(buf, 0, buf.Length)) > 0)
+                                    {
+                                        ms.Write(buf, 0, bytesRead);
+                                    }
+                                    pcmData = ms.ToArray();
+                                }
+                            }
+                        }
+
+                        if (pcmData.Length == 0)
+                        {
+                            this.BeginInvoke((Action)(() =>
+                            {
+                                MessageBox.Show("The audio file is empty.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }));
+                            return;
+                        }
+
+                        broker.Dispatch(targetDeviceId, "TransmitVoicePCM", new { Data = pcmData, PlayLocally = true }, store: false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.BeginInvoke((Action)(() =>
+                        {
+                            MessageBox.Show("Failed to transmit audio: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }));
+                    }
+                });
+            }
+        }
+
         #endregion
 
         #region Drag and Drop for SSTV
@@ -941,82 +1100,7 @@ namespace HTCommander.Controls
             {
                 using (var image = Image.FromFile(filePath))
                 {
-                    using (var form = new SstvSendForm())
-                    {
-                        form.SetImage(image);
-                        if (form.ShowDialog(this) == DialogResult.OK)
-                        {
-                            string modeName = form.SelectedMode;
-                            Image scaledImage = form.ScaledImage;
-                            int targetDeviceId = _voiceHandlerTargetDeviceId;
-
-                            if (targetDeviceId < 0)
-                            {
-                                MessageBox.Show("No radio is connected for voice transmission.", "SSTV", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                return;
-                            }
-
-                            // Save the scaled image to the SSTV application folder
-                            string sstvFolder = System.IO.Path.Combine(
-                                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                                "HTCommander", "SSTV");
-                            if (!System.IO.Directory.Exists(sstvFolder))
-                            {
-                                System.IO.Directory.CreateDirectory(sstvFolder);
-                            }
-                            DateTime now = DateTime.Now;
-                            string safeMode = modeName.Replace(" ", "_").Replace("\u2013", "-");
-                            string imageFilename = $"SSTV_{now:yyyy-MM-dd}_{now:HH-mm-ss}_{safeMode}.png";
-                            string imageFullPath = System.IO.Path.Combine(sstvFolder, imageFilename);
-                            scaledImage.Save(imageFullPath, System.Drawing.Imaging.ImageFormat.Png);
-
-                            // Extract ARGB pixel data from the scaled image
-                            Bitmap bmp = new Bitmap(scaledImage);
-                            int w = bmp.Width;
-                            int h = bmp.Height;
-                            int[] pixels = new int[w * h];
-                            BitmapData bmpData = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-                            System.Runtime.InteropServices.Marshal.Copy(bmpData.Scan0, pixels, 0, pixels.Length);
-                            bmp.UnlockBits(bmpData);
-                            bmp.Dispose();
-
-                            // Notify VoiceHandler to record the picture transmission in history
-                            broker.Dispatch(targetDeviceId, "PictureTransmitted", new { ModeName = modeName, Filename = imageFilename }, store: false);
-
-                            // Encode and transmit on a background thread to keep the UI responsive
-                            Task.Run(() =>
-                            {
-                                try
-                                {
-                                    // Encode the image to SSTV audio at 32 kHz
-                                    var encoder = new SSTV.Encoder(32000);
-                                    float[] samples = encoder.Encode(pixels, w, h, modeName);
-
-                                    // Convert float samples to 16-bit signed PCM byte array
-                                    byte[] pcmData = new byte[samples.Length * 2];
-                                    for (int i = 0; i < samples.Length; i++)
-                                    {
-                                        float s = samples[i];
-                                        if (s > 1f) s = 1f;
-                                        else if (s < -1f) s = -1f;
-                                        short sample16 = (short)(s * 32767);
-                                        pcmData[i * 2] = (byte)(sample16 & 0xFF);
-                                        pcmData[i * 2 + 1] = (byte)((sample16 >> 8) & 0xFF);
-                                    }
-
-                                    // Send PCM data to the radio for transmission
-                                    broker.Dispatch(targetDeviceId, "TransmitVoicePCM", new { Data = pcmData, PlayLocally = true }, store: false);
-                                }
-                                catch (Exception ex)
-                                {
-                                    this.BeginInvoke((Action)(() =>
-                                    {
-                                        MessageBox.Show("SSTV encoding failed: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                    }));
-                                }
-                            });
-                        }
-                    }
+                    SendSstvImage(image);
                 }
             }
             catch (Exception ex)
@@ -1038,6 +1122,88 @@ namespace HTCommander.Controls
             if (string.IsNullOrEmpty(ext)) return false;
             ext = ext.ToLowerInvariant();
             return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".gif" || ext == ".tif" || ext == ".tiff" || ext == ".ico" || ext == ".webp";
+        }
+
+        /// <summary>
+        /// Shows the SSTV send dialog for the given image and transmits if confirmed.
+        /// </summary>
+        private void SendSstvImage(Image image)
+        {
+            using (var form = new SstvSendForm())
+            {
+                form.SetImage(image);
+                if (form.ShowDialog(this) != DialogResult.OK) return;
+
+                string modeName = form.SelectedMode;
+                Image scaledImage = form.ScaledImage;
+                int targetDeviceId = _voiceHandlerTargetDeviceId;
+
+                if (targetDeviceId < 0)
+                {
+                    MessageBox.Show("No radio is connected for voice transmission.", "SSTV", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Save the scaled image to the SSTV application folder
+                string sstvFolder = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "HTCommander", "SSTV");
+                if (!System.IO.Directory.Exists(sstvFolder))
+                {
+                    System.IO.Directory.CreateDirectory(sstvFolder);
+                }
+                DateTime now = DateTime.Now;
+                string safeMode = modeName.Replace(" ", "_").Replace("\u2013", "-");
+                string imageFilename = $"SSTV_{now:yyyy-MM-dd}_{now:HH-mm-ss}_{safeMode}.png";
+                string imageFullPath = System.IO.Path.Combine(sstvFolder, imageFilename);
+                scaledImage.Save(imageFullPath, System.Drawing.Imaging.ImageFormat.Png);
+
+                // Extract ARGB pixel data from the scaled image
+                Bitmap bmp = new Bitmap(scaledImage);
+                int w = bmp.Width;
+                int h = bmp.Height;
+                int[] pixels = new int[w * h];
+                BitmapData bmpData = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+                System.Runtime.InteropServices.Marshal.Copy(bmpData.Scan0, pixels, 0, pixels.Length);
+                bmp.UnlockBits(bmpData);
+                bmp.Dispose();
+
+                // Notify VoiceHandler to record the picture transmission in history
+                broker.Dispatch(targetDeviceId, "PictureTransmitted", new { ModeName = modeName, Filename = imageFilename }, store: false);
+
+                // Encode and transmit on a background thread to keep the UI responsive
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        // Encode the image to SSTV audio at 32 kHz
+                        var encoder = new SSTV.Encoder(32000);
+                        float[] samples = encoder.Encode(pixels, w, h, modeName);
+
+                        // Convert float samples to 16-bit signed PCM byte array
+                        byte[] pcmData = new byte[samples.Length * 2];
+                        for (int i = 0; i < samples.Length; i++)
+                        {
+                            float s = samples[i];
+                            if (s > 1f) s = 1f;
+                            else if (s < -1f) s = -1f;
+                            short sample16 = (short)(s * 32767);
+                            pcmData[i * 2] = (byte)(sample16 & 0xFF);
+                            pcmData[i * 2 + 1] = (byte)((sample16 >> 8) & 0xFF);
+                        }
+
+                        // Send PCM data to the radio for transmission
+                        broker.Dispatch(targetDeviceId, "TransmitVoicePCM", new { Data = pcmData, PlayLocally = false }, store: false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.BeginInvoke((Action)(() =>
+                        {
+                            MessageBox.Show("SSTV encoding failed: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }));
+                    }
+                });
+            }
         }
 
         #endregion
@@ -1086,5 +1252,9 @@ namespace HTCommander.Controls
 
         #endregion
 
+        private void toolsPictureBox_MouseClick(object sender, MouseEventArgs e)
+        {
+            speakContextMenuStrip.Show(toolsPictureBox, e.Location);
+        }
     }
 }

@@ -110,14 +110,12 @@ namespace HTCommander
         private StringFormat centerFormat = new StringFormat { Alignment = StringAlignment.Center };
         private StringFormat farFormat = new StringFormat { Alignment = StringAlignment.Far };
 
-        // Cache for SSTV thumbnail images (filename -> scaled bitmap)
-        private readonly Dictionary<string, Image> _sstvImageCache = new Dictionary<string, Image>();
         private const int SstvThumbnailHeight = 100;
 
         /// <summary>
         /// Gets the full path to an SSTV image file.
         /// </summary>
-        private static string GetSstvImagePath(string filename)
+        public static string GetSstvImagePath(string filename)
         {
             return System.IO.Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -125,17 +123,17 @@ namespace HTCommander
         }
 
         /// <summary>
-        /// Gets a cached thumbnail for the given SSTV filename, scaled to SstvThumbnailHeight pixels tall.
+        /// Gets the cached thumbnail for the given voice message, generating it on first access.
         /// Returns null if the file does not exist or cannot be loaded.
         /// </summary>
-        private Image GetSstvThumbnail(string filename)
+        private static Image GetSstvThumbnail(VoiceMessage voiceMessage)
         {
-            if (string.IsNullOrEmpty(filename)) return null;
-            if (_sstvImageCache.TryGetValue(filename, out Image cached)) return cached;
+            if (voiceMessage == null || string.IsNullOrEmpty(voiceMessage.Filename)) return null;
+            if (voiceMessage.Thumbnail != null) return voiceMessage.Thumbnail;
 
             try
             {
-                string fullPath = GetSstvImagePath(filename);
+                string fullPath = GetSstvImagePath(voiceMessage.Filename);
                 if (!System.IO.File.Exists(fullPath)) return null;
 
                 using (var original = Image.FromFile(fullPath))
@@ -147,7 +145,7 @@ namespace HTCommander
                         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
                         g.DrawImage(original, 0, 0, thumbWidth, SstvThumbnailHeight);
                     }
-                    _sstvImageCache[filename] = thumb;
+                    voiceMessage.Thumbnail = thumb;
                     return thumb;
                 }
             }
@@ -261,7 +259,7 @@ namespace HTCommander
             if (voiceMessage.Encoding == VoiceTextEncodingType.Picture && !string.IsNullOrEmpty(voiceMessage.Filename))
             {
                 // For picture messages, size is based on the thumbnail image
-                Image thumb = GetSstvThumbnail(voiceMessage.Filename);
+                Image thumb = GetSstvThumbnail(voiceMessage);
                 if (thumb != null)
                 {
                     messageSize = new SizeF(thumb.Width, thumb.Height);
@@ -308,13 +306,14 @@ namespace HTCommander
             if (!string.IsNullOrEmpty(voiceMessage.Route) && ((previousVoiceMessage == null) || (previousVoiceMessage.Route != voiceMessage.Route)))
             {
                 callSignSize = TextRenderer.MeasureText(voiceMessage.Route, CallsignFont);
-                var textRect = new RectangleF(SideMargins, timeLineSize.Height + top, ClientRectangle.Width - chatScrollBar.Width - (SideMargins * 2), callSignSize.Height);
-                TextRenderer.DrawText(g, voiceMessage.Route, CallsignFont, new Point((int)(textRect.X), (int)(textRect.Y)), callsignTextColor, TextFormatFlags.Left | TextFormatFlags.WordBreak);
+                var textRect = new Rectangle(SideMargins, (int)(timeLineSize.Height + top), ClientRectangle.Width - chatScrollBar.Width - (SideMargins * 2), (int)callSignSize.Height);
+                TextFormatFlags routeFlags = voiceMessage.Sender ? TextFormatFlags.Right : TextFormatFlags.Left;
+                TextRenderer.DrawText(g, voiceMessage.Route, CallsignFont, textRect, callsignTextColor, routeFlags | TextFormatFlags.WordBreak);
             }
 
             SizeF messageSize = SizeF.Empty;
             bool isPicture = voiceMessage.Encoding == VoiceTextEncodingType.Picture && !string.IsNullOrEmpty(voiceMessage.Filename);
-            Image sstvThumb = isPicture ? GetSstvThumbnail(voiceMessage.Filename) : null;
+            Image sstvThumb = isPicture ? GetSstvThumbnail(voiceMessage) : null;
 
             if (isPicture && sstvThumb != null)
             {

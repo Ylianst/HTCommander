@@ -29,6 +29,7 @@ namespace HTCommander
         public VoiceTextEncodingType Encoding = VoiceTextEncodingType.Voice;
         public bool IsCompleted = true;
         public string Filename;
+        public Image Thumbnail;
 
         public VoiceMessage(string Route, string SenderCallSign, string Message, DateTime Time, bool Sender, int ImageIndex = -1, VoiceTextEncodingType Encoding = VoiceTextEncodingType.Voice)
         {
