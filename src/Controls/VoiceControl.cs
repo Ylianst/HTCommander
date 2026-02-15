@@ -277,7 +277,8 @@ namespace HTCommander
                 
                 messageSize = TextRenderer.MeasureText(voiceMessage.Message, MessageFont, new Size(maxMessageWidth, int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
             }
-            return timeLineSize.Height + callSignSize.Height + messageSize.Height + (MessageBoxMargin * 2) + InterMessageMargin;
+            bool hasMessageContent = (messageSize.Width > 0 && messageSize.Height > 0);
+            return timeLineSize.Height + callSignSize.Height + (hasMessageContent ? messageSize.Height + (MessageBoxMargin * 2) : 0) + InterMessageMargin;
         }
 
         private void DrawVoiceMessage(VoiceMessage voiceMessage, Graphics g, float top, VoiceMessage previousVoiceMessage)
@@ -327,7 +328,24 @@ namespace HTCommander
                 messageSize = TextRenderer.MeasureText(voiceMessage.Message, MessageFont, new Size(maxMessageWidth, int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
             }
 
-            if (messageSize.Width > 0 && messageSize.Height > 0)
+            if (messageSize.Width <= 0 || messageSize.Height <= 0)
+            {
+                // No message content - set click rect on the route string area if present
+                if (callSignSize.Width > 0 && callSignSize.Height > 0)
+                {
+                    voiceMessage.DrawRect = new RectangleF(
+                        SideMargins,
+                        timeLineSize.Height,
+                        ClientRectangle.Width - chatScrollBar.Width - (SideMargins * 2),
+                        callSignSize.Height);
+                }
+                else
+                {
+                    voiceMessage.DrawRect = RectangleF.Empty;
+                }
+                return;
+            }
+
             {
                 // Draw Shadow
                 RectangleF r = new RectangleF(
@@ -483,7 +501,7 @@ namespace HTCommander
         /// <param name="encoding">The encoding type.</param>
         /// <param name="latitude">Latitude coordinate if location data is available.</param>
         /// <param name="longitude">Longitude coordinate if location data is available.</param>
-        public void UpdatePartialMessage(string text, string channel, DateTime time, bool completed, bool isReceived, VoiceTextEncodingType encoding, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null)
+        public void UpdatePartialMessage(string text, string channel, DateTime time, bool completed, bool isReceived, VoiceTextEncodingType encoding, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null, int duration = 0)
         {
             string trimmedText = text?.Trim() ?? "";
             var partial = GetPartialMessage();
@@ -494,7 +512,7 @@ namespace HTCommander
             
             if (partial != null)
             {
-                if (string.IsNullOrEmpty(trimmedText) && completed)
+                if (string.IsNullOrEmpty(trimmedText) && completed && encoding != VoiceTextEncodingType.Recording)
                 {
                     // Empty completed message - remove the partial entry
                     Messages.Remove(partial);
@@ -503,7 +521,7 @@ namespace HTCommander
                 {
                     // Update existing partial message
                     partial.Message = trimmedText;
-                    partial.Route = FormatRoute(channel, encoding, source, destination);
+                    partial.Route = FormatRoute(channel, encoding, source, destination, duration);
                     partial.SenderCallSign = source;
                     partial.Time = time;
                     partial.Sender = !isReceived;
@@ -517,15 +535,15 @@ namespace HTCommander
             }
             else
             {
-                // Don't create new message if text is empty
-                if (string.IsNullOrEmpty(trimmedText))
+                // Don't create new message if text is empty (except for Recording entries)
+                if (string.IsNullOrEmpty(trimmedText) && encoding != VoiceTextEncodingType.Recording)
                 {
                     return;
                 }
                 
                 // Create new message
                 var message = new VoiceMessage(
-                    FormatRoute(channel, encoding, source, destination),
+                    FormatRoute(channel, encoding, source, destination, duration),
                     source,
                     trimmedText,
                     time,
@@ -546,9 +564,13 @@ namespace HTCommander
         /// <summary>
         /// Formats the route string to include encoding type.
         /// </summary>
-        private string FormatRoute(string channel, VoiceTextEncodingType encoding, string source = null, string destination = null)
+        private string FormatRoute(string channel, VoiceTextEncodingType encoding, string source = null, string destination = null, int duration = 0)
         {
             string encodingStr = GetEncodingTypeName(encoding);
+            if (encoding == VoiceTextEncodingType.Recording && duration > 0)
+            {
+                encodingStr = "Recording " + FormatDuration(duration);
+            }
             string callsignPart = "";
             if (!string.IsNullOrEmpty(source))
             {
@@ -561,6 +583,18 @@ namespace HTCommander
                 return encodingStr + callsignPart;
             }
             return $"[{channel}] {encodingStr}{callsignPart}";
+        }
+
+        /// <summary>
+        /// Formats a duration in seconds into a human-readable string.
+        /// Less than 60 seconds: "34s", 60 or more: "5m 34s".
+        /// </summary>
+        private string FormatDuration(int totalSeconds)
+        {
+            if (totalSeconds < 60) return $"{totalSeconds}s";
+            int minutes = totalSeconds / 60;
+            int seconds = totalSeconds % 60;
+            return seconds > 0 ? $"{minutes}m {seconds}s" : $"{minutes}m";
         }
 
         /// <summary>

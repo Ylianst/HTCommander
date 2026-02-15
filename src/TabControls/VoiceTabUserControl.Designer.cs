@@ -50,11 +50,12 @@ namespace HTCommander.Controls
             imageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             audioToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             voiceTopPanel = new System.Windows.Forms.Panel();
-            voiceEnableButton = new System.Windows.Forms.Button();
             voiceProcessingLabel = new System.Windows.Forms.Label();
             voiceMenuPictureBox = new System.Windows.Forms.PictureBox();
             voiceTitleLabel = new System.Windows.Forms.Label();
             voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            recordAudioToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            speechtoTextToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
             detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -66,6 +67,7 @@ namespace HTCommander.Controls
             copyMessageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             copyCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             copyImageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            saveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             mainImageList = new System.Windows.Forms.ImageList(components);
             voiceBottomPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)toolsPictureBox).BeginInit();
@@ -183,20 +185,19 @@ namespace HTCommander.Controls
             // 
             imageToolStripMenuItem.Name = "imageToolStripMenuItem";
             imageToolStripMenuItem.Size = new System.Drawing.Size(129, 26);
-            imageToolStripMenuItem.Text = "Image...";
+            imageToolStripMenuItem.Text = "&Image...";
             imageToolStripMenuItem.Click += imageToolStripMenuItem_Click;
             // 
             // audioToolStripMenuItem
             // 
             audioToolStripMenuItem.Name = "audioToolStripMenuItem";
             audioToolStripMenuItem.Size = new System.Drawing.Size(129, 26);
-            audioToolStripMenuItem.Text = "Audio...";
+            audioToolStripMenuItem.Text = "&Audio...";
             audioToolStripMenuItem.Click += audioToolStripMenuItem_Click;
             // 
             // voiceTopPanel
             // 
             voiceTopPanel.BackColor = System.Drawing.Color.Silver;
-            voiceTopPanel.Controls.Add(voiceEnableButton);
             voiceTopPanel.Controls.Add(voiceProcessingLabel);
             voiceTopPanel.Controls.Add(voiceMenuPictureBox);
             voiceTopPanel.Controls.Add(voiceTitleLabel);
@@ -207,26 +208,13 @@ namespace HTCommander.Controls
             voiceTopPanel.Size = new System.Drawing.Size(669, 46);
             voiceTopPanel.TabIndex = 2;
             // 
-            // voiceEnableButton
-            // 
-            voiceEnableButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            voiceEnableButton.Enabled = false;
-            voiceEnableButton.Location = new System.Drawing.Point(529, 5);
-            voiceEnableButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            voiceEnableButton.Name = "voiceEnableButton";
-            voiceEnableButton.Size = new System.Drawing.Size(100, 35);
-            voiceEnableButton.TabIndex = 6;
-            voiceEnableButton.Text = "&Enable";
-            voiceEnableButton.UseVisualStyleBackColor = true;
-            voiceEnableButton.Click += voiceEnableButton_Click;
-            // 
             // voiceProcessingLabel
             // 
             voiceProcessingLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             voiceProcessingLabel.AutoSize = true;
             voiceProcessingLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
             voiceProcessingLabel.ForeColor = System.Drawing.Color.LightGray;
-            voiceProcessingLabel.Location = new System.Drawing.Point(506, 8);
+            voiceProcessingLabel.Location = new System.Drawing.Point(607, 7);
             voiceProcessingLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             voiceProcessingLabel.Name = "voiceProcessingLabel";
             voiceProcessingLabel.Size = new System.Drawing.Size(24, 25);
@@ -262,27 +250,41 @@ namespace HTCommander.Controls
             // voiceTabContextMenuStrip
             // 
             voiceTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            voiceTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { clearHistoryToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
+            voiceTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { recordAudioToolStripMenuItem, speechtoTextToolStripMenuItem, clearHistoryToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
             voiceTabContextMenuStrip.Name = "voiceTabContextMenuStrip";
-            voiceTabContextMenuStrip.Size = new System.Drawing.Size(164, 58);
+            voiceTabContextMenuStrip.Size = new System.Drawing.Size(180, 106);
+            // 
+            // recordAudioToolStripMenuItem
+            // 
+            recordAudioToolStripMenuItem.Name = "recordAudioToolStripMenuItem";
+            recordAudioToolStripMenuItem.Size = new System.Drawing.Size(179, 24);
+            recordAudioToolStripMenuItem.Text = "&Record Audio";
+            recordAudioToolStripMenuItem.Click += recordAudioToolStripMenuItem_Click;
+            // 
+            // speechtoTextToolStripMenuItem
+            // 
+            speechtoTextToolStripMenuItem.Name = "speechtoTextToolStripMenuItem";
+            speechtoTextToolStripMenuItem.Size = new System.Drawing.Size(179, 24);
+            speechtoTextToolStripMenuItem.Text = "&Speech-to-Text";
+            speechtoTextToolStripMenuItem.Click += speechtoTextToolStripMenuItem_Click;
             // 
             // clearHistoryToolStripMenuItem
             // 
             clearHistoryToolStripMenuItem.Name = "clearHistoryToolStripMenuItem";
-            clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
+            clearHistoryToolStripMenuItem.Size = new System.Drawing.Size(179, 24);
             clearHistoryToolStripMenuItem.Text = "&Clear History";
             clearHistoryToolStripMenuItem.Click += clearHistoryToolStripMenuItem_Click;
             // 
             // toolStripMenuItemDetachSeparator
             // 
             toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
-            toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(160, 6);
+            toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(176, 6);
             toolStripMenuItemDetachSeparator.Visible = false;
             // 
             // detachToolStripMenuItem
             // 
             detachToolStripMenuItem.Name = "detachToolStripMenuItem";
-            detachToolStripMenuItem.Size = new System.Drawing.Size(163, 24);
+            detachToolStripMenuItem.Size = new System.Drawing.Size(179, 24);
             detachToolStripMenuItem.Text = "Detach...";
             detachToolStripMenuItem.Visible = false;
             detachToolStripMenuItem.Click += detachToolStripMenuItem_Click;
@@ -311,7 +313,7 @@ namespace HTCommander.Controls
             // voiceMsgContextMenuStrip
             // 
             voiceMsgContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            voiceMsgContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { viewToolStripMenuItem, detailsToolStripMenuItem, showLocationToolStripMenuItem, copyMessageToolStripMenuItem, copyCallsignToolStripMenuItem, copyImageToolStripMenuItem });
+            voiceMsgContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { viewToolStripMenuItem, detailsToolStripMenuItem, showLocationToolStripMenuItem, copyMessageToolStripMenuItem, copyCallsignToolStripMenuItem, copyImageToolStripMenuItem, saveAsToolStripMenuItem });
             voiceMsgContextMenuStrip.Name = "voiceMsgContextMenuStrip";
             voiceMsgContextMenuStrip.Size = new System.Drawing.Size(185, 148);
             voiceMsgContextMenuStrip.Opening += voiceMsgContextMenuStrip_Opening;
@@ -360,6 +362,13 @@ namespace HTCommander.Controls
             copyImageToolStripMenuItem.Text = "Copy Image";
             copyImageToolStripMenuItem.Click += voiceCopyImageToolStripMenuItem_Click;
             // 
+            // saveAsToolStripMenuItem
+            // 
+            saveAsToolStripMenuItem.Name = "saveAsToolStripMenuItem";
+            saveAsToolStripMenuItem.Size = new System.Drawing.Size(184, 24);
+            saveAsToolStripMenuItem.Text = "Save As...";
+            saveAsToolStripMenuItem.Click += saveAsToolStripMenuItem_Click;
+            // 
             // mainImageList
             // 
             mainImageList.ColorDepth = System.Windows.Forms.ColorDepth.Depth16Bit;
@@ -407,7 +416,6 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem speakToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem morseToolStripMenuItem;
         private System.Windows.Forms.Panel voiceTopPanel;
-        private System.Windows.Forms.Button voiceEnableButton;
         private System.Windows.Forms.PictureBox voiceMenuPictureBox;
         private System.Windows.Forms.Label voiceTitleLabel;
         private System.Windows.Forms.Label voiceProcessingLabel;
@@ -425,9 +433,12 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripMenuItem copyCallsignToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem copyImageToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem saveAsToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem imageToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem audioToolStripMenuItem;
         private System.Windows.Forms.PictureBox toolsPictureBox;
+        private System.Windows.Forms.ToolStripMenuItem speechtoTextToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem recordAudioToolStripMenuItem;
     }
 }

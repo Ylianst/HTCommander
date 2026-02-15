@@ -91,6 +91,9 @@ namespace HTCommander
             // Publish initial empty connected radios list
             PublishConnectedRadios();
 
+            // Subscribe to State changes from all radio devices to detect when a radio becomes connected
+            broker.Subscribe(DataBroker.AllDevices, "State", OnRadioStateChanged);
+
             // Subscribe to DeviceId changes from radioPanelControl
             radioPanelControl.DeviceIdChanged += OnRadioPanelDeviceIdChanged;
         }
@@ -331,13 +334,8 @@ namespace HTCommander
             // Publish updated connected radios list
             PublishConnectedRadios();
 
-            // If the radioPanelControl is not monitoring an existing connected radio, set it to this new radio
-            if (radioPanelControl.DeviceId <= 0 || !connectedRadios.Any(r => r.DeviceId == radioPanelControl.DeviceId))
-            {
-                radioPanelControl.DeviceId = deviceId;
-            }
-
             // Start the Bluetooth connection
+            // radioPanelControl.DeviceId will be set when the radio reaches "Connected" state (see OnRadioStateChanged)
             radio.Connect();
         }
 
@@ -909,6 +907,28 @@ namespace HTCommander
                 }
 
                 _transmitTabsVisible = false;
+            }
+        }
+
+        #endregion
+
+        #region Radio State Change Handler
+
+        /// <summary>
+        /// Handles State changes from radio devices.
+        /// When a radio reaches "Connected" state, sets radioPanelControl.DeviceId if it's not already showing a connected radio.
+        /// </summary>
+        private void OnRadioStateChanged(int deviceId, string name, object data)
+        {
+            string stateStr = data as string;
+            if (stateStr == "Connected")
+            {
+                // If the radioPanelControl is not monitoring an existing connected radio, set it to this newly connected radio
+                int currentPanelDeviceId = radioPanelControl.DeviceId;
+                if (currentPanelDeviceId <= 0 || !connectedRadios.Any(r => r.DeviceId == currentPanelDeviceId && r.State == Radio.RadioState.Connected))
+                {
+                    radioPanelControl.DeviceId = deviceId;
+                }
             }
         }
 

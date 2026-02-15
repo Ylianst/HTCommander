@@ -5,7 +5,6 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
-using System.Linq;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Drawing.Imaging;
@@ -40,7 +39,18 @@ namespace HTCommander.Controls
         public int PreferredRadioDeviceId
         {
             get { return _preferredRadioDeviceId; }
-            set { _preferredRadioDeviceId = value; }
+            set
+            {
+                _preferredRadioDeviceId = value;
+                if (value >= 100)
+                {
+                    EnableVoiceHandler(value);
+                }
+                else
+                {
+                    DisableVoiceHandler();
+                }
+            }
         }
         private bool _showDetach = false;
         private bool _isListening = false;
@@ -118,6 +128,15 @@ namespace HTCommander.Controls
             // Subscribe to AllowTransmit changes to show/hide the bottom panel
             broker.Subscribe(0, "AllowTransmit", OnAllowTransmitChanged);
 
+            // Subscribe to SpeechToTextEnabled setting changes
+            broker.Subscribe(0, "SpeechToTextEnabled", OnSpeechToTextEnabledChanged);
+
+            // Subscribe to RecordingState changes (device 0 for registry persistence)
+            broker.Subscribe(0, "RecordingState", OnRecordingStateChanged);
+
+            // Subscribe to Settings and HtStatus changes from all radios to detect APRS/NOAA channel
+            broker.Subscribe(DataBroker.AllDevices, new[] { "Settings", "HtStatus" }, OnChannelRelatedChange);
+
             // Create context menu for radio selection
             _radioSelectContextMenuStrip = new ContextMenuStrip();
 
@@ -125,6 +144,8 @@ namespace HTCommander.Controls
             LoadConnectedRadios();
             LoadVoiceHandlerState();
             LoadAllowTransmitState();
+            LoadSpeechToTextEnabledState();
+            LoadRecordingState();
             UpdateEnableButtonState();
             UpdateSpeakButtonState();
 
@@ -211,6 +232,7 @@ namespace HTCommander.Controls
                 var sourceProp = type.GetProperty("Source");
                 var destinationProp = type.GetProperty("Destination");
                 var filenameProp = type.GetProperty("Filename");
+                var durationProp = type.GetProperty("Duration");
 
                 if (textProp != null)
                 {
@@ -247,10 +269,16 @@ namespace HTCommander.Controls
                     string source = sourceProp?.GetValue(data) as string;
                     string destination = destinationProp?.GetValue(data) as string;
                     string filename = filenameProp?.GetValue(data) as string;
-
-                    if (!string.IsNullOrEmpty(text))
+                    int duration = 0;
+                    if (durationProp != null)
                     {
-                        AppendVoiceHistory(text, channel, time, completed, isReceived, encoding, latitude, longitude, source, destination, filename);
+                        object durValue = durationProp.GetValue(data);
+                        if (durValue is int di) duration = di;
+                    }
+
+                    if (!string.IsNullOrEmpty(text) || encoding == VoiceTextEncodingType.Recording)
+                    {
+                        AppendVoiceHistory(text ?? "", channel, time, completed, isReceived, encoding, latitude, longitude, source, destination, filename, duration);
                     }
                 }
             }
@@ -303,13 +331,54 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
+        /// Handles Settings/HtStatus changes to update UI when the radio channel changes.
+        /// </summary>
+        private void OnChannelRelatedChange(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired) { this.BeginInvoke(new Action(() => OnChannelRelatedChange(deviceId, name, data))); return; }
+            if (deviceId == _voiceHandlerTargetDeviceId)
+            {
+                UpdateTransmitState();
+                UpdateSpeakButtonState();
+            }
+        }
+
+        /// <summary>
+        /// Checks if the target radio's VFO A is on the APRS or NOAA channel.
+        /// </summary>
+        private bool IsOnAprsOrNoaaChannel()
+        {
+            if (_voiceHandlerTargetDeviceId < 0) return false;
+
+            // Check for NOAA channel via HtStatus (curr_ch_id >= 254), since channel_a in Settings may not reflect NOAA
+            var htStatus = broker.GetValue<RadioHtStatus>(_voiceHandlerTargetDeviceId, "HtStatus", null);
+            if (htStatus != null && htStatus.curr_ch_id >= 254) return true;
+
+            // Check via Settings for APRS channel name
+            var settings = broker.GetValue<RadioSettings>(_voiceHandlerTargetDeviceId, "Settings", null);
+            if (settings == null) return false;
+
+            var channels = broker.GetValue<RadioChannelInfo[]>(_voiceHandlerTargetDeviceId, "Channels", null);
+
+            // Also check channel_a for NOAA in case HtStatus is not yet available
+            if (channels != null && settings.channel_a >= 0 && settings.channel_a < channels.Length && channels[settings.channel_a] != null)
+            {
+                if (channels[settings.channel_a].channel_id >= 254) return true;
+                if (string.Equals(channels[settings.channel_a].name_str, "APRS", StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Updates the UI based on voice transmit state
         /// </summary>
         private void UpdateTransmitState()
         {
+            bool isRestrictedChannel = IsOnAprsOrNoaaChannel();
             cancelVoiceButton.Visible = _isTransmitting;
+            speakTextBox.Enabled = _voiceHandlerEnabled && !isRestrictedChannel;
             speakButton.Enabled = !_isTransmitting && speakTextBox.Enabled;
-            bool canTransmit = _voiceHandlerEnabled && !_isTransmitting;
+            bool canTransmit = _voiceHandlerEnabled && !_isTransmitting && !isRestrictedChannel;
             imageToolStripMenuItem.Enabled = canTransmit;
             audioToolStripMenuItem.Enabled = canTransmit;
         }
@@ -317,16 +386,15 @@ namespace HTCommander.Controls
         /// <summary>
         /// Appends transcribed text to the voice history using the VoiceControl.
         /// </summary>
-        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null)
+        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null, int duration = 0)
         {
-            voiceControl.UpdatePartialMessage(text, channel, time, completed, isReceived, encoding, latitude, longitude, source, destination, filename);
+            voiceControl.UpdatePartialMessage(text, channel, time, completed, isReceived, encoding, latitude, longitude, source, destination, filename, duration);
         }
 
         // Properties to access internal controls
         public VoiceControl VoiceHistoryControl => voiceControl;
         public TextBox SpeakTextBox => speakTextBox;
         public Button SpeakButton => speakButton;
-        public Button VoiceEnableButton => voiceEnableButton;
         public Button CancelVoiceButton => cancelVoiceButton;
         public Label VoiceProcessingLabel => voiceProcessingLabel;
         public Panel VoiceBottomPanel => voiceBottomPanel;
@@ -352,35 +420,7 @@ namespace HTCommander.Controls
             speakButton.Text = "&" + mode.ToString();
         }
 
-        private void voiceEnableButton_Click(object sender, EventArgs e)
-        {
-            if (_voiceHandlerEnabled)
-            {
-                // Voice handler is active - disable it
-                DisableVoiceHandler();
-            }
-            else if (_connectedRadios.Count == 1)
-            {
-                // Only one radio connected - enable for that radio directly
-                EnableVoiceHandler(_connectedRadios[0].DeviceId);
-            }
-            else if (_connectedRadios.Count > 1)
-            {
-                // Multiple radios connected - check if PreferredRadioDeviceId is set (>= 100) and connected
-                if (_preferredRadioDeviceId >= 100 && _connectedRadios.Any(r => r.DeviceId == _preferredRadioDeviceId))
-                {
-                    // Use the preferred radio directly
-                    EnableVoiceHandler(_preferredRadioDeviceId);
-                }
-                else
-                {
-                    // Show dropdown menu to select
-                    PopulateRadioSelectMenu();
-                    _radioSelectContextMenuStrip.Show(voiceEnableButton, new Point(0, voiceEnableButton.Height));
-                }
-            }
-            // If no radios connected, button should be disabled so this case shouldn't happen
-        }
+
 
         private void speakButton_Click(object sender, EventArgs e)
         {
@@ -421,9 +461,11 @@ namespace HTCommander.Controls
         /// </summary>
         private void UpdateSpeakButtonState()
         {
+            bool isRestrictedChannel = IsOnAprsOrNoaaChannel();
             bool hasText = !string.IsNullOrWhiteSpace(speakTextBox.Text);
-            speakButton.Enabled = hasText && _voiceHandlerEnabled && !_isTransmitting;
-            bool canTransmit = _voiceHandlerEnabled && !_isTransmitting;
+            speakTextBox.Enabled = _voiceHandlerEnabled && !isRestrictedChannel;
+            speakButton.Enabled = hasText && _voiceHandlerEnabled && !_isTransmitting && !isRestrictedChannel;
+            bool canTransmit = _voiceHandlerEnabled && !_isTransmitting && !isRestrictedChannel;
             imageToolStripMenuItem.Enabled = canTransmit;
             audioToolStripMenuItem.Enabled = canTransmit;
         }
@@ -490,6 +532,77 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
+        /// Handles the SpeechToTextEnabled setting change from DataBroker.
+        /// </summary>
+        private void OnSpeechToTextEnabledChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                try { this.BeginInvoke(new Action<int, string, object>(OnSpeechToTextEnabledChanged), deviceId, name, data); }
+                catch (Exception) { }
+                return;
+            }
+
+            bool enabled = true;
+            if (data is bool boolValue) { enabled = boolValue; }
+            speechtoTextToolStripMenuItem.Checked = enabled;
+        }
+
+        /// <summary>
+        /// Loads the initial SpeechToTextEnabled state from the DataBroker.
+        /// </summary>
+        private void LoadSpeechToTextEnabledState()
+        {
+            bool enabled = broker.GetValue<bool>(0, "SpeechToTextEnabled", true);
+            speechtoTextToolStripMenuItem.Checked = enabled;
+        }
+
+        /// <summary>
+        /// Handles the Speech-to-Text menu item click to toggle the setting.
+        /// </summary>
+        private void speechtoTextToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            bool newValue = !speechtoTextToolStripMenuItem.Checked;
+            speechtoTextToolStripMenuItem.Checked = newValue;
+            broker?.Dispatch(0, "SpeechToTextEnabled", newValue, store: true);
+        }
+
+        /// <summary>
+        /// Handles the RecordingState change from DataBroker.
+        /// </summary>
+        private void OnRecordingStateChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                try { this.BeginInvoke(new Action<int, string, object>(OnRecordingStateChanged), deviceId, name, data); }
+                catch (Exception) { }
+                return;
+            }
+
+            bool enabled = false;
+            if (data is bool boolValue) { enabled = boolValue; }
+            recordAudioToolStripMenuItem.Checked = enabled;
+        }
+
+        /// <summary>
+        /// Loads the initial RecordingState from the DataBroker.
+        /// </summary>
+        private void LoadRecordingState()
+        {
+            bool enabled = broker.GetValue<bool>(0, "RecordingState", false);
+            recordAudioToolStripMenuItem.Checked = enabled;
+        }
+
+        /// <summary>
+        /// Handles the Record Audio menu item click to toggle recording.
+        /// </summary>
+        private void recordAudioToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            bool newValue = !recordAudioToolStripMenuItem.Checked;
+            broker?.Dispatch(1, newValue ? "RecordingEnable" : "RecordingDisable", null, store: false);
+        }
+
+        /// <summary>
         /// Loads the existing decoded text history from the Data Broker.
         /// </summary>
         private void LoadDecodedTextHistory()
@@ -501,16 +614,16 @@ namespace HTCommander.Controls
             {
                 foreach (var entry in history)
                 {
-                    // Skip entries with null or empty text after trimming
+                    // Skip entries with null or empty text after trimming (except Recording entries which use Filename)
                     string trimmedText = entry.Text?.Trim();
-                    if (string.IsNullOrEmpty(trimmedText)) continue;
+                    if (string.IsNullOrEmpty(trimmedText) && entry.Encoding != VoiceTextEncodingType.Recording) continue;
 
                     // Determine if message has a valid location (set ImageIndex = 3 for location icon)
                     bool hasLocation = (entry.Latitude != 0 || entry.Longitude != 0);
                     int imageIndex = hasLocation ? 3 : -1;
 
                     var message = new VoiceMessage(
-                        FormatRoute(entry.Channel, entry.Encoding, entry.Source, entry.Destination),
+                        FormatRoute(entry.Channel, entry.Encoding, entry.Source, entry.Destination, entry.Duration),
                         entry.Source,
                         trimmedText,
                         entry.Time,
@@ -539,7 +652,7 @@ namespace HTCommander.Controls
                     int imageIndex = hasLocation ? 3 : -1;
 
                     var message = new VoiceMessage(
-                        FormatRoute(currentEntry.Channel, currentEntry.Encoding, currentEntry.Source, currentEntry.Destination),
+                        FormatRoute(currentEntry.Channel, currentEntry.Encoding, currentEntry.Source, currentEntry.Destination, currentEntry.Duration),
                         currentEntry.Source,
                         trimmedText,
                         currentEntry.Time,
@@ -562,9 +675,13 @@ namespace HTCommander.Controls
         /// <summary>
         /// Formats the route string to include encoding type.
         /// </summary>
-        private string FormatRoute(string channel, VoiceTextEncodingType encoding, string source = null, string destination = null)
+        private string FormatRoute(string channel, VoiceTextEncodingType encoding, string source = null, string destination = null, int duration = 0)
         {
             string encodingStr = GetEncodingTypeName(encoding);
+            if (encoding == VoiceTextEncodingType.Recording && duration > 0)
+            {
+                encodingStr = "Recording " + FormatDuration(duration);
+            }
             string callsignPart = "";
             if (!string.IsNullOrEmpty(source))
             {
@@ -577,6 +694,18 @@ namespace HTCommander.Controls
                 return encodingStr + callsignPart;
             }
             return $"[{channel}] {encodingStr}{callsignPart}";
+        }
+
+        /// <summary>
+        /// Formats a duration in seconds into a human-readable string.
+        /// Less than 60 seconds: "34s", 60 or more: "5m 34s".
+        /// </summary>
+        private string FormatDuration(int totalSeconds)
+        {
+            if (totalSeconds < 60) return $"{totalSeconds}s";
+            int minutes = totalSeconds / 60;
+            int seconds = totalSeconds % 60;
+            return seconds > 0 ? $"{minutes}m {seconds}s" : $"{minutes}m";
         }
 
         /// <summary>
@@ -771,28 +900,11 @@ namespace HTCommander.Controls
         }
 
         /// <summary>
-        /// Updates the Enable button state based on connected radios and voice handler state.
+        /// Updates internal state tracking (formerly updated the Enable button).
         /// </summary>
         private void UpdateEnableButtonState()
         {
-            if (_voiceHandlerEnabled)
-            {
-                // Voice handler is active - show "Disable" button
-                voiceEnableButton.Text = "&Disable";
-                voiceEnableButton.Enabled = true;
-            }
-            else if (_connectedRadios.Count == 0)
-            {
-                // No radios connected - show "Enable" but disabled
-                voiceEnableButton.Text = "&Enable";
-                voiceEnableButton.Enabled = false;
-            }
-            else
-            {
-                // Radios connected, voice handler not active - show "Enable" and enabled
-                voiceEnableButton.Text = "&Enable";
-                voiceEnableButton.Enabled = true;
-            }
+            // No-op: voice handler is now controlled via PreferredRadioDeviceId
         }
 
         /// <summary>
@@ -876,10 +988,12 @@ namespace HTCommander.Controls
             // Hide copy message if message text is not available
             copyMessageToolStripMenuItem.Visible = !string.IsNullOrEmpty(rightClickedVoiceMessage.Message);
 
-            // Show "View..." and "Copy Image" only for picture messages with a valid file
+            // Show "View..." for picture messages with a valid file or recording messages with a valid file
             bool hasImage = (rightClickedVoiceMessage.Encoding == VoiceTextEncodingType.Picture) && !string.IsNullOrEmpty(rightClickedVoiceMessage.Filename);
-            viewToolStripMenuItem.Visible = hasImage;
+            bool hasRecording = (rightClickedVoiceMessage.Encoding == VoiceTextEncodingType.Recording) && !string.IsNullOrEmpty(rightClickedVoiceMessage.Filename);
+            viewToolStripMenuItem.Visible = hasImage || hasRecording;
             copyImageToolStripMenuItem.Visible = hasImage;
+            saveAsToolStripMenuItem.Visible = hasImage || hasRecording;
         }
 
         private void voiceDetailsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -938,13 +1052,67 @@ namespace HTCommander.Controls
             catch { }
         }
 
+        private void saveAsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (rightClickedVoiceMessage == null || string.IsNullOrEmpty(rightClickedVoiceMessage.Filename)) return;
+
+            string sourcePath;
+            string filter;
+
+            if (rightClickedVoiceMessage.Encoding == VoiceTextEncodingType.Picture)
+            {
+                sourcePath = VoiceControl.GetSstvImagePath(rightClickedVoiceMessage.Filename);
+                filter = "PNG Image|*.png|All Files|*.*";
+            }
+            else if (rightClickedVoiceMessage.Encoding == VoiceTextEncodingType.Recording)
+            {
+                sourcePath = RecordingPlaybackForm.GetRecordingPath(rightClickedVoiceMessage.Filename);
+                filter = "WAV Audio|*.wav|All Files|*.*";
+            }
+            else
+            {
+                return;
+            }
+
+            if (!System.IO.File.Exists(sourcePath))
+            {
+                MessageBox.Show("Source file not found.", "Save As", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using (var dlg = new SaveFileDialog())
+            {
+                dlg.Title = "Save As";
+                dlg.Filter = filter;
+                dlg.FileName = rightClickedVoiceMessage.Filename;
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+                try
+                {
+                    System.IO.File.Copy(sourcePath, dlg.FileName, true);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Failed to save file: " + ex.Message, "Save As", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
         private void voiceViewToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (rightClickedVoiceMessage == null || string.IsNullOrEmpty(rightClickedVoiceMessage.Filename)) return;
-            string fullPath = VoiceControl.GetSstvImagePath(rightClickedVoiceMessage.Filename);
-            if (!System.IO.File.Exists(fullPath)) return;
-            ImagePreviewForm form = new ImagePreviewForm(fullPath);
-            form.Show(this);
+
+            if (rightClickedVoiceMessage.Encoding == VoiceTextEncodingType.Recording)
+            {
+                ShowRecordingPlayback(rightClickedVoiceMessage);
+            }
+            else
+            {
+                string fullPath = VoiceControl.GetSstvImagePath(rightClickedVoiceMessage.Filename);
+                if (!System.IO.File.Exists(fullPath)) return;
+                ImagePreviewForm form = new ImagePreviewForm(fullPath);
+                form.Show(this);
+            }
         }
 
         private void voiceControl_MouseDoubleClick(object sender, MouseEventArgs e)
@@ -962,6 +1130,11 @@ namespace HTCommander.Controls
                     form.Show(this);
                 }
             }
+            else if (msg.Encoding == VoiceTextEncodingType.Recording && !string.IsNullOrEmpty(msg.Filename))
+            {
+                // Show recording playback for recording messages
+                ShowRecordingPlayback(msg);
+            }
             else
             {
                 // Show details for all other message types
@@ -969,6 +1142,22 @@ namespace HTCommander.Controls
                 form.SetMessage(msg);
                 form.ShowDialog(this);
             }
+        }
+
+        /// <summary>
+        /// Opens the recording playback dialog for the given voice message.
+        /// </summary>
+        private void ShowRecordingPlayback(VoiceMessage msg)
+        {
+            if (msg == null || string.IsNullOrEmpty(msg.Filename)) return;
+            string fullPath = RecordingPlaybackForm.GetRecordingPath(msg.Filename);
+            if (!System.IO.File.Exists(fullPath))
+            {
+                MessageBox.Show("Recording file not found.", "Recording", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            RecordingPlaybackForm form = new RecordingPlaybackForm(fullPath);
+            form.Show(this);
         }
 
         #endregion

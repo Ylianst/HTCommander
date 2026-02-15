@@ -61,9 +61,13 @@ namespace HTCommander
         /// </summary>
         public double Longitude { get; set; } = 0;
         /// <summary>
-        /// Filename for picture entries (SSTV images).
+        /// Filename for picture entries (SSTV images) and recording entries.
         /// </summary>
         public string Filename { get; set; }
+        /// <summary>
+        /// Duration in seconds (for recording entries).
+        /// </summary>
+        public int Duration { get; set; } = 0;
     }
 
     /// <summary>
@@ -103,6 +107,9 @@ namespace HTCommander
         private string _currentVoice = "Microsoft Zira Desktop";
         private int _ttsPendingDeviceId = -1;
         private readonly object _ttsLock = new object();
+
+        // Speech-to-text enabled setting (saved as device 0 setting)
+        private bool _speechToTextEnabled = true;
 
         // Recording fields
         private bool _recordingEnabled = false;
@@ -185,6 +192,12 @@ namespace HTCommander
             // Subscribe to Voice setting changes (device 0 stores global settings)
             broker.Subscribe(0, "Voice", OnVoiceChanged);
 
+            // Subscribe to SpeechToTextEnabled setting changes (device 0 stores global settings)
+            broker.Subscribe(0, "SpeechToTextEnabled", OnSpeechToTextEnabledChanged);
+
+            // Load the initial SpeechToTextEnabled setting
+            _speechToTextEnabled = DataBroker.GetValue<bool>(0, "SpeechToTextEnabled", true);
+
             // Subscribe to UniqueDataFrame events from all devices for AX.25 packet logging
             broker.Subscribe(DataBroker.AllDevices, "UniqueDataFrame", OnUniqueDataFrame);
 
@@ -195,8 +208,14 @@ namespace HTCommander
             // Initialize text-to-speech synthesizer
             InitializeTextToSpeech();
 
+            // Load the initial RecordingState setting from registry
+            _recordingEnabled = DataBroker.GetValue<bool>(0, "RecordingState", false);
+
             // Dispatch initial state (not monitoring any radio)
             DispatchVoiceHandlerState();
+
+            // Dispatch initial recording state
+            DispatchRecordingState();
 
             // Dispatch initial empty history
             DispatchDecodedTextHistory();
@@ -366,6 +385,39 @@ namespace HTCommander
 
             // Dispatch a TextReady event for the AX.25 packet
             DispatchTextReady(messageText, frame.channel_name ?? "", frame.time, true, true, VoiceTextEncodingType.AX25, source: source, destination: destination);
+        }
+
+        /// <summary>
+        /// Handles SpeechToTextEnabled setting changes from DataBroker.
+        /// </summary>
+        private void OnSpeechToTextEnabledChanged(int deviceId, string name, object data)
+        {
+            if (data == null) return;
+
+            bool enabled = true;
+            if (data is bool boolValue)
+            {
+                enabled = boolValue;
+            }
+
+            if (_speechToTextEnabled == enabled) return;
+            _speechToTextEnabled = enabled;
+
+            broker.LogInfo($"[VoiceHandler] SpeechToTextEnabled changed to: {_speechToTextEnabled}");
+
+            if (_enabled)
+            {
+                if (_speechToTextEnabled)
+                {
+                    // Re-initialize the speech engine if voice handler is enabled
+                    InitializeSpeechEngine();
+                }
+                else
+                {
+                    // Clean up the speech engine
+                    CleanupSpeechEngine();
+                }
+            }
         }
 
         /// <summary>
@@ -1011,19 +1063,20 @@ namespace HTCommander
                 // Only add to history if the recording has some content (at least 0.1 seconds)
                 if (durationSeconds >= 0.1)
                 {
-                    // Format: "filename (X.X sec)"
-                    string text = $"{_currentRecordingFilename} ({durationSeconds:F1} sec)";
+                    int durationInt = (int)Math.Round(durationSeconds);
 
                     // Add to history as a received recording entry
                     lock (_historyLock)
                     {
                         var entry = new DecodedTextEntry
                         {
-                            Text = text,
+                            Text = null,
                             Channel = _currentRecordingChannel,
                             Time = _currentRecordingStartTime,
                             IsReceived = true,
-                            Encoding = VoiceTextEncodingType.Recording
+                            Encoding = VoiceTextEncodingType.Recording,
+                            Filename = _currentRecordingFilename,
+                            Duration = durationInt
                         };
                         _decodedTextHistory.Add(entry);
 
@@ -1039,7 +1092,7 @@ namespace HTCommander
                     DispatchDecodedTextHistory();
 
                     // Dispatch TextReady event for the recording
-                    DispatchTextReady(text, _currentRecordingChannel, _currentRecordingStartTime, true, true, VoiceTextEncodingType.Recording);
+                    DispatchTextReady(null, _currentRecordingChannel, _currentRecordingStartTime, true, true, VoiceTextEncodingType.Recording, filename: _currentRecordingFilename, duration: durationInt);
 
                     broker.LogInfo($"[VoiceHandler] Completed recording: {_currentRecordingFilename} ({durationSeconds:F1} sec)");
                 }
@@ -1092,7 +1145,7 @@ namespace HTCommander
         /// </summary>
         private void DispatchRecordingState()
         {
-            broker.Dispatch(1, "RecordingState", _recordingEnabled, store: true);
+            broker.Dispatch(0, "RecordingState", _recordingEnabled, store: true);
         }
 
         /// <summary>
@@ -1223,8 +1276,11 @@ namespace HTCommander
 
             broker.LogInfo($"[VoiceHandler] Enabled for device {deviceId}, language: {language}");
 
-            // Initialize the speech-to-text engine
-            InitializeSpeechEngine();
+            // Initialize the speech-to-text engine (only if speech-to-text is enabled)
+            if (_speechToTextEnabled)
+            {
+                InitializeSpeechEngine();
+            }
 
             // Dispatch the updated state
             DispatchVoiceHandlerState();
@@ -1364,7 +1420,7 @@ namespace HTCommander
         private void OnAudioDataAvailable(int deviceId, string name, object data)
         {
             // Check if we need to process this audio (for speech-to-text or recording)
-            bool needsSpeechToText = _enabled && deviceId == _targetDeviceId && _speechToTextEngine != null;
+            bool needsSpeechToText = _enabled && _speechToTextEnabled && deviceId == _targetDeviceId && _speechToTextEngine != null;
             bool needsRecording = _recordingEnabled && deviceId == _targetDeviceId;
 
             if (!needsSpeechToText && !needsRecording)
@@ -1752,7 +1808,7 @@ namespace HTCommander
         /// <summary>
         /// Dispatches a TextReady event to the Data Broker.
         /// </summary>
-        private void DispatchTextReady(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null)
+        private void DispatchTextReady(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null, int duration = 0)
         {
             if (_targetDeviceId > 0)
             {
@@ -1768,7 +1824,8 @@ namespace HTCommander
                     Longitude = longitude,
                     Source = source,
                     Destination = destination,
-                    Filename = filename
+                    Filename = filename,
+                    Duration = duration
                 }, store: false);
             }
         }
