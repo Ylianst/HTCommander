@@ -329,11 +329,17 @@ namespace HTCommander
                 byte[] pcmData = dataProperty.GetValue(data) as byte[];
                 if (pcmData == null || pcmData.Length == 0) return;
 
-                // Don't process transmitted audio
+                // Don't process transmitted or muted audio
                 if (transmitProperty != null)
                 {
                     object transmitVal = transmitProperty.GetValue(data);
                     if (transmitVal is bool isTransmit && isTransmit) return;
+                }
+                var mutedProperty = dataType.GetProperty("Muted");
+                if (mutedProperty != null)
+                {
+                    object mutedVal = mutedProperty.GetValue(data);
+                    if (mutedVal is bool isMuted && isMuted) return;
                 }
 
                 int offset = 0;

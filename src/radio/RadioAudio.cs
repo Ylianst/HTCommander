@@ -238,7 +238,7 @@ namespace HTCommander
         
         private void DispatchAudioStateChanged(bool enabled) { broker.Dispatch(DeviceId, "AudioState", enabled, store: true); }
         private void DispatchVoiceTransmitStateChanged(bool transmitting) { broker.Dispatch(DeviceId, "VoiceTransmitStateChanged", transmitting, store: false); }
-        private void DispatchAudioDataAvailable(byte[] data, int offset, int length, string channelName, bool transmit) { broker.Dispatch(DeviceId, "AudioDataAvailable", new { Data = data, Offset = offset, Length = length, ChannelName = channelName, Transmit = transmit, AudioRunStartTime = audioRunStartTime }, store: false); }
+        private void DispatchAudioDataAvailable(byte[] data, int offset, int length, string channelName, bool transmit, bool muted) { broker.Dispatch(DeviceId, "AudioDataAvailable", new { Data = data, Offset = offset, Length = length, ChannelName = channelName, Transmit = transmit, Muted = muted, AudioRunStartTime = audioRunStartTime }, store: false); }
         private void DispatchAudioDataStart() { audioRunStartTime = DateTime.UtcNow; broker.Dispatch(DeviceId, "AudioDataStart", new { StartTime = audioRunStartTime, ChannelName = currentChannelName }, store: false); }
         private void DispatchAudioDataEnd() { broker.Dispatch(DeviceId, "AudioDataEnd", audioRunStartTime, store: false); broker.Dispatch(DeviceId, "OutputAmplitude", 0f, store: false); }
 
@@ -771,7 +771,8 @@ namespace HTCommander
                 // Make use of all accumulated PCM data
                 if (totalWritten > 0)
                 {
-                    if (parent.IsOnMuteChannel() == false)
+                    bool isMuted = parent.IsOnMuteChannel();
+                    if (isMuted == false)
                     {
                         if (waveProvider != null)
                         {
@@ -783,12 +784,12 @@ namespace HTCommander
                             try { recording.Write(pcmFrame, 0, totalWritten); }
                             catch (Exception ex) { Debug("Recording Write Error: " + ex.ToString()); }
                         }
-                        DispatchAudioDataAvailable(pcmFrame, 0, totalWritten, currentChannelName, false);
-                        
-                        // Calculate and dispatch output amplitude (after volume is applied conceptually)
-                        float amplitude = CalculatePcmAmplitude(pcmFrame, totalWritten) * OutputVolume;
-                        broker.Dispatch(DeviceId, "OutputAmplitude", amplitude, store: false);
                     }
+                    DispatchAudioDataAvailable(pcmFrame, 0, totalWritten, currentChannelName, false, isMuted);
+
+                    // Calculate and dispatch output amplitude (after volume is applied conceptually)
+                    float amplitude = CalculatePcmAmplitude(pcmFrame, totalWritten) * OutputVolume;
+                    broker.Dispatch(DeviceId, "OutputAmplitude", amplitude, store: false);
                 }
 
                 return 0;
@@ -1017,7 +1018,7 @@ namespace HTCommander
                 {
                     try { PlayPcmBufferAsync(pcmData, pcmOffset, bytesConsumed); } catch (Exception ex) { Debug("PlayPcmBufferAsync error: " + ex.Message); }
                 }
-                try { DispatchAudioDataAvailable(pcmData, pcmOffset, bytesConsumed, currentChannelName, true); } catch (Exception ex) { Debug("GotAudioData error: " + ex.Message); }
+                try { DispatchAudioDataAvailable(pcmData, pcmOffset, bytesConsumed, currentChannelName, true, false); } catch (Exception ex) { Debug("GotAudioData error: " + ex.Message); }
 
                 pcmOffset += bytesConsumed;
                 pcmLength -= bytesConsumed;

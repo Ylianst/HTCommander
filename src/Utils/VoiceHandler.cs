@@ -10,7 +10,9 @@ using System.Text.Json;
 using System.Speech.Synthesis;
 using System.Speech.AudioFormat;
 using System.Collections.Generic;
+using System.Drawing.Imaging;
 using HTCommander.radio;
+using HTCommander.SSTV;
 
 namespace HTCommander
 {
@@ -111,6 +113,12 @@ namespace HTCommander
         // Speech-to-text enabled setting (saved as device 0 setting)
         private bool _speechToTextEnabled = true;
 
+        // SSTV auto-decode fields
+        private SstvMonitor _sstvMonitor = null;
+        private readonly object _sstvLock = new object();
+        private readonly string _sstvImagesPath;
+        private bool _sstvDecoding = false;
+
         // Recording fields
         private bool _recordingEnabled = false;
         private readonly string _recordingsPath;
@@ -137,6 +145,13 @@ namespace HTCommander
             if (!Directory.Exists(_recordingsPath))
             {
                 Directory.CreateDirectory(_recordingsPath);
+            }
+
+            // Set up SSTV images folder
+            _sstvImagesPath = Path.Combine(_appDataPath, "SSTV");
+            if (!Directory.Exists(_sstvImagesPath))
+            {
+                Directory.CreateDirectory(_sstvImagesPath);
             }
 
             broker = new DataBrokerClient();
@@ -1282,6 +1297,9 @@ namespace HTCommander
                 InitializeSpeechEngine();
             }
 
+            // Initialize the SSTV monitor for auto-detection
+            InitializeSstvMonitor();
+
             // Dispatch the updated state
             DispatchVoiceHandlerState();
         }
@@ -1299,6 +1317,9 @@ namespace HTCommander
 
             // Clean up the speech engine
             CleanupSpeechEngine();
+
+            // Clean up the SSTV monitor
+            CleanupSstvMonitor();
 
             // Dispatch ProcessingVoice to indicate we're no longer listening/processing
             if (previousDeviceId > 0)
@@ -1414,16 +1435,178 @@ namespace HTCommander
         }
 
         /// <summary>
+        /// Initializes the SSTV monitor for automatic image detection and decoding.
+        /// </summary>
+        private void InitializeSstvMonitor()
+        {
+            lock (_sstvLock)
+            {
+                CleanupSstvMonitor();
+
+                _sstvMonitor = new SstvMonitor(32000);
+                _sstvMonitor.DecodingStarted += OnSstvDecodingStarted;
+                _sstvMonitor.DecodingProgress += OnSstvDecodingProgress;
+                _sstvMonitor.DecodingComplete += OnSstvDecodingComplete;
+
+                broker.LogInfo("[VoiceHandler] SSTV monitor initialized");
+            }
+        }
+
+        /// <summary>
+        /// Cleans up the SSTV monitor.
+        /// </summary>
+        private void CleanupSstvMonitor()
+        {
+            lock (_sstvLock)
+            {
+                if (_sstvMonitor != null)
+                {
+                    _sstvMonitor.DecodingStarted -= OnSstvDecodingStarted;
+                    _sstvMonitor.DecodingProgress -= OnSstvDecodingProgress;
+                    _sstvMonitor.DecodingComplete -= OnSstvDecodingComplete;
+                    _sstvMonitor.Dispose();
+                    _sstvMonitor = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Called when the SSTV monitor detects the start of an SSTV image.
+        /// </summary>
+        private void OnSstvDecodingStarted(object sender, SstvDecodingStartedEventArgs e)
+        {
+            broker.LogInfo($"[VoiceHandler] SSTV decoding started: {e.ModeName} ({e.Width}x{e.Height})");
+            _sstvDecoding = true;
+
+            // Pause speech-to-text by flushing any pending audio
+            if (_speechToTextEngine != null)
+            {
+                try { _speechToTextEngine.CompleteVoiceSegment(); }
+                catch (Exception ex) { broker.LogError($"[VoiceHandler] Error pausing speech-to-text for SSTV: {ex.Message}"); }
+            }
+
+            if (_targetDeviceId > 0)
+            {
+                broker.Dispatch(_targetDeviceId, "SstvDecodingState", new
+                {
+                    Active = true,
+                    ModeName = e.ModeName,
+                    Width = e.Width,
+                    Height = e.Height,
+                    PercentComplete = 0f
+                }, store: false);
+            }
+        }
+
+        /// <summary>
+        /// Called when the SSTV monitor has decoded more scan lines (progress update).
+        /// </summary>
+        private void OnSstvDecodingProgress(object sender, SstvDecodingProgressEventArgs e)
+        {
+            if (_targetDeviceId > 0)
+            {
+                broker.Dispatch(_targetDeviceId, "SstvDecodingState", new
+                {
+                    Active = true,
+                    ModeName = e.ModeName,
+                    Width = 0,
+                    Height = e.TotalLines,
+                    PercentComplete = e.PercentComplete
+                }, store: false);
+            }
+        }
+
+        /// <summary>
+        /// Called when the SSTV monitor has completed decoding an image.
+        /// Saves the image to disk and adds it to the voice text history.
+        /// </summary>
+        private void OnSstvDecodingComplete(object sender, SstvDecodingCompleteEventArgs e)
+        {
+            broker.LogInfo($"[VoiceHandler] SSTV image decoded: {e.ModeName} ({e.Width}x{e.Height})");
+
+            if (_targetDeviceId > 0)
+            {
+                broker.Dispatch(_targetDeviceId, "SstvDecodingState", new
+                {
+                    Active = false,
+                    ModeName = e.ModeName,
+                    Width = e.Width,
+                    Height = e.Height,
+                    PercentComplete = 100f
+                }, store: false);
+            }
+
+            _sstvDecoding = false;
+
+            // Resume speech-to-text after SSTV decoding
+            if (_speechToTextEngine != null)
+            {
+                try { _speechToTextEngine.StartVoiceSegment(); }
+                catch (Exception ex) { broker.LogError($"[VoiceHandler] Error resuming speech-to-text after SSTV: {ex.Message}"); }
+            }
+
+            if (e.Image == null) return;
+
+            try
+            {
+                // Save the image to the SSTV folder
+                DateTime now = DateTime.Now;
+                string safeMode = SanitizeFilename(e.ModeName ?? "Unknown");
+                string filename = $"SSTV_{now:yyyy-MM-dd}_{now:HH-mm-ss}_{safeMode}.png";
+                string fullPath = Path.Combine(_sstvImagesPath, filename);
+
+                e.Image.Save(fullPath, ImageFormat.Png);
+                e.Image.Dispose();
+
+                broker.LogInfo($"[VoiceHandler] SSTV image saved: {filename}");
+
+                // Add to history as a received picture entry
+                string channelName = _currentChannelName;
+                lock (_historyLock)
+                {
+                    var entry = new DecodedTextEntry
+                    {
+                        Text = e.ModeName,
+                        Channel = channelName,
+                        Time = now,
+                        IsReceived = true,
+                        Encoding = VoiceTextEncodingType.Picture,
+                        Filename = filename
+                    };
+                    _decodedTextHistory.Add(entry);
+
+                    while (_decodedTextHistory.Count > MaxHistorySize)
+                    {
+                        _decodedTextHistory.RemoveAt(0);
+                    }
+                }
+
+                SaveVoiceTextHistory();
+                DispatchDecodedTextHistory();
+
+                // Dispatch TextReady event for the decoded picture
+                DispatchTextReady(e.ModeName, channelName, now, true, true,
+                    VoiceTextEncodingType.Picture, filename: filename);
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[VoiceHandler] Error saving SSTV image: {ex.Message}");
+                e.Image?.Dispose();
+            }
+        }
+
+        /// <summary>
         /// Handles AudioDataAvailable events from the Data Broker.
         /// Expected data format: { Data: byte[], Offset: int, Length: int, ChannelName: string, Transmit: bool }
         /// </summary>
         private void OnAudioDataAvailable(int deviceId, string name, object data)
         {
-            // Check if we need to process this audio (for speech-to-text or recording)
-            bool needsSpeechToText = _enabled && _speechToTextEnabled && deviceId == _targetDeviceId && _speechToTextEngine != null;
+            // Check if we need to process this audio (for speech-to-text, recording, or SSTV)
+            bool needsSpeechToText = _enabled && _speechToTextEnabled && deviceId == _targetDeviceId && _speechToTextEngine != null && !_sstvDecoding;
             bool needsRecording = _recordingEnabled && deviceId == _targetDeviceId;
+            bool needsSstv = _enabled && deviceId == _targetDeviceId && _sstvMonitor != null;
 
-            if (!needsSpeechToText && !needsRecording)
+            if (!needsSpeechToText && !needsRecording && !needsSstv)
             {
                 return;
             }
@@ -1439,6 +1622,7 @@ namespace HTCommander
                 var lengthProp = dataType.GetProperty("Length");
                 var channelNameProp = dataType.GetProperty("ChannelName");
                 var transmitProp = dataType.GetProperty("Transmit");
+                var mutedProp = dataType.GetProperty("Muted");
 
                 if (dataProp == null || offsetProp == null || lengthProp == null || channelNameProp == null || transmitProp == null)
                 {
@@ -1450,8 +1634,9 @@ namespace HTCommander
                 int length = (int)lengthProp.GetValue(data);
                 string channelName = (string)channelNameProp.GetValue(data);
                 bool transmit = (bool)transmitProp.GetValue(data);
+                bool muted = mutedProp != null && (bool)mutedProp.GetValue(data);
 
-                // Only process received audio (not transmitted)
+                // Only process received audio. Muted audio is ok.
                 if (transmit)
                 {
                     return;
@@ -1464,6 +1649,14 @@ namespace HTCommander
                 if (needsSpeechToText)
                 {
                     ProcessAudioChunk(audioData, offset, length, channelName);
+                }
+
+                // Process through SSTV monitor for auto-detection
+                if (needsSstv)
+                {
+                    SstvMonitor monitor;
+                    lock (_sstvLock) { monitor = _sstvMonitor; }
+                    monitor?.ProcessPcm16(audioData, offset, length);
                 }
 
                 // Write audio data to recording file
@@ -1886,6 +2079,9 @@ namespace HTCommander
                     {
                         Disable();
                     }
+
+                    // Clean up SSTV monitor
+                    CleanupSstvMonitor();
 
                     // Clean up text-to-speech resources
                     lock (_ttsLock)
