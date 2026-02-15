@@ -6,6 +6,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 using System;
 using System.IO;
+using System.Drawing;
 using System.Text.Json;
 using System.Speech.Synthesis;
 using System.Speech.AudioFormat;
@@ -118,6 +119,8 @@ namespace HTCommander
         private readonly object _sstvLock = new object();
         private readonly string _sstvImagesPath;
         private bool _sstvDecoding = false;
+        private DecodedTextEntry _currentSstvEntry = null;
+        private DateTime _sstvStartTime;
 
         // Recording fields
         private bool _recordingEnabled = false;
@@ -1477,6 +1480,7 @@ namespace HTCommander
         {
             broker.LogInfo($"[VoiceHandler] SSTV decoding started: {e.ModeName} ({e.Width}x{e.Height})");
             _sstvDecoding = true;
+            _sstvStartTime = DateTime.Now;
 
             // Pause speech-to-text by flushing any pending audio
             if (_speechToTextEngine != null)
@@ -1484,6 +1488,23 @@ namespace HTCommander
                 try { _speechToTextEngine.CompleteVoiceSegment(); }
                 catch (Exception ex) { broker.LogError($"[VoiceHandler] Error pausing speech-to-text for SSTV: {ex.Message}"); }
             }
+
+            // Create a partial decoded text entry for the in-progress SSTV image
+            string channelName = _currentChannelName;
+            lock (_historyLock)
+            {
+                _currentSstvEntry = new DecodedTextEntry
+                {
+                    Text = $"Receiving {e.ModeName}...",
+                    Channel = channelName,
+                    Time = _sstvStartTime,
+                    IsReceived = true,
+                    Encoding = VoiceTextEncodingType.Picture
+                };
+            }
+
+            // Dispatch partial TextReady so the UI shows the in-progress entry
+            DispatchTextReady($"Receiving {e.ModeName}...", channelName, _sstvStartTime, false, true, VoiceTextEncodingType.Picture);
 
             if (_targetDeviceId > 0)
             {
@@ -1503,6 +1524,30 @@ namespace HTCommander
         /// </summary>
         private void OnSstvDecodingProgress(object sender, SstvDecodingProgressEventArgs e)
         {
+            // Extract a partial image from the monitor to show progressive decoding
+            Bitmap partialImage = null;
+            lock (_sstvLock)
+            {
+                if (_sstvMonitor != null)
+                {
+                    partialImage = _sstvMonitor.GetPartialImage();
+                }
+            }
+
+            // Dispatch partial TextReady with the partial image so the UI can display it
+            string progressText = $"Receiving {e.ModeName}... {e.PercentComplete:F0}%";
+            string channelName = _currentChannelName;
+
+            lock (_historyLock)
+            {
+                if (_currentSstvEntry != null)
+                {
+                    _currentSstvEntry.Text = progressText;
+                }
+            }
+
+            DispatchTextReady(progressText, channelName, _sstvStartTime, false, true, VoiceTextEncodingType.Picture, partialImage: partialImage);
+
             if (_targetDeviceId > 0)
             {
                 broker.Dispatch(_targetDeviceId, "SstvDecodingState", new
@@ -1545,12 +1590,18 @@ namespace HTCommander
                 catch (Exception ex) { broker.LogError($"[VoiceHandler] Error resuming speech-to-text after SSTV: {ex.Message}"); }
             }
 
-            if (e.Image == null) return;
+            if (e.Image == null)
+            {
+                // SSTV decoding failed - finalize with error
+                lock (_historyLock) { _currentSstvEntry = null; }
+                DispatchTextReady($"{e.ModeName} - Reception failed", _currentChannelName, _sstvStartTime, true, true, VoiceTextEncodingType.Picture);
+                return;
+            }
 
             try
             {
                 // Save the image to the SSTV folder
-                DateTime now = DateTime.Now;
+                DateTime now = _sstvStartTime;
                 string safeMode = SanitizeFilename(e.ModeName ?? "Unknown");
                 string filename = $"SSTV_{now:yyyy-MM-dd}_{now:HH-mm-ss}_{safeMode}.png";
                 string fullPath = Path.Combine(_sstvImagesPath, filename);
@@ -1560,31 +1611,48 @@ namespace HTCommander
 
                 broker.LogInfo($"[VoiceHandler] SSTV image saved: {filename}");
 
-                // Add to history as a received picture entry
+                // Finalize the partial entry into the decoded text history
                 string channelName = _currentChannelName;
                 lock (_historyLock)
                 {
-                    var entry = new DecodedTextEntry
+                    if (_currentSstvEntry != null)
                     {
-                        Text = e.ModeName,
-                        Channel = channelName,
-                        Time = now,
-                        IsReceived = true,
-                        Encoding = VoiceTextEncodingType.Picture,
-                        Filename = filename
-                    };
-                    _decodedTextHistory.Add(entry);
+                        _currentSstvEntry.Text = e.ModeName;
+                        _currentSstvEntry.Filename = filename;
+                        _decodedTextHistory.Add(_currentSstvEntry);
 
-                    while (_decodedTextHistory.Count > MaxHistorySize)
+                        while (_decodedTextHistory.Count > MaxHistorySize)
+                        {
+                            _decodedTextHistory.RemoveAt(0);
+                        }
+
+                        _currentSstvEntry = null;
+                    }
+                    else
                     {
-                        _decodedTextHistory.RemoveAt(0);
+                        // Fallback: create entry directly
+                        var entry = new DecodedTextEntry
+                        {
+                            Text = e.ModeName,
+                            Channel = channelName,
+                            Time = now,
+                            IsReceived = true,
+                            Encoding = VoiceTextEncodingType.Picture,
+                            Filename = filename
+                        };
+                        _decodedTextHistory.Add(entry);
+
+                        while (_decodedTextHistory.Count > MaxHistorySize)
+                        {
+                            _decodedTextHistory.RemoveAt(0);
+                        }
                     }
                 }
 
                 SaveVoiceTextHistory();
                 DispatchDecodedTextHistory();
 
-                // Dispatch TextReady event for the decoded picture
+                // Dispatch completed TextReady event for the decoded picture
                 DispatchTextReady(e.ModeName, channelName, now, true, true,
                     VoiceTextEncodingType.Picture, filename: filename);
             }
@@ -1592,6 +1660,7 @@ namespace HTCommander
             {
                 broker.LogError($"[VoiceHandler] Error saving SSTV image: {ex.Message}");
                 e.Image?.Dispose();
+                lock (_historyLock) { _currentSstvEntry = null; }
             }
         }
 
@@ -2001,7 +2070,7 @@ namespace HTCommander
         /// <summary>
         /// Dispatches a TextReady event to the Data Broker.
         /// </summary>
-        private void DispatchTextReady(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null, int duration = 0)
+        private void DispatchTextReady(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null, int duration = 0, Bitmap partialImage = null)
         {
             if (_targetDeviceId > 0)
             {
@@ -2018,7 +2087,8 @@ namespace HTCommander
                     Source = source,
                     Destination = destination,
                     Filename = filename,
-                    Duration = duration
+                    Duration = duration,
+                    PartialImage = partialImage
                 }, store: false);
             }
         }

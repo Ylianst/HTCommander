@@ -233,6 +233,7 @@ namespace HTCommander.Controls
                 var destinationProp = type.GetProperty("Destination");
                 var filenameProp = type.GetProperty("Filename");
                 var durationProp = type.GetProperty("Duration");
+                var partialImageProp = type.GetProperty("PartialImage");
 
                 if (textProp != null)
                 {
@@ -275,10 +276,15 @@ namespace HTCommander.Controls
                         object durValue = durationProp.GetValue(data);
                         if (durValue is int di) duration = di;
                     }
-
-                    if (!string.IsNullOrEmpty(text) || encoding == VoiceTextEncodingType.Recording)
+                    Image partialImage = null;
+                    if (partialImageProp != null)
                     {
-                        AppendVoiceHistory(text ?? "", channel, time, completed, isReceived, encoding, latitude, longitude, source, destination, filename, duration);
+                        partialImage = partialImageProp.GetValue(data) as Image;
+                    }
+
+                    if (!string.IsNullOrEmpty(text) || encoding == VoiceTextEncodingType.Recording || encoding == VoiceTextEncodingType.Picture)
+                    {
+                        AppendVoiceHistory(text ?? "", channel, time, completed, isReceived, encoding, latitude, longitude, source, destination, filename, duration, partialImage);
                     }
                 }
             }
@@ -386,9 +392,9 @@ namespace HTCommander.Controls
         /// <summary>
         /// Appends transcribed text to the voice history using the VoiceControl.
         /// </summary>
-        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null, int duration = 0)
+        private void AppendVoiceHistory(string text, string channel, DateTime time, bool completed, bool isReceived = true, VoiceTextEncodingType encoding = VoiceTextEncodingType.Voice, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null, int duration = 0, Image partialImage = null)
         {
-            voiceControl.UpdatePartialMessage(text, channel, time, completed, isReceived, encoding, latitude, longitude, source, destination, filename, duration);
+            voiceControl.UpdatePartialMessage(text, channel, time, completed, isReceived, encoding, latitude, longitude, source, destination, filename, duration, partialImage);
         }
 
         // Properties to access internal controls

@@ -124,11 +124,45 @@ namespace HTCommander
 
         /// <summary>
         /// Gets the cached thumbnail for the given voice message, generating it on first access.
-        /// Returns null if the file does not exist or cannot be loaded.
+        /// Handles both completed images (from file) and partial images (in-progress SSTV).
+        /// Returns null if no image is available.
         /// </summary>
         private static Image GetSstvThumbnail(VoiceMessage voiceMessage)
         {
-            if (voiceMessage == null || string.IsNullOrEmpty(voiceMessage.Filename)) return null;
+            if (voiceMessage == null) return null;
+
+            // If there's a partial image (in-progress SSTV), always regenerate thumbnail from it
+            if (voiceMessage.PartialImage != null)
+            {
+                voiceMessage.Thumbnail?.Dispose();
+                voiceMessage.Thumbnail = null;
+
+                try
+                {
+                    int srcWidth = voiceMessage.PartialImage.Width;
+                    int srcHeight = voiceMessage.PartialImage.Height;
+                    if (srcWidth <= 0 || srcHeight <= 0) return null;
+
+                    int thumbWidth = (int)((double)srcWidth / srcHeight * SstvThumbnailHeight);
+                    if (thumbWidth <= 0) thumbWidth = 1;
+                    var thumb = new Bitmap(thumbWidth, SstvThumbnailHeight);
+                    using (var g = Graphics.FromImage(thumb))
+                    {
+                        g.Clear(Color.Black); // Black background for unreceived lines
+                        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        g.DrawImage(voiceMessage.PartialImage, 0, 0, thumbWidth, SstvThumbnailHeight);
+                    }
+                    voiceMessage.Thumbnail = thumb;
+                    return thumb;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            // Completed image from file
+            if (string.IsNullOrEmpty(voiceMessage.Filename)) return null;
             if (voiceMessage.Thumbnail != null) return voiceMessage.Thumbnail;
 
             try
@@ -256,7 +290,7 @@ namespace HTCommander
                 callSignSize = TextRenderer.MeasureText(voiceMessage.Route, CallsignFont);
             }
             SizeF messageSize = SizeF.Empty;
-            if (voiceMessage.Encoding == VoiceTextEncodingType.Picture && !string.IsNullOrEmpty(voiceMessage.Filename))
+            if (voiceMessage.Encoding == VoiceTextEncodingType.Picture && (!string.IsNullOrEmpty(voiceMessage.Filename) || voiceMessage.PartialImage != null))
             {
                 // For picture messages, size is based on the thumbnail image
                 Image thumb = GetSstvThumbnail(voiceMessage);
@@ -313,7 +347,7 @@ namespace HTCommander
             }
 
             SizeF messageSize = SizeF.Empty;
-            bool isPicture = voiceMessage.Encoding == VoiceTextEncodingType.Picture && !string.IsNullOrEmpty(voiceMessage.Filename);
+            bool isPicture = voiceMessage.Encoding == VoiceTextEncodingType.Picture && (!string.IsNullOrEmpty(voiceMessage.Filename) || voiceMessage.PartialImage != null);
             Image sstvThumb = isPicture ? GetSstvThumbnail(voiceMessage) : null;
 
             if (isPicture && sstvThumb != null)
@@ -501,7 +535,7 @@ namespace HTCommander
         /// <param name="encoding">The encoding type.</param>
         /// <param name="latitude">Latitude coordinate if location data is available.</param>
         /// <param name="longitude">Longitude coordinate if location data is available.</param>
-        public void UpdatePartialMessage(string text, string channel, DateTime time, bool completed, bool isReceived, VoiceTextEncodingType encoding, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null, int duration = 0)
+        public void UpdatePartialMessage(string text, string channel, DateTime time, bool completed, bool isReceived, VoiceTextEncodingType encoding, double latitude = 0, double longitude = 0, string source = null, string destination = null, string filename = null, int duration = 0, Image partialImage = null)
         {
             string trimmedText = text?.Trim() ?? "";
             var partial = GetPartialMessage();
@@ -512,7 +546,7 @@ namespace HTCommander
             
             if (partial != null)
             {
-                if (string.IsNullOrEmpty(trimmedText) && completed && encoding != VoiceTextEncodingType.Recording)
+                if (string.IsNullOrEmpty(trimmedText) && completed && encoding != VoiceTextEncodingType.Recording && encoding != VoiceTextEncodingType.Picture)
                 {
                     // Empty completed message - remove the partial entry
                     Messages.Remove(partial);
@@ -531,12 +565,29 @@ namespace HTCommander
                     partial.Longitude = longitude;
                     partial.ImageIndex = imageIndex;
                     partial.Filename = filename;
+
+                    // Handle partial image updates for progressive SSTV
+                    if (partialImage != null)
+                    {
+                        partial.PartialImage?.Dispose();
+                        partial.PartialImage = partialImage;
+                        partial.Thumbnail?.Dispose();
+                        partial.Thumbnail = null; // Force thumbnail regeneration
+                    }
+                    else if (completed)
+                    {
+                        // Completed - clear partial image, let filename-based loading take over
+                        partial.PartialImage?.Dispose();
+                        partial.PartialImage = null;
+                        partial.Thumbnail?.Dispose();
+                        partial.Thumbnail = null; // Force thumbnail regeneration from file
+                    }
                 }
             }
             else
             {
-                // Don't create new message if text is empty (except for Recording entries)
-                if (string.IsNullOrEmpty(trimmedText) && encoding != VoiceTextEncodingType.Recording)
+                // Don't create new message if text is empty (except for Recording and Picture entries)
+                if (string.IsNullOrEmpty(trimmedText) && encoding != VoiceTextEncodingType.Recording && encoding != VoiceTextEncodingType.Picture)
                 {
                     return;
                 }
@@ -555,6 +606,10 @@ namespace HTCommander
                 message.Latitude = latitude;
                 message.Longitude = longitude;
                 message.Filename = filename;
+                if (partialImage != null)
+                {
+                    message.PartialImage = partialImage;
+                }
                 Messages.Add(message);
             }
             

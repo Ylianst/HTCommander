@@ -279,6 +279,56 @@ namespace HTCommander.SSTV
             }
         }
 
+        /// <summary>
+        /// Extracts a partial image from the pixel buffer at full resolution.
+        /// Decoded lines are filled in; remaining lines are black.
+        /// Returns null if no lines have been decoded yet.
+        /// Caller is responsible for disposing the returned Bitmap.
+        /// </summary>
+        public Bitmap GetPartialImage()
+        {
+            lock (_lock)
+            {
+                if (_imageBuffer == null || _imageBuffer.Line <= 0) return null;
+
+                try
+                {
+                    int width = _imageBuffer.Width;
+                    int fullHeight = _imageBuffer.Height;
+                    int decodedLines = Math.Min(_imageBuffer.Line, fullHeight);
+                    int[] pixels = _imageBuffer.Pixels;
+
+                    if (width <= 0 || fullHeight <= 0 || pixels == null || pixels.Length < width * decodedLines)
+                        return null;
+
+                    // Create a full-size pixel array initialized to opaque black
+                    int totalPixels = width * fullHeight;
+                    int[] fullPixels = new int[totalPixels];
+                    unchecked
+                    {
+                        int opaqueBlack = (int)0xFF000000;
+                        for (int i = 0; i < totalPixels; i++) { fullPixels[i] = opaqueBlack; }
+                    }
+
+                    // Copy decoded lines into the full-size array
+                    Array.Copy(pixels, 0, fullPixels, 0, width * decodedLines);
+
+                    Bitmap bmp = new Bitmap(width, fullHeight, PixelFormat.Format32bppArgb);
+                    BitmapData bmpData = bmp.LockBits(
+                        new Rectangle(0, 0, width, fullHeight),
+                        ImageLockMode.WriteOnly,
+                        PixelFormat.Format32bppArgb);
+                    Marshal.Copy(fullPixels, 0, bmpData.Scan0, totalPixels);
+                    bmp.UnlockBits(bmpData);
+                    return bmp;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+        }
+
         public void Dispose()
         {
             _disposed = true;
