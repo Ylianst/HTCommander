@@ -23,7 +23,7 @@ namespace HTCommander
             broker = new DataBrokerClient();
 
             stationTypeComboBox.SelectedIndex = 0;
-            terminalProtocolComboBox.SelectedIndex = 0;
+            terminalProtocolComboBox.SelectedIndex = 3;
 
             // Setup radio channels from DataBroker - query all connected radios
             List<string> channelNames = GetAllChannelNames();
