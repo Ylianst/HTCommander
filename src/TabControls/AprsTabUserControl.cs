@@ -513,6 +513,8 @@ namespace HTCommander.Controls
         /// <returns>The device ID of the preferred APRS radio, or -1 if none found.</returns>
         private int GetPreferredAprsRadioDeviceId()
         {
+            _broker.LogInfo($"[APRS] GetPreferredAprsRadioDeviceId: subscribedRadios={_subscribedRadioDeviceIds.Count}, preferredId={_preferredRadioDeviceId}");
+
             // If PreferredRadioDeviceId is set (>= 100), check if it has an APRS channel first
             if (_preferredRadioDeviceId >= 100 && _subscribedRadioDeviceIds.Contains(_preferredRadioDeviceId))
             {
@@ -528,11 +530,24 @@ namespace HTCommander.Controls
                                 !string.IsNullOrEmpty(channel.name_str) &&
                                 channel.name_str.Equals("APRS", StringComparison.OrdinalIgnoreCase))
                             {
+                                _broker.LogInfo($"[APRS] GetPreferredAprsRadioDeviceId: using preferred radio {_preferredRadioDeviceId}");
                                 return _preferredRadioDeviceId;
                             }
                         }
                     }
+                    else
+                    {
+                        _broker.LogInfo($"[APRS] GetPreferredAprsRadioDeviceId: preferred radio {_preferredRadioDeviceId} has null channels");
+                    }
                 }
+                else
+                {
+                    _broker.LogInfo($"[APRS] GetPreferredAprsRadioDeviceId: preferred radio {_preferredRadioDeviceId} channels not loaded yet");
+                }
+            }
+            else if (_preferredRadioDeviceId >= 100)
+            {
+                _broker.LogInfo($"[APRS] GetPreferredAprsRadioDeviceId: preferred radio {_preferredRadioDeviceId} not in subscribed list");
             }
 
             // Fall back to finding any radio with an APRS channel
@@ -541,7 +556,11 @@ namespace HTCommander.Controls
             foreach (int deviceId in _subscribedRadioDeviceIds)
             {
                 bool allChannelsLoaded = _broker.GetValue<bool>(deviceId, "AllChannelsLoaded", false);
-                if (!allChannelsLoaded) continue;
+                if (!allChannelsLoaded)
+                {
+                    _broker.LogInfo($"[APRS] GetPreferredAprsRadioDeviceId: radio {deviceId} channels not loaded, skipping");
+                    continue;
+                }
 
                 RadioChannelInfo[] channels = _broker.GetValue<RadioChannelInfo[]>(deviceId, "Channels", null);
                 if (channels != null)
@@ -560,8 +579,14 @@ namespace HTCommander.Controls
                         }
                     }
                 }
+                else
+                {
+                    _broker.LogInfo($"[APRS] GetPreferredAprsRadioDeviceId: radio {deviceId} has null channels");
+                }
             }
 
+            if (preferredDeviceId == -1) { _broker.LogInfo("[APRS] GetPreferredAprsRadioDeviceId: no radio with APRS channel found"); }
+            else { _broker.LogInfo($"[APRS] GetPreferredAprsRadioDeviceId: fallback to radio {preferredDeviceId}"); }
             return preferredDeviceId;
         }
 
@@ -978,48 +1003,80 @@ namespace HTCommander.Controls
 
         private void aprsSmsButton_Click(object sender, EventArgs e)
         {
+            _broker.LogInfo("[APRS] SMS button clicked");
             using (AprsSmsForm aprsSmsForm = new AprsSmsForm())
             {
                 if (aprsSmsForm.ShowDialog(this) == DialogResult.OK)
                 {
                     int radioDeviceId = GetPreferredAprsRadioDeviceId();
-                    if (radioDeviceId == -1) return;
+                    if (radioDeviceId == -1)
+                    {
+                        _broker.LogInfo("[APRS] SMS send aborted: no preferred APRS radio device found");
+                        return;
+                    }
 
                     string[] route = GetSelectedRoute();
+                    if (route == null) { _broker.LogInfo("[APRS] SMS send: no route selected, using default"); }
+                    else { _broker.LogInfo($"[APRS] SMS send: route has {route.Length} hop(s)"); }
+
+                    string phoneNumber = aprsSmsForm.PhoneNumber;
+                    string message = aprsSmsForm.Message;
+                    if (string.IsNullOrEmpty(phoneNumber)) { _broker.LogInfo("[APRS] SMS send warning: phone number is empty"); }
+                    if (string.IsNullOrEmpty(message)) { _broker.LogInfo("[APRS] SMS send warning: message is empty"); }
 
                     var messageData = new AprsSendMessageData
                     {
                         Destination = "SMS",
-                        Message = "@" + aprsSmsForm.PhoneNumber + " " + aprsSmsForm.Message,
+                        Message = "@" + phoneNumber + " " + message,
                         RadioDeviceId = radioDeviceId,
                         Route = route
                     };
 
+                    _broker.LogInfo($"[APRS] Dispatching SMS message to radio {radioDeviceId}, destination=SMS, message length={messageData.Message?.Length ?? 0}");
                     _broker.Dispatch(1, "SendAprsMessage", messageData, store: false);
+                }
+                else
+                {
+                    _broker.LogInfo("[APRS] SMS dialog cancelled by user");
                 }
             }
         }
 
         private void weatherReportToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            _broker.LogInfo("[APRS] Weather report button clicked");
             using (AprsWeatherForm aprsWeatherForm = new AprsWeatherForm())
             {
                 if (aprsWeatherForm.ShowDialog(this) == DialogResult.OK)
                 {
                     int radioDeviceId = GetPreferredAprsRadioDeviceId();
-                    if (radioDeviceId == -1) return;
+                    if (radioDeviceId == -1)
+                    {
+                        _broker.LogInfo("[APRS] Weather report send aborted: no preferred APRS radio device found");
+                        return;
+                    }
 
                     string[] route = GetSelectedRoute();
+                    if (route == null) { _broker.LogInfo("[APRS] Weather report send: no route selected, using default"); }
+                    else { _broker.LogInfo($"[APRS] Weather report send: route has {route.Length} hop(s)"); }
+
+                    string weatherMessage = aprsWeatherForm.GetAprsMessage();
+                    if (string.IsNullOrEmpty(weatherMessage)) { _broker.LogInfo("[APRS] Weather report send warning: weather message is empty"); }
 
                     var messageData = new AprsSendMessageData
                     {
                         Destination = "WXBOT",
-                        Message = aprsWeatherForm.GetAprsMessage(),
+                        Message = weatherMessage,
                         RadioDeviceId = radioDeviceId,
                         Route = route
                     };
 
+                    _broker.LogInfo($"[APRS] Dispatching weather report to radio {radioDeviceId}, destination=WXBOT, message length={messageData.Message?.Length ?? 0}");
                     _broker.Dispatch(1, "SendAprsMessage", messageData, store: false);
+                }
+                else
+                {
+                    _broker.LogInfo("[APRS] Weather report dialog cancelled by user");
                 }
             }
         }

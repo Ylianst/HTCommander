@@ -5,8 +5,8 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
@@ -32,6 +32,11 @@ namespace HTCommander
         private bool isCapturing = false;
         private bool isTransmitting = false;
         private int inputBoostValue = 0; // Cached boost value to avoid cross-thread access
+
+        // WAV file recording
+        private WaveFileWriter _wavWriter = null;
+        private readonly object _wavLock = new object();
+        private bool _isRecording = false;
 
         public RadioAudioForm(int deviceId)
         {
@@ -65,12 +70,12 @@ namespace HTCommander
             broker.Subscribe(deviceId, "Settings", OnSettingsChanged);
             broker.Subscribe(deviceId, "HtStatus", OnHtStatusChanged);
             broker.Subscribe(deviceId, "Volume", OnVolumeLevelChanged);
-            broker.Subscribe(1, "RecordingState", OnRecordingStateChanged);
             broker.Subscribe(deviceId, "OutputAmplitude", OnOutputAmplitudeChanged);
             broker.Subscribe(0, "AllowTransmit", OnAllowTransmitChanged);
             broker.Subscribe(deviceId, "FriendlyName", OnFriendlyNameChanged);
 
             this.FormClosed += (s, e) => {
+                StopWavRecording();
                 StopMicrophoneCapture();
                 broker?.Dispose();
             };
@@ -164,12 +169,7 @@ namespace HTCommander
             }
         }
 
-        private void OnRecordingStateChanged(int devId, string name, object data)
-        {
-            if (InvokeRequired) { BeginInvoke(new Action(() => OnRecordingStateChanged(devId, name, data))); return; }
-            bool recording = data is bool && (bool)data;
-            recordButton.Image = recording ? microphoneImageList.Images[7] : microphoneImageList.Images[6];
-        }
+
 
         private void OnOutputAmplitudeChanged(int devId, string name, object data)
         {
@@ -844,15 +844,96 @@ namespace HTCommander
 
         private void recordButton_Click(object sender, EventArgs e)
         {
-            bool recording = broker.GetValue<bool>(1, "RecordingState", false);
-            if (recording == true)
+            if (_isRecording)
             {
-                broker.Dispatch(1, "RecordingDisable", null);
+                StopWavRecording();
             }
             else
             {
-                broker.Dispatch(1, "RecordingEnable", null);
+                saveFileDialog.Filter = "WAV files (*.wav)|*.wav";
+                saveFileDialog.DefaultExt = "wav";
+                saveFileDialog.FileName = $"Recording_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.wav";
+                if (saveFileDialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    StartWavRecording(saveFileDialog.FileName);
+                }
             }
+        }
+
+        private void StartWavRecording(string filePath)
+        {
+            lock (_wavLock)
+            {
+                try
+                {
+                    // Create WAV writer: 32kHz, 16-bit, mono (matches radio PCM format)
+                    _wavWriter = new WaveFileWriter(filePath, new WaveFormat(32000, 16, 1));
+                    _isRecording = true;
+                    recordButton.Image = microphoneImageList.Images[7];
+
+                    // Subscribe to incoming PCM audio for this radio
+                    broker.Subscribe(deviceId, "AudioDataAvailable", OnRecordingAudioDataAvailable);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, "Failed to start recording: " + ex.Message, "Recording Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    _wavWriter?.Dispose();
+                    _wavWriter = null;
+                    _isRecording = false;
+                }
+            }
+        }
+
+        private void StopWavRecording()
+        {
+            lock (_wavLock)
+            {
+                if (!_isRecording) return;
+                _isRecording = false;
+
+                broker.Unsubscribe(deviceId, "AudioDataAvailable");
+
+                try
+                {
+                    _wavWriter?.Dispose();
+                }
+                catch (Exception) { }
+                _wavWriter = null;
+            }
+
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => { recordButton.Image = microphoneImageList.Images[6]; }));
+            }
+            else
+            {
+                recordButton.Image = microphoneImageList.Images[6];
+            }
+        }
+
+        private void OnRecordingAudioDataAvailable(int devId, string name, object data)
+        {
+            if (data == null) return;
+
+            try
+            {
+                var dataType = data.GetType();
+                var dataProp = dataType.GetProperty("Data");
+                var offsetProp = dataType.GetProperty("Offset");
+                var lengthProp = dataType.GetProperty("Length");
+                if (dataProp == null || offsetProp == null || lengthProp == null) return;
+
+                byte[] audioData = dataProp.GetValue(data) as byte[];
+                int offset = (int)offsetProp.GetValue(data);
+                int length = (int)lengthProp.GetValue(data);
+                if (audioData == null || length <= 0) return;
+
+                lock (_wavLock)
+                {
+                    _wavWriter?.Write(audioData, offset, length);
+                }
+            }
+            catch (Exception) { }
         }
 
         private void masterMuteButton_Click(object sender, EventArgs e)
