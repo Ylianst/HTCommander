@@ -1203,65 +1203,71 @@ namespace HTCommander.Controls
                 dlg.Title = "Select Audio File";
                 dlg.Filter = "WAV Files|*.wav|All Files|*.*";
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                TransmitAudioFile(dlg.FileName);
+            }
+        }
 
-                string filePath = dlg.FileName;
-                string fileName = System.IO.Path.GetFileName(filePath);
+        /// <summary>
+        /// Prompts the user for confirmation and transmits the specified audio file.
+        /// </summary>
+        private void TransmitAudioFile(string filePath)
+        {
+            string fileName = System.IO.Path.GetFileName(filePath);
 
-                if (MessageBox.Show($"Transmit audio file \"{fileName}\"?", "Transmit Audio", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
+            if (MessageBox.Show($"Transmit audio file \"{fileName}\"?", "Transmit Audio", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
 
-                int targetDeviceId = _voiceHandlerTargetDeviceId;
-                if (targetDeviceId < 0)
+            int targetDeviceId = _voiceHandlerTargetDeviceId;
+            if (targetDeviceId < 0)
+            {
+                MessageBox.Show("No radio is connected for voice transmission.", "Transmit Audio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            Task.Run(() =>
+            {
+                try
                 {
-                    MessageBox.Show("No radio is connected for voice transmission.", "Transmit Audio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                Task.Run(() =>
-                {
-                    try
+                    // Read the WAV file and convert to 32kHz 16-bit mono PCM
+                    byte[] pcmData;
+                    using (var reader = new NAudio.Wave.AudioFileReader(filePath))
                     {
-                        // Read the WAV file and convert to 32kHz 16-bit mono PCM
-                        byte[] pcmData;
-                        using (var reader = new NAudio.Wave.AudioFileReader(filePath))
+                        // Resample to 32kHz mono
+                        var targetFormat = new NAudio.Wave.WaveFormat(32000, 16, 1);
+                        using (var resampler = new NAudio.Wave.MediaFoundationResampler(reader, targetFormat))
                         {
-                            // Resample to 32kHz mono
-                            var targetFormat = new NAudio.Wave.WaveFormat(32000, 16, 1);
-                            using (var resampler = new NAudio.Wave.MediaFoundationResampler(reader, targetFormat))
+                            resampler.ResamplerQuality = 60;
+                            using (var ms = new System.IO.MemoryStream())
                             {
-                                resampler.ResamplerQuality = 60;
-                                using (var ms = new System.IO.MemoryStream())
+                                byte[] buf = new byte[8192];
+                                int bytesRead;
+                                while ((bytesRead = resampler.Read(buf, 0, buf.Length)) > 0)
                                 {
-                                    byte[] buf = new byte[8192];
-                                    int bytesRead;
-                                    while ((bytesRead = resampler.Read(buf, 0, buf.Length)) > 0)
-                                    {
-                                        ms.Write(buf, 0, bytesRead);
-                                    }
-                                    pcmData = ms.ToArray();
+                                    ms.Write(buf, 0, bytesRead);
                                 }
+                                pcmData = ms.ToArray();
                             }
                         }
-
-                        if (pcmData.Length == 0)
-                        {
-                            this.BeginInvoke((Action)(() =>
-                            {
-                                MessageBox.Show("The audio file is empty.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            }));
-                            return;
-                        }
-
-                        broker.Dispatch(targetDeviceId, "TransmitVoicePCM", new { Data = pcmData, PlayLocally = true }, store: false);
                     }
-                    catch (Exception ex)
+
+                    if (pcmData.Length == 0)
                     {
                         this.BeginInvoke((Action)(() =>
                         {
-                            MessageBox.Show("Failed to transmit audio: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            MessageBox.Show("The audio file is empty.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }));
+                        return;
                     }
-                });
-            }
+
+                    broker.Dispatch(targetDeviceId, "TransmitVoicePCM", new { Data = pcmData, PlayLocally = true }, store: false);
+                }
+                catch (Exception ex)
+                {
+                    this.BeginInvoke((Action)(() =>
+                    {
+                        MessageBox.Show("Failed to transmit audio: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }));
+                }
+            });
         }
 
         #endregion
@@ -1273,7 +1279,7 @@ namespace HTCommander.Controls
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                if (files != null && files.Length == 1 && IsImageFile(files[0]))
+                if (files != null && files.Length == 1 && (IsImageFile(files[0]) || IsWavFile(files[0])))
                 {
                     e.Effect = DragDropEffects.Copy;
                     return;
@@ -1290,6 +1296,13 @@ namespace HTCommander.Controls
             if (files == null || files.Length != 1) return;
 
             string filePath = files[0];
+
+            if (IsWavFile(filePath))
+            {
+                TransmitAudioFile(filePath);
+                return;
+            }
+
             if (!IsImageFile(filePath)) return;
 
             try
@@ -1307,6 +1320,16 @@ namespace HTCommander.Controls
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// Checks if a file path refers to a WAV audio file.
+        /// </summary>
+        private static bool IsWavFile(string path)
+        {
+            string ext = System.IO.Path.GetExtension(path);
+            if (string.IsNullOrEmpty(ext)) return false;
+            return ext.ToLowerInvariant() == ".wav";
         }
 
         /// <summary>

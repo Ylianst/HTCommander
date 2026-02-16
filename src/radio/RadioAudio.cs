@@ -816,10 +816,13 @@ namespace HTCommander
                             catch (Exception ex) { Debug("Recording Write Error: " + ex.ToString()); }
                         }
                     }
-                    DispatchAudioDataAvailable(pcmFrame, 0, totalWritten, currentChannelName, false, isMuted);
+
+                    byte[] pcmDataForEvent = new byte[totalWritten];
+                    Buffer.BlockCopy(pcmFrame, 0, pcmDataForEvent, 0, totalWritten);
+                    DispatchAudioDataAvailable(pcmDataForEvent, 0, totalWritten, currentChannelName, false, isMuted);
 
                     // Calculate and dispatch output amplitude (after volume is applied conceptually)
-                    float amplitude = CalculatePcmAmplitude(pcmFrame, totalWritten) * OutputVolume;
+                    float amplitude = CalculatePcmAmplitude(pcmDataForEvent, totalWritten) * OutputVolume;
                     broker.Dispatch(DeviceId, "OutputAmplitude", amplitude, store: false);
                 }
 
@@ -1049,7 +1052,10 @@ namespace HTCommander
                 {
                     try { PlayPcmBufferAsync(pcmData, pcmOffset, bytesConsumed); } catch (Exception ex) { Debug("PlayPcmBufferAsync error: " + ex.Message); }
                 }
-                try { DispatchAudioDataAvailable(pcmData, pcmOffset, bytesConsumed, currentChannelName, true, false); } catch (Exception ex) { Debug("GotAudioData error: " + ex.Message); }
+
+                byte[] pcmDataForEvent = new byte[bytesConsumed];
+                Buffer.BlockCopy(pcmData, pcmOffset, pcmDataForEvent, 0, bytesConsumed);
+                try { DispatchAudioDataAvailable(pcmDataForEvent, 0, bytesConsumed, currentChannelName, true, false); } catch (Exception ex) { Debug("GotAudioData error: " + ex.Message); }
 
                 pcmOffset += bytesConsumed;
                 pcmLength -= bytesConsumed;
