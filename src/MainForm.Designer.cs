@@ -628,7 +628,7 @@
             packetCaptureTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             packetCaptureTabUserControl.Name = "packetCaptureTabUserControl";
             packetCaptureTabUserControl.ShowDetach = true;
-            packetCaptureTabUserControl.ShowTitle = false;
+            packetCaptureTabUserControl.ShowTitle = true;
             packetCaptureTabUserControl.Size = new System.Drawing.Size(668, 789);
             packetCaptureTabUserControl.TabIndex = 0;
             // 
