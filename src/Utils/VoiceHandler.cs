@@ -4,16 +4,17 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-using System;
-using System.IO;
-using System.Drawing;
-using System.Text.Json;
-using System.Speech.Synthesis;
-using System.Speech.AudioFormat;
-using System.Collections.Generic;
-using System.Drawing.Imaging;
+using aprsparser;
 using HTCommander.radio;
 using HTCommander.SSTV;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Speech.AudioFormat;
+using System.Speech.Synthesis;
+using System.Text.Json;
 
 namespace HTCommander
 {
@@ -28,7 +29,8 @@ namespace HTCommander
         AX25,
         BSS,
         Recording,
-        Picture
+        Picture,
+        APRS
     }
 
     /// <summary>
@@ -359,6 +361,88 @@ namespace HTCommander
 
             string destination = ax25Packet.addresses[0].CallSignWithId;
             string source = ax25Packet.addresses[1].CallSignWithId;
+
+            AprsPacket aprsPacket = AprsPacket.Parse(ax25Packet);
+            if (aprsPacket != null)
+            {
+                double latitude = 0;
+                double longitude = 0;
+                if (aprsPacket.Position != null)
+                {
+                    latitude = aprsPacket.Position.CoordinateSet.Latitude.Value;
+                    longitude = aprsPacket.Position.CoordinateSet.Longitude.Value;
+                }
+
+                if (aprsPacket.Comment != null)
+                {
+                    // Add to history as a received AX.25 entry
+                    lock (_historyLock)
+                    {
+                        var entry = new DecodedTextEntry
+                        {
+                            Text = aprsPacket.Comment,
+                            Channel = frame.channel_name ?? "",
+                            Time = frame.time,
+                            IsReceived = true,
+                            Encoding = VoiceTextEncodingType.APRS,
+                            Source = source,
+                            Destination = null,
+                            Latitude = latitude,
+                            Longitude = longitude
+                        };
+                        _decodedTextHistory.Add(entry);
+
+                        // Trim if exceeds max size
+                        while (_decodedTextHistory.Count > MaxHistorySize)
+                        {
+                            _decodedTextHistory.RemoveAt(0);
+                        }
+                    }
+
+                    // Save to file and dispatch updated history
+                    SaveVoiceTextHistory();
+                    DispatchDecodedTextHistory();
+
+                    // Dispatch a TextReady event for the APRS packet
+                    DispatchTextReady(aprsPacket.Comment, frame.channel_name ?? "", frame.time, true, true, VoiceTextEncodingType.APRS, latitude, longitude, source: source, destination: null);
+                    return;
+                }
+
+                if ((aprsPacket.MessageData != null) && (aprsPacket.MessageData.MsgText != null))
+                {
+                    // Add to history as a received AX.25 entry
+                    lock (_historyLock)
+                    {
+                        var entry = new DecodedTextEntry
+                        {
+                            Text = aprsPacket.MessageData.MsgText,
+                            Channel = frame.channel_name ?? "",
+                            Time = frame.time,
+                            IsReceived = true,
+                            Encoding = VoiceTextEncodingType.APRS,
+                            Source = source,
+                            Destination = aprsPacket.MessageData.Addressee,
+                            Latitude = latitude,
+                            Longitude = longitude
+                        };
+                        _decodedTextHistory.Add(entry);
+
+                        // Trim if exceeds max size
+                        while (_decodedTextHistory.Count > MaxHistorySize)
+                        {
+                            _decodedTextHistory.RemoveAt(0);
+                        }
+                    }
+
+                    // Save to file and dispatch updated history
+                    SaveVoiceTextHistory();
+                    DispatchDecodedTextHistory();
+
+                    // Dispatch a TextReady event for the APRS packet
+                    DispatchTextReady(aprsPacket.MessageData.MsgText, frame.channel_name ?? "", frame.time, true, true, VoiceTextEncodingType.APRS, latitude, longitude, source: source, destination: aprsPacket.MessageData.Addressee);
+                    return;
+                }
+            }
 
             // Get the message/data content
             string messageText = ax25Packet.dataStr;

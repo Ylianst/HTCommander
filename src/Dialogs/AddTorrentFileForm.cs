@@ -1,4 +1,10 @@
-﻿using System;
+﻿/*
+Copyright 2026 Ylian Saint-Hilaire
+Licensed under the Apache License, Version 2.0 (the "License");
+http://www.apache.org/licenses/LICENSE-2.0
+*/
+
+using System;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;

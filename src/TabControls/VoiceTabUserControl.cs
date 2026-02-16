@@ -727,6 +727,7 @@ namespace HTCommander.Controls
                 case VoiceTextEncodingType.AX25: return "AX.25";
                 case VoiceTextEncodingType.BSS: return "Chat";
                 case VoiceTextEncodingType.Picture: return "SSTV";
+                case VoiceTextEncodingType.APRS: return "APRS";
                 default: return encoding.ToString();
             }
         }
