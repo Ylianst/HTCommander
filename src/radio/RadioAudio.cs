@@ -302,9 +302,8 @@ namespace HTCommander
 
         private static byte[] ExtractData(ref MemoryStream inputStream)
         {
-            if (inputStream.Length < 2) { inputStream.Position = 0; return null; }
+            if (inputStream.Length < 2) return null;
 
-            // Fall back to GetBuffer if TryGetBuffer isn't available (rare)
             if (!inputStream.TryGetBuffer(out ArraySegment<byte> bufferSegment))
             {
                 bufferSegment = new ArraySegment<byte>(inputStream.GetBuffer(), 0, (int)inputStream.Length);
@@ -321,19 +320,19 @@ namespace HTCommander
                     if (start == -1)
                     {
                         start = i;
-                        // Check if double marker (0x7e 0x7e)
-                        if (start + 1 < bufferLength && buffer[start + 1] == 0x7e) { start++; }
                     }
                     else
                     {
+                        // Found end marker
                         end = i;
                         break;
                     }
                 }
             }
 
-            if (start != -1 && end != -1 && end > start)
+            if (start != -1 && end != -1 && end > start + 1)
             {
+                // Extract data between markers (excluding the 0x7e bytes)
                 int dataLength = end - start - 1;
                 byte[] extractedData = new byte[dataLength];
                 Buffer.BlockCopy(buffer, start + 1, extractedData, 0, dataLength);
@@ -344,13 +343,45 @@ namespace HTCommander
                 {
                     Buffer.BlockCopy(buffer, end + 1, buffer, 0, remaining);
                     inputStream.SetLength(remaining);
+                    inputStream.Position = remaining; // Position at end for next write
                 }
-                else { inputStream.SetLength(0); }
+                else
+                {
+                    inputStream.SetLength(0);
+                    inputStream.Position = 0;
+                }
                 return extractedData;
+            }
+            else if (start != -1 && end != -1 && end == start + 1)
+            {
+                // Empty frame (two consecutive 0x7e) - discard and continue
+                int remaining = bufferLength - (end + 1);
+                if (remaining > 0)
+                {
+                    Buffer.BlockCopy(buffer, end + 1, buffer, 0, remaining);
+                    inputStream.SetLength(remaining);
+                    inputStream.Position = remaining;
+                }
+                else
+                {
+                    inputStream.SetLength(0);
+                    inputStream.Position = 0;
+                }
+                return null;
+            }
+            else if (start > 0)
+            {
+                // Discard garbage bytes before the first 0x7e marker
+                int remaining = bufferLength - start;
+                Buffer.BlockCopy(buffer, start, buffer, 0, remaining);
+                inputStream.SetLength(remaining);
+                inputStream.Position = remaining;
+                return null;
             }
             else
             {
-                inputStream.Position = 0;
+                // No complete frame yet - ensure position is at end for appending
+                inputStream.Position = inputStream.Length;
                 return null;
             }
         }

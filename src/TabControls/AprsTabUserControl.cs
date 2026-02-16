@@ -365,7 +365,7 @@ namespace HTCommander.Controls
                 foreach (ChatMessage chatMessage2 in aprsChatControl.Messages)
                 {
                     AX25Packet packet2 = (AX25Packet)chatMessage2.Tag;
-                    if ((c.Message == chatMessage2.Message) && (packet2.time.AddMinutes(5).CompareTo(packet.time) > 0) && (c.Time != packet2.time))
+                    if ((c.MessageId == chatMessage2.MessageId) && (c.Message == chatMessage2.Message) && (packet2.time.AddMinutes(5).CompareTo(packet.time) > 0) && (c.Time != packet2.time))
                     {
                         return;
                     }
