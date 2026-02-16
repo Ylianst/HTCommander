@@ -4,17 +4,19 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+using System;
+using System.IO;
+using System.Drawing;
+using System.Threading;
+using System.Text.Json;
+using System.Drawing.Imaging;
+using System.Speech.Synthesis;
+using System.Speech.AudioFormat;
+using System.Collections.Generic;
+using System.Collections.Concurrent;
 using aprsparser;
 using HTCommander.radio;
 using HTCommander.SSTV;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.IO;
-using System.Speech.AudioFormat;
-using System.Speech.Synthesis;
-using System.Text.Json;
 
 namespace HTCommander
 {
@@ -30,7 +32,8 @@ namespace HTCommander
         BSS,
         Recording,
         Picture,
-        APRS
+        APRS,
+        Ident
     }
 
     /// <summary>
@@ -132,6 +135,13 @@ namespace HTCommander
         private string _currentRecordingChannel = "";
         private string _currentRecordingFilename = "";
         private readonly object _recordingLock = new object();
+
+        // Async recording buffer: audio chunks are queued from the audio thread
+        // and written to disk on a dedicated background thread to avoid blocking.
+        private readonly ConcurrentQueue<byte[]> _recordingBuffer = new ConcurrentQueue<byte[]>();
+        private Thread _recordingWriterThread = null;
+        private readonly AutoResetEvent _recordingDataAvailable = new AutoResetEvent(false);
+        private volatile bool _recordingWriterRunning = false;
 
         /// <summary>
         /// Initializes the VoiceHandler and subscribes to Data Broker events.
@@ -301,7 +311,14 @@ namespace HTCommander
                 if (!frame.incoming) return;
 
                 // Don't create entry if message is empty
-                if (string.IsNullOrEmpty(bssPacket.Message)) return;
+                VoiceTextEncodingType encoding = VoiceTextEncodingType.BSS;
+                if (string.IsNullOrEmpty(bssPacket.Message) && string.IsNullOrEmpty(bssPacket.Callsign)) return;
+                if (string.IsNullOrEmpty(bssPacket.Message) && !string.IsNullOrEmpty(bssPacket.Callsign))
+                {
+                    //bssPacket.Message = $"[{bssPacket.Callsign}]";
+                    encoding = VoiceTextEncodingType.Ident;
+                    bssPacket.Message = "";
+                }
 
                 // Extract location data if available
                 double latitude = 0;
@@ -313,7 +330,7 @@ namespace HTCommander
                 }
 
                 // Create a DecodedTextEntry for the BSS packet
-                if (!string.IsNullOrEmpty(bssPacket.Message))
+                if (!string.IsNullOrEmpty(bssPacket.Message) || (encoding == VoiceTextEncodingType.Ident))
                 {
                     lock (_historyLock)
                     {
@@ -323,7 +340,7 @@ namespace HTCommander
                             Channel = frame.channel_name ?? "",
                             Time = frame.time,
                             IsReceived = frame.incoming,
-                            Encoding = VoiceTextEncodingType.BSS,
+                            Encoding = encoding,
                             Source = bssPacket.Callsign,
                             Destination = bssPacket.Destination,
                             Latitude = latitude,
@@ -343,7 +360,7 @@ namespace HTCommander
                     DispatchDecodedTextHistory();
 
                     // Dispatch a TextReady event for the BSS packet (including location)
-                    DispatchTextReady(bssPacket.Message, frame.channel_name ?? "", frame.time, true, frame.incoming, VoiceTextEncodingType.BSS, latitude, longitude, source: bssPacket.Callsign, destination: bssPacket.Destination);
+                    DispatchTextReady(bssPacket.Message, frame.channel_name ?? "", frame.time, true, frame.incoming, encoding, latitude, longitude, source: bssPacket.Callsign, destination: bssPacket.Destination);
                 }
 
                 return;
@@ -1102,9 +1119,12 @@ namespace HTCommander
         /// </summary>
         private void StartNewRecording(DateTime startTime, string channelName)
         {
+            // If there's already an active recording, finalize it first (outside lock to avoid deadlock)
+            StopRecordingWriterThread();
+
             lock (_recordingLock)
             {
-                // If there's already an active recording, finalize it first
+                // Drain residual buffer and finalize the previous recording
                 if (_currentRecordingWriter != null)
                 {
                     FinalizeCurrentRecordingInternal();
@@ -1123,6 +1143,15 @@ namespace HTCommander
                     _currentRecordingChannel = channelName;
                     _currentRecordingFilename = filename;
 
+                    // Start the background writer thread
+                    _recordingWriterRunning = true;
+                    _recordingWriterThread = new Thread(RecordingWriterLoop)
+                    {
+                        Name = "RecordingWriter",
+                        IsBackground = true
+                    };
+                    _recordingWriterThread.Start();
+
                     broker.LogInfo($"[VoiceHandler] Started recording: {filename}");
                 }
                 catch (Exception ex)
@@ -1138,9 +1167,27 @@ namespace HTCommander
         /// </summary>
         private void FinalizeCurrentRecording()
         {
+            // Stop the background writer thread first (outside lock to avoid deadlock)
+            StopRecordingWriterThread();
+
             lock (_recordingLock)
             {
                 FinalizeCurrentRecordingInternal();
+            }
+        }
+
+        /// <summary>
+        /// Stops the background recording writer thread and waits for it to finish.
+        /// Must be called outside _recordingLock to avoid deadlock.
+        /// </summary>
+        private void StopRecordingWriterThread()
+        {
+            _recordingWriterRunning = false;
+            _recordingDataAvailable.Set(); // Wake the thread so it can exit
+            if (_recordingWriterThread != null)
+            {
+                _recordingWriterThread.Join(5000); // Wait up to 5 seconds for flush
+                _recordingWriterThread = null;
             }
         }
 
@@ -1150,6 +1197,13 @@ namespace HTCommander
         private void FinalizeCurrentRecordingInternal()
         {
             if (_currentRecordingWriter == null) return;
+
+            // Drain any residual items that might still be in the queue
+            while (_recordingBuffer.TryDequeue(out byte[] chunk))
+            {
+                try { _currentRecordingWriter.Write(chunk, 0, chunk.Length); }
+                catch (Exception) { }
+            }
 
             try
             {
@@ -1162,8 +1216,8 @@ namespace HTCommander
                 _currentRecordingWriter.Dispose();
                 _currentRecordingWriter = null;
 
-                // Only add to history if the recording has some content (at least 0.1 seconds)
-                if (durationSeconds >= 0.1)
+                // Only add to history if the recording has some content (at least 0.3 seconds)
+                if (durationSeconds >= 0.3)
                 {
                     int durationInt = (int)Math.Round(durationSeconds);
 
@@ -1825,22 +1879,55 @@ namespace HTCommander
         }
 
         /// <summary>
-        /// Writes audio data to the current recording file.
+        /// Queues audio data for asynchronous writing to the recording file.
+        /// This method returns immediately without blocking on disk I/O.
         /// </summary>
         private void WriteAudioToRecording(byte[] audioData, int offset, int length)
         {
-            lock (_recordingLock)
-            {
-                if (_currentRecordingWriter == null) return;
+            if (!_recordingWriterRunning) return;
 
-                try
+            // Copy the relevant slice into a standalone buffer so the caller's
+            // array can be reused immediately without data corruption.
+            byte[] copy = new byte[length];
+            Buffer.BlockCopy(audioData, offset, copy, 0, length);
+            _recordingBuffer.Enqueue(copy);
+            _recordingDataAvailable.Set();
+        }
+
+        /// <summary>
+        /// Background thread that drains the recording buffer and writes to disk.
+        /// Runs until _recordingWriterRunning is set to false and the queue is empty.
+        /// </summary>
+        private void RecordingWriterLoop()
+        {
+            try
+            {
+                while (_recordingWriterRunning || !_recordingBuffer.IsEmpty)
                 {
-                    _currentRecordingWriter.Write(audioData, offset, length);
+                    // Wait for data (with a short timeout so we can check the running flag)
+                    _recordingDataAvailable.WaitOne(100);
+
+                    // Drain all available chunks in one batch
+                    while (_recordingBuffer.TryDequeue(out byte[] chunk))
+                    {
+                        lock (_recordingLock)
+                        {
+                            if (_currentRecordingWriter == null) continue;
+                            try
+                            {
+                                _currentRecordingWriter.Write(chunk, 0, chunk.Length);
+                            }
+                            catch (Exception ex)
+                            {
+                                broker.LogError($"[VoiceHandler] Error writing to recording: {ex.Message}");
+                            }
+                        }
+                    }
                 }
-                catch (Exception ex)
-                {
-                    broker.LogError($"[VoiceHandler] Error writing to recording: {ex.Message}");
-                }
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[VoiceHandler] Recording writer thread error: {ex.Message}");
             }
         }
 

@@ -586,8 +586,8 @@ namespace HTCommander
             }
             else
             {
-                // Don't create new message if text is empty (except for Recording and Picture entries)
-                if (string.IsNullOrEmpty(trimmedText) && encoding != VoiceTextEncodingType.Recording && encoding != VoiceTextEncodingType.Picture)
+                // Don't create new message if text is empty (except for Recording, Picture, and Ident entries)
+                if (string.IsNullOrEmpty(trimmedText) && encoding != VoiceTextEncodingType.Recording && encoding != VoiceTextEncodingType.Picture && encoding != VoiceTextEncodingType.Ident)
                 {
                     return;
                 }

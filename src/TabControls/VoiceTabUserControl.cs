@@ -282,7 +282,7 @@ namespace HTCommander.Controls
                         partialImage = partialImageProp.GetValue(data) as Image;
                     }
 
-                    if (!string.IsNullOrEmpty(text) || encoding == VoiceTextEncodingType.Recording || encoding == VoiceTextEncodingType.Picture)
+                    if (!string.IsNullOrEmpty(text) || encoding == VoiceTextEncodingType.Recording || encoding == VoiceTextEncodingType.Picture || encoding == VoiceTextEncodingType.Ident)
                     {
                         AppendVoiceHistory(text ?? "", channel, time, completed, isReceived, encoding, latitude, longitude, source, destination, filename, duration, partialImage);
                     }
@@ -620,9 +620,9 @@ namespace HTCommander.Controls
             {
                 foreach (var entry in history)
                 {
-                    // Skip entries with null or empty text after trimming (except Recording entries which use Filename)
+                    // Skip entries with null or empty text after trimming (except Recording and Ident entries which use Filename)
                     string trimmedText = entry.Text?.Trim();
-                    if (string.IsNullOrEmpty(trimmedText) && entry.Encoding != VoiceTextEncodingType.Recording) continue;
+                    if (string.IsNullOrEmpty(trimmedText) && entry.Encoding != VoiceTextEncodingType.Recording && entry.Encoding != VoiceTextEncodingType.Ident) continue;
 
                     // Determine if message has a valid location (set ImageIndex = 3 for location icon)
                     bool hasLocation = (entry.Latitude != 0 || entry.Longitude != 0);
@@ -698,6 +698,10 @@ namespace HTCommander.Controls
             if (string.IsNullOrEmpty(channel))
             {
                 return encodingStr + callsignPart;
+            }
+            if (encoding == VoiceTextEncodingType.Ident)
+            {
+                callsignPart = callsignPart + " ⚑";
             }
             return $"[{channel}] {encodingStr}{callsignPart}";
         }

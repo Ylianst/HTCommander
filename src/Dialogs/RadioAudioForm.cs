@@ -5,7 +5,9 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.Windows.Forms;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using NAudio.CoreAudioApi;
@@ -37,6 +39,13 @@ namespace HTCommander
         private WaveFileWriter _wavWriter = null;
         private readonly object _wavLock = new object();
         private bool _isRecording = false;
+
+        // Async recording buffer: audio chunks are queued from the audio callback
+        // and written to disk on a dedicated background thread to avoid blocking.
+        private readonly ConcurrentQueue<byte[]> _wavBuffer = new ConcurrentQueue<byte[]>();
+        private Thread _wavWriterThread = null;
+        private readonly AutoResetEvent _wavDataAvailable = new AutoResetEvent(false);
+        private volatile bool _wavWriterRunning = false;
 
         public RadioAudioForm(int deviceId)
         {
@@ -480,6 +489,7 @@ namespace HTCommander
 
         private void transmitButton_MouseUp(object sender, MouseEventArgs e)
         {
+            if (Disposing || IsDisposed) return;
             transmitButton.Image = microphoneImageList.Images[1];
             MicrophoneTransmit = false;
             isTransmitting = false;
@@ -871,12 +881,22 @@ namespace HTCommander
                     _isRecording = true;
                     recordButton.Image = microphoneImageList.Images[7];
 
+                    // Start the background writer thread
+                    _wavWriterRunning = true;
+                    _wavWriterThread = new Thread(WavWriterLoop)
+                    {
+                        Name = "WavRecordingWriter",
+                        IsBackground = true
+                    };
+                    _wavWriterThread.Start();
+
                     // Subscribe to incoming PCM audio for this radio
                     broker.Subscribe(deviceId, "AudioDataAvailable", OnRecordingAudioDataAvailable);
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show(this, "Failed to start recording: " + ex.Message, "Recording Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    _wavWriterRunning = false;
                     _wavWriter?.Dispose();
                     _wavWriter = null;
                     _isRecording = false;
@@ -886,12 +906,28 @@ namespace HTCommander
 
         private void StopWavRecording()
         {
+            // Stop the background writer thread first (outside lock to avoid deadlock)
+            _wavWriterRunning = false;
+            _wavDataAvailable.Set();
+            if (_wavWriterThread != null)
+            {
+                _wavWriterThread.Join(5000);
+                _wavWriterThread = null;
+            }
+
             lock (_wavLock)
             {
                 if (!_isRecording) return;
                 _isRecording = false;
 
                 broker.Unsubscribe(deviceId, "AudioDataAvailable");
+
+                // Drain any residual buffered chunks
+                while (_wavBuffer.TryDequeue(out byte[] chunk))
+                {
+                    try { _wavWriter?.Write(chunk, 0, chunk.Length); }
+                    catch (Exception) { }
+                }
 
                 try
                 {
@@ -928,9 +964,36 @@ namespace HTCommander
                 int length = (int)lengthProp.GetValue(data);
                 if (audioData == null || length <= 0) return;
 
-                lock (_wavLock)
+                if (!_wavWriterRunning) return;
+
+                // Copy the slice into a standalone buffer and enqueue for async write
+                byte[] copy = new byte[length];
+                Buffer.BlockCopy(audioData, offset, copy, 0, length);
+                _wavBuffer.Enqueue(copy);
+                _wavDataAvailable.Set();
+            }
+            catch (Exception) { }
+        }
+
+        /// <summary>
+        /// Background thread that drains the WAV recording buffer and writes to disk.
+        /// </summary>
+        private void WavWriterLoop()
+        {
+            try
+            {
+                while (_wavWriterRunning || !_wavBuffer.IsEmpty)
                 {
-                    _wavWriter?.Write(audioData, offset, length);
+                    _wavDataAvailable.WaitOne(100);
+
+                    while (_wavBuffer.TryDequeue(out byte[] chunk))
+                    {
+                        lock (_wavLock)
+                        {
+                            try { _wavWriter?.Write(chunk, 0, chunk.Length); }
+                            catch (Exception) { }
+                        }
+                    }
                 }
             }
             catch (Exception) { }
