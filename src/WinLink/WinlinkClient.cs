@@ -89,6 +89,7 @@ namespace HTCommander
                 int port = (int)(dataType.GetProperty("Port")?.GetValue(data) ?? 8772);
                 bool useTls = (bool)(dataType.GetProperty("UseTls")?.GetValue(data) ?? true);
                 
+                broker.LogInfo("[WinlinkClient] Starting TCP sync to " + server + ":" + port + " (TLS: " + useTls + ")");
                 transportType = TransportType.TCP;
                 _ = ConnectTcp(server, port, useTls);
             }
@@ -100,10 +101,12 @@ namespace HTCommander
                 
                 if (radioId.HasValue && stationObj is StationInfoClass station)
                 {
+                    broker.LogInfo("[WinlinkClient] Starting X25 sync via radio " + radioId.Value + " to " + station.Callsign);
                     StartRadioSync(radioId.Value, station);
                 }
                 else
                 {
+                    broker.LogInfo("[WinlinkClient] Legacy X25 connection mode");
                     // Legacy X25 connection handling
                     transportType = TransportType.X25;
                 }
@@ -143,9 +146,12 @@ namespace HTCommander
             // If no channel found, report error and don't lock the radio
             if (channelId < 0)
             {
+                broker.LogError("[WinlinkClient] Channel '" + station.Channel + "' not found on radio " + radioId);
                 StateMessage("Channel '" + station.Channel + "' not found on radio.");
                 return;
             }
+            
+            broker.LogInfo("[WinlinkClient] Locking radio " + radioId + " for Winlink, channel " + channelId + ", region " + regionId);
             
             // Store the radio and station for later unlock
             lockedRadioId = radioId;
@@ -199,6 +205,8 @@ namespace HTCommander
                 destStationId = 0;
             }
             
+            broker.LogInfo("[WinlinkClient] Initializing AX25Session: " + myCallsign + "-" + myStationId + " -> " + destCallsign + "-" + destStationId);
+            
             // Create the session
             ax25Session = new AX25Session(radioId);
             ax25Session.CallSignOverride = myCallsign;
@@ -225,6 +233,8 @@ namespace HTCommander
         {
             if (ax25Session != null)
             {
+                broker.LogInfo("[WinlinkClient] Disposing AX25Session");
+                
                 // Unsubscribe from events
                 ax25Session.StateChanged -= OnAX25SessionStateChanged;
                 ax25Session.DataReceivedEvent -= OnAX25SessionDataReceived;
@@ -248,6 +258,8 @@ namespace HTCommander
         /// </summary>
         private void OnAX25SessionStateChanged(AX25Session sender, AX25Session.ConnectionState state)
         {
+            broker.LogInfo("[WinlinkClient] AX25Session state changed: " + state.ToString());
+            
             switch (state)
             {
                 case AX25Session.ConnectionState.CONNECTED:
@@ -274,6 +286,8 @@ namespace HTCommander
         {
             if (data == null || data.Length == 0) return;
             
+            broker.LogInfo("[WinlinkClient] AX25Session received " + data.Length + " bytes");
+            
             // Copy session state from AX25Session
             sessionState = sender.sessionState;
             if (sender.Addresses != null && sender.Addresses.Count > 0)
@@ -290,6 +304,7 @@ namespace HTCommander
         /// </summary>
         private void OnAX25SessionError(AX25Session sender, string error)
         {
+            broker.LogError("[WinlinkClient] AX25Session error: " + error);
             StateMessage("Session error: " + error);
         }
         
@@ -300,6 +315,7 @@ namespace HTCommander
         {
             if (lockedRadioId > 0)
             {
+                broker.LogInfo("[WinlinkClient] Unlocking radio " + lockedRadioId);
                 var unlockData = new SetUnlockData { Usage = "Winlink" };
                 broker.Dispatch(lockedRadioId, "SetUnlock", unlockData, store: false);
                 lockedRadioId = -1;
@@ -310,6 +326,8 @@ namespace HTCommander
         private void OnWinlinkDisconnect(int deviceId, string name, object data)
         {
             if (_disposed) return;
+            
+            broker.LogInfo("[WinlinkClient] Disconnect requested, transport: " + transportType.ToString());
             
             if (transportType == TransportType.TCP)
             {
@@ -330,6 +348,8 @@ namespace HTCommander
             
             // If we're already waiting for disconnect to complete, don't do anything
             if (pendingDisconnect) return;
+            
+            broker.LogInfo("[WinlinkClient] Disconnecting X25 session");
             
             // Start the graceful disconnect process
             if (ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTED ||
@@ -414,6 +434,10 @@ namespace HTCommander
                 {
                     SendTcp(output);
                 }
+                else if (transportType == TransportType.X25)
+                {
+                    SendX25(output);
+                }
             }
         }
 
@@ -424,6 +448,89 @@ namespace HTCommander
                 if (transportType == TransportType.TCP)
                 {
                     SendTcp(data);
+                }
+                else if (transportType == TransportType.X25)
+                {
+                    SendX25(data);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sends string data through the AX25 session for X25 transport.
+        /// </summary>
+        private void SendX25(string data)
+        {
+            if (ax25Session != null && ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTED)
+            {
+                broker.LogInfo("[WinlinkClient] SendX25 string: " + data.Length + " chars");
+                ax25Session.Send(data);
+            }
+            else
+            {
+                broker.LogError("[WinlinkClient] SendX25 failed: session not connected (state: " + 
+                    (ax25Session?.CurrentState.ToString() ?? "null") + ")");
+            }
+        }
+
+        /// <summary>
+        /// Sends binary data through the AX25 session for X25 transport.
+        /// </summary>
+        private void SendX25(byte[] data)
+        {
+            if (ax25Session != null && ax25Session.CurrentState == AX25Session.ConnectionState.CONNECTED)
+            {
+                broker.LogInfo("[WinlinkClient] SendX25 binary: " + data.Length + " bytes");
+                ax25Session.Send(data);
+            }
+            else
+            {
+                broker.LogError("[WinlinkClient] SendX25 binary failed: session not connected (state: " + 
+                    (ax25Session?.CurrentState.ToString() ?? "null") + ")");
+            }
+        }
+
+        /// <summary>
+        /// Sends string data through the TCP connection.
+        /// </summary>
+        private void SendTcp(string data)
+        {
+            if (tcpStream != null && tcpStream.CanWrite)
+            {
+                try
+                {
+                    broker.LogInfo("[WinlinkClient] Sending TCP data: " + data.Length + " chars");
+                    byte[] buffer = UTF8Encoding.UTF8.GetBytes(data);
+                    tcpStream.Write(buffer, 0, buffer.Length);
+                    tcpStream.Flush();
+                }
+                catch (Exception ex)
+                {
+                    broker.LogError("[WinlinkClient] TCP send error: " + ex.Message);
+                    StateMessage("TCP Send error: " + ex.Message);
+                    DisconnectTcp();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sends binary data through the TCP connection.
+        /// </summary>
+        private void SendTcp(byte[] data)
+        {
+            if (tcpStream != null && tcpStream.CanWrite)
+            {
+                try
+                {
+                    broker.LogInfo("[WinlinkClient] Sending TCP binary data: " + data.Length + " bytes");
+                    tcpStream.Write(data, 0, data.Length);
+                    tcpStream.Flush();
+                }
+                catch (Exception ex)
+                {
+                    broker.LogError("[WinlinkClient] TCP send error: " + ex.Message);
+                    StateMessage("TCP Send error: " + ex.Message);
+                    DisconnectTcp();
                 }
             }
         }
@@ -443,6 +550,7 @@ namespace HTCommander
         {
             if (state != currentState)
             {
+                broker.LogInfo("[WinlinkClient] Connection state: " + currentState.ToString() + " -> " + state.ToString());
                 currentState = state;
                 ProcessTransportStateChange(state);
                 
@@ -469,12 +577,14 @@ namespace HTCommander
         {
             if (transportType != TransportType.TCP)
             {
+                broker.LogError("[WinlinkClient] ConnectTcp called with wrong transport type: " + transportType.ToString());
                 StateMessage("Error: Cannot use TCP connection with X25 transport type.");
                 return false;
             }
 
             if (currentState != ConnectionState.DISCONNECTED)
             {
+                broker.LogError("[WinlinkClient] ConnectTcp called while not disconnected: " + currentState.ToString());
                 StateMessage("Error: Already connected or connecting.");
                 return false;
             }
@@ -488,12 +598,14 @@ namespace HTCommander
                 // Dispatch clear command via broker (device 1 for non-persistent state)
                 broker.Dispatch(1, "WinlinkDebugClear", true, store: false);
                 
+                broker.LogInfo("[WinlinkClient] Connecting TCP to " + server + ":" + port);
                 StateMessage("Connecting to " + server + "...");
                 tcpClient = new TcpClient();
                 await tcpClient.ConnectAsync(server, port);
                 
                 if (useTls)
                 {
+                    broker.LogInfo("[WinlinkClient] Establishing TLS connection");
                     StateMessage("Establishing secure connection...");
                     // Wrap the network stream with SSL/TLS
                     NetworkStream networkStream = tcpClient.GetStream();
@@ -508,10 +620,12 @@ namespace HTCommander
                     {
                         await sslStream.AuthenticateAsClientAsync(server);
                         tcpStream = sslStream;
+                        broker.LogInfo("[WinlinkClient] TLS connection established");
                         StateMessage("Secure connection established.");
                     }
                     catch (Exception ex)
                     {
+                        broker.LogError("[WinlinkClient] TLS authentication failed: " + ex.Message);
                         StateMessage("TLS/SSL authentication failed: " + ex.Message);
                         sslStream.Close();
                         throw;
@@ -532,6 +646,7 @@ namespace HTCommander
             }
             catch (Exception ex)
             {
+                broker.LogError("[WinlinkClient] TCP connection failed: " + ex.Message);
                 StateMessage("TCP Connection failed: " + ex.Message);
                 SetConnectionState(ConnectionState.DISCONNECTED);
                 CleanupTcp();
@@ -551,11 +666,14 @@ namespace HTCommander
                 return true;
             }
 
+            broker.LogError("[WinlinkClient] Certificate validation error: " + sslPolicyErrors.ToString());
             StateMessage("Certificate validation error: " + sslPolicyErrors.ToString());
             
             // Log certificate details for debugging
             if (certificate != null)
             {
+                broker.LogInfo("[WinlinkClient] Certificate Subject: " + certificate.Subject);
+                broker.LogInfo("[WinlinkClient] Certificate Issuer: " + certificate.Issuer);
                 StateMessage("Certificate Subject: " + certificate.Subject);
                 StateMessage("Certificate Issuer: " + certificate.Issuer);
             }
@@ -569,6 +687,7 @@ namespace HTCommander
         {
             if (transportType != TransportType.TCP) return;
             
+            broker.LogInfo("[WinlinkClient] Disconnecting TCP");
             SetConnectionState(ConnectionState.DISCONNECTING);
             tcpRunning = false;
             CleanupTcp();
@@ -593,41 +712,6 @@ namespace HTCommander
                 }
             }
             catch { }
-        }
-
-        private void SendTcp(string data)
-        {
-            if (tcpStream != null && tcpStream.CanWrite)
-            {
-                try
-                {
-                    byte[] buffer = UTF8Encoding.UTF8.GetBytes(data);
-                    tcpStream.Write(buffer, 0, buffer.Length);
-                    tcpStream.Flush();
-                }
-                catch (Exception ex)
-                {
-                    StateMessage("TCP Send error: " + ex.Message);
-                    DisconnectTcp();
-                }
-            }
-        }
-
-        private void SendTcp(byte[] data)
-        {
-            if (tcpStream != null && tcpStream.CanWrite)
-            {
-                try
-                {
-                    tcpStream.Write(data, 0, data.Length);
-                    tcpStream.Flush();
-                }
-                catch (Exception ex)
-                {
-                    StateMessage("TCP Send error: " + ex.Message);
-                    DisconnectTcp();
-                }
-            }
         }
 
         private async Task TcpReceiveLoop()
@@ -658,6 +742,7 @@ namespace HTCommander
                 {
                     if (tcpRunning)
                     {
+                        broker.LogError("[WinlinkClient] TCP receive error: " + ex.Message);
                         StateMessage("TCP Receive error: " + ex.Message);
                     }
                     break;
@@ -775,6 +860,8 @@ namespace HTCommander
                 List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)sessionState["OutMailBlocks"];
                 string[] proposalResponses = ParseProposalResponses((string)sessionState["MailProposals"]);
 
+                broker.LogInfo("[WinlinkClient] UpdateEmails: " + proposedMails.Count + " proposed, " + proposalResponses.Length + " responses");
+
                 // Look at proposal responses and update the mails in the store
                 if (proposalResponses.Length == proposedMails.Count)
                 {
@@ -784,6 +871,7 @@ namespace HTCommander
                         {
                             // Move this mail to Sent mailbox using the broker event
                             string mid = proposedMails[j].MID;
+                            broker.LogInfo("[WinlinkClient] Moving mail " + mid + " to Sent (response: " + proposalResponses[j] + ")");
                             broker.Dispatch(0, "MailMove", new { MID = mid, Mailbox = "Sent" }, store: false);
                         }
                     }
@@ -804,6 +892,7 @@ namespace HTCommander
                 StateMessage("Receiving mail, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes"));
                 if (ExtractMail(blocks) == true)
                 {
+                    broker.LogInfo("[WinlinkClient] Mail reception complete, sending FF");
                     // We are done with the mail reception
                     sessionState.Remove("wlMailBinary");
                     sessionState.Remove("wlMailBlocks");
@@ -841,6 +930,7 @@ namespace HTCommander
                     string callsignResponse = callsign;
                     if (useStationId && stationId > 0) { callsignResponse += "-" + stationId; }
                     callsignResponse += "\r";
+                    broker.LogInfo("[WinlinkClient] Responding to callsign prompt: " + callsignResponse.Trim());
                     TransportSend(callsignResponse);
                     StateMessage("Sent callsign: " + callsignResponse.Trim());
                     continue;
@@ -849,6 +939,7 @@ namespace HTCommander
                 // Handle TCP password prompt
                 if ((transportType == TransportType.TCP) && str.Trim().Equals("Password :", StringComparison.OrdinalIgnoreCase))
                 {
+                    broker.LogInfo("[WinlinkClient] Responding to password prompt");
                     // Send "CMSTelnet" as the password
                     TransportSend("CMSTelnet\r");
                     continue;
@@ -856,6 +947,7 @@ namespace HTCommander
 
                 if (str.EndsWith(">") && !sessionState.ContainsKey("SessionStart"))
                 {
+                    broker.LogInfo("[WinlinkClient] Session start prompt received");
                     // Only do this once at the start of the session
                     sessionState["SessionStart"] = 1;
 
@@ -872,6 +964,7 @@ namespace HTCommander
                         string winlinkPassword = broker.GetValue<string>(0, "WinlinkPassword", "");
                         string authResponse = WinlinkSecurity.SecureLoginResponse((string)sessionState["WinlinkAuth"], winlinkPassword);
                         if (!string.IsNullOrEmpty(winlinkPassword)) { sb.Append(";PR: " + authResponse + "\r"); }
+                        broker.LogInfo("[WinlinkClient] Sending authentication response");
                         StateMessage("Authenticating...");
                     }
 
@@ -905,6 +998,7 @@ namespace HTCommander
                         // Send proposal checksum
                         checksum = (-checksum) & 0xFF;
                         sb.Append("F> " + checksum.ToString("X2") + "\r");
+                        broker.LogInfo("[WinlinkClient] Proposing " + mailSendCount + " mail(s), checksum: " + checksum.ToString("X2"));
                         TransportSend(sb.ToString());
                         sessionState["OutMails"] = proposedMails;
                         sessionState["OutMailBlocks"] = proposedMailsBinary;
@@ -914,6 +1008,7 @@ namespace HTCommander
                     {
                         // No mail proposals sent, give a chance to the server to send us mails.
                         sb.Append("FF\r");
+                        broker.LogInfo("[WinlinkClient] No outgoing mail, sending FF to check for incoming");
                         TransportSend(sb.ToString());
                         StateMessage("Checking for new mail...");
                     }
@@ -929,10 +1024,12 @@ namespace HTCommander
                     
                     if ((key == ";PQ:") && (!string.IsNullOrEmpty(winlinkPassword)))
                     {   // Winlink Authentication Request
+                        broker.LogInfo("[WinlinkClient] Received authentication challenge");
                         sessionState["WinlinkAuth"] = value;
                     }
                     else if (key == "FS") // "FS YY"
                     {   // Winlink Mail Transfer Approvals
+                        broker.LogInfo("[WinlinkClient] Received proposal response: " + value);
                         if (sessionState.ContainsKey("OutMails") && sessionState.ContainsKey("OutMailBlocks"))
                         {
                             List<WinLinkMail> proposedMails = (List<WinLinkMail>)sessionState["OutMails"];
@@ -950,6 +1047,7 @@ namespace HTCommander
                                     if (proposalResponses[j] == "Y")
                                     {
                                         sentMails++;
+                                        broker.LogInfo("[WinlinkClient] Sending mail " + proposedMails[j].MID + " (" + proposedMailsBinary[j].Count + " blocks)");
                                         foreach (byte[] block in proposedMailsBinary[j]) { TransportSend(block); totalSize += block.Length; }
                                     }
                                 }
@@ -958,6 +1056,7 @@ namespace HTCommander
                                 else
                                 {
                                     // Winlink Session Close
+                                    broker.LogInfo("[WinlinkClient] No mails accepted, closing session");
                                     UpdateEmails();
                                     StateMessage("No emails to transfer.");
                                     TransportSend("FF\r");
@@ -966,6 +1065,7 @@ namespace HTCommander
                             else
                             {
                                 // Winlink Session Close
+                                broker.LogError("[WinlinkClient] Proposal response count mismatch: expected " + proposedMails.Count + ", got " + proposalResponses.Length);
                                 StateMessage("Incorrect proposal response.");
                                 TransportSend("FQ\r");
                             }
@@ -973,6 +1073,7 @@ namespace HTCommander
                         else
                         {
                             // Winlink Session Close
+                            broker.LogError("[WinlinkClient] Unexpected FS received without pending proposals");
                             StateMessage("Unexpected proposal response.");
                             TransportSend("FQ\r");
                         }
@@ -980,12 +1081,14 @@ namespace HTCommander
                     else if (key == "FF")
                     {
                         // Winlink Session Close
+                        broker.LogInfo("[WinlinkClient] Received FF, session complete");
                         UpdateEmails();
                         TransportSend("FQ\r");
                     }
                     else if (key == "FC")
                     {
                         // Winlink Mail Proposal
+                        broker.LogInfo("[WinlinkClient] Received mail proposal: " + value);
                         List<string> proposals;
                         if (sessionState.ContainsKey("wlMailProp")) { proposals = (List<string>)sessionState["wlMailProp"]; } else { proposals = new List<string>(); }
                         proposals.Add(value);
@@ -994,6 +1097,7 @@ namespace HTCommander
                     else if (key == "F>")
                     {
                         // Winlink Mail Proposals completed, we need to respond
+                        broker.LogInfo("[WinlinkClient] Mail proposals complete, checksum: " + value);
                         if ((sessionState.ContainsKey("wlMailProp")) && (!sessionState.ContainsKey("wlMailBinary")))
                         {
                             List<string> proposals = (List<string>)sessionState["wlMailProp"];
@@ -1028,10 +1132,12 @@ namespace HTCommander
                                                 // Check if we already have this email
                                                 if (WeHaveEmail(proposalSplit[1]))
                                                 {
+                                                    broker.LogInfo("[WinlinkClient] Rejecting mail " + proposalSplit[1] + " (already have it)");
                                                     response += "N";
                                                 }
                                                 else
                                                 {
+                                                    broker.LogInfo("[WinlinkClient] Accepting mail " + proposalSplit[1]);
                                                     response += "Y";
                                                     proposals2.Add(proposal);
                                                     acceptedProposalCount++;
@@ -1041,6 +1147,7 @@ namespace HTCommander
                                         }
                                         else { response += "H"; }
                                     }
+                                    broker.LogInfo("[WinlinkClient] Sending proposal response: FS " + response);
                                     TransportSend("FS " + response + "\r");
                                     if (acceptedProposalCount > 0)
                                     {
@@ -1051,6 +1158,7 @@ namespace HTCommander
                                 else
                                 {
                                     // Checksum failed
+                                    broker.LogError("[WinlinkClient] Proposal checksum failed: expected " + checksum.ToString("X2") + ", got " + value);
                                     StateMessage("Checksum Failed");
                                     if (transportType == TransportType.TCP)
                                     {
@@ -1062,6 +1170,7 @@ namespace HTCommander
                     }
                     else if (key == "FQ")
                     {   // Winlink Session Close
+                        broker.LogInfo("[WinlinkClient] Received FQ, remote closing session");
                         UpdateEmails();
                         if (transportType == TransportType.TCP)
                         {
@@ -1090,7 +1199,11 @@ namespace HTCommander
             bool fail;
             int dataConsumed = 0;
             WinLinkMail mail = WinLinkMail.DecodeBlocksToEmail(blocks.ToArray(), out fail, out dataConsumed);
-            if (fail) { StateMessage("Failed to decode mail."); return true; }
+            if (fail) { 
+                broker.LogError("[WinlinkClient] Failed to decode mail " + MID);
+                StateMessage("Failed to decode mail."); 
+                return true; 
+            }
             if (mail == null) return false;
             if (dataConsumed > 0)
             {
@@ -1110,6 +1223,8 @@ namespace HTCommander
 
             // Set the mailbox to Inbox for received mail
             mail.Mailbox = "Inbox";
+
+            broker.LogInfo("[WinlinkClient] Received mail " + mail.MID + " for " + mail.To);
 
             // Add the received mail to the persistent store using broker event
             // The MailStore will check for duplicates internally
@@ -1131,6 +1246,8 @@ namespace HTCommander
         {
             if (!_disposed)
             {
+                broker.LogInfo("[WinlinkClient] Disposing");
+                
                 // Disconnect if connected
                 if (currentState != ConnectionState.DISCONNECTED)
                 {

@@ -3,6 +3,8 @@ SSTV Decoder
 Ported to C# from https://github.com/xdsopl/robot36
 */
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 
