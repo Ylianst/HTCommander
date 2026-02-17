@@ -37,7 +37,7 @@ namespace HTCommander.Controls
             System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("APRS Decoding", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("APRS Position", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("Decompressed Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("Short Binary Protocol", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("BSS Protocol", System.Windows.Forms.HorizontalAlignment.Left);
             packetsSplitContainer = new System.Windows.Forms.SplitContainer();
             packetsListView = new System.Windows.Forms.ListView();
             columnHeader7 = new System.Windows.Forms.ColumnHeader();

@@ -280,19 +280,15 @@ namespace HTCommander.Controls
         {
             StringBuilder sb = new StringBuilder();
 
-            if ((fragment.data != null) && (fragment.data.Length > 3) && (fragment.data[0] == 1))
+            // BSS Protocol - Use BSSPacket.cs to decode packets starting with 0x01
+            if (BSSPacket.IsBSSPacket(fragment.data))
             {
-                // This is the short binary protocol format.
-                int i = 0;
-                Dictionary<byte, byte[]> decodedMessage = Utils.DecodeShortBinaryMessage(fragment.data);
-                foreach (var item in decodedMessage)
+                BSSPacket bssPacket = BSSPacket.Decode(fragment.data);
+                if (bssPacket != null)
                 {
-                    if (i++ > 0) sb.Append(", ");
-                    if (item.Key == 0x20) { sb.Append("Callsign: " + UTF8Encoding.UTF8.GetString(item.Value)); }
-                    else if (item.Key == 0x24) { sb.Append("Msg: " + UTF8Encoding.UTF8.GetString(item.Value)); }
-                    else sb.Append(item.Key + ": " + Utils.BytesToHex(item.Value));
+                    return bssPacket.ToString();
                 }
-                return sb.ToString();
+                // Fall through if decode fails
             }
 
             AX25Packet packet = AX25Packet.DecodeAX25Packet(fragment);
@@ -522,20 +518,38 @@ namespace HTCommander.Controls
                 addPacketDecodeLine(0, "Encoding", encoding);
             }
 
-            if ((fragment.data.Length > 3) && (fragment.data[0] == 1))
+            if (BSSPacket.IsBSSPacket(fragment.data))
             {
-                // This is the short binary protocol format.
-                Dictionary<byte, byte[]> decodedMessage = Utils.DecodeShortBinaryMessage(fragment.data);
-                foreach (var item in decodedMessage)
+                // Decode using the BSS protocol parser
+                BSSPacket bssPacket = BSSPacket.Decode(fragment.data);
+                if (bssPacket != null)
                 {
-                    if (item.Key == 0x20) { addPacketDecodeLine(7, "Callsign", UTF8Encoding.UTF8.GetString(item.Value)); }
-                    else if (item.Key == 0x21) { addPacketDecodeLine(7, "Destination", UTF8Encoding.UTF8.GetString(item.Value)); }
-                    else if (item.Key == 0x24) { addPacketDecodeLine(7, "Message", UTF8Encoding.UTF8.GetString(item.Value)); }
-                    else if (item.Key == 0x25) {
-                        addPacketDecodeLine(7, "Location HEX", Utils.BytesToHex(item.Value));
-                        addPacketDecodeLine(7, "Location", GpsLocation.DecodeGpsBytes(item.Value).ToString());
+                    if (!string.IsNullOrEmpty(bssPacket.Callsign)) { addPacketDecodeLine(7, "Callsign", bssPacket.Callsign); }
+                    if (bssPacket.MessageID != 0) { addPacketDecodeLine(7, "Message ID", bssPacket.MessageID.ToString()); }
+                    if (!string.IsNullOrEmpty(bssPacket.Destination)) { addPacketDecodeLine(7, "Destination", bssPacket.Destination); }
+                    if (!string.IsNullOrEmpty(bssPacket.Message)) { addPacketDecodeLine(7, "Message", bssPacket.Message); }
+                    if (bssPacket.Location != null)
+                    {
+                        byte[] locationRaw = bssPacket.GetRawField((byte)BSSPacket.FieldType.Location);
+                        if (locationRaw != null) { addPacketDecodeLine(7, "Location HEX", Utils.BytesToHex(locationRaw)); }
+                        addPacketDecodeLine(7, "Location", bssPacket.Location.ToString());
                     }
-                    else addPacketDecodeLine(7, $"Key: {item.Key}", Utils.BytesToHex(item.Value));
+                    if (!string.IsNullOrEmpty(bssPacket.LocationRequest)) { addPacketDecodeLine(7, "Location Request", bssPacket.LocationRequest); }
+                    if (!string.IsNullOrEmpty(bssPacket.CallRequest)) { addPacketDecodeLine(7, "Call Request", bssPacket.CallRequest); }
+
+                    // Display any unknown/future field types
+                    foreach (var field in bssPacket.RawFields)
+                    {
+                        if (field.Key == (byte)BSSPacket.FieldType.Callsign || field.Key == (byte)BSSPacket.FieldType.Destination ||
+                            field.Key == (byte)BSSPacket.FieldType.Message || field.Key == (byte)BSSPacket.FieldType.Location ||
+                            field.Key == (byte)BSSPacket.FieldType.LocationRequest || field.Key == (byte)BSSPacket.FieldType.CallRequest)
+                            continue;
+                        addPacketDecodeLine(7, $"Field 0x{field.Key:X2}", Utils.BytesToHex(field.Value));
+                    }
+                }
+                else
+                {
+                    addPacketDecodeLine(7, "Decode", "BSS Decoder failed to decode packet.");
                 }
             }
             else
