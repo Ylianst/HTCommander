@@ -285,7 +285,7 @@ namespace HTCommander
                 timeLineSize = TextRenderer.MeasureText(voiceMessage.Time.ToString(), CallsignFont);
             }
             SizeF callSignSize = SizeF.Empty;
-            if (!string.IsNullOrEmpty(voiceMessage.Route) && ((previousVoiceMessage == null) || (previousVoiceMessage.Route != voiceMessage.Route)))
+            if (!string.IsNullOrEmpty(voiceMessage.Route) && ((voiceMessage.Encoding == VoiceTextEncodingType.Ident) || (previousVoiceMessage == null) || (previousVoiceMessage.Route != voiceMessage.Route)))
             {
                 callSignSize = TextRenderer.MeasureText(voiceMessage.Route, CallsignFont);
             }
@@ -338,7 +338,7 @@ namespace HTCommander
             }
 
             SizeF callSignSize = SizeF.Empty;
-            if (!string.IsNullOrEmpty(voiceMessage.Route) && ((previousVoiceMessage == null) || (previousVoiceMessage.Route != voiceMessage.Route)))
+            if (!string.IsNullOrEmpty(voiceMessage.Route) && ((voiceMessage.Encoding == VoiceTextEncodingType.Ident) || (previousVoiceMessage == null) || (previousVoiceMessage.Route != voiceMessage.Route)))
             {
                 callSignSize = TextRenderer.MeasureText(voiceMessage.Route, CallsignFont);
                 var textRect = new Rectangle(SideMargins, (int)(timeLineSize.Height + top), ClientRectangle.Width - chatScrollBar.Width - (SideMargins * 2), (int)callSignSize.Height);

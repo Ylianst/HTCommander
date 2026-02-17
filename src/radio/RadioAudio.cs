@@ -300,89 +300,102 @@ namespace HTCommander
             return result;
         }
 
-        private static byte[] ExtractData(ref MemoryStream inputStream)
+        private byte[] ExtractData(ref MemoryStream inputStream)
         {
-            if (inputStream.Length < 2) return null;
-
-            if (!inputStream.TryGetBuffer(out ArraySegment<byte> bufferSegment))
+            while (true)
             {
-                bufferSegment = new ArraySegment<byte>(inputStream.GetBuffer(), 0, (int)inputStream.Length);
-            }
+                if (inputStream.Length < 2) return null;
 
-            byte[] buffer = bufferSegment.Array;
-            int bufferLength = bufferSegment.Count;
-            int start = -1, end = -1;
-
-            for (int i = 0; i < bufferLength; i++)
-            {
-                if (buffer[i] == 0x7e)
+                if (!inputStream.TryGetBuffer(out ArraySegment<byte> bufferSegment))
                 {
-                    if (start == -1)
+                    bufferSegment = new ArraySegment<byte>(inputStream.GetBuffer(), 0, (int)inputStream.Length);
+                }
+
+                byte[] buffer = bufferSegment.Array;
+                int bufferLength = bufferSegment.Count;
+                int start = -1, end = -1;
+
+                // Skip past any leading consecutive 0x7e bytes, keeping the last one as the start marker
+                int scanFrom = 0;
+                if (bufferLength >= 2 && buffer[0] == 0x7e && buffer[1] == 0x7e) {
+                    scanFrom = 1;
+                    Debug($"ExtractData: skipping leading consecutive 0x7E bytes, starting scan from index {scanFrom}");
+                }
+                for (int i = scanFrom; i < bufferLength; i++)
+                {
+                    if (buffer[i] == 0x7e)
                     {
-                        start = i;
+                        if (start == -1)
+                        {
+                            start = i;
+                        }
+                        else
+                        {
+                            // Found end marker
+                            end = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (start != -1 && end != -1 && end > start + 1)
+                {
+                    // Extract data between markers (excluding the 0x7e bytes)
+                    int dataLength = end - start - 1;
+                    byte[] extractedData = new byte[dataLength];
+                    Buffer.BlockCopy(buffer, start + 1, extractedData, 0, dataLength);
+
+                    // Discard the end 0x7e and keep only what follows
+                    int remaining = bufferLength - (end + 1);
+                    if (remaining > 0)
+                    {
+                        Buffer.BlockCopy(buffer, end + 1, buffer, 0, remaining);
+                        inputStream.SetLength(remaining);
+                        inputStream.Position = remaining; // Position at end for next write
                     }
                     else
                     {
-                        // Found end marker
-                        end = i;
-                        break;
+                        inputStream.SetLength(0);
+                        inputStream.Position = 0;
                     }
+                    return extractedData;
                 }
-            }
-
-            if (start != -1 && end != -1 && end > start + 1)
-            {
-                // Extract data between markers (excluding the 0x7e bytes)
-                int dataLength = end - start - 1;
-                byte[] extractedData = new byte[dataLength];
-                Buffer.BlockCopy(buffer, start + 1, extractedData, 0, dataLength);
-
-                // Move remaining data to the beginning
-                int remaining = bufferLength - (end + 1);
-                if (remaining > 0)
+                else if (start != -1 && end != -1 && end == start + 1)
                 {
-                    Buffer.BlockCopy(buffer, end + 1, buffer, 0, remaining);
-                    inputStream.SetLength(remaining);
-                    inputStream.Position = remaining; // Position at end for next write
-                }
-                else
-                {
-                    inputStream.SetLength(0);
-                    inputStream.Position = 0;
-                }
-                return extractedData;
-            }
-            else if (start != -1 && end != -1 && end == start + 1)
-            {
-                // Empty frame (two consecutive 0x7e) - discard and continue
-                int remaining = bufferLength - (end + 1);
-                if (remaining > 0)
-                {
-                    Buffer.BlockCopy(buffer, end + 1, buffer, 0, remaining);
+                    // Two consecutive 0x7e: discard everything up to and including the first 0x7e,
+                    // but keep the second 0x7e as it may be the start marker of the next frame.
+                    // remaining is always >= 1 since we're keeping the 0x7e at position 'end'.
+                    int remaining = bufferLength - end;
+                    Debug($"ExtractData: consecutive 0x7E at positions {start},{end}, discarding {end} bytes before, {remaining} remaining");
+                    Buffer.BlockCopy(buffer, end, buffer, 0, remaining);
                     inputStream.SetLength(remaining);
                     inputStream.Position = remaining;
+                    continue; // Loop again to try to find a complete frame
+                }
+                else if (start > 0)
+                {
+                    // Discard garbage bytes before the first 0x7e marker
+                    int remaining = bufferLength - start;
+                    Debug($"ExtractData: discarding {start} garbage bytes before first 0x7E, {remaining} remaining");
+                    Buffer.BlockCopy(buffer, start, buffer, 0, remaining);
+                    inputStream.SetLength(remaining);
+                    inputStream.Position = remaining;
+                    continue; // Loop again to try to find a complete frame
+                }
+                else if (start == -1)
+                {
+                    // No 0x7e found at all - discard everything as garbage
+                    Debug($"ExtractData: no 0x7E found in {bufferLength} bytes, discarding all");
+                    inputStream.SetLength(0);
+                    inputStream.Position = 0;
+                    return null;
                 }
                 else
                 {
-                    inputStream.SetLength(0);
-                    inputStream.Position = 0;
+                    // Only one 0x7e found (start == 0), no end marker yet - wait for more data
+                    inputStream.Position = inputStream.Length;
+                    return null;
                 }
-                return null;
-            }
-            else if (start > 0)
-            {
-                // Discard garbage bytes before the first 0x7e marker
-                int remaining = bufferLength - start;
-                Buffer.BlockCopy(buffer, start, buffer, 0, remaining);
-                inputStream.SetLength(remaining);
-                inputStream.Position = remaining;
-                return null;
-            }
-            else
-            {
-                // No complete frame yet - ensure position is at end for appending
-                inputStream.Position = inputStream.Length;
-                return null;
             }
         }
 
@@ -479,6 +492,8 @@ namespace HTCommander
             // Configure audio output (adjust format based on SBC parameters)
             WaveFormat waveFormat = new WaveFormat(32000, 16, 1);
             waveProvider = new BufferedWaveProvider(waveFormat);
+            waveProvider.DiscardOnBufferOverflow = true;
+            waveProvider.BufferDuration = TimeSpan.FromSeconds(2);
             var sampleProvider = waveProvider.ToSampleProvider();
             currentOutputDevice = targetDevice;
 
@@ -650,6 +665,7 @@ namespace HTCommander
                 if (waveOut == null) { SetOutputDevice(""); }
 
                 MemoryStream accumulator = new MemoryStream();
+                const int MaxAccumulatorSize = 64 * 1024; // 64KB safety cap
                 
                 Debug("Ready to receive data.");
                 DispatchAudioStateChanged(true);
@@ -671,6 +687,15 @@ namespace HTCommander
                     {
                         byte[] frame;
                         accumulator.Write(receiveBuffer, 0, bytesRead);
+
+                        // Safety: if accumulator grows too large without yielding frames, reset it
+                        if (accumulator.Length > MaxAccumulatorSize)
+                        {
+                            Debug($"Accumulator overflow ({accumulator.Length} bytes), resetting.");
+                            accumulator.SetLength(0);
+                            accumulator.Position = 0;
+                        }
+
                         while ((frame = ExtractData(ref accumulator)) != null)
                         {
                             int uframeLength = UnescapeBytesInPlace(frame);
@@ -766,9 +791,25 @@ namespace HTCommander
                 // Loop through all SBC frames in the buffer
                 while (remaining > 0)
                 {
-                    // Extract the current SBC frame slice
-                    byte[] sbcData = new byte[remaining];
-                    Buffer.BlockCopy(sbcFrame, offset, sbcData, 0, remaining);
+                    // Quick sync byte validation: SBC frames start with 0x9C, mSBC with 0xAD
+                    byte syncByte = sbcFrame[offset];
+                    if (syncByte != 0x9C && syncByte != 0xAD)
+                    {
+                        break; // Not a valid SBC frame, stop decoding
+                    }
+
+                    // Probe frame header to get exact frame size before allocating
+                    if (remaining < SbcFrame.HeaderSize) break;
+                    byte[] headerProbe = new byte[SbcFrame.HeaderSize];
+                    Buffer.BlockCopy(sbcFrame, offset, headerProbe, 0, SbcFrame.HeaderSize);
+                    SbcFrame probed = sbcDecoder.Probe(headerProbe);
+                    if (probed == null) break;
+                    int frameSize = probed.GetFrameSize();
+                    if (frameSize <= 0 || frameSize > remaining) break;
+
+                    // Allocate only the exact frame size instead of copying entire remaining buffer
+                    byte[] sbcData = new byte[frameSize];
+                    Buffer.BlockCopy(sbcFrame, offset, sbcData, 0, frameSize);
 
                     // Decode one SBC frame
                     if (!sbcDecoder.Decode(sbcData, out short[] pcmLeft, out short[] pcmRight, out SbcFrame frame))
@@ -776,9 +817,8 @@ namespace HTCommander
                         break; // Stop on decode error
                     }
 
-                    // Get the size of the frame we just decoded
-                    int frameSize = frame.GetFrameSize();
-                    if (frameSize <= 0 || frameSize > remaining)
+                    // Validate the decoded frame size matches what we probed
+                    if (frame.GetFrameSize() != frameSize)
                     {
                         break; // Invalid frame size
                     }
@@ -807,6 +847,11 @@ namespace HTCommander
                     {
                         if (waveProvider != null)
                         {
+                            // If buffered audio exceeds latency cap, discard stale data to catch up
+                            if (waveProvider.BufferedDuration.TotalMilliseconds > 800)
+                            {
+                                waveProvider.ClearBuffer();
+                            }
                             try { waveProvider.AddSamples(pcmFrame, 0, totalWritten); }
                             catch (Exception ex) { SetOutputDevice(null); Debug("WaveProvider AddSamples: " + ex.ToString()); }
                         }

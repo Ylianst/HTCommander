@@ -310,12 +310,19 @@ namespace HTCommander
                 // Outgoing BSS packets are already recorded by OnChat()
                 if (!frame.incoming) return;
 
-                // Don't create entry if message is empty
+                // Don't create entry if message is empty and not an ident message
                 VoiceTextEncodingType encoding = VoiceTextEncodingType.BSS;
                 if (string.IsNullOrEmpty(bssPacket.Message) && string.IsNullOrEmpty(bssPacket.Callsign)) return;
-                if (string.IsNullOrEmpty(bssPacket.Message) && !string.IsNullOrEmpty(bssPacket.Callsign))
+                if (string.IsNullOrEmpty(bssPacket.Message) && !string.IsNullOrEmpty(bssPacket.LocationRequest))
                 {
-                    //bssPacket.Message = $"[{bssPacket.Callsign}]";
+                    bssPacket.Message = "Location request: " + bssPacket.LocationRequest;
+                }
+                else if (string.IsNullOrEmpty(bssPacket.Message) && !string.IsNullOrEmpty(bssPacket.CallRequest))
+                {
+                    bssPacket.Message = "Call request: " + bssPacket.CallRequest;
+                }
+                else if (string.IsNullOrEmpty(bssPacket.Message) && !string.IsNullOrEmpty(bssPacket.Callsign))
+                {
                     encoding = VoiceTextEncodingType.Ident;
                     bssPacket.Message = "";
                 }
@@ -357,7 +364,6 @@ namespace HTCommander
 
                     // Save to file and dispatch updated history
                     SaveVoiceTextHistory();
-                    DispatchDecodedTextHistory();
 
                     // Dispatch a TextReady event for the BSS packet (including location)
                     DispatchTextReady(bssPacket.Message, frame.channel_name ?? "", frame.time, true, frame.incoming, encoding, latitude, longitude, source: bssPacket.Callsign, destination: bssPacket.Destination);
@@ -418,7 +424,6 @@ namespace HTCommander
 
                     // Save to file and dispatch updated history
                     SaveVoiceTextHistory();
-                    DispatchDecodedTextHistory();
 
                     // Dispatch a TextReady event for the APRS packet
                     DispatchTextReady(aprsPacket.Comment, frame.channel_name ?? "", frame.time, true, true, VoiceTextEncodingType.APRS, latitude, longitude, source: source, destination: null);
@@ -453,7 +458,6 @@ namespace HTCommander
 
                     // Save to file and dispatch updated history
                     SaveVoiceTextHistory();
-                    DispatchDecodedTextHistory();
 
                     // Dispatch a TextReady event for the APRS packet
                     DispatchTextReady(aprsPacket.MessageData.MsgText, frame.channel_name ?? "", frame.time, true, true, VoiceTextEncodingType.APRS, latitude, longitude, source: source, destination: aprsPacket.MessageData.Addressee);
@@ -500,7 +504,6 @@ namespace HTCommander
 
             // Save to file and dispatch updated history
             SaveVoiceTextHistory();
-            DispatchDecodedTextHistory();
 
             // Dispatch a TextReady event for the AX.25 packet
             DispatchTextReady(messageText, frame.channel_name ?? "", frame.time, true, true, VoiceTextEncodingType.AX25, source: source, destination: destination);
@@ -1245,7 +1248,6 @@ namespace HTCommander
 
                     // Save to file and dispatch updated history
                     SaveVoiceTextHistory();
-                    DispatchDecodedTextHistory();
 
                     // Dispatch TextReady event for the recording
                     DispatchTextReady(null, _currentRecordingChannel, _currentRecordingStartTime, true, true, VoiceTextEncodingType.Recording, filename: _currentRecordingFilename, duration: durationInt);
@@ -1788,11 +1790,9 @@ namespace HTCommander
                 }
 
                 SaveVoiceTextHistory();
-                DispatchDecodedTextHistory();
 
                 // Dispatch completed TextReady event for the decoded picture
-                DispatchTextReady(e.ModeName, channelName, now, true, true,
-                    VoiceTextEncodingType.Picture, filename: filename);
+                DispatchTextReady(e.ModeName, channelName, now, true, true, VoiceTextEncodingType.Picture, filename: filename);
             }
             catch (Exception ex)
             {
@@ -2009,7 +2009,6 @@ namespace HTCommander
 
             // Save to file and dispatch updated history
             SaveVoiceTextHistory();
-            DispatchDecodedTextHistory();
 
             // Dispatch a TextReady event for transmitted text so UI updates
             DispatchTextReady(text, channel, DateTime.Now, true, false, encoding, source: source, destination: destination, filename: filename);
@@ -2080,7 +2079,6 @@ namespace HTCommander
 
                     // Save to file and dispatch updated history
                     SaveVoiceTextHistory();
-                    DispatchDecodedTextHistory();
                     DispatchCurrentEntry();
                 }
             }

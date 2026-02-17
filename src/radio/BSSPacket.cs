@@ -4,6 +4,8 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+
+
 using System;
 using System.Text;
 using System.Collections.Generic;
@@ -25,7 +27,9 @@ namespace HTCommander
             Callsign = 0x20,
             Destination = 0x21,
             Message = 0x24,
-            Location = 0x25
+            Location = 0x25,
+            LocationRequest = 0x27, // Contains a string like "N0CALL" or "NOCALL-0"
+            CallRequest = 0x28      // Contains a string like "N0CALL" or "NOCALL-0"
         }
 
         /// <summary>
@@ -47,6 +51,21 @@ namespace HTCommander
         /// The location field (type 0x25).
         /// </summary>
         public HTCommander.GpsLocation Location { get; set; }
+
+        /// <summary>
+        /// The location request field (type 0x27). Contains a callsign like "N0CALL" or "NOCALL-0".
+        /// </summary>
+        public string LocationRequest { get; set; }
+
+        /// <summary>
+        /// The call request field (type 0x28). Contains a callsign like "N0CALL" or "NOCALL-0".
+        /// </summary>
+        public string CallRequest { get; set; }
+
+        /// <summary>
+        /// The message ID field (parsed when length byte is 0x85).
+        /// </summary>
+        public ushort MessageID { get; set; }
 
         /// <summary>
         /// Dictionary containing raw field values for unknown or future field types.
@@ -99,6 +118,17 @@ namespace HTCommander
                     break;
 
                 byte length = data[index];
+
+                // Special case: 0x85 indicates MessageID (next 2 bytes, MSB first)
+                if (length == 0x85)
+                {
+                    if (index + 3 > data.Length)
+                        break;
+                    packet.MessageID = (ushort)((data[index + 1] << 8) | data[index + 2]);
+                    index += 3;
+                    continue;
+                }
+
                 byte fieldType = data[index + 1];
 
                 // Length must allow type (1) + value (0+)
@@ -135,6 +165,12 @@ namespace HTCommander
                     case (byte)FieldType.Location:
                         packet.Location = HTCommander.GpsLocation.DecodeGpsBytes(value);
                         break;
+                    case (byte)FieldType.LocationRequest:
+                        packet.LocationRequest = Encoding.UTF8.GetString(value);
+                        break;
+                    case (byte)FieldType.CallRequest:
+                        packet.CallRequest = Encoding.UTF8.GetString(value);
+                        break;
                 }
 
                 // Move to the next field
@@ -160,6 +196,14 @@ namespace HTCommander
                 result.Add((byte)(callsignBytes.Length + 1)); // length = value length + 1 for type
                 result.Add((byte)FieldType.Callsign);
                 result.AddRange(callsignBytes);
+            }
+
+            // Encode MessageID if non-zero (after callsign)
+            if (MessageID != 0)
+            {
+                result.Add(0x85);
+                result.Add((byte)(MessageID >> 8));   // MSB first
+                result.Add((byte)(MessageID & 0xFF)); // LSB
             }
 
             // Encode destination if present
@@ -189,6 +233,24 @@ namespace HTCommander
                 result.AddRange(locationBytes);
             }
 
+            // Encode location request if present
+            if (!string.IsNullOrEmpty(LocationRequest))
+            {
+                byte[] locationRequestBytes = Encoding.UTF8.GetBytes(LocationRequest);
+                result.Add((byte)(locationRequestBytes.Length + 1)); // length = value length + 1 for type
+                result.Add((byte)FieldType.LocationRequest);
+                result.AddRange(locationRequestBytes);
+            }
+
+            // Encode call request if present
+            if (!string.IsNullOrEmpty(CallRequest))
+            {
+                byte[] callRequestBytes = Encoding.UTF8.GetBytes(CallRequest);
+                result.Add((byte)(callRequestBytes.Length + 1)); // length = value length + 1 for type
+                result.Add((byte)FieldType.CallRequest);
+                result.AddRange(callRequestBytes);
+            }
+
             // Encode any additional raw fields that weren't already encoded
             foreach (var field in RawFields)
             {
@@ -198,6 +260,12 @@ namespace HTCommander
                 if (field.Key == (byte)FieldType.Destination && !string.IsNullOrEmpty(Destination))
                     continue;
                 if (field.Key == (byte)FieldType.Message && !string.IsNullOrEmpty(Message))
+                    continue;
+                if (field.Key == (byte)FieldType.Location && Location != null)
+                    continue;
+                if (field.Key == (byte)FieldType.LocationRequest && !string.IsNullOrEmpty(LocationRequest))
+                    continue;
+                if (field.Key == (byte)FieldType.CallRequest && !string.IsNullOrEmpty(CallRequest))
                     continue;
 
                 result.Add((byte)(field.Value.Length + 1)); // length = value length + 1 for type
@@ -277,7 +345,7 @@ namespace HTCommander
             // Include any unknown raw fields
             foreach (var field in RawFields)
             {
-                if (field.Key == (byte)FieldType.Callsign || field.Key == (byte)FieldType.Destination || field.Key == (byte)FieldType.Message || field.Key == (byte)FieldType.Location)
+                if (field.Key == (byte)FieldType.Callsign || field.Key == (byte)FieldType.Destination || field.Key == (byte)FieldType.Message || field.Key == (byte)FieldType.Location || field.Key == (byte)FieldType.LocationRequest || field.Key == (byte)FieldType.CallRequest)
                     continue;
 
                 if (!first) sb.Append(", ");
