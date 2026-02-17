@@ -13,6 +13,7 @@ using GMap.NET;
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
 using GMap.NET.WindowsForms.Markers;
+using HTCommander.Airplanes;
 using HTCommander.Dialogs;
 using HTCommander.radio;
 using aprsparser;
@@ -66,6 +67,10 @@ namespace HTCommander.Controls
         // Radio markers keyed by device ID
         private Dictionary<int, GMapMarker> radioMarkers = new Dictionary<int, GMapMarker>();
 
+        // Airplane overlay and markers keyed by ICAO hex
+        private GMapOverlay airplaneOverlay = new GMapOverlay("Airplanes");
+        private Dictionary<string, GMapMarker> airplaneMarkers = new Dictionary<string, GMapMarker>();
+
         // Index for cycling through radio positions when clicking "Center to GPS"
         private int centerToGpsCycleIndex = 0;
 
@@ -98,6 +103,10 @@ namespace HTCommander.Controls
 
             // Request the current packet list from AprsHandler on-demand
             broker.Dispatch(1, "RequestAprsPackets", null, store: false);
+
+            // Subscribe to airplane data and show/hide setting
+            broker.Subscribe(0, "Airplanes", OnAirplanesReceived);
+            broker.Subscribe(0, "ShowAirplanesOnMap", OnShowAirplanesOnMapChanged);
         }
 
         private void LoadInitialRadioPositions()
@@ -134,6 +143,72 @@ namespace HTCommander.Controls
             UpdateCenterToGpsButtonState();
         }
 
+        #region Airplane Markers
+
+        private void OnShowAirplanesOnMapChanged(int deviceId, string name, object data)
+        {
+            bool show = (data is int val) && val == 1;
+            if (!show) { ClearAirplaneMarkers(); }
+            airplaneOverlay.IsVisibile = show;
+        }
+
+        private void OnAirplanesReceived(int deviceId, string name, object data)
+        {
+            if (DataBroker.GetValue<int>(0, "ShowAirplanesOnMap", 0) != 1) return;
+            if (!(data is Aircraft[] aircraftList)) return;
+
+            // Track which hexes are still present so we can remove stale markers
+            HashSet<string> activeHexes = new HashSet<string>();
+
+            foreach (Aircraft ac in aircraftList)
+            {
+                if (ac.Latitude == null || ac.Longitude == null) continue;
+                string key = ac.Hex ?? "";
+                if (string.IsNullOrEmpty(key)) continue;
+                activeHexes.Add(key);
+
+                string tooltip = $"\r\n{(ac.Flight?.Trim() ?? key)}\r\nAlt: {ac.Altitude ?? ac.AltitudeBaro ?? (object)"?"}  Spd: {ac.Speed ?? ac.GroundSpeed ?? 0:F0} kts";
+
+                if (airplaneMarkers.TryGetValue(key, out GMapMarker existing))
+                {
+                    existing.Position = new PointLatLng(ac.Latitude.Value, ac.Longitude.Value);
+                    existing.ToolTipText = tooltip;
+                }
+                else
+                {
+                    GMarkerGoogleType markerType = largeMarkersToolStripMenuItem.Checked
+                        ? GMarkerGoogleType.green_dot
+                        : GMarkerGoogleType.green_small;
+                    GMapMarker marker = new GMarkerGoogle(new PointLatLng(ac.Latitude.Value, ac.Longitude.Value), markerType);
+                    marker.ToolTipText = tooltip;
+                    marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
+                    marker.ToolTip.TextPadding = new Size(4, 8);
+                    airplaneMarkers[key] = marker;
+                    airplaneOverlay.Markers.Add(marker);
+                }
+            }
+
+            // Remove markers for aircraft no longer in the list
+            List<string> toRemove = new List<string>();
+            foreach (string hex in airplaneMarkers.Keys)
+            {
+                if (!activeHexes.Contains(hex)) { toRemove.Add(hex); }
+            }
+            foreach (string hex in toRemove)
+            {
+                airplaneOverlay.Markers.Remove(airplaneMarkers[hex]);
+                airplaneMarkers.Remove(hex);
+            }
+        }
+
+        private void ClearAirplaneMarkers()
+        {
+            airplaneOverlay.Markers.Clear();
+            airplaneMarkers.Clear();
+        }
+
+        #endregion
+
         private void InitializeMapControl()
         {
             mapControl.MapProvider = GMapProviders.OpenStreetMap;
@@ -156,8 +231,10 @@ namespace HTCommander.Controls
             if (!double.TryParse(lngStr, out double lng)) { lng = 0; }
             mapControl.Position = new PointLatLng(lat, lng);
 
-            // Add the overlay to the map
+            // Add the overlays to the map
             mapControl.Overlays.Add(mapMarkersOverlay);
+            mapControl.Overlays.Add(airplaneOverlay);
+            airplaneOverlay.IsVisibile = DataBroker.GetValue<int>(0, "ShowAirplanesOnMap", 0) == 1;
             mapControl.Update();
             mapControl.Refresh();
         }
@@ -502,7 +579,17 @@ namespace HTCommander.Controls
 
         private void mapMenuPictureBox_MouseClick(object sender, MouseEventArgs e)
         {
+            // Show/hide the airplanes menu item based on whether AirplaneServer is configured
+            string airplaneServer = DataBroker.GetValue<string>(0, "AirplaneServer", "");
+            showAirplanesToolStripMenuItem.Visible = !string.IsNullOrEmpty(airplaneServer);
+            showAirplanesToolStripMenuItem.Checked = DataBroker.GetValue<int>(0, "ShowAirplanesOnMap", 0) == 1;
+
             mapTabContextMenuStrip.Show(mapMenuPictureBox, e.Location);
+        }
+
+        private void showAirplanesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            DataBroker.Dispatch(0, "ShowAirplanesOnMap", showAirplanesToolStripMenuItem.Checked ? 1 : 0);
         }
 
         private void offlineModeToolStripMenuItem_Click(object sender, EventArgs e)

@@ -1014,6 +1014,9 @@ namespace HTCommander
         /// </summary>
         private void OnAudioDataEnd(int deviceId, string name, object data)
         {
+            // Don't process audio from the APRS channel
+            if (_currentChannelName == "APRS") return;
+
             // Handle speech-to-text completion
             if (deviceId == _targetDeviceId && _enabled && _speechToTextEngine != null)
             {
@@ -1080,6 +1083,9 @@ namespace HTCommander
                         }
                     }
                 }
+
+                // Don't process audio from the APRS channel
+                if (channelName == "APRS") return;
 
                 // Start a new recording
                 StartNewRecording(startTime, channelName);
@@ -1845,6 +1851,12 @@ namespace HTCommander
 
                 // Only process received audio. Muted audio is ok.
                 if (transmit)
+                {
+                    return;
+                }
+
+                // Don't process audio from the APRS channel
+                if (channelName == "APRS")
                 {
                     return;
                 }

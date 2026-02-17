@@ -60,6 +60,7 @@ namespace HTCommander.Controls
             downloadMapPanel = new System.Windows.Forms.Panel();
             cancelMapDownloadButton = new System.Windows.Forms.Button();
             downloadMapLabel = new System.Windows.Forms.Label();
+            showAirplanesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             mapTopPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)mapMenuPictureBox).BeginInit();
             mapTabContextMenuStrip.SuspendLayout();
@@ -177,42 +178,42 @@ namespace HTCommander.Controls
             // mapTabContextMenuStrip
             // 
             mapTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            mapTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { offlineModeToolStripMenuItem, cacheAreaToolStripMenuItem, toolStripMenuItem8, centerToGPSToolStripMenuItem, toolStripMenuItem9, showTracksToolStripMenuItem, showMarkersToolStripMenuItem, largeMarkersToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
+            mapTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { offlineModeToolStripMenuItem, cacheAreaToolStripMenuItem, toolStripMenuItem8, centerToGPSToolStripMenuItem, toolStripMenuItem9, showTracksToolStripMenuItem, showMarkersToolStripMenuItem, showAirplanesToolStripMenuItem, largeMarkersToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
             mapTabContextMenuStrip.Name = "mapTabContextMenuStrip";
-            mapTabContextMenuStrip.Size = new System.Drawing.Size(172, 204);
+            mapTabContextMenuStrip.Size = new System.Drawing.Size(211, 258);
             // 
             // offlineModeToolStripMenuItem
             // 
             offlineModeToolStripMenuItem.CheckOnClick = true;
             offlineModeToolStripMenuItem.Name = "offlineModeToolStripMenuItem";
-            offlineModeToolStripMenuItem.Size = new System.Drawing.Size(171, 26);
+            offlineModeToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
             offlineModeToolStripMenuItem.Text = "Offline Mode";
             offlineModeToolStripMenuItem.Click += offlineModeToolStripMenuItem_Click;
             // 
             // cacheAreaToolStripMenuItem
             // 
             cacheAreaToolStripMenuItem.Name = "cacheAreaToolStripMenuItem";
-            cacheAreaToolStripMenuItem.Size = new System.Drawing.Size(171, 26);
+            cacheAreaToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
             cacheAreaToolStripMenuItem.Text = "Cache Area...";
             cacheAreaToolStripMenuItem.Click += cacheAreaToolStripMenuItem_Click;
             // 
             // toolStripMenuItem8
             // 
             toolStripMenuItem8.Name = "toolStripMenuItem8";
-            toolStripMenuItem8.Size = new System.Drawing.Size(168, 6);
+            toolStripMenuItem8.Size = new System.Drawing.Size(207, 6);
             // 
             // centerToGPSToolStripMenuItem
             // 
             centerToGPSToolStripMenuItem.Enabled = false;
             centerToGPSToolStripMenuItem.Name = "centerToGPSToolStripMenuItem";
-            centerToGPSToolStripMenuItem.Size = new System.Drawing.Size(171, 26);
+            centerToGPSToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
             centerToGPSToolStripMenuItem.Text = "Center to GPS";
             centerToGPSToolStripMenuItem.Click += centerToGpsButton_Click;
             // 
             // toolStripMenuItem9
             // 
             toolStripMenuItem9.Name = "toolStripMenuItem9";
-            toolStripMenuItem9.Size = new System.Drawing.Size(168, 6);
+            toolStripMenuItem9.Size = new System.Drawing.Size(207, 6);
             // 
             // showTracksToolStripMenuItem
             // 
@@ -220,7 +221,7 @@ namespace HTCommander.Controls
             showTracksToolStripMenuItem.CheckOnClick = true;
             showTracksToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             showTracksToolStripMenuItem.Name = "showTracksToolStripMenuItem";
-            showTracksToolStripMenuItem.Size = new System.Drawing.Size(171, 26);
+            showTracksToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
             showTracksToolStripMenuItem.Text = "Show Tracks";
             showTracksToolStripMenuItem.Click += showTracksToolStripMenuItem_Click;
             // 
@@ -228,7 +229,7 @@ namespace HTCommander.Controls
             // 
             showMarkersToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { allToolStripMenuItem, last30MinutesToolStripMenuItem, lastHourToolStripMenuItem, last6HoursToolStripMenuItem, last12HoursToolStripMenuItem, last24HoursToolStripMenuItem });
             showMarkersToolStripMenuItem.Name = "showMarkersToolStripMenuItem";
-            showMarkersToolStripMenuItem.Size = new System.Drawing.Size(171, 26);
+            showMarkersToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
             showMarkersToolStripMenuItem.Text = "Show Markers";
             // 
             // allToolStripMenuItem
@@ -287,20 +288,20 @@ namespace HTCommander.Controls
             largeMarkersToolStripMenuItem.CheckOnClick = true;
             largeMarkersToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             largeMarkersToolStripMenuItem.Name = "largeMarkersToolStripMenuItem";
-            largeMarkersToolStripMenuItem.Size = new System.Drawing.Size(171, 26);
+            largeMarkersToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
             largeMarkersToolStripMenuItem.Text = "Large Markers";
             largeMarkersToolStripMenuItem.Click += largeMarkersToolStripMenuItem_Click;
             // 
             // toolStripMenuItemDetachSeparator
             // 
             toolStripMenuItemDetachSeparator.Name = "toolStripMenuItemDetachSeparator";
-            toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(168, 6);
+            toolStripMenuItemDetachSeparator.Size = new System.Drawing.Size(207, 6);
             toolStripMenuItemDetachSeparator.Visible = false;
             // 
             // detachToolStripMenuItem
             // 
             detachToolStripMenuItem.Name = "detachToolStripMenuItem";
-            detachToolStripMenuItem.Size = new System.Drawing.Size(171, 26);
+            detachToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
             detachToolStripMenuItem.Text = "Detach...";
             detachToolStripMenuItem.Visible = false;
             detachToolStripMenuItem.Click += detachToolStripMenuItem_Click;
@@ -341,6 +342,15 @@ namespace HTCommander.Controls
             downloadMapLabel.Size = new System.Drawing.Size(154, 20);
             downloadMapLabel.TabIndex = 7;
             downloadMapLabel.Text = "Downloading map...";
+            // 
+            // showAirplanesToolStripMenuItem
+            // 
+            showAirplanesToolStripMenuItem.CheckOnClick = true;
+            showAirplanesToolStripMenuItem.Name = "showAirplanesToolStripMenuItem";
+            showAirplanesToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
+            showAirplanesToolStripMenuItem.Text = "Show Airplanes";
+            showAirplanesToolStripMenuItem.Visible = false;
+            showAirplanesToolStripMenuItem.Click += showAirplanesToolStripMenuItem_Click;
             // 
             // MapTabUserControl
             // 
@@ -393,5 +403,6 @@ namespace HTCommander.Controls
         private System.Windows.Forms.Label downloadMapLabel;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
         private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem showAirplanesToolStripMenuItem;
     }
 }

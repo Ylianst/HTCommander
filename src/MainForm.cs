@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using HTCommander.Dialogs;
 using HTCommander.Controls;
+using HTCommander.Airplanes;
 
 namespace HTCommander
 {
@@ -62,6 +63,7 @@ namespace HTCommander
             DataBroker.AddDataHandler("BbsHandler", new BbsHandler());
             DataBroker.AddDataHandler("MailStore", new MailStore());
             DataBroker.AddDataHandler("WinlinkClient", new WinlinkClient());
+            DataBroker.AddDataHandler("AirplaneHandler", new AirplaneHandler());
 
             // Subscribe to CallSign and StationId changes for title bar updates
             broker.Subscribe(0, new[] { "CallSign", "StationId" }, OnCallSignOrStationIdChanged);
