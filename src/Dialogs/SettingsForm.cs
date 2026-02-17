@@ -20,6 +20,7 @@ namespace HTCommander
     public partial class SettingsForm : Form
     {
         private readonly FileDownloader _downloader;
+        private readonly DataBrokerClient _settingsBroker;
         private CancellationTokenSource _cts;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -168,6 +169,8 @@ namespace HTCommander
         {
             InitializeComponent();
             _downloader = new FileDownloader();
+            _settingsBroker = new DataBrokerClient();
+            _settingsBroker.Subscribe(1, "TestAirplaneServerResult", OnTestAirplaneServerResult);
 
             foreach (string language in languages)
             {
@@ -252,6 +255,9 @@ namespace HTCommander
             // Winlink Settings
             WinlinkPassword = DataBroker.GetValue<string>(0, "WinlinkPassword", "");
             WinlinkUseStationId = DataBroker.GetValue<int>(0, "WinlinkUseStationId", 0) == 1;
+
+            // Airplane Settings
+            dump1090urlTextBox.Text = DataBroker.GetValue<string>(0, "AirplaneServer", "");
         }
 
         private void SaveSettingsToDataBroker()
@@ -274,6 +280,9 @@ namespace HTCommander
             // Winlink Settings
             DataBroker.Dispatch(0, "WinlinkPassword", WinlinkPassword);
             DataBroker.Dispatch(0, "WinlinkUseStationId", WinlinkUseStationId ? 1 : 0);
+
+            // Airplane Settings
+            DataBroker.Dispatch(0, "AirplaneServer", dump1090urlTextBox.Text);
         }
 
         private string GetAprsRoutes()
@@ -305,6 +314,7 @@ namespace HTCommander
         {
             // Save settings to DataBroker before closing
             SaveSettingsToDataBroker();
+            _settingsBroker?.Dispose();
             Close();
         }
 
@@ -338,6 +348,34 @@ namespace HTCommander
             if (downloadButton.Enabled) { ok = false; } // If the download button is enabled, we cannot proceed.
             if (webPortNumericUpDown.Enabled && agwpePortNumericUpDown.Enabled && (webPortNumericUpDown.Value == agwpePortNumericUpDown.Value)) { ok = false; }
             okButton.Enabled = ok;
+
+            // Dump1090 test button
+            dump1090testButton.Enabled = (dump1090urlTextBox.Text.Trim().Length > 0);
+        }
+
+        private void dump1090urlTextBox_TextChanged(object sender, EventArgs e)
+        {
+            dump1090testResultsLabel.Text = "";
+            UpdateInfo();
+        }
+
+        private void dump1090testButton_Click(object sender, EventArgs e)
+        {
+            dump1090testButton.Enabled = false;
+            dump1090testResultsLabel.Text = "Testing...";
+            DataBroker.Dispatch(1, "TestAirplaneServer", dump1090urlTextBox.Text.Trim(), store: false);
+        }
+
+        private void OnTestAirplaneServerResult(int deviceId, string name, object data)
+        {
+            if (IsDisposed) return;
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action<int, string, object>(OnTestAirplaneServerResult), deviceId, name, data);
+                return;
+            }
+            dump1090testResultsLabel.Text = data as string ?? "Unknown result";
+            UpdateInfo();
         }
 
         private void callsignTextBox_TextChanged(object sender, EventArgs e)
@@ -510,6 +548,7 @@ namespace HTCommander
         private void cancelButton_Click(object sender, EventArgs e)
         {
             if (_cts != null) { _cts.Cancel(); }
+            _settingsBroker?.Dispose();
             Close();
         }
 

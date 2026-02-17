@@ -85,14 +85,16 @@
             webServerEnabledCheckBox = new System.Windows.Forms.CheckBox();
             label5 = new System.Windows.Forms.Label();
             pictureBox3 = new System.Windows.Forms.PictureBox();
-            okButton = new System.Windows.Forms.Button();
-            cancelButton = new System.Windows.Forms.Button();
             airplanesTabPage = new System.Windows.Forms.TabPage();
             groupBox7 = new System.Windows.Forms.GroupBox();
+            dump1090urlTextBox = new System.Windows.Forms.TextBox();
+            label15 = new System.Windows.Forms.Label();
             label17 = new System.Windows.Forms.Label();
             pictureBox6 = new System.Windows.Forms.PictureBox();
-            label15 = new System.Windows.Forms.Label();
-            dump1090urlTextBox = new System.Windows.Forms.TextBox();
+            okButton = new System.Windows.Forms.Button();
+            cancelButton = new System.Windows.Forms.Button();
+            dump1090testButton = new System.Windows.Forms.Button();
+            dump1090testResultsLabel = new System.Windows.Forms.Label();
             tabControl1.SuspendLayout();
             licenseTabPage.SuspendLayout();
             groupBox1.SuspendLayout();
@@ -127,7 +129,7 @@
             tabControl1.Controls.Add(webServerTabPage);
             tabControl1.Controls.Add(airplanesTabPage);
             tabControl1.Location = new System.Drawing.Point(16, 19);
-            tabControl1.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            tabControl1.Margin = new System.Windows.Forms.Padding(5);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
             tabControl1.Size = new System.Drawing.Size(501, 573);
@@ -140,9 +142,9 @@
             licenseTabPage.Controls.Add(pictureBox1);
             licenseTabPage.Controls.Add(label1);
             licenseTabPage.Location = new System.Drawing.Point(4, 29);
-            licenseTabPage.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            licenseTabPage.Margin = new System.Windows.Forms.Padding(5);
             licenseTabPage.Name = "licenseTabPage";
-            licenseTabPage.Padding = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            licenseTabPage.Padding = new System.Windows.Forms.Padding(5);
             licenseTabPage.Size = new System.Drawing.Size(493, 540);
             licenseTabPage.TabIndex = 0;
             licenseTabPage.Text = "License";
@@ -169,9 +171,9 @@
             groupBox1.Controls.Add(stationIdComboBox);
             groupBox1.Controls.Add(callsignTextBox);
             groupBox1.Location = new System.Drawing.Point(11, 177);
-            groupBox1.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox1.Margin = new System.Windows.Forms.Padding(5);
             groupBox1.Name = "groupBox1";
-            groupBox1.Padding = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox1.Padding = new System.Windows.Forms.Padding(5);
             groupBox1.Size = new System.Drawing.Size(469, 180);
             groupBox1.TabIndex = 2;
             groupBox1.TabStop = false;
@@ -182,7 +184,7 @@
             allowTransmitCheckBox.AutoSize = true;
             allowTransmitCheckBox.Enabled = false;
             allowTransmitCheckBox.Location = new System.Drawing.Point(11, 137);
-            allowTransmitCheckBox.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            allowTransmitCheckBox.Margin = new System.Windows.Forms.Padding(5);
             allowTransmitCheckBox.Name = "allowTransmitCheckBox";
             allowTransmitCheckBox.Size = new System.Drawing.Size(254, 24);
             allowTransmitCheckBox.TabIndex = 4;
@@ -218,7 +220,7 @@
             stationIdComboBox.FormattingEnabled = true;
             stationIdComboBox.Items.AddRange(new object[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15" });
             stationIdComboBox.Location = new System.Drawing.Point(373, 75);
-            stationIdComboBox.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            stationIdComboBox.Margin = new System.Windows.Forms.Padding(5);
             stationIdComboBox.Name = "stationIdComboBox";
             stationIdComboBox.Size = new System.Drawing.Size(89, 38);
             stationIdComboBox.TabIndex = 1;
@@ -228,7 +230,7 @@
             callsignTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
             callsignTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
             callsignTextBox.Location = new System.Drawing.Point(8, 75);
-            callsignTextBox.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            callsignTextBox.Margin = new System.Windows.Forms.Padding(5);
             callsignTextBox.MaxLength = 6;
             callsignTextBox.Name = "callsignTextBox";
             callsignTextBox.Size = new System.Drawing.Size(324, 37);
@@ -241,7 +243,7 @@
             pictureBox1.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             pictureBox1.Image = Properties.Resources.Certificate;
             pictureBox1.Location = new System.Drawing.Point(397, 12);
-            pictureBox1.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            pictureBox1.Margin = new System.Windows.Forms.Padding(5);
             pictureBox1.Name = "pictureBox1";
             pictureBox1.Size = new System.Drawing.Size(91, 119);
             pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -264,9 +266,9 @@
             aprsTabPage.Controls.Add(label4);
             aprsTabPage.Controls.Add(groupBox2);
             aprsTabPage.Location = new System.Drawing.Point(4, 29);
-            aprsTabPage.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            aprsTabPage.Margin = new System.Windows.Forms.Padding(5);
             aprsTabPage.Name = "aprsTabPage";
-            aprsTabPage.Padding = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            aprsTabPage.Padding = new System.Windows.Forms.Padding(5);
             aprsTabPage.Size = new System.Drawing.Size(493, 540);
             aprsTabPage.TabIndex = 1;
             aprsTabPage.Text = "APRS";
@@ -277,7 +279,7 @@
             pictureBox2.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             pictureBox2.Image = Properties.Resources.MapPoint1;
             pictureBox2.Location = new System.Drawing.Point(397, 12);
-            pictureBox2.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            pictureBox2.Margin = new System.Windows.Forms.Padding(5);
             pictureBox2.Name = "pictureBox2";
             pictureBox2.Size = new System.Drawing.Size(91, 119);
             pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -301,9 +303,9 @@
             groupBox2.Controls.Add(addAprsButton);
             groupBox2.Controls.Add(deleteAprsButton);
             groupBox2.Location = new System.Drawing.Point(8, 135);
-            groupBox2.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox2.Margin = new System.Windows.Forms.Padding(5);
             groupBox2.Name = "groupBox2";
-            groupBox2.Padding = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox2.Padding = new System.Windows.Forms.Padding(5);
             groupBox2.Size = new System.Drawing.Size(473, 247);
             groupBox2.TabIndex = 0;
             groupBox2.TabStop = false;
@@ -314,7 +316,7 @@
             editButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
             editButton.Enabled = false;
             editButton.Location = new System.Drawing.Point(257, 201);
-            editButton.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            editButton.Margin = new System.Windows.Forms.Padding(5);
             editButton.Name = "editButton";
             editButton.Size = new System.Drawing.Size(101, 35);
             editButton.TabIndex = 4;
@@ -330,7 +332,7 @@
             aprsRoutesListView.GridLines = true;
             aprsRoutesListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             aprsRoutesListView.Location = new System.Drawing.Point(8, 29);
-            aprsRoutesListView.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            aprsRoutesListView.Margin = new System.Windows.Forms.Padding(5);
             aprsRoutesListView.MultiSelect = false;
             aprsRoutesListView.Name = "aprsRoutesListView";
             aprsRoutesListView.Size = new System.Drawing.Size(457, 161);
@@ -354,7 +356,7 @@
             // 
             addAprsButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
             addAprsButton.Location = new System.Drawing.Point(149, 201);
-            addAprsButton.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            addAprsButton.Margin = new System.Windows.Forms.Padding(5);
             addAprsButton.Name = "addAprsButton";
             addAprsButton.Size = new System.Drawing.Size(101, 35);
             addAprsButton.TabIndex = 1;
@@ -367,7 +369,7 @@
             deleteAprsButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
             deleteAprsButton.Enabled = false;
             deleteAprsButton.Location = new System.Drawing.Point(365, 201);
-            deleteAprsButton.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            deleteAprsButton.Margin = new System.Windows.Forms.Padding(5);
             deleteAprsButton.Name = "deleteAprsButton";
             deleteAprsButton.Size = new System.Drawing.Size(101, 35);
             deleteAprsButton.TabIndex = 0;
@@ -394,9 +396,9 @@
             groupBox6.Controls.Add(label14);
             groupBox6.Controls.Add(voicesComboBox);
             groupBox6.Location = new System.Drawing.Point(8, 305);
-            groupBox6.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox6.Margin = new System.Windows.Forms.Padding(5);
             groupBox6.Name = "groupBox6";
-            groupBox6.Padding = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox6.Padding = new System.Windows.Forms.Padding(5);
             groupBox6.Size = new System.Drawing.Size(473, 85);
             groupBox6.TabIndex = 8;
             groupBox6.TabStop = false;
@@ -435,7 +437,7 @@
             pictureBox5.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             pictureBox5.Image = Properties.Resources.Voice;
             pictureBox5.Location = new System.Drawing.Point(397, 12);
-            pictureBox5.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            pictureBox5.Margin = new System.Windows.Forms.Padding(5);
             pictureBox5.Name = "pictureBox5";
             pictureBox5.Size = new System.Drawing.Size(91, 119);
             pictureBox5.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -462,9 +464,9 @@
             groupBox5.Controls.Add(downloadButton);
             groupBox5.Controls.Add(deleteButton);
             groupBox5.Location = new System.Drawing.Point(8, 135);
-            groupBox5.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox5.Margin = new System.Windows.Forms.Padding(5);
             groupBox5.Name = "groupBox5";
-            groupBox5.Padding = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox5.Padding = new System.Windows.Forms.Padding(5);
             groupBox5.Size = new System.Drawing.Size(473, 160);
             groupBox5.TabIndex = 4;
             groupBox5.TabStop = false;
@@ -474,7 +476,7 @@
             // 
             cancelDownloadButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
             cancelDownloadButton.Location = new System.Drawing.Point(149, 113);
-            cancelDownloadButton.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            cancelDownloadButton.Margin = new System.Windows.Forms.Padding(5);
             cancelDownloadButton.Name = "cancelDownloadButton";
             cancelDownloadButton.Size = new System.Drawing.Size(101, 35);
             cancelDownloadButton.TabIndex = 9;
@@ -526,7 +528,7 @@
             // 
             downloadButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
             downloadButton.Location = new System.Drawing.Point(257, 115);
-            downloadButton.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            downloadButton.Margin = new System.Windows.Forms.Padding(5);
             downloadButton.Name = "downloadButton";
             downloadButton.Size = new System.Drawing.Size(101, 35);
             downloadButton.TabIndex = 1;
@@ -539,7 +541,7 @@
             deleteButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
             deleteButton.Enabled = false;
             deleteButton.Location = new System.Drawing.Point(365, 115);
-            deleteButton.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            deleteButton.Margin = new System.Windows.Forms.Padding(5);
             deleteButton.Name = "deleteButton";
             deleteButton.Size = new System.Drawing.Size(101, 35);
             deleteButton.TabIndex = 0;
@@ -592,9 +594,9 @@
             groupBox4.Controls.Add(label8);
             groupBox4.Controls.Add(winlinkPasswordTextBox);
             groupBox4.Location = new System.Drawing.Point(11, 141);
-            groupBox4.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox4.Margin = new System.Windows.Forms.Padding(5);
             groupBox4.Name = "groupBox4";
-            groupBox4.Padding = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox4.Padding = new System.Windows.Forms.Padding(5);
             groupBox4.Size = new System.Drawing.Size(469, 199);
             groupBox4.TabIndex = 6;
             groupBox4.TabStop = false;
@@ -633,7 +635,7 @@
             winlinkPasswordTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
             winlinkPasswordTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
             winlinkPasswordTextBox.Location = new System.Drawing.Point(8, 137);
-            winlinkPasswordTextBox.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            winlinkPasswordTextBox.Margin = new System.Windows.Forms.Padding(5);
             winlinkPasswordTextBox.MaxLength = 128;
             winlinkPasswordTextBox.Name = "winlinkPasswordTextBox";
             winlinkPasswordTextBox.PasswordChar = '●';
@@ -655,7 +657,7 @@
             pictureBox4.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             pictureBox4.Image = Properties.Resources.Letter;
             pictureBox4.Location = new System.Drawing.Point(397, 12);
-            pictureBox4.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            pictureBox4.Margin = new System.Windows.Forms.Padding(5);
             pictureBox4.Name = "pictureBox4";
             pictureBox4.Size = new System.Drawing.Size(91, 119);
             pictureBox4.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -668,7 +670,7 @@
             webServerTabPage.Controls.Add(label5);
             webServerTabPage.Controls.Add(pictureBox3);
             webServerTabPage.Location = new System.Drawing.Point(4, 29);
-            webServerTabPage.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            webServerTabPage.Margin = new System.Windows.Forms.Padding(5);
             webServerTabPage.Name = "webServerTabPage";
             webServerTabPage.Size = new System.Drawing.Size(493, 540);
             webServerTabPage.TabIndex = 2;
@@ -684,9 +686,9 @@
             groupBox3.Controls.Add(label6);
             groupBox3.Controls.Add(webServerEnabledCheckBox);
             groupBox3.Location = new System.Drawing.Point(8, 135);
-            groupBox3.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox3.Margin = new System.Windows.Forms.Padding(5);
             groupBox3.Name = "groupBox3";
-            groupBox3.Padding = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            groupBox3.Padding = new System.Windows.Forms.Padding(5);
             groupBox3.Size = new System.Drawing.Size(473, 124);
             groupBox3.TabIndex = 6;
             groupBox3.TabStop = false;
@@ -695,7 +697,7 @@
             // agwpePortNumericUpDown
             // 
             agwpePortNumericUpDown.Location = new System.Drawing.Point(383, 77);
-            agwpePortNumericUpDown.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            agwpePortNumericUpDown.Margin = new System.Windows.Forms.Padding(5);
             agwpePortNumericUpDown.Maximum = new decimal(new int[] { 65535, 0, 0, 0 });
             agwpePortNumericUpDown.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             agwpePortNumericUpDown.Name = "agwpePortNumericUpDown";
@@ -718,7 +720,7 @@
             // webPortNumericUpDown
             // 
             webPortNumericUpDown.Location = new System.Drawing.Point(383, 40);
-            webPortNumericUpDown.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            webPortNumericUpDown.Margin = new System.Windows.Forms.Padding(5);
             webPortNumericUpDown.Maximum = new decimal(new int[] { 65535, 0, 0, 0 });
             webPortNumericUpDown.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             webPortNumericUpDown.Name = "webPortNumericUpDown";
@@ -732,7 +734,7 @@
             // 
             agwpeServerEnabledCheckBox.AutoSize = true;
             agwpeServerEnabledCheckBox.Location = new System.Drawing.Point(21, 79);
-            agwpeServerEnabledCheckBox.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            agwpeServerEnabledCheckBox.Margin = new System.Windows.Forms.Padding(5);
             agwpeServerEnabledCheckBox.Name = "agwpeServerEnabledCheckBox";
             agwpeServerEnabledCheckBox.Size = new System.Drawing.Size(175, 24);
             agwpeServerEnabledCheckBox.TabIndex = 0;
@@ -754,7 +756,7 @@
             // 
             webServerEnabledCheckBox.AutoSize = true;
             webServerEnabledCheckBox.Location = new System.Drawing.Point(21, 43);
-            webServerEnabledCheckBox.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            webServerEnabledCheckBox.Margin = new System.Windows.Forms.Padding(5);
             webServerEnabledCheckBox.Name = "webServerEnabledCheckBox";
             webServerEnabledCheckBox.Size = new System.Drawing.Size(155, 24);
             webServerEnabledCheckBox.TabIndex = 0;
@@ -777,37 +779,12 @@
             pictureBox3.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             pictureBox3.Image = Properties.Resources.webserver;
             pictureBox3.Location = new System.Drawing.Point(397, 12);
-            pictureBox3.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            pictureBox3.Margin = new System.Windows.Forms.Padding(5);
             pictureBox3.Name = "pictureBox3";
             pictureBox3.Size = new System.Drawing.Size(91, 119);
             pictureBox3.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             pictureBox3.TabIndex = 5;
             pictureBox3.TabStop = false;
-            // 
-            // okButton
-            // 
-            okButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
-            okButton.Location = new System.Drawing.Point(311, 601);
-            okButton.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
-            okButton.Name = "okButton";
-            okButton.Size = new System.Drawing.Size(101, 35);
-            okButton.TabIndex = 16;
-            okButton.Text = "OK";
-            okButton.UseVisualStyleBackColor = true;
-            okButton.Click += okButton_Click;
-            // 
-            // cancelButton
-            // 
-            cancelButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
-            cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            cancelButton.Location = new System.Drawing.Point(411, 601);
-            cancelButton.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
-            cancelButton.Name = "cancelButton";
-            cancelButton.Size = new System.Drawing.Size(101, 35);
-            cancelButton.TabIndex = 15;
-            cancelButton.Text = "Cancel";
-            cancelButton.UseVisualStyleBackColor = true;
-            cancelButton.Click += cancelButton_Click;
             // 
             // airplanesTabPage
             // 
@@ -823,16 +800,37 @@
             // 
             // groupBox7
             // 
+            groupBox7.Controls.Add(dump1090testResultsLabel);
+            groupBox7.Controls.Add(dump1090testButton);
             groupBox7.Controls.Add(dump1090urlTextBox);
             groupBox7.Controls.Add(label15);
             groupBox7.Location = new System.Drawing.Point(8, 135);
             groupBox7.Margin = new System.Windows.Forms.Padding(5);
             groupBox7.Name = "groupBox7";
             groupBox7.Padding = new System.Windows.Forms.Padding(5);
-            groupBox7.Size = new System.Drawing.Size(473, 124);
+            groupBox7.Size = new System.Drawing.Size(473, 157);
             groupBox7.TabIndex = 9;
             groupBox7.TabStop = false;
             groupBox7.Text = "ADS-B Settings";
+            // 
+            // dump1090urlTextBox
+            // 
+            dump1090urlTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            dump1090urlTextBox.Location = new System.Drawing.Point(10, 68);
+            dump1090urlTextBox.Name = "dump1090urlTextBox";
+            dump1090urlTextBox.Size = new System.Drawing.Size(455, 27);
+            dump1090urlTextBox.TabIndex = 4;
+            dump1090urlTextBox.TextChanged += dump1090urlTextBox_TextChanged;
+            // 
+            // label15
+            // 
+            label15.AutoSize = true;
+            label15.Location = new System.Drawing.Point(10, 36);
+            label15.Margin = new System.Windows.Forms.Padding(5, 0, 5, 0);
+            label15.Name = "label15";
+            label15.Size = new System.Drawing.Size(241, 20);
+            label15.TabIndex = 3;
+            label15.Text = "Enter the hostname:port or full URL";
             // 
             // label17
             // 
@@ -856,23 +854,48 @@
             pictureBox6.TabIndex = 8;
             pictureBox6.TabStop = false;
             // 
-            // label15
+            // okButton
             // 
-            label15.AutoSize = true;
-            label15.Location = new System.Drawing.Point(10, 36);
-            label15.Margin = new System.Windows.Forms.Padding(5, 0, 5, 0);
-            label15.Name = "label15";
-            label15.Size = new System.Drawing.Size(241, 20);
-            label15.TabIndex = 3;
-            label15.Text = "Enter the hostname:port or full URL";
+            okButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+            okButton.Location = new System.Drawing.Point(311, 601);
+            okButton.Margin = new System.Windows.Forms.Padding(5);
+            okButton.Name = "okButton";
+            okButton.Size = new System.Drawing.Size(101, 35);
+            okButton.TabIndex = 16;
+            okButton.Text = "OK";
+            okButton.UseVisualStyleBackColor = true;
+            okButton.Click += okButton_Click;
             // 
-            // dump1090urlTextBox
+            // cancelButton
             // 
-            dump1090urlTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            dump1090urlTextBox.Location = new System.Drawing.Point(10, 68);
-            dump1090urlTextBox.Name = "dump1090urlTextBox";
-            dump1090urlTextBox.Size = new System.Drawing.Size(455, 27);
-            dump1090urlTextBox.TabIndex = 4;
+            cancelButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+            cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
+            cancelButton.Location = new System.Drawing.Point(411, 601);
+            cancelButton.Margin = new System.Windows.Forms.Padding(5);
+            cancelButton.Name = "cancelButton";
+            cancelButton.Size = new System.Drawing.Size(101, 35);
+            cancelButton.TabIndex = 15;
+            cancelButton.Text = "Cancel";
+            cancelButton.UseVisualStyleBackColor = true;
+            cancelButton.Click += cancelButton_Click;
+            // 
+            // dump1090testButton
+            // 
+            dump1090testButton.Location = new System.Drawing.Point(10, 101);
+            dump1090testButton.Name = "dump1090testButton";
+            dump1090testButton.Size = new System.Drawing.Size(94, 29);
+            dump1090testButton.TabIndex = 5;
+            dump1090testButton.Text = "Test";
+            dump1090testButton.UseVisualStyleBackColor = true;
+            dump1090testButton.Click += dump1090testButton_Click;
+            // 
+            // dump1090testResultsLabel
+            // 
+            dump1090testResultsLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            dump1090testResultsLabel.Location = new System.Drawing.Point(110, 105);
+            dump1090testResultsLabel.Name = "dump1090testResultsLabel";
+            dump1090testResultsLabel.Size = new System.Drawing.Size(355, 25);
+            dump1090testResultsLabel.TabIndex = 6;
             // 
             // SettingsForm
             // 
@@ -991,5 +1014,7 @@
         private System.Windows.Forms.PictureBox pictureBox6;
         private System.Windows.Forms.TextBox dump1090urlTextBox;
         private System.Windows.Forms.Label label15;
+        private System.Windows.Forms.Label dump1090testResultsLabel;
+        private System.Windows.Forms.Button dump1090testButton;
     }
 }

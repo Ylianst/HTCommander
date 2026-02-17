@@ -69,7 +69,7 @@ namespace HTCommander.Controls
 
         // Airplane overlay and markers keyed by ICAO hex
         private GMapOverlay airplaneOverlay = new GMapOverlay("Airplanes");
-        private Dictionary<string, GMapMarker> airplaneMarkers = new Dictionary<string, GMapMarker>();
+        private Dictionary<string, AirplaneMarker> airplaneMarkers = new Dictionary<string, AirplaneMarker>();
 
         // Index for cycling through radio positions when clicking "Center to GPS"
         private int centerToGpsCycleIndex = 0;
@@ -159,6 +159,7 @@ namespace HTCommander.Controls
 
             // Track which hexes are still present so we can remove stale markers
             HashSet<string> activeHexes = new HashSet<string>();
+            bool large = largeMarkersToolStripMenuItem.Checked;
 
             foreach (Aircraft ac in aircraftList)
             {
@@ -167,19 +168,22 @@ namespace HTCommander.Controls
                 if (string.IsNullOrEmpty(key)) continue;
                 activeHexes.Add(key);
 
-                string tooltip = $"\r\n{(ac.Flight?.Trim() ?? key)}\r\nAlt: {ac.Altitude ?? ac.AltitudeBaro ?? (object)"?"}  Spd: {ac.Speed ?? ac.GroundSpeed ?? 0:F0} kts";
+                int altitude = ParseAltitude(ac.AltitudeBaro ?? ac.Altitude) ?? ac.AltitudeGeometric ?? -1;
+                float track = (float)(ac.Track ?? 0);
+                string flight = ac.Flight?.Trim() ?? key;
+                string altDisplay = (altitude >= 0) ? altitude.ToString("N0") : "?";
+                string tooltip = $"\r\n{flight}\r\nAlt: {altDisplay} ft  Spd: {ac.Speed ?? ac.GroundSpeed ?? 0:F0} kts";
 
-                if (airplaneMarkers.TryGetValue(key, out GMapMarker existing))
+                PointLatLng pos = new PointLatLng(ac.Latitude.Value, ac.Longitude.Value);
+
+                if (airplaneMarkers.TryGetValue(key, out AirplaneMarker existing))
                 {
-                    existing.Position = new PointLatLng(ac.Latitude.Value, ac.Longitude.Value);
+                    existing.Update(pos, track, altitude, large);
                     existing.ToolTipText = tooltip;
                 }
                 else
                 {
-                    GMarkerGoogleType markerType = largeMarkersToolStripMenuItem.Checked
-                        ? GMarkerGoogleType.green_dot
-                        : GMarkerGoogleType.green_small;
-                    GMapMarker marker = new GMarkerGoogle(new PointLatLng(ac.Latitude.Value, ac.Longitude.Value), markerType);
+                    AirplaneMarker marker = new AirplaneMarker(pos, track, altitude, large);
                     marker.ToolTipText = tooltip;
                     marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
                     marker.ToolTip.TextPadding = new Size(4, 8);
@@ -197,12 +201,35 @@ namespace HTCommander.Controls
             foreach (string hex in toRemove)
             {
                 airplaneOverlay.Markers.Remove(airplaneMarkers[hex]);
+                airplaneMarkers[hex].Dispose();
                 airplaneMarkers.Remove(hex);
             }
         }
 
+        /// <summary>
+        /// Parses an altitude value that may be an int, double, long, string number, or "ground".
+        /// Returns null if the value cannot be parsed.
+        /// </summary>
+        private static int? ParseAltitude(object altObj)
+        {
+            if (altObj == null) return null;
+            if (altObj is int i) return i;
+            if (altObj is long l) return (int)l;
+            if (altObj is double d) return (int)d;
+            if (altObj is System.Text.Json.JsonElement je)
+            {
+                if (je.ValueKind == System.Text.Json.JsonValueKind.Number && je.TryGetInt32(out int jv)) return jv;
+                if (je.ValueKind == System.Text.Json.JsonValueKind.String && je.GetString() == "ground") return 0;
+            }
+            string s = altObj.ToString();
+            if (string.Equals(s, "ground", StringComparison.OrdinalIgnoreCase)) return 0;
+            if (int.TryParse(s, out int parsed)) return parsed;
+            return null;
+        }
+
         private void ClearAirplaneMarkers()
         {
+            foreach (var marker in airplaneMarkers.Values) { marker.Dispose(); }
             airplaneOverlay.Markers.Clear();
             airplaneMarkers.Clear();
         }
@@ -704,6 +731,13 @@ namespace HTCommander.Controls
             mapMarkersOverlay.Markers.Clear();
             foreach (GMarkerGoogle marker in markersToReplace) { mapMarkersOverlay.Markers.Add(marker); }
             radioMarkers = newRadioMarkers;
+
+            // Rebuild airplane markers with new size
+            bool large = largeMarkersToolStripMenuItem.Checked;
+            foreach (var kvp in airplaneMarkers)
+            {
+                kvp.Value.Update(kvp.Value.Position, 0, -1, large);
+            }
         }
 
         private void mapControl_MouseEnter(object sender, EventArgs e)

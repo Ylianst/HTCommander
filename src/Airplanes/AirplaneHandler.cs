@@ -22,6 +22,7 @@ namespace HTCommander.Airplanes
         private Dump1090HttpClient _client;
         private CancellationTokenSource _cts;
         private string _currentUrl;
+        private bool _showOnMap;
         private bool _disposed;
 
         public AirplaneHandler()
@@ -31,7 +32,14 @@ namespace HTCommander.Airplanes
             // Subscribe to AirplaneServer setting changes on device 0
             broker.Subscribe(0, "AirplaneServer", OnAirplaneServerChanged);
 
-            // Check if a value is already present at startup
+            // Subscribe to ShowAirplanesOnMap to start/stop polling
+            broker.Subscribe(0, "ShowAirplanesOnMap", OnShowAirplanesOnMapChanged);
+
+            // Subscribe to test requests on device 1
+            broker.Subscribe(1, "TestAirplaneServer", OnTestAirplaneServer);
+
+            // Load initial state
+            _showOnMap = broker.GetValue<int>(0, "ShowAirplanesOnMap", 0) == 1;
             string server = broker.GetValue<string>(0, "AirplaneServer", "");
             if (!string.IsNullOrEmpty(server))
             {
@@ -49,12 +57,23 @@ namespace HTCommander.Airplanes
         }
 
         /// <summary>
+        /// Called when the "ShowAirplanesOnMap" setting changes on device 0.
+        /// </summary>
+        private void OnShowAirplanesOnMapChanged(int deviceId, string name, object data)
+        {
+            _showOnMap = (data is int val) && val == 1;
+            // Re-evaluate polling with the current server setting
+            string server = broker.GetValue<string>(0, "AirplaneServer", "");
+            ApplyServerSetting(server);
+        }
+
+        /// <summary>
         /// Applies a new server setting: stops any existing poll loop and, if
-        /// the value is non-empty, starts a new one with the resolved URL.
+        /// the value is non-empty and ShowAirplanesOnMap is true, starts a new one.
         /// </summary>
         private void ApplyServerSetting(string server)
         {
-            string url = ResolveUrl(server);
+            string url = _showOnMap ? ResolveUrl(server) : null;
 
             // If the resolved URL hasn't changed, nothing to do
             if (url == _currentUrl) return;
@@ -123,6 +142,36 @@ namespace HTCommander.Airplanes
             {
                 _client.Dispose();
                 _client = null;
+            }
+        }
+
+        /// <summary>
+        /// Handles a test request from SettingsForm. Tries a single fetch against the
+        /// provided server value and dispatches the result on device 1.
+        /// </summary>
+        private async void OnTestAirplaneServer(int deviceId, string name, object data)
+        {
+            string server = data as string ?? "";
+            string url = ResolveUrl(server);
+            if (string.IsNullOrEmpty(url))
+            {
+                broker.Dispatch(1, "TestAirplaneServerResult", "Failed: empty server address", store: false);
+                return;
+            }
+
+            try
+            {
+                using (var client = new Dump1090HttpClient(url))
+                {
+                    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    var response = await client.GetAircraftAsync(cts.Token);
+                    int count = response.Aircraft != null ? response.Aircraft.Length : 0;
+                    broker.Dispatch(1, "TestAirplaneServerResult", $"Success, {count} aircraft found.", store: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                broker.Dispatch(1, "TestAirplaneServerResult", $"Failed: {ex.Message}", store: false);
             }
         }
 
