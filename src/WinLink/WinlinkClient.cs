@@ -1160,10 +1160,8 @@ namespace HTCommander
                                     // Checksum failed
                                     broker.LogError("[WinlinkClient] Proposal checksum failed: expected " + checksum.ToString("X2") + ", got " + value);
                                     StateMessage("Checksum Failed");
-                                    if (transportType == TransportType.TCP)
-                                    {
-                                        DisconnectTcp();
-                                    }
+                                    if (transportType == TransportType.TCP) { DisconnectTcp(); }
+                                    else if (transportType == TransportType.X25) { DisconnectX25(); }
                                 }
                             }
                         }
@@ -1172,10 +1170,8 @@ namespace HTCommander
                     {   // Winlink Session Close
                         broker.LogInfo("[WinlinkClient] Received FQ, remote closing session");
                         UpdateEmails();
-                        if (transportType == TransportType.TCP)
-                        {
-                            DisconnectTcp();
-                        }
+                        if (transportType == TransportType.TCP) { DisconnectTcp(); }
+                        else if (transportType == TransportType.X25) { DisconnectX25(); }
                     }
                 }
             }

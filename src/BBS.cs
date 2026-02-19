@@ -262,15 +262,75 @@ namespace HTCommander
 
         private bool ExtractMail(AX25Session session, MemoryStream blocks)
         {
-            if (!Enabled) return false;
-            // TODO: Implement mail extraction when BBS is fully enabled
-            return false;
-        }
+            if (session.sessionState.ContainsKey("wlMailProp") == false) return false;
+            List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
+            if ((proposals == null) || (blocks == null)) return false;
+            if ((proposals.Count == 0) || (blocks.Length == 0)) return true;
 
+            // Decode the proposal
+            string[] proposalSplit = proposals[0].Split(' ');
+            if (proposalSplit.Length < 4) return true; // Invalid proposal format
+            string MID = proposalSplit[1];
+            int mFullLen, mCompLen;
+            int.TryParse(proposalSplit[2], out mFullLen);
+            int.TryParse(proposalSplit[3], out mCompLen);
+
+            // See what we got
+            bool fail;
+            int dataConsumed = 0;
+            WinLinkMail mail = WinLinkMail.DecodeBlocksToEmail(blocks.ToArray(), out fail, out dataConsumed);
+            if (fail)
+            {
+                broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Failed to decode mail." });
+                broker.LogError($"[BBS/{deviceId}] Failed to decode mail {MID}");
+                return true;
+            }
+            if (mail == null) return false;
+            if (dataConsumed > 0)
+            {
+                if (dataConsumed >= blocks.Length)
+                {
+                    blocks.SetLength(0);
+                }
+                else
+                {
+                    byte[] newBlocks = new byte[blocks.Length - dataConsumed];
+                    Array.Copy(blocks.ToArray(), dataConsumed, newBlocks, 0, newBlocks.Length);
+                    blocks.SetLength(0);
+                    blocks.Write(newBlocks, 0, newBlocks.Length);
+                }
+            }
+            proposals.RemoveAt(0);
+
+            // Check if the mail is for us
+            string callsign = broker.GetValue<string>(0, "CallSign", "");
+            bool others = false;
+            bool isForUs = WinLinkMail.IsMailForStation(callsign, mail.To, mail.Cc, out others);
+            
+            // Set mailbox based on whether mail is for us
+            if (isForUs)
+            {
+                mail.Mailbox = "Inbox";
+            }
+            else
+            {
+                mail.Mailbox = "Outbox"; // Keep for forwarding to others
+            }
+
+            // TODO: If others is true, we may need to keep a copy for others to get.
+
+            // Add the received mail to the store via broker
+            broker.Dispatch(0, "MailAdd", mail, store: false);
+            broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Got mail for " + mail.To + "." });
+            broker.LogInfo($"[BBS/{deviceId}] Received mail {mail.MID} for {mail.To}");
+
+            return (proposals.Count == 0);
+        }
         private bool WeHaveEmail(string mid)
         {
-            // TODO: Check mail store via broker when implemented
-            return false;
+            // Check if mail exists using MailStore via DataBroker handler
+            MailStore mailStore = DataBroker.GetDataHandler<MailStore>("MailStore");
+            return mailStore?.MailExists(mid) ?? false;
         }
 
         public void ProcessStream(AX25Session session, byte[] data)
@@ -293,8 +353,9 @@ namespace HTCommander
             string dataStr = UTF8Encoding.UTF8.GetString(data);
             string[] dataStrs = dataStr.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
             StringBuilder sb = new StringBuilder();
-            foreach (string str in dataStrs)
+            for (int lineIndex = 0; lineIndex < dataStrs.Length; lineIndex++)
             {
+                string str = dataStrs[lineIndex];
                 if (str.Length == 0) continue;
                 broker.Dispatch(0, "BbsTraffic", new { DeviceId = deviceId, Callsign = session.Addresses[0].ToString(), Outgoing = false, Message = str.Trim() });
 
@@ -302,7 +363,21 @@ namespace HTCommander
                 if ((!session.sessionState.ContainsKey("mode")) && (str.Length > 6) && (str.IndexOf("-") > 0) && str.StartsWith("[") && str.EndsWith("$]"))
                 {
                     session.sessionState["mode"] = "mail";
-                    ProcessMailStream(session, data);
+                    // Process remaining lines in this packet as mail stream
+                    if (lineIndex + 1 < dataStrs.Length)
+                    {
+                        // Build remaining data from unprocessed lines
+                        StringBuilder remainingData = new StringBuilder();
+                        for (int j = lineIndex + 1; j < dataStrs.Length; j++)
+                        {
+                            if (remainingData.Length > 0) remainingData.Append("\r");
+                            remainingData.Append(dataStrs[j]);
+                        }
+                        if (remainingData.Length > 0)
+                        {
+                            ProcessMailStream(session, UTF8Encoding.UTF8.GetBytes(remainingData.ToString()));
+                        }
+                    }
                     return;
                 }
 
@@ -373,7 +448,183 @@ namespace HTCommander
         public void ProcessMailStream(AX25Session session, byte[] data)
         {
             if (!Enabled) return;
-            // TODO: Implement mail stream processing when BBS is fully enabled
+
+            // This is embedded mail sent in compressed format
+            if (session.sessionState.ContainsKey("wlMailBinary"))
+            {
+                MemoryStream blocks = (MemoryStream)session.sessionState["wlMailBinary"];
+                blocks.Write(data, 0, data.Length);
+                broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Receiving mail, " + blocks.Length + ((blocks.Length < 2) ? " byte" : " bytes") });
+                if (ExtractMail(session, blocks) == true)
+                {
+                    // We are done with the mail reception
+                    session.sessionState.Remove("wlMailBinary");
+                    session.sessionState.Remove("wlMailBlocks");
+                    session.sessionState.Remove("wlMailProp");
+                    SendProposals(session, false);
+                }
+                return;
+            }
+
+            string dataStr = UTF8Encoding.UTF8.GetString(data);
+            string[] dataStrs = dataStr.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
+            foreach (string str in dataStrs)
+            {
+                if (str.Length == 0) continue;
+                broker.Dispatch(0, "BbsTraffic", new { DeviceId = deviceId, Callsign = session.Addresses[0].ToString(), Outgoing = false, Message = str.Trim() });
+                string key = str.ToUpper(), value = "";
+                int i = str.IndexOf(' ');
+                if (i > 0) { key = str.Substring(0, i).ToUpper(); value = str.Substring(i + 1); }
+
+                string winlinkPassword = broker.GetValue<string>(0, "WinlinkPassword", "");
+
+                if ((key == ";PR:") && (!string.IsNullOrEmpty(winlinkPassword)))
+                {   // Winlink Authentication Response
+                    if (WinlinkSecurity.SecureLoginResponse((string)(session.sessionState["wlChallenge"]), winlinkPassword) == value)
+                    {
+                        session.sessionState["wlAuth"] = "OK";
+                        broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Authentication Success" });
+                        broker.LogInfo($"[BBS/{deviceId}] Winlink Auth Success");
+                    }
+                    else
+                    {
+                        broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Authentication Failed" });
+                        broker.LogInfo($"[BBS/{deviceId}] Winlink Auth Failed");
+                    }
+                }
+                else if (key == "FC")
+                {   // Winlink Mail Proposal
+                    List<string> proposals;
+                    if (session.sessionState.ContainsKey("wlMailProp")) { proposals = (List<string>)session.sessionState["wlMailProp"]; } else { proposals = new List<string>(); }
+                    proposals.Add(value);
+                    session.sessionState["wlMailProp"] = proposals;
+                }
+                else if (key == "F>")
+                {
+                    // Winlink Mail Proposals completed, we need to respond
+                    if ((session.sessionState.ContainsKey("wlMailProp")) && (!session.sessionState.ContainsKey("wlMailBinary")))
+                    {
+                        List<string> proposals = (List<string>)session.sessionState["wlMailProp"];
+                        List<string> proposals2 = new List<string>();
+                        if ((proposals != null) && (proposals.Count > 0))
+                        {
+                            // Compute the proposal checksum
+                            int checksum = 0;
+                            foreach (string proposal in proposals)
+                            {
+                                byte[] proposalBin = ASCIIEncoding.ASCII.GetBytes("FC " + proposal + "\r");
+                                for (int j = 0; j < proposalBin.Length; j++) { checksum += proposalBin[j]; }
+                            }
+                            checksum = (-checksum) & 0xFF;
+                            if (checksum.ToString("X2") == value)
+                            {
+                                // Build a response
+                                string response = "";
+                                int acceptedProposalCount = 0;
+                                foreach (string proposal in proposals)
+                                {
+                                    string[] proposalSplit = proposal.Split(' ');
+                                    if ((proposalSplit.Length >= 5) && (proposalSplit[0] == "EM") && (proposalSplit[1].Length == 12))
+                                    {
+                                        int mFullLen, mCompLen, mUnknown;
+                                        if (
+                                            int.TryParse(proposalSplit[2], out mFullLen) &&
+                                            int.TryParse(proposalSplit[3], out mCompLen) &&
+                                            int.TryParse(proposalSplit[4], out mUnknown)
+                                        )
+                                        {
+                                            // Check if we already have this email
+                                            if (WeHaveEmail(proposalSplit[1]))
+                                            {
+                                                response += "N";
+                                            }
+                                            else
+                                            {
+                                                response += "Y";
+                                                proposals2.Add(proposal);
+                                                acceptedProposalCount++;
+                                            }
+                                        }
+                                        else { response += "H"; }
+                                    }
+                                    else { response += "H"; }
+                                }
+                                SessionSend(session, "FS " + response + "\r");
+                                if (acceptedProposalCount > 0)
+                                {
+                                    session.sessionState["wlMailBinary"] = new MemoryStream();
+                                    session.sessionState["wlMailProp"] = proposals2;
+                                }
+                            }
+                            else
+                            {
+                                // Checksum failed
+                                broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Checksum Failed" });
+                                session.Disconnect();
+                            }
+                        }
+                    }
+                }
+                else if (key == "FF")
+                {   // Winlink send messages back to connected station
+                    UpdateEmails(session);
+                    SendProposals(session, true);
+                }
+                else if (key == "FQ")
+                {   // Winlink Session Close
+                    session.Disconnect();
+                }
+                else if (key == "FS")
+                {   // Winlink Send Mails
+                    if (session.sessionState.ContainsKey("OutMails") && session.sessionState.ContainsKey("OutMailBlocks"))
+                    {
+                        List<WinLinkMail> proposedMails = (List<WinLinkMail>)session.sessionState["OutMails"];
+                        List<List<Byte[]>> proposedMailsBinary = (List<List<Byte[]>>)session.sessionState["OutMailBlocks"];
+                        session.sessionState["MailProposals"] = value;
+
+                        // Look at proposal responses
+                        int sentMails = 0;
+                        string[] proposalResponses = ParseProposalResponses(value);
+                        if (proposalResponses.Length == proposedMails.Count)
+                        {
+                            int totalSize = 0;
+                            for (int j = 0; j < proposalResponses.Length; j++)
+                            {
+                                if (proposalResponses[j] == "Y")
+                                {
+                                    sentMails++;
+                                    foreach (byte[] block in proposedMailsBinary[j]) { session.Send(block); totalSize += block.Length; }
+                                }
+                            }
+                            if (sentMails == 1) { broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Sending mail, " + totalSize + " bytes..." }); }
+                            else if (sentMails > 1) { broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Sending " + sentMails + " mails, " + totalSize + " bytes..." }); }
+                            else
+                            {
+                                // Winlink Session Close
+                                UpdateEmails(session);
+                                broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "No emails to transfer." });
+                                SessionSend(session, "FQ");
+                            }
+                        }
+                        else
+                        {
+                            // Winlink Session Close
+                            broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Incorrect proposal response." });
+                            SessionSend(session, "FQ");
+                        }
+                    }
+                    else
+                    {
+                        // Winlink Session Close
+                        broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Unexpected proposal response." });
+                        SessionSend(session, "FQ");
+                    }
+                }
+                else if (key == "ECHO")
+                {   // Test Echo command
+                    SessionSend(session, value + "\r");
+                }
+            }
         }
 
         private void SendProposals(AX25Session session, bool lastExchange)
@@ -390,13 +641,13 @@ namespace HTCommander
             if (mailSendCount > 0)
             {
                 checksum = (-checksum) & 0xFF;
-                sb.Append("F> " + checksum.ToString("X2"));
+                sb.Append("F> " + checksum.ToString("X2") + "\r");
                 session.sessionState["OutMails"] = proposedMails;
                 session.sessionState["OutMailBlocks"] = proposedMailsBinary;
             }
             else
             {
-                if (lastExchange) { sb.Append("FQ"); } else { sb.Append("FF"); }
+                if (lastExchange) { sb.Append("FQ\r"); } else { sb.Append("FF\r"); }
             }
             SessionSend(session, sb.ToString());
         }
@@ -429,7 +680,7 @@ namespace HTCommander
         public void ProcessFrame(TncDataFragment frame, AX25Packet p)
         {
             if (!Enabled) return;
-            
+
             // The AX25Session will handle the packet through its subscription to UniqueDataFrame.
             // This method is for any additional BBS-specific frame processing.
             broker.LogInfo($"[BBS/{deviceId}] Processing frame from {p.addresses[1]?.ToString() ?? "unknown"}");
