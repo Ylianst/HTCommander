@@ -263,9 +263,19 @@ namespace HTCommander
             switch (state)
             {
                 case AX25Session.ConnectionState.CONNECTED:
+                    // Set the remote address from the session's addresses
+                    if (sender.Addresses != null && sender.Addresses.Count > 0)
+                    {
+                        remoteAddress = sender.Addresses[0].ToString();
+                    }
                     SetConnectionState(ConnectionState.CONNECTED);
                     break;
                 case AX25Session.ConnectionState.CONNECTING:
+                    // Set the remote address early so it shows during connecting
+                    if (sender.Addresses != null && sender.Addresses.Count > 0)
+                    {
+                        remoteAddress = sender.Addresses[0].ToString();
+                    }
                     SetConnectionState(ConnectionState.CONNECTING);
                     break;
                 case AX25Session.ConnectionState.DISCONNECTED:

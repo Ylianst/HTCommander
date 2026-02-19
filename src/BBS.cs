@@ -631,22 +631,60 @@ namespace HTCommander
         {
             if (!Enabled) return;
 
+            // Send proposals with checksum
             StringBuilder sb = new StringBuilder();
             List<WinLinkMail> proposedMails = new List<WinLinkMail>();
             List<List<Byte[]>> proposedMailsBinary = new List<List<Byte[]>>();
             int checksum = 0, mailSendCount = 0;
 
-            // TODO: Implement mail proposal sending via broker when enabled
+            // Get the connected station's callsign (index 0 is the remote station)
+            string connectedCallsign = "";
+            if (session.Addresses != null && session.Addresses.Count > 0)
+            {
+                connectedCallsign = session.Addresses[0].address;
+            }
+
+            // Get mails from MailStore via DataBroker handler
+            MailStore mailStore = DataBroker.GetDataHandler<MailStore>("MailStore");
+            List<WinLinkMail> mails = mailStore?.GetAllMails() ?? new List<WinLinkMail>();
+
+            foreach (WinLinkMail mail in mails)
+            {
+                // Only send mails from Outbox with valid MID
+                if ((mail.Mailbox != "Outbox") || string.IsNullOrEmpty(mail.MID) || (mail.MID.Length != 12)) continue;
+
+                // See if the mail in the outbox is for the connected station (case insensitive)
+                bool others = false;
+                bool isForStation = WinLinkMail.IsMailForStation(connectedCallsign, mail.To, mail.Cc, out others);
+                if (isForStation == false) continue;
+
+                int uncompressedSize, compressedSize;
+                List<Byte[]> blocks = WinLinkMail.EncodeMailToBlocks(mail, out uncompressedSize, out compressedSize);
+                if (blocks != null)
+                {
+                    proposedMails.Add(mail);
+                    proposedMailsBinary.Add(blocks);
+                    string proposal = "FC EM " + mail.MID + " " + uncompressedSize + " " + compressedSize + " 0\r";
+                    sb.Append(proposal);
+                    byte[] proposalBin = ASCIIEncoding.ASCII.GetBytes(proposal);
+                    for (int i = 0; i < proposalBin.Length; i++) { checksum += proposalBin[i]; }
+                    mailSendCount++;
+                    broker.LogInfo($"[BBS/{deviceId}] Proposing mail {mail.MID} for {mail.To} to {connectedCallsign}");
+                }
+            }
 
             if (mailSendCount > 0)
             {
+                // Send proposal checksum
                 checksum = (-checksum) & 0xFF;
                 sb.Append("F> " + checksum.ToString("X2") + "\r");
                 session.sessionState["OutMails"] = proposedMails;
                 session.sessionState["OutMailBlocks"] = proposedMailsBinary;
+                broker.LogInfo($"[BBS/{deviceId}] Proposing {mailSendCount} mail(s) to {connectedCallsign}, checksum: {checksum:X2}");
             }
             else
             {
+                // No mail proposals sent, close or continue
                 if (lastExchange) { sb.Append("FQ\r"); } else { sb.Append("FF\r"); }
             }
             SessionSend(session, sb.ToString());
