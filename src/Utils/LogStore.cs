@@ -91,8 +91,8 @@ namespace HTCommander
         {
             _broker = new DataBrokerClient();
 
-            // Subscribe to LogInfo and LogError events on device 0
-            _broker.Subscribe(0, new[] { "LogInfo", "LogError" }, OnLogMessage);
+            // Subscribe to LogInfo and LogError events on device 1 (where LogInfo/LogError are dispatched)
+            _broker.Subscribe(1, new[] { "LogInfo", "LogError" }, OnLogMessage);
 
             // Subscribe to requests for the log list on device 0
             _broker.Subscribe(0, "RequestLogList", OnRequestLogList);
