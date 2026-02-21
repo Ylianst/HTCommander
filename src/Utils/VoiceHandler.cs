@@ -143,6 +143,10 @@ namespace HTCommander
         private readonly AutoResetEvent _recordingDataAvailable = new AutoResetEvent(false);
         private volatile bool _recordingWriterRunning = false;
 
+        // Periodic cleanup timer for orphaned recording and SSTV files
+        private System.Threading.Timer _cleanupTimer = null;
+        private const int CleanupIntervalMs = 60 * 60 * 1000; // 1 hour
+
         /// <summary>
         /// Initializes the VoiceHandler and subscribes to Data Broker events.
         /// </summary>
@@ -249,6 +253,10 @@ namespace HTCommander
 
             // Dispatch initial empty history
             DispatchDecodedTextHistory();
+
+            // Run initial orphaned file cleanup and schedule periodic cleanup every hour
+            CleanupOrphanedFiles();
+            _cleanupTimer = new System.Threading.Timer(_ => CleanupOrphanedFiles(), null, CleanupIntervalMs, CleanupIntervalMs);
 
             broker.LogInfo("[VoiceHandler] Voice Handler initialized");
         }
@@ -2125,6 +2133,79 @@ namespace HTCommander
         }
 
         /// <summary>
+        /// Deletes recording and SSTV image files that are not referenced by any history entry.
+        /// This prevents orphaned files from accumulating on disk when history entries are trimmed.
+        /// Called at startup and periodically (every hour).
+        /// </summary>
+        private void CleanupOrphanedFiles()
+        {
+            try
+            {
+                // Collect all filenames referenced by history entries
+                HashSet<string> referencedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                lock (_historyLock)
+                {
+                    foreach (var entry in _decodedTextHistory)
+                    {
+                        if (!string.IsNullOrEmpty(entry.Filename))
+                        {
+                            referencedFiles.Add(entry.Filename);
+                        }
+                    }
+
+                    // Also include the current in-progress entry
+                    if (_currentEntry != null && !string.IsNullOrEmpty(_currentEntry.Filename))
+                    {
+                        referencedFiles.Add(_currentEntry.Filename);
+                    }
+
+                    // Also include the current SSTV entry
+                    if (_currentSstvEntry != null && !string.IsNullOrEmpty(_currentSstvEntry.Filename))
+                    {
+                        referencedFiles.Add(_currentSstvEntry.Filename);
+                    }
+                }
+
+                int deletedCount = 0;
+
+                // Clean up orphaned recording files
+                if (Directory.Exists(_recordingsPath))
+                {
+                    foreach (string filePath in Directory.GetFiles(_recordingsPath, "*.wav"))
+                    {
+                        string fileName = Path.GetFileName(filePath);
+                        if (!referencedFiles.Contains(fileName))
+                        {
+                            try { File.Delete(filePath); deletedCount++; } catch (Exception) { }
+                        }
+                    }
+                }
+
+                // Clean up orphaned SSTV image files
+                if (Directory.Exists(_sstvImagesPath))
+                {
+                    foreach (string filePath in Directory.GetFiles(_sstvImagesPath, "*.png"))
+                    {
+                        string fileName = Path.GetFileName(filePath);
+                        if (!referencedFiles.Contains(fileName))
+                        {
+                            try { File.Delete(filePath); deletedCount++; } catch (Exception) { }
+                        }
+                    }
+                }
+
+                if (deletedCount > 0)
+                {
+                    broker?.LogInfo($"[VoiceHandler] Cleaned up {deletedCount} orphaned file(s)");
+                }
+            }
+            catch (Exception)
+            {
+                // Ignore cleanup errors - non-critical operation
+            }
+        }
+
+        /// <summary>
         /// Loads the voice text history from the JSON file.
         /// </summary>
         private void LoadVoiceTextHistory()
@@ -2333,6 +2414,13 @@ namespace HTCommander
 
                     // Clean up SSTV monitor
                     CleanupSstvMonitor();
+
+                    // Dispose the cleanup timer
+                    if (_cleanupTimer != null)
+                    {
+                        _cleanupTimer.Dispose();
+                        _cleanupTimer = null;
+                    }
 
                     // Clean up text-to-speech resources
                     lock (_ttsLock)
