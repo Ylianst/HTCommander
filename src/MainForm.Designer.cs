@@ -72,12 +72,12 @@
             checkForUpdatesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             aboutToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             mainTabControl = new System.Windows.Forms.TabControl();
+            voiceTabPage = new System.Windows.Forms.TabPage();
+            voiceTabUserControl = new HTCommander.Controls.VoiceTabUserControl();
             aprsTabPage = new System.Windows.Forms.TabPage();
             aprsTabUserControl = new HTCommander.Controls.AprsTabUserControl();
             mapTabPage = new System.Windows.Forms.TabPage();
             mapTabUserControl = new HTCommander.Controls.MapTabUserControl();
-            voiceTabPage = new System.Windows.Forms.TabPage();
-            voiceTabUserControl = new HTCommander.Controls.VoiceTabUserControl();
             mailTabPage = new System.Windows.Forms.TabPage();
             mailTabUserControl = new HTCommander.Controls.MailTabUserControl();
             terminalTabPage = new System.Windows.Forms.TabPage();
@@ -101,9 +101,9 @@
             mainStatusStrip.SuspendLayout();
             mainMenuStrip.SuspendLayout();
             mainTabControl.SuspendLayout();
+            voiceTabPage.SuspendLayout();
             aprsTabPage.SuspendLayout();
             mapTabPage.SuspendLayout();
-            voiceTabPage.SuspendLayout();
             mailTabPage.SuspendLayout();
             terminalTabPage.SuspendLayout();
             addressesTabPage.SuspendLayout();
@@ -273,28 +273,28 @@
             // audioEnabledToolStripMenuItem
             // 
             audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
-            audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
             audioEnabledToolStripMenuItem.Click += audioEnabledToolStripMenuItem_Click;
             // 
             // volumeToolStripMenuItem
             // 
             volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            volumeToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            volumeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             volumeToolStripMenuItem.Text = "Audio &Controls...";
             volumeToolStripMenuItem.Click += volumeToolStripMenuItem_Click;
             // 
             // audioClipsToolStripMenuItem
             // 
             audioClipsToolStripMenuItem.Name = "audioClipsToolStripMenuItem";
-            audioClipsToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            audioClipsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             audioClipsToolStripMenuItem.Text = "Audio C&lips...";
             audioClipsToolStripMenuItem.Click += audioClipsToolStripMenuItem_Click;
             // 
             // spectrogramToolStripMenuItem
             // 
             spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";
-            spectrogramToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            spectrogramToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             spectrogramToolStripMenuItem.Text = "Spectrogram...";
             spectrogramToolStripMenuItem.Click += spectrogramToolStripMenuItem_Click;
             // 
@@ -302,7 +302,7 @@
             // 
             softwareModemToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { disabledToolStripMenuItem, aFK1200ToolStripMenuItem, pSK2400ToolStripMenuItem, pSK4800ToolStripMenuItem, g9600ToolStripMenuItem });
             softwareModemToolStripMenuItem.Name = "softwareModemToolStripMenuItem";
-            softwareModemToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
+            softwareModemToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             softwareModemToolStripMenuItem.Text = "Software &Modem";
             softwareModemToolStripMenuItem.DropDownOpening += softwareModemToolStripMenuItem_DropDownOpening;
             // 
@@ -311,36 +311,39 @@
             disabledToolStripMenuItem.Checked = true;
             disabledToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             disabledToolStripMenuItem.Name = "disabledToolStripMenuItem";
-            disabledToolStripMenuItem.Size = new System.Drawing.Size(176, 26);
+            disabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             disabledToolStripMenuItem.Text = "&Disabled";
             disabledToolStripMenuItem.Click += disabledToolStripMenuItem_Click;
             // 
             // aFK1200ToolStripMenuItem
             // 
             aFK1200ToolStripMenuItem.Name = "aFK1200ToolStripMenuItem";
-            aFK1200ToolStripMenuItem.Size = new System.Drawing.Size(176, 26);
+            aFK1200ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             aFK1200ToolStripMenuItem.Text = "AFK &1200";
             aFK1200ToolStripMenuItem.Click += aFK1200ToolStripMenuItem_Click;
             // 
             // pSK2400ToolStripMenuItem
             // 
             pSK2400ToolStripMenuItem.Name = "pSK2400ToolStripMenuItem";
-            pSK2400ToolStripMenuItem.Size = new System.Drawing.Size(176, 26);
+            pSK2400ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             pSK2400ToolStripMenuItem.Text = "PSK &2400";
+            pSK2400ToolStripMenuItem.Visible = false;
             pSK2400ToolStripMenuItem.Click += pSK2400ToolStripMenuItem_Click;
             // 
             // pSK4800ToolStripMenuItem
             // 
             pSK4800ToolStripMenuItem.Name = "pSK4800ToolStripMenuItem";
-            pSK4800ToolStripMenuItem.Size = new System.Drawing.Size(176, 26);
+            pSK4800ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             pSK4800ToolStripMenuItem.Text = "PSK &4800";
+            pSK4800ToolStripMenuItem.Visible = false;
             pSK4800ToolStripMenuItem.Click += pSK4800ToolStripMenuItem_Click;
             // 
             // g9600ToolStripMenuItem
             // 
             g9600ToolStripMenuItem.Name = "g9600ToolStripMenuItem";
-            g9600ToolStripMenuItem.Size = new System.Drawing.Size(176, 26);
+            g9600ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             g9600ToolStripMenuItem.Text = "G3RUH &9600";
+            g9600ToolStripMenuItem.Visible = false;
             g9600ToolStripMenuItem.Click += g9600ToolStripMenuItem_Click;
             // 
             // viewToolStripMenuItem
@@ -434,55 +437,12 @@
             mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             mainTabControl.ImageList = tabsImageList;
             mainTabControl.Location = new System.Drawing.Point(372, 26);
-            mainTabControl.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            mainTabControl.Margin = new System.Windows.Forms.Padding(5);
             mainTabControl.Multiline = true;
             mainTabControl.Name = "mainTabControl";
             mainTabControl.SelectedIndex = 0;
             mainTabControl.Size = new System.Drawing.Size(711, 797);
             mainTabControl.TabIndex = 3;
-            // 
-            // aprsTabPage
-            // 
-            aprsTabPage.Controls.Add(aprsTabUserControl);
-            aprsTabPage.ImageIndex = 3;
-            aprsTabPage.Location = new System.Drawing.Point(4, 4);
-            aprsTabPage.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
-            aprsTabPage.Name = "aprsTabPage";
-            aprsTabPage.Size = new System.Drawing.Size(668, 789);
-            aprsTabPage.TabIndex = 3;
-            aprsTabPage.UseVisualStyleBackColor = true;
-            // 
-            // aprsTabUserControl
-            // 
-            aprsTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            aprsTabUserControl.Location = new System.Drawing.Point(0, 0);
-            aprsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
-            aprsTabUserControl.Name = "aprsTabUserControl";
-            aprsTabUserControl.ShowDetach = true;
-            aprsTabUserControl.Size = new System.Drawing.Size(668, 789);
-            aprsTabUserControl.TabIndex = 0;
-            // 
-            // mapTabPage
-            // 
-            mapTabPage.Controls.Add(mapTabUserControl);
-            mapTabPage.ImageIndex = 1;
-            mapTabPage.Location = new System.Drawing.Point(4, 4);
-            mapTabPage.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
-            mapTabPage.Name = "mapTabPage";
-            mapTabPage.Size = new System.Drawing.Size(668, 789);
-            mapTabPage.TabIndex = 0;
-            mapTabPage.ToolTipText = "APRS";
-            mapTabPage.UseVisualStyleBackColor = true;
-            // 
-            // mapTabUserControl
-            // 
-            mapTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            mapTabUserControl.Location = new System.Drawing.Point(0, 0);
-            mapTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
-            mapTabUserControl.Name = "mapTabUserControl";
-            mapTabUserControl.ShowDetach = true;
-            mapTabUserControl.Size = new System.Drawing.Size(668, 789);
-            mapTabUserControl.TabIndex = 0;
             // 
             // voiceTabPage
             // 
@@ -505,12 +465,55 @@
             voiceTabUserControl.Size = new System.Drawing.Size(668, 789);
             voiceTabUserControl.TabIndex = 0;
             // 
+            // aprsTabPage
+            // 
+            aprsTabPage.Controls.Add(aprsTabUserControl);
+            aprsTabPage.ImageIndex = 3;
+            aprsTabPage.Location = new System.Drawing.Point(4, 4);
+            aprsTabPage.Margin = new System.Windows.Forms.Padding(5);
+            aprsTabPage.Name = "aprsTabPage";
+            aprsTabPage.Size = new System.Drawing.Size(668, 789);
+            aprsTabPage.TabIndex = 3;
+            aprsTabPage.UseVisualStyleBackColor = true;
+            // 
+            // aprsTabUserControl
+            // 
+            aprsTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            aprsTabUserControl.Location = new System.Drawing.Point(0, 0);
+            aprsTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            aprsTabUserControl.Name = "aprsTabUserControl";
+            aprsTabUserControl.ShowDetach = true;
+            aprsTabUserControl.Size = new System.Drawing.Size(668, 789);
+            aprsTabUserControl.TabIndex = 0;
+            // 
+            // mapTabPage
+            // 
+            mapTabPage.Controls.Add(mapTabUserControl);
+            mapTabPage.ImageIndex = 1;
+            mapTabPage.Location = new System.Drawing.Point(4, 4);
+            mapTabPage.Margin = new System.Windows.Forms.Padding(5);
+            mapTabPage.Name = "mapTabPage";
+            mapTabPage.Size = new System.Drawing.Size(668, 789);
+            mapTabPage.TabIndex = 0;
+            mapTabPage.ToolTipText = "APRS";
+            mapTabPage.UseVisualStyleBackColor = true;
+            // 
+            // mapTabUserControl
+            // 
+            mapTabUserControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            mapTabUserControl.Location = new System.Drawing.Point(0, 0);
+            mapTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
+            mapTabUserControl.Name = "mapTabUserControl";
+            mapTabUserControl.ShowDetach = true;
+            mapTabUserControl.Size = new System.Drawing.Size(668, 789);
+            mapTabUserControl.TabIndex = 0;
+            // 
             // mailTabPage
             // 
             mailTabPage.Controls.Add(mailTabUserControl);
             mailTabPage.ImageIndex = 5;
             mailTabPage.Location = new System.Drawing.Point(4, 4);
-            mailTabPage.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            mailTabPage.Margin = new System.Windows.Forms.Padding(5);
             mailTabPage.Name = "mailTabPage";
             mailTabPage.Size = new System.Drawing.Size(668, 789);
             mailTabPage.TabIndex = 5;
@@ -531,7 +534,7 @@
             terminalTabPage.Controls.Add(terminalTabUserControl);
             terminalTabPage.ImageKey = "terminal-32.png";
             terminalTabPage.Location = new System.Drawing.Point(4, 4);
-            terminalTabPage.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            terminalTabPage.Margin = new System.Windows.Forms.Padding(5);
             terminalTabPage.Name = "terminalTabPage";
             terminalTabPage.Size = new System.Drawing.Size(668, 789);
             terminalTabPage.TabIndex = 2;
@@ -552,7 +555,7 @@
             addressesTabPage.Controls.Add(contactsTabUserControl);
             addressesTabPage.ImageIndex = 4;
             addressesTabPage.Location = new System.Drawing.Point(4, 4);
-            addressesTabPage.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            addressesTabPage.Margin = new System.Windows.Forms.Padding(5);
             addressesTabPage.Name = "addressesTabPage";
             addressesTabPage.Size = new System.Drawing.Size(668, 789);
             addressesTabPage.TabIndex = 4;
@@ -573,7 +576,7 @@
             bbsTabPage.Controls.Add(bbsTabUserControl);
             bbsTabPage.ImageIndex = 8;
             bbsTabPage.Location = new System.Drawing.Point(4, 4);
-            bbsTabPage.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            bbsTabPage.Margin = new System.Windows.Forms.Padding(5);
             bbsTabPage.Name = "bbsTabPage";
             bbsTabPage.Size = new System.Drawing.Size(668, 789);
             bbsTabPage.TabIndex = 7;
@@ -615,7 +618,7 @@
             packetsTabPage.Controls.Add(packetCaptureTabUserControl);
             packetsTabPage.ImageIndex = 6;
             packetsTabPage.Location = new System.Drawing.Point(4, 4);
-            packetsTabPage.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            packetsTabPage.Margin = new System.Windows.Forms.Padding(5);
             packetsTabPage.Name = "packetsTabPage";
             packetsTabPage.Size = new System.Drawing.Size(668, 789);
             packetsTabPage.TabIndex = 6;
@@ -628,7 +631,7 @@
             packetCaptureTabUserControl.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
             packetCaptureTabUserControl.Name = "packetCaptureTabUserControl";
             packetCaptureTabUserControl.ShowDetach = true;
-            packetCaptureTabUserControl.ShowTitle = true;
+            packetCaptureTabUserControl.ShowTitle = false;
             packetCaptureTabUserControl.Size = new System.Drawing.Size(668, 789);
             packetCaptureTabUserControl.TabIndex = 0;
             // 
@@ -637,7 +640,7 @@
             debugTabPage.Controls.Add(debugTabUserControl);
             debugTabPage.ImageIndex = 0;
             debugTabPage.Location = new System.Drawing.Point(4, 4);
-            debugTabPage.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            debugTabPage.Margin = new System.Windows.Forms.Padding(5);
             debugTabPage.Name = "debugTabPage";
             debugTabPage.Size = new System.Drawing.Size(668, 789);
             debugTabPage.TabIndex = 1;
@@ -694,7 +697,7 @@
             radioPanel.Controls.Add(radioPanelControl);
             radioPanel.Dock = System.Windows.Forms.DockStyle.Left;
             radioPanel.Location = new System.Drawing.Point(0, 26);
-            radioPanel.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            radioPanel.Margin = new System.Windows.Forms.Padding(5);
             radioPanel.Name = "radioPanel";
             radioPanel.Size = new System.Drawing.Size(372, 797);
             radioPanel.TabIndex = 2;
@@ -705,7 +708,7 @@
             radioPanelControl.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
             radioPanelControl.Dock = System.Windows.Forms.DockStyle.Fill;
             radioPanelControl.Location = new System.Drawing.Point(0, 0);
-            radioPanelControl.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            radioPanelControl.Margin = new System.Windows.Forms.Padding(5);
             radioPanelControl.Name = "radioPanelControl";
             radioPanelControl.Size = new System.Drawing.Size(368, 793);
             radioPanelControl.TabIndex = 0;
@@ -734,7 +737,7 @@
             Controls.Add(mainMenuStrip);
             Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             MainMenuStrip = mainMenuStrip;
-            Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
+            Margin = new System.Windows.Forms.Padding(5);
             MinimumSize = new System.Drawing.Size(1097, 811);
             Name = "MainForm";
             Text = "Handi-Talkie Commander";
@@ -744,9 +747,9 @@
             mainMenuStrip.ResumeLayout(false);
             mainMenuStrip.PerformLayout();
             mainTabControl.ResumeLayout(false);
+            voiceTabPage.ResumeLayout(false);
             aprsTabPage.ResumeLayout(false);
             mapTabPage.ResumeLayout(false);
-            voiceTabPage.ResumeLayout(false);
             mailTabPage.ResumeLayout(false);
             terminalTabPage.ResumeLayout(false);
             addressesTabPage.ResumeLayout(false);
