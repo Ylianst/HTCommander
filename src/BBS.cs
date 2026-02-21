@@ -10,6 +10,7 @@ using System.Text;
 using System.Diagnostics;
 using System.Windows.Forms;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using aprsparser;
 
 namespace HTCommander
@@ -26,6 +27,7 @@ namespace HTCommander
         private readonly int deviceId;
         private AX25Session session;
         private bool disposed = false;
+        private WinlinkGatewayRelay cmsRelay = null;
 
         /// <summary>
         /// Gets or sets whether this BBS handler is enabled. When disabled, incoming packets are ignored.
@@ -162,6 +164,9 @@ namespace HTCommander
                 {
                     broker?.LogInfo($"[BBS/{deviceId}] BBS handler disposing");
 
+                    // Cleanup CMS relay if active
+                    CleanupCmsRelay();
+
                     // Dispose the session
                     if (session != null)
                     {
@@ -237,19 +242,14 @@ namespace HTCommander
             {
                 case AX25Session.ConnectionState.CONNECTED:
                     broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Connected to " + session.Addresses[0].ToString() });
-                    session.sessionState["wlChallenge"] = WinlinkSecurity.GenerateChallenge();
 
-                    StringBuilder sb = new StringBuilder();
-                    sb.Append("Handy-Talky Commander BBS\r[M] for menu\r");
-                    sb.Append("[WL2K-5.0-B2FWIHJM$]\r");
-
-                    string winlinkPassword = broker.GetValue<string>(0, "WinlinkPassword", "");
-                    if (!string.IsNullOrEmpty(winlinkPassword)) { sb.Append(";PQ: " + session.sessionState["wlChallenge"] + "\r"); }
-                    sb.Append(">\r");
-                    SessionSend(session, sb.ToString());
+                    // Attempt to connect to the Winlink CMS gateway for relay mode
+                    string stationCallsign = session.Addresses[0]?.address ?? "";
+                    _ = Task.Run(async () => await AttemptCmsRelayConnect(session, stationCallsign));
                     break;
                 case AX25Session.ConnectionState.DISCONNECTED:
                     broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Disconnected" });
+                    CleanupCmsRelay();
                     break;
                 case AX25Session.ConnectionState.CONNECTING:
                     broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Connecting..." });
@@ -257,6 +257,177 @@ namespace HTCommander
                 case AX25Session.ConnectionState.DISCONNECTING:
                     broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Disconnecting..." });
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Attempts to connect to the Winlink CMS gateway for relay mode. If the connection
+        /// succeeds, the BBS will relay Winlink protocol traffic between the radio station
+        /// and the CMS gateway. If it fails, falls back to local P2P mode.
+        /// </summary>
+        private async Task AttemptCmsRelayConnect(AX25Session session, string stationCallsign)
+        {
+            try
+            {
+                broker.LogInfo($"[BBS/{deviceId}] Attempting CMS relay connection for {stationCallsign}");
+                broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Connecting to Winlink gateway..." });
+
+                // Create and attempt connection to CMS
+                WinlinkGatewayRelay relay = new WinlinkGatewayRelay(deviceId, broker);
+                bool connected = await relay.ConnectAsync(stationCallsign, 15000);
+
+                if (connected && relay.IsConnected)
+                {
+                    broker.LogInfo($"[BBS/{deviceId}] CMS relay connected, relay mode active");
+                    broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Winlink gateway connected (relay mode)" });
+
+                    cmsRelay = relay;
+                    session.sessionState["wlRelayMode"] = true;
+
+                    // Wire up relay events
+                    relay.LineReceived += (line) => OnCmsRelayLineReceived(session, line);
+                    relay.BinaryDataReceived += (data) => OnCmsRelayBinaryReceived(session, data);
+                    relay.Disconnected += () => OnCmsRelayDisconnected(session);
+
+                    // Build the banner to send to the radio station
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("Handy-Talky Commander BBS\r[M] for menu\r");
+
+                    // Use the CMS gateway's WL2K banner if available, otherwise our own
+                    if (!string.IsNullOrEmpty(relay.WL2KBanner))
+                    {
+                        sb.Append(relay.WL2KBanner + "\r");
+                    }
+                    else
+                    {
+                        sb.Append("[WL2K-5.0-B2FWIHJM$]\r");
+                    }
+
+                    // Use the CMS gateway's PQ challenge if available
+                    if (!string.IsNullOrEmpty(relay.PQChallenge))
+                    {
+                        sb.Append(";PQ: " + relay.PQChallenge + "\r");
+                    }
+
+                    sb.Append(">\r");
+                    SessionSend(session, sb.ToString());
+                }
+                else
+                {
+                    // CMS connection failed, fall back to local mode
+                    broker.LogInfo($"[BBS/{deviceId}] CMS relay failed, falling back to local mode");
+                    broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Winlink gateway unavailable (local mode)" });
+
+                    relay?.Dispose();
+                    SendLocalBanner(session);
+                }
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"[BBS/{deviceId}] CMS relay connect error: {ex.Message}");
+                broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Winlink gateway error (local mode)" });
+                SendLocalBanner(session);
+            }
+        }
+
+        /// <summary>
+        /// Sends the local BBS banner with a locally-generated PQ challenge (fallback mode).
+        /// </summary>
+        private void SendLocalBanner(AX25Session session)
+        {
+            session.sessionState["wlRelayMode"] = false;
+            session.sessionState["wlChallenge"] = WinlinkSecurity.GenerateChallenge();
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Handy-Talky Commander BBS\r[M] for menu\r");
+            sb.Append("[WL2K-5.0-B2FWIHJM$]\r");
+
+            string winlinkPassword = broker.GetValue<string>(0, "WinlinkPassword", "");
+            if (!string.IsNullOrEmpty(winlinkPassword)) { sb.Append(";PQ: " + session.sessionState["wlChallenge"] + "\r"); }
+            sb.Append(">\r");
+            SessionSend(session, sb.ToString());
+        }
+
+        /// <summary>
+        /// Called when the CMS relay receives a line of text from the gateway.
+        /// Forwards it to the radio station. Also monitors protocol signals
+        /// to switch between text and binary relay modes.
+        /// </summary>
+        private void OnCmsRelayLineReceived(AX25Session session, string line)
+        {
+            if (!Enabled || disposed) return;
+            if (session == null || session.CurrentState != AX25Session.ConnectionState.CONNECTED) return;
+
+            broker.LogInfo($"[BBS/{deviceId}] CMS->Radio: {line}");
+            broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Gateway->Radio: " + Encoding.UTF8.GetByteCount(line) + " bytes" });
+
+            // Monitor CMS-side protocol signals for binary mode switching
+            string key = line.ToUpper(), value = "";
+            int i = line.IndexOf(' ');
+            if (i > 0) { key = line.Substring(0, i).ToUpper(); value = line.Substring(i + 1); }
+
+            // When CMS sends FS with accepted proposals, the radio station will send binary blocks
+            if (key == "FS" && value.ToUpper().Contains("Y"))
+            {
+                session.sessionState["wlRelayBinary"] = true;
+                if (cmsRelay != null) { cmsRelay.BinaryMode = true; }
+            }
+
+            // When CMS sends FF or FQ, go back to text mode
+            if (key == "FF" || key == "FQ")
+            {
+                session.sessionState["wlRelayBinary"] = false;
+                if (cmsRelay != null) { cmsRelay.BinaryMode = false; }
+            }
+
+            SessionSend(session, line + "\r");
+        }
+
+        /// <summary>
+        /// Called when the CMS relay receives binary data from the gateway.
+        /// Forwards it to the radio station.
+        /// </summary>
+        private void OnCmsRelayBinaryReceived(AX25Session session, byte[] data)
+        {
+            if (!Enabled || disposed) return;
+            if (session == null || session.CurrentState != AX25Session.ConnectionState.CONNECTED) return;
+
+            broker.LogInfo($"[BBS/{deviceId}] CMS->Radio: {data.Length} binary bytes");
+            broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Gateway->Radio: " + data.Length + " bytes (binary)" });
+            UpdateStats(session.Addresses[0].ToString(), "Stream", 0, 1, 0, data.Length);
+            session.Send(data);
+        }
+
+        /// <summary>
+        /// Called when the CMS relay connection is lost.
+        /// </summary>
+        private void OnCmsRelayDisconnected(AX25Session session)
+        {
+            if (disposed) return;
+            broker.LogInfo($"[BBS/{deviceId}] CMS relay disconnected");
+            broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Winlink gateway disconnected" });
+
+            // If the radio session is still connected, disconnect it since the relay is gone
+            if (session != null && session.CurrentState == AX25Session.ConnectionState.CONNECTED)
+            {
+                session.Disconnect();
+            }
+        }
+
+        /// <summary>
+        /// Cleans up the CMS relay connection if active.
+        /// </summary>
+        private void CleanupCmsRelay()
+        {
+            if (cmsRelay != null)
+            {
+                try
+                {
+                    cmsRelay.Disconnect();
+                    cmsRelay.Dispose();
+                }
+                catch { }
+                cmsRelay = null;
             }
         }
 
@@ -363,21 +534,15 @@ namespace HTCommander
                 if ((!session.sessionState.ContainsKey("mode")) && (str.Length > 6) && (str.IndexOf("-") > 0) && str.StartsWith("[") && str.EndsWith("$]"))
                 {
                     session.sessionState["mode"] = "mail";
-                    // Process remaining lines in this packet as mail stream
-                    if (lineIndex + 1 < dataStrs.Length)
+                    // Build data to forward: include the WL2K banner line + remaining lines
+                    StringBuilder remainingData = new StringBuilder();
+                    remainingData.Append(str);
+                    for (int j = lineIndex + 1; j < dataStrs.Length; j++)
                     {
-                        // Build remaining data from unprocessed lines
-                        StringBuilder remainingData = new StringBuilder();
-                        for (int j = lineIndex + 1; j < dataStrs.Length; j++)
-                        {
-                            if (remainingData.Length > 0) remainingData.Append("\r");
-                            remainingData.Append(dataStrs[j]);
-                        }
-                        if (remainingData.Length > 0)
-                        {
-                            ProcessMailStream(session, UTF8Encoding.UTF8.GetBytes(remainingData.ToString()));
-                        }
+                        remainingData.Append("\r");
+                        remainingData.Append(dataStrs[j]);
                     }
+                    ProcessMailStream(session, UTF8Encoding.UTF8.GetBytes(remainingData.ToString()));
                     return;
                 }
 
@@ -448,6 +613,16 @@ namespace HTCommander
         public void ProcessMailStream(AX25Session session, byte[] data)
         {
             if (!Enabled) return;
+
+            // If in relay mode, forward all data to the CMS gateway
+            bool isRelayMode = session.sessionState.ContainsKey("wlRelayMode") && (bool)session.sessionState["wlRelayMode"];
+            if (isRelayMode && cmsRelay != null && cmsRelay.IsConnected)
+            {
+                ProcessMailStreamRelay(session, data);
+                return;
+            }
+
+            // --- Local P2P mode (fallback) ---
 
             // This is embedded mail sent in compressed format
             if (session.sessionState.ContainsKey("wlMailBinary"))
@@ -624,6 +799,72 @@ namespace HTCommander
                 {   // Test Echo command
                     SessionSend(session, value + "\r");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Process traffic from a Winlink client in relay mode.
+        /// All data is forwarded to the CMS gateway. Binary mail blocks are detected
+        /// by tracking when FS responses accept proposals (starts binary forwarding).
+        /// </summary>
+        private void ProcessMailStreamRelay(AX25Session session, byte[] data)
+        {
+            if (!Enabled) return;
+            if (cmsRelay == null || !cmsRelay.IsConnected) return;
+
+            // If we're in binary relay mode, forward raw bytes to CMS
+            if (session.sessionState.ContainsKey("wlRelayBinary") && (bool)session.sessionState["wlRelayBinary"])
+            {
+                broker.LogInfo($"[BBS/{deviceId}] Radio->CMS (binary): {data.Length} bytes");
+                broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Radio->Gateway: " + data.Length + " bytes (binary)" });
+                cmsRelay.SendBinary(data);
+                UpdateStats(session.Addresses[0].ToString(), "Stream", 1, 0, data.Length, 0);
+                return;
+            }
+
+            // Text mode: parse lines and forward to CMS
+            broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Radio->Gateway: " + data.Length + " bytes" });
+            string dataStr = UTF8Encoding.UTF8.GetString(data);
+            string[] dataStrs = dataStr.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
+            foreach (string str in dataStrs)
+            {
+                if (str.Length == 0) continue;
+                broker.Dispatch(0, "BbsTraffic", new { DeviceId = deviceId, Callsign = session.Addresses[0].ToString(), Outgoing = false, Message = str.Trim() });
+                broker.LogInfo($"[BBS/{deviceId}] Radio->CMS: {str}");
+
+                string key = str.ToUpper(), value = "";
+                int i = str.IndexOf(' ');
+                if (i > 0) { key = str.Substring(0, i).ToUpper(); value = str.Substring(i + 1); }
+
+                // Detect FS response that accepts mail proposals — next data will be binary mail blocks
+                if (key == "FS")
+                {
+                    // Check if any proposals were accepted (contains 'Y')
+                    if (value.ToUpper().Contains("Y"))
+                    {
+                        // After forwarding this FS line, switch relay to binary mode
+                        // because the radio client will send compressed mail blocks next
+                        session.sessionState["wlRelayBinary"] = true;
+                        cmsRelay.BinaryMode = true;
+                    }
+                }
+
+                // Detect FF — switch back from binary mode if needed, and switch CMS to line mode
+                if (key == "FF")
+                {
+                    session.sessionState["wlRelayBinary"] = false;
+                    cmsRelay.BinaryMode = false;
+                }
+
+                // Detect FQ — session close
+                if (key == "FQ")
+                {
+                    session.sessionState["wlRelayBinary"] = false;
+                    cmsRelay.BinaryMode = false;
+                }
+
+                // Forward the line to CMS
+                cmsRelay.SendLine(str);
             }
         }
 
