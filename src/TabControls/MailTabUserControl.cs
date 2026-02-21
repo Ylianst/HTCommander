@@ -92,6 +92,9 @@ namespace HTCommander.Controls
             }
         }
         private Point _mailMouseDownLocation;
+        private int mailSortColumn = 0;
+        private SortOrder mailSortOrder = SortOrder.Descending;
+        private readonly string[] mailColumnBaseNames = { "Time", "From", "Subject" };
         public string SelectedMailbox = "Inbox";
         public string[] MailBoxesNames = { "Inbox", "Outbox", "Draft", "Sent", "Archive", "Trash" };
         public TreeNode[] MailBoxTreeNodes = null;
@@ -411,6 +414,11 @@ namespace HTCommander.Controls
                 mailboxListView.Items.Add(l);
             }
             mailboxListView.EndUpdate();
+
+            // Apply current sort
+            mailboxListView.ListViewItemSorter = new MailListViewComparer(mailSortColumn, mailSortOrder);
+            mailboxListView.Sort();
+            UpdateMailSortGlyph();
 
             // Automatically select the first item if available
             if (mailboxListView.Items.Count > 0)
@@ -953,6 +961,79 @@ namespace HTCommander.Controls
         {
             // Dispatch WinlinkDisconnect to stop the current Winlink session
             broker.Dispatch(1, "WinlinkDisconnect", null, store: false);
+        }
+
+        private void mailboxListView_ColumnClick(object sender, ColumnClickEventArgs e)
+        {
+            if (e.Column == mailSortColumn)
+            {
+                mailSortOrder = (mailSortOrder == SortOrder.Ascending) ? SortOrder.Descending : SortOrder.Ascending;
+            }
+            else
+            {
+                mailSortColumn = e.Column;
+                mailSortOrder = SortOrder.Ascending;
+            }
+            mailboxListView.ListViewItemSorter = new MailListViewComparer(mailSortColumn, mailSortOrder);
+            mailboxListView.Sort();
+            UpdateMailSortGlyph();
+        }
+
+        private void UpdateMailSortGlyph()
+        {
+            for (int i = 0; i < mailboxListView.Columns.Count; i++)
+            {
+                if (i == mailSortColumn)
+                {
+                    string arrow = (mailSortOrder == SortOrder.Ascending) ? " \u25B2" : " \u25BC";
+                    mailboxListView.Columns[i].Text = mailColumnBaseNames[i] + arrow;
+                }
+                else
+                {
+                    mailboxListView.Columns[i].Text = mailColumnBaseNames[i];
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Custom comparer for sorting the mailbox ListView items.
+    /// </summary>
+    public class MailListViewComparer : System.Collections.IComparer
+    {
+        private readonly int columnIndex;
+        private readonly SortOrder sortOrder;
+
+        public MailListViewComparer(int column, SortOrder order)
+        {
+            columnIndex = column;
+            sortOrder = order;
+        }
+
+        public int Compare(object x, object y)
+        {
+            ListViewItem itemX = x as ListViewItem;
+            ListViewItem itemY = y as ListViewItem;
+            if (itemX == null || itemY == null) return 0;
+
+            int result;
+            if (columnIndex == 0)
+            {
+                // Sort by DateTime from the Tag
+                WinLinkMail mailX = itemX.Tag as WinLinkMail;
+                WinLinkMail mailY = itemY.Tag as WinLinkMail;
+                if (mailX != null && mailY != null)
+                    result = mailX.DateTime.CompareTo(mailY.DateTime);
+                else
+                    result = string.Compare(itemX.SubItems[0].Text, itemY.SubItems[0].Text, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                result = string.Compare(itemX.SubItems[columnIndex].Text, itemY.SubItems[columnIndex].Text, StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (sortOrder == SortOrder.Descending) result = -result;
+            return result;
         }
     }
 }

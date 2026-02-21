@@ -28,6 +28,9 @@ namespace HTCommander.Controls
             set { _preferredRadioDeviceId = value; }
         }
         private bool _showDetach = false;
+        private int contactsSortColumn = 0;
+        private SortOrder contactsSortOrder = SortOrder.Ascending;
+        private readonly string[] contactsColumnBaseNames = { "Callsign", "Name", "Description" };
 
         /// <summary>
         /// Gets or sets whether the "Detach..." menu item is visible.
@@ -93,6 +96,9 @@ namespace HTCommander.Controls
                 item.Tag = station;
                 mainAddressBookListView.Items.Add(item);
             }
+            mainAddressBookListView.ListViewItemSorter = new ContactsListViewComparer(contactsSortColumn, contactsSortOrder);
+            mainAddressBookListView.Sort();
+            UpdateContactsSortGlyph();
         }
 
         private List<StationInfoClass> GetStations()
@@ -251,6 +257,65 @@ namespace HTCommander.Controls
         {
             toolStripMenuItem10.Visible = editToolStripMenuItem.Visible = removeToolStripMenuItem.Visible = removeStationButton.Enabled = (mainAddressBookListView.SelectedItems.Count > 0);
             editButton.Enabled = (mainAddressBookListView.SelectedItems.Count == 1);
+        }
+
+        private void mainAddressBookListView_ColumnClick(object sender, ColumnClickEventArgs e)
+        {
+            if (e.Column == contactsSortColumn)
+            {
+                contactsSortOrder = (contactsSortOrder == SortOrder.Ascending) ? SortOrder.Descending : SortOrder.Ascending;
+            }
+            else
+            {
+                contactsSortColumn = e.Column;
+                contactsSortOrder = SortOrder.Ascending;
+            }
+            mainAddressBookListView.ListViewItemSorter = new ContactsListViewComparer(contactsSortColumn, contactsSortOrder);
+            mainAddressBookListView.Sort();
+            UpdateContactsSortGlyph();
+        }
+
+        private void UpdateContactsSortGlyph()
+        {
+            for (int i = 0; i < mainAddressBookListView.Columns.Count; i++)
+            {
+                if (i == contactsSortColumn)
+                {
+                    string arrow = (contactsSortOrder == SortOrder.Ascending) ? " \u25B2" : " \u25BC";
+                    mainAddressBookListView.Columns[i].Text = contactsColumnBaseNames[i] + arrow;
+                }
+                else
+                {
+                    mainAddressBookListView.Columns[i].Text = contactsColumnBaseNames[i];
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Custom comparer for sorting the contacts ListView items.
+    /// </summary>
+    public class ContactsListViewComparer : System.Collections.IComparer
+    {
+        private readonly int columnIndex;
+        private readonly SortOrder sortOrder;
+
+        public ContactsListViewComparer(int column, SortOrder order)
+        {
+            columnIndex = column;
+            sortOrder = order;
+        }
+
+        public int Compare(object x, object y)
+        {
+            ListViewItem itemX = x as ListViewItem;
+            ListViewItem itemY = y as ListViewItem;
+            if (itemX == null || itemY == null) return 0;
+
+            int result = string.Compare(itemX.SubItems[columnIndex].Text, itemY.SubItems[columnIndex].Text, StringComparison.OrdinalIgnoreCase);
+
+            if (sortOrder == SortOrder.Descending) result = -result;
+            return result;
         }
     }
 }

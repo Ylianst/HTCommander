@@ -29,6 +29,10 @@ namespace HTCommander.Controls
         /// </summary>
         private DataBrokerClient broker;
 
+        private int packetsSortColumn = 0;
+        private SortOrder packetsSortOrder = SortOrder.Descending;
+        private readonly string[] packetsColumnBaseNames = { "Time", "Channel", "Data" };
+
         #endregion
 
         #region IRadioDeviceSelector Implementation
@@ -192,9 +196,10 @@ namespace HTCommander.Controls
                 listViewItems.Add(l);
             }
 
-            // Sort by time descending (newest first)
-            listViewItems.Sort((a, b) => DateTime.Compare(((TncDataFragment)b.Tag).time, ((TncDataFragment)a.Tag).time));
             packetsListView.Items.AddRange(listViewItems.ToArray());
+            packetsListView.ListViewItemSorter = new PacketsListViewComparer(packetsSortColumn, packetsSortOrder);
+            packetsListView.Sort();
+            UpdatePacketsSortGlyph();
             packetsListView.EndUpdate();
         }
 
@@ -377,7 +382,6 @@ namespace HTCommander.Controls
             packetsListView.BeginUpdate();
             packetsListView.Items.Clear();
 
-            // Add packets in reverse order (newest first)
             List<ListViewItem> listViewItems = new List<ListViewItem>();
             foreach (TncDataFragment fragment in packets)
             {
@@ -387,9 +391,10 @@ namespace HTCommander.Controls
                 listViewItems.Add(l);
             }
 
-            // Sort by time descending (newest first)
-            listViewItems.Sort((a, b) => DateTime.Compare(((TncDataFragment)b.Tag).time, ((TncDataFragment)a.Tag).time));
             packetsListView.Items.AddRange(listViewItems.ToArray());
+            packetsListView.ListViewItemSorter = new PacketsListViewComparer(packetsSortColumn, packetsSortOrder);
+            packetsListView.Sort();
+            UpdatePacketsSortGlyph();
             packetsListView.EndUpdate();
         }
 
@@ -412,7 +417,8 @@ namespace HTCommander.Controls
             ListViewItem l = new ListViewItem(new string[] { fragment.time.ToShortTimeString(), fragment.channel_name, FragmentToShortString(fragment) });
             l.ImageIndex = fragment.incoming ? 5 : 4;
             l.Tag = fragment;
-            packetsListView.Items.Insert(0, l);
+            packetsListView.Items.Add(l);
+            packetsListView.Sort();
         }
 
         /// <summary>
@@ -743,6 +749,79 @@ namespace HTCommander.Controls
             form.Show();
         }
 
+        private void packetsListView_ColumnClick(object sender, ColumnClickEventArgs e)
+        {
+            if (e.Column == packetsSortColumn)
+            {
+                packetsSortOrder = (packetsSortOrder == SortOrder.Ascending) ? SortOrder.Descending : SortOrder.Ascending;
+            }
+            else
+            {
+                packetsSortColumn = e.Column;
+                packetsSortOrder = SortOrder.Ascending;
+            }
+            packetsListView.ListViewItemSorter = new PacketsListViewComparer(packetsSortColumn, packetsSortOrder);
+            packetsListView.Sort();
+            UpdatePacketsSortGlyph();
+        }
+
+        private void UpdatePacketsSortGlyph()
+        {
+            for (int i = 0; i < packetsListView.Columns.Count; i++)
+            {
+                if (i == packetsSortColumn)
+                {
+                    string arrow = (packetsSortOrder == SortOrder.Ascending) ? " \u25B2" : " \u25BC";
+                    packetsListView.Columns[i].Text = packetsColumnBaseNames[i] + arrow;
+                }
+                else
+                {
+                    packetsListView.Columns[i].Text = packetsColumnBaseNames[i];
+                }
+            }
+        }
+
         #endregion
+    }
+
+    /// <summary>
+    /// Custom comparer for sorting the packets ListView items.
+    /// </summary>
+    public class PacketsListViewComparer : System.Collections.IComparer
+    {
+        private readonly int columnIndex;
+        private readonly SortOrder sortOrder;
+
+        public PacketsListViewComparer(int column, SortOrder order)
+        {
+            columnIndex = column;
+            sortOrder = order;
+        }
+
+        public int Compare(object x, object y)
+        {
+            ListViewItem itemX = x as ListViewItem;
+            ListViewItem itemY = y as ListViewItem;
+            if (itemX == null || itemY == null) return 0;
+
+            int result;
+            if (columnIndex == 0)
+            {
+                // Sort by time from the Tag
+                TncDataFragment fragX = itemX.Tag as TncDataFragment;
+                TncDataFragment fragY = itemY.Tag as TncDataFragment;
+                if (fragX != null && fragY != null)
+                    result = fragX.time.CompareTo(fragY.time);
+                else
+                    result = string.Compare(itemX.SubItems[0].Text, itemY.SubItems[0].Text, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                result = string.Compare(itemX.SubItems[columnIndex].Text, itemY.SubItems[columnIndex].Text, StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (sortOrder == SortOrder.Descending) result = -result;
+            return result;
+        }
     }
 }

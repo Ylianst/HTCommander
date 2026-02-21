@@ -43,6 +43,7 @@ namespace HTCommander.Controls
             torrentSaveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItem20 = new System.Windows.Forms.ToolStripSeparator();
             torrentDeleteToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            imageList = new System.Windows.Forms.ImageList(components);
             torrentTabControl = new System.Windows.Forms.TabControl();
             tabPage1 = new System.Windows.Forms.TabPage();
             torrentDetailsListView = new System.Windows.Forms.ListView();
@@ -60,7 +61,6 @@ namespace HTCommander.Controls
             torrentConnectButton = new System.Windows.Forms.Button();
             torrentTitleLabel = new System.Windows.Forms.Label();
             torrentSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
-            imageList = new System.Windows.Forms.ImageList(components);
             ((System.ComponentModel.ISupportInitialize)torrentSplitContainer).BeginInit();
             torrentSplitContainer.Panel1.SuspendLayout();
             torrentSplitContainer.Panel2.SuspendLayout();
@@ -89,8 +89,8 @@ namespace HTCommander.Controls
             // torrentSplitContainer.Panel2
             // 
             torrentSplitContainer.Panel2.Controls.Add(torrentTabControl);
-            torrentSplitContainer.Size = new System.Drawing.Size(669, 733);
-            torrentSplitContainer.SplitterDistance = 308;
+            torrentSplitContainer.Size = new System.Drawing.Size(669, 444);
+            torrentSplitContainer.SplitterDistance = 186;
             torrentSplitContainer.SplitterWidth = 5;
             torrentSplitContainer.TabIndex = 7;
             // 
@@ -104,11 +104,12 @@ namespace HTCommander.Controls
             torrentListView.Location = new System.Drawing.Point(0, 0);
             torrentListView.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             torrentListView.Name = "torrentListView";
-            torrentListView.Size = new System.Drawing.Size(669, 308);
+            torrentListView.Size = new System.Drawing.Size(669, 186);
             torrentListView.SmallImageList = imageList;
             torrentListView.TabIndex = 0;
             torrentListView.UseCompatibleStateImageBehavior = false;
             torrentListView.View = System.Windows.Forms.View.Details;
+            torrentListView.ColumnClick += torrentListView_ColumnClick;
             torrentListView.SelectedIndexChanged += torrentListView_SelectedIndexChanged;
             torrentListView.DragDrop += torrentListView_DragDrop;
             torrentListView.DragEnter += torrentListView_DragEnter;
@@ -183,6 +184,23 @@ namespace HTCommander.Controls
             torrentDeleteToolStripMenuItem.Text = "&Delete";
             torrentDeleteToolStripMenuItem.Click += torrentDeleteToolStripMenuItem_Click;
             // 
+            // imageList
+            // 
+            imageList.ColorDepth = System.Windows.Forms.ColorDepth.Depth16Bit;
+            imageList.ImageStream = (System.Windows.Forms.ImageListStreamer)resources.GetObject("imageList.ImageStream");
+            imageList.TransparentColor = System.Drawing.Color.Transparent;
+            imageList.Images.SetKeyName(0, "GreenCheck.png");
+            imageList.Images.SetKeyName(1, "RedCheck.png");
+            imageList.Images.SetKeyName(2, "info.ico");
+            imageList.Images.SetKeyName(3, "LocationPin2.png");
+            imageList.Images.SetKeyName(4, "left-arrow.png");
+            imageList.Images.SetKeyName(5, "right-arrow.png");
+            imageList.Images.SetKeyName(6, "terminal-32.png");
+            imageList.Images.SetKeyName(7, "talking.ico");
+            imageList.Images.SetKeyName(8, "mail-200.png");
+            imageList.Images.SetKeyName(9, "file-20.png");
+            imageList.Images.SetKeyName(10, "file-empty-20.png");
+            // 
             // torrentTabControl
             // 
             torrentTabControl.Controls.Add(tabPage1);
@@ -192,7 +210,7 @@ namespace HTCommander.Controls
             torrentTabControl.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             torrentTabControl.Name = "torrentTabControl";
             torrentTabControl.SelectedIndex = 0;
-            torrentTabControl.Size = new System.Drawing.Size(669, 420);
+            torrentTabControl.Size = new System.Drawing.Size(669, 253);
             torrentTabControl.TabIndex = 0;
             // 
             // tabPage1
@@ -202,7 +220,7 @@ namespace HTCommander.Controls
             tabPage1.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             tabPage1.Name = "tabPage1";
             tabPage1.Padding = new System.Windows.Forms.Padding(3, 1, 3, 1);
-            tabPage1.Size = new System.Drawing.Size(661, 387);
+            tabPage1.Size = new System.Drawing.Size(661, 220);
             tabPage1.TabIndex = 0;
             tabPage1.Text = "Details";
             tabPage1.UseVisualStyleBackColor = true;
@@ -215,7 +233,7 @@ namespace HTCommander.Controls
             torrentDetailsListView.Location = new System.Drawing.Point(3, 1);
             torrentDetailsListView.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             torrentDetailsListView.Name = "torrentDetailsListView";
-            torrentDetailsListView.Size = new System.Drawing.Size(655, 385);
+            torrentDetailsListView.Size = new System.Drawing.Size(655, 218);
             torrentDetailsListView.TabIndex = 0;
             torrentDetailsListView.UseCompatibleStateImageBehavior = false;
             torrentDetailsListView.View = System.Windows.Forms.View.Details;
@@ -351,23 +369,6 @@ namespace HTCommander.Controls
             // 
             torrentSaveFileDialog.Title = "Save Torrent File";
             // 
-            // imageList
-            // 
-            imageList.ColorDepth = System.Windows.Forms.ColorDepth.Depth16Bit;
-            imageList.ImageStream = (System.Windows.Forms.ImageListStreamer)resources.GetObject("imageList.ImageStream");
-            imageList.TransparentColor = System.Drawing.Color.Transparent;
-            imageList.Images.SetKeyName(0, "GreenCheck.png");
-            imageList.Images.SetKeyName(1, "RedCheck.png");
-            imageList.Images.SetKeyName(2, "info.ico");
-            imageList.Images.SetKeyName(3, "LocationPin2.png");
-            imageList.Images.SetKeyName(4, "left-arrow.png");
-            imageList.Images.SetKeyName(5, "right-arrow.png");
-            imageList.Images.SetKeyName(6, "terminal-32.png");
-            imageList.Images.SetKeyName(7, "talking.ico");
-            imageList.Images.SetKeyName(8, "mail-200.png");
-            imageList.Images.SetKeyName(9, "file-20.png");
-            imageList.Images.SetKeyName(10, "file-empty-20.png");
-            // 
             // TorrentTabUserControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
@@ -376,7 +377,7 @@ namespace HTCommander.Controls
             Controls.Add(torrentControlsPanel);
             Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             Name = "TorrentTabUserControl";
-            Size = new System.Drawing.Size(669, 779);
+            Size = new System.Drawing.Size(669, 490);
             torrentSplitContainer.Panel1.ResumeLayout(false);
             torrentSplitContainer.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)torrentSplitContainer).EndInit();

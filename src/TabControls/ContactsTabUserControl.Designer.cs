@@ -178,16 +178,16 @@ namespace HTCommander.Controls
             listViewGroup6.Header = "Torrent Stations";
             listViewGroup6.Name = "Torrent Stations";
             mainAddressBookListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] { listViewGroup1, listViewGroup2, listViewGroup3, listViewGroup4, listViewGroup5, listViewGroup6 });
-            mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
+            mainAddressBookListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Clickable;
             mainAddressBookListView.Location = new System.Drawing.Point(0, 46);
             mainAddressBookListView.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             mainAddressBookListView.Name = "mainAddressBookListView";
             mainAddressBookListView.Size = new System.Drawing.Size(669, 449);
             mainAddressBookListView.SmallImageList = mainImageList;
-            mainAddressBookListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             mainAddressBookListView.TabIndex = 1;
             mainAddressBookListView.UseCompatibleStateImageBehavior = false;
             mainAddressBookListView.View = System.Windows.Forms.View.Details;
+            mainAddressBookListView.ColumnClick += mainAddressBookListView_ColumnClick;
             mainAddressBookListView.SelectedIndexChanged += mainAddressBookListView_SelectedIndexChanged;
             mainAddressBookListView.DoubleClick += mainAddressBookListView_DoubleClick;
             mainAddressBookListView.KeyDown += mainAddressBookListView_KeyDown;

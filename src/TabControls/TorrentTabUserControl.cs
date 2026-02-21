@@ -29,6 +29,9 @@ namespace HTCommander.Controls
             set { _preferredRadioDeviceId = value; }
         }
         private bool _showDetach = false;
+        private int torrentSortColumn = 0;
+        private SortOrder torrentSortOrder = SortOrder.Ascending;
+        private readonly string[] torrentColumnBaseNames = { "File", "Mode", "Description" };
         private Dictionary<string, TorrentFile> fileCache = new Dictionary<string, TorrentFile>();
         private List<int> connectedRadios = new List<int>();
         private Dictionary<int, RadioLockState> lockStates = new Dictionary<int, RadioLockState>();
@@ -361,6 +364,9 @@ namespace HTCommander.Controls
             l.Tag = torrentFile;
             torrentFile.ListViewItem = l;
             torrentListView.Items.Add(l);
+            torrentListView.ListViewItemSorter = new TorrentListViewComparer(torrentSortColumn, torrentSortOrder);
+            torrentListView.Sort();
+            UpdateTorrentSortGlyph();
         }
 
         public void UpdateTorrent(TorrentFile file)
@@ -697,6 +703,65 @@ namespace HTCommander.Controls
         {
             var form = DetachedTabForm.Create<TorrentTabUserControl>("Torrent");
             form.Show();
+        }
+
+        private void torrentListView_ColumnClick(object sender, ColumnClickEventArgs e)
+        {
+            if (e.Column == torrentSortColumn)
+            {
+                torrentSortOrder = (torrentSortOrder == SortOrder.Ascending) ? SortOrder.Descending : SortOrder.Ascending;
+            }
+            else
+            {
+                torrentSortColumn = e.Column;
+                torrentSortOrder = SortOrder.Ascending;
+            }
+            torrentListView.ListViewItemSorter = new TorrentListViewComparer(torrentSortColumn, torrentSortOrder);
+            torrentListView.Sort();
+            UpdateTorrentSortGlyph();
+        }
+
+        private void UpdateTorrentSortGlyph()
+        {
+            for (int i = 0; i < torrentListView.Columns.Count; i++)
+            {
+                if (i == torrentSortColumn)
+                {
+                    string arrow = (torrentSortOrder == SortOrder.Ascending) ? " \u25B2" : " \u25BC";
+                    torrentListView.Columns[i].Text = torrentColumnBaseNames[i] + arrow;
+                }
+                else
+                {
+                    torrentListView.Columns[i].Text = torrentColumnBaseNames[i];
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Custom comparer for sorting the torrent ListView items.
+    /// </summary>
+    public class TorrentListViewComparer : System.Collections.IComparer
+    {
+        private readonly int columnIndex;
+        private readonly SortOrder sortOrder;
+
+        public TorrentListViewComparer(int column, SortOrder order)
+        {
+            columnIndex = column;
+            sortOrder = order;
+        }
+
+        public int Compare(object x, object y)
+        {
+            ListViewItem itemX = x as ListViewItem;
+            ListViewItem itemY = y as ListViewItem;
+            if (itemX == null || itemY == null) return 0;
+
+            int result = string.Compare(itemX.SubItems[columnIndex].Text, itemY.SubItems[columnIndex].Text, StringComparison.OrdinalIgnoreCase);
+
+            if (sortOrder == SortOrder.Descending) result = -result;
+            return result;
         }
     }
 }

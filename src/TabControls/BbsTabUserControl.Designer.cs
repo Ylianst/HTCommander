@@ -95,16 +95,16 @@ namespace HTCommander.Controls
             listViewGroup3.Header = "Terminal Stations";
             listViewGroup3.Name = "Terminal Stations";
             bbsListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] { listViewGroup1, listViewGroup2, listViewGroup3 });
-            bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
+            bbsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Clickable;
             bbsListView.Location = new System.Drawing.Point(0, 0);
             bbsListView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             bbsListView.Name = "bbsListView";
             bbsListView.Size = new System.Drawing.Size(585, 59);
             bbsListView.SmallImageList = mainImageList;
-            bbsListView.Sorting = System.Windows.Forms.SortOrder.Ascending;
             bbsListView.TabIndex = 6;
             bbsListView.UseCompatibleStateImageBehavior = false;
             bbsListView.View = System.Windows.Forms.View.Details;
+            bbsListView.ColumnClick += bbsListView_ColumnClick;
             bbsListView.Resize += bbsListView_Resize;
             // 
             // columnHeader10

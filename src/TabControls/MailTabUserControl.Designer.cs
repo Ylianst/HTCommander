@@ -181,6 +181,7 @@ namespace HTCommander.Controls
             mailboxListView.TabIndex = 5;
             mailboxListView.UseCompatibleStateImageBehavior = false;
             mailboxListView.View = System.Windows.Forms.View.Details;
+            mailboxListView.ColumnClick += mailboxListView_ColumnClick;
             mailboxListView.SelectedIndexChanged += mailboxListView_SelectedIndexChanged;
             mailboxListView.DoubleClick += mailboxListView_DoubleClick;
             mailboxListView.KeyDown += mailboxListView_KeyDown;

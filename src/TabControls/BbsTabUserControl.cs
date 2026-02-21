@@ -19,6 +19,9 @@ namespace HTCommander.Controls
         private int _preferredRadioDeviceId = -1;
         private DataBrokerClient broker;
         private bool _showDetach = false;
+        private int bbsSortColumn = 0;
+        private SortOrder bbsSortOrder = SortOrder.Ascending;
+        private readonly string[] bbsColumnBaseNames = { "Call Sign", "Last Seen", "Stats" };
         private List<int> connectedRadios = new List<int>();
         private Dictionary<int, RadioLockState> lockStates = new Dictionary<int, RadioLockState>();
 
@@ -341,6 +344,9 @@ namespace HTCommander.Controls
             {
                 // Resume drawing
                 bbsListView.EndUpdate();
+                bbsListView.ListViewItemSorter = new BbsListViewComparer(bbsSortColumn, bbsSortOrder);
+                bbsListView.Sort();
+                UpdateBbsSortGlyph();
             }
         }
 
@@ -598,6 +604,65 @@ namespace HTCommander.Controls
         {
             var form = DetachedTabForm.Create<BbsTabUserControl>("BBS");
             form.Show();
+        }
+
+        private void bbsListView_ColumnClick(object sender, ColumnClickEventArgs e)
+        {
+            if (e.Column == bbsSortColumn)
+            {
+                bbsSortOrder = (bbsSortOrder == SortOrder.Ascending) ? SortOrder.Descending : SortOrder.Ascending;
+            }
+            else
+            {
+                bbsSortColumn = e.Column;
+                bbsSortOrder = SortOrder.Ascending;
+            }
+            bbsListView.ListViewItemSorter = new BbsListViewComparer(bbsSortColumn, bbsSortOrder);
+            bbsListView.Sort();
+            UpdateBbsSortGlyph();
+        }
+
+        private void UpdateBbsSortGlyph()
+        {
+            for (int i = 0; i < bbsListView.Columns.Count; i++)
+            {
+                if (i == bbsSortColumn)
+                {
+                    string arrow = (bbsSortOrder == SortOrder.Ascending) ? " \u25B2" : " \u25BC";
+                    bbsListView.Columns[i].Text = bbsColumnBaseNames[i] + arrow;
+                }
+                else
+                {
+                    bbsListView.Columns[i].Text = bbsColumnBaseNames[i];
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Custom comparer for sorting the BBS ListView items.
+    /// </summary>
+    public class BbsListViewComparer : System.Collections.IComparer
+    {
+        private readonly int columnIndex;
+        private readonly SortOrder sortOrder;
+
+        public BbsListViewComparer(int column, SortOrder order)
+        {
+            columnIndex = column;
+            sortOrder = order;
+        }
+
+        public int Compare(object x, object y)
+        {
+            ListViewItem itemX = x as ListViewItem;
+            ListViewItem itemY = y as ListViewItem;
+            if (itemX == null || itemY == null) return 0;
+
+            int result = string.Compare(itemX.SubItems[columnIndex].Text, itemY.SubItems[columnIndex].Text, StringComparison.OrdinalIgnoreCase);
+
+            if (sortOrder == SortOrder.Descending) result = -result;
+            return result;
         }
     }
 }

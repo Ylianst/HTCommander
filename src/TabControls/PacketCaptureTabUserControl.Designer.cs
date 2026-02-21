@@ -30,14 +30,14 @@ namespace HTCommander.Controls
         {
             components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(PacketCaptureTabUserControl));
-            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Encoding", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("Radio", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup11 = new System.Windows.Forms.ListViewGroup("AX.25 Decoding", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup12 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup13 = new System.Windows.Forms.ListViewGroup("APRS Decoding", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup14 = new System.Windows.Forms.ListViewGroup("APRS Position", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup15 = new System.Windows.Forms.ListViewGroup("Decompressed Data", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup16 = new System.Windows.Forms.ListViewGroup("BSS Protocol", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Encoding", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("Radio", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("AX.25 Decoding", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("AX.25 Data", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup5 = new System.Windows.Forms.ListViewGroup("APRS Decoding", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup6 = new System.Windows.Forms.ListViewGroup("APRS Position", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup7 = new System.Windows.Forms.ListViewGroup("Decompressed Data", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup8 = new System.Windows.Forms.ListViewGroup("Short Binary Protocol", System.Windows.Forms.HorizontalAlignment.Left);
             packetsSplitContainer = new System.Windows.Forms.SplitContainer();
             packetsListView = new System.Windows.Forms.ListView();
             columnHeader7 = new System.Windows.Forms.ColumnHeader();
@@ -92,8 +92,8 @@ namespace HTCommander.Controls
             // packetsSplitContainer.Panel2
             // 
             packetsSplitContainer.Panel2.Controls.Add(packetDecodeListView);
-            packetsSplitContainer.Size = new System.Drawing.Size(669, 733);
-            packetsSplitContainer.SplitterDistance = 301;
+            packetsSplitContainer.Size = new System.Drawing.Size(669, 483);
+            packetsSplitContainer.SplitterDistance = 198;
             packetsSplitContainer.SplitterWidth = 6;
             packetsSplitContainer.TabIndex = 6;
             // 
@@ -104,15 +104,16 @@ namespace HTCommander.Controls
             packetsListView.Dock = System.Windows.Forms.DockStyle.Fill;
             packetsListView.FullRowSelect = true;
             packetsListView.GridLines = true;
-            packetsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
+            packetsListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Clickable;
             packetsListView.Location = new System.Drawing.Point(0, 0);
             packetsListView.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             packetsListView.Name = "packetsListView";
-            packetsListView.Size = new System.Drawing.Size(669, 301);
+            packetsListView.Size = new System.Drawing.Size(669, 198);
             packetsListView.SmallImageList = mainImageList;
             packetsListView.TabIndex = 5;
             packetsListView.UseCompatibleStateImageBehavior = false;
             packetsListView.View = System.Windows.Forms.View.Details;
+            packetsListView.ColumnClick += packetsListView_ColumnClick;
             packetsListView.SelectedIndexChanged += packetsListView_SelectedIndexChanged;
             packetsListView.Resize += packetsListView_Resize;
             // 
@@ -177,28 +178,28 @@ namespace HTCommander.Controls
             packetDecodeListView.Dock = System.Windows.Forms.DockStyle.Fill;
             packetDecodeListView.FullRowSelect = true;
             packetDecodeListView.GridLines = true;
-            listViewGroup9.Header = "Encoding";
-            listViewGroup9.Name = "encodingListViewGroup";
-            listViewGroup10.Header = "Radio";
-            listViewGroup10.Name = "radioListViewGroup";
-            listViewGroup11.Header = "AX.25 Decoding";
-            listViewGroup11.Name = "decodingListViewGroup";
-            listViewGroup12.Header = "AX.25 Data";
-            listViewGroup12.Name = "dataListViewGroup";
-            listViewGroup13.Header = "APRS Decoding";
-            listViewGroup13.Name = "aprsDecodingListViewGroup";
-            listViewGroup14.Header = "APRS Position";
-            listViewGroup14.Name = "aprsPositionListViewGroup";
-            listViewGroup15.Header = "Decompressed Data";
-            listViewGroup15.Name = "decompressedListViewGroup";
-            listViewGroup16.Header = "Short Binary Protocol";
-            listViewGroup16.Name = "shortBinaryListViewGroup";
-            packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] { listViewGroup9, listViewGroup10, listViewGroup11, listViewGroup12, listViewGroup13, listViewGroup14, listViewGroup15, listViewGroup16 });
+            listViewGroup1.Header = "Encoding";
+            listViewGroup1.Name = "encodingListViewGroup";
+            listViewGroup2.Header = "Radio";
+            listViewGroup2.Name = "radioListViewGroup";
+            listViewGroup3.Header = "AX.25 Decoding";
+            listViewGroup3.Name = "decodingListViewGroup";
+            listViewGroup4.Header = "AX.25 Data";
+            listViewGroup4.Name = "dataListViewGroup";
+            listViewGroup5.Header = "APRS Decoding";
+            listViewGroup5.Name = "aprsDecodingListViewGroup";
+            listViewGroup6.Header = "APRS Position";
+            listViewGroup6.Name = "aprsPositionListViewGroup";
+            listViewGroup7.Header = "Decompressed Data";
+            listViewGroup7.Name = "decompressedListViewGroup";
+            listViewGroup8.Header = "Short Binary Protocol";
+            listViewGroup8.Name = "shortBinaryListViewGroup";
+            packetDecodeListView.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] { listViewGroup1, listViewGroup2, listViewGroup3, listViewGroup4, listViewGroup5, listViewGroup6, listViewGroup7, listViewGroup8 });
             packetDecodeListView.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             packetDecodeListView.Location = new System.Drawing.Point(0, 0);
             packetDecodeListView.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             packetDecodeListView.Name = "packetDecodeListView";
-            packetDecodeListView.Size = new System.Drawing.Size(669, 426);
+            packetDecodeListView.Size = new System.Drawing.Size(669, 279);
             packetDecodeListView.TabIndex = 1;
             packetDecodeListView.UseCompatibleStateImageBehavior = false;
             packetDecodeListView.View = System.Windows.Forms.View.Details;
@@ -346,7 +347,7 @@ namespace HTCommander.Controls
             Controls.Add(titlePanel);
             Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             Name = "PacketCaptureTabUserControl";
-            Size = new System.Drawing.Size(669, 779);
+            Size = new System.Drawing.Size(669, 529);
             packetsSplitContainer.Panel1.ResumeLayout(false);
             packetsSplitContainer.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)packetsSplitContainer).EndInit();
