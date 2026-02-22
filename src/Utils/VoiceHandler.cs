@@ -92,6 +92,7 @@ namespace HTCommander
         private string _voiceModel = null;
         private WhisperEngine _speechToTextEngine = null;
         private string _currentChannelName = "";
+        private bool _currentAudioIsTransmit = false;
         private int _maxVoiceDecodeTime = 0;
         private const int MaxVoiceDecodeTimeLimit = (32000 * 2 * 60 * 1); // 1 minute (32k * 2 * 60 * 1)
 
@@ -1019,11 +1020,21 @@ namespace HTCommander
         /// <summary>
         /// Handles the AudioDataEnd event - forces speech-to-text to process remaining audio and finalizes recordings.
         /// This is called when the radio signals the end of an audio segment.
+        /// Expected data: { StartTime: DateTime, Usage: string }
         /// </summary>
         private void OnAudioDataEnd(int deviceId, string name, object data)
         {
             // Don't process audio from the APRS channel
             if (_currentChannelName == "APRS") return;
+
+            // Extract Usage from the event data and skip if the radio is locked to a usage
+            if (data != null)
+            {
+                var dataType = data.GetType();
+                var usageProp = dataType.GetProperty("Usage");
+                string usage = usageProp != null ? (string)usageProp.GetValue(data) : null;
+                if (usage != null) return;
+            }
 
             // Handle speech-to-text completion
             if (deviceId == _targetDeviceId && _enabled && _speechToTextEngine != null)
@@ -1049,7 +1060,7 @@ namespace HTCommander
 
         /// <summary>
         /// Handles the AudioDataStart event - starts a new recording if recording is enabled.
-        /// Expected data: { StartTime: DateTime, ChannelName: string }
+        /// Expected data: { StartTime: DateTime, ChannelName: string, Usage: string }
         /// </summary>
         private void OnAudioDataStart(int deviceId, string name, object data)
         {
@@ -1067,10 +1078,15 @@ namespace HTCommander
 
                 if (data != null)
                 {
-                    // Try to extract from anonymous object with StartTime and ChannelName properties
+                    // Try to extract from anonymous object with StartTime, ChannelName, and Usage properties
                     var dataType = data.GetType();
                     var startTimeProp = dataType.GetProperty("StartTime");
                     var channelNameProp = dataType.GetProperty("ChannelName");
+                    var usageProp = dataType.GetProperty("Usage");
+
+                    // Skip if the radio is locked to a usage
+                    string usage = usageProp != null ? (string)usageProp.GetValue(data) : null;
+                    if (usage != null) return;
 
                     if (startTimeProp != null)
                     {
@@ -1238,7 +1254,7 @@ namespace HTCommander
                 {
                     int durationInt = (int)Math.Round(durationSeconds);
 
-                    // Add to history as a received recording entry
+                    // Add to history as a recording entry (received or transmitted based on audio source)
                     lock (_historyLock)
                     {
                         var entry = new DecodedTextEntry
@@ -1246,7 +1262,7 @@ namespace HTCommander
                             Text = null,
                             Channel = _currentRecordingChannel,
                             Time = _currentRecordingStartTime,
-                            IsReceived = true,
+                            IsReceived = !_currentAudioIsTransmit,
                             Encoding = VoiceTextEncodingType.Recording,
                             Filename = _currentRecordingFilename,
                             Duration = durationInt
@@ -1264,7 +1280,7 @@ namespace HTCommander
                     SaveVoiceTextHistory();
 
                     // Dispatch TextReady event for the recording
-                    DispatchTextReady(null, _currentRecordingChannel, _currentRecordingStartTime, true, true, VoiceTextEncodingType.Recording, filename: _currentRecordingFilename, duration: durationInt);
+                    DispatchTextReady(null, _currentRecordingChannel, _currentRecordingStartTime, true, !_currentAudioIsTransmit, VoiceTextEncodingType.Recording, filename: _currentRecordingFilename, duration: durationInt);
 
                     broker.LogInfo($"[VoiceHandler] Completed recording: {_currentRecordingFilename} ({durationSeconds:F1} sec)");
                 }
@@ -1865,8 +1881,9 @@ namespace HTCommander
                     return;
                 }
 
-                // Update current channel name
+                // Update current channel name and transmit state
                 _currentChannelName = channelName;
+                _currentAudioIsTransmit = transmit;
 
                 // Process the audio chunk for speech-to-text
                 if (needsSpeechToText)
@@ -1989,11 +2006,12 @@ namespace HTCommander
         /// </summary>
         private void OnWhisperTextReady(string text, string channel, DateTime time, bool completed)
         {
-            // Update the decoded text history (received voice)
-            UpdateDecodedTextHistory(text, channel, time, completed, true, VoiceTextEncodingType.Voice);
+            // Update the decoded text history (mark as received or transmitted based on audio source)
+            bool isReceived = !_currentAudioIsTransmit;
+            UpdateDecodedTextHistory(text, channel, time, completed, isReceived, VoiceTextEncodingType.Voice);
 
             // Dispatch the individual TextReady event
-            DispatchTextReady(text, channel, time, completed);
+            DispatchTextReady(text, channel, time, completed, isReceived);
         }
 
         /// <summary>

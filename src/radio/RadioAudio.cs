@@ -239,11 +239,12 @@ namespace HTCommander
         private void DispatchAudioStateChanged(bool enabled) { broker.Dispatch(DeviceId, "AudioState", enabled, store: true); }
         private void DispatchVoiceTransmitStateChanged(bool transmitting) { broker.Dispatch(DeviceId, "VoiceTransmitStateChanged", transmitting, store: false); }
         private void DispatchAudioDataAvailable(byte[] data, int offset, int length, string channelName, bool transmit, bool muted) { broker.Dispatch(DeviceId, "AudioDataAvailable", new { Data = data, Offset = offset, Length = length, ChannelName = channelName, Transmit = transmit, Muted = muted, AudioRunStartTime = audioRunStartTime, Usage = parent.LockUsage }, store: false); }
-        private void DispatchAudioDataStart() { audioRunStartTime = DateTime.Now; broker.Dispatch(DeviceId, "AudioDataStart", new { StartTime = audioRunStartTime, ChannelName = currentChannelName }, store: false); }
-        private void DispatchAudioDataEnd() { broker.Dispatch(DeviceId, "AudioDataEnd", audioRunStartTime, store: false); broker.Dispatch(DeviceId, "OutputAmplitude", 0f, store: false); }
+        private void DispatchAudioDataStart(bool transmit) { audioRunStartTime = DateTime.Now; broker.Dispatch(DeviceId, "AudioDataStart", new { StartTime = audioRunStartTime, ChannelName = currentChannelName, Transmit = transmit, Usage = parent.LockUsage }, store: false); }
+        private void DispatchAudioDataEnd() { broker.Dispatch(DeviceId, "AudioDataEnd", new { StartTime = audioRunStartTime, Transmit = inAudioRunIsTransmit, Usage = parent.LockUsage }, store: false); broker.Dispatch(DeviceId, "OutputAmplitude", 0f, store: false); }
 
         // Audio run state tracking
         private bool inAudioRun = false;
+        private bool inAudioRunIsTransmit = false;
         private DateTime audioRunStartTime = DateTime.MinValue;
 
         public bool IsAudioEnabled { get { return running; } }
@@ -700,22 +701,36 @@ namespace HTCommander
                         {
                             int uframeLength = UnescapeBytesInPlace(frame);
                             if (uframeLength == 0) break;
+                            Debug($"Frame: {frame[0]}");
                             switch (frame[0])
                             {
-                                case 0x00: // Audio normal
-                                case 0x03: // Audio odd
+                                case 0x00: // Received Audio (odd)
+                                case 0x03: // Received Audio
                                     if (!inAudioRun)
                                     {
                                         inAudioRun = true;
-                                        DispatchAudioDataStart();
+                                        inAudioRunIsTransmit = false;
+                                        DispatchAudioDataStart(false); // Receive
                                     }
                                     DecodeSbcFrame(frame, 1, uframeLength - 1);
                                     break;
-                                case 0x01: // Audio end
-                                    inAudioRun = false;
-                                    DispatchAudioDataEnd();
+                                case 0x01: // Audio end (Use for Transmit or Receive)
+                                    if (inAudioRun)
+                                    {
+                                        inAudioRun = false;
+                                        DispatchAudioDataEnd();
+                                    }
                                     break;
                                 case 0x02: // Audio ACK
+                                    break;
+                                case 0x09: // Transmit Audio
+                                    if (!inAudioRun)
+                                    {
+                                        inAudioRun = true;
+                                        inAudioRunIsTransmit = true;
+                                        DispatchAudioDataStart(true); // Transmit
+                                    }
+                                    DecodeSbcFrame(frame, 1, uframeLength - 1);
                                     break;
                                 default:
                                     Debug($"Unknown command: {frame[0]}");
@@ -864,7 +879,7 @@ namespace HTCommander
 
                     byte[] pcmDataForEvent = new byte[totalWritten];
                     Buffer.BlockCopy(pcmFrame, 0, pcmDataForEvent, 0, totalWritten);
-                    DispatchAudioDataAvailable(pcmDataForEvent, 0, totalWritten, currentChannelName, false, isMuted);
+                    DispatchAudioDataAvailable(pcmDataForEvent, 0, totalWritten, currentChannelName, inAudioRunIsTransmit, isMuted);
 
                     // Calculate and dispatch output amplitude (after volume is applied conceptually)
                     float amplitude = CalculatePcmAmplitude(pcmDataForEvent, totalWritten) * OutputVolume;
