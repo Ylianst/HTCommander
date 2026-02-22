@@ -54,6 +54,7 @@ namespace HTCommander
         private BufferedWaveProvider waveProvider = null;
         private float OutputVolume = 1;
         private float InputVolume = 1;
+        private bool isMuted = false;
         private VolumeSampleProvider volumeProvider;
         public bool Recording { get { return recording != null; } }
         private WaveFileWriter recording = null;
@@ -85,9 +86,11 @@ namespace HTCommander
             broker.Subscribe(DeviceId, "StartRecording", OnStartRecording);
             broker.Subscribe(DeviceId, "StopRecording", OnStopRecording);
             broker.Subscribe(DeviceId, "CancelVoiceTransmit", OnCancelVoiceTransmit);
+            broker.Subscribe(DeviceId, "SetMute", OnSetMute);
             
             // Initialize output volume from stored value
             OutputVolume = broker.GetValue<float>(DeviceId, "OutputVolume", 1.0f);
+            isMuted = broker.GetValue<bool>(DeviceId, "Mute", false);
         }
         
         // Data Broker event handlers
@@ -177,6 +180,15 @@ namespace HTCommander
         private void OnCancelVoiceTransmit(int deviceId, string name, object data)
         {
             CancelVoiceTransmit();
+        }
+        
+        private void OnSetMute(int deviceId, string name, object data)
+        {
+            if (data is bool mute)
+            {
+                isMuted = mute;
+                broker.Dispatch(DeviceId, "Mute", mute, store: true);
+            }
         }
 
         /// <summary>
@@ -857,10 +869,10 @@ namespace HTCommander
                 // Make use of all accumulated PCM data
                 if (totalWritten > 0)
                 {
-                    bool isMuted = parent.IsOnMuteChannel();
-                    if (isMuted == false)
+                    bool isOnMuteChannel = parent.IsOnMuteChannel();
+                    if (isOnMuteChannel == false)
                     {
-                        if (waveProvider != null)
+                        if (waveProvider != null && isMuted == false)
                         {
                             // If buffered audio exceeds latency cap, discard stale data to catch up
                             if (waveProvider.BufferedDuration.TotalMilliseconds > 800)
@@ -879,7 +891,7 @@ namespace HTCommander
 
                     byte[] pcmDataForEvent = new byte[totalWritten];
                     Buffer.BlockCopy(pcmFrame, 0, pcmDataForEvent, 0, totalWritten);
-                    DispatchAudioDataAvailable(pcmDataForEvent, 0, totalWritten, currentChannelName, inAudioRunIsTransmit, isMuted);
+                    DispatchAudioDataAvailable(pcmDataForEvent, 0, totalWritten, currentChannelName, inAudioRunIsTransmit, isOnMuteChannel);
 
                     // Calculate and dispatch output amplitude (after volume is applied conceptually)
                     float amplitude = CalculatePcmAmplitude(pcmDataForEvent, totalWritten) * OutputVolume;

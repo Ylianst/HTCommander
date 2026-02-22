@@ -69,6 +69,9 @@ namespace HTCommander.Controls
             copyImageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             saveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             mainImageList = new System.Windows.Forms.ImageList(components);
+            mutePanel = new System.Windows.Forms.Panel();
+            unMuteButton = new System.Windows.Forms.Button();
+            muteLabel = new System.Windows.Forms.Label();
             voiceBottomPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)toolsPictureBox).BeginInit();
             speakContextMenuStrip.SuspendLayout();
@@ -76,6 +79,7 @@ namespace HTCommander.Controls
             ((System.ComponentModel.ISupportInitialize)voiceMenuPictureBox).BeginInit();
             voiceTabContextMenuStrip.SuspendLayout();
             voiceMsgContextMenuStrip.SuspendLayout();
+            mutePanel.SuspendLayout();
             SuspendLayout();
             // 
             // cancelVoiceButton
@@ -85,7 +89,7 @@ namespace HTCommander.Controls
             cancelVoiceButton.Location = new System.Drawing.Point(9, 10);
             cancelVoiceButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             cancelVoiceButton.Name = "cancelVoiceButton";
-            cancelVoiceButton.Size = new System.Drawing.Size(512, 36);
+            cancelVoiceButton.Size = new System.Drawing.Size(484, 36);
             cancelVoiceButton.TabIndex = 6;
             cancelVoiceButton.Text = "Cancel";
             cancelVoiceButton.UseVisualStyleBackColor = true;
@@ -100,17 +104,17 @@ namespace HTCommander.Controls
             voiceBottomPanel.Controls.Add(speakTextBox);
             voiceBottomPanel.Controls.Add(speakButton);
             voiceBottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            voiceBottomPanel.Location = new System.Drawing.Point(0, 451);
+            voiceBottomPanel.Location = new System.Drawing.Point(0, 427);
             voiceBottomPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             voiceBottomPanel.Name = "voiceBottomPanel";
-            voiceBottomPanel.Size = new System.Drawing.Size(669, 57);
+            voiceBottomPanel.Size = new System.Drawing.Size(641, 57);
             voiceBottomPanel.TabIndex = 5;
             // 
             // toolsPictureBox
             // 
             toolsPictureBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             toolsPictureBox.Image = Properties.Resources.MenuIcon;
-            toolsPictureBox.Location = new System.Drawing.Point(637, 13);
+            toolsPictureBox.Location = new System.Drawing.Point(609, 13);
             toolsPictureBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             toolsPictureBox.Name = "toolsPictureBox";
             toolsPictureBox.Size = new System.Drawing.Size(27, 31);
@@ -127,7 +131,7 @@ namespace HTCommander.Controls
             speakTextBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             speakTextBox.MaxLength = 1000;
             speakTextBox.Name = "speakTextBox";
-            speakTextBox.Size = new System.Drawing.Size(512, 30);
+            speakTextBox.Size = new System.Drawing.Size(484, 30);
             speakTextBox.TabIndex = 1;
             speakTextBox.TextChanged += speakTextBox_TextChanged;
             speakTextBox.KeyPress += speakTextBox_KeyPress;
@@ -137,7 +141,7 @@ namespace HTCommander.Controls
             speakButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             speakButton.ContextMenuStrip = speakContextMenuStrip;
             speakButton.Enabled = false;
-            speakButton.Location = new System.Drawing.Point(529, 10);
+            speakButton.Location = new System.Drawing.Point(501, 10);
             speakButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             speakButton.Name = "speakButton";
             speakButton.Size = new System.Drawing.Size(100, 36);
@@ -205,7 +209,7 @@ namespace HTCommander.Controls
             voiceTopPanel.Location = new System.Drawing.Point(0, 0);
             voiceTopPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             voiceTopPanel.Name = "voiceTopPanel";
-            voiceTopPanel.Size = new System.Drawing.Size(669, 46);
+            voiceTopPanel.Size = new System.Drawing.Size(641, 46);
             voiceTopPanel.TabIndex = 2;
             // 
             // voiceProcessingLabel
@@ -214,7 +218,7 @@ namespace HTCommander.Controls
             voiceProcessingLabel.AutoSize = true;
             voiceProcessingLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
             voiceProcessingLabel.ForeColor = System.Drawing.Color.LightGray;
-            voiceProcessingLabel.Location = new System.Drawing.Point(607, 7);
+            voiceProcessingLabel.Location = new System.Drawing.Point(579, 7);
             voiceProcessingLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             voiceProcessingLabel.Name = "voiceProcessingLabel";
             voiceProcessingLabel.Size = new System.Drawing.Size(24, 25);
@@ -226,7 +230,7 @@ namespace HTCommander.Controls
             // 
             voiceMenuPictureBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             voiceMenuPictureBox.Image = Properties.Resources.MenuIcon;
-            voiceMenuPictureBox.Location = new System.Drawing.Point(637, 8);
+            voiceMenuPictureBox.Location = new System.Drawing.Point(609, 8);
             voiceMenuPictureBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             voiceMenuPictureBox.Name = "voiceMenuPictureBox";
             voiceMenuPictureBox.Size = new System.Drawing.Size(27, 31);
@@ -297,13 +301,13 @@ namespace HTCommander.Controls
             voiceControl.ContextMenuStrip = voiceMsgContextMenuStrip;
             voiceControl.Dock = System.Windows.Forms.DockStyle.Fill;
             voiceControl.Images = mainImageList;
-            voiceControl.Location = new System.Drawing.Point(0, 46);
+            voiceControl.Location = new System.Drawing.Point(0, 92);
             voiceControl.MessageBoxAuthColor = System.Drawing.Color.LightGreen;
             voiceControl.MessageBoxBadColor = System.Drawing.Color.Pink;
             voiceControl.MessageBoxColor = System.Drawing.Color.LightBlue;
             voiceControl.MessageFont = new System.Drawing.Font("Arial", 10F);
             voiceControl.Name = "voiceControl";
-            voiceControl.Size = new System.Drawing.Size(669, 405);
+            voiceControl.Size = new System.Drawing.Size(641, 335);
             voiceControl.TabIndex = 6;
             voiceControl.TextColor = System.Drawing.Color.Black;
             voiceControl.DragDrop += voiceControl_DragDrop;
@@ -315,7 +319,7 @@ namespace HTCommander.Controls
             voiceMsgContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             voiceMsgContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { viewToolStripMenuItem, detailsToolStripMenuItem, showLocationToolStripMenuItem, copyMessageToolStripMenuItem, copyCallsignToolStripMenuItem, copyImageToolStripMenuItem, saveAsToolStripMenuItem });
             voiceMsgContextMenuStrip.Name = "voiceMsgContextMenuStrip";
-            voiceMsgContextMenuStrip.Size = new System.Drawing.Size(185, 148);
+            voiceMsgContextMenuStrip.Size = new System.Drawing.Size(185, 172);
             voiceMsgContextMenuStrip.Opening += voiceMsgContextMenuStrip_Opening;
             // 
             // viewToolStripMenuItem
@@ -383,16 +387,54 @@ namespace HTCommander.Controls
             mainImageList.Images.SetKeyName(6, "terminal-32.png");
             mainImageList.Images.SetKeyName(7, "talking.ico");
             // 
+            // mutePanel
+            // 
+            mutePanel.BackColor = System.Drawing.Color.MistyRose;
+            mutePanel.Controls.Add(unMuteButton);
+            mutePanel.Controls.Add(muteLabel);
+            mutePanel.Dock = System.Windows.Forms.DockStyle.Top;
+            mutePanel.Location = new System.Drawing.Point(0, 46);
+            mutePanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            mutePanel.Name = "mutePanel";
+            mutePanel.Size = new System.Drawing.Size(641, 46);
+            mutePanel.TabIndex = 7;
+            mutePanel.Visible = false;
+            // 
+            // unMuteButton
+            // 
+            unMuteButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            unMuteButton.Location = new System.Drawing.Point(537, 5);
+            unMuteButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            unMuteButton.Name = "unMuteButton";
+            unMuteButton.Size = new System.Drawing.Size(100, 35);
+            unMuteButton.TabIndex = 8;
+            unMuteButton.Text = "Un-mute";
+            unMuteButton.UseVisualStyleBackColor = true;
+            unMuteButton.Click += new System.EventHandler(unMuteButton_Click);
+            // 
+            // muteLabel
+            // 
+            muteLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            muteLabel.AutoSize = true;
+            muteLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            muteLabel.Location = new System.Drawing.Point(7, 13);
+            muteLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            muteLabel.Name = "muteLabel";
+            muteLabel.Size = new System.Drawing.Size(124, 20);
+            muteLabel.TabIndex = 7;
+            muteLabel.Text = "Audio is muted.";
+            // 
             // VoiceTabUserControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             Controls.Add(voiceControl);
+            Controls.Add(mutePanel);
             Controls.Add(voiceBottomPanel);
             Controls.Add(voiceTopPanel);
             Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             Name = "VoiceTabUserControl";
-            Size = new System.Drawing.Size(669, 508);
+            Size = new System.Drawing.Size(641, 484);
             voiceBottomPanel.ResumeLayout(false);
             voiceBottomPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)toolsPictureBox).EndInit();
@@ -402,6 +444,8 @@ namespace HTCommander.Controls
             ((System.ComponentModel.ISupportInitialize)voiceMenuPictureBox).EndInit();
             voiceTabContextMenuStrip.ResumeLayout(false);
             voiceMsgContextMenuStrip.ResumeLayout(false);
+            mutePanel.ResumeLayout(false);
+            mutePanel.PerformLayout();
             ResumeLayout(false);
 
         }
@@ -440,5 +484,8 @@ namespace HTCommander.Controls
         private System.Windows.Forms.PictureBox toolsPictureBox;
         private System.Windows.Forms.ToolStripMenuItem speechtoTextToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem recordAudioToolStripMenuItem;
+        private System.Windows.Forms.Panel mutePanel;
+        private System.Windows.Forms.Button unMuteButton;
+        private System.Windows.Forms.Label muteLabel;
     }
 }

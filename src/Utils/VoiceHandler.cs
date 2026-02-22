@@ -127,6 +127,7 @@ namespace HTCommander
         private bool _sstvDecoding = false;
         private DecodedTextEntry _currentSstvEntry = null;
         private DateTime _sstvStartTime;
+        private bool _sstvAutoMuted = false; // True if we auto-muted the radio for SSTV reception
 
         // Recording fields
         private bool _recordingEnabled = false;
@@ -1652,6 +1653,21 @@ namespace HTCommander
             _sstvDecoding = true;
             _sstvStartTime = DateTime.Now;
 
+            // Auto-mute the radio so the user doesn't hear the SSTV signal
+            if (_targetDeviceId > 0)
+            {
+                bool alreadyMuted = broker.GetValue<bool>(_targetDeviceId, "Mute", false);
+                if (!alreadyMuted)
+                {
+                    _sstvAutoMuted = true;
+                    broker.Dispatch(_targetDeviceId, "SetMute", true, store: false);
+                }
+                else
+                {
+                    _sstvAutoMuted = false;
+                }
+            }
+
             // Pause speech-to-text by flushing any pending audio
             if (_speechToTextEngine != null)
             {
@@ -1752,6 +1768,14 @@ namespace HTCommander
             }
 
             _sstvDecoding = false;
+
+            // Restore mute state if we auto-muted for SSTV
+            if (_sstvAutoMuted && _targetDeviceId > 0)
+            {
+                _sstvAutoMuted = false;
+                broker.Dispatch(_targetDeviceId, "SetMute", false, store: false);
+            }
+            _sstvAutoMuted = false;
 
             // Resume speech-to-text after SSTV decoding
             if (_speechToTextEngine != null)

@@ -42,6 +42,7 @@ namespace HTCommander.Controls
             set
             {
                 _preferredRadioDeviceId = value;
+                SubscribeToMute(value);
                 if (value >= 100)
                 {
                     EnableVoiceHandler(value);
@@ -73,6 +74,10 @@ namespace HTCommander.Controls
 
         // Track the AllowTransmit setting
         private bool _allowTransmit = false;
+
+        // Track the Mute state for the current radio
+        private bool _isMuted = false;
+        private int _muteSubscribedDeviceId = -1;
 
         /// <summary>
         /// Simple class to hold connected radio information.
@@ -146,6 +151,7 @@ namespace HTCommander.Controls
             LoadAllowTransmitState();
             LoadSpeechToTextEnabledState();
             LoadRecordingState();
+            LoadMuteState();
             UpdateEnableButtonState();
             UpdateSpeakButtonState();
 
@@ -1426,6 +1432,92 @@ namespace HTCommander.Controls
                         }));
                     }
                 });
+            }
+        }
+
+        #endregion
+
+        #region Mute State Management
+
+        /// <summary>
+        /// Subscribes to the Mute DataBroker value for the given radio device,
+        /// unsubscribing from any previous device.
+        /// </summary>
+        private void SubscribeToMute(int deviceId)
+        {
+            // Unsubscribe from previous device
+            if (_muteSubscribedDeviceId >= 100)
+            {
+                broker.Unsubscribe(_muteSubscribedDeviceId, "Mute");
+            }
+
+            _muteSubscribedDeviceId = deviceId;
+
+            if (deviceId >= 100)
+            {
+                // Subscribe to the new device and read current value
+                broker.Subscribe(deviceId, "Mute", OnMuteChanged);
+                _isMuted = broker.GetValue<bool>(deviceId, "Mute", false);
+            }
+            else
+            {
+                _isMuted = false;
+            }
+
+            UpdateMutePanel();
+        }
+
+        /// <summary>
+        /// Loads the initial Mute state from the DataBroker for the preferred radio.
+        /// </summary>
+        private void LoadMuteState()
+        {
+            if (_preferredRadioDeviceId >= 100)
+            {
+                _isMuted = broker.GetValue<bool>(_preferredRadioDeviceId, "Mute", false);
+            }
+            else
+            {
+                _isMuted = false;
+            }
+            UpdateMutePanel();
+        }
+
+        /// <summary>
+        /// Handles Mute changes from the DataBroker.
+        /// </summary>
+        private void OnMuteChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                try { this.BeginInvoke(new Action<int, string, object>(OnMuteChanged), deviceId, name, data); }
+                catch (Exception) { }
+                return;
+            }
+
+            if (data is bool muted)
+            {
+                _isMuted = muted;
+                UpdateMutePanel();
+            }
+        }
+
+        /// <summary>
+        /// Updates the mutePanel visibility based on the current mute state.
+        /// </summary>
+        private void UpdateMutePanel()
+        {
+            mutePanel.Visible = _isMuted;
+        }
+
+        /// <summary>
+        /// Handles the Un-mute button click.
+        /// </summary>
+        private void unMuteButton_Click(object sender, EventArgs e)
+        {
+            if (_preferredRadioDeviceId >= 100)
+            {
+                broker.Dispatch(_preferredRadioDeviceId, "SetMute", false, store: false);
             }
         }
 
