@@ -1571,5 +1571,13 @@ namespace HTCommander.Controls
         {
             speakContextMenuStrip.Show(toolsPictureBox, e.Location);
         }
+
+        private void pTTReleaseSettingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (EditIdentSettingsForm identSettingsForm = new EditIdentSettingsForm())
+            {
+                identSettingsForm.ShowDialog(this);
+            }
+        }
     }
 }

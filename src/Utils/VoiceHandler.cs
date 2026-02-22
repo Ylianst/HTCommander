@@ -1292,8 +1292,8 @@ namespace HTCommander
                 _currentRecordingWriter.Dispose();
                 _currentRecordingWriter = null;
 
-                // Only add to history if the recording has some content (at least 0.3 seconds)
-                if (durationSeconds >= 0.3)
+                // Only add to history if the recording has some content (at least 0.5 seconds)
+                if (durationSeconds >= 0.5)
                 {
                     int durationInt = (int)Math.Round(durationSeconds);
 
