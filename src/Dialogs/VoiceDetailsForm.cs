@@ -44,7 +44,7 @@ namespace HTCommander
 
             addItem("Direction", msg.Sender ? "Sent" : "Received");
 
-            addItem("Completed", msg.IsCompleted ? "Yes" : "No");
+            //addItem("Completed", msg.IsCompleted ? "Yes" : "No");
 
             if (!string.IsNullOrEmpty(msg.SenderCallSign))
             {
