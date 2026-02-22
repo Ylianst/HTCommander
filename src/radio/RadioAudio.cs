@@ -713,7 +713,7 @@ namespace HTCommander
                         {
                             int uframeLength = UnescapeBytesInPlace(frame);
                             if (uframeLength == 0) break;
-                            Debug($"Frame: {frame[0]}");
+                            //Debug($"Frame: {frame[0]}");
                             switch (frame[0])
                             {
                                 case 0x00: // Received Audio (odd)
@@ -724,7 +724,7 @@ namespace HTCommander
                                         inAudioRunIsTransmit = false;
                                         DispatchAudioDataStart(false); // Receive
                                     }
-                                    DecodeSbcFrame(frame, 1, uframeLength - 1);
+                                    DecodeSbcFrame(frame, 1, uframeLength - 1, false);
                                     break;
                                 case 0x01: // Audio end (Use for Transmit or Receive)
                                     if (inAudioRun)
@@ -742,7 +742,7 @@ namespace HTCommander
                                         inAudioRunIsTransmit = true;
                                         DispatchAudioDataStart(true); // Transmit
                                     }
-                                    DecodeSbcFrame(frame, 1, uframeLength - 1);
+                                    DecodeSbcFrame(frame, 1, uframeLength - 1, true);
                                     break;
                                 default:
                                     Debug($"Unknown command: {frame[0]}");
@@ -804,7 +804,7 @@ namespace HTCommander
             }
         }
 
-        private int DecodeSbcFrame(byte[] sbcFrame, int start, int length)
+        private int DecodeSbcFrame(byte[] sbcFrame, int start, int length, bool isTransmit)
         {
             if (sbcFrame == null || sbcFrame.Length == 0) return 1;
 
@@ -872,7 +872,7 @@ namespace HTCommander
                     bool isOnMuteChannel = parent.IsOnMuteChannel();
                     if (isOnMuteChannel == false)
                     {
-                        if (waveProvider != null && isMuted == false)
+                        if (waveProvider != null && isMuted == false && isTransmit == false)
                         {
                             // If buffered audio exceeds latency cap, discard stale data to catch up
                             if (waveProvider.BufferedDuration.TotalMilliseconds > 800)
@@ -1062,6 +1062,13 @@ namespace HTCommander
                             else { break; }
                         }
                     }
+                    // Signal audio data end for the transmit run
+                    if (inAudioRun)
+                    {
+                        inAudioRun = false;
+                        DispatchAudioDataEnd();
+                    }
+
                     // Send end audio frame
                     ReminderTransmitPcmAudio = null;
                     byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
@@ -1082,6 +1089,14 @@ namespace HTCommander
 
         private async Task ProcessPcmDataAsync(byte[] pcmData, CancellationToken token)
         {
+            // Signal audio data start on the first chunk of a transmission
+            if (!inAudioRun)
+            {
+                inAudioRun = true;
+                inAudioRunIsTransmit = true;
+                DispatchAudioDataStart(true);
+            }
+
             int pcmOffset = 0;
             int pcmLength = pcmData.Length;
 

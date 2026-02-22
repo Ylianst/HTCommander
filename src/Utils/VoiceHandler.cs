@@ -1052,6 +1052,48 @@ namespace HTCommander
                 }
             }
 
+            // Finalize any in-progress SSTV decoding since the audio stream has ended
+            if (_sstvDecoding && deviceId == _targetDeviceId)
+            {
+                try
+                {
+                    broker.LogInfo("[VoiceHandler] Audio ended during SSTV decoding, finalizing partial SSTV reception");
+
+                    Bitmap partialImage = null;
+                    string modeName = null;
+
+                    lock (_sstvLock)
+                    {
+                        if (_sstvMonitor != null)
+                        {
+                            partialImage = _sstvMonitor.GetPartialImage();
+                            _sstvMonitor.Reset();
+                        }
+                    }
+
+                    // Build the completion args with whatever we have
+                    lock (_historyLock)
+                    {
+                        modeName = _currentSstvEntry?.Text?.Replace("Receiving ", "").Replace("...", "") ?? "SSTV";
+                    }
+
+                    // Fire the same completion logic as OnSstvDecodingComplete
+                    var args = new SstvDecodingCompleteEventArgs
+                    {
+                        ModeName = modeName,
+                        Width = partialImage?.Width ?? 0,
+                        Height = partialImage?.Height ?? 0,
+                        Image = partialImage
+                    };
+                    OnSstvDecodingComplete(this, args);
+                }
+                catch (Exception ex)
+                {
+                    broker.LogError($"[VoiceHandler] Error finalizing SSTV on audio end: {ex.Message}");
+                    _sstvDecoding = false;
+                }
+            }
+
             // Handle recording completion
             if (_recordingEnabled && deviceId == _targetDeviceId)
             {
