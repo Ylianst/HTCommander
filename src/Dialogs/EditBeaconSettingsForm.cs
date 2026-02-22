@@ -15,6 +15,7 @@ namespace HTCommander
     {
         private DataBrokerClient _broker;
         private List<ConnectedRadioInfo> _connectedRadios = new List<ConnectedRadioInfo>();
+        private List<int> _channelValues = new List<int>();
         private int _selectedDeviceId = -1;
 
         public EditBeaconSettingsForm()
@@ -30,6 +31,7 @@ namespace HTCommander
         {
             // Clear the default items from the designer
             radioComboBox.Items.Clear();
+            channelComboBox.Items.Clear();
 
             // Load connected radios from DataBroker
             LoadConnectedRadios();
@@ -151,6 +153,7 @@ namespace HTCommander
             }
 
             SetControlsEnabled(true);
+            LoadChannelComboBox(deviceId);
 
             packetFormatComboBox.SelectedIndex = bssSettings.PacketFormat;
             aprsCallsignTextBox.Text = bssSettings.AprsCallsign + "-" + bssSettings.AprsSsid.ToString();
@@ -184,8 +187,47 @@ namespace HTCommander
             UpdateInfo();
         }
 
+        private void LoadChannelComboBox(int deviceId)
+        {
+            channelComboBox.Items.Clear();
+            _channelValues.Clear();
+
+            // Add "Current (Not Recommended)" as the first option with value 0
+            channelComboBox.Items.Add("Current (Not Recommended)");
+            _channelValues.Add(0);
+
+            // Load named channels from the radio
+            RadioChannelInfo[] channels = _broker.GetValue<RadioChannelInfo[]>(deviceId, "Channels", null);
+            if (channels != null)
+            {
+                for (int i = 0; i < channels.Length; i++)
+                {
+                    if (channels[i] != null && !string.IsNullOrEmpty(channels[i].name_str))
+                    {
+                        channelComboBox.Items.Add(channels[i].name_str);
+                        _channelValues.Add(channels[i].channel_id + 1);
+                    }
+                }
+            }
+
+            // Select the current value from RadioSettings.auto_share_loc_ch
+            RadioSettings settings = _broker.GetValue<RadioSettings>(deviceId, "Settings", null);
+            int currentValue = settings?.auto_share_loc_ch ?? 0;
+            int selectedIndex = 0;
+            for (int i = 0; i < _channelValues.Count; i++)
+            {
+                if (_channelValues[i] == currentValue)
+                {
+                    selectedIndex = i;
+                    break;
+                }
+            }
+            channelComboBox.SelectedIndex = selectedIndex;
+        }
+
         private void SetControlsEnabled(bool enabled)
         {
+            channelComboBox.Enabled = enabled;
             packetFormatComboBox.Enabled = enabled;
             intervalComboBox.Enabled = enabled;
             aprsCallsignTextBox.Enabled = enabled;
@@ -275,6 +317,20 @@ namespace HTCommander
 
             // Dispatch the new settings to the radio
             _broker.Dispatch(_selectedDeviceId, "SetBssSettings", newSettings, store: false);
+
+            // Save auto_share_loc_ch to RadioSettings
+            RadioSettings radioSettings = _broker.GetValue<RadioSettings>(_selectedDeviceId, "Settings", null);
+            if (radioSettings != null)
+            {
+                int channelValue = 0;
+                if (channelComboBox.SelectedIndex >= 0 && channelComboBox.SelectedIndex < _channelValues.Count)
+                {
+                    channelValue = _channelValues[channelComboBox.SelectedIndex];
+                }
+                byte[] settingsData = radioSettings.ToByteArray(radioSettings.channel_a, radioSettings.channel_b, radioSettings.double_channel, radioSettings.scan, radioSettings.squelch_level);
+                settingsData[5] = (byte)((settingsData[5] & 0xE0) | (channelValue & 0x1F));
+                _broker.Dispatch(_selectedDeviceId, "WriteSettings", settingsData, store: false);
+            }
 
             DialogResult = DialogResult.OK;
         }

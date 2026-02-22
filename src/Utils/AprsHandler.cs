@@ -214,7 +214,7 @@ namespace HTCommander
                 {
                     if (!string.IsNullOrEmpty(messageData.Route[i]))
                     {
-                        addresses.Add(AX25Address.GetAddress(messageData.Route[i], 0));
+                        addresses.Add(AX25Address.GetAddress(messageData.Route[i]));
                     }
                 }
             }

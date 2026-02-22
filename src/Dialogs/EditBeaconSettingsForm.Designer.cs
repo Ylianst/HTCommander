@@ -33,6 +33,8 @@
             okButton = new System.Windows.Forms.Button();
             cancelButton = new System.Windows.Forms.Button();
             groupBox1 = new System.Windows.Forms.GroupBox();
+            label6 = new System.Windows.Forms.Label();
+            radioComboBox = new System.Windows.Forms.ComboBox();
             label7 = new System.Windows.Forms.Label();
             shareLocationCheckBox = new System.Windows.Forms.CheckBox();
             sendVoltageCheckBox = new System.Windows.Forms.CheckBox();
@@ -47,8 +49,8 @@
             packetFormatComboBox = new System.Windows.Forms.ComboBox();
             pictureBox2 = new System.Windows.Forms.PictureBox();
             label4 = new System.Windows.Forms.Label();
-            label6 = new System.Windows.Forms.Label();
-            radioComboBox = new System.Windows.Forms.ComboBox();
+            channelComboBox = new System.Windows.Forms.ComboBox();
+            label8 = new System.Windows.Forms.Label();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             SuspendLayout();
@@ -56,7 +58,7 @@
             // okButton
             // 
             okButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
-            okButton.Location = new System.Drawing.Point(231, 471);
+            okButton.Location = new System.Drawing.Point(269, 496);
             okButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             okButton.Name = "okButton";
             okButton.Size = new System.Drawing.Size(100, 35);
@@ -69,7 +71,7 @@
             // 
             cancelButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
             cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            cancelButton.Location = new System.Drawing.Point(339, 471);
+            cancelButton.Location = new System.Drawing.Point(377, 496);
             cancelButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             cancelButton.Name = "cancelButton";
             cancelButton.Size = new System.Drawing.Size(100, 35);
@@ -80,6 +82,8 @@
             // groupBox1
             // 
             groupBox1.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            groupBox1.Controls.Add(label8);
+            groupBox1.Controls.Add(channelComboBox);
             groupBox1.Controls.Add(label6);
             groupBox1.Controls.Add(radioComboBox);
             groupBox1.Controls.Add(label7);
@@ -98,165 +102,10 @@
             groupBox1.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             groupBox1.Name = "groupBox1";
             groupBox1.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            groupBox1.Size = new System.Drawing.Size(428, 364);
+            groupBox1.Size = new System.Drawing.Size(466, 389);
             groupBox1.TabIndex = 19;
             groupBox1.TabStop = false;
             groupBox1.Text = "Beacon Settings";
-            // 
-            // label7
-            // 
-            label7.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            label7.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
-            label7.Location = new System.Drawing.Point(174, 184);
-            label7.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            label7.Name = "label7";
-            label7.Size = new System.Drawing.Size(239, 30);
-            label7.TabIndex = 19;
-            label7.Text = "Enter Callsign - Station ID";
-            // 
-            // shareLocationCheckBox
-            // 
-            shareLocationCheckBox.AutoSize = true;
-            shareLocationCheckBox.Location = new System.Drawing.Point(176, 254);
-            shareLocationCheckBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            shareLocationCheckBox.Name = "shareLocationCheckBox";
-            shareLocationCheckBox.Size = new System.Drawing.Size(179, 24);
-            shareLocationCheckBox.TabIndex = 18;
-            shareLocationCheckBox.Text = "Should Share Location";
-            shareLocationCheckBox.UseVisualStyleBackColor = true;
-            // 
-            // sendVoltageCheckBox
-            // 
-            sendVoltageCheckBox.AutoSize = true;
-            sendVoltageCheckBox.Location = new System.Drawing.Point(176, 288);
-            sendVoltageCheckBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            sendVoltageCheckBox.Name = "sendVoltageCheckBox";
-            sendVoltageCheckBox.Size = new System.Drawing.Size(119, 24);
-            sendVoltageCheckBox.TabIndex = 17;
-            sendVoltageCheckBox.Text = "Send Voltage";
-            sendVoltageCheckBox.UseVisualStyleBackColor = true;
-            // 
-            // allowPositionCheckBox
-            // 
-            allowPositionCheckBox.AutoSize = true;
-            allowPositionCheckBox.Location = new System.Drawing.Point(176, 324);
-            allowPositionCheckBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            allowPositionCheckBox.Name = "allowPositionCheckBox";
-            allowPositionCheckBox.Size = new System.Drawing.Size(168, 24);
-            allowPositionCheckBox.TabIndex = 16;
-            allowPositionCheckBox.Text = "Allow Position Check";
-            allowPositionCheckBox.UseVisualStyleBackColor = true;
-            // 
-            // label3
-            // 
-            label3.AutoSize = true;
-            label3.Location = new System.Drawing.Point(8, 221);
-            label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(106, 20);
-            label3.TabIndex = 15;
-            label3.Text = "APRS Message";
-            // 
-            // aprsMessageTextBox
-            // 
-            aprsMessageTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            aprsMessageTextBox.Location = new System.Drawing.Point(177, 217);
-            aprsMessageTextBox.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            aprsMessageTextBox.MaxLength = 18;
-            aprsMessageTextBox.Name = "aprsMessageTextBox";
-            aprsMessageTextBox.Size = new System.Drawing.Size(236, 27);
-            aprsMessageTextBox.TabIndex = 14;
-            // 
-            // label2
-            // 
-            label2.AutoSize = true;
-            label2.Location = new System.Drawing.Point(7, 117);
-            label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(111, 20);
-            label2.TabIndex = 13;
-            label2.Text = "Beacon Interval";
-            // 
-            // intervalComboBox
-            // 
-            intervalComboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            intervalComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            intervalComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
-            intervalComboBox.FormattingEnabled = true;
-            intervalComboBox.Items.AddRange(new object[] { "Off", "Every 10 seconds", "Every 20 seconds", "Every 30 seconds", "Every 40 seconds", "Every 50 seconds", "Every 1 minute", "Every 2 minutes", "Every 3 minutes", "Every 4 minutes", "Every 5 minutes", "Every 6 minutes", "Every 7 minutes", "Every 8 minutes", "Every 9 minutes", "Every 10 minutes", "Every 15 minutes", "Every 20 minutes", "Every 25 minutes", "Every 30 minutes" });
-            intervalComboBox.Location = new System.Drawing.Point(176, 112);
-            intervalComboBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            intervalComboBox.Name = "intervalComboBox";
-            intervalComboBox.Size = new System.Drawing.Size(237, 25);
-            intervalComboBox.TabIndex = 12;
-            // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(8, 156);
-            label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(100, 20);
-            label1.TabIndex = 11;
-            label1.Text = "APRS Callsign";
-            // 
-            // aprsCallsignTextBox
-            // 
-            aprsCallsignTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            aprsCallsignTextBox.Location = new System.Drawing.Point(177, 152);
-            aprsCallsignTextBox.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            aprsCallsignTextBox.MaxLength = 9;
-            aprsCallsignTextBox.Name = "aprsCallsignTextBox";
-            aprsCallsignTextBox.Size = new System.Drawing.Size(236, 27);
-            aprsCallsignTextBox.TabIndex = 10;
-            aprsCallsignTextBox.TextChanged += aprsCallsignTextBox_TextChanged;
-            aprsCallsignTextBox.KeyPress += aprsCallsignTextBox_KeyPress;
-            // 
-            // label5
-            // 
-            label5.AutoSize = true;
-            label5.Location = new System.Drawing.Point(7, 76);
-            label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            label5.Name = "label5";
-            label5.Size = new System.Drawing.Size(102, 20);
-            label5.TabIndex = 9;
-            label5.Text = "Packet Format";
-            // 
-            // packetFormatComboBox
-            // 
-            packetFormatComboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            packetFormatComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            packetFormatComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
-            packetFormatComboBox.FormattingEnabled = true;
-            packetFormatComboBox.Items.AddRange(new object[] { "BSS", "APRS" });
-            packetFormatComboBox.Location = new System.Drawing.Point(176, 71);
-            packetFormatComboBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            packetFormatComboBox.Name = "packetFormatComboBox";
-            packetFormatComboBox.Size = new System.Drawing.Size(237, 25);
-            packetFormatComboBox.TabIndex = 8;
-            packetFormatComboBox.SelectedIndexChanged += packetFormatComboBox_SelectedIndexChanged;
-            // 
-            // pictureBox2
-            // 
-            pictureBox2.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            pictureBox2.Image = Properties.Resources.MapPoint1;
-            pictureBox2.Location = new System.Drawing.Point(376, 11);
-            pictureBox2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            pictureBox2.Name = "pictureBox2";
-            pictureBox2.Size = new System.Drawing.Size(64, 79);
-            pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            pictureBox2.TabIndex = 21;
-            pictureBox2.TabStop = false;
-            // 
-            // label4
-            // 
-            label4.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            label4.Location = new System.Drawing.Point(9, 11);
-            label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            label4.Name = "label4";
-            label4.Size = new System.Drawing.Size(359, 79);
-            label4.TabIndex = 20;
-            label4.Text = "Change how the radio will beacon information about itself including position, voltage and a custom message. Other stations around will be able to see this information.";
             // 
             // label6
             // 
@@ -275,12 +124,190 @@
             radioComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
             radioComboBox.FormattingEnabled = true;
             radioComboBox.Items.AddRange(new object[] { "BSS", "APRS" });
-            radioComboBox.Location = new System.Drawing.Point(176, 29);
+            radioComboBox.Location = new System.Drawing.Point(177, 29);
             radioComboBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             radioComboBox.Name = "radioComboBox";
-            radioComboBox.Size = new System.Drawing.Size(237, 25);
+            radioComboBox.Size = new System.Drawing.Size(274, 25);
             radioComboBox.TabIndex = 20;
             radioComboBox.SelectedIndexChanged += radioComboBox_SelectedIndexChanged;
+            // 
+            // label7
+            // 
+            label7.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            label7.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
+            label7.Location = new System.Drawing.Point(174, 223);
+            label7.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label7.Name = "label7";
+            label7.Size = new System.Drawing.Size(277, 30);
+            label7.TabIndex = 19;
+            label7.Text = "Enter Callsign - Station ID";
+            // 
+            // shareLocationCheckBox
+            // 
+            shareLocationCheckBox.AutoSize = true;
+            shareLocationCheckBox.Location = new System.Drawing.Point(176, 293);
+            shareLocationCheckBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            shareLocationCheckBox.Name = "shareLocationCheckBox";
+            shareLocationCheckBox.Size = new System.Drawing.Size(179, 24);
+            shareLocationCheckBox.TabIndex = 18;
+            shareLocationCheckBox.Text = "Should Share Location";
+            shareLocationCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // sendVoltageCheckBox
+            // 
+            sendVoltageCheckBox.AutoSize = true;
+            sendVoltageCheckBox.Location = new System.Drawing.Point(176, 323);
+            sendVoltageCheckBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            sendVoltageCheckBox.Name = "sendVoltageCheckBox";
+            sendVoltageCheckBox.Size = new System.Drawing.Size(119, 24);
+            sendVoltageCheckBox.TabIndex = 17;
+            sendVoltageCheckBox.Text = "Send Voltage";
+            sendVoltageCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // allowPositionCheckBox
+            // 
+            allowPositionCheckBox.AutoSize = true;
+            allowPositionCheckBox.Location = new System.Drawing.Point(176, 354);
+            allowPositionCheckBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            allowPositionCheckBox.Name = "allowPositionCheckBox";
+            allowPositionCheckBox.Size = new System.Drawing.Size(168, 24);
+            allowPositionCheckBox.TabIndex = 16;
+            allowPositionCheckBox.Text = "Allow Position Check";
+            allowPositionCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new System.Drawing.Point(8, 260);
+            label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label3.Name = "label3";
+            label3.Size = new System.Drawing.Size(106, 20);
+            label3.TabIndex = 15;
+            label3.Text = "APRS Message";
+            // 
+            // aprsMessageTextBox
+            // 
+            aprsMessageTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            aprsMessageTextBox.Location = new System.Drawing.Point(177, 256);
+            aprsMessageTextBox.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            aprsMessageTextBox.MaxLength = 18;
+            aprsMessageTextBox.Name = "aprsMessageTextBox";
+            aprsMessageTextBox.Size = new System.Drawing.Size(274, 27);
+            aprsMessageTextBox.TabIndex = 14;
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new System.Drawing.Point(7, 156);
+            label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(111, 20);
+            label2.TabIndex = 13;
+            label2.Text = "Beacon Interval";
+            // 
+            // intervalComboBox
+            // 
+            intervalComboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            intervalComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            intervalComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            intervalComboBox.FormattingEnabled = true;
+            intervalComboBox.Items.AddRange(new object[] { "Off", "Every 10 seconds", "Every 20 seconds", "Every 30 seconds", "Every 40 seconds", "Every 50 seconds", "Every 1 minute", "Every 2 minutes", "Every 3 minutes", "Every 4 minutes", "Every 5 minutes", "Every 6 minutes", "Every 7 minutes", "Every 8 minutes", "Every 9 minutes", "Every 10 minutes", "Every 15 minutes", "Every 20 minutes", "Every 25 minutes", "Every 30 minutes" });
+            intervalComboBox.Location = new System.Drawing.Point(176, 151);
+            intervalComboBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            intervalComboBox.Name = "intervalComboBox";
+            intervalComboBox.Size = new System.Drawing.Size(275, 25);
+            intervalComboBox.TabIndex = 12;
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new System.Drawing.Point(8, 195);
+            label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(100, 20);
+            label1.TabIndex = 11;
+            label1.Text = "APRS Callsign";
+            // 
+            // aprsCallsignTextBox
+            // 
+            aprsCallsignTextBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            aprsCallsignTextBox.Location = new System.Drawing.Point(177, 191);
+            aprsCallsignTextBox.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            aprsCallsignTextBox.MaxLength = 9;
+            aprsCallsignTextBox.Name = "aprsCallsignTextBox";
+            aprsCallsignTextBox.Size = new System.Drawing.Size(274, 27);
+            aprsCallsignTextBox.TabIndex = 10;
+            aprsCallsignTextBox.TextChanged += aprsCallsignTextBox_TextChanged;
+            aprsCallsignTextBox.KeyPress += aprsCallsignTextBox_KeyPress;
+            // 
+            // label5
+            // 
+            label5.AutoSize = true;
+            label5.Location = new System.Drawing.Point(7, 115);
+            label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label5.Name = "label5";
+            label5.Size = new System.Drawing.Size(102, 20);
+            label5.TabIndex = 9;
+            label5.Text = "Packet Format";
+            // 
+            // packetFormatComboBox
+            // 
+            packetFormatComboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            packetFormatComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            packetFormatComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            packetFormatComboBox.FormattingEnabled = true;
+            packetFormatComboBox.Items.AddRange(new object[] { "BSS", "APRS" });
+            packetFormatComboBox.Location = new System.Drawing.Point(176, 110);
+            packetFormatComboBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            packetFormatComboBox.Name = "packetFormatComboBox";
+            packetFormatComboBox.Size = new System.Drawing.Size(275, 25);
+            packetFormatComboBox.TabIndex = 8;
+            packetFormatComboBox.SelectedIndexChanged += packetFormatComboBox_SelectedIndexChanged;
+            // 
+            // pictureBox2
+            // 
+            pictureBox2.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            pictureBox2.Image = Properties.Resources.MapPoint1;
+            pictureBox2.Location = new System.Drawing.Point(414, 11);
+            pictureBox2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            pictureBox2.Name = "pictureBox2";
+            pictureBox2.Size = new System.Drawing.Size(64, 79);
+            pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            pictureBox2.TabIndex = 21;
+            pictureBox2.TabStop = false;
+            // 
+            // label4
+            // 
+            label4.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            label4.Location = new System.Drawing.Point(9, 11);
+            label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label4.Name = "label4";
+            label4.Size = new System.Drawing.Size(397, 79);
+            label4.TabIndex = 20;
+            label4.Text = "Change how the radio will beacon information about itself including position, voltage and a custom message. Other stations around will be able to see this information.";
+            // 
+            // channelComboBox
+            // 
+            channelComboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            channelComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            channelComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            channelComboBox.FormattingEnabled = true;
+            channelComboBox.Items.AddRange(new object[] { "BSS", "APRS" });
+            channelComboBox.Location = new System.Drawing.Point(177, 70);
+            channelComboBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            channelComboBox.Name = "channelComboBox";
+            channelComboBox.Size = new System.Drawing.Size(275, 25);
+            channelComboBox.TabIndex = 22;
+            // 
+            // label8
+            // 
+            label8.AutoSize = true;
+            label8.Location = new System.Drawing.Point(8, 71);
+            label8.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label8.Name = "label8";
+            label8.Size = new System.Drawing.Size(62, 20);
+            label8.TabIndex = 23;
+            label8.Text = "Channel";
             // 
             // EditBeaconSettingsForm
             // 
@@ -288,7 +315,7 @@
             AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             CancelButton = cancelButton;
-            ClientSize = new System.Drawing.Size(452, 523);
+            ClientSize = new System.Drawing.Size(490, 548);
             Controls.Add(pictureBox2);
             Controls.Add(label4);
             Controls.Add(groupBox1);
@@ -330,5 +357,7 @@
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.ComboBox radioComboBox;
+        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.ComboBox channelComboBox;
     }
 }
