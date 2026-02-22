@@ -1856,15 +1856,11 @@ namespace HTCommander
                 string channelName = (string)channelNameProp.GetValue(data);
                 bool transmit = (bool)transmitProp.GetValue(data);
                 bool muted = mutedProp != null && (bool)mutedProp.GetValue(data);
+                var usageProp = dataType.GetProperty("Usage");
+                string usage = usageProp != null ? (string)usageProp.GetValue(data) : null;
 
-                // Only process received audio. Muted audio is ok.
-                if (transmit)
-                {
-                    return;
-                }
-
-                // Don't process audio from the APRS channel
-                if (channelName == "APRS")
+                // Don't process audio from the APRS channel or when the radio is locked to a usage
+                if (channelName == "APRS" || usage != null)
                 {
                     return;
                 }
@@ -1878,18 +1874,18 @@ namespace HTCommander
                     ProcessAudioChunk(audioData, offset, length, channelName);
                 }
 
-                // Process through SSTV monitor for auto-detection
-                if (needsSstv)
-                {
-                    SstvMonitor monitor;
-                    lock (_sstvLock) { monitor = _sstvMonitor; }
-                    monitor?.ProcessPcm16(audioData, offset, length);
-                }
-
                 // Write audio data to recording file
                 if (needsRecording)
                 {
                     WriteAudioToRecording(audioData, offset, length);
+                }
+
+                // Process through SSTV monitor for auto-detection
+                if (!transmit && needsSstv)
+                {
+                    SstvMonitor monitor;
+                    lock (_sstvLock) { monitor = _sstvMonitor; }
+                    monitor?.ProcessPcm16(audioData, offset, length);
                 }
             }
             catch (Exception ex)

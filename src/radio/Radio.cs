@@ -40,6 +40,7 @@ namespace HTCommander
 
         // Lock state fields
         private RadioLockState lockState = null;
+        public string LockUsage { get { return (lockState != null && lockState.IsLocked) ? lockState.Usage : null; } }
         private int savedRegionId = -1;
         private int savedChannelId = -1;
         private bool savedScan = false;
@@ -953,7 +954,7 @@ namespace HTCommander
                 fragid++;
             }
 
-            if (!TncFragmentInFlight && TncFragmentQueue.Count > 0 && HtStatus.rssi == 0 && !HtStatus.is_in_tx)
+            if (!TncFragmentInFlight && TncFragmentQueue.Count > 0 && HtStatus != null && HtStatus.rssi == 0 && !HtStatus.is_in_tx)
             {
                 TncFragmentInFlight = true;
                 SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.HT_SEND_DATA, TncFragmentQueue[0].fragment);
