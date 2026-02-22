@@ -923,6 +923,7 @@ namespace HTCommander
         private void OnRadioStateChanged(int deviceId, string name, object data)
         {
             string stateStr = data as string;
+
             if (stateStr == "Connected")
             {
                 // If the radioPanelControl is not monitoring an existing connected radio, set it to this newly connected radio
@@ -932,6 +933,48 @@ namespace HTCommander
                     radioPanelControl.DeviceId = deviceId;
                 }
             }
+            else if (stateStr != "Connecting")
+            {
+                // Radio entered a terminal state (Disconnected, UnableToConnect, etc.) — remove it from the connected list
+                Radio radio = connectedRadios.FirstOrDefault(r => r.DeviceId == deviceId);
+                if (radio != null)
+                {
+                    // Remove from DataBroker
+                    string handlerName = "Radio_" + radio.DeviceId;
+                    DataBroker.RemoveDataHandler(handlerName);
+
+                    // Remove from tracking list (radio already transitioned state, no need to call Dispose/Disconnect again)
+                    connectedRadios.Remove(radio);
+
+                    // If the radioPanelControl was displaying this radio, switch to another connected radio if available
+                    if (radioPanelControl.DeviceId == deviceId)
+                    {
+                        if (connectedRadios.Count > 0)
+                        {
+                            radioPanelControl.DeviceId = connectedRadios[0].DeviceId;
+                        }
+                        else
+                        {
+                            radioPanelControl.DeviceId = -1;
+                        }
+                    }
+
+                    // Publish updated connected radios list
+                    PublishConnectedRadios();
+                }
+
+                if (stateStr == "UnableToConnect")
+                {
+                    // Show the CantConnectForm to help the user troubleshoot the connection
+                    new CantConnectForm().Show(this);
+                }
+            }
+
+            // If the state change is for the currently selected radio, re-evaluate PreferredRadioDeviceId
+            if (deviceId == radioPanelControl.DeviceId)
+            {
+                UpdatePreferredRadioDeviceId();
+            }
         }
 
         #endregion
@@ -940,21 +983,42 @@ namespace HTCommander
 
         /// <summary>
         /// Handles DeviceId changes from the radioPanelControl.
-        /// Updates all tab controls that implement IRadioDeviceSelector with the new preferred radio device ID.
+        /// Re-evaluates whether the selected radio is connected and updates tab controls accordingly.
         /// </summary>
         private void OnRadioPanelDeviceIdChanged(object sender, int newDeviceId)
         {
-            // Update all tab controls that implement IRadioDeviceSelector
-            aprsTabUserControl.PreferredRadioDeviceId = newDeviceId;
-            mapTabUserControl.PreferredRadioDeviceId = newDeviceId;
-            voiceTabUserControl.PreferredRadioDeviceId = newDeviceId;
-            mailTabUserControl.PreferredRadioDeviceId = newDeviceId;
-            terminalTabUserControl.PreferredRadioDeviceId = newDeviceId;
-            contactsTabUserControl.PreferredRadioDeviceId = newDeviceId;
-            bbsTabUserControl.PreferredRadioDeviceId = newDeviceId;
-            torrentTabUserControl.PreferredRadioDeviceId = newDeviceId;
-            packetCaptureTabUserControl.PreferredRadioDeviceId = newDeviceId;
-            debugTabUserControl.PreferredRadioDeviceId = newDeviceId;
+            UpdatePreferredRadioDeviceId();
+        }
+
+        /// <summary>
+        /// Checks whether the currently selected radio (from radioPanelControl) is in the Connected state.
+        /// If so, sets PreferredRadioDeviceId on all tab controls to that device ID.
+        /// Otherwise, sets PreferredRadioDeviceId to 0.
+        /// </summary>
+        private void UpdatePreferredRadioDeviceId()
+        {
+            int deviceId = radioPanelControl.DeviceId;
+            int effectiveId = 0;
+
+            if (deviceId > 0)
+            {
+                Radio radio = connectedRadios.FirstOrDefault(r => r.DeviceId == deviceId);
+                if (radio != null && radio.State == Radio.RadioState.Connected)
+                {
+                    effectiveId = deviceId;
+                }
+            }
+
+            aprsTabUserControl.PreferredRadioDeviceId = effectiveId;
+            mapTabUserControl.PreferredRadioDeviceId = effectiveId;
+            voiceTabUserControl.PreferredRadioDeviceId = effectiveId;
+            mailTabUserControl.PreferredRadioDeviceId = effectiveId;
+            terminalTabUserControl.PreferredRadioDeviceId = effectiveId;
+            contactsTabUserControl.PreferredRadioDeviceId = effectiveId;
+            bbsTabUserControl.PreferredRadioDeviceId = effectiveId;
+            torrentTabUserControl.PreferredRadioDeviceId = effectiveId;
+            packetCaptureTabUserControl.PreferredRadioDeviceId = effectiveId;
+            debugTabUserControl.PreferredRadioDeviceId = effectiveId;
         }
 
         #endregion

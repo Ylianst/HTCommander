@@ -274,6 +274,7 @@ namespace HTCommander.RadioControls
             rssiProgressBar.Visible = false;
             transmitBarPanel.Visible = false;
             voiceProcessingLabel.Visible = false;
+            channelsFlowLayoutPanel.Visible = false;
         }
 
         /// <summary>
@@ -288,6 +289,7 @@ namespace HTCommander.RadioControls
             rssiProgressBar.Visible = false;
             transmitBarPanel.Visible = false;
             voiceProcessingLabel.Visible = false;
+            channelsFlowLayoutPanel.Visible = false;
         }
 
         /// <summary>
