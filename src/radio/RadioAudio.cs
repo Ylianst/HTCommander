@@ -718,6 +718,7 @@ namespace HTCommander
                             {
                                 case 0x00: // Received Audio (odd)
                                 case 0x03: // Received Audio
+                                    if (inAudioRun && inAudioRunIsTransmit) return;
                                     if (!inAudioRun)
                                     {
                                         inAudioRun = true;
@@ -736,6 +737,7 @@ namespace HTCommander
                                 case 0x02: // Audio ACK
                                     break;
                                 case 0x09: // Transmit Audio
+                                    if (inAudioRun && !inAudioRunIsTransmit) return;
                                     if (!inAudioRun)
                                     {
                                         inAudioRun = true;
