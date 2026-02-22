@@ -33,6 +33,8 @@
             okButton = new System.Windows.Forms.Button();
             cancelButton = new System.Windows.Forms.Button();
             groupBox1 = new System.Windows.Forms.GroupBox();
+            label8 = new System.Windows.Forms.Label();
+            channelComboBox = new System.Windows.Forms.ComboBox();
             label6 = new System.Windows.Forms.Label();
             radioComboBox = new System.Windows.Forms.ComboBox();
             label7 = new System.Windows.Forms.Label();
@@ -49,8 +51,6 @@
             packetFormatComboBox = new System.Windows.Forms.ComboBox();
             pictureBox2 = new System.Windows.Forms.PictureBox();
             label4 = new System.Windows.Forms.Label();
-            channelComboBox = new System.Windows.Forms.ComboBox();
-            label8 = new System.Windows.Forms.Label();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             SuspendLayout();
@@ -107,10 +107,33 @@
             groupBox1.TabStop = false;
             groupBox1.Text = "Beacon Settings";
             // 
+            // label8
+            // 
+            label8.AutoSize = true;
+            label8.Location = new System.Drawing.Point(8, 72);
+            label8.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label8.Name = "label8";
+            label8.Size = new System.Drawing.Size(62, 20);
+            label8.TabIndex = 23;
+            label8.Text = "Channel";
+            // 
+            // channelComboBox
+            // 
+            channelComboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            channelComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            channelComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
+            channelComboBox.FormattingEnabled = true;
+            channelComboBox.Items.AddRange(new object[] { "BSS", "APRS" });
+            channelComboBox.Location = new System.Drawing.Point(177, 70);
+            channelComboBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            channelComboBox.Name = "channelComboBox";
+            channelComboBox.Size = new System.Drawing.Size(275, 25);
+            channelComboBox.TabIndex = 22;
+            // 
             // label6
             // 
             label6.AutoSize = true;
-            label6.Location = new System.Drawing.Point(7, 34);
+            label6.Location = new System.Drawing.Point(8, 32);
             label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label6.Name = "label6";
             label6.Size = new System.Drawing.Size(48, 20);
@@ -198,7 +221,7 @@
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new System.Drawing.Point(7, 156);
+            label2.Location = new System.Drawing.Point(8, 154);
             label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(111, 20);
@@ -243,7 +266,7 @@
             // label5
             // 
             label5.AutoSize = true;
-            label5.Location = new System.Drawing.Point(7, 115);
+            label5.Location = new System.Drawing.Point(8, 113);
             label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label5.Name = "label5";
             label5.Size = new System.Drawing.Size(102, 20);
@@ -285,29 +308,6 @@
             label4.Size = new System.Drawing.Size(397, 79);
             label4.TabIndex = 20;
             label4.Text = "Change how the radio will beacon information about itself including position, voltage and a custom message. Other stations around will be able to see this information.";
-            // 
-            // channelComboBox
-            // 
-            channelComboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            channelComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            channelComboBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
-            channelComboBox.FormattingEnabled = true;
-            channelComboBox.Items.AddRange(new object[] { "BSS", "APRS" });
-            channelComboBox.Location = new System.Drawing.Point(177, 70);
-            channelComboBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            channelComboBox.Name = "channelComboBox";
-            channelComboBox.Size = new System.Drawing.Size(275, 25);
-            channelComboBox.TabIndex = 22;
-            // 
-            // label8
-            // 
-            label8.AutoSize = true;
-            label8.Location = new System.Drawing.Point(8, 71);
-            label8.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            label8.Name = "label8";
-            label8.Size = new System.Drawing.Size(62, 20);
-            label8.TabIndex = 23;
-            label8.Text = "Channel";
             // 
             // EditBeaconSettingsForm
             // 
