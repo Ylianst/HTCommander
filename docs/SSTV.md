@@ -1,6 +1,6 @@
 # Slow-Scan Television (SSTV)
 
-![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/ht-sstv.png?raw=true)
+![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/ht-SSTV.png?raw=true)
 
 Handi-Talky Commander has built-in support to transmit and receive SSTV with a wide range of supported formats including Robot36.
 
