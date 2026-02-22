@@ -653,6 +653,9 @@ namespace HTCommander
             mainListView.BeginUpdate();
             itemProductId.SubItems[1].Text = Info.product_id.ToString();
             itemVendorId.SubItems[1].Text = Info.vendor_id.ToString();
+            if (Info.vendor_id == 1) { itemVendorId.SubItems[1].Text += " - Vero"; }
+            if (Info.vendor_id == 6) { itemVendorId.SubItems[1].Text += " - BTech"; }
+            if (Info.vendor_id == 255) { itemVendorId.SubItems[1].Text += " - RadioOddity"; }
             itemDmrSupport.SubItems[1].Text = Info.support_dmr ? "Present" : "Not-Present";
             itemGmrsSupport.SubItems[1].Text = Info.gmrs ? "Present" : "Not-Present";
             itemHwSpeaker.SubItems[1].Text = Info.have_hm_speaker ? "Present" : "Not-Present";
@@ -747,7 +750,7 @@ namespace HTCommander
             itemAprsSymbol.SubItems[1].Text = BssSettings.AprsSymbol;
             itemBeaconMessage.SubItems[1].Text = BssSettings.BeaconMessage;
             itemBssUserIdLower.SubItems[1].Text = BssSettings.BssUserIdLower.ToString();
-            itemLocationShareInterval.SubItems[1].Text = BssSettings.LocationShareInterval.ToString() + " second(s)";
+            itemLocationShareInterval.SubItems[1].Text = BssSettings.LocationShareInterval == 0 ? "Off" : BssSettings.LocationShareInterval.ToString() + " second(s)";
             itemMaxFwdTimes.SubItems[1].Text = BssSettings.MaxFwdTimes.ToString();
             itemPacketFormat.SubItems[1].Text = BssSettings.PacketFormat.ToString();
             itemPttReleaseIdInfo.SubItems[1].Text = BssSettings.PttReleaseIdInfo.ToString();
