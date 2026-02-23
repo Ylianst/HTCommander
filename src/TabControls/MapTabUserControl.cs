@@ -71,6 +71,9 @@ namespace HTCommander.Controls
         private GMapOverlay airplaneOverlay = new GMapOverlay("Airplanes");
         private Dictionary<string, AirplaneMarker> airplaneMarkers = new Dictionary<string, AirplaneMarker>();
 
+        // Voice channel markers keyed by source callsign (orange markers)
+        private Dictionary<string, GMapMarker> voiceMarkers = new Dictionary<string, GMapMarker>();
+
         // Index for cycling through radio positions when clicking "Center to GPS"
         private int centerToGpsCycleIndex = 0;
 
@@ -107,6 +110,10 @@ namespace HTCommander.Controls
             // Subscribe to airplane data and show/hide setting
             broker.Subscribe(0, "Airplanes", OnAirplanesReceived);
             broker.Subscribe(0, "ShowAirplanesOnMap", OnShowAirplanesOnMapChanged);
+
+            // Subscribe to voice channel decoded text for orange markers
+            broker.Subscribe(1, "DecodedTextHistory", OnDecodedTextHistory);
+            broker.Subscribe(DataBroker.AllDevices, "TextReady", OnTextReady);
         }
 
         private void LoadInitialRadioPositions()
@@ -377,6 +384,116 @@ namespace HTCommander.Controls
             centerToGPSToolStripMenuItem.Enabled = hasValidPosition;
         }
 
+        #region Voice Channel Markers
+
+        /// <summary>
+        /// Handles the DecodedTextHistory event - loads historical voice entries with location data.
+        /// </summary>
+        private void OnDecodedTextHistory(int deviceId, string name, object data)
+        {
+            if (!(data is List<DecodedTextEntry> history)) return;
+
+            foreach (DecodedTextEntry entry in history)
+            {
+                ProcessVoiceEntryForMap(entry);
+            }
+        }
+
+        /// <summary>
+        /// Handles the TextReady event - processes real-time voice entries with location data.
+        /// </summary>
+        private void OnTextReady(int deviceId, string name, object data)
+        {
+            if (data == null) return;
+
+            // Extract properties from the anonymous object via reflection
+            var dataType = data.GetType();
+            var sourceProp = dataType.GetProperty("Source");
+            var latProp = dataType.GetProperty("Latitude");
+            var lngProp = dataType.GetProperty("Longitude");
+            var timeProp = dataType.GetProperty("Time");
+            var completedProp = dataType.GetProperty("Completed");
+
+            if (sourceProp == null || latProp == null || lngProp == null || timeProp == null) return;
+
+            // Only process completed entries
+            if (completedProp != null && !(bool)completedProp.GetValue(data)) return;
+
+            string source = sourceProp.GetValue(data) as string;
+            if (string.IsNullOrEmpty(source)) return;
+
+            double lat = Convert.ToDouble(latProp.GetValue(data));
+            double lng = Convert.ToDouble(lngProp.GetValue(data));
+            if (lat == 0 && lng == 0) return;
+
+            DateTime time = (DateTime)timeProp.GetValue(data);
+
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => AddVoiceMapMarker(source, lat, lng, time)));
+            }
+            else
+            {
+                AddVoiceMapMarker(source, lat, lng, time);
+            }
+        }
+
+        /// <summary>
+        /// Processes a DecodedTextEntry and adds it to the map if it has a valid source and location.
+        /// </summary>
+        private void ProcessVoiceEntryForMap(DecodedTextEntry entry)
+        {
+            if (entry == null) return;
+            if (string.IsNullOrEmpty(entry.Source)) return;
+            if (entry.Latitude == 0 && entry.Longitude == 0) return;
+
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => AddVoiceMapMarker(entry.Source, entry.Latitude, entry.Longitude, entry.Time)));
+            }
+            else
+            {
+                AddVoiceMapMarker(entry.Source, entry.Latitude, entry.Longitude, entry.Time);
+            }
+        }
+
+        /// <summary>
+        /// Adds or updates an orange marker on the map for a voice channel source station.
+        /// </summary>
+        public void AddVoiceMapMarker(string source, double lat, double lng, DateTime time)
+        {
+            int mapFilterMinutes = broker.GetValue<int>(0, "MapTimeFilter", 0);
+            bool isVisible = (mapFilterMinutes == 0) || (DateTime.Now.CompareTo(time.AddMinutes(mapFilterMinutes)) <= 0);
+
+            if (voiceMarkers.TryGetValue(source, out GMapMarker existing))
+            {
+                // Update existing marker
+                existing.Position = new PointLatLng(lat, lng);
+                existing.ToolTipText = "\r\n" + source + "\r\n" + time.ToString();
+                existing.Tag = time;
+                existing.IsVisible = isVisible;
+            }
+            else
+            {
+                // Create new orange marker
+                GMarkerGoogleType markerType = largeMarkersToolStripMenuItem.Checked
+                    ? GMarkerGoogleType.orange_dot
+                    : GMarkerGoogleType.orange_small;
+
+                GMapMarker marker = new GMarkerGoogle(new PointLatLng(lat, lng), markerType);
+                marker.Tag = time;
+                marker.ToolTipText = "\r\n" + source + "\r\n" + time.ToString();
+                marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
+                marker.ToolTip.TextPadding = new Size(4, 8);
+                marker.IsVisible = isVisible;
+
+                voiceMarkers[source] = marker;
+                mapMarkersOverlay.Markers.Add(marker);
+            }
+        }
+
+        #endregion
+
         #region APRS Marker Code
 
         // Flag to prevent loading historical packets multiple times
@@ -521,6 +638,7 @@ namespace HTCommander.Controls
                 // Skip radio markers (they're managed separately)
                 if (radioMarkers.ContainsValue(m)) continue;
 
+                // Voice markers and APRS markers both use time filtering
                 m.IsVisible = ((mapFilterMinutes == 0) || (now.CompareTo(((DateTime)m.Tag).AddMinutes(mapFilterMinutes)) <= 0));
             }
             foreach (GMapRoute r in mapMarkersOverlay.Routes)
@@ -701,12 +819,14 @@ namespace HTCommander.Controls
                     if (t == GMarkerGoogleType.red_small) t = GMarkerGoogleType.red_dot;
                     if (t == GMarkerGoogleType.blue_small) t = GMarkerGoogleType.blue_dot;
                     if (t == GMarkerGoogleType.green_small) t = GMarkerGoogleType.green_dot;
+                    if (t == GMarkerGoogleType.orange_small) t = GMarkerGoogleType.orange_dot;
                 }
                 else
                 {
                     if (t == GMarkerGoogleType.red_dot) t = GMarkerGoogleType.red_small;
                     if (t == GMarkerGoogleType.blue_dot) t = GMarkerGoogleType.blue_small;
                     if (t == GMarkerGoogleType.green_dot) t = GMarkerGoogleType.green_small;
+                    if (t == GMarkerGoogleType.orange_dot) t = GMarkerGoogleType.orange_small;
                 }
                 GMarkerGoogle marker = new GMarkerGoogle(m.Position, t);
                 marker.Tag = m.Tag;
@@ -728,9 +848,21 @@ namespace HTCommander.Controls
                 }
             }
 
+            // Update voice markers dictionary with new marker references
+            Dictionary<string, GMapMarker> newVoiceMarkers = new Dictionary<string, GMapMarker>();
+            foreach (var kvp in voiceMarkers)
+            {
+                int index = mapMarkersOverlay.Markers.IndexOf(kvp.Value);
+                if (index >= 0 && index < markersToReplace.Count)
+                {
+                    newVoiceMarkers[kvp.Key] = markersToReplace[index];
+                }
+            }
+
             mapMarkersOverlay.Markers.Clear();
             foreach (GMarkerGoogle marker in markersToReplace) { mapMarkersOverlay.Markers.Add(marker); }
             radioMarkers = newRadioMarkers;
+            voiceMarkers = newVoiceMarkers;
 
             // Rebuild airplane markers with new size
             bool large = largeMarkersToolStripMenuItem.Checked;
