@@ -471,6 +471,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_D7B67F96B088411C9D6136594C3079B2"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_D9E39448F416B9AD49B9B1BD00964ECB"
         "OwnerKey" = "8:_A8D1925D3C3A4FBC9C436D5F22B4FB8D"
         "MsmSig" = "8:_UNDEFINED"
@@ -2278,6 +2284,37 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_D7B67F96B088411C9D6136594C3079B2"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:System.Speech, Version=8.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_D7B67F96B088411C9D6136594C3079B2"
+                    {
+                    "Name" = "8:System.Speech.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:..\\src\\bin\\Debug\\net9.0-windows10.0.19041.0\\runtimes\\win\\lib\\net8.0\\System.Speech.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_F850BB500479420BBD20AE8807F4B204"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_DE19E4126E620951FC78C20C040CF6AB"
             {
             "AssemblyRegister" = "3:1"
@@ -2584,7 +2621,7 @@
                 {
                     "{9EF0B969-E518-4E46-987F-47570745A589}:_62CDA70B7A664B9BAA30588E037CCB20"
                     {
-                    "Name" = "8:runtime"
+                    "Name" = "8:runtimes"
                     "AlwaysCreate" = "11:FALSE"
                     "Condition" = "8:"
                     "Transitive" = "11:FALSE"
@@ -2721,15 +2758,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Handi-Talky Commander"
-        "ProductCode" = "8:{D9293D5E-557B-43A4-8A07-BEE4BD4C4BAC}"
-        "PackageCode" = "8:{24134F2C-A68E-4EC6-9640-01F23961567F}"
+        "ProductCode" = "8:{B5320B88-79DE-45B8-BC38-8096ED2B6FA9}"
+        "PackageCode" = "8:{9079EDDD-4751-4479-B2E3-5D972719587C}"
         "UpgradeCode" = "8:{A0F710F7-510C-4231-82BA-D6A27CD75ECD}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:0.50.0"
+        "ProductVersion" = "8:0.51.0"
         "Manufacturer" = "8:Open Source"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://github.com/Ylianst/HTCommander"
