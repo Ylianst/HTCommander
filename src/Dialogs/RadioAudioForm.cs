@@ -118,6 +118,10 @@ namespace HTCommander
             // Now back on UI thread - load devices into UI (fast since enumeration is cached)
             LoadAudioDevices();
 
+            // Log input device state after device loading
+            if (inputDevice == null) { broker.LogError("RadioAudioForm_Shown: No input device available after LoadAudioDevices - transmit will not work"); }
+            else { broker.LogInfo($"RadioAudioForm_Shown: Input device selected: {inputDevice.FriendlyName}"); }
+
             // Dispatch volume settings
             broker.Dispatch(deviceId, "SetOutputVolume", outputTrackBar.Value);
             if (inputDevice != null) { inputDevice.AudioEndpointVolume.MasterVolumeLevelScalar = inputTrackBar.Value / 100f; }
@@ -267,7 +271,14 @@ namespace HTCommander
                 // Check for NOAA channel - disable transmit if on NOAA channel
                 var htStatus = broker.GetValue<RadioHtStatus>(deviceId, "HtStatus", null);
                 bool isNoaaChannel = (htStatus != null && htStatus.curr_ch_id >= 254);
-                transmitButton.Enabled = audioEnabled && allowTransmit && (inputDevice != null) && !isNoaaChannel;
+                bool transmitEnabled = audioEnabled && allowTransmit && (inputDevice != null) && !isNoaaChannel;
+                transmitButton.Enabled = transmitEnabled;
+                if (!transmitEnabled)
+                {
+                    // Log why transmit button is disabled
+                    string reason = !audioEnabled ? "audio disabled" : !allowTransmit ? "transmit not allowed" : (inputDevice == null) ? "no input device" : isNoaaChannel ? "NOAA channel" : "unknown";
+                    broker.LogInfo($"UpdateInfo: Transmit button disabled - reason: {reason}");
+                }
                 
                 squelchTrackBar.Enabled = true;
                 
@@ -485,6 +496,7 @@ namespace HTCommander
             transmitButton.Image = microphoneImageList.Images[2];
             MicrophoneTransmit = true;
             isTransmitting = true;
+            broker.LogInfo($"transmitButton_MouseDown: Transmit started (isCapturing={isCapturing}, inputDevice={(inputDevice != null ? "set" : "null")}, wasapiCapture={(wasapiCapture != null ? "set" : "null")})");
         }
 
         private void transmitButton_MouseUp(object sender, MouseEventArgs e)
@@ -493,27 +505,32 @@ namespace HTCommander
             transmitButton.Image = microphoneImageList.Images[1];
             MicrophoneTransmit = false;
             isTransmitting = false;
+            broker.LogInfo("transmitButton_MouseUp: Transmit stopped");
         }
 
         // Start capturing audio from the microphone (continuous capture for amplitude display)
         private void StartMicrophoneCapture()
         {
-            if (isCapturing) return;
-            if (inputDevice == null) return;
+            if (isCapturing) { broker.LogInfo("StartMicrophoneCapture: Already capturing, skipping"); return; }
+            if (inputDevice == null) { broker.LogError("StartMicrophoneCapture: inputDevice is null, cannot start capture"); return; }
             
             try
             {
                 // Use WasapiCapture which directly accepts an MMDevice, avoiding device name matching issues
                 wasapiCapture = new WasapiCapture(inputDevice);
                 captureWaveFormat = wasapiCapture.WaveFormat;
+                broker.LogInfo($"StartMicrophoneCapture: Format={captureWaveFormat.BitsPerSample}-bit {captureWaveFormat.Encoding}, SampleRate={captureWaveFormat.SampleRate}Hz, Channels={captureWaveFormat.Channels}");
                 wasapiCapture.DataAvailable += WasapiCapture_DataAvailable;
                 wasapiCapture.RecordingStopped += WasapiCapture_RecordingStopped;
                 wasapiCapture.StartRecording();
                 isCapturing = true;
+                broker.LogInfo("StartMicrophoneCapture: Capture started successfully");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Silently fail - microphone may not be available
+                broker.LogError($"StartMicrophoneCapture: Failed to start capture: {ex.Message}");
+                wasapiCapture?.Dispose();
+                wasapiCapture = null;
             }
         }
 
@@ -530,22 +547,34 @@ namespace HTCommander
                 wasapiCapture.StopRecording();
                 wasapiCapture.Dispose();
                 wasapiCapture = null;
+                broker.LogInfo("StopMicrophoneCapture: Capture stopped");
             }
-            catch (Exception) { }
+            catch (Exception ex) { broker.LogError($"StopMicrophoneCapture: Error stopping capture: {ex.Message}"); }
         }
 
         // Restart microphone capture (used when input device changes)
         private void RestartMicrophoneCapture()
         {
+            broker.LogInfo("RestartMicrophoneCapture: Restarting capture due to device change");
+            _loggedFirstDataAvailable = false;
+            _loggedUnsupportedFormat = false;
             StopMicrophoneCapture();
             StartMicrophoneCapture();
         }
 
         // Handle microphone audio data from WasapiCapture - always process for amplitude display
+        private bool _loggedFirstDataAvailable = false;
+        private bool _loggedUnsupportedFormat = false;
         private void WasapiCapture_DataAvailable(object sender, WaveInEventArgs e)
         {
             if (!isCapturing) return;
             if (captureWaveFormat == null) return;
+            
+            if (!_loggedFirstDataAvailable)
+            {
+                _loggedFirstDataAvailable = true;
+                broker.LogInfo($"WasapiCapture_DataAvailable: First audio data received, {e.BytesRecorded} bytes, format={captureWaveFormat.BitsPerSample}-bit {captureWaveFormat.Encoding}");
+            }
             
             // Convert audio to 16-bit PCM if needed (WasapiCapture may capture in different formats)
             byte[] pcm16Data;
@@ -575,6 +604,11 @@ namespace HTCommander
             else
             {
                 // Unsupported format, skip
+                if (!_loggedUnsupportedFormat)
+                {
+                    _loggedUnsupportedFormat = true;
+                    broker.LogError($"WasapiCapture_DataAvailable: Unsupported audio format: {captureWaveFormat.BitsPerSample}-bit {captureWaveFormat.Encoding}, no audio will be transmitted");
+                }
                 return;
             }
             
@@ -625,6 +659,12 @@ namespace HTCommander
             // Resample to 32kHz mono if needed for radio transmission
             byte[] transmitData = ResampleTo32kHzMono(audioData, captureWaveFormat.SampleRate, captureWaveFormat.Channels);
             
+            if (transmitData == null || transmitData.Length == 0)
+            {
+                broker.LogError($"WasapiCapture_DataAvailable: ResampleTo32kHzMono returned empty data (input={audioData.Length} bytes, rate={captureWaveFormat.SampleRate}, ch={captureWaveFormat.Channels})");
+                return;
+            }
+            
             // Send PCM audio to the radio via Data Broker (32kHz, 16-bit, mono)
             broker.Dispatch(deviceId, "TransmitVoicePCM", transmitData, store: false);
         }
@@ -635,9 +675,21 @@ namespace HTCommander
             int sourceSamples = inputData.Length / 2; // 16-bit = 2 bytes per sample
             int sourceSamplesPerChannel = sourceSamples / sourceChannels;
             
+            if (sourceSamplesPerChannel < 2)
+            {
+                broker.LogError($"ResampleTo32kHzMono: Input too short ({inputData.Length} bytes, {sourceSamplesPerChannel} samples/channel)");
+                return new byte[0];
+            }
+            
             // Calculate output sample count
             int targetSampleRate = 32000;
             int targetSamples = (int)((long)sourceSamplesPerChannel * targetSampleRate / sourceSampleRate);
+            
+            if (targetSamples <= 0)
+            {
+                broker.LogError($"ResampleTo32kHzMono: Target samples is {targetSamples} (source: {sourceSampleRate}Hz, {sourceChannels}ch, {sourceSamplesPerChannel} samples/ch)");
+                return new byte[0];
+            }
             
             byte[] outputData = new byte[targetSamples * 2]; // 16-bit mono
             
@@ -697,7 +749,14 @@ namespace HTCommander
 
         private void WasapiCapture_RecordingStopped(object sender, StoppedEventArgs e)
         {
-            // Cleanup is handled in StopMicrophoneCapture
+            if (e.Exception != null)
+            {
+                broker.LogError($"WasapiCapture_RecordingStopped: Recording stopped with error: {e.Exception.Message}");
+            }
+            else
+            {
+                broker.LogInfo("WasapiCapture_RecordingStopped: Recording stopped normally");
+            }
         }
 
         private void pollTimer_Tick(object sender, EventArgs e)
