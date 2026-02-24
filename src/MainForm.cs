@@ -336,8 +336,13 @@ namespace HTCommander
             // Publish updated connected radios list
             PublishConnectedRadios();
 
+            // Set the radioPanelControl to this radio right away so we can see "Connecting" and "Unable to Connect" states
+            if (radioPanelControl.DeviceId <= 0 || !connectedRadios.Any(r => r.DeviceId == radioPanelControl.DeviceId && r.State == Radio.RadioState.Connected))
+            {
+                radioPanelControl.DeviceId = deviceId;
+            }
+
             // Start the Bluetooth connection
-            // radioPanelControl.DeviceId will be set when the radio reaches "Connected" state (see OnRadioStateChanged)
             radio.Connect();
         }
 
