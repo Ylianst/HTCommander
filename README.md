@@ -5,7 +5,7 @@ This is a Amateur Radio (HAM Radio) tool for the UV-Pro, UV-50Pro, GA-5WB, VR-N7
 ![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/th-commander-4.png?raw=true)
 An Amateur radio license is required to transmit using this software. You can get [information on a license here](https://www.arrl.org/getting-licensed).
 
-****Download: [Windows x64 MSI Installer](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.52.msi)****
+****Download: [Windows x64 MSI Installer](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.53.msi)****
 
 ### Radio Support
 
@@ -44,7 +44,7 @@ Handi-Talky Commander is starting to have a lot of features.
 
 ### Installation
 
-Download the [MSI Installer](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.52.msi). Except for Open Street Map data, and checking for updates on GitHub, this tool does not sent data on the Internet. Pair your radio to your computer and run the application. If your computer does not have Bluetooth, you can get a inexpensive Bluetooth USB dongle. Make sure Bluetooth LE is supported. Pairing can be a bit tricky, you have to pair TWO Bluetooth devices in quick succession, [Bluetooth pairing instructions here](https://github.com/Ylianst/HTCommander/blob/main/docs/Paring.md).
+Download the [MSI Installer](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.53.msi). Except for Open Street Map data, and checking for updates on GitHub, this tool does not sent data on the Internet. Pair your radio to your computer and run the application. If your computer does not have Bluetooth, you can get a inexpensive Bluetooth USB dongle. Make sure Bluetooth LE is supported. Pairing can be a bit tricky, you have to pair TWO Bluetooth devices in quick succession, [Bluetooth pairing instructions here](https://github.com/Ylianst/HTCommander/blob/main/docs/Paring.md).
 
 ### Demonstration Video
 
