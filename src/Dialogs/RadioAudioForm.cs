@@ -30,6 +30,7 @@ namespace HTCommander
         
         // Microphone capture - always active for amplitude display
         private WasapiCapture wasapiCapture = null;
+        private WaveInEvent waveInCapture = null; // Fallback when WasapiCapture is not supported
         private WaveFormat captureWaveFormat = null;
         private bool isCapturing = false;
         private bool isTransmitting = false;
@@ -496,7 +497,7 @@ namespace HTCommander
             transmitButton.Image = microphoneImageList.Images[2];
             MicrophoneTransmit = true;
             isTransmitting = true;
-            broker.LogInfo($"transmitButton_MouseDown: Transmit started (isCapturing={isCapturing}, inputDevice={(inputDevice != null ? "set" : "null")}, wasapiCapture={(wasapiCapture != null ? "set" : "null")})");
+            broker.LogInfo($"transmitButton_MouseDown: Transmit started (isCapturing={isCapturing}, inputDevice={(inputDevice != null ? "set" : "null")}, wasapiCapture={(wasapiCapture != null ? "set" : "null")}, waveInCapture={(waveInCapture != null ? "set" : "null")})");
         }
 
         private void transmitButton_MouseUp(object sender, MouseEventArgs e)
@@ -513,43 +514,92 @@ namespace HTCommander
         {
             if (isCapturing) { broker.LogInfo("StartMicrophoneCapture: Already capturing, skipping"); return; }
             if (inputDevice == null) { broker.LogError("StartMicrophoneCapture: inputDevice is null, cannot start capture"); return; }
-            
+
+            // Try WasapiCapture first (preferred, supports device selection via MMDevice)
             try
             {
-                // Use WasapiCapture which directly accepts an MMDevice, avoiding device name matching issues
                 wasapiCapture = new WasapiCapture(inputDevice);
                 captureWaveFormat = wasapiCapture.WaveFormat;
-                broker.LogInfo($"StartMicrophoneCapture: Format={captureWaveFormat.BitsPerSample}-bit {captureWaveFormat.Encoding}, SampleRate={captureWaveFormat.SampleRate}Hz, Channels={captureWaveFormat.Channels}");
+                broker.LogInfo($"StartMicrophoneCapture: Trying WasapiCapture, Format={captureWaveFormat.BitsPerSample}-bit {captureWaveFormat.Encoding}, SampleRate={captureWaveFormat.SampleRate}Hz, Channels={captureWaveFormat.Channels}");
                 wasapiCapture.DataAvailable += WasapiCapture_DataAvailable;
                 wasapiCapture.RecordingStopped += WasapiCapture_RecordingStopped;
                 wasapiCapture.StartRecording();
                 isCapturing = true;
-                broker.LogInfo("StartMicrophoneCapture: Capture started successfully");
+                broker.LogInfo("StartMicrophoneCapture: WasapiCapture started successfully");
+                return;
             }
             catch (Exception ex)
             {
-                broker.LogError($"StartMicrophoneCapture: Failed to start capture: {ex.Message}");
+                broker.LogError($"StartMicrophoneCapture: WasapiCapture failed: {ex.Message}, trying WaveInEvent fallback");
                 wasapiCapture?.Dispose();
                 wasapiCapture = null;
+            }
+
+            // Fallback to WaveInEvent (uses older MME/WinMM API, more compatible with some drivers)
+            try
+            {
+                int waveInDeviceIndex = FindWaveInDeviceIndex(inputDevice);
+                if (waveInDeviceIndex < 0)
+                {
+                    broker.LogError("StartMicrophoneCapture: No WaveIn devices available for fallback");
+                    return;
+                }
+
+                var fallbackFormat = new WaveFormat(48000, 16, 1);
+                waveInCapture = new WaveInEvent
+                {
+                    DeviceNumber = waveInDeviceIndex,
+                    WaveFormat = fallbackFormat,
+                    BufferMilliseconds = 50
+                };
+                captureWaveFormat = waveInCapture.WaveFormat;
+                broker.LogInfo($"StartMicrophoneCapture: Trying WaveInEvent fallback, DeviceIndex={waveInDeviceIndex}, Format={captureWaveFormat.BitsPerSample}-bit {captureWaveFormat.Encoding}, SampleRate={captureWaveFormat.SampleRate}Hz, Channels={captureWaveFormat.Channels}");
+                waveInCapture.DataAvailable += WasapiCapture_DataAvailable;
+                waveInCapture.RecordingStopped += WaveInCapture_RecordingStopped;
+                waveInCapture.StartRecording();
+                isCapturing = true;
+                broker.LogInfo("StartMicrophoneCapture: WaveInEvent fallback started successfully");
+            }
+            catch (Exception ex)
+            {
+                broker.LogError($"StartMicrophoneCapture: WaveInEvent fallback also failed: {ex.Message}");
+                waveInCapture?.Dispose();
+                waveInCapture = null;
             }
         }
 
         // Stop capturing audio from the microphone
         private void StopMicrophoneCapture()
         {
-            if (wasapiCapture == null) return;
-            
-            try
+            isCapturing = false;
+
+            if (wasapiCapture != null)
             {
-                isCapturing = false;
-                wasapiCapture.DataAvailable -= WasapiCapture_DataAvailable;
-                wasapiCapture.RecordingStopped -= WasapiCapture_RecordingStopped;
-                wasapiCapture.StopRecording();
-                wasapiCapture.Dispose();
-                wasapiCapture = null;
-                broker.LogInfo("StopMicrophoneCapture: Capture stopped");
+                try
+                {
+                    wasapiCapture.DataAvailable -= WasapiCapture_DataAvailable;
+                    wasapiCapture.RecordingStopped -= WasapiCapture_RecordingStopped;
+                    wasapiCapture.StopRecording();
+                    wasapiCapture.Dispose();
+                    wasapiCapture = null;
+                    broker.LogInfo("StopMicrophoneCapture: WasapiCapture stopped");
+                }
+                catch (Exception ex) { broker.LogError($"StopMicrophoneCapture: Error stopping WasapiCapture: {ex.Message}"); }
             }
-            catch (Exception ex) { broker.LogError($"StopMicrophoneCapture: Error stopping capture: {ex.Message}"); }
+
+            if (waveInCapture != null)
+            {
+                try
+                {
+                    waveInCapture.DataAvailable -= WasapiCapture_DataAvailable;
+                    waveInCapture.RecordingStopped -= WaveInCapture_RecordingStopped;
+                    waveInCapture.StopRecording();
+                    waveInCapture.Dispose();
+                    waveInCapture = null;
+                    broker.LogInfo("StopMicrophoneCapture: WaveInEvent fallback stopped");
+                }
+                catch (Exception ex) { broker.LogError($"StopMicrophoneCapture: Error stopping WaveInEvent fallback: {ex.Message}"); }
+            }
         }
 
         // Restart microphone capture (used when input device changes)
@@ -757,6 +807,47 @@ namespace HTCommander
             {
                 broker.LogInfo("WasapiCapture_RecordingStopped: Recording stopped normally");
             }
+        }
+
+        private void WaveInCapture_RecordingStopped(object sender, StoppedEventArgs e)
+        {
+            if (e.Exception != null)
+            {
+                broker.LogError($"WaveInCapture_RecordingStopped: Recording stopped with error: {e.Exception.Message}");
+            }
+            else
+            {
+                broker.LogInfo("WaveInCapture_RecordingStopped: Recording stopped normally");
+            }
+        }
+
+        /// <summary>
+        /// Find the WaveIn device index that best matches the selected MMDevice by comparing names.
+        /// WaveIn ProductName is truncated to 31 characters, so we use prefix/contains matching.
+        /// </summary>
+        private int FindWaveInDeviceIndex(MMDevice mmDevice)
+        {
+            string mmName = mmDevice.FriendlyName;
+            int deviceCount = WaveInEvent.DeviceCount;
+            for (int i = 0; i < deviceCount; i++)
+            {
+                var caps = WaveInEvent.GetCapabilities(i);
+                string productName = caps.ProductName;
+                // WaveIn ProductName is truncated to 31 chars, so check if the MMDevice name starts with or contains the product name
+                if (!string.IsNullOrEmpty(productName) && (mmName.Contains(productName) || mmName.StartsWith(productName.Substring(0, Math.Min(productName.Length, 31)))))
+                {
+                    broker.LogInfo($"FindWaveInDeviceIndex: Matched WaveIn device {i}: '{productName}' to MMDevice: '{mmName}'");
+                    return i;
+                }
+            }
+            // If no match found, use device 0 (system default) as last resort
+            if (deviceCount > 0)
+            {
+                var caps = WaveInEvent.GetCapabilities(0);
+                broker.LogInfo($"FindWaveInDeviceIndex: No exact match for '{mmName}', using WaveIn device 0: '{caps.ProductName}'");
+                return 0;
+            }
+            return -1;
         }
 
         private void pollTimer_Tick(object sender, EventArgs e)

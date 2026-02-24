@@ -1144,7 +1144,10 @@ namespace HTCommander
 
                 byte[] pcmDataForEvent = new byte[bytesConsumed];
                 Buffer.BlockCopy(pcmData, pcmOffset, pcmDataForEvent, 0, bytesConsumed);
-                try { DispatchAudioDataAvailable(pcmDataForEvent, 0, bytesConsumed, currentChannelName, true, false); } catch (Exception ex) { Debug("GotAudioData error: " + ex.Message); }
+                string txChannelName = (parent.Settings != null && parent.Channels != null && parent.Settings.channel_a >= 0 && parent.Settings.channel_a < parent.Channels.Length && parent.Channels[parent.Settings.channel_a] != null)
+                    ? parent.Channels[parent.Settings.channel_a].name_str
+                    : currentChannelName;
+                try { DispatchAudioDataAvailable(pcmDataForEvent, 0, bytesConsumed, txChannelName, true, false); } catch (Exception ex) { Debug("GotAudioData error: " + ex.Message); }
 
                 pcmOffset += bytesConsumed;
                 pcmLength -= bytesConsumed;
