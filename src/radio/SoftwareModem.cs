@@ -20,6 +20,16 @@ namespace HTCommander
         private readonly Dictionary<int, RadioModemState> radioModems = new Dictionary<int, RadioModemState>();
         private SoftwareModemModeType currentMode = SoftwareModemModeType.None;
         private bool disposed = false;
+        private static readonly Random _rng = new Random();
+
+        /// <summary>
+        /// Holds a PCM payload waiting to be transmitted once the channel is clear.
+        /// </summary>
+        private class PendingTransmission
+        {
+            public byte[] PcmData;
+            public DateTime Deadline;
+        }
 
         /// <summary>
         /// Software modem mode types.
@@ -70,6 +80,12 @@ namespace HTCommander
             public HamLib.HdlcSend PacketHdlcSend;
             public HamLib.Fx25Send PacketFx25Send;
 
+            // Clear-channel transmit queue
+            public Queue<PendingTransmission> TransmitQueue = new Queue<PendingTransmission>();
+            public bool WaitingForChannel;
+            public bool ChannelIsClear;
+            public System.Timers.Timer ChannelWaitTimer;
+
             // Parent reference for callbacks
             public SoftwareModem Parent;
 
@@ -98,6 +114,17 @@ namespace HTCommander
                 PacketAudioBuffer = null;
                 PacketHdlcSend = null;
                 PacketFx25Send = null;
+
+                // Stop and dispose the channel-wait timer
+                if (ChannelWaitTimer != null)
+                {
+                    ChannelWaitTimer.Stop();
+                    ChannelWaitTimer.Dispose();
+                    ChannelWaitTimer = null;
+                }
+                TransmitQueue?.Clear();
+                WaitingForChannel = false;
+
                 Initialized = false;
             }
         }
@@ -206,6 +233,9 @@ namespace HTCommander
             // Subscribe to transmit packet requests from all radios
             broker.Subscribe(DataBroker.AllDevices, "SoftModemTransmitPacket", OnTransmitPacketRequested);
 
+            // Subscribe to channel-clear notifications from all radios
+            broker.Subscribe(DataBroker.AllDevices, "ChannelClear", OnChannelClear);
+
             // Publish initial mode
             broker.Dispatch(0, "SoftwareModemMode", currentMode.ToString(), store: true);
 
@@ -301,6 +331,17 @@ namespace HTCommander
                     {
                         state.CurrentChannelId = htStatus.curr_ch_id;
                         state.CurrentRegionId = htStatus.curr_region;
+
+                        // Track whether the channel is currently clear
+                        bool isClear = htStatus.rssi == 0 && !htStatus.is_in_tx;
+                        bool wasClear = state.ChannelIsClear;
+                        state.ChannelIsClear = isClear;
+
+                        // If the channel just became clear while we're waiting, start the random-delay timer
+                        if (isClear && !wasClear && state.WaitingForChannel && state.TransmitQueue.Count > 0)
+                        {
+                            StartChannelClearTimer(state);
+                        }
                     }
                 }
             }
@@ -836,16 +877,119 @@ namespace HTCommander
                         byte[] pcmData = new byte[samples.Length * 2];
                         Buffer.BlockCopy(samples, 0, pcmData, 0, pcmData.Length);
 
-                        // Dispatch to the radio for transmission
-                        broker.Dispatch(deviceId, "TransmitVoicePCM", new { Data = pcmData, PlayLocally = false }, store: false);
+                        // Queue the PCM payload — it will be sent once the channel clears
+                        state.TransmitQueue.Enqueue(new PendingTransmission
+                        {
+                            PcmData = pcmData,
+                            Deadline = DateTime.Now.AddSeconds(30)
+                        });
+                        Debug($"Queued packet: {samples.Length} samples, {pcmData.Length} bytes PCM on device {deviceId}");
 
-                        Debug($"Transmitted packet: {samples.Length} samples, {pcmData.Length} bytes PCM on device {deviceId}");
+                        if (state.ChannelIsClear && !state.WaitingForChannel)
+                        {
+                            // Channel is already free — start the random back-off timer
+                            StartChannelClearTimer(state);
+                        }
+                        else if (!state.ChannelIsClear)
+                        {
+                            // Channel is busy — wait for the ChannelClear broker event
+                            state.WaitingForChannel = true;
+                            Debug($"Channel busy on device {deviceId}, waiting for clear channel");
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
                     Debug($"TransmitPacket error: {ex.Message}");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Called when the Radio signals that the channel has been clear long enough to transmit.
+        /// </summary>
+        private void OnChannelClear(int deviceId, string name, object data)
+        {
+            if (disposed || deviceId <= 0) return;
+
+            lock (modemLock)
+            {
+                if (!radioModems.TryGetValue(deviceId, out RadioModemState state)) return;
+                if (!state.WaitingForChannel || state.TransmitQueue.Count == 0) return;
+
+                state.ChannelIsClear = true;
+                StartChannelClearTimer(state);
+            }
+        }
+
+        /// <summary>
+        /// Starts (or restarts) the random back-off timer for a radio before transmitting.
+        /// Must be called with modemLock held.
+        /// </summary>
+        private void StartChannelClearTimer(RadioModemState state)
+        {
+            if (state.ChannelWaitTimer == null)
+            {
+                state.ChannelWaitTimer = new System.Timers.Timer();
+                state.ChannelWaitTimer.AutoReset = false;
+                int capturedDeviceId = state.DeviceId;
+                state.ChannelWaitTimer.Elapsed += (s, e) => FlushTransmitQueue(capturedDeviceId);
+            }
+
+            state.ChannelWaitTimer.Stop();
+            state.ChannelWaitTimer.Interval = _rng.Next(200, 801); // 200–800 ms random back-off
+            state.WaitingForChannel = true;
+            state.ChannelWaitTimer.Start();
+            Debug($"Channel clear on device {state.DeviceId}, transmitting in {state.ChannelWaitTimer.Interval:F0} ms");
+        }
+
+        /// <summary>
+        /// Dequeues and transmits the next pending PCM payload for a radio.
+        /// Called from the channel-wait timer; intentionally runs outside modemLock
+        /// for the broker dispatch to avoid deadlocks with incoming audio callbacks.
+        /// </summary>
+        private void FlushTransmitQueue(int deviceId)
+        {
+            if (disposed) return;
+
+            byte[] pcmData = null;
+            bool moreQueued = false;
+
+            lock (modemLock)
+            {
+                if (!radioModems.TryGetValue(deviceId, out RadioModemState state)) return;
+
+                state.WaitingForChannel = false;
+
+                // Drop any packets that have passed their deadline
+                while (state.TransmitQueue.Count > 0 && DateTime.Now > state.TransmitQueue.Peek().Deadline)
+                {
+                    state.TransmitQueue.Dequeue();
+                    Debug($"FlushTransmitQueue: dropped expired packet on device {deviceId}");
+                }
+
+                if (state.TransmitQueue.Count == 0) return;
+
+                // If the channel became busy again since the timer was started, re-queue
+                if (!state.ChannelIsClear)
+                {
+                    state.WaitingForChannel = true;
+                    Debug($"FlushTransmitQueue: channel busy again on device {deviceId}, re-waiting");
+                    return;
+                }
+
+                pcmData = state.TransmitQueue.Dequeue().PcmData;
+                moreQueued = state.TransmitQueue.Count > 0;
+
+                // If there are further packets, arm the wait state so the next ChannelClear fires them
+                if (moreQueued)
+                    state.WaitingForChannel = true;
+            }
+
+            if (pcmData != null)
+            {
+                broker.Dispatch(deviceId, "TransmitVoicePCM", new { Data = pcmData, PlayLocally = false }, store: false);
+                Debug($"Transmitted queued packet: {pcmData.Length / 2} samples, {pcmData.Length} bytes PCM on device {deviceId}");
             }
         }
 
