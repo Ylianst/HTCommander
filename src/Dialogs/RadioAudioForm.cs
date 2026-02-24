@@ -498,6 +498,17 @@ namespace HTCommander
             MicrophoneTransmit = true;
             isTransmitting = true;
             broker.LogInfo($"transmitButton_MouseDown: Transmit started (isCapturing={isCapturing}, inputDevice={(inputDevice != null ? "set" : "null")}, wasapiCapture={(wasapiCapture != null ? "set" : "null")}, waveInCapture={(waveInCapture != null ? "set" : "null")})");
+
+            // If capture never started (e.g. failed at startup), try again now so the user can transmit
+            if (!isCapturing)
+            {
+                broker.LogInfo("transmitButton_MouseDown: isCapturing=False, attempting to start capture on-demand");
+                _loggedFirstDataAvailable = false;
+                _loggedUnsupportedFormat = false;
+                StartMicrophoneCapture();
+                if (!isCapturing)
+                    broker.LogError("transmitButton_MouseDown: On-demand capture start also failed — no audio will be transmitted");
+            }
         }
 
         private void transmitButton_MouseUp(object sender, MouseEventArgs e)
