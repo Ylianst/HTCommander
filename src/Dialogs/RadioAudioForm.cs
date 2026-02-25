@@ -273,12 +273,21 @@ namespace HTCommander
                 var htStatus = broker.GetValue<RadioHtStatus>(deviceId, "HtStatus", null);
                 bool isNoaaChannel = (htStatus != null && htStatus.curr_ch_id >= 254);
                 bool transmitEnabled = audioEnabled && allowTransmit && (inputDevice != null) && !isNoaaChannel;
+                bool wasEnabled = transmitButton.Enabled;
                 transmitButton.Enabled = transmitEnabled;
                 if (!transmitEnabled)
                 {
-                    // Log why transmit button is disabled
-                    string reason = !audioEnabled ? "audio disabled" : !allowTransmit ? "transmit not allowed" : (inputDevice == null) ? "no input device" : isNoaaChannel ? "NOAA channel" : "unknown";
-                    broker.LogInfo($"UpdateInfo: Transmit button disabled - reason: {reason}");
+                    // Log why transmit button is disabled (only log on state change to avoid log spam)
+                    if (wasEnabled)
+                    {
+                        string reason = !audioEnabled ? "audio disabled" : !allowTransmit ? "transmit not allowed" : (inputDevice == null) ? "no input device" : isNoaaChannel ? "NOAA channel" : "unknown";
+                        broker.LogInfo($"UpdateInfo: Transmit button DISABLED - reason: {reason} (audioEnabled={audioEnabled}, allowTransmit={allowTransmit}, inputDevice={(inputDevice != null ? inputDevice.FriendlyName : "null")}, isNoaaChannel={isNoaaChannel})");
+                    }
+                }
+                else if (!wasEnabled)
+                {
+                    // Log when transmit button becomes enabled
+                    broker.LogInfo($"UpdateInfo: Transmit button ENABLED (audioEnabled={audioEnabled}, allowTransmit={allowTransmit}, inputDevice={(inputDevice != null ? inputDevice.FriendlyName : "null")}, isCapturing={isCapturing}, wasapiCapture={(wasapiCapture != null ? "set" : "null")}, waveInCapture={(waveInCapture != null ? "set" : "null")})");
                 }
                 
                 squelchTrackBar.Enabled = true;
@@ -518,6 +527,7 @@ namespace HTCommander
             MicrophoneTransmit = false;
             isTransmitting = false;
             broker.LogInfo("transmitButton_MouseUp: Transmit stopped");
+            broker.Dispatch(deviceId, "CancelVoiceTransmit", null, store: false);
         }
 
         // Start capturing audio from the microphone (continuous capture for amplitude display)

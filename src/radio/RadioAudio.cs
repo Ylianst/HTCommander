@@ -986,7 +986,9 @@ namespace HTCommander
             // Clear any pending PCM data in the queue
             while (pcmQueue.TryDequeue(out _)) { }
             ReminderTransmitPcmAudio = null;
-            
+
+            // byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
+
             // Immediately send end audio frame to tell the radio to stop transmitting
             byte[] endAudio = { 0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e };
             if (winRtOutputStream != null)
