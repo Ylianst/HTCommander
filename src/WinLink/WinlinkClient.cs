@@ -907,12 +907,16 @@ namespace HTCommander
                     sessionState.Remove("wlMailBinary");
                     sessionState.Remove("wlMailBlocks");
                     sessionState.Remove("wlMailProp");
-                    TransportSend("FF");
+                    TransportSend("FF\r");
                     
-                    // Close TCP session after sending FF
+                    // Disconnect after sending FF - session is complete
                     if (transportType == TransportType.TCP)
                     {
                         DisconnectTcp();
+                    }
+                    else if (transportType == TransportType.X25)
+                    {
+                        DisconnectX25();
                     }
                 }
                 return;
@@ -1238,6 +1242,8 @@ namespace HTCommander
 
             StateMessage("Got mail for " + mail.To + ".");
 
+            // Return true if all proposals have been processed (no more mail to receive)
+            // The caller will send FF and disconnect
             return (proposals.Count == 0);
         }
 
