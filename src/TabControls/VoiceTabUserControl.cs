@@ -43,6 +43,7 @@ namespace HTCommander.Controls
             {
                 _preferredRadioDeviceId = value;
                 SubscribeToMute(value);
+                SubscribeToLock(value);
                 if (value >= 100)
                 {
                     EnableVoiceHandler(value);
@@ -78,6 +79,10 @@ namespace HTCommander.Controls
         // Track the Mute state for the current radio
         private bool _isMuted = false;
         private int _muteSubscribedDeviceId = -1;
+
+        // Track the Lock state for the current radio
+        private bool _isLocked = false;
+        private int _lockSubscribedDeviceId = -1;
 
         /// <summary>
         /// Simple class to hold connected radio information.
@@ -152,6 +157,7 @@ namespace HTCommander.Controls
             LoadSpeechToTextEnabledState();
             LoadRecordingState();
             LoadMuteState();
+            LoadLockState();
             UpdateEnableButtonState();
             UpdateSpeakButtonState();
 
@@ -388,9 +394,9 @@ namespace HTCommander.Controls
         {
             bool isRestrictedChannel = IsOnAprsOrNoaaChannel();
             cancelVoiceButton.Visible = _isTransmitting;
-            speakTextBox.Enabled = _voiceHandlerEnabled && !isRestrictedChannel;
+            speakTextBox.Enabled = _voiceHandlerEnabled && !isRestrictedChannel && !_isLocked;
             speakButton.Enabled = !_isTransmitting && speakTextBox.Enabled;
-            bool canTransmit = _voiceHandlerEnabled && !_isTransmitting && !isRestrictedChannel;
+            bool canTransmit = _voiceHandlerEnabled && !_isTransmitting && !isRestrictedChannel && !_isLocked;
             imageToolStripMenuItem.Enabled = canTransmit;
             audioToolStripMenuItem.Enabled = canTransmit;
         }
@@ -475,9 +481,9 @@ namespace HTCommander.Controls
         {
             bool isRestrictedChannel = IsOnAprsOrNoaaChannel();
             bool hasText = !string.IsNullOrWhiteSpace(speakTextBox.Text);
-            speakTextBox.Enabled = _voiceHandlerEnabled && !isRestrictedChannel;
-            speakButton.Enabled = hasText && _voiceHandlerEnabled && !_isTransmitting && !isRestrictedChannel;
-            bool canTransmit = _voiceHandlerEnabled && !_isTransmitting && !isRestrictedChannel;
+            speakTextBox.Enabled = _voiceHandlerEnabled && !isRestrictedChannel && !_isLocked;
+            speakButton.Enabled = hasText && _voiceHandlerEnabled && !_isTransmitting && !isRestrictedChannel && !_isLocked;
+            bool canTransmit = _voiceHandlerEnabled && !_isTransmitting && !isRestrictedChannel && !_isLocked;
             imageToolStripMenuItem.Enabled = canTransmit;
             audioToolStripMenuItem.Enabled = canTransmit;
         }
@@ -911,8 +917,8 @@ namespace HTCommander.Controls
             _voiceHandlerEnabled = enabled;
             _voiceHandlerTargetDeviceId = targetDeviceId;
 
-            // Enable/disable speakTextBox and speakButton based on voice enabled state
-            speakTextBox.Enabled = _voiceHandlerEnabled;
+            // Enable/disable speakTextBox and speakButton based on voice enabled state and lock state
+            speakTextBox.Enabled = _voiceHandlerEnabled && !_isLocked;
             UpdateSpeakButtonState();
         }
 
@@ -1563,6 +1569,79 @@ namespace HTCommander.Controls
         private void UpdateBottomPanelVisibility()
         {
             voiceBottomPanel.Visible = _allowTransmit;
+        }
+
+        #endregion
+
+        #region Lock State Management
+
+        /// <summary>
+        /// Subscribes to the LockState DataBroker value for the given radio device,
+        /// unsubscribing from any previous device.
+        /// </summary>
+        private void SubscribeToLock(int deviceId)
+        {
+            // Unsubscribe from previous device
+            if (_lockSubscribedDeviceId >= 100)
+            {
+                broker.Unsubscribe(_lockSubscribedDeviceId, "LockState");
+            }
+
+            _lockSubscribedDeviceId = deviceId;
+
+            if (deviceId >= 100)
+            {
+                // Subscribe to the new device and read current value
+                broker.Subscribe(deviceId, "LockState", OnLockStateChanged);
+                var lockState = broker.GetValue<RadioLockState>(deviceId, "LockState", null);
+                _isLocked = lockState?.IsLocked ?? false;
+            }
+            else
+            {
+                _isLocked = false;
+            }
+
+            UpdateSpeakButtonState();
+        }
+
+        /// <summary>
+        /// Loads the initial Lock state from the DataBroker for the preferred radio.
+        /// </summary>
+        private void LoadLockState()
+        {
+            if (_preferredRadioDeviceId >= 100)
+            {
+                var lockState = broker.GetValue<RadioLockState>(_preferredRadioDeviceId, "LockState", null);
+                _isLocked = lockState?.IsLocked ?? false;
+            }
+            else
+            {
+                _isLocked = false;
+            }
+            UpdateSpeakButtonState();
+        }
+
+        /// <summary>
+        /// Handles LockState changes from the DataBroker.
+        /// </summary>
+        private void OnLockStateChanged(int deviceId, string name, object data)
+        {
+            if (this.InvokeRequired)
+            {
+                try { this.BeginInvoke(new Action<int, string, object>(OnLockStateChanged), deviceId, name, data); }
+                catch (Exception) { }
+                return;
+            }
+
+            if (data is RadioLockState lockState)
+            {
+                _isLocked = lockState.IsLocked;
+            }
+            else
+            {
+                _isLocked = false;
+            }
+            UpdateSpeakButtonState();
         }
 
         #endregion

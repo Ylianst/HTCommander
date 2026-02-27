@@ -835,8 +835,12 @@ namespace HTCommander.Controls
                 remoteCallsign = sender.Addresses[0].CallSignWithId;
             }
 
+            // Check if the text ends with a carriage return or newline
+            // If not, mark as not done so subsequent data gets appended
+            bool done = text.EndsWith("\r") || text.EndsWith("\n") || text.EndsWith("\r\n");
+
             // Display the received message in the terminal
-            AppendTerminalString(false, remoteCallsign, myCallsign, text);
+            AppendTerminalString(false, remoteCallsign, myCallsign, text, done);
         }
 
         /// <summary>
