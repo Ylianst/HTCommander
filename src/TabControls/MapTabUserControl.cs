@@ -15,6 +15,7 @@ using GMap.NET.WindowsForms;
 using GMap.NET.WindowsForms.Markers;
 using HTCommander.Airplanes;
 using HTCommander.Dialogs;
+using HTCommander.Gps;
 using HTCommander.radio;
 using aprsparser;
 
@@ -64,7 +65,8 @@ namespace HTCommander.Controls
         public GMapOverlay mapMarkersOverlay = new GMapOverlay("AprsMarkers");
         public Dictionary<string, GMapRoute> mapRoutes = new Dictionary<string, GMapRoute>();
 
-        // Radio markers keyed by device ID
+        // Radio markers keyed by device ID; SerialGpsMarkerKey (0) is reserved for the serial GPS
+        private const int SerialGpsMarkerKey = 0;
         private Dictionary<int, GMapMarker> radioMarkers = new Dictionary<int, GMapMarker>();
 
         // Airplane overlay and markers keyed by ICAO hex
@@ -96,8 +98,14 @@ namespace HTCommander.Controls
             // Load initial positions for any already connected radios
             LoadInitialRadioPositions();
 
+            // Load initial serial GPS position (if already communicating)
+            LoadInitialSerialGpsPosition();
+
             // Subscribe to Position updates from all devices
             broker.Subscribe(DataBroker.AllDevices, "Position", OnPositionChanged);
+
+            // Subscribe to serial GPS data
+            broker.Subscribe(1, "GpsData", OnSerialGpsDataChanged);
 
             // Subscribe to APRS events for map markers
             broker.Subscribe(1, "AprsFrame", OnAprsFrame);
@@ -114,6 +122,52 @@ namespace HTCommander.Controls
             // Subscribe to voice channel decoded text for orange markers
             broker.Subscribe(1, "DecodedTextHistory", OnDecodedTextHistory);
             broker.Subscribe(DataBroker.AllDevices, "TextReady", OnTextReady);
+        }
+
+        private void LoadInitialSerialGpsPosition()
+        {
+            GpsData gps = DataBroker.GetValue<GpsData>(1, "GpsData", null);
+            if (gps != null && gps.IsFixed)
+                UpdateSerialGpsMarker(gps);
+            UpdateCenterToGpsButtonState();
+        }
+
+        private void OnSerialGpsDataChanged(int deviceId, string name, object data)
+        {
+            GpsData gps = data as GpsData;
+            if (gps != null && gps.IsFixed)
+                UpdateSerialGpsMarker(gps);
+            else
+                RemoveRadioMarker(SerialGpsMarkerKey);
+            UpdateCenterToGpsButtonState();
+        }
+
+        private void UpdateSerialGpsMarker(GpsData gps)
+        {
+            string tooltipText = $"\r\nSerial GPS\r\n{gps.Latitude:F5}°, {gps.Longitude:F5}°";
+            PointLatLng pos = new PointLatLng(gps.Latitude, gps.Longitude);
+
+            if (radioMarkers.TryGetValue(SerialGpsMarkerKey, out GMapMarker existing))
+            {
+                existing.Position = pos;
+                existing.ToolTipText = tooltipText;
+            }
+            else
+            {
+                GMarkerGoogleType markerType = largeMarkersToolStripMenuItem.Checked
+                    ? GMarkerGoogleType.blue_dot
+                    : GMarkerGoogleType.blue_small;
+
+                GMapMarker marker = new GMarkerGoogle(pos, markerType);
+                marker.Tag = DateTime.UtcNow;
+                marker.ToolTipText = tooltipText;
+                marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
+                marker.ToolTip.TextPadding = new Size(4, 8);
+                marker.IsVisible = true;
+
+                radioMarkers[SerialGpsMarkerKey] = marker;
+                mapMarkersOverlay.Markers.Add(marker);
+            }
         }
 
         private void LoadInitialRadioPositions()
@@ -691,35 +745,15 @@ namespace HTCommander.Controls
         {
             if (radioMarkers.Count == 0) return;
 
-            // Get list of device IDs with valid positions
-            List<int> deviceIds = new List<int>(radioMarkers.Keys);
+            // All entries in radioMarkers have valid positions (markers are only added when valid).
+            // Cycle through all of them: Bluetooth radio markers + serial GPS marker (key 0).
+            List<int> keys = new List<int>(radioMarkers.Keys);
+            if (centerToGpsCycleIndex >= keys.Count) centerToGpsCycleIndex = 0;
 
-            // Ensure cycle index is valid
-            if (centerToGpsCycleIndex >= deviceIds.Count)
-            {
-                centerToGpsCycleIndex = 0;
-            }
+            GMapMarker marker = radioMarkers[keys[centerToGpsCycleIndex]];
+            centerToGpsCycleIndex = (centerToGpsCycleIndex + 1) % keys.Count;
 
-            // Try to find a valid position starting from current cycle index
-            int startIndex = centerToGpsCycleIndex;
-            int attempts = 0;
-
-            while (attempts < deviceIds.Count)
-            {
-                int deviceId = deviceIds[centerToGpsCycleIndex];
-                RadioPosition position = broker.GetValue<RadioPosition>(deviceId, "Position", null);
-
-                // Move to next index for the next click (cycle)
-                centerToGpsCycleIndex = (centerToGpsCycleIndex + 1) % deviceIds.Count;
-
-                if (position != null && position.IsGpsLocked())
-                {
-                    mapControl.Position = new PointLatLng(position.Latitude, position.Longitude);
-                    return;
-                }
-
-                attempts++;
-            }
+            mapControl.Position = marker.Position;
         }
 
         private void mapMenuPictureBox_MouseClick(object sender, MouseEventArgs e)

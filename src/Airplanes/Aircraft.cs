@@ -4,6 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License").
 See http://www.apache.org/licenses/LICENSE-2.0
 */
 
+#nullable enable
 using System.Text.Json.Serialization;
 
 namespace HTCommander.Airplanes

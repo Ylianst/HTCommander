@@ -98,6 +98,7 @@
             radioPanelControl = new HTCommander.RadioControls.RadioPanelControl();
             importChannelsFileDialog = new System.Windows.Forms.OpenFileDialog();
             exportChannelsFileDialog = new System.Windows.Forms.SaveFileDialog();
+            gPSInformationToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             mainStatusStrip.SuspendLayout();
             mainMenuStrip.SuspendLayout();
             mainTabControl.SuspendLayout();
@@ -273,28 +274,28 @@
             // audioEnabledToolStripMenuItem
             // 
             audioEnabledToolStripMenuItem.Name = "audioEnabledToolStripMenuItem";
-            audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            audioEnabledToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
             audioEnabledToolStripMenuItem.Text = "&Audio Enabled";
             audioEnabledToolStripMenuItem.Click += audioEnabledToolStripMenuItem_Click;
             // 
             // volumeToolStripMenuItem
             // 
             volumeToolStripMenuItem.Name = "volumeToolStripMenuItem";
-            volumeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            volumeToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
             volumeToolStripMenuItem.Text = "Audio &Controls...";
             volumeToolStripMenuItem.Click += volumeToolStripMenuItem_Click;
             // 
             // audioClipsToolStripMenuItem
             // 
             audioClipsToolStripMenuItem.Name = "audioClipsToolStripMenuItem";
-            audioClipsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            audioClipsToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
             audioClipsToolStripMenuItem.Text = "Audio C&lips...";
             audioClipsToolStripMenuItem.Click += audioClipsToolStripMenuItem_Click;
             // 
             // spectrogramToolStripMenuItem
             // 
             spectrogramToolStripMenuItem.Name = "spectrogramToolStripMenuItem";
-            spectrogramToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            spectrogramToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
             spectrogramToolStripMenuItem.Text = "Spectrogram...";
             spectrogramToolStripMenuItem.Click += spectrogramToolStripMenuItem_Click;
             // 
@@ -302,7 +303,7 @@
             // 
             softwareModemToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { disabledToolStripMenuItem, aFK1200ToolStripMenuItem, pSK2400ToolStripMenuItem, pSK4800ToolStripMenuItem, g9600ToolStripMenuItem });
             softwareModemToolStripMenuItem.Name = "softwareModemToolStripMenuItem";
-            softwareModemToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            softwareModemToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
             softwareModemToolStripMenuItem.Text = "Software &Modem";
             softwareModemToolStripMenuItem.DropDownOpening += softwareModemToolStripMenuItem_DropDownOpening;
             // 
@@ -311,21 +312,21 @@
             disabledToolStripMenuItem.Checked = true;
             disabledToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             disabledToolStripMenuItem.Name = "disabledToolStripMenuItem";
-            disabledToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            disabledToolStripMenuItem.Size = new System.Drawing.Size(176, 26);
             disabledToolStripMenuItem.Text = "&Disabled";
             disabledToolStripMenuItem.Click += disabledToolStripMenuItem_Click;
             // 
             // aFK1200ToolStripMenuItem
             // 
             aFK1200ToolStripMenuItem.Name = "aFK1200ToolStripMenuItem";
-            aFK1200ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            aFK1200ToolStripMenuItem.Size = new System.Drawing.Size(176, 26);
             aFK1200ToolStripMenuItem.Text = "AFK &1200";
             aFK1200ToolStripMenuItem.Click += aFK1200ToolStripMenuItem_Click;
             // 
             // pSK2400ToolStripMenuItem
             // 
             pSK2400ToolStripMenuItem.Name = "pSK2400ToolStripMenuItem";
-            pSK2400ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            pSK2400ToolStripMenuItem.Size = new System.Drawing.Size(176, 26);
             pSK2400ToolStripMenuItem.Text = "PSK &2400";
             pSK2400ToolStripMenuItem.Visible = false;
             pSK2400ToolStripMenuItem.Click += pSK2400ToolStripMenuItem_Click;
@@ -333,7 +334,7 @@
             // pSK4800ToolStripMenuItem
             // 
             pSK4800ToolStripMenuItem.Name = "pSK4800ToolStripMenuItem";
-            pSK4800ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            pSK4800ToolStripMenuItem.Size = new System.Drawing.Size(176, 26);
             pSK4800ToolStripMenuItem.Text = "PSK &4800";
             pSK4800ToolStripMenuItem.Visible = false;
             pSK4800ToolStripMenuItem.Click += pSK4800ToolStripMenuItem_Click;
@@ -341,7 +342,7 @@
             // g9600ToolStripMenuItem
             // 
             g9600ToolStripMenuItem.Name = "g9600ToolStripMenuItem";
-            g9600ToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            g9600ToolStripMenuItem.Size = new System.Drawing.Size(176, 26);
             g9600ToolStripMenuItem.Text = "G3RUH &9600";
             g9600ToolStripMenuItem.Visible = false;
             g9600ToolStripMenuItem.Click += g9600ToolStripMenuItem_Click;
@@ -380,7 +381,7 @@
             // 
             // aboutToolStripMenuItem
             // 
-            aboutToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { radioInformationToolStripMenuItem, localWebSiteToolStripMenuItem, toolStripMenuItem5, checkForUpdatesToolStripMenuItem, aboutToolStripMenuItem1 });
+            aboutToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { radioInformationToolStripMenuItem, gPSInformationToolStripMenuItem, localWebSiteToolStripMenuItem, toolStripMenuItem5, checkForUpdatesToolStripMenuItem, aboutToolStripMenuItem1 });
             aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
             aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
             aboutToolStripMenuItem.Text = "&About";
@@ -390,34 +391,34 @@
             // 
             radioInformationToolStripMenuItem.Enabled = false;
             radioInformationToolStripMenuItem.Name = "radioInformationToolStripMenuItem";
-            radioInformationToolStripMenuItem.Size = new System.Drawing.Size(222, 26);
+            radioInformationToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             radioInformationToolStripMenuItem.Text = "Radio Information...";
             radioInformationToolStripMenuItem.Click += radioInformationToolStripMenuItem_Click;
             // 
             // localWebSiteToolStripMenuItem
             // 
             localWebSiteToolStripMenuItem.Name = "localWebSiteToolStripMenuItem";
-            localWebSiteToolStripMenuItem.Size = new System.Drawing.Size(222, 26);
+            localWebSiteToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             localWebSiteToolStripMenuItem.Text = "Local Web Site...";
             localWebSiteToolStripMenuItem.Visible = false;
             // 
             // toolStripMenuItem5
             // 
             toolStripMenuItem5.Name = "toolStripMenuItem5";
-            toolStripMenuItem5.Size = new System.Drawing.Size(219, 6);
+            toolStripMenuItem5.Size = new System.Drawing.Size(221, 6);
             // 
             // checkForUpdatesToolStripMenuItem
             // 
             checkForUpdatesToolStripMenuItem.CheckOnClick = true;
             checkForUpdatesToolStripMenuItem.Name = "checkForUpdatesToolStripMenuItem";
-            checkForUpdatesToolStripMenuItem.Size = new System.Drawing.Size(222, 26);
+            checkForUpdatesToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             checkForUpdatesToolStripMenuItem.Text = "Check for Updates";
             checkForUpdatesToolStripMenuItem.Click += checkForUpdatesToolStripMenuItem_Click;
             // 
             // aboutToolStripMenuItem1
             // 
             aboutToolStripMenuItem1.Name = "aboutToolStripMenuItem1";
-            aboutToolStripMenuItem1.Size = new System.Drawing.Size(222, 26);
+            aboutToolStripMenuItem1.Size = new System.Drawing.Size(224, 26);
             aboutToolStripMenuItem1.Text = "&About...";
             aboutToolStripMenuItem1.Click += aboutToolStripMenuItem1_Click;
             // 
@@ -726,6 +727,14 @@
             exportChannelsFileDialog.Filter = "Channels (*.csv)|*.csv|CHIRP (*.csv)|*.csv";
             exportChannelsFileDialog.Title = "Export Channels";
             // 
+            // gPSInformationToolStripMenuItem
+            // 
+            gPSInformationToolStripMenuItem.Name = "gPSInformationToolStripMenuItem";
+            gPSInformationToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            gPSInformationToolStripMenuItem.Text = "&GPS Information...";
+            gPSInformationToolStripMenuItem.Visible = false;
+            gPSInformationToolStripMenuItem.Click += gPSInformationToolStripMenuItem_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
@@ -833,5 +842,6 @@
         private System.Windows.Forms.ToolStripMenuItem radioWindowToolStripMenuItem;
         private System.Windows.Forms.OpenFileDialog importChannelsFileDialog;
         private System.Windows.Forms.SaveFileDialog exportChannelsFileDialog;
+        private System.Windows.Forms.ToolStripMenuItem gPSInformationToolStripMenuItem;
     }
 }

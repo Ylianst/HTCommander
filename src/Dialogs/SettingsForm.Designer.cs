@@ -86,15 +86,21 @@
             label5 = new System.Windows.Forms.Label();
             pictureBox3 = new System.Windows.Forms.PictureBox();
             airplanesTabPage = new System.Windows.Forms.TabPage();
+            groupBox8 = new System.Windows.Forms.GroupBox();
+            gpsStateButton = new System.Windows.Forms.Button();
+            gpsBaudRateComboBox = new System.Windows.Forms.ComboBox();
+            gpsSerialPortComboBox = new System.Windows.Forms.ComboBox();
+            label18 = new System.Windows.Forms.Label();
             groupBox7 = new System.Windows.Forms.GroupBox();
+            dump1090testResultsLabel = new System.Windows.Forms.Label();
+            dump1090testButton = new System.Windows.Forms.Button();
             dump1090urlTextBox = new System.Windows.Forms.TextBox();
             label15 = new System.Windows.Forms.Label();
             label17 = new System.Windows.Forms.Label();
             pictureBox6 = new System.Windows.Forms.PictureBox();
             okButton = new System.Windows.Forms.Button();
             cancelButton = new System.Windows.Forms.Button();
-            dump1090testButton = new System.Windows.Forms.Button();
-            dump1090testResultsLabel = new System.Windows.Forms.Label();
+            gpsStatusLabel = new System.Windows.Forms.Label();
             tabControl1.SuspendLayout();
             licenseTabPage.SuspendLayout();
             groupBox1.SuspendLayout();
@@ -115,6 +121,7 @@
             ((System.ComponentModel.ISupportInitialize)webPortNumericUpDown).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
             airplanesTabPage.SuspendLayout();
+            groupBox8.SuspendLayout();
             groupBox7.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox6).BeginInit();
             SuspendLayout();
@@ -788,6 +795,7 @@
             // 
             // airplanesTabPage
             // 
+            airplanesTabPage.Controls.Add(groupBox8);
             airplanesTabPage.Controls.Add(groupBox7);
             airplanesTabPage.Controls.Add(label17);
             airplanesTabPage.Controls.Add(pictureBox6);
@@ -795,8 +803,64 @@
             airplanesTabPage.Name = "airplanesTabPage";
             airplanesTabPage.Size = new System.Drawing.Size(493, 540);
             airplanesTabPage.TabIndex = 5;
-            airplanesTabPage.Text = "Airplanes";
+            airplanesTabPage.Text = "Data Sources";
             airplanesTabPage.UseVisualStyleBackColor = true;
+            // 
+            // groupBox8
+            // 
+            groupBox8.Controls.Add(gpsStatusLabel);
+            groupBox8.Controls.Add(gpsStateButton);
+            groupBox8.Controls.Add(gpsBaudRateComboBox);
+            groupBox8.Controls.Add(gpsSerialPortComboBox);
+            groupBox8.Controls.Add(label18);
+            groupBox8.Location = new System.Drawing.Point(8, 302);
+            groupBox8.Margin = new System.Windows.Forms.Padding(5);
+            groupBox8.Name = "groupBox8";
+            groupBox8.Padding = new System.Windows.Forms.Padding(5);
+            groupBox8.Size = new System.Drawing.Size(473, 147);
+            groupBox8.TabIndex = 10;
+            groupBox8.TabStop = false;
+            groupBox8.Text = "GPS Device";
+            // 
+            // gpsStateButton
+            // 
+            gpsStateButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            gpsStateButton.AutoEllipsis = true;
+            gpsStateButton.Location = new System.Drawing.Point(316, 68);
+            gpsStateButton.Name = "gpsStateButton";
+            gpsStateButton.Size = new System.Drawing.Size(149, 28);
+            gpsStateButton.TabIndex = 6;
+            gpsStateButton.Text = "GPS Data...";
+            gpsStateButton.UseVisualStyleBackColor = true;
+            gpsStateButton.Click += gpsStateButton_Click;
+            // 
+            // gpsBaudRateComboBox
+            // 
+            gpsBaudRateComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            gpsBaudRateComboBox.FormattingEnabled = true;
+            gpsBaudRateComboBox.Location = new System.Drawing.Point(164, 68);
+            gpsBaudRateComboBox.Name = "gpsBaudRateComboBox";
+            gpsBaudRateComboBox.Size = new System.Drawing.Size(146, 28);
+            gpsBaudRateComboBox.TabIndex = 5;
+            // 
+            // gpsSerialPortComboBox
+            // 
+            gpsSerialPortComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            gpsSerialPortComboBox.FormattingEnabled = true;
+            gpsSerialPortComboBox.Location = new System.Drawing.Point(12, 68);
+            gpsSerialPortComboBox.Name = "gpsSerialPortComboBox";
+            gpsSerialPortComboBox.Size = new System.Drawing.Size(146, 28);
+            gpsSerialPortComboBox.TabIndex = 4;
+            // 
+            // label18
+            // 
+            label18.AutoSize = true;
+            label18.Location = new System.Drawing.Point(12, 38);
+            label18.Margin = new System.Windows.Forms.Padding(5, 0, 5, 0);
+            label18.Name = "label18";
+            label18.Size = new System.Drawing.Size(389, 20);
+            label18.TabIndex = 3;
+            label18.Text = "Select the serial port and baud rate of NMEA 0183 device";
             // 
             // groupBox7
             // 
@@ -811,7 +875,25 @@
             groupBox7.Size = new System.Drawing.Size(473, 157);
             groupBox7.TabIndex = 9;
             groupBox7.TabStop = false;
-            groupBox7.Text = "ADS-B Settings";
+            groupBox7.Text = "Dump1090 ADS-B";
+            // 
+            // dump1090testResultsLabel
+            // 
+            dump1090testResultsLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            dump1090testResultsLabel.Location = new System.Drawing.Point(110, 105);
+            dump1090testResultsLabel.Name = "dump1090testResultsLabel";
+            dump1090testResultsLabel.Size = new System.Drawing.Size(355, 25);
+            dump1090testResultsLabel.TabIndex = 6;
+            // 
+            // dump1090testButton
+            // 
+            dump1090testButton.Location = new System.Drawing.Point(10, 101);
+            dump1090testButton.Name = "dump1090testButton";
+            dump1090testButton.Size = new System.Drawing.Size(94, 29);
+            dump1090testButton.TabIndex = 5;
+            dump1090testButton.Text = "Test";
+            dump1090testButton.UseVisualStyleBackColor = true;
+            dump1090testButton.Click += dump1090testButton_Click;
             // 
             // dump1090urlTextBox
             // 
@@ -828,9 +910,9 @@
             label15.Location = new System.Drawing.Point(10, 36);
             label15.Margin = new System.Windows.Forms.Padding(5, 0, 5, 0);
             label15.Name = "label15";
-            label15.Size = new System.Drawing.Size(241, 20);
+            label15.Size = new System.Drawing.Size(379, 20);
             label15.TabIndex = 3;
-            label15.Text = "Enter the hostname:port or full URL";
+            label15.Text = "Enter the hostname:port or URL of the Dump1090 server";
             // 
             // label17
             // 
@@ -840,7 +922,7 @@
             label17.Name = "label17";
             label17.Size = new System.Drawing.Size(381, 113);
             label17.TabIndex = 7;
-            label17.Text = "If you have a Dump1090 ADS-B server in your local network, but the hostname and port here to have airplanes show on the map.";
+            label17.Text = "If you have a Dump1090 ADS-B server on your local network or a serial GPS device, configure them here to make use of this data.";
             // 
             // pictureBox6
             // 
@@ -879,23 +961,13 @@
             cancelButton.UseVisualStyleBackColor = true;
             cancelButton.Click += cancelButton_Click;
             // 
-            // dump1090testButton
+            // gpsStatusLabel
             // 
-            dump1090testButton.Location = new System.Drawing.Point(10, 101);
-            dump1090testButton.Name = "dump1090testButton";
-            dump1090testButton.Size = new System.Drawing.Size(94, 29);
-            dump1090testButton.TabIndex = 5;
-            dump1090testButton.Text = "Test";
-            dump1090testButton.UseVisualStyleBackColor = true;
-            dump1090testButton.Click += dump1090testButton_Click;
-            // 
-            // dump1090testResultsLabel
-            // 
-            dump1090testResultsLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            dump1090testResultsLabel.Location = new System.Drawing.Point(110, 105);
-            dump1090testResultsLabel.Name = "dump1090testResultsLabel";
-            dump1090testResultsLabel.Size = new System.Drawing.Size(355, 25);
-            dump1090testResultsLabel.TabIndex = 6;
+            gpsStatusLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            gpsStatusLabel.Location = new System.Drawing.Point(12, 108);
+            gpsStatusLabel.Name = "gpsStatusLabel";
+            gpsStatusLabel.Size = new System.Drawing.Size(453, 25);
+            gpsStatusLabel.TabIndex = 7;
             // 
             // SettingsForm
             // 
@@ -942,6 +1014,8 @@
             ((System.ComponentModel.ISupportInitialize)webPortNumericUpDown).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
             airplanesTabPage.ResumeLayout(false);
+            groupBox8.ResumeLayout(false);
+            groupBox8.PerformLayout();
             groupBox7.ResumeLayout(false);
             groupBox7.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox6).EndInit();
@@ -1016,5 +1090,11 @@
         private System.Windows.Forms.Label label15;
         private System.Windows.Forms.Label dump1090testResultsLabel;
         private System.Windows.Forms.Button dump1090testButton;
+        private System.Windows.Forms.GroupBox groupBox8;
+        private System.Windows.Forms.Label label18;
+        private System.Windows.Forms.ComboBox gpsBaudRateComboBox;
+        private System.Windows.Forms.ComboBox gpsSerialPortComboBox;
+        private System.Windows.Forms.Button gpsStateButton;
+        private System.Windows.Forms.Label gpsStatusLabel;
     }
 }

@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using HTCommander.Dialogs;
 using HTCommander.Controls;
 using HTCommander.Airplanes;
+using HTCommander.Gps;
 
 namespace HTCommander
 {
@@ -64,6 +65,7 @@ namespace HTCommander
             DataBroker.AddDataHandler("MailStore", new MailStore());
             DataBroker.AddDataHandler("WinlinkClient", new WinlinkClient());
             DataBroker.AddDataHandler("AirplaneHandler", new AirplaneHandler());
+            DataBroker.AddDataHandler("GpsSerialHandler", new GpsSerialHandler());
 
             // Subscribe to CallSign and StationId changes for title bar updates
             broker.Subscribe(0, new[] { "CallSign", "StationId" }, OnCallSignOrStationIdChanged);
@@ -217,6 +219,8 @@ namespace HTCommander
 
         private void aboutToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
         {
+            string gpsPort = DataBroker.GetValue<string>(0, "GpsSerialPort", "None");
+            gPSInformationToolStripMenuItem.Visible = !string.IsNullOrEmpty(gpsPort) && gpsPort != "None";
             // Enable the first 5 radio-related menu items only if we have connected radios
             bool hasRadio = (connectedRadios.Count > 0);
             radioInformationToolStripMenuItem.Enabled = hasRadio;
@@ -225,6 +229,11 @@ namespace HTCommander
         private void radioInformationToolStripMenuItem_Click(object sender, EventArgs e)
         {
             new RadioInfoForm().Show(this);
+        }
+
+        private void gPSInformationToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            GpsDetailsForm.ShowInstance(this);
         }
 
         private void aboutToolStripMenuItem1_Click(object sender, EventArgs e)

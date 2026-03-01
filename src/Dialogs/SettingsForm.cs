@@ -6,12 +6,15 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 using System;
 using System.IO;
+using System.IO.Ports;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using System.Speech.Synthesis;
 using System.ComponentModel;
 using HTCommander.radio;
+using HTCommander.Dialogs;
+using HTCommander.Gps;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
@@ -22,6 +25,10 @@ namespace HTCommander
         private readonly FileDownloader _downloader;
         private readonly DataBrokerClient _settingsBroker;
         private CancellationTokenSource _cts;
+
+        // Original GPS settings saved on load so Cancel can restore them
+        private string _originalGpsPort;
+        private int _originalGpsBaudRate;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         [Browsable(false)]
@@ -86,6 +93,22 @@ namespace HTCommander
             set { foreach (string item in voicesComboBox.Items) { if (item == value) { voicesComboBox.SelectedItem = item; break; } } }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
+        public string GpsSerialPort
+        {
+            get { return gpsSerialPortComboBox.SelectedItem as string ?? "None"; }
+            set { if (gpsSerialPortComboBox.Items.Contains(value)) gpsSerialPortComboBox.SelectedItem = value; else gpsSerialPortComboBox.SelectedIndex = 0; }
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        [Browsable(false)]
+        public int GpsBaudRate
+        {
+            get { return gpsBaudRateComboBox.SelectedItem is int v ? v : 4800; }
+            set { foreach (object item in gpsBaudRateComboBox.Items) { if (item is int baud && baud == value) { gpsBaudRateComboBox.SelectedItem = item; return; } } gpsBaudRateComboBox.SelectedIndex = 0; }
+        }
+
         // https://huggingface.co/ggerganov/whisper.cpp/tree/main
         string[] models = new string[] {
             "None",
@@ -97,11 +120,6 @@ namespace HTCommander
             "Small.en, 488 MB, English",
             "Medium, 1.53 GB",
             "Medium.en, 1.53 GB, English",
-            //"Large-v3-turbo-q5_0, 574 MB"
-            //"Large-v1, 3.09 GB",
-            //"Large-v2, 3.09 GB",
-            //"Large-v3, 3.1 GB",
-            //"Large-v3-turbo, 1.62 GB"
         };
 
         string[] languages = new string[] {
@@ -171,6 +189,7 @@ namespace HTCommander
             _downloader = new FileDownloader();
             _settingsBroker = new DataBrokerClient();
             _settingsBroker.Subscribe(1, "TestAirplaneServerResult", OnTestAirplaneServerResult);
+            _settingsBroker.Subscribe(1, "GpsStatus", OnGpsStatusChanged);
 
             foreach (string language in languages)
             {
@@ -202,19 +221,24 @@ namespace HTCommander
             }
             catch (System.Runtime.InteropServices.COMException)
             {
-                // TTS not available - add a placeholder message
                 voicesComboBox.Items.Add("(Text-to-Speech not available)");
                 voicesComboBox.SelectedIndex = 0;
                 voicesComboBox.Enabled = false;
             }
             catch (Exception ex)
             {
-                // Generic error handling
                 voicesComboBox.Items.Add("(Text-to-Speech not available)");
                 voicesComboBox.SelectedIndex = 0;
                 voicesComboBox.Enabled = false;
                 Console.WriteLine($"Warning: Failed to load TTS voices: {ex.Message}");
             }
+
+            // GPS Serial Port - "None" first, then COM ports sorted numerically
+            RefreshSerialPorts();
+
+            // GPS Baud Rate (common NMEA 0183 rates)
+            foreach (int baud in new int[] { 4800, 9600, 19200, 38400, 57600, 115200 }) { gpsBaudRateComboBox.Items.Add(baud); }
+            gpsBaudRateComboBox.SelectedIndex = 0; // 4800 is the NMEA 0183 default
 
             UpdateInfo();
         }
@@ -229,40 +253,49 @@ namespace HTCommander
             // Load settings from DataBroker (device 0)
             LoadSettingsFromDataBroker();
 
-            // If there are no ARPS routes, add the default one.
+            // Populate GPS status label from current status
+            UpdateGpsStatusLabel();
+
+            // Snapshot original GPS settings so Cancel can revert them
+            _originalGpsPort     = GpsSerialPort;
+            _originalGpsBaudRate = GpsBaudRate;
+
+            // Dispatch GPS changes immediately as the user changes the combo boxes
+            gpsSerialPortComboBox.SelectedIndexChanged += OnGpsComboChanged;
+            gpsBaudRateComboBox.SelectedIndexChanged   += OnGpsComboChanged;
+
+            // If there are no APRS routes, add the default one.
             if (aprsRoutesListView.Items.Count == 0) { AddAprsRouteString("Standard|APN000,WIDE1-1,WIDE2-2"); }
             UpdateInfo();
         }
 
         private void LoadSettingsFromDataBroker()
         {
-            // Load all settings from DataBroker device 0
-            CallSign = DataBroker.GetValue<string>(0, "CallSign", "");
-            StationId = DataBroker.GetValue<int>(0, "StationId", 0);
-            AllowTransmit = DataBroker.GetValue<int>(0, "AllowTransmit", 0) == 1;
-            WebServerEnabled = DataBroker.GetValue<int>(0, "webServerEnabled", 0) == 1;
-            WebServerPort = DataBroker.GetValue<int>(0, "webServerPort", 8080);
+            CallSign          = DataBroker.GetValue<string>(0, "CallSign", "");
+            StationId         = DataBroker.GetValue<int>(0, "StationId", 0);
+            AllowTransmit     = DataBroker.GetValue<int>(0, "AllowTransmit", 0) == 1;
+            WebServerEnabled  = DataBroker.GetValue<int>(0, "webServerEnabled", 0) == 1;
+            WebServerPort     = DataBroker.GetValue<int>(0, "webServerPort", 8080);
             AgwpeServerEnabled = DataBroker.GetValue<int>(0, "agwpeServerEnabled", 0) == 1;
-            AgwpeServerPort = DataBroker.GetValue<int>(0, "agwpeServerPort", 8000);
-            VoiceLanguage = DataBroker.GetValue<string>(0, "VoiceLanguage", "auto");
-            VoiceModel = DataBroker.GetValue<string>(0, "VoiceModel", "");
-            Voice = DataBroker.GetValue<string>(0, "Voice", "Microsoft Zira Desktop");
+            AgwpeServerPort   = DataBroker.GetValue<int>(0, "agwpeServerPort", 8000);
+            VoiceLanguage     = DataBroker.GetValue<string>(0, "VoiceLanguage", "auto");
+            VoiceModel        = DataBroker.GetValue<string>(0, "VoiceModel", "");
+            Voice             = DataBroker.GetValue<string>(0, "Voice", "Microsoft Zira Desktop");
 
-            // APRS Settings
             string aprsRoutesStr = DataBroker.GetValue<string>(0, "AprsRoutes", "");
             if (!string.IsNullOrEmpty(aprsRoutesStr)) { AprsRoutes = aprsRoutesStr; }
 
-            // Winlink Settings
-            WinlinkPassword = DataBroker.GetValue<string>(0, "WinlinkPassword", "");
+            WinlinkPassword    = DataBroker.GetValue<string>(0, "WinlinkPassword", "");
             WinlinkUseStationId = DataBroker.GetValue<int>(0, "WinlinkUseStationId", 0) == 1;
 
-            // Airplane Settings
             dump1090urlTextBox.Text = DataBroker.GetValue<string>(0, "AirplaneServer", "");
+
+            GpsSerialPort = DataBroker.GetValue<string>(0, "GpsSerialPort", "None");
+            GpsBaudRate   = DataBroker.GetValue<int>(0, "GpsBaudRate", 4800);
         }
 
         private void SaveSettingsToDataBroker()
         {
-            // Save all settings to DataBroker device 0
             DataBroker.Dispatch(0, "CallSign", CallSign);
             DataBroker.Dispatch(0, "StationId", StationId);
             DataBroker.Dispatch(0, "AllowTransmit", AllowTransmit ? 1 : 0);
@@ -273,16 +306,12 @@ namespace HTCommander
             DataBroker.Dispatch(0, "VoiceLanguage", VoiceLanguage);
             DataBroker.Dispatch(0, "VoiceModel", VoiceModel);
             DataBroker.Dispatch(0, "Voice", Voice);
-
-            // APRS Settings
             DataBroker.Dispatch(0, "AprsRoutes", AprsRoutes);
-
-            // Winlink Settings
             DataBroker.Dispatch(0, "WinlinkPassword", WinlinkPassword);
             DataBroker.Dispatch(0, "WinlinkUseStationId", WinlinkUseStationId ? 1 : 0);
-
-            // Airplane Settings
             DataBroker.Dispatch(0, "AirplaneServer", dump1090urlTextBox.Text);
+            DataBroker.Dispatch(0, "GpsSerialPort", GpsSerialPort);
+            DataBroker.Dispatch(0, "GpsBaudRate", GpsBaudRate);
         }
 
         private string GetAprsRoutes()
@@ -299,7 +328,6 @@ namespace HTCommander
 
         private void SetAprsRoutes(string routesStr)
         {
-            //aprsRoutesListView.Clear();
             if (routesStr == null) return;
             string[] routes = routesStr.Split('|');
             foreach (string route in routes) { AddAprsRouteString(route); }
@@ -312,7 +340,6 @@ namespace HTCommander
 
         private void okButton_Click(object sender, EventArgs e)
         {
-            // Save settings to DataBroker before closing
             SaveSettingsToDataBroker();
             _settingsBroker?.Dispose();
             Close();
@@ -322,34 +349,31 @@ namespace HTCommander
         {
             allowTransmitCheckBox.Enabled = (callsignTextBox.Text.Length >= 3);
             if (allowTransmitCheckBox.Enabled == false) { allowTransmitCheckBox.Checked = false; }
-            webPortNumericUpDown.Enabled = webServerEnabledCheckBox.Checked;
+            webPortNumericUpDown.Enabled  = webServerEnabledCheckBox.Checked;
             agwpePortNumericUpDown.Enabled = agwpeServerEnabledCheckBox.Checked;
 
             if (callsignTextBox.Text.Length > 0)
             {
-                winlinkAccountTextBox.Text = callsignTextBox.Text + "@winlink.org";
+                winlinkAccountTextBox.Text    = callsignTextBox.Text + "@winlink.org";
                 winlinkPasswordTextBox.Enabled = true;
             }
             else
             {
-                winlinkAccountTextBox.Text = "None";
+                winlinkAccountTextBox.Text    = "None";
                 winlinkPasswordTextBox.Enabled = false;
             }
 
-            // For the models, if the selected model is "None", disable the download button.
             Utils.ComboBoxItem selected = (Utils.ComboBoxItem)modelsComboBox.SelectedItem;
             string filename = "ggml-" + selected.Value.ToLower() + ".bin";
             string appDataFilename = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", filename);
             downloadButton.Enabled = (_cts == null) && (modelsComboBox.SelectedIndex != 0) && !File.Exists(appDataFilename);
-            deleteButton.Enabled = (modelsComboBox.SelectedIndex != 0) && File.Exists(appDataFilename);
+            deleteButton.Enabled   = (modelsComboBox.SelectedIndex != 0) && File.Exists(appDataFilename);
 
-            // okButton
             bool ok = true;
-            if (downloadButton.Enabled) { ok = false; } // If the download button is enabled, we cannot proceed.
+            if (downloadButton.Enabled) { ok = false; }
             if (webPortNumericUpDown.Enabled && agwpePortNumericUpDown.Enabled && (webPortNumericUpDown.Value == agwpePortNumericUpDown.Value)) { ok = false; }
             okButton.Enabled = ok;
 
-            // Dump1090 test button
             dump1090testButton.Enabled = (dump1090urlTextBox.Text.Trim().Length > 0);
         }
 
@@ -361,27 +385,53 @@ namespace HTCommander
 
         private void dump1090testButton_Click(object sender, EventArgs e)
         {
-            dump1090testButton.Enabled = false;
+            dump1090testButton.Enabled    = false;
             dump1090testResultsLabel.Text = "Testing...";
             DataBroker.Dispatch(1, "TestAirplaneServer", dump1090urlTextBox.Text.Trim(), store: false);
+        }
+
+        // ------------------------------------------------------------------
+        // GPS status label
+        // ------------------------------------------------------------------
+
+        private void OnGpsStatusChanged(int deviceId, string name, object value)
+        {
+            if (IsDisposed) return;
+            if (InvokeRequired) { BeginInvoke(new Action<int, string, object>(OnGpsStatusChanged), deviceId, name, value); return; }
+            UpdateGpsStatusLabel();
+        }
+
+        private void UpdateGpsStatusLabel()
+        {
+            string port   = DataBroker.GetValue<string>(0, "GpsSerialPort", "None");
+            string status = DataBroker.GetValue<string>(1, "GpsStatus", "");
+
+            if (string.IsNullOrEmpty(port) || port == "None")
+            {
+                gpsStatusLabel.Text = "No GPS device configured";
+                return;
+            }
+
+            switch (status)
+            {
+                case "Connecting":      gpsStatusLabel.Text = "Connecting to GPS port..."; break;
+                case "Communicating":   gpsStatusLabel.Text = "GPS communicating";         break;
+                case "Disabled":        gpsStatusLabel.Text = "No GPS device configured";  break;
+                case "PortError":       gpsStatusLabel.Text = "Unable to open GPS port";   break;
+                case "Disconnected":    gpsStatusLabel.Text = "GPS disconnected";           break;
+                default:                gpsStatusLabel.Text = "Waiting for GPS data...";   break;
+            }
         }
 
         private void OnTestAirplaneServerResult(int deviceId, string name, object data)
         {
             if (IsDisposed) return;
-            if (InvokeRequired)
-            {
-                BeginInvoke(new Action<int, string, object>(OnTestAirplaneServerResult), deviceId, name, data);
-                return;
-            }
+            if (InvokeRequired) { BeginInvoke(new Action<int, string, object>(OnTestAirplaneServerResult), deviceId, name, data); return; }
             dump1090testResultsLabel.Text = data as string ?? "Unknown result";
             UpdateInfo();
         }
 
-        private void callsignTextBox_TextChanged(object sender, EventArgs e)
-        {
-            UpdateInfo();
-        }
+        private void callsignTextBox_TextChanged(object sender, EventArgs e) { UpdateInfo(); }
 
         private void addAprsButton_Click(object sender, EventArgs e)
         {
@@ -419,7 +469,6 @@ namespace HTCommander
             {
                 ListViewItem l = aprsRoutesListView.SelectedItems[0];
                 aprsRoutesListView.Items.Remove(l);
-                // If there are no ARPS routes, add the default one.
                 if (aprsRoutesListView.Items.Count == 0) { AddAprsRouteString("Standard,APN000,WIDE1-1,WIDE2-2"); }
                 UpdateInfo();
             }
@@ -432,7 +481,8 @@ namespace HTCommander
                 ListViewItem l = aprsRoutesListView.SelectedItems[0];
                 AddAprsRouteForm form = new AddAprsRouteForm();
                 form.AprsRouteStr = (string)l.Tag;
-                if (form.ShowDialog(this) == DialogResult.OK) {
+                if (form.ShowDialog(this) == DialogResult.OK)
+                {
                     aprsRoutesListView.Items.Remove(l);
                     AddAprsRouteString(form.AprsRouteStr);
                     UpdateInfo();
@@ -442,17 +492,11 @@ namespace HTCommander
 
         private void callsignTextBox_KeyPress(object sender, KeyPressEventArgs e)
         {
-            // Allow letters, numbers, and the dash (-)
             if (!char.IsLetterOrDigit(e.KeyChar) && e.KeyChar != '-' && e.KeyChar != (char)Keys.Back)
-            {
-                e.Handled = true; // Block the input
-            }
+                e.Handled = true;
         }
 
-        private void webServerEnabledCheckBox_CheckedChanged(object sender, EventArgs e)
-        {
-            UpdateInfo();
-        }
+        private void webServerEnabledCheckBox_CheckedChanged(object sender, EventArgs e) { UpdateInfo(); }
 
         private void linkLabel2_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
@@ -461,7 +505,6 @@ namespace HTCommander
 
         private async void downloadButton_Click(object sender, EventArgs e)
         {
-            // Get application data path
             string model = ((Utils.ComboBoxItem)modelsComboBox.SelectedItem).Value;
             string url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-" + model.ToLower() + ".bin?download=true";
             string filename = "ggml-" + model.ToLower() + ".bin";
@@ -472,16 +515,13 @@ namespace HTCommander
 
             try
             {
-                // Prepare for download
                 _cts = new CancellationTokenSource();
                 var progressIndicator = new Progress<DownloadProgressInfo>(ReportProgress);
-
-                // Start the download asynchronously
                 cancelDownloadButton.Visible = true;
                 downloadButton.Enabled = false;
                 await _downloader.DownloadFileAsync(url, appDataFilenamePart, progressIndicator, _cts);
             }
-            catch (Exception ex) // Catch potential exceptions during setup/await if not caught by downloader
+            catch (Exception ex)
             {
                 cancelDownloadButton.Visible = false;
                 MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -498,36 +538,30 @@ namespace HTCommander
             if (progressInfo.Error != null)
             {
                 MessageBox.Show($"Error: {progressInfo.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                _cts?.Dispose();
-                _cts = null;
+                _cts?.Dispose(); _cts = null;
                 UpdateInfo();
             }
             else if (progressInfo.IsCancelled)
             {
                 MessageBox.Show("Download cancelled.", "Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                _cts?.Dispose();
-                _cts = null;
+                _cts?.Dispose(); _cts = null;
                 UpdateInfo();
             }
             else if (progressInfo.IsComplete)
             {
                 progressBar.Visible = false;
                 MessageBox.Show("Download completed successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                _cts?.Dispose();
-                _cts = null;
+                _cts?.Dispose(); _cts = null;
                 UpdateInfo();
             }
             else
             {
                 progressBar.Visible = true;
-                progressBar.Value = (int)progressInfo.Percentage;
+                progressBar.Value   = (int)progressInfo.Percentage;
             }
         }
 
-        private void modelsComboBox_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            UpdateInfo();
-        }
+        private void modelsComboBox_SelectedIndexChanged(object sender, EventArgs e) { UpdateInfo(); }
 
         private void deleteButton_Click(object sender, EventArgs e)
         {
@@ -545,72 +579,108 @@ namespace HTCommander
             if (_cts != null) { _cts.Cancel(); }
         }
 
+        // ------------------------------------------------------------------
+        // GPS combo — dispatch immediately; revert on Cancel
+        // ------------------------------------------------------------------
+
+        private void OnGpsComboChanged(object sender, EventArgs e)
+        {
+            DataBroker.Dispatch(0, "GpsSerialPort", GpsSerialPort);
+            DataBroker.Dispatch(0, "GpsBaudRate",   GpsBaudRate);
+        }
+
         private void cancelButton_Click(object sender, EventArgs e)
         {
             if (_cts != null) { _cts.Cancel(); }
+            // Restore the GPS settings that were active before the form was opened
+            DataBroker.Dispatch(0, "GpsSerialPort", _originalGpsPort);
+            DataBroker.Dispatch(0, "GpsBaudRate",   _originalGpsBaudRate);
             _settingsBroker?.Dispose();
             Close();
         }
 
+        // ------------------------------------------------------------------
+        // Audio device helpers
+        // ------------------------------------------------------------------
+
         public static int GetDefaultOutputDeviceNumber()
         {
-            var enumerator = new MMDeviceEnumerator();
+            var enumerator    = new MMDeviceEnumerator();
             var defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
-            string defaultId = defaultDevice.ID;
-
-            var devices = enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
+            string defaultId  = defaultDevice.ID;
+            var devices       = enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
 
             for (int i = 0; i < WaveOut.DeviceCount; i++)
             {
                 var caps = WaveOut.GetCapabilities(i);
                 foreach (var device in devices)
-                {
                     if (device.FriendlyName.StartsWith(caps.ProductName) && device.ID == defaultId)
-                    {
                         return i;
-                    }
-                }
             }
-
             return -1;
         }
 
         public static int GetDefaultInputDeviceNumber()
         {
-            var enumerator = new MMDeviceEnumerator();
+            var enumerator    = new MMDeviceEnumerator();
             var defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
-            string defaultId = defaultDevice.ID;
-
-            var devices = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
+            string defaultId  = defaultDevice.ID;
+            var devices       = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
 
             for (int i = 0; i < WaveIn.DeviceCount; i++)
             {
                 var caps = WaveIn.GetCapabilities(i);
                 foreach (var device in devices)
-                {
                     if (device.FriendlyName.StartsWith(caps.ProductName) && device.ID == defaultId)
-                    {
                         return i;
-                    }
-                }
             }
-
             return -1;
         }
 
-        private void tncServerEnabledCheckBox_CheckedChanged(object sender, EventArgs e)
+        // ------------------------------------------------------------------
+        // Serial port refresh (responds to device plug/unplug)
+        // ------------------------------------------------------------------
+
+        private void RefreshSerialPorts()
         {
-            UpdateInfo();
+            string selected = gpsSerialPortComboBox.SelectedItem as string;
+            gpsSerialPortComboBox.Items.Clear();
+            gpsSerialPortComboBox.Items.Add("None");
+            string[] ports = SerialPort.GetPortNames();
+            Array.Sort(ports, (a, b) => {
+                int numA = int.TryParse(System.Text.RegularExpressions.Regex.Match(a, @"\d+").Value, out int na) ? na : 0;
+                int numB = int.TryParse(System.Text.RegularExpressions.Regex.Match(b, @"\d+").Value, out int nb) ? nb : 0;
+                return numA.CompareTo(numB);
+            });
+            foreach (string port in ports) { gpsSerialPortComboBox.Items.Add(port); }
+            if (selected != null && gpsSerialPortComboBox.Items.Contains(selected))
+                gpsSerialPortComboBox.SelectedItem = selected;
+            else
+                gpsSerialPortComboBox.SelectedIndex = 0;
         }
 
-        private void agwpePortNumericUpDown_ValueChanged(object sender, EventArgs e)
+        protected override void WndProc(ref Message m)
         {
-            UpdateInfo();
+            const int WM_DEVICECHANGE         = 0x0219;
+            const int DBT_DEVICEARRIVAL       = 0x8000;
+            const int DBT_DEVICEREMOVECOMPLETE = 0x8004;
+            if (m.Msg == WM_DEVICECHANGE &&
+                (m.WParam.ToInt32() == DBT_DEVICEARRIVAL || m.WParam.ToInt32() == DBT_DEVICEREMOVECOMPLETE))
+            {
+                RefreshSerialPorts();
+            }
+            base.WndProc(ref m);
         }
 
-        private void webPortNumericUpDown_ValueChanged(object sender, EventArgs e)
+        private void tncServerEnabledCheckBox_CheckedChanged(object sender, EventArgs e) { UpdateInfo(); }
+        private void agwpePortNumericUpDown_ValueChanged(object sender, EventArgs e)      { UpdateInfo(); }
+        private void webPortNumericUpDown_ValueChanged(object sender, EventArgs e)        { UpdateInfo(); }
+
+        private void gpsStateButton_Click(object sender, EventArgs e)
         {
-            UpdateInfo();
+            // Pass the MainForm (this.Owner) as the owner so GpsDetailsForm
+            // remains open if the SettingsForm is closed.
+            GpsDetailsForm.ShowInstance(this.Owner ?? this);
         }
     }
 }

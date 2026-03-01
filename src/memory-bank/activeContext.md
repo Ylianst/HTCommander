@@ -1,14 +1,14 @@
 # Active Context - HTCommander
 
 ## Current Session
-- **Date**: January 15, 2026
-- **Task**: Memory bank initialization
+- **Date**: March 1, 2026
+- **Task**: GPS serial handler implementation
 
 ## Recent Activity
-- Initialized memory bank structure
-- Analyzed project architecture and documented core patterns
-- Created productContext.md with project overview
-- Created systemPatterns.md with architecture documentation
+- Replaced `Gps/GpsSerialReader.cs` (standalone GpsTool console tool, wrong namespace/dependencies) with a proper Data Broker handler
+- Created `Gps/GpsData.cs` — data class holding all GPS fix fields
+- Created `Gps/GpsSerialHandler.cs` — Data Broker handler that reads/subscribes to GPS serial settings from device 0 and broadcasts parsed GPS data on device 1
+- Registered `GpsSerialHandler` in `MainForm.cs` alongside other handlers
 
 ## Project State
 - **Status**: Active development
@@ -36,6 +36,8 @@ The application uses a **Data Broker** pattern as its core architecture:
 - **Tab Controls**: APRS, Map, Voice, Mail, Terminal, Contacts, BBS, Torrent, Packet Capture
 - **Radio Class**: Represents Bluetooth-connected radios
 - **DataBroker/DataBrokerClient**: Central messaging infrastructure
+- **GpsSerialHandler**: Reads GPS serial port (settings from device 0), parses NMEA, dispatches `GpsData` on device 1
+- **AirplaneHandler**: Polls Dump1090 for aircraft, dispatches airplane list on device 2+
 
 ### Radio Management
 - Radios are identified by DeviceId (starting at 100)
@@ -49,9 +51,16 @@ The application uses a **Data Broker** pattern as its core architecture:
 - Includes text adventure game (Adventurer) as an Easter egg
 - Memory bank initialized with core documentation
 
+## GPS Handler Design (Device 1)
+- Settings read from device 0: `"GpsSerialPort"` (string), `"GpsBaudRate"` (int)
+- Subscribes to settings changes → restarts serial port on change
+- Port config: 8N1, no handshake, DtrEnable/RtsEnable true
+- Parses NMEA sentences: `$GPRMC`/`$GNRMC` and `$GPGGA`/`$GNGGA` (with checksum validation)
+- Broadcasts `GpsData` object on `(1, "GpsData")` after each parsed sentence
+- `GpsData` fields: Latitude, Longitude, Altitude, Speed, Heading, FixQuality, Satellites, IsFixed, GpsTime
+
 ## Open Questions
 - None currently
 
 ## Next Steps
-- Memory bank is initialized and ready for use
-- Future sessions can reference these files for project context
+- GPS data (device 1, "GpsData") is now available for map display, APRS beaconing, etc.
