@@ -15,6 +15,7 @@ using System.Speech.AudioFormat;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using aprsparser;
+using HTCommander.Gps;
 using HTCommander.radio;
 using HTCommander.SSTV;
 
@@ -853,15 +854,24 @@ namespace HTCommander
                 
                 broker.LogInfo($"[VoiceHandler] Sending chat on device {transmitDeviceId}: {callsign}: {message}");
                 
-                // Create a BSS packet with callsign and message
+                // Get our current location if available from any radio or serial GPS
+                GpsLocation location = GetCurrentLocation(transmitDeviceId);
+                double latitude = location?.Latitude ?? 0;
+                double longitude = location?.Longitude ?? 0;
+
+                // Create a BSS packet with callsign, message, and location
                 BSSPacket bssPacket = new BSSPacket(callsign, null, message);
+                if (location != null)
+                {
+                    bssPacket.Location = location;
+                }
                 byte[] bssData = bssPacket.Encode();
-                
+
                 // Don't create entry if message is empty
                 if (string.IsNullOrEmpty(message)) return;
 
-                // Add to history as a transmitted BSS entry (just the message text)
-                AddTransmittedTextToHistory(message, channelName, VoiceTextEncodingType.BSS, source: callsign);
+                // Add to history as a transmitted BSS entry (with location data if available)
+                AddTransmittedTextToHistory(message, channelName, VoiceTextEncodingType.BSS, source: callsign, latitude: latitude, longitude: longitude);
                 
                 // Create TransmitDataFrameData and dispatch to the radio
                 var txData = new TransmitDataFrameData
@@ -878,6 +888,46 @@ namespace HTCommander
             {
                 broker.LogError($"[VoiceHandler] Error sending chat: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Gets the current location from the preferred radio, any connected radio, or the serial GPS device.
+        /// Returns null if no valid location is available.
+        /// </summary>
+        private GpsLocation GetCurrentLocation(int preferredDeviceId)
+        {
+            // First check the preferred (transmit) radio's GPS position
+            if (preferredDeviceId > 0)
+            {
+                var position = DataBroker.GetValue<RadioPosition>(preferredDeviceId, "Position", null);
+                if (position != null && position.Status == Radio.RadioCommandState.SUCCESS && position.IsGpsLocked())
+                    return new GpsLocation(position.Latitude, position.Longitude);
+            }
+
+            // Check all other connected radios
+            var connectedRadios = DataBroker.GetValue<object>(1, "ConnectedRadios", null);
+            if (connectedRadios is System.Collections.IEnumerable enumerable)
+            {
+                foreach (var item in enumerable)
+                {
+                    if (item == null) continue;
+                    var itemType = item.GetType();
+                    var deviceIdProp = itemType.GetProperty("DeviceId");
+                    if (deviceIdProp == null) continue;
+                    int radioDeviceId = (int)deviceIdProp.GetValue(item);
+                    if (radioDeviceId == preferredDeviceId) continue;
+                    var pos = DataBroker.GetValue<RadioPosition>(radioDeviceId, "Position", null);
+                    if (pos != null && pos.Status == Radio.RadioCommandState.SUCCESS && pos.IsGpsLocked())
+                        return new GpsLocation(pos.Latitude, pos.Longitude);
+                }
+            }
+
+            // Fall back to serial GPS device
+            var gpsData = DataBroker.GetValue<GpsData>(1, "GpsData", null);
+            if (gpsData != null && gpsData.IsFixed)
+                return new GpsLocation(gpsData.Latitude, gpsData.Longitude);
+
+            return null;
         }
 
         /// <summary>
@@ -2083,7 +2133,7 @@ namespace HTCommander
         /// <summary>
         /// Adds a transmitted text entry to the history.
         /// </summary>
-        private void AddTransmittedTextToHistory(string text, string channel, VoiceTextEncodingType encoding, string source = null, string destination = null, string filename = null)
+        private void AddTransmittedTextToHistory(string text, string channel, VoiceTextEncodingType encoding, string source = null, string destination = null, string filename = null, double latitude = 0, double longitude = 0)
         {
             lock (_historyLock)
             {
@@ -2096,7 +2146,9 @@ namespace HTCommander
                     Encoding = encoding,
                     Source = source,
                     Destination = destination,
-                    Filename = filename
+                    Filename = filename,
+                    Latitude = latitude,
+                    Longitude = longitude
                 };
                 _decodedTextHistory.Add(entry);
 
@@ -2111,7 +2163,7 @@ namespace HTCommander
             SaveVoiceTextHistory();
 
             // Dispatch a TextReady event for transmitted text so UI updates
-            DispatchTextReady(text, channel, DateTime.Now, true, false, encoding, source: source, destination: destination, filename: filename);
+            DispatchTextReady(text, channel, DateTime.Now, true, false, encoding, latitude, longitude, source: source, destination: destination, filename: filename);
         }
 
         /// <summary>
