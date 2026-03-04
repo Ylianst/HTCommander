@@ -190,12 +190,15 @@ namespace HTCommander
 
             // Subscribe to audio control events
             broker.Subscribe(deviceid, "SetAudio", OnSetAudioEvent);
-            
+
             // Subscribe to volume and squelch control events
             broker.Subscribe(deviceid, "SetVolumeLevel", OnSetVolumeLevelEvent);
             broker.Subscribe(deviceid, "SetSquelchLevel", OnSetSquelchLevelEvent);
+
+            // Subscribe to GetVolume event (for refreshing volume level on demand)
+            broker.Subscribe(deviceid, "GetVolume", OnGetVolumeEvent);
         }
-        
+
         /// <summary>
         /// Handles SetVolumeLevel event from the broker (for setting radio hardware volume).
         /// </summary>
@@ -207,7 +210,7 @@ namespace HTCommander
                 SetVolumeLevel(level);
             }
         }
-        
+
         /// <summary>
         /// Handles SetSquelchLevel event from the broker (for setting squelch level).
         /// </summary>
@@ -322,6 +325,15 @@ namespace HTCommander
         {
             if (deviceId != DeviceId) return;
             GetPosition();
+        }
+
+        /// <summary>
+        /// Handles GetVolume event from the broker (for refreshing volume level on demand).
+        /// </summary>
+        private void OnGetVolumeEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            GetVolumeLevel();
         }
 
         /// <summary>
@@ -833,7 +845,7 @@ namespace HTCommander
             // Fill in channel and region from current VFO A settings if not specified
             if (channelId == -1 && Settings != null) { channelId = Settings.channel_a; }
             if (regionId == -1 && HtStatus != null) { regionId = HtStatus.curr_region; }
-            
+
             // Fill in channel name from Channels array if not specified but we have a valid channel ID
             if (string.IsNullOrEmpty(channel_name) && channelId >= 0 && Channels != null && channelId < Channels.Length && Channels[channelId] != null)
             {
@@ -922,7 +934,7 @@ namespace HTCommander
             }
             fragment.frame_type = TncDataFragment.FragmentFrameType.FX25;
             DispatchDataFrame(fragment);
-            
+
             // Dispatch to SoftwareModem handler via Data Broker
             broker.Dispatch(DeviceId, "SoftModemTransmitPacket", fragment, store: false);
         }
@@ -1254,13 +1266,13 @@ namespace HTCommander
                 frameAccumulator = null;
                 packet.incoming = true;
                 packet.time = DateTime.Now;
-                
+
                 // Populate usage field if radio is locked and data received on locked channel
                 if (lockState != null && lockState.IsLocked && packet.channel_id == lockState.ChannelId)
                 {
                     packet.usage = lockState.Usage;
                 }
-                
+
                 DispatchDataFrame(packet);
             }
         }

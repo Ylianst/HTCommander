@@ -35,6 +35,7 @@ namespace HTCommander
         private bool isCapturing = false;
         private bool isTransmitting = false;
         private int inputBoostValue = 0; // Cached boost value to avoid cross-thread access
+        private DateTime _lastVolumeRequest = DateTime.MinValue;
 
         // WAV file recording
         private WaveFileWriter _wavWriter = null;
@@ -133,6 +134,10 @@ namespace HTCommander
 
             // Start continuous microphone capture for amplitude display (after inputDevice is set)
             StartMicrophoneCapture();
+
+            // Request initial volume level from the radio
+            broker.Dispatch(deviceId, "GetVolume", null);
+            _lastVolumeRequest = DateTime.Now;
         }
 
         private void OnRadioStateChanged(int devId, string name, object data)
@@ -177,10 +182,11 @@ namespace HTCommander
         private void OnVolumeLevelChanged(int devId, string name, object data)
         {
             if (InvokeRequired) { BeginInvoke(new Action(() => OnVolumeLevelChanged(devId, name, data))); return; }
-            if (data is int volume)
-            {
-                volumeTrackBar.Value = Math.Min(Math.Max(volume, volumeTrackBar.Minimum), volumeTrackBar.Maximum);
-            }
+            int volume;
+            if (data is int i) volume = i;
+            else if (data is byte b) volume = b;
+            else return;
+            volumeTrackBar.Value = Math.Min(Math.Max(volume, volumeTrackBar.Minimum), volumeTrackBar.Maximum);
         }
 
 
@@ -878,8 +884,12 @@ namespace HTCommander
             string stateStr = broker.GetValue<string>(deviceId, "State", "Disconnected");
             if (stateStr == "Connected")
             {
-                // Request volume level periodically
-                // Volume is already dispatched by Radio.cs when it changes
+                // Request volume level every 10 seconds
+                if ((DateTime.Now - _lastVolumeRequest).TotalSeconds >= 10)
+                {
+                    broker.Dispatch(deviceId, "GetVolume", null);
+                    _lastVolumeRequest = DateTime.Now;
+                }
             }
 
             if (sessionControl == null)
