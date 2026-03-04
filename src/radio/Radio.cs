@@ -8,6 +8,7 @@ using System;
 using System.IO;
 using System.Net;
 using System.Collections.Generic;
+using HTCommander.Gps;
 using HTCommander.radio;
 
 namespace HTCommander
@@ -28,6 +29,10 @@ namespace HTCommander
         private RadioState state = RadioState.Disconnected;
         private bool _gpsEnabled = false;
         private int gpsLock = 2;
+
+        // GPS serial tracking: last position sent to the radio via SET_POSITION
+        private double _lastGpsLat = double.NaN;
+        private double _lastGpsLon = double.NaN;
 
         private List<FragmentInQueue> TncFragmentQueue = new List<FragmentInQueue>();
         private bool TncFragmentInFlight = false;
@@ -178,6 +183,9 @@ namespace HTCommander
             // Subscribe to GetPosition event (for refreshing GPS position)
             broker.Subscribe(deviceid, "GetPosition", OnGetPositionEvent);
 
+            // Subscribe to SetPosition event (for pushing a position to the radio)
+            broker.Subscribe(deviceid, "SetPosition", OnSetPositionEvent);
+
             // Subscribe to TransmitDataFrame event (for transmitting AX.25 packets)
             broker.Subscribe(deviceid, "TransmitDataFrame", OnTransmitDataFrameEvent);
 
@@ -197,6 +205,9 @@ namespace HTCommander
 
             // Subscribe to GetVolume event (for refreshing volume level on demand)
             broker.Subscribe(deviceid, "GetVolume", OnGetVolumeEvent);
+
+            // Subscribe to GPS serial data (device 1, key "GpsData") to push position to the radio
+            broker.Subscribe(1, "GpsData", OnGpsDataReceived);
         }
 
         /// <summary>
@@ -325,6 +336,63 @@ namespace HTCommander
         {
             if (deviceId != DeviceId) return;
             GetPosition();
+        }
+
+        /// <summary>
+        /// Handles SetPosition event from the broker (for pushing a position to the radio).
+        /// </summary>
+        private void OnSetPositionEvent(int deviceId, string name, object data)
+        {
+            if (deviceId != DeviceId) return;
+            if (data is RadioPosition position) SetPosition(position);
+        }
+
+        /// <summary>
+        /// Handles incoming GPS serial data. Converts the fix to a RadioPosition and
+        /// sends SET_POSITION to the radio only when the position has moved more than
+        /// approximately 10 metres from the last sent position.
+        /// </summary>
+        private void OnGpsDataReceived(int deviceId, string name, object data)
+        {
+            if (state != RadioState.Connected) return;
+            if (!(data is GpsData gps)) return;
+            if (!gps.IsFixed) return;
+
+            // Check if we have moved far enough from the last position we sent
+            if (!double.IsNaN(_lastGpsLat) && !double.IsNaN(_lastGpsLon))
+            {
+                double dist = HaversineMetres(_lastGpsLat, _lastGpsLon, gps.Latitude, gps.Longitude);
+                if (dist < 10) return; // less than ~10 m, skip
+            }
+
+            // Build a RadioPosition from the GPS data and push it to the radio
+            RadioPosition pos = new RadioPosition(
+                gps.Latitude,
+                gps.Longitude,
+                gps.Altitude,
+                gps.Speed,
+                gps.Heading,
+                gps.GpsTime == DateTime.MinValue ? DateTime.UtcNow : gps.GpsTime
+            );
+            SetPosition(pos);
+
+            _lastGpsLat = gps.Latitude;
+            _lastGpsLon = gps.Longitude;
+        }
+
+        /// <summary>
+        /// Returns the approximate distance in metres between two lat/lon points
+        /// using the Haversine formula.
+        /// </summary>
+        private static double HaversineMetres(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6_371_000; // Earth radius in metres
+            double dLat = (lat2 - lat1) * Math.PI / 180.0;
+            double dLon = (lon2 - lon1) * Math.PI / 180.0;
+            double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                       Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0) *
+                       Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
         }
 
         /// <summary>
@@ -687,6 +755,18 @@ namespace HTCommander
         public void GetPosition()
         {
             SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.GET_POSITION, null);
+        }
+
+        /// <summary>
+        /// Sends the SET_POSITION command to push the supplied position data to the radio.
+        /// The 18-byte payload mirrors the field layout returned by GET_POSITION:
+        /// 3 bytes latitude, 3 bytes longitude, 2 bytes altitude, 2 bytes speed,
+        /// 2 bytes heading, 4 bytes Unix timestamp, 2 bytes accuracy.
+        /// </summary>
+        public void SetPosition(RadioPosition position)
+        {
+            if (position == null) return;
+            SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.SET_POSITION, position.ToByteArray());
         }
 
         #endregion
@@ -1143,6 +1223,9 @@ namespace HTCommander
                     {
                         broker.Dispatch(DeviceId, "Position", Position, store: true);
                     }
+                    break;
+                case RadioBasicCommand.SET_POSITION:
+                    if (value[4] != 0) Debug($"SET_POSITION Error: '{value[4]}'");
                     break;
                 case RadioBasicCommand.GET_HT_STATUS:
                     HandleGetHtStatus(value);

@@ -241,21 +241,10 @@ namespace HTCommander
         {
             bool ok = true;
 
-            if (packetFormatComboBox.SelectedIndex == 0)
-            {
-                aprsCallsignTextBox.BackColor = SystemColors.Window;
-                aprsCallsignTextBox.Enabled = false;
-                aprsMessageTextBox.Enabled = false;
-            }
-            else
-            {
-                // Check callsign
-                AX25Address addr = AX25Address.GetAddress(aprsCallsignTextBox.Text);
-                aprsCallsignTextBox.BackColor = (addr == null) ? Color.MistyRose : SystemColors.Window;
-                if (addr == null) { ok = false; }
-                aprsCallsignTextBox.Enabled = true;
-                aprsMessageTextBox.Enabled = true;
-            }
+            // Check callsign
+            AX25Address addr = AX25Address.GetAddress(aprsCallsignTextBox.Text);
+            aprsCallsignTextBox.BackColor = (addr == null) ? Color.MistyRose : SystemColors.Window;
+            if (addr == null) { ok = false; }
 
             okButton.Enabled = ok && (_selectedDeviceId > 0);
         }

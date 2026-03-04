@@ -34,6 +34,29 @@ namespace HTCommander.radio
             return Locked && (Status == RadioCommandState.SUCCESS) && (ReceivedTime.AddSeconds(10).CompareTo(DateTime.Now) > 0);
         }
 
+        /// <summary>
+        /// Creates a RadioPosition from decimal-degree coordinates (e.g. from a GPS receiver).
+        /// </summary>
+        public RadioPosition(double latitude, double longitude, double altitudeMetres, double speedKnots, double headingDegrees, DateTime utcTime)
+        {
+            Status = Radio.RadioCommandState.SUCCESS;
+            ReceivedTime = DateTime.Now;
+            Latitude = latitude;
+            Longitude = longitude;
+            LatitudeRaw = (int)Math.Round(latitude * 60.0 * 500.0);
+            LongitudeRaw = (int)Math.Round(longitude * 60.0 * 500.0);
+            LatitudeStr = ConvertLatitudeToDms(LatitudeRaw);
+            LongitudeStr = ConvertLatitudeToDms(LongitudeRaw);
+            Altitude = (int)Math.Round(altitudeMetres);
+            Speed = (int)Math.Round(speedKnots);
+            Heading = (int)Math.Round(headingDegrees);
+            TimeRaw = (int)(new DateTimeOffset(utcTime).ToUnixTimeSeconds());
+            TimeUTC = utcTime;
+            Time = utcTime.ToLocalTime();
+            Accuracy = 0;
+            Locked = true;
+        }
+
         public RadioPosition(byte[] msg)
         {
             Status = (Radio.RadioCommandState)msg[4];
@@ -135,6 +158,35 @@ namespace HTCommander.radio
 
             // Local time, considering the machine's time zone:
             return dateTimeOffset.LocalDateTime;
+        }
+
+        /// <summary>
+        /// Serializes the position into the 18-byte payload expected by the SET_POSITION command.
+        /// The layout mirrors bytes [5..22] of the GET_POSITION response.
+        /// </summary>
+        public byte[] ToByteArray()
+        {
+            return new byte[]
+            {
+                (byte)((LatitudeRaw  >> 16) & 0xFF),
+                (byte)((LatitudeRaw  >>  8) & 0xFF),
+                (byte)( LatitudeRaw         & 0xFF),
+                (byte)((LongitudeRaw >> 16) & 0xFF),
+                (byte)((LongitudeRaw >>  8) & 0xFF),
+                (byte)( LongitudeRaw        & 0xFF),
+                (byte)((Altitude     >>  8) & 0xFF),
+                (byte)( Altitude            & 0xFF),
+                (byte)((Speed        >>  8) & 0xFF),
+                (byte)( Speed               & 0xFF),
+                (byte)((Heading      >>  8) & 0xFF),
+                (byte)( Heading             & 0xFF),
+                (byte)((TimeRaw      >> 24) & 0xFF),
+                (byte)((TimeRaw      >> 16) & 0xFF),
+                (byte)((TimeRaw      >>  8) & 0xFF),
+                (byte)( TimeRaw             & 0xFF),
+                (byte)((Accuracy     >>  8) & 0xFF),
+                (byte)( Accuracy            & 0xFF)
+            };
         }
 
     }
