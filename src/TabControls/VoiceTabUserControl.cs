@@ -6,11 +6,13 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using System.Drawing.Imaging;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using HTCommander.Dialogs;
+using HTCommander.radio;
 
 // DecodedTextEntry is defined in the HTCommander namespace (VoiceHandler.cs)
 
@@ -23,7 +25,8 @@ namespace HTCommander.Controls
     {
         Chat,
         Speak,
-        Morse
+        Morse,
+        DMTF
     }
 
     public partial class VoiceTabUserControl : UserControl, IRadioDeviceSelector
@@ -429,10 +432,19 @@ namespace HTCommander.Controls
         {
             _currentMode = mode;
 
-            // Update menu item checked states
+            // Update menu item checked states (mutually exclusive)
             chatToolStripMenuItem.Checked = (mode == VoiceTransmitMode.Chat);
             speakToolStripMenuItem.Checked = (mode == VoiceTransmitMode.Speak);
             morseToolStripMenuItem.Checked = (mode == VoiceTransmitMode.Morse);
+            dMTFToolStripMenuItem.Checked = (mode == VoiceTransmitMode.DMTF);
+
+            // When switching to DMTF, strip any characters that aren't valid DTMF digits
+            if (mode == VoiceTransmitMode.DMTF)
+            {
+                string filtered = new string(speakTextBox.Text.Where(c => "0123456789*#".IndexOf(c) >= 0).ToArray());
+                if (filtered != speakTextBox.Text)
+                    speakTextBox.Text = filtered;
+            }
 
             // Update button text to reflect current mode
             speakButton.Text = "&" + mode.ToString();
@@ -464,6 +476,27 @@ namespace HTCommander.Controls
                     // Morse mode - dispatch Morse command to device 1 (uses voice-enabled radio)
                     broker?.Dispatch(1, "Morse", text, store: false);
                     break;
+
+                case VoiceTransmitMode.DMTF:
+                {
+                    // DMTF mode - generate dual-tone PCM locally and transmit to the radio
+                    int targetDeviceId = _voiceHandlerTargetDeviceId;
+                    if (targetDeviceId < 0) break;
+
+                    byte[] pcm8 = DmtfEngine.GenerateDmtfPcm(text);
+
+                    // Convert 8-bit unsigned PCM (center 128) to 16-bit signed PCM
+                    byte[] pcm16 = new byte[pcm8.Length * 2];
+                    for (int i = 0; i < pcm8.Length; i++)
+                    {
+                        short s = (short)((pcm8[i] - 128) << 8);
+                        pcm16[i * 2]     = (byte)(s & 0xFF);
+                        pcm16[i * 2 + 1] = (byte)((s >> 8) & 0xFF);
+                    }
+
+                    broker?.Dispatch(targetDeviceId, "TransmitVoicePCM", new { Data = pcm16, PlayLocally = true }, store: false);
+                    break;
+                }
             }
 
             speakTextBox.Clear();
@@ -494,6 +527,14 @@ namespace HTCommander.Controls
             {
                 e.Handled = true;
                 speakButton_Click(sender, e);
+                return;
+            }
+
+            // In DMTF mode only allow valid DTMF characters (0-9, *, #) and control chars
+            if (_currentMode == VoiceTransmitMode.DMTF)
+            {
+                if (!char.IsControl(e.KeyChar) && "0123456789*#".IndexOf(e.KeyChar) < 0)
+                    e.Handled = true;
             }
         }
 
@@ -510,6 +551,11 @@ namespace HTCommander.Controls
         private void morseToolStripMenuItem_Click(object sender, EventArgs e)
         {
             SetMode(VoiceTransmitMode.Morse);
+        }
+
+        private void dMTFToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            SetMode(VoiceTransmitMode.DMTF);
         }
 
         private void cancelVoiceButton_Click(object sender, EventArgs e)

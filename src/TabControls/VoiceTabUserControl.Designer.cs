@@ -45,6 +45,7 @@ namespace HTCommander.Controls
             speakContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
             chatToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             speakToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            dMTFToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             morseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
             imageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -56,6 +57,8 @@ namespace HTCommander.Controls
             voiceTabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
             recordAudioToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             speechtoTextToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
+            pTTReleaseSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             clearHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
             detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -72,8 +75,6 @@ namespace HTCommander.Controls
             mutePanel = new System.Windows.Forms.Panel();
             unMuteButton = new System.Windows.Forms.Button();
             muteLabel = new System.Windows.Forms.Label();
-            pTTReleaseSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
             voiceBottomPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)toolsPictureBox).BeginInit();
             speakContextMenuStrip.SuspendLayout();
@@ -155,9 +156,9 @@ namespace HTCommander.Controls
             // speakContextMenuStrip
             // 
             speakContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            speakContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { chatToolStripMenuItem, speakToolStripMenuItem, morseToolStripMenuItem, toolStripMenuItem1, imageToolStripMenuItem, audioToolStripMenuItem });
+            speakContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { chatToolStripMenuItem, speakToolStripMenuItem, dMTFToolStripMenuItem, morseToolStripMenuItem, toolStripMenuItem1, imageToolStripMenuItem, audioToolStripMenuItem });
             speakContextMenuStrip.Name = "speakContextMenuStrip";
-            speakContextMenuStrip.Size = new System.Drawing.Size(130, 140);
+            speakContextMenuStrip.Size = new System.Drawing.Size(130, 166);
             // 
             // chatToolStripMenuItem
             // 
@@ -174,6 +175,13 @@ namespace HTCommander.Controls
             speakToolStripMenuItem.Size = new System.Drawing.Size(129, 26);
             speakToolStripMenuItem.Text = "&Speak";
             speakToolStripMenuItem.Click += speakToolStripMenuItem_Click;
+            // 
+            // dMTFToolStripMenuItem
+            // 
+            dMTFToolStripMenuItem.Name = "dMTFToolStripMenuItem";
+            dMTFToolStripMenuItem.Size = new System.Drawing.Size(129, 26);
+            dMTFToolStripMenuItem.Text = "&DMTF";
+            dMTFToolStripMenuItem.Click += dMTFToolStripMenuItem_Click;
             // 
             // morseToolStripMenuItem
             // 
@@ -258,7 +266,7 @@ namespace HTCommander.Controls
             voiceTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             voiceTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { recordAudioToolStripMenuItem, speechtoTextToolStripMenuItem, toolStripMenuItem2, pTTReleaseSettingsToolStripMenuItem, clearHistoryToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
             voiceTabContextMenuStrip.Name = "voiceTabContextMenuStrip";
-            voiceTabContextMenuStrip.Size = new System.Drawing.Size(224, 164);
+            voiceTabContextMenuStrip.Size = new System.Drawing.Size(224, 136);
             // 
             // recordAudioToolStripMenuItem
             // 
@@ -273,6 +281,18 @@ namespace HTCommander.Controls
             speechtoTextToolStripMenuItem.Size = new System.Drawing.Size(223, 24);
             speechtoTextToolStripMenuItem.Text = "&Speech-to-Text";
             speechtoTextToolStripMenuItem.Click += speechtoTextToolStripMenuItem_Click;
+            // 
+            // toolStripMenuItem2
+            // 
+            toolStripMenuItem2.Name = "toolStripMenuItem2";
+            toolStripMenuItem2.Size = new System.Drawing.Size(220, 6);
+            // 
+            // pTTReleaseSettingsToolStripMenuItem
+            // 
+            pTTReleaseSettingsToolStripMenuItem.Name = "pTTReleaseSettingsToolStripMenuItem";
+            pTTReleaseSettingsToolStripMenuItem.Size = new System.Drawing.Size(223, 24);
+            pTTReleaseSettingsToolStripMenuItem.Text = "PTT Release Settings...";
+            pTTReleaseSettingsToolStripMenuItem.Click += pTTReleaseSettingsToolStripMenuItem_Click;
             // 
             // clearHistoryToolStripMenuItem
             // 
@@ -426,18 +446,6 @@ namespace HTCommander.Controls
             muteLabel.TabIndex = 7;
             muteLabel.Text = "Audio is muted.";
             // 
-            // pTTReleaseSettingsToolStripMenuItem
-            // 
-            pTTReleaseSettingsToolStripMenuItem.Name = "pTTReleaseSettingsToolStripMenuItem";
-            pTTReleaseSettingsToolStripMenuItem.Size = new System.Drawing.Size(223, 24);
-            pTTReleaseSettingsToolStripMenuItem.Text = "PTT Release Settings...";
-            pTTReleaseSettingsToolStripMenuItem.Click += pTTReleaseSettingsToolStripMenuItem_Click;
-            // 
-            // toolStripMenuItem2
-            // 
-            toolStripMenuItem2.Name = "toolStripMenuItem2";
-            toolStripMenuItem2.Size = new System.Drawing.Size(220, 6);
-            // 
             // VoiceTabUserControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
@@ -503,5 +511,6 @@ namespace HTCommander.Controls
         private System.Windows.Forms.Label muteLabel;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem2;
         private System.Windows.Forms.ToolStripMenuItem pTTReleaseSettingsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem dMTFToolStripMenuItem;
     }
 }
