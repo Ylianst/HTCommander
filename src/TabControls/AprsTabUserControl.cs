@@ -480,7 +480,6 @@ namespace HTCommander.Controls
             }
 
             bool canSend = _hasAprsChannel &&
-                           IsValidCallsign(aprsDestinationComboBox.Text) &&
                            !string.IsNullOrWhiteSpace(aprsTextBox.Text);
 
             aprsSendButton.Enabled = canSend;
@@ -588,32 +587,6 @@ namespace HTCommander.Controls
             if (preferredDeviceId == -1) { _broker.LogInfo("[APRS] GetPreferredAprsRadioDeviceId: no radio with APRS channel found"); }
             else { _broker.LogInfo($"[APRS] GetPreferredAprsRadioDeviceId: fallback to radio {preferredDeviceId}"); }
             return preferredDeviceId;
-        }
-
-        #endregion
-
-        #region Validation Helpers
-
-        /// <summary>
-        /// Checks if the given string is a valid amateur radio callsign.
-        /// </summary>
-        private bool IsValidCallsign(string callsign)
-        {
-            if (string.IsNullOrWhiteSpace(callsign)) return false;
-
-            string trimmed = callsign.Trim();
-            if (trimmed.Length < 3) return false;
-
-            bool hasLetter = false;
-            bool hasDigit = false;
-
-            foreach (char c in trimmed)
-            {
-                if (char.IsLetter(c)) hasLetter = true;
-                if (char.IsDigit(c)) hasDigit = true;
-            }
-
-            return hasLetter && hasDigit;
         }
 
         #endregion
