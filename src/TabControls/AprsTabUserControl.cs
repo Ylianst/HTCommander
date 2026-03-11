@@ -480,6 +480,7 @@ namespace HTCommander.Controls
             }
 
             bool canSend = _hasAprsChannel &&
+                           (aprsDestinationComboBox.Text.Length > 0) &&
                            !string.IsNullOrWhiteSpace(aprsTextBox.Text);
 
             aprsSendButton.Enabled = canSend;
@@ -769,6 +770,9 @@ namespace HTCommander.Controls
             string currentText = aprsDestinationComboBox.Text;
 
             aprsDestinationComboBox.Items.Clear();
+            aprsDestinationComboBox.Items.Add("ALL");
+            aprsDestinationComboBox.Items.Add("QST");
+            aprsDestinationComboBox.Items.Add("CQ");
             foreach (StationInfoClass station in stations)
             {
                 if (station.StationType == StationInfoClass.StationTypes.APRS)
