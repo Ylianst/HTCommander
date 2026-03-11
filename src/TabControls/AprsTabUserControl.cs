@@ -768,6 +768,7 @@ namespace HTCommander.Controls
         {
             if (!(data is AprsFrameEventArgs args)) return;
             if (args.AX25Packet == null) return;
+            if (args.AprsPacket == null) return;
 
             // Use the incoming property to determine if we're the sender
             // This matches the logic in LoadHistoricalAprsPackets
