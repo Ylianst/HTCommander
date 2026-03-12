@@ -63,6 +63,7 @@ namespace HTCommander
             this.mapControl.Zoom = 10;
             this.Controls.Add(this.mapControl);
 
+            GMapProvider.UserAgent = "HTCommander/1.0 (amateur-radio-app; github.com/Ylianst/HTCommander)";
             mapControl.MapProvider = GMapProviders.OpenStreetMap;
             mapControl.ShowCenter = false;
             mapControl.IgnoreMarkerOnMouseWheel = true;

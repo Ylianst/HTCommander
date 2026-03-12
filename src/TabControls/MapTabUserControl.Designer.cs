@@ -54,13 +54,14 @@ namespace HTCommander.Controls
             last6HoursToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             last12HoursToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             last24HoursToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            showAirplanesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             largeMarkersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItemDetachSeparator = new System.Windows.Forms.ToolStripSeparator();
             detachToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             downloadMapPanel = new System.Windows.Forms.Panel();
             cancelMapDownloadButton = new System.Windows.Forms.Button();
             downloadMapLabel = new System.Windows.Forms.Label();
-            showAirplanesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            clearCacheToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             mapTopPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)mapMenuPictureBox).BeginInit();
             mapTabContextMenuStrip.SuspendLayout();
@@ -178,9 +179,9 @@ namespace HTCommander.Controls
             // mapTabContextMenuStrip
             // 
             mapTabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            mapTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { offlineModeToolStripMenuItem, cacheAreaToolStripMenuItem, toolStripMenuItem8, centerToGPSToolStripMenuItem, toolStripMenuItem9, showTracksToolStripMenuItem, showMarkersToolStripMenuItem, showAirplanesToolStripMenuItem, largeMarkersToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
+            mapTabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { offlineModeToolStripMenuItem, cacheAreaToolStripMenuItem, clearCacheToolStripMenuItem, toolStripMenuItem8, centerToGPSToolStripMenuItem, toolStripMenuItem9, showTracksToolStripMenuItem, showMarkersToolStripMenuItem, showAirplanesToolStripMenuItem, largeMarkersToolStripMenuItem, toolStripMenuItemDetachSeparator, detachToolStripMenuItem });
             mapTabContextMenuStrip.Name = "mapTabContextMenuStrip";
-            mapTabContextMenuStrip.Size = new System.Drawing.Size(211, 258);
+            mapTabContextMenuStrip.Size = new System.Drawing.Size(211, 284);
             // 
             // offlineModeToolStripMenuItem
             // 
@@ -282,6 +283,15 @@ namespace HTCommander.Controls
             last24HoursToolStripMenuItem.Text = "Last 24 Hours";
             last24HoursToolStripMenuItem.Click += allToolStripMenuItem_Click;
             // 
+            // showAirplanesToolStripMenuItem
+            // 
+            showAirplanesToolStripMenuItem.CheckOnClick = true;
+            showAirplanesToolStripMenuItem.Name = "showAirplanesToolStripMenuItem";
+            showAirplanesToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
+            showAirplanesToolStripMenuItem.Text = "Show Airplanes";
+            showAirplanesToolStripMenuItem.Visible = false;
+            showAirplanesToolStripMenuItem.Click += showAirplanesToolStripMenuItem_Click;
+            // 
             // largeMarkersToolStripMenuItem
             // 
             largeMarkersToolStripMenuItem.Checked = true;
@@ -343,14 +353,12 @@ namespace HTCommander.Controls
             downloadMapLabel.TabIndex = 7;
             downloadMapLabel.Text = "Downloading map...";
             // 
-            // showAirplanesToolStripMenuItem
+            // clearCacheToolStripMenuItem
             // 
-            showAirplanesToolStripMenuItem.CheckOnClick = true;
-            showAirplanesToolStripMenuItem.Name = "showAirplanesToolStripMenuItem";
-            showAirplanesToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
-            showAirplanesToolStripMenuItem.Text = "Show Airplanes";
-            showAirplanesToolStripMenuItem.Visible = false;
-            showAirplanesToolStripMenuItem.Click += showAirplanesToolStripMenuItem_Click;
+            clearCacheToolStripMenuItem.Name = "clearCacheToolStripMenuItem";
+            clearCacheToolStripMenuItem.Size = new System.Drawing.Size(210, 26);
+            clearCacheToolStripMenuItem.Text = "&Clear Cache...";
+            clearCacheToolStripMenuItem.Click += new System.EventHandler(clearCacheToolStripMenuItem_Click);
             // 
             // MapTabUserControl
             // 
@@ -404,5 +412,6 @@ namespace HTCommander.Controls
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItemDetachSeparator;
         private System.Windows.Forms.ToolStripMenuItem detachToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem showAirplanesToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem clearCacheToolStripMenuItem;
     }
 }

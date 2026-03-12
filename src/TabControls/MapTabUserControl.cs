@@ -299,6 +299,7 @@ namespace HTCommander.Controls
 
         private void InitializeMapControl()
         {
+            GMapProvider.UserAgent = "HTCommander/1.0 (amateur-radio-app; github.com/Ylianst/HTCommander)";
             mapControl.MapProvider = GMapProviders.OpenStreetMap;
             mapControl.ShowCenter = false;
             mapControl.MinZoom = 3;
@@ -971,6 +972,29 @@ namespace HTCommander.Controls
                 {
                     pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
                     e.Graphics.DrawRectangle(pen, selectionRect);
+                }
+            }
+        }
+
+        private void clearCacheToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            DialogResult result = MessageBox.Show(
+                "Are you sure you want to clear the local map cache? This will remove all cached map tiles.",
+                "Clear Map Cache",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                try
+                {
+                    mapControl.Manager.PrimaryCache.DeleteOlderThan(DateTime.Now.AddYears(1), null);
+                    mapControl.ReloadMap();
+                    MessageBox.Show("Map cache cleared successfully.", "Clear Map Cache", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Failed to clear map cache: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }

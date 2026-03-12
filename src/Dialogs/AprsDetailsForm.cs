@@ -55,8 +55,8 @@ namespace HTCommander
                     if (aprsPacket.Position.Ambiguity != 0) { addItem("Ambiguity", aprsPacket.Position.Ambiguity.ToString()); }
                     if (!string.IsNullOrEmpty(aprsPacket.Position.Gridsquare)) { addItem("Gridsquare", aprsPacket.Position.Gridsquare.ToString()); }
                     if (aprsPacket.Position.CoordinateSet != null) {
-                        if (!string.IsNullOrEmpty(aprsPacket.Position.CoordinateSet.Latitude.Nmea)) { addItem("Latitude", aprsPacket.Position.CoordinateSet.Latitude.Nmea); }
-                        if (!string.IsNullOrEmpty(aprsPacket.Position.CoordinateSet.Longitude.Nmea)) { addItem("Longitude", aprsPacket.Position.CoordinateSet.Longitude.Nmea); }
+                        if (aprsPacket.Position.CoordinateSet.Latitude.Value != 0) { addItem("Latitude", aprsPacket.Position.CoordinateSet.Latitude.Value.ToString()); }
+                        if (aprsPacket.Position.CoordinateSet.Longitude.Value != 0) { addItem("Longitude", aprsPacket.Position.CoordinateSet.Longitude.Value.ToString()); }
                     }
                 }
                 if (!string.IsNullOrEmpty(aprsPacket.AuthCode)) {
