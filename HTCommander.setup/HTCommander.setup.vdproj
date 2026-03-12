@@ -279,6 +279,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_8E8B420DAFEF42E3BEB57F24A3F92868"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_8FA41C48A17C4F629D9C56D6745FE71F"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -1705,6 +1711,37 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_8E8B420DAFEF42E3BEB57F24A3F92868"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:HtCommanderUpdater, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_8E8B420DAFEF42E3BEB57F24A3F92868"
+                    {
+                    "Name" = "8:HtCommanderUpdater.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:..\\Updater\\bin\\Debug\\net7.0\\HtCommanderUpdater.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_D931246451AF4E3487C6B4B47B8F4F0F"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_8FA41C48A17C4F629D9C56D6745FE71F"
             {
             "SourcePath" = "8:..\\src\\bin\\Debug\\net9.0-windows10.0.19041.0\\runtimes\\win-x86\\ggml-cpu-whisper.dll"
@@ -2889,7 +2926,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Handi-Talky Commander"
         "ProductCode" = "8:{FDFB1D1C-6A35-4B71-B76A-4A6302095A1C}"
-        "PackageCode" = "8:{9638E547-5A88-4CF4-AD3B-C8F2C6CF904B}"
+        "PackageCode" = "8:{E1D775C1-50F3-4B62-9774-54E26CBD8E3D}"
         "UpgradeCode" = "8:{A0F710F7-510C-4231-82BA-D6A27CD75ECD}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
