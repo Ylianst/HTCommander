@@ -364,12 +364,6 @@
         "Entry"
         {
         "MsmKey" = "8:_AB6621ABD0D20A46A188D66CEB0CEE86"
-        "OwnerKey" = "8:_CACCE2378E4D49E08B974F087379449D"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_AB6621ABD0D20A46A188D66CEB0CEE86"
         "OwnerKey" = "8:_C171582479E1209852D53CB9884945C1"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -395,6 +389,12 @@
         {
         "MsmKey" = "8:_AB6621ABD0D20A46A188D66CEB0CEE86"
         "OwnerKey" = "8:_A8D1925D3C3A4FBC9C436D5F22B4FB8D"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_AB6621ABD0D20A46A188D66CEB0CEE86"
+        "OwnerKey" = "8:_CACCE2378E4D49E08B974F087379449D"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -490,13 +490,13 @@
         "Entry"
         {
         "MsmKey" = "8:_D9E39448F416B9AD49B9B1BD00964ECB"
-        "OwnerKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_127D4654C65C4779812CB0283FCCE864"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
         "MsmKey" = "8:_D9E39448F416B9AD49B9B1BD00964ECB"
-        "OwnerKey" = "8:_127D4654C65C4779812CB0283FCCE864"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -574,6 +574,42 @@
         "Entry"
         {
         "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_F6BB3CB2413CE32428BB9C6803479687"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_A8D1925D3C3A4FBC9C436D5F22B4FB8D"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_C171582479E1209852D53CB9884945C1"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_1BAE4275155F7FD3EEE0FD1A25BA7B0C"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_11FD8612EBFA490F953D2AD89671AB86"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_11FD8612EBFA490F953D2AD89671AB86"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_E4B3CBF9C6B3F654EB4CC1AEF3EB7E2B"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -599,24 +635,6 @@
         {
         "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_AC3150732C05A5FF0C433540963FE4D0"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_A8D1925D3C3A4FBC9C436D5F22B4FB8D"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_C171582479E1209852D53CB9884945C1"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_1BAE4275155F7FD3EEE0FD1A25BA7B0C"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -689,24 +707,6 @@
         {
         "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_1CE1D814B7FA1F9A5B304C9C5041C2B9"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_11FD8612EBFA490F953D2AD89671AB86"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_11FD8612EBFA490F953D2AD89671AB86"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_F6BB3CB2413CE32428BB9C6803479687"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -1164,11 +1164,6 @@
             "AssemblyAsmDisplayName" = "8:System.Data.SqlClient, Version=4.6.1.3, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
-                    "_3E127C6C77B80E6CDC94CB9F47AFA148"
-                    {
-                    "Name" = "8:System.Data.SqlClient.dll"
-                    "Attributes" = "3:512"
-                    }
                 }
             "SourcePath" = "8:System.Data.SqlClient.dll"
             "TargetName" = "8:"
@@ -1961,7 +1956,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:HTCommander, Version=0.57.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:HTCommander, Version=0.58.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_A8D1925D3C3A4FBC9C436D5F22B4FB8D"
@@ -2447,11 +2442,6 @@
             "AssemblyAsmDisplayName" = "8:System.Data.SQLite, Version=1.0.119.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
-                    "_D9E39448F416B9AD49B9B1BD00964ECB"
-                    {
-                    "Name" = "8:System.Data.SQLite.dll"
-                    "Attributes" = "3:512"
-                    }
                 }
             "SourcePath" = "8:System.Data.SQLite.dll"
             "TargetName" = "8:"
@@ -2925,15 +2915,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Handi-Talky Commander"
-        "ProductCode" = "8:{FDFB1D1C-6A35-4B71-B76A-4A6302095A1C}"
-        "PackageCode" = "8:{E1D775C1-50F3-4B62-9774-54E26CBD8E3D}"
+        "ProductCode" = "8:{9E118B46-62B4-4F23-BBDD-D4502DCBEA74}"
+        "PackageCode" = "8:{CF0835A6-FFDC-4A22-A315-69DFDD940471}"
         "UpgradeCode" = "8:{A0F710F7-510C-4231-82BA-D6A27CD75ECD}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:0.57.0"
+        "ProductVersion" = "8:0.58.0"
         "Manufacturer" = "8:Open Source"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://github.com/Ylianst/HTCommander"
