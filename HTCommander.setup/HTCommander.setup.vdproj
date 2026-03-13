@@ -21,6 +21,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_032637FE1E8A468299B4BB4D65608399"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_0E30C96B37BD486BAD727A851EE43424"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -113,12 +119,6 @@
         {
         "MsmKey" = "8:_417E92B91A527C23DEDE4E4BBCE13871"
         "OwnerKey" = "8:_1BAE4275155F7FD3EEE0FD1A25BA7B0C"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_432832FF2DCB4917A9E4F49B44E66B7C"
-        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -275,12 +275,6 @@
         {
         "MsmKey" = "8:_8AA63246343113B0245D7C6B21DB7939"
         "OwnerKey" = "8:_578E6EAEA744BC656650EB06119B5B15"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_8E8B420DAFEF42E3BEB57F24A3F92868"
-        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -851,6 +845,26 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_032637FE1E8A468299B4BB4D65608399"
+            {
+            "SourcePath" = "8:..\\Updater\\bin\\Release\\net7.0\\win-x64\\publish\\HtCommanderUpdater.exe"
+            "TargetName" = "8:HtCommanderUpdater.exe"
+            "Tag" = "8:"
+            "Folder" = "8:_D931246451AF4E3487C6B4B47B8F4F0F"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0E30C96B37BD486BAD727A851EE43424"
             {
             "SourcePath" = "8:..\\src\\bin\\Debug\\net9.0-windows10.0.19041.0\\runtimes\\win-x64\\ggml-cpu-whisper.dll"
@@ -1212,26 +1226,6 @@
             "Register" = "3:1"
             "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_432832FF2DCB4917A9E4F49B44E66B7C"
-            {
-            "SourcePath" = "8:..\\Updater\\bin\\Debug\\net7.0\\HtCommanderUpdater.exe"
-            "TargetName" = "8:HtCommanderUpdater.exe"
-            "Tag" = "8:"
-            "Folder" = "8:_D931246451AF4E3487C6B4B47B8F4F0F"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_48655BC3A6C64EC7A0B9248EA9A61CD0"
@@ -1706,37 +1700,6 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
-            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_8E8B420DAFEF42E3BEB57F24A3F92868"
-            {
-            "AssemblyRegister" = "3:1"
-            "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:HtCommanderUpdater, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL"
-                "ScatterAssemblies"
-                {
-                    "_8E8B420DAFEF42E3BEB57F24A3F92868"
-                    {
-                    "Name" = "8:HtCommanderUpdater.dll"
-                    "Attributes" = "3:512"
-                    }
-                }
-            "SourcePath" = "8:..\\Updater\\bin\\Debug\\net7.0\\HtCommanderUpdater.dll"
-            "TargetName" = "8:"
-            "Tag" = "8:"
-            "Folder" = "8:_D931246451AF4E3487C6B4B47B8F4F0F"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_8FA41C48A17C4F629D9C56D6745FE71F"
             {
             "SourcePath" = "8:..\\src\\bin\\Debug\\net9.0-windows10.0.19041.0\\runtimes\\win-x86\\ggml-cpu-whisper.dll"
@@ -1956,7 +1919,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:HTCommander, Version=0.58.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:HTCommander, Version=0.59.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_A8D1925D3C3A4FBC9C436D5F22B4FB8D"
@@ -2915,15 +2878,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Handi-Talky Commander"
-        "ProductCode" = "8:{9E118B46-62B4-4F23-BBDD-D4502DCBEA74}"
-        "PackageCode" = "8:{CF0835A6-FFDC-4A22-A315-69DFDD940471}"
+        "ProductCode" = "8:{BC33869B-7A49-4D4C-A219-A6BEFB736862}"
+        "PackageCode" = "8:{CC2C8FBD-53B3-42B6-A989-02DE216A2410}"
         "UpgradeCode" = "8:{A0F710F7-510C-4231-82BA-D6A27CD75ECD}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:0.58.0"
+        "ProductVersion" = "8:0.59.0"
         "Manufacturer" = "8:Open Source"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://github.com/Ylianst/HTCommander"
