@@ -29,15 +29,21 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AprsDetailsForm));
+            this.components = new System.ComponentModel.Container();
             this.closeButton = new System.Windows.Forms.Button();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.aprsDetailsListView = new System.Windows.Forms.ListView();
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.aprsDetailsContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.copyValueMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.copyAllMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.pictureBox2 = new System.Windows.Forms.PictureBox();
             this.label4 = new System.Windows.Forms.Label();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
+            this.aprsDetailsContextMenu.SuspendLayout();
             this.SuspendLayout();
             // 
             // closeButton
@@ -80,6 +86,7 @@
             this.aprsDetailsListView.Name = "aprsDetailsListView";
             this.aprsDetailsListView.Size = new System.Drawing.Size(348, 168);
             this.aprsDetailsListView.TabIndex = 2;
+            this.aprsDetailsListView.ContextMenuStrip = this.aprsDetailsContextMenu;
             this.aprsDetailsListView.UseCompatibleStateImageBehavior = false;
             this.aprsDetailsListView.View = System.Windows.Forms.View.Details;
             // 
@@ -90,7 +97,35 @@
             // 
             // columnHeader2
             // 
-            this.columnHeader2.Width = 220;
+            this.columnHeader2.Width = -2;
+            // 
+            // aprsDetailsContextMenu
+            // 
+            this.aprsDetailsContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.copyValueMenuItem,
+            this.toolStripSeparator1,
+            this.copyAllMenuItem});
+            this.aprsDetailsContextMenu.Name = "aprsDetailsContextMenu";
+            this.aprsDetailsContextMenu.Size = new System.Drawing.Size(138, 54);
+            // 
+            // copyValueMenuItem
+            // 
+            this.copyValueMenuItem.Name = "copyValueMenuItem";
+            this.copyValueMenuItem.Size = new System.Drawing.Size(137, 22);
+            this.copyValueMenuItem.Text = "Copy &Value";
+            this.copyValueMenuItem.Click += new System.EventHandler(this.copyValueMenuItem_Click);
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(134, 6);
+            // 
+            // copyAllMenuItem
+            // 
+            this.copyAllMenuItem.Name = "copyAllMenuItem";
+            this.copyAllMenuItem.Size = new System.Drawing.Size(137, 22);
+            this.copyAllMenuItem.Text = "Copy &All";
+            this.copyAllMenuItem.Click += new System.EventHandler(this.copyAllMenuItem_Click);
             // 
             // pictureBox2
             // 
@@ -134,6 +169,7 @@
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.AprsDetailsForm_FormClosing);
             this.groupBox2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).EndInit();
+            this.aprsDetailsContextMenu.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -147,5 +183,9 @@
         private System.Windows.Forms.ColumnHeader columnHeader2;
         private System.Windows.Forms.PictureBox pictureBox2;
         private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.ContextMenuStrip aprsDetailsContextMenu;
+        private System.Windows.Forms.ToolStripMenuItem copyValueMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
+        private System.Windows.Forms.ToolStripMenuItem copyAllMenuItem;
     }
 }

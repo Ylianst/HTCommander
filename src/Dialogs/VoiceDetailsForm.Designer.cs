@@ -29,15 +29,21 @@ namespace HTCommander
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(VoiceDetailsForm));
+            this.components = new System.ComponentModel.Container();
             this.closeButton = new System.Windows.Forms.Button();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.voiceDetailsListView = new System.Windows.Forms.ListView();
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.voiceDetailsContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.copyValueMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.copyAllMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.label1 = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
+            this.voiceDetailsContextMenu.SuspendLayout();
             this.SuspendLayout();
             // 
             // closeButton
@@ -80,6 +86,7 @@ namespace HTCommander
             this.voiceDetailsListView.Name = "voiceDetailsListView";
             this.voiceDetailsListView.Size = new System.Drawing.Size(348, 168);
             this.voiceDetailsListView.TabIndex = 2;
+            this.voiceDetailsListView.ContextMenuStrip = this.voiceDetailsContextMenu;
             this.voiceDetailsListView.UseCompatibleStateImageBehavior = false;
             this.voiceDetailsListView.View = System.Windows.Forms.View.Details;
             // 
@@ -90,7 +97,35 @@ namespace HTCommander
             // 
             // columnHeader2
             // 
-            this.columnHeader2.Width = 220;
+            this.columnHeader2.Width = -2;
+            // 
+            // voiceDetailsContextMenu
+            // 
+            this.voiceDetailsContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.copyValueMenuItem,
+            this.toolStripSeparator1,
+            this.copyAllMenuItem});
+            this.voiceDetailsContextMenu.Name = "voiceDetailsContextMenu";
+            this.voiceDetailsContextMenu.Size = new System.Drawing.Size(138, 54);
+            // 
+            // copyValueMenuItem
+            // 
+            this.copyValueMenuItem.Name = "copyValueMenuItem";
+            this.copyValueMenuItem.Size = new System.Drawing.Size(137, 22);
+            this.copyValueMenuItem.Text = "Copy &Value";
+            this.copyValueMenuItem.Click += new System.EventHandler(this.copyValueMenuItem_Click);
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(134, 6);
+            // 
+            // copyAllMenuItem
+            // 
+            this.copyAllMenuItem.Name = "copyAllMenuItem";
+            this.copyAllMenuItem.Size = new System.Drawing.Size(137, 22);
+            this.copyAllMenuItem.Text = "Copy &All";
+            this.copyAllMenuItem.Click += new System.EventHandler(this.copyAllMenuItem_Click);
             // 
             // pictureBox1
             // 
@@ -134,6 +169,7 @@ namespace HTCommander
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.VoiceDetailsForm_FormClosing);
             this.groupBox1.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
+            this.voiceDetailsContextMenu.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -147,5 +183,9 @@ namespace HTCommander
         private System.Windows.Forms.ColumnHeader columnHeader2;
         private System.Windows.Forms.PictureBox pictureBox1;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.ContextMenuStrip voiceDetailsContextMenu;
+        private System.Windows.Forms.ToolStripMenuItem copyValueMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
+        private System.Windows.Forms.ToolStripMenuItem copyAllMenuItem;
     }
 }

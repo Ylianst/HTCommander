@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using aprsparser;
+using System.Text;
 using System.Windows.Forms;
 
 namespace HTCommander
@@ -77,6 +78,21 @@ namespace HTCommander
         private void AprsDetailsForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             //parent.aprsDetailsForm = null;
+        }
+
+        private void copyValueMenuItem_Click(object sender, System.EventArgs e)
+        {
+            if (aprsDetailsListView.SelectedItems.Count > 0)
+                Clipboard.SetText(aprsDetailsListView.SelectedItems[0].SubItems[1].Text);
+        }
+
+        private void copyAllMenuItem_Click(object sender, System.EventArgs e)
+        {
+            var sb = new StringBuilder();
+            foreach (ListViewItem item in aprsDetailsListView.Items)
+                sb.Append(item.SubItems[0].Text).Append('\t').Append(item.SubItems[1].Text).Append("\r\n");
+            if (sb.Length > 0)
+                Clipboard.SetText(sb.ToString());
         }
 
         private void closeButton_Click(object sender, System.EventArgs e)

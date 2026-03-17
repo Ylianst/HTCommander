@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+using System.Text;
 using System.Windows.Forms;
 
 namespace HTCommander
@@ -91,6 +92,21 @@ namespace HTCommander
 
         private void VoiceDetailsForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+        }
+
+        private void copyValueMenuItem_Click(object sender, System.EventArgs e)
+        {
+            if (voiceDetailsListView.SelectedItems.Count > 0)
+                Clipboard.SetText(voiceDetailsListView.SelectedItems[0].SubItems[1].Text);
+        }
+
+        private void copyAllMenuItem_Click(object sender, System.EventArgs e)
+        {
+            var sb = new StringBuilder();
+            foreach (ListViewItem item in voiceDetailsListView.Items)
+                sb.Append(item.SubItems[0].Text).Append('\t').Append(item.SubItems[1].Text).Append("\r\n");
+            if (sb.Length > 0)
+                Clipboard.SetText(sb.ToString());
         }
 
         private void closeButton_Click(object sender, System.EventArgs e)
