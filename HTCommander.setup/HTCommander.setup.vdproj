@@ -21,7 +21,19 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_0876D03625A940D79F14AC0863FB952A"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_0E30C96B37BD486BAD727A851EE43424"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_10F0889023774FCCB60043AAA7474501"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -39,6 +51,24 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_132883BC1EA84666AA9A5FCEA61A9E25"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_1333BAFCB0994A128698B4D4274E755C"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_13C567B3F144463AA712F6251104660F"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_16F44A90BE4645DAA4AE930480F94702"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -47,6 +77,12 @@
         {
         "MsmKey" = "8:_1BAE4275155F7FD3EEE0FD1A25BA7B0C"
         "OwnerKey" = "8:_A8D1925D3C3A4FBC9C436D5F22B4FB8D"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_1C635636F650418DBDE4138324DF355F"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -87,8 +123,26 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_2BBFDFB1852742FB87D07C496F884C7F"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_31CC09BDEF5744DCBBD0FC5B9EDD9FEA"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_3DEEE1640D6C9B4DCCA2C55BCCC8E321"
         "OwnerKey" = "8:_A8D1925D3C3A4FBC9C436D5F22B4FB8D"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_3E127C6C77B80E6CDC94CB9F47AFA148"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -111,6 +165,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_4838856CB27043678A1B602E5BBBC45D"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_48655BC3A6C64EC7A0B9248EA9A61CD0"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -119,6 +179,18 @@
         {
         "MsmKey" = "8:_490D33F4A807DE2C0A7AB3E8DE83442A"
         "OwnerKey" = "8:_578E6EAEA744BC656650EB06119B5B15"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_4B47E8BCE1634FAF892C49D0D0389316"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_4BE7DB0DB7B64C6D9E0D5BFF6A9B4381"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -137,6 +209,12 @@
         {
         "MsmKey" = "8:_532ACBA9795C5839853344EBE8F06369"
         "OwnerKey" = "8:_578E6EAEA744BC656650EB06119B5B15"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_533B08FCD4EC40C8BF8C79FDD91BD983"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -201,7 +279,25 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_5D28CB3B8FE74785A5251D499CD2B593"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_6019B8D02BC4411B8D0BB5652787035D"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_60AD438BDF304FF9B46202417A5C02BE"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_62F704554346417BB91E89724F85AB5F"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -209,6 +305,12 @@
         {
         "MsmKey" = "8:_663F467AE6E86BCEA328755AA33EAA7F"
         "OwnerKey" = "8:_578E6EAEA744BC656650EB06119B5B15"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_6C43F3D5AB664CB49898967A40816881"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -227,6 +329,12 @@
         {
         "MsmKey" = "8:_7705793B1BCC170634DBDB7DB612BA90"
         "OwnerKey" = "8:_578E6EAEA744BC656650EB06119B5B15"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_7931473E61534963B069F3F1B84133CA"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -321,6 +429,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_A3FDFD352DF14C91B586B0A39006887F"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_A7B5F99643FC4FEC462BF309BB28D850"
         "OwnerKey" = "8:_F6BA51215F5C34521472543944592A9F"
         "MsmSig" = "8:_UNDEFINED"
@@ -358,6 +472,12 @@
         "Entry"
         {
         "MsmKey" = "8:_AB6621ABD0D20A46A188D66CEB0CEE86"
+        "OwnerKey" = "8:_CACCE2378E4D49E08B974F087379449D"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_AB6621ABD0D20A46A188D66CEB0CEE86"
         "OwnerKey" = "8:_C171582479E1209852D53CB9884945C1"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -387,12 +507,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_AB6621ABD0D20A46A188D66CEB0CEE86"
-        "OwnerKey" = "8:_CACCE2378E4D49E08B974F087379449D"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_AC3150732C05A5FF0C433540963FE4D0"
         "OwnerKey" = "8:_578E6EAEA744BC656650EB06119B5B15"
         "MsmSig" = "8:_UNDEFINED"
@@ -400,6 +514,12 @@
         "Entry"
         {
         "MsmKey" = "8:_ADACF34D464641E29BE52BF6864EF221"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_B1D9D1D319844E9EB97D19F3673EDC5E"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -471,7 +591,25 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_CDD9C7E558DA402AA29981B3029B10E3"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_D344718DB3064C7E9EC29C2A8A84902E"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_D7B67F96B088411C9D6136594C3079B2"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_D9ADF23DFA8749539D67505E80A68246"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -484,7 +622,19 @@
         "Entry"
         {
         "MsmKey" = "8:_D9E39448F416B9AD49B9B1BD00964ECB"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_D9E39448F416B9AD49B9B1BD00964ECB"
         "OwnerKey" = "8:_127D4654C65C4779812CB0283FCCE864"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_DB86B553425A4AB391C4C6153C1AF2F3"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -549,7 +699,19 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_F89CEBCD738D40CBBB900A0951BE13EC"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_F9DC8822E9354C8D98249F20E681F6C9"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_FDC9B5FDD8A04AF4A7B9B273F8C85C80"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -563,42 +725,6 @@
         {
         "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_0301B81576A3FD199D688E9EB2DFD82E"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_F6BB3CB2413CE32428BB9C6803479687"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_A8D1925D3C3A4FBC9C436D5F22B4FB8D"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_C171582479E1209852D53CB9884945C1"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_1BAE4275155F7FD3EEE0FD1A25BA7B0C"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_11FD8612EBFA490F953D2AD89671AB86"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_11FD8612EBFA490F953D2AD89671AB86"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -629,6 +755,24 @@
         {
         "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_AC3150732C05A5FF0C433540963FE4D0"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_A8D1925D3C3A4FBC9C436D5F22B4FB8D"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_C171582479E1209852D53CB9884945C1"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_1BAE4275155F7FD3EEE0FD1A25BA7B0C"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -701,6 +845,24 @@
         {
         "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_1CE1D814B7FA1F9A5B304C9C5041C2B9"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_11FD8612EBFA490F953D2AD89671AB86"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_11FD8612EBFA490F953D2AD89671AB86"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_F6BB3CB2413CE32428BB9C6803479687"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -845,12 +1007,52 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0876D03625A940D79F14AC0863FB952A"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\Advent - Constants.cs"
+            "TargetName" = "8:Advent - Constants.cs"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0E30C96B37BD486BAD727A851EE43424"
             {
             "SourcePath" = "8:..\\src\\bin\\Debug\\net9.0-windows10.0.19041.0\\runtimes\\win-x64\\ggml-cpu-whisper.dll"
             "TargetName" = "8:ggml-cpu-whisper.dll"
             "Tag" = "8:"
             "Folder" = "8:_2EF626679CA643BCABEAECE20DBC4B44"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_10F0889023774FCCB60043AAA7474501"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\Advent - Game.cs"
+            "TargetName" = "8:Advent - Game.cs"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -927,6 +1129,66 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_132883BC1EA84666AA9A5FCEA61A9E25"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\GameData.cs"
+            "TargetName" = "8:GameData.cs"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_1333BAFCB0994A128698B4D4274E755C"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv05.dat"
+            "TargetName" = "8:adv05.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_13C567B3F144463AA712F6251104660F"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv10.dat"
+            "TargetName" = "8:adv10.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_16F44A90BE4645DAA4AE930480F94702"
             {
             "SourcePath" = "8:..\\src\\bin\\Debug\\net9.0-windows10.0.19041.0\\runtimes\\win-x86\\native\\sni.dll"
@@ -976,6 +1238,26 @@
             "Register" = "3:1"
             "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_1C635636F650418DBDE4138324DF355F"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\Advent - IO.cs"
+            "TargetName" = "8:Advent - IO.cs"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_1CE1D814B7FA1F9A5B304C9C5041C2B9"
@@ -1120,6 +1402,46 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_2BBFDFB1852742FB87D07C496F884C7F"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv02.dat"
+            "TargetName" = "8:adv02.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_31CC09BDEF5744DCBBD0FC5B9EDD9FEA"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv03.dat"
+            "TargetName" = "8:adv03.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_3DEEE1640D6C9B4DCCA2C55BCCC8E321"
             {
             "AssemblyRegister" = "3:1"
@@ -1134,6 +1456,37 @@
                     }
                 }
             "SourcePath" = "8:Microsoft.Windows.SDK.NET.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_D931246451AF4E3487C6B4B47B8F4F0F"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_3E127C6C77B80E6CDC94CB9F47AFA148"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:System.Data.SqlClient, Version=4.6.1.3, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_3E127C6C77B80E6CDC94CB9F47AFA148"
+                    {
+                    "Name" = "8:System.Data.SqlClient.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:System.Data.SqlClient.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_D931246451AF4E3487C6B4B47B8F4F0F"
@@ -1180,6 +1533,26 @@
             "Register" = "3:1"
             "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4838856CB27043678A1B602E5BBBC45D"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv08.dat"
+            "TargetName" = "8:adv08.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_48655BC3A6C64EC7A0B9248EA9A61CD0"
@@ -1231,6 +1604,46 @@
             "Register" = "3:1"
             "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4B47E8BCE1634FAF892C49D0D0389316"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv12.dat"
+            "TargetName" = "8:adv12.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4BE7DB0DB7B64C6D9E0D5BFF6A9B4381"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv06.dat"
+            "TargetName" = "8:adv06.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_4DB79EFF712CECA2C60260DCFE3D4EC3"
@@ -1324,6 +1737,26 @@
             "Register" = "3:1"
             "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_533B08FCD4EC40C8BF8C79FDD91BD983"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\Advent - Game Variables.cs"
+            "TargetName" = "8:Advent - Game Variables.cs"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_53CF23AD897F3C97E9DB58ED53A4EA52"
@@ -1428,6 +1861,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_5D28CB3B8FE74785A5251D499CD2B593"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv07.dat"
+            "TargetName" = "8:adv07.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_6019B8D02BC4411B8D0BB5652787035D"
             {
             "AssemblyRegister" = "3:1"
@@ -1445,6 +1898,46 @@
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_1D5AE5B189CE496CBF2754AD7ADE6756"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_60AD438BDF304FF9B46202417A5C02BE"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv14a.dat"
+            "TargetName" = "8:adv14a.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_62F704554346417BB91E89724F85AB5F"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\Adventurer.cs"
+            "TargetName" = "8:Adventurer.cs"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -1488,6 +1981,26 @@
             "Register" = "3:1"
             "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6C43F3D5AB664CB49898967A40816881"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\Advent - Events.cs"
+            "TargetName" = "8:Advent - Events.cs"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6F33E86C910745CBA2CEB1695FEC5DD6"
@@ -1539,6 +2052,26 @@
             "Register" = "3:1"
             "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_7931473E61534963B069F3F1B84133CA"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\quest1.dat"
+            "TargetName" = "8:quest1.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_8095F4E2262A40DBB529B78A9E31737B"
@@ -1889,6 +2422,26 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_A3FDFD352DF14C91B586B0A39006887F"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv11.dat"
+            "TargetName" = "8:adv11.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_A7B5F99643FC4FEC462BF309BB28D850"
             {
             "AssemblyRegister" = "3:1"
@@ -2050,6 +2603,26 @@
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_D931246451AF4E3487C6B4B47B8F4F0F"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_B1D9D1D319844E9EB97D19F3673EDC5E"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv04.dat"
+            "TargetName" = "8:adv04.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -2372,6 +2945,46 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_CDD9C7E558DA402AA29981B3029B10E3"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\Advent - Properties.cs"
+            "TargetName" = "8:Advent - Properties.cs"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D344718DB3064C7E9EC29C2A8A84902E"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\sampler1.dat"
+            "TargetName" = "8:sampler1.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_D7B67F96B088411C9D6136594C3079B2"
             {
             "AssemblyRegister" = "3:1"
@@ -2389,6 +3002,77 @@
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_F850BB500479420BBD20AE8807F4B204"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D9ADF23DFA8749539D67505E80A68246"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\DATToChunks.cs"
+            "TargetName" = "8:DATToChunks.cs"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_D9E39448F416B9AD49B9B1BD00964ECB"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:System.Data.SQLite, Version=1.0.119.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_D9E39448F416B9AD49B9B1BD00964ECB"
+                    {
+                    "Name" = "8:System.Data.SQLite.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:System.Data.SQLite.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_D931246451AF4E3487C6B4B47B8F4F0F"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_DB86B553425A4AB391C4C6153C1AF2F3"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv09.dat"
+            "TargetName" = "8:adv09.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -2649,12 +3333,52 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_F89CEBCD738D40CBBB900A0951BE13EC"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv13.dat"
+            "TargetName" = "8:adv13.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_F9DC8822E9354C8D98249F20E681F6C9"
             {
             "SourcePath" = "8:..\\Updater\\bin\\Debug\\net7.0\\HtCommanderUpdater.runtimeconfig.json"
             "TargetName" = "8:HtCommanderUpdater.runtimeconfig.json"
             "Tag" = "8:"
             "Folder" = "8:_D931246451AF4E3487C6B4B47B8F4F0F"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_FDC9B5FDD8A04AF4A7B9B273F8C85C80"
+            {
+            "SourcePath" = "8:..\\src\\Adventurer\\adv01.dat"
+            "TargetName" = "8:adv01.dat"
+            "Tag" = "8:"
+            "Folder" = "8:_9204D869F7C94D1C841C43B75A523A81"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -2857,6 +3581,17 @@
                                     }
                                 }
                             }
+                        }
+                    }
+                    "{9EF0B969-E518-4E46-987F-47570745A589}:_9204D869F7C94D1C841C43B75A523A81"
+                    {
+                    "Name" = "8:adventurer"
+                    "AlwaysCreate" = "11:FALSE"
+                    "Condition" = "8:"
+                    "Transitive" = "11:FALSE"
+                    "Property" = "8:_E261844F130B4462B6AE9437833A70B9"
+                        "Folders"
+                        {
                         }
                     }
                 }

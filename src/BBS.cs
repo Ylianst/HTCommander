@@ -592,9 +592,17 @@ namespace HTCommander
             if (data != null) { dataStr = UTF8Encoding.UTF8.GetString(data).Replace("\r\n", "\r").Replace("\n", "\r").Split('\r')[0]; }
             if (start) { dataStr = "help"; }
 
-            Adventurer.GameRunner runner = new Adventurer.GameRunner();
+            string gameFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Adventurer", "adv01.dat");
+            if (!File.Exists(gameFilePath))
+            {
+                broker.LogError($"[BBS/{deviceId}] Adventure game data file not found: {gameFilePath}");
+                session.sessionState["mode"] = "bbs";
+                SessionSend(session, "Adventure game data file not found. Returning to BBS.\r[M] for menu.\r");
+                return;
+            }
 
-            string output = runner.RunTurn("adv01.dat", Path.Combine(adventureAppDataPath, session.Addresses[0].CallSignWithId + ".sav"), dataStr).Replace("\r\n\r\n", "\r\n").Trim();
+            Adventurer.GameRunner runner = new Adventurer.GameRunner();
+            string output = runner.RunTurn(gameFilePath, Path.Combine(adventureAppDataPath, session.Addresses[0].CallSignWithId + ".sav"), dataStr).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
             {
                 if (start) { output = "Welcome to the Adventure Game\r\"quit\" to go back to BBS.\r" + output; }
@@ -1034,9 +1042,15 @@ namespace HTCommander
 
             broker.Dispatch(0, "BbsTraffic", new { DeviceId = deviceId, Callsign = p.addresses[1].ToString(), Outgoing = false, Message = dataStr });
 
-            Adventurer.GameRunner runner = new Adventurer.GameRunner();
+            string gameFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Adventurer", "adv01.dat");
+            if (!File.Exists(gameFilePath))
+            {
+                broker.LogError($"[BBS/{deviceId}] Adventure game data file not found: {gameFilePath}");
+                return;
+            }
 
-            string output = runner.RunTurn("adv01.dat", Path.Combine(adventureAppDataPath, p.addresses[1].CallSignWithId + ".sav"), p.dataStr).Replace("\r\n\r\n", "\r\n").Trim();
+            Adventurer.GameRunner runner = new Adventurer.GameRunner();
+            string output = runner.RunTurn(gameFilePath, Path.Combine(adventureAppDataPath, p.addresses[1].CallSignWithId + ".sav"), p.dataStr).Replace("\r\n\r\n", "\r\n").Trim();
             if ((output != null) && (output.Length > 0))
             {
                 broker.Dispatch(0, "BbsTraffic", new { DeviceId = deviceId, Callsign = p.addresses[1].ToString(), Outgoing = true, Message = output });

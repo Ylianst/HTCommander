@@ -33,8 +33,8 @@ namespace GameEngine
             try
             {
                 string[] spl = pInput.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                V = ShrinkWord(spl[0].ToUpper());
-                N = ShrinkWord(spl[1].ToUpper());
+                if (spl.Length > 0) { V = ShrinkWord(spl[0].ToUpper()); }
+                if (spl.Length > 1) { N = ShrinkWord(spl[1].ToUpper()); }
             }
             catch { }
 
