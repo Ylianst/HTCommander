@@ -407,8 +407,10 @@ namespace HTCommander
             broker.LogInfo($"[BBS/{deviceId}] CMS relay disconnected");
             broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Winlink gateway disconnected" });
 
-            // If the radio session is still connected, disconnect it since the relay is gone
-            if (session != null && session.CurrentState == AX25Session.ConnectionState.CONNECTED)
+            // Only disconnect the radio session if relay mode is still active (unexpected disconnect).
+            // If wlRelayMode was already set to false, the BBS intentionally closed the relay (e.g., user chose BBS mode).
+            bool isRelayMode = session != null && session.sessionState.ContainsKey("wlRelayMode") && (bool)session.sessionState["wlRelayMode"];
+            if (isRelayMode && session.CurrentState == AX25Session.ConnectionState.CONNECTED)
             {
                 session.Disconnect();
             }
@@ -544,6 +546,14 @@ namespace HTCommander
                     }
                     ProcessMailStream(session, UTF8Encoding.UTF8.GetBytes(remainingData.ToString()));
                     return;
+                }
+                else if (cmsRelay != null)
+                {
+                    // User's first command is not a Winlink SID — they're using BBS features, disconnect the CMS relay
+                    broker.LogInfo($"[BBS/{deviceId}] User sent BBS command, disconnecting Winlink gateway relay");
+                    broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Disconnecting Winlink gateway (BBS mode)" });
+                    session.sessionState["wlRelayMode"] = false;
+                    CleanupCmsRelay();
                 }
 
                 // Decode command and arguments

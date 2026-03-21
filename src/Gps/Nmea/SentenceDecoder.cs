@@ -1,3 +1,4 @@
+#nullable enable
 using GpsTool.Nmea.Sentences;
 
 namespace GpsTool.Nmea;
