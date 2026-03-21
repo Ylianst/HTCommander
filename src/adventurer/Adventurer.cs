@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+using ABI.System;
 using GameEngine;
 
 namespace Adventurer
@@ -17,7 +19,16 @@ namespace Adventurer
 
         public string RunTurn(string gameFilePath, string saveFilePath, string userInput)
         {
-            if ((saveFilePath != null) && (File.Exists(saveFilePath))) { Advent.RestoreGame(gameFilePath, saveFilePath); } else { Advent.LoadGame(gameFilePath); }
+            bool ok = false;
+            if ((saveFilePath != null) && (File.Exists(saveFilePath))) {
+                try
+                {
+                    Advent.RestoreGame(gameFilePath, saveFilePath);
+                    ok = true;
+                }
+                catch (System.Exception) { }
+            }
+            if (ok == false) { Advent.LoadGame(gameFilePath); }
             if (userInput != null) { Advent.ProcessText(userInput); }
             string output = BuildOutput();
             if (Advent.ISGameOver) { File.Delete(saveFilePath); } else { Advent.SaveGame(saveFilePath); }
