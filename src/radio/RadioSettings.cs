@@ -30,7 +30,7 @@ namespace HTCommander
         public bool adaptive_response;
         public bool dis_tone;
         public bool power_saving_mode;
-        public int auto_power_off; // 0 to 8
+        public int auto_power_off; // 3 bits, 0 to 7
         public int auto_share_loc_ch; // 5 bits
         public int hm_speaker; // 2 bits
         public int positioning_system; // 4 bits
@@ -122,7 +122,7 @@ namespace HTCommander
             dis_tone = (msg[9] & 0x02) != 0;
             power_saving_mode = (msg[9] & 0x01) != 0;
 
-            auto_power_off = msg[10] >> 4;
+            auto_power_off = msg[10] >> 5;
             auto_share_loc_ch = (msg[10] & 0x1F);
 
             hm_speaker = msg[11] >> 6;
