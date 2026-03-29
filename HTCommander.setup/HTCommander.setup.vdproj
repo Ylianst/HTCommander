@@ -2472,7 +2472,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:HTCommander, Version=0.60.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:HTCommander, Version=0.61.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_A8D1925D3C3A4FBC9C436D5F22B4FB8D"
@@ -3602,15 +3602,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Handi-Talky Commander"
-        "ProductCode" = "8:{4A1B286E-AE06-4E10-8ABD-D4A06C0D9671}"
-        "PackageCode" = "8:{91AD8646-BDA1-47D5-AF69-2FA68B151EB7}"
+        "ProductCode" = "8:{3C641EAB-677B-4588-8869-42F76CA87DDD}"
+        "PackageCode" = "8:{50F98BA7-2FC0-4419-B090-5C929826B0B4}"
         "UpgradeCode" = "8:{A0F710F7-510C-4231-82BA-D6A27CD75ECD}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:0.60.0"
+        "ProductVersion" = "8:0.61.0"
         "Manufacturer" = "8:Open Source"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://github.com/Ylianst/HTCommander"
