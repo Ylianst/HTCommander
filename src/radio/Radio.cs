@@ -620,6 +620,9 @@ namespace HTCommander
             _gpsEnabled = false;
 
             DataBroker.DeleteDevice(DeviceId);
+
+            // Dispose the broker client to unsubscribe all subscriptions
+            broker.Dispose();
         }
 
         private void RadioTransport_OnConnected()
@@ -1212,7 +1215,12 @@ namespace HTCommander
                     broker.Dispatch(DeviceId, "Volume", value[5], store: true);
                     break;
                 case RadioBasicCommand.WRITE_SETTINGS:
-                    if (value[4] != 0) Debug("WRITE_SETTINGS ERROR: " + Utils.BytesToHex(value));
+                    if (value[4] != 0) {
+                        Debug("WRITE_SETTINGS ERROR: " + Utils.BytesToHex(value));
+                    } else {
+                        // This is needed when the radio does not event a SETTINGS change notification after writing settings.
+                        SendCommand(RadioCommandGroup.BASIC, RadioBasicCommand.READ_SETTINGS, null);
+                    }
                     break;
                 case RadioBasicCommand.SET_REGION:
                     break;
