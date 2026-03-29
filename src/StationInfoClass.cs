@@ -44,11 +44,12 @@ namespace HTCommander
 
         public Guid AgwpeClientId = Guid.Empty; // Used for AGWPE client connections
 
+        [System.Text.Json.Serialization.JsonIgnore]
         public string CallsignNoZero
         {
             get
             {
-                if (Callsign.EndsWith("-0")) { return Callsign.Substring(0, Callsign.Length - 2); }
+                if (Callsign != null && Callsign.EndsWith("-0")) { return Callsign.Substring(0, Callsign.Length - 2); }
                 return Callsign;
             }
         }

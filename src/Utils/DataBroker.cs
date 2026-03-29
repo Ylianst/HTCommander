@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.Collections;
 using System.Text.Json;
 using System.Windows.Forms;
 using System.Collections.Generic;
@@ -146,7 +147,22 @@ namespace HTCommander
                             string typeName = GetSerializableTypeName(data.GetType());
                             string json = JsonSerializer.Serialize(data);
                             string serialized = $"~~JSON:{typeName}:{json}";
+
+                            // Safety check: prevent overwriting non-empty registry data with an empty collection
+                            if (data is ICollection collection && collection.Count == 0)
+                            {
+                                string existingValue = _registryHelper.ReadString(name, null);
+                                if (existingValue != null && existingValue.StartsWith("~~JSON:") && existingValue.Length > 20)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"DataBroker: Blocked saving empty collection to registry for ({deviceId}, {name}). Existing registry value length: {existingValue.Length}");
+                                    // Don't overwrite - keep the existing registry data
+                                    // The in-memory _dataStore still has the empty collection for this session
+                                    goto skipRegistryWrite;
+                                }
+                            }
+
                             _registryHelper.WriteString(name, serialized);
+                            skipRegistryWrite:;
                         }
                     }
                 }
@@ -303,9 +319,10 @@ namespace HTCommander
                                     }
                                 }
                             }
-                            catch (JsonException)
+                            catch (JsonException ex)
                             {
-                                // Failed to deserialize, return default
+                                // Failed to deserialize - log the error for diagnostics
+                                System.Diagnostics.Debug.WriteLine($"DataBroker: JSON deserialization failed for ({deviceId}, {name}): {ex.Message}");
                             }
                         }
                     }
