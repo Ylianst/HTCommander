@@ -282,6 +282,9 @@ namespace HTCommander
             
             // Only process frames from our radio device
             if (frame.RadioDeviceId != _radioDeviceId) return;
+
+            // Skip our own outgoing packets - only process incoming frames
+            if (!frame.incoming) return;
             
             // Parse the AX.25 packet from the frame data
             AX25Packet packet = AX25Packet.DecodeAX25Packet(frame);
