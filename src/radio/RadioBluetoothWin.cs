@@ -35,7 +35,7 @@ namespace HTCommander
         public delegate void ReceivedDataHandler(RadioBluetoothWin sender, Exception error, byte[] value);
         public event ReceivedDataHandler ReceivedData;
 
-        private static readonly string[] TargetDeviceNames = { "UV-PRO", "UV-50PRO", "GA-5WB", "VR-N75", "VR-N76", "VR-N7500", "VR-N7600" };
+        private static readonly string[] TargetDeviceNames = { "UV-PRO", "UV-50PRO", "GA-5WB", "VR-N75", "VR-N76", "VR-N7500", "VR-N7600", "DB50-B" };
 
         public RadioBluetoothWin(Radio parent) { this.parent = parent; }
 
