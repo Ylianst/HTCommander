@@ -13,7 +13,8 @@ The following radios should work with this application:
 
 - BTech UV-Pro
 - BTech UV-50Pro (untested)
-- RadioOddity GA-5WB (untested)
+- Radioddity GA-5WB (untested)
+- Radioddity DB50-B Mini
 - Radtel RT-660 (Contact Developers)
 - Vero VR-N75
 - Vero VR-N76 (untested)
