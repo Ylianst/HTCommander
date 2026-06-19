@@ -612,7 +612,8 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       onTap: () => _sort(index),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final showIcon = constraints.maxWidth > 30 && _sortColumnIndex == index;
+          final showIcon =
+              constraints.maxWidth > 30 && _sortColumnIndex == index;
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
