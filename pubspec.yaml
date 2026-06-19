@@ -37,6 +37,8 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
+  desktop_multi_window: ^0.3.0
+  window_manager: ^0.4.3
 
 dev_dependencies:
   flutter_test:

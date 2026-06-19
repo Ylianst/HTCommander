@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../services/window_service.dart';
 
 /// Map tab - geographic map display with OpenStreetMap
 class MapTab extends StatefulWidget {
@@ -139,6 +140,17 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
             ],
           ),
         ),
+        if (windowService.canDetach) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'detach',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Detach...')],
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null) return;
@@ -150,6 +162,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           break;
         case 'centerGps':
           _centerToGps();
+          break;
+        case 'detach':
+          windowService.createWindow('map');
           break;
         // TODO: Handle other menu items
       }

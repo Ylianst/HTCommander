@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/window_service.dart';
 
 /// Represents a piece of text with a specific color in the terminal
 class TerminalTextSpan {
@@ -226,6 +227,17 @@ class _TerminalTabState extends State<TerminalTab>
           padding: menuItemPadding,
           child: const Row(children: [SizedBox(width: 20), Text('Clear')]),
         ),
+        if (windowService.canDetach) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'detach',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Detach...')],
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null) return;
@@ -238,6 +250,9 @@ class _TerminalTabState extends State<TerminalTab>
           break;
         case 'clear':
           setState(() => _terminalContent.clear());
+          break;
+        case 'detach':
+          windowService.createWindow('terminal');
           break;
       }
     });
@@ -346,21 +361,25 @@ class _TerminalTabState extends State<TerminalTab>
         children: [
           // Input text field
           Expanded(
-            child: TextField(
-              controller: _inputController,
-              enabled: _isConnected,
-              style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 8,
-                ),
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-                isDense: true,
+            child: Container(
+              height: 34,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(4),
               ),
-              onSubmitted: (_) => _onSend(),
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: TextField(
+                controller: _inputController,
+                enabled: _isConnected,
+                style: const TextStyle(fontSize: 14),
+                decoration: const InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                  border: InputBorder.none,
+                  isCollapsed: true,
+                ),
+                onSubmitted: (_) => _onSend(),
+              ),
             ),
           ),
           const SizedBox(width: 8),

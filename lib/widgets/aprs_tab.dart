@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'chat_widget.dart';
+import '../services/window_service.dart';
 
 /// APRS tab - Automatic Packet Reporting System
 class AprsTab extends StatefulWidget {
@@ -12,6 +13,9 @@ class AprsTab extends StatefulWidget {
 class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   final List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _destinationController = TextEditingController(
+    text: 'APRS',
+  );
   final FocusNode _messageFocusNode = FocusNode();
   String _selectedDestination = 'APRS';
   bool _showAllMessages = false;
@@ -19,6 +23,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
 
   // Sample destinations
   final List<String> _destinations = ['APRS', 'KC3SLD', 'KK7VZT', 'N0CALL'];
+
+  // APRS routes for digipeater paths
+  final List<String> _aprsRoutes = ['WIDE1-1', 'WIDE1-1,WIDE2-1', 'WIDE2-2'];
+  String _selectedRoute = 'WIDE1-1';
 
   @override
   bool get wantKeepAlive => true;
@@ -32,6 +40,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   @override
   void dispose() {
     _messageController.dispose();
+    _destinationController.dispose();
     _messageFocusNode.dispose();
     super.dispose();
   }
@@ -159,6 +168,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
                 Navigator.pop(context);
                 setState(() {
                   _selectedDestination = message.senderCallsign;
+                  _destinationController.text = message.senderCallsign;
                 });
                 _messageFocusNode.requestFocus();
               },
@@ -228,6 +238,17 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           padding: menuItemPadding,
           child: const Row(children: [SizedBox(width: 20), Text('Clear')]),
         ),
+        if (windowService.canDetach) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'detach',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Detach...')],
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null || !mounted) return;
@@ -250,8 +271,15 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         case 'clear':
           setState(() => _messages.clear());
           break;
+        case 'detach':
+          _detachWindow();
+          break;
       }
     });
+  }
+
+  Future<void> _detachWindow() async {
+    await windowService.createWindow('aprs');
   }
 
   @override
@@ -284,6 +312,33 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
           const Spacer(),
+          // APRS Route dropdown
+          if (_aprsRoutes.length > 1)
+            Container(
+              height: 28,
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedRoute,
+                  isDense: true,
+                  style: const TextStyle(fontSize: 14, color: Colors.black),
+                  items: _aprsRoutes.map((route) {
+                    return DropdownMenuItem(value: route, child: Text(route));
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedRoute = value);
+                    }
+                  },
+                ),
+              ),
+            ),
           Builder(
             builder: (context) => InkWell(
               onTap: () => _showMenu(context),
@@ -311,49 +366,87 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
       color: const Color(0xFFC0C0C0),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Destination dropdown
+          // Destination combo box (text input with dropdown)
           SizedBox(
             width: 120,
             height: 34,
-            child: DropdownButtonFormField<String>(
-              initialValue: _selectedDestination,
-              decoration: const InputDecoration(
-                contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-                isDense: true,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(4),
               ),
-              items: _destinations.map((dest) {
-                return DropdownMenuItem(value: dest, child: Text(dest));
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _selectedDestination = value);
-                }
-              },
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _destinationController,
+                      style: const TextStyle(fontSize: 14),
+                      decoration: const InputDecoration(
+                        contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                        border: InputBorder.none,
+                        isDense: true,
+                        isCollapsed: true,
+                      ),
+                      onChanged: (value) {
+                        _selectedDestination = value.toUpperCase();
+                      },
+                      textCapitalization: TextCapitalization.characters,
+                    ),
+                  ),
+                  SizedBox(
+                    width: 24,
+                    height: 32,
+                    child: PopupMenuButton<String>(
+                      icon: const Icon(Icons.arrow_drop_down, size: 20),
+                      padding: EdgeInsets.zero,
+                      onSelected: (value) {
+                        setState(() {
+                          _selectedDestination = value;
+                          _destinationController.text = value;
+                        });
+                      },
+                      itemBuilder: (context) => _destinations.map((dest) {
+                        return PopupMenuItem<String>(
+                          value: dest,
+                          height: 36,
+                          child: Text(
+                            dest,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
           // Text input
           Expanded(
-            child: TextField(
-              controller: _messageController,
-              focusNode: _messageFocusNode,
-              style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
-                hintText: 'Type a message...',
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 8,
-                ),
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-                isDense: true,
+            child: Container(
+              height: 34,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(4),
               ),
-              onSubmitted: (_) => _sendMessage(),
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: TextField(
+                controller: _messageController,
+                focusNode: _messageFocusNode,
+                style: const TextStyle(fontSize: 14),
+                decoration: const InputDecoration(
+                  hintText: 'Type a message...',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                  border: InputBorder.none,
+                  isCollapsed: true,
+                ),
+                onSubmitted: (_) => _sendMessage(),
+              ),
             ),
           ),
           const SizedBox(width: 8),

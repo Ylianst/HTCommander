@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/window_service.dart';
 
 /// Email message data
 class MailMessage {
@@ -240,12 +241,26 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
             children: [SizedBox(width: 20), Text('Restore Mail...')],
           ),
         ),
+        if (windowService.canDetach) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'detach',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Detach...')],
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null) return;
       switch (value) {
         case 'showPreview':
           setState(() => _showPreview = !_showPreview);
+          break;
+        case 'detach':
+          windowService.createWindow('mail');
           break;
       }
     });

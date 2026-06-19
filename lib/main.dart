@@ -1,9 +1,14 @@
+import 'dart:convert';
 import 'dart:io' show Platform;
 
+import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'about.dart';
+import 'services/window_service.dart';
 import 'widgets/radio_panel.dart';
 import 'widgets/voice_tab.dart';
 import 'widgets/aprs_tab.dart';
@@ -16,8 +21,113 @@ import 'widgets/torrent_tab.dart';
 import 'widgets/packets_tab.dart';
 import 'widgets/debug_tab.dart';
 
-void main() {
+void main(List<String> args) async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Check if this is a sub-window on desktop platforms
+  if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+    try {
+      final controller = await WindowController.fromCurrentEngine();
+      if (controller.arguments.isNotEmpty) {
+        final argument =
+            jsonDecode(controller.arguments) as Map<String, dynamic>;
+        // Mark this as a child window so tabs don't show "Detach..." option
+        windowService.isChildWindow = true;
+        runApp(SubWindowApp(windowController: controller, argument: argument));
+        return;
+      }
+    } catch (e) {
+      // Not a sub-window, continue to main app
+    }
+  }
   runApp(const HTCommanderApp());
+}
+
+/// Sub-window application for detached tabs
+class SubWindowApp extends StatefulWidget {
+  final WindowController windowController;
+  final Map<String, dynamic> argument;
+
+  const SubWindowApp({
+    super.key,
+    required this.windowController,
+    required this.argument,
+  });
+
+  @override
+  State<SubWindowApp> createState() => _SubWindowAppState();
+}
+
+class _SubWindowAppState extends State<SubWindowApp> {
+  late final String tabTitle;
+  late final Widget tabContent;
+
+  @override
+  void initState() {
+    super.initState();
+    final windowType = widget.argument['window'] as String? ?? '';
+
+    switch (windowType) {
+      case 'voice':
+        tabTitle = 'Voice';
+        tabContent = const VoiceTab();
+      case 'aprs':
+        tabTitle = 'APRS';
+        tabContent = const AprsTab();
+      case 'map':
+        tabTitle = 'Map';
+        tabContent = const MapTab();
+      case 'mail':
+        tabTitle = 'Mail';
+        tabContent = const MailTab();
+      case 'terminal':
+        tabTitle = 'Terminal';
+        tabContent = const TerminalTab();
+      case 'contacts':
+        tabTitle = 'Contacts';
+        tabContent = const ContactsTab();
+      case 'bbs':
+        tabTitle = 'BBS';
+        tabContent = const BbsTab();
+      case 'torrent':
+        tabTitle = 'Torrent';
+        tabContent = const TorrentTab();
+      case 'packets':
+        tabTitle = 'Packets';
+        tabContent = const PacketsTab();
+      case 'debug':
+        tabTitle = 'Debug';
+        tabContent = const DebugTab();
+      default:
+        tabTitle = 'Unknown';
+        tabContent = Center(child: Text('Unknown window type: $windowType'));
+    }
+
+    // Set the window title
+    _setWindowTitle();
+  }
+
+  Future<void> _setWindowTitle() async {
+    await windowManager.ensureInitialized();
+    await windowManager.setTitle('Handi-Talkie Commander - $tabTitle');
+    await windowManager.setMinimumSize(const Size(500, 600));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Handi-Talkie Commander - $tabTitle',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.light,
+        ),
+        useMaterial3: true,
+      ),
+      home: Scaffold(body: tabContent),
+    );
+  }
 }
 
 class HTCommanderApp extends StatelessWidget {
@@ -94,7 +204,8 @@ class MainForm extends StatefulWidget {
   State<MainForm> createState() => _MainFormState();
 }
 
-class _MainFormState extends State<MainForm> with TickerProviderStateMixin {
+class _MainFormState extends State<MainForm>
+    with TickerProviderStateMixin, WindowListener {
   late TabController _tabController;
   late List<_TabInfo> _currentTabs;
   bool _radioVisible = true;
@@ -147,10 +258,30 @@ class _MainFormState extends State<MainForm> with TickerProviderStateMixin {
     super.initState();
     _currentTabs = _getTabsForMode(_isCompactMode);
     _tabController = TabController(length: _currentTabs.length, vsync: this);
+    _initWindowManager();
+  }
+
+  Future<void> _initWindowManager() async {
+    if (isDesktop) {
+      await windowManager.ensureInitialized();
+      windowManager.addListener(this);
+      // Intercept close to clean up child windows
+      await windowManager.setPreventClose(true);
+    }
+  }
+
+  @override
+  void onWindowClose() async {
+    // Close all child windows before closing main window
+    await windowService.closeAllChildren();
+    await windowManager.destroy();
   }
 
   @override
   void dispose() {
+    if (isDesktop) {
+      windowManager.removeListener(this);
+    }
     _tabController.dispose();
     super.dispose();
   }
