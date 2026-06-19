@@ -221,54 +221,56 @@ class _ChatWidgetState extends State<ChatWidget> {
               child: Icon(message.icon, size: 16, color: Colors.grey),
             ),
           // Bubble
-          Container(
-            constraints: BoxConstraints(
-              maxWidth:
-                  MediaQuery.of(context).size.width *
-                  widget.bubbleMaxWidthFactor,
-            ),
-            decoration: BoxDecoration(
-              color: _getBubbleColor(message),
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(12),
-                topRight: const Radius.circular(12),
-                bottomLeft: message.isSender
-                    ? const Radius.circular(12)
-                    : Radius.zero,
-                bottomRight: message.isSender
-                    ? Radius.zero
-                    : const Radius.circular(12),
+          Flexible(
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth:
+                    MediaQuery.of(context).size.width *
+                    widget.bubbleMaxWidthFactor,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  offset: const Offset(1, 1),
-                  blurRadius: 2,
+              decoration: BoxDecoration(
+                color: _getBubbleColor(message),
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(12),
+                  topRight: const Radius.circular(12),
+                  bottomLeft: message.isSender
+                      ? const Radius.circular(12)
+                      : Radius.zero,
+                  bottomRight: message.isSender
+                      ? Radius.zero
+                      : const Radius.circular(12),
                 ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Flexible(
-                  child: Text(
-                    message.message,
-                    style: const TextStyle(fontSize: 14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    offset: const Offset(1, 1),
+                    blurRadius: 2,
                   ),
-                ),
-                // Location indicator
-                if (message.hasLocation)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Icon(
-                      Icons.location_on,
-                      size: 14,
-                      color: Colors.grey.shade600,
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: Text(
+                      message.message,
+                      style: const TextStyle(fontSize: 14),
                     ),
                   ),
-              ],
+                  // Location indicator
+                  if (message.hasLocation)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Icon(
+                        Icons.location_on,
+                        size: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
           // Icon on right for sent messages

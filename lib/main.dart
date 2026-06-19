@@ -110,7 +110,7 @@ class _SubWindowAppState extends State<SubWindowApp> {
   Future<void> _setWindowTitle() async {
     await windowManager.ensureInitialized();
     await windowManager.setTitle('Handi-Talkie Commander - $tabTitle');
-    await windowManager.setMinimumSize(const Size(500, 600));
+    await windowManager.setMinimumSize(const Size(550, 600));
   }
 
   @override

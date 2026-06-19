@@ -221,47 +221,58 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   Widget _buildHeader() {
     return Container(
       height: 40,
-      color: const Color(0xFFC0C0C0), // Silver color like C# app
+      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: [
-          // Map label
-          Text(
-            _isOfflineMode ? 'Offline Map' : 'Map',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const Spacer(),
-          // Center to GPS button
-          SizedBox(
-            height: 28,
-            child: ElevatedButton(
-              onPressed: _centerToGpsEnabled ? _centerToGps : null,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                textStyle: const TextStyle(fontSize: 12),
-              ),
-              child: const Text('Center to GPS'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Menu icon
-          Builder(
-            builder: (context) => InkWell(
-              onTap: () => _showMenu(context),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Image.asset(
-                  'assets/images/MenuIcon.png',
-                  width: 24,
-                  height: 24,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.menu, size: 24);
-                  },
+      clipBehavior: Clip.hardEdge,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showButton = constraints.maxWidth > 220;
+          return Row(
+            children: [
+              // Map label
+              Text(
+                _isOfflineMode ? 'Offline Map' : 'Map',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-            ),
-          ),
-        ],
+              const Spacer(),
+              // Center to GPS button
+              if (showButton) ...[
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton(
+                    onPressed: _centerToGpsEnabled ? _centerToGps : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    child: const Text('Center to GPS'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              // Menu icon
+              Builder(
+                builder: (context) => InkWell(
+                  onTap: () => _showMenu(context),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Image.asset(
+                      'assets/images/MenuIcon.png',
+                      width: 24,
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.menu, size: 24);
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

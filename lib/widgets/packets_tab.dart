@@ -406,6 +406,7 @@ class _PacketsTabState extends State<PacketsTab>
                 return InkWell(
                   onTap: () => _onPacketSelected(index),
                   child: Container(
+                    clipBehavior: Clip.hardEdge,
                     decoration: BoxDecoration(
                       color: isSelected ? Colors.blue.shade100 : null,
                       border: Border(
@@ -496,6 +497,7 @@ class _PacketsTabState extends State<PacketsTab>
 
   Widget _buildPacketListHeaders() {
     return Container(
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
         border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
