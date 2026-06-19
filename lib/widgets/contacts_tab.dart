@@ -373,7 +373,8 @@ class _ContactsTabState extends State<ContactsTab>
         onTap: () => _sort(index),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final showIcon = constraints.maxWidth > 30 && _sortColumnIndex == index;
+            final showIcon =
+                constraints.maxWidth > 30 && _sortColumnIndex == index;
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
@@ -388,7 +389,9 @@ class _ContactsTabState extends State<ContactsTab>
                   ),
                   if (showIcon)
                     Icon(
-                      _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                      _sortAscending
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
                       size: 14,
                     ),
                 ],
@@ -474,10 +477,7 @@ class _ContactsTabState extends State<ContactsTab>
               flex: 3,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text(
-                  contact.name,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: Text(contact.name, overflow: TextOverflow.ellipsis),
               ),
             ),
             Expanded(
