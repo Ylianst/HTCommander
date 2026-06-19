@@ -7,7 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
-import 'about.dart';
+import 'dialogs/about_dialog.dart';
+import 'dialogs/settings_dialog.dart';
 import 'services/window_service.dart';
 import 'widgets/radio_panel.dart';
 import 'widgets/voice_tab.dart';
@@ -842,8 +843,19 @@ class _MainFormState extends State<MainForm>
     });
   }
 
-  void _onSettings() {
-    // TODO: Open settings dialog
+  // App settings (would normally be loaded/saved to storage)
+  AppSettings _appSettings = AppSettings();
+
+  void _onSettings() async {
+    final result = await showDialog<AppSettings>(
+      context: context,
+      builder: (context) => SettingsDialog(initialSettings: _appSettings),
+    );
+    if (result != null) {
+      setState(() {
+        _appSettings = result;
+      });
+    }
   }
 
   void _onAbout() {
