@@ -39,6 +39,7 @@ dependencies:
   latlong2: ^0.9.1
   desktop_multi_window: ^0.3.0
   window_manager: ^0.4.3
+  file_picker: ^8.0.0+1
 
 dev_dependencies:
   flutter_test:
