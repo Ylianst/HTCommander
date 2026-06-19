@@ -360,44 +360,55 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
   Widget _buildHeader() {
     return Container(
       height: 40,
-      color: const Color(0xFFC0C0C0),
+      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: [
-          Text(
-            _isActivated ? 'BBS - Active' : 'BBS',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const Spacer(),
-          SizedBox(
-            height: 28,
-            child: ElevatedButton(
-              onPressed: _onActivate,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                textStyle: const TextStyle(fontSize: 12),
-              ),
-              child: Text(_isActivated ? 'Deactivate' : 'Activate'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Builder(
-            builder: (context) => InkWell(
-              onTap: () => _showMenu(context),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Image.asset(
-                  'assets/images/MenuIcon.png',
-                  width: 24,
-                  height: 24,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.menu, size: 24);
-                  },
+      clipBehavior: Clip.hardEdge,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showButton = constraints.maxWidth > 200;
+          return Row(
+            children: [
+              Text(
+                _isActivated ? 'BBS - Active' : 'BBS',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-            ),
-          ),
-        ],
+              const Spacer(),
+              if (showButton) ...[
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton(
+                    onPressed: _onActivate,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    child: Text(_isActivated ? 'Deactivate' : 'Activate'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Builder(
+                builder: (context) => InkWell(
+                  onTap: () => _showMenu(context),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Image.asset(
+                      'assets/images/MenuIcon.png',
+                      width: 24,
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.menu, size: 24);
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -450,6 +461,7 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
                 return InkWell(
                   onTap: () => _onStationSelected(index),
                   child: Container(
+                    clipBehavior: Clip.hardEdge,
                     decoration: BoxDecoration(
                       color: isSelected ? Colors.blue.shade100 : null,
                       border: Border(
@@ -532,6 +544,7 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
 
   Widget _buildStationListHeaders() {
     return Container(
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
         border: Border(bottom: BorderSide(color: Colors.grey.shade400)),

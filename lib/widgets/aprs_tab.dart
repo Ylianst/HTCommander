@@ -303,59 +303,71 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   Widget _buildHeader() {
     return Container(
       height: 40,
-      color: const Color(0xFFC0C0C0),
+      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: [
-          const Text(
-            'APRS',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const Spacer(),
-          // APRS Route dropdown
-          if (_aprsRoutes.length > 1)
-            Container(
-              height: 28,
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(4),
+      clipBehavior: Clip.hardEdge,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showDropdown =
+              constraints.maxWidth > 250 && _aprsRoutes.length > 1;
+          return Row(
+            children: [
+              const Text(
+                'APRS',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedRoute,
-                  isDense: true,
-                  style: const TextStyle(fontSize: 14, color: Colors.black),
-                  items: _aprsRoutes.map((route) {
-                    return DropdownMenuItem(value: route, child: Text(route));
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedRoute = value);
-                    }
-                  },
+              const Spacer(),
+              // APRS Route dropdown - hide when too narrow
+              if (showDropdown)
+                Container(
+                  height: 28,
+                  width: 140,
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedRoute,
+                      isDense: true,
+                      isExpanded: true,
+                      style: const TextStyle(fontSize: 14, color: Colors.black),
+                      items: _aprsRoutes.map((route) {
+                        return DropdownMenuItem(
+                          value: route,
+                          child: Text(route, overflow: TextOverflow.ellipsis),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _selectedRoute = value);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              Builder(
+                builder: (context) => InkWell(
+                  onTap: () => _showMenu(context),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Image.asset(
+                      'assets/images/MenuIcon.png',
+                      width: 24,
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.menu, size: 24);
+                      },
+                    ),
+                  ),
                 ),
               ),
-            ),
-          Builder(
-            builder: (context) => InkWell(
-              onTap: () => _showMenu(context),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Image.asset(
-                  'assets/images/MenuIcon.png',
-                  width: 24,
-                  height: 24,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.menu, size: 24);
-                  },
-                ),
-              ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -363,14 +375,15 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   Widget _buildInputPanel() {
     return Container(
       height: 50,
-      color: const Color(0xFFC0C0C0),
+      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      clipBehavior: Clip.hardEdge,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Destination combo box (text input with dropdown)
           SizedBox(
-            width: 120,
+            width: 100,
             height: 34,
             child: Container(
               decoration: BoxDecoration(
@@ -458,7 +471,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
               ),
-              child: const Text('Send'),
+              child: const Icon(Icons.send, size: 18),
             ),
           ),
         ],

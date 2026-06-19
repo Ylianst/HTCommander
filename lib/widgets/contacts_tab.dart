@@ -351,6 +351,7 @@ class _ContactsTabState extends State<ContactsTab>
 
   Widget _buildColumnHeaders() {
     return Container(
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
         border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
@@ -370,18 +371,30 @@ class _ContactsTabState extends State<ContactsTab>
       flex: flex,
       child: InkWell(
         onTap: () => _sort(index),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-              if (_sortColumnIndex == index)
-                Icon(
-                  _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                  size: 14,
-                ),
-            ],
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final showIcon = constraints.maxWidth > 30 && _sortColumnIndex == index;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (showIcon)
+                    Icon(
+                      _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                      size: 14,
+                    ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -428,6 +441,7 @@ class _ContactsTabState extends State<ContactsTab>
         _onEdit();
       },
       child: Container(
+        clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue.shade100 : null,
           border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
@@ -446,7 +460,12 @@ class _ContactsTabState extends State<ContactsTab>
                       color: Colors.grey.shade600,
                     ),
                     const SizedBox(width: 4),
-                    Text(contact.callsign),
+                    Expanded(
+                      child: Text(
+                        contact.callsign,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -455,14 +474,20 @@ class _ContactsTabState extends State<ContactsTab>
               flex: 3,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text(contact.name),
+                child: Text(
+                  contact.name,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
             Expanded(
               flex: 4,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text(contact.description),
+                child: Text(
+                  contact.description,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
           ],
@@ -477,46 +502,57 @@ class _ContactsTabState extends State<ContactsTab>
 
     return Container(
       height: 50,
-      color: const Color(0xFFC0C0C0), // Silver color
+      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Row(
-        children: [
-          // Add button
-          SizedBox(
-            height: 34,
-            child: ElevatedButton(
-              onPressed: _onAdd,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+      clipBehavior: Clip.hardEdge,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showAllButtons = constraints.maxWidth > 280;
+          final showEditButton = constraints.maxWidth > 180;
+          return Row(
+            children: [
+              // Add button
+              SizedBox(
+                height: 34,
+                child: ElevatedButton(
+                  onPressed: _onAdd,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text('Add'),
+                ),
               ),
-              child: const Text('Add'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Remove button
-          SizedBox(
-            height: 34,
-            child: ElevatedButton(
-              onPressed: hasSelection ? _onRemove : null,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-              child: const Text('Remove'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Edit button
-          SizedBox(
-            height: 34,
-            child: ElevatedButton(
-              onPressed: hasSingleSelection ? _onEdit : null,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-              child: const Text('Edit...'),
-            ),
-          ),
-        ],
+              if (showAllButtons) ...[
+                const SizedBox(width: 8),
+                // Remove button
+                SizedBox(
+                  height: 34,
+                  child: ElevatedButton(
+                    onPressed: hasSelection ? _onRemove : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    child: const Text('Remove'),
+                  ),
+                ),
+              ],
+              if (showEditButton) ...[
+                const SizedBox(width: 8),
+                // Edit button
+                SizedBox(
+                  height: 34,
+                  child: ElevatedButton(
+                    onPressed: hasSingleSelection ? _onEdit : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    child: const Text('Edit...'),
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }

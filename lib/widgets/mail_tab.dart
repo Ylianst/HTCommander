@@ -379,56 +379,64 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   Widget _buildHeader() {
     return Container(
       height: 40,
-      color: const Color(0xFFC0C0C0),
+      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: [
-          const Text(
-            'Mail',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const Spacer(),
-          SizedBox(
-            height: 28,
-            child: ElevatedButton(
-              onPressed: _onNewMail,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                textStyle: const TextStyle(fontSize: 12),
+      clipBehavior: Clip.hardEdge,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showButtons = constraints.maxWidth > 280;
+          return Row(
+            children: [
+              const Text(
+                'Mail',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
-              child: const Text('New Mail'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            height: 28,
-            child: ElevatedButton(
-              onPressed: _onConnect,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                textStyle: const TextStyle(fontSize: 12),
-              ),
-              child: const Text('Connect'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Builder(
-            builder: (context) => InkWell(
-              onTap: () => _showMenu(context),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Image.asset(
-                  'assets/images/MenuIcon.png',
-                  width: 24,
-                  height: 24,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.menu, size: 24);
-                  },
+              const Spacer(),
+              if (showButtons) ...[
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton(
+                    onPressed: _onNewMail,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    child: const Text('New Mail'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton(
+                    onPressed: _onConnect,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    child: const Text('Connect'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Builder(
+                builder: (context) => InkWell(
+                  onTap: () => _showMenu(context),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Image.asset(
+                      'assets/images/MenuIcon.png',
+                      width: 24,
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.menu, size: 24);
+                      },
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -502,6 +510,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                     // TODO: Open mail viewer
                   },
                   child: Container(
+                    clipBehavior: Clip.hardEdge,
                     decoration: BoxDecoration(
                       color: isSelected ? Colors.blue.shade100 : null,
                       border: Border(
@@ -510,8 +519,8 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                     ),
                     child: Row(
                       children: [
-                        SizedBox(
-                          width: 100,
+                        Expanded(
+                          flex: 2,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -519,23 +528,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                             ),
                             child: Text(
                               _formatTime(mail.time),
-                              style: TextStyle(
-                                fontWeight: mail.isRead
-                                    ? null
-                                    : FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 100,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 6,
-                            ),
-                            child: Text(
-                              mail.from,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontWeight: mail.isRead
                                     ? null
@@ -545,6 +538,25 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                           ),
                         ),
                         Expanded(
+                          flex: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            child: Text(
+                              mail.from,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: mail.isRead
+                                    ? null
+                                    : FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 3,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -575,15 +587,16 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
 
   Widget _buildMailListHeaders() {
     return Container(
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
         border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
       ),
       child: Row(
         children: [
-          _buildColumnHeader('Time', 0, width: 100),
-          _buildColumnHeader('From', 1, width: 100),
-          _buildColumnHeader('Subject', 2, flex: 1),
+          _buildColumnHeader('Time', 0, flex: 2),
+          _buildColumnHeader('From', 1, flex: 2),
+          _buildColumnHeader('Subject', 2, flex: 3),
         ],
       ),
     );
@@ -597,18 +610,30 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   }) {
     final content = InkWell(
       onTap: () => _sort(index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Row(
-          children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            if (_sortColumnIndex == index)
-              Icon(
-                _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                size: 14,
-              ),
-          ],
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showIcon = constraints.maxWidth > 30 && _sortColumnIndex == index;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (showIcon)
+                  Icon(
+                    _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                    size: 14,
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
 

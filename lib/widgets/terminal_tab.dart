@@ -278,47 +278,55 @@ class _TerminalTabState extends State<TerminalTab>
   Widget _buildHeader() {
     return Container(
       height: 40,
-      color: const Color(0xFFC0C0C0), // Silver color
+      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: [
-          // Terminal label
-          const Text(
-            'Terminal',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const Spacer(),
-          // Connect button
-          SizedBox(
-            height: 28,
-            child: ElevatedButton(
-              onPressed: _onConnect,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                textStyle: const TextStyle(fontSize: 12),
+      clipBehavior: Clip.hardEdge,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showButton = constraints.maxWidth > 200;
+          return Row(
+            children: [
+              // Terminal label
+              const Text(
+                'Terminal',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
-              child: Text(_isConnected ? 'Disconnect' : 'Connect'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Menu icon
-          Builder(
-            builder: (context) => InkWell(
-              onTap: () => _showMenu(context),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Image.asset(
-                  'assets/images/MenuIcon.png',
-                  width: 24,
-                  height: 24,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.menu, size: 24);
-                  },
+              const Spacer(),
+              // Connect button
+              if (showButton) ...[
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton(
+                    onPressed: _onConnect,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    child: Text(_isConnected ? 'Disconnect' : 'Connect'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              // Menu icon
+              Builder(
+                builder: (context) => InkWell(
+                  onTap: () => _showMenu(context),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Image.asset(
+                      'assets/images/MenuIcon.png',
+                      width: 24,
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.menu, size: 24);
+                      },
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

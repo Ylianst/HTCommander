@@ -430,58 +430,65 @@ class _VoiceTabState extends State<VoiceTab>
   Widget _buildHeader() {
     return Container(
       height: 40,
-      color: const Color(0xFFC0C0C0),
+      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: [
-          const Text(
-            'Voice',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          // Processing indicator
-          if (_isEnabled)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _getIndicatorColor(),
+      clipBehavior: Clip.hardEdge,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showButton = constraints.maxWidth > 180;
+          return Row(
+            children: [
+              const Text(
+                'Voice',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              // Processing indicator
+              if (_isEnabled)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _getIndicatorColor(),
+                    ),
+                  ),
+                ),
+              const Spacer(),
+              if (showButton)
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton(
+                    onPressed: _onEnable,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(fontSize: 12),
+                      backgroundColor: _isEnabled ? Colors.red.shade100 : null,
+                    ),
+                    child: Text(_isEnabled ? 'Disable' : 'Enable'),
+                  ),
+                ),
+              if (showButton) const SizedBox(width: 8),
+              Builder(
+                builder: (context) => InkWell(
+                  onTap: () => _showMenu(context),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Image.asset(
+                      'assets/images/MenuIcon.png',
+                      width: 24,
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.menu, size: 24);
+                      },
+                    ),
+                  ),
                 ),
               ),
-            ),
-          const Spacer(),
-          SizedBox(
-            height: 28,
-            child: ElevatedButton(
-              onPressed: _onEnable,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                textStyle: const TextStyle(fontSize: 12),
-                backgroundColor: _isEnabled ? Colors.red.shade100 : null,
-              ),
-              child: Text(_isEnabled ? 'Disable' : 'Enable'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Builder(
-            builder: (context) => InkWell(
-              onTap: () => _showMenu(context),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Image.asset(
-                  'assets/images/MenuIcon.png',
-                  width: 24,
-                  height: 24,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.menu, size: 24);
-                  },
-                ),
-              ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
