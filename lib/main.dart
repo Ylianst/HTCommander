@@ -224,7 +224,8 @@ class _MainFormState extends State<MainForm>
   bool get _showBuiltInMenus {
     if (_forceBuiltInMenus) return true;
     // On macOS, use native menus (don't show built-in)
-    if (Platform.isMacOS) return false;
+    // On web, Platform is unavailable so always show built-in menus
+    if (!kIsWeb && Platform.isMacOS) return false;
     return true;
   }
 
@@ -476,7 +477,8 @@ class _MainFormState extends State<MainForm>
 
         // Wrap with PlatformMenuBar for native macOS menus
         // Always show native menus on macOS (even when debugging with built-in menus)
-        if (Platform.isMacOS) {
+        // Skip on web where Platform is unavailable
+        if (!kIsWeb && Platform.isMacOS) {
           return PlatformMenuBar(menus: _buildPlatformMenus(), child: content);
         }
 

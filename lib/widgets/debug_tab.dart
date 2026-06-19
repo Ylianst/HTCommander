@@ -1,6 +1,7 @@
 import 'dart:io' show File, Platform;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../services/window_service.dart';
 
@@ -266,8 +267,8 @@ class _DebugTabState extends State<DebugTab>
           padding: menuItemPadding,
           child: const Row(children: [SizedBox(width: 20), Text('Clear')]),
         ),
-        // macOS-only option to show built-in menus
-        if (Platform.isMacOS) ...[
+        // macOS-only option to show built-in menus (skip on web)
+        if (!kIsWeb && Platform.isMacOS) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
             value: 'showBuiltInMenus',
