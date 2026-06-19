@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/window_service.dart';
 
 /// BBS station stats
 class BbsStationStats {
@@ -249,6 +250,17 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
             children: [SizedBox(width: 20), Text('Clear Stats')],
           ),
         ),
+        if (windowService.canDetach) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'detach',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Detach...')],
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null) return;
@@ -261,6 +273,9 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
           break;
         case 'clearStats':
           _clearStats();
+          break;
+        case 'detach':
+          windowService.createWindow('bbs');
           break;
       }
     });

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/window_service.dart';
 
 /// Torrent file mode
 enum TorrentMode { pause, sharing, request, error }
@@ -234,6 +235,17 @@ class _TorrentTabState extends State<TorrentTab>
           enabled: _selectedTorrent != null,
           child: const Row(children: [SizedBox(width: 20), Text('Delete')]),
         ),
+        if (windowService.canDetach) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'detach',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Detach...')],
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null) return;
@@ -246,6 +258,9 @@ class _TorrentTabState extends State<TorrentTab>
           break;
         case 'delete':
           _onDelete();
+          break;
+        case 'detach':
+          windowService.createWindow('torrent');
           break;
       }
     });

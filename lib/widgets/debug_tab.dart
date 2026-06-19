@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import '../services/window_service.dart';
 
 /// Debug log entry
 class DebugLogEntry {
@@ -248,6 +249,17 @@ class _DebugTabState extends State<DebugTab>
             ),
           ),
         ],
+        if (windowService.canDetach) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'detach',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Detach...')],
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null) return;
@@ -272,6 +284,9 @@ class _DebugTabState extends State<DebugTab>
           break;
         case 'showBuiltInMenus':
           widget.onShowBuiltInMenusChanged?.call(!widget.showBuiltInMenus);
+          break;
+        case 'detach':
+          windowService.createWindow('debug');
           break;
       }
     });

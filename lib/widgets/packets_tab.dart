@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/window_service.dart';
 
 /// Packet direction
 enum PacketDirection { incoming, outgoing }
@@ -226,6 +227,17 @@ class _PacketsTabState extends State<PacketsTab>
           padding: menuItemPadding,
           child: const Row(children: [SizedBox(width: 20), Text('Clear')]),
         ),
+        if (windowService.canDetach) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'detach',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Detach...')],
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null) return;
@@ -238,6 +250,9 @@ class _PacketsTabState extends State<PacketsTab>
           break;
         case 'clear':
           _clearPackets();
+          break;
+        case 'detach':
+          windowService.createWindow('packets');
           break;
       }
     });

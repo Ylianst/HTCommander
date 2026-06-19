@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/window_service.dart';
 
 /// Station type enum matching C# StationTypes
 enum StationType { generic, aprs, terminal, winlink, bbs, torrent }
@@ -202,6 +203,17 @@ class _ContactsTabState extends State<ContactsTab>
           padding: menuItemPadding,
           child: const Row(children: [SizedBox(width: 20), Text('Import...')]),
         ),
+        if (windowService.canDetach) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'detach',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Detach...')],
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null) return;
@@ -217,6 +229,9 @@ class _ContactsTabState extends State<ContactsTab>
           break;
         case 'import':
           // TODO: Implement import
+          break;
+        case 'detach':
+          windowService.createWindow('contacts');
           break;
       }
     });

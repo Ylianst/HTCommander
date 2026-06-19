@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'chat_widget.dart';
+import '../services/window_service.dart';
 
 /// Voice transmit mode
 enum VoiceTransmitMode { chat, speak, morse, dtmf }
@@ -349,6 +350,17 @@ class _VoiceTabState extends State<VoiceTab>
             children: [SizedBox(width: 20), Text('Clear History')],
           ),
         ),
+        if (windowService.canDetach) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'detach',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Detach...')],
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null || !mounted) return;
@@ -383,6 +395,9 @@ class _VoiceTabState extends State<VoiceTab>
           break;
         case 'clear':
           setState(() => _messages.clear());
+          break;
+        case 'detach':
+          windowService.createWindow('voice');
           break;
       }
     });
@@ -480,40 +495,44 @@ class _VoiceTabState extends State<VoiceTab>
         children: [
           // Text input
           Expanded(
-            child: TextField(
-              controller: _messageController,
-              focusNode: _messageFocusNode,
-              enabled: _isEnabled && !_isTransmitting,
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                hintText: _currentMode == VoiceTransmitMode.dtmf
-                    ? 'Enter DTMF digits (0-9, *, #)...'
-                    : 'Type a message...',
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 8,
-                ),
-                border: const OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-                isDense: true,
+            child: Container(
+              height: 34,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(4),
               ),
-              keyboardType: _currentMode == VoiceTransmitMode.dtmf
-                  ? TextInputType.phone
-                  : TextInputType.text,
-              onSubmitted: (_) => _sendMessage(),
-              onChanged: (value) {
-                // Filter DTMF input
-                if (_currentMode == VoiceTransmitMode.dtmf) {
-                  final filtered = value.replaceAll(RegExp(r'[^0-9*#]'), '');
-                  if (filtered != value) {
-                    _messageController.text = filtered;
-                    _messageController.selection = TextSelection.fromPosition(
-                      TextPosition(offset: filtered.length),
-                    );
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: TextField(
+                controller: _messageController,
+                focusNode: _messageFocusNode,
+                enabled: _isEnabled && !_isTransmitting,
+                style: const TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: _currentMode == VoiceTransmitMode.dtmf
+                      ? 'Enter DTMF digits (0-9, *, #)...'
+                      : 'Type a message...',
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  border: InputBorder.none,
+                  isCollapsed: true,
+                ),
+                keyboardType: _currentMode == VoiceTransmitMode.dtmf
+                    ? TextInputType.phone
+                    : TextInputType.text,
+                onSubmitted: (_) => _sendMessage(),
+                onChanged: (value) {
+                  // Filter DTMF input
+                  if (_currentMode == VoiceTransmitMode.dtmf) {
+                    final filtered = value.replaceAll(RegExp(r'[^0-9*#]'), '');
+                    if (filtered != value) {
+                      _messageController.text = filtered;
+                      _messageController.selection = TextSelection.fromPosition(
+                        TextPosition(offset: filtered.length),
+                      );
+                    }
                   }
-                }
-              },
+                },
+              ),
             ),
           ),
           const SizedBox(width: 8),
