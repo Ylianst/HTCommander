@@ -1,5 +1,6 @@
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../services/window_service.dart';
 
@@ -35,7 +36,6 @@ class _DebugTabState extends State<DebugTab>
     with AutomaticKeepAliveClientMixin {
   final List<DebugLogEntry> _logEntries = [];
   final ScrollController _scrollController = ScrollController();
-  bool _saveToFile = false;
   bool _showBluetoothFrames = false;
   bool _loopbackMode = false;
   bool _autoScroll = true;
@@ -112,14 +112,59 @@ class _DebugTabState extends State<DebugTab>
     });
   }
 
-  void _onSaveToFile() {
-    setState(() {
-      _saveToFile = !_saveToFile;
-    });
-    if (_saveToFile) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Save to file not implemented yet')),
+  Future<void> _onSaveToFile() async {
+    // Build the log content as text
+    final StringBuffer buffer = StringBuffer();
+    for (final entry in _logEntries) {
+      final timeStr = _formatTime(entry.time);
+      if (entry.isError) {
+        buffer.writeln('[$timeStr] [Error] ${entry.message}');
+      } else {
+        buffer.writeln('[$timeStr] ${entry.message}');
+      }
+    }
+    final logContent = buffer.toString();
+
+    // Generate filename with current date/time
+    final now = DateTime.now();
+    final dateStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final timeStr =
+        '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+    final defaultFileName = 'debug_log_${dateStr}_$timeStr.txt';
+
+    // Show file save dialog
+    String? outputPath;
+    try {
+      outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Debug Log',
+        fileName: defaultFileName,
       );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening file dialog: $e')),
+        );
+      }
+      return;
+    }
+
+    if (outputPath != null) {
+      try {
+        final file = File(outputPath);
+        await file.writeAsString(logContent);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Debug log saved to $outputPath')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error saving file: $e')));
+        }
+      }
     }
   }
 
@@ -152,16 +197,8 @@ class _DebugTabState extends State<DebugTab>
           value: 'saveToFile',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                child: _saveToFile
-                    ? const Text('✓', style: TextStyle(fontSize: 14))
-                    : null,
-              ),
-              const Text('Save to File...'),
-            ],
+          child: const Row(
+            children: [SizedBox(width: 20), Text('Save to File...')],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -261,11 +298,11 @@ class _DebugTabState extends State<DebugTab>
           ),
         ],
       ],
-    ).then((value) {
+    ).then((value) async {
       if (value == null) return;
       switch (value) {
         case 'saveToFile':
-          _onSaveToFile();
+          await _onSaveToFile();
           break;
         case 'showBluetoothFrames':
           setState(() => _showBluetoothFrames = !_showBluetoothFrames);

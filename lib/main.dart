@@ -845,12 +845,16 @@ class _MainFormState extends State<MainForm>
 
   // App settings (would normally be loaded/saved to storage)
   AppSettings _appSettings = AppSettings();
+  bool _settingsDialogOpen = false;
 
   void _onSettings() async {
+    if (_settingsDialogOpen) return;
+    _settingsDialogOpen = true;
     final result = await showDialog<AppSettings>(
       context: context,
       builder: (context) => SettingsDialog(initialSettings: _appSettings),
     );
+    _settingsDialogOpen = false;
     if (result != null) {
       setState(() {
         _appSettings = result;
