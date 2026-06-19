@@ -56,6 +56,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   int _selectedChannelA = -1;
   int _selectedChannelB = -1;
   bool _dualChannel = false;
+  bool _showAllChannels = true;
 
   // Display panel background color (same as C# app)
   static const Color _displayBgColor = Color(0xFF565658);
@@ -140,6 +141,124 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         final channel = _channels[channelId];
         _vfo1Label = channel.name;
         _vfo1Freq = '${channel.frequencyDisplay} MHz';
+      }
+    });
+  }
+
+  void _setChannelA(int channelId) {
+    setState(() {
+      _selectedChannelA = channelId;
+      if (_channels.isNotEmpty && channelId < _channels.length) {
+        final channel = _channels[channelId];
+        _vfo1Label = channel.name;
+        _vfo1Freq = '${channel.frequencyDisplay} MHz';
+        _vfo1Color = _activeVfoColor;
+      }
+    });
+  }
+
+  void _setChannelB(int channelId) {
+    setState(() {
+      _selectedChannelB = channelId;
+      _dualChannel = true;
+      if (_channels.isNotEmpty && channelId < _channels.length) {
+        final channel = _channels[channelId];
+        _vfo2Label = channel.name;
+        _vfo2Freq = '${channel.frequencyDisplay} MHz';
+      }
+    });
+  }
+
+  void _showChannelDetails(RadioChannelInfo channel) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          channel.name.isNotEmpty
+              ? channel.name
+              : 'Channel ${channel.channelId + 1}',
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Channel ID: ${channel.channelId + 1}'),
+            if (channel.rxFreq > 0)
+              Text('RX Frequency: ${channel.frequencyDisplay} MHz'),
+            if (channel.txFreq > 0)
+              Text(
+                'TX Frequency: ${(channel.txFreq / 1000000).toStringAsFixed(3)} MHz',
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showChannelContextMenu(
+    BuildContext context,
+    Offset position,
+    RadioChannelInfo channel,
+  ) {
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        position & const Size(40, 40),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        const PopupMenuItem<String>(value: 'show', child: Text('Show')),
+        PopupMenuItem<String>(
+          value: 'setA',
+          enabled: channel.channelId != _selectedChannelA,
+          child: const Text('Set VFO A'),
+        ),
+        PopupMenuItem<String>(
+          value: 'setB',
+          enabled: channel.channelId != _selectedChannelB,
+          child: const Text('Set VFO B'),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'showAll',
+          child: Row(
+            children: [
+              if (_showAllChannels)
+                const Icon(Icons.check, size: 18)
+              else
+                const SizedBox(width: 18),
+              const SizedBox(width: 8),
+              const Text('Show All Channels'),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+      switch (value) {
+        case 'show':
+          _showChannelDetails(channel);
+          break;
+        case 'setA':
+          _setChannelA(channel.channelId);
+          break;
+        case 'setB':
+          _setChannelB(channel.channelId);
+          break;
+        case 'showAll':
+          setState(() {
+            _showAllChannels = !_showAllChannels;
+          });
+          break;
       }
     });
   }
@@ -508,6 +627,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
           return GestureDetector(
             onTap: () => _onChannelTap(channel.channelId),
+            onSecondaryTapDown: (details) {
+              _showChannelContextMenu(context, details.globalPosition, channel);
+            },
+            onLongPressStart: (details) {
+              _showChannelContextMenu(context, details.globalPosition, channel);
+            },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
