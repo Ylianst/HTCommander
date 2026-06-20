@@ -43,6 +43,7 @@ dependencies:
   shared_preferences: ^2.2.3
   flutter_blue_plus: ^1.35.2
   path_provider: ^2.1.4
+  crypto: ^3.0.0
 
 dev_dependencies:
   flutter_test:

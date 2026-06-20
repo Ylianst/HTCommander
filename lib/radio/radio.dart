@@ -142,7 +142,7 @@ class Radio {
       _broker.getValue<bool>(0, 'BluetoothFramesDebug') ?? false;
   bool get _loopbackMode => _broker.getValue<bool>(1, 'LoopbackMode') ?? false;
   bool get _allowTransmit =>
-      _broker.getValue<bool>(0, 'AllowTransmit') ?? false;
+      (_broker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1;
 
   Radio({required this.deviceId, required this.macAddress})
     : _broker = DataBrokerClient() {
