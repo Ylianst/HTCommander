@@ -208,6 +208,34 @@ class DataBroker {
     return defaultValue;
   }
 
+  /// Loads a value from SharedPreferences without a known target type.
+  ///
+  /// Used by [getValueDynamic]. Returns the raw stored primitive, or a decoded
+  /// object/collection for values serialized with the `~~JSON:` marker.
+  Object? _loadPersistedValueDynamic(String name) {
+    if (_prefs == null) return null;
+
+    final prefKey = 'databroker_$name';
+    final raw = _prefs!.get(prefKey);
+    if (raw == null) return null;
+
+    if (raw is String && raw.startsWith('~~JSON:')) {
+      try {
+        // Parse: "~~JSON:TypeName:actual_json"
+        final firstColon = raw.indexOf(':', 7); // Start after "~~JSON:"
+        if (firstColon > 0) {
+          final json = raw.substring(firstColon + 1);
+          return jsonDecode(json);
+        }
+      } catch (e) {
+        debugPrint('DataBroker: JSON deserialization failed for $name: $e');
+      }
+      return null;
+    }
+
+    return raw;
+  }
+
   /// Helper to check if T matches a specific type (including nullable).
   static bool _isType<T, U>() {
     return T == U || null is T && T.toString() == '$U?';
@@ -278,6 +306,17 @@ class DataBroker {
     if (broker._dataStore.containsKey(key)) {
       return broker._dataStore[key];
     }
+
+    // For device 0, try loading from SharedPreferences if not in memory.
+    if (deviceId == 0 && broker._prefs != null) {
+      final loadedValue = broker._loadPersistedValueDynamic(name);
+      if (loadedValue != null) {
+        // Cache in memory for subsequent access.
+        broker._dataStore[key] = loadedValue;
+        return loadedValue;
+      }
+    }
+
     return defaultValue;
   }
 

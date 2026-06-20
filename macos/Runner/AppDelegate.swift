@@ -543,9 +543,17 @@ private class RFCOMMConnection {
 @main
 class AppDelegate: FlutterAppDelegate {
   override func applicationDidFinishLaunching(_ notification: Notification) {
-    // Register window_manager for sub-windows created by desktop_multi_window
+    // Register all generated plugins (shared_preferences, window_manager, etc.)
+    // for sub-windows created by desktop_multi_window. Without this, plugin
+    // channels such as shared_preferences are unavailable in detached windows,
+    // causing "Communicating on a dead channel" crashes.
     FlutterMultiWindowPlugin.setOnWindowCreatedCallback { controller in
-      WindowManagerPlugin.register(with: controller.registrar(forPlugin: "WindowManagerPlugin"))
+      RegisterGeneratedPlugins(registry: controller)
+
+      // Register the custom Bluetooth Classic handler for the sub-window too,
+      // matching the main window setup in MainFlutterWindow.
+      let registrar = controller.registrar(forPlugin: "BluetoothClassicHandler")
+      BluetoothClassicHandler.register(with: registrar)
     }
   }
 
