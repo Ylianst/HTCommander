@@ -407,7 +407,26 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   String get _vfo2Status {
-    if (_isScanning) return 'Scanning...';
+    if (_isScanning) {
+      // Only show "Scanning..." as the status when a channel name is shown in
+      // the label. When the label itself shows "Scanning..." (no valid channel),
+      // the status stays empty to avoid displaying "Scanning..." twice.
+      if (_currentHtStatus != null && _currentChannels != null) {
+        final currChId = _currentHtStatus!.currChId;
+        if (currChId < _currentChannels!.length) {
+          final scanCh = _currentChannels![currChId];
+          if (_channelA != null && scanCh.channelId == _channelA!.channelId) {
+            // Current channel is same as VFO A - status only if last channel is valid
+            return (_vfo2LastChannelId >= 0 &&
+                    _vfo2LastChannelId < _currentChannels!.length)
+                ? 'Scanning...'
+                : '';
+          }
+          return 'Scanning...';
+        }
+      }
+      return '';
+    }
     return '';
   }
 
@@ -552,18 +571,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   Widget build(BuildContext context) {
     return Container(
       color: const Color(0xFF808080), // 50% gray
-      child: Column(
-        children: [
-          // Radio image with overlaid display
-          Expanded(child: _buildRadioDisplay()),
-          // Bottom panel - connect button or channels
-          _buildBottomPanel(),
-        ],
-      ),
+      child: _buildRadioDisplayWithChannels(),
     );
   }
 
-  Widget _buildRadioDisplay() {
+  Widget _buildRadioDisplayWithChannels() {
     // Radio.png dimensions: 341x848, aspect ratio ~2.486
     // Display panel position in original image: (84, 215) size (205, 189)
     const double imageAspectRatio = 848 / 341;
@@ -593,6 +605,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         // RSSI bar position: just below GPS text
         final double rssiTop =
             scaledImageHeight * (displayTop + displayHeight) + 2 - 50;
+
+        // Calculate maximum channels panel height (24 pixels below RSSI bar)
+        final double maxChannelsPanelTop =
+            rssiTop + 6 + 24; // RSSI bar height + 24px margin
+        final double maxChannelsPanelHeight =
+            constraints.maxHeight - maxChannelsPanelTop;
 
         return Stack(
           clipBehavior: Clip.hardEdge,
@@ -670,10 +688,26 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                         ),
                       ),
               ),
+
+            // Bottom panel - connect button or channels panel (full width, overlapping radio image)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildBottomPanel(
+                constraints.maxWidth,
+                maxChannelsPanelHeight,
+              ),
+            ),
           ],
         );
       },
     );
+  }
+
+  Widget _buildRadioDisplay() {
+    // Legacy method - kept for compatibility but redirects to new implementation
+    return _buildRadioDisplayWithChannels();
   }
 
   Widget _buildDisplayPanel() {
@@ -840,10 +874,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     );
   }
 
-  Widget _buildBottomPanel() {
+  Widget _buildBottomPanel(double panelWidth, double maxHeight) {
     if (_isConnected) {
       // Show channels panel when connected
-      return _buildChannelsPanel();
+      return _buildChannelsPanel(panelWidth, maxHeight);
     } else {
       // Show connect button when disconnected
       return _buildConnectPanel();
@@ -871,7 +905,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     );
   }
 
-  Widget _buildChannelsPanel() {
+  Widget _buildChannelsPanel(double panelWidth, double maxHeight) {
     final channels = _currentChannels;
     if (channels == null || channels.isEmpty) {
       return const SizedBox.shrink();
@@ -889,17 +923,30 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     final selectedChannelA = _channelA?.channelId ?? -1;
     final selectedChannelB = _channelB?.channelId ?? -1;
 
+    // Calculate panel height based on number of visible channels (3 per row)
+    // Similar to C# implementation
+    final int rowCount =
+        ((visibleChannels.length + 2) ~/ 3); // Integer division rounds down
+
+    // Calculate block height, cap at 50
+    double blockHeight = maxHeight / rowCount;
+    if (blockHeight > 50) blockHeight = 50;
+
+    // Total panel height
+    final double panelHeight = blockHeight * rowCount;
+
     return Container(
+      width: panelWidth,
+      height: panelHeight,
       color: const Color(0xFFBDB76B), // DarkKhaki
-      constraints: const BoxConstraints(maxHeight: 150),
       child: GridView.builder(
-        shrinkWrap: true,
-        padding: const EdgeInsets.all(4),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          childAspectRatio: 2.5,
-          crossAxisSpacing: 4,
-          mainAxisSpacing: 4,
+          childAspectRatio: (panelWidth / 3) / blockHeight,
+          crossAxisSpacing: 0,
+          mainAxisSpacing: 0,
         ),
         itemCount: visibleChannels.length,
         itemBuilder: (context, index) {
@@ -935,30 +982,37 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                 borderRadius: BorderRadius.circular(2),
                 border: Border.all(color: Colors.grey.shade600, width: 0.5),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    channel.name.isNotEmpty
-                        ? channel.name
-                        : 'Ch ${channel.channelId + 1}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (channel.rxFreq > 0)
-                    Text(
-                      '${channel.frequencyDisplay} MHz',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.grey.shade700,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Only show frequency if there's enough vertical space (need ~28px for both)
+                  final bool showFrequency =
+                      channel.rxFreq > 0 && constraints.maxHeight >= 28;
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        channel.name.isNotEmpty
+                            ? channel.name
+                            : 'Ch ${channel.channelId + 1}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                ],
+                      if (showFrequency)
+                        Text(
+                          '${channel.frequencyDisplay} MHz',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           );
