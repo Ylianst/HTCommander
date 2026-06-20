@@ -1,6 +1,63 @@
 import 'package:flutter/material.dart';
 import 'chat_widget.dart';
 import '../services/window_service.dart';
+import '../services/data_broker.dart';
+import '../services/data_broker_client.dart';
+import '../aprs/aprs_events.dart';
+import '../aprs/aprs_packet.dart';
+import '../aprs/aprs_auth.dart';
+import '../aprs/message_data.dart';
+import '../aprs/packet_data_type.dart';
+import '../models/radio_models.dart';
+import '../radio/ax25_packet.dart';
+
+/// A configured APRS route (a display name plus a comma-separated path).
+class _AprsRouteDef {
+  final String name;
+  final String path; // e.g. "APN000,WIDE1-1,WIDE2-2"
+  const _AprsRouteDef(this.name, this.path);
+
+  /// Route array in the form [name, dest, digi1, digi2, ...].
+  List<String> toRouteArray() {
+    final parts = path.split(',').where((p) => p.isNotEmpty).toList();
+    return [name, ...parts];
+  }
+}
+
+/// A single APRS chat entry. Holds the mutable display state that the C#
+/// `ChatMessage` carried (image index, auth state, visibility) so we can update
+/// delivery icons when ACK/REJ packets arrive.
+class _AprsEntry {
+  final AprsPacket aprsPacket;
+  final AX25Packet packet;
+  String routingString;
+  final String senderCallsign;
+  final String messageText;
+  final DateTime time;
+  final bool sender;
+  final String? messageId;
+  final PacketDataType messageType;
+  int imageIndex; // -1 none, 0 ack, 1 rej, 3 position
+  final AuthState authState;
+  double? latitude;
+  double? longitude;
+  bool visible;
+
+  _AprsEntry({
+    required this.aprsPacket,
+    required this.packet,
+    required this.routingString,
+    required this.senderCallsign,
+    required this.messageText,
+    required this.time,
+    required this.sender,
+    required this.messageId,
+    required this.messageType,
+    required this.imageIndex,
+    required this.authState,
+    required this.visible,
+  });
+}
 
 /// APRS tab - Automatic Packet Reporting System
 class AprsTab extends StatefulWidget {
@@ -11,7 +68,13 @@ class AprsTab extends StatefulWidget {
 }
 
 class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
-  final List<ChatMessage> _messages = [];
+  static const int _aprsDeviceId = 1;
+
+  final DataBrokerClient _broker = DataBrokerClient();
+
+  final List<_AprsEntry> _entries = [];
+  List<ChatMessage> _messages = [];
+
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController(
     text: 'APRS',
@@ -19,14 +82,23 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   final FocusNode _messageFocusNode = FocusNode();
   String _selectedDestination = 'APRS';
   bool _showAllMessages = false;
-  final bool _allowTransmit = true;
+  bool _allowTransmit = true;
+  bool _historicalLoaded = false;
 
-  // Sample destinations
-  final List<String> _destinations = ['APRS', 'KC3SLD', 'KK7VZT', 'N0CALL'];
+  // Local station identity (from device 0).
+  String _callsign = '';
+  String _stationId = '';
 
-  // APRS routes for digipeater paths
-  final List<String> _aprsRoutes = ['WIDE1-1', 'WIDE1-1,WIDE2-1', 'WIDE2-2'];
-  String _selectedRoute = 'WIDE1-1';
+  // Destinations shown in the combo box.
+  List<String> _destinations = ['ALL', 'QST', 'CQ'];
+
+  // APRS routes for digipeater paths.
+  List<_AprsRouteDef> _aprsRoutes = [];
+  int _selectedRouteIndex = 0;
+
+  // Channel availability state for the missing-channel banner.
+  bool _hasAprsChannel = false;
+  bool _showMissingChannel = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -34,92 +106,509 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   @override
   void initState() {
     super.initState();
-    _addSampleMessages();
+
+    // Load persisted settings from device 0.
+    _callsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
+    final stationIdInt = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
+    _stationId = stationIdInt > 0 ? stationIdInt.toString() : '';
+    _allowTransmit = (_broker.getValue<int>(0, 'AllowTransmit', 1) ?? 1) != 0;
+    _showAllMessages =
+        (_broker.getValue<int>(0, 'AprsShowTelemetry', 0) ?? 0) != 0;
+    _selectedRouteIndex = _broker.getValue<int>(0, 'SelectedAprsRoute', 0) ?? 0;
+    _parseAndSetRoutes(_broker.getValue<String>(0, 'AprsRoutes', '') ?? '');
+    final savedDest = _broker.getValue<String>(0, 'AprsDestination', '') ?? '';
+    if (savedDest.isNotEmpty) {
+      _selectedDestination = savedDest;
+      _destinationController.text = savedDest;
+    }
+    _loadStationDestinations();
+
+    // Subscribe to live APRS events.
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsFrame',
+      callback: _onAprsFrame,
+    );
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsPacketList',
+      callback: _onAprsPacketList,
+    );
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsStoreReady',
+      callback: _onAprsStoreReady,
+    );
+
+    // Subscribe to settings changes from device 0.
+    _broker.subscribeMultiple(
+      deviceId: 0,
+      names: const [
+        'CallSign',
+        'StationId',
+        'AprsRoutes',
+        'AllowTransmit',
+        'Stations',
+      ],
+      callback: _onSettingsChanged,
+    );
+
+    // Subscribe to radio/channel changes for the missing-channel banner.
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'ConnectedRadios',
+      callback: _onChannelStateChanged,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Channels',
+      callback: _onChannelStateChanged,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AllChannelsLoaded',
+      callback: _onChannelStateChanged,
+    );
+
+    _recomputeChannelState();
+
+    // Request the historical APRS packet list.
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'RequestAprsPackets',
+      data: null,
+      store: false,
+    );
   }
 
   @override
   void dispose() {
+    _broker.dispose();
     _messageController.dispose();
     _destinationController.dispose();
     _messageFocusNode.dispose();
     super.dispose();
   }
 
-  void _addSampleMessages() {
-    _messages.addAll([
-      ChatMessage(
-        id: '1',
-        route: 'KC3SLD',
-        senderCallsign: 'KC3SLD',
-        message: 'Good morning! Anyone on frequency?',
-        time: DateTime.now().subtract(const Duration(hours: 2)),
-        isSender: false,
-        authState: ChatAuthState.success,
-        latitude: 40.3954,
-        longitude: -79.9718,
-      ),
-      ChatMessage(
-        id: '2',
-        route: '→ KC3SLD',
-        senderCallsign: 'ME',
-        message: 'Good morning! Reading you loud and clear.',
-        time: DateTime.now().subtract(const Duration(hours: 2)),
-        isSender: true,
-        icon: Icons.check,
-      ),
-      ChatMessage(
-        id: '3',
-        route: 'KK7VZT → APRS',
-        senderCallsign: 'KK7VZT',
-        message: 'Weather report: Clear skies, 72°F',
-        time: DateTime.now().subtract(const Duration(hours: 1)),
-        isSender: false,
-        latitude: 47.6062,
-        longitude: -122.3321,
-      ),
-      ChatMessage(
-        id: '4',
-        route: 'N0CALL',
-        senderCallsign: 'N0CALL',
-        message: 'Test beacon from mobile station',
-        time: DateTime.now().subtract(const Duration(minutes: 30)),
-        isSender: false,
-        authState: ChatAuthState.failed,
-      ),
-      ChatMessage(
-        id: '5',
-        route: 'KC3SLD ✓',
-        senderCallsign: 'KC3SLD',
-        message: 'Thanks for the QSO! 73',
-        time: DateTime.now().subtract(const Duration(minutes: 5)),
-        isSender: false,
-        authState: ChatAuthState.success,
-      ),
-    ]);
+  // ---------------------------------------------------------------------------
+  // Settings / routes / destinations
+  // ---------------------------------------------------------------------------
+
+  void _parseAndSetRoutes(String routesStr) {
+    final routes = <_AprsRouteDef>[];
+    if (routesStr.isNotEmpty) {
+      final parts = routesStr.split('|');
+      // Stored as "Name|Path|Name|Path...".
+      for (var i = 0; i + 1 < parts.length; i += 2) {
+        if (parts[i].isNotEmpty) {
+          routes.add(_AprsRouteDef(parts[i], parts[i + 1]));
+        }
+      }
+    }
+    _aprsRoutes = routes;
+    if (_selectedRouteIndex >= _aprsRoutes.length) _selectedRouteIndex = 0;
   }
 
-  void _sendMessage() {
-    final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+  void _loadStationDestinations() {
+    final dests = <String>['ALL', 'QST', 'CQ'];
+    final raw = _broker.getValueDynamic(0, 'Stations', null);
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          final station = AprsStationInfo.fromJson(item);
+          if (station != null &&
+              station.isAprs &&
+              station.callsign.isNotEmpty &&
+              !dests.contains(station.callsign)) {
+            dests.add(station.callsign);
+          }
+        }
+      }
+    }
+    _destinations = dests;
+  }
 
+  void _onSettingsChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
     setState(() {
-      _messages.add(
-        ChatMessage(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          route: '→ $_selectedDestination',
-          senderCallsign: 'ME',
-          message: text,
-          time: DateTime.now(),
-          isSender: true,
-          icon: Icons.schedule, // Pending
-        ),
-      );
-      _messageController.clear();
+      switch (name) {
+        case 'CallSign':
+          _callsign = data as String? ?? '';
+          break;
+        case 'StationId':
+          final id = data is int ? data : int.tryParse('$data') ?? 0;
+          _stationId = id > 0 ? id.toString() : '';
+          break;
+        case 'AprsRoutes':
+          _parseAndSetRoutes(data as String? ?? '');
+          break;
+        case 'AllowTransmit':
+          final v = data is int ? data : int.tryParse('$data') ?? 0;
+          _allowTransmit = v != 0;
+          break;
+        case 'Stations':
+          _loadStationDestinations();
+          break;
+      }
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Channel availability
+  // ---------------------------------------------------------------------------
+
+  void _onChannelStateChanged(int deviceId, String name, Object? data) {
+    _recomputeChannelState();
+  }
+
+  List<int> _connectedRadioDeviceIds() {
+    final ids = <int>[];
+    final raw = _broker.getValueDynamic(_aprsDeviceId, 'ConnectedRadios', null);
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map) {
+          final id = item['DeviceId'];
+          if (id is int) ids.add(id);
+        }
+      }
+    }
+    return ids;
+  }
+
+  bool _radioHasAprsChannel(int deviceId) {
+    final channels = _broker.getJsonListValue<RadioChannelInfo>(
+      deviceId,
+      'Channels',
+      (json) => RadioChannelInfo.fromJson(json),
+    );
+    if (channels == null) return false;
+    for (final channel in channels) {
+      if (channel.name.toUpperCase() == 'APRS') return true;
+    }
+    return false;
+  }
+
+  void _recomputeChannelState() {
+    final ids = _connectedRadioDeviceIds();
+    bool hasLoaded = false;
+    bool hasAprs = false;
+    for (final id in ids) {
+      final allLoaded =
+          _broker.getValue<bool>(id, 'AllChannelsLoaded', false) ?? false;
+      if (!allLoaded) continue;
+      hasLoaded = true;
+      if (_radioHasAprsChannel(id)) {
+        hasAprs = true;
+        break;
+      }
+    }
+    final showMissing = hasLoaded && !hasAprs;
+    if (!mounted) {
+      _hasAprsChannel = hasAprs;
+      _showMissingChannel = showMissing;
+      return;
+    }
+    if (hasAprs != _hasAprsChannel || showMissing != _showMissingChannel) {
+      setState(() {
+        _hasAprsChannel = hasAprs;
+        _showMissingChannel = showMissing;
+      });
+    }
+  }
+
+  /// Returns the preferred radio device id with an APRS channel, or -1.
+  int _getPreferredAprsRadioDeviceId() {
+    for (final id in _connectedRadioDeviceIds()) {
+      final allLoaded =
+          _broker.getValue<bool>(id, 'AllChannelsLoaded', false) ?? false;
+      if (!allLoaded) continue;
+      if (_radioHasAprsChannel(id)) return id;
+    }
+    return -1;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Incoming APRS packets
+  // ---------------------------------------------------------------------------
+
+  void _onAprsStoreReady(int deviceId, String name, Object? data) {
+    if (_historicalLoaded) return;
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'RequestAprsPackets',
+      data: null,
+      store: false,
+    );
+  }
+
+  void _onAprsPacketList(int deviceId, String name, Object? data) {
+    if (_historicalLoaded) return;
+    if (data is! List) return;
+    _historicalLoaded = true;
+    for (final item in data) {
+      if (item is AprsPacket && item.packet != null) {
+        _addAprsPacket(item, !item.packet!.incoming, rebuild: false);
+      }
+    }
+    _rebuildMessages();
+  }
+
+  void _onAprsFrame(int deviceId, String name, Object? data) {
+    if (data is! AprsFrameEventArgs) return;
+    final args = data;
+    final isSender = !args.ax25Packet.incoming;
+    _addAprsPacket(args.aprsPacket, isSender);
+  }
+
+  ChatAuthState _mapAuth(AuthState s) {
+    switch (s) {
+      case AuthState.success:
+        return ChatAuthState.success;
+      case AuthState.failed:
+        return ChatAuthState.failed;
+      case AuthState.none:
+        return ChatAuthState.none;
+      case AuthState.unknown:
+        return ChatAuthState.unknown;
+    }
+  }
+
+  IconData? _iconFor(_AprsEntry e) {
+    if (e.sender) {
+      if (e.imageIndex == 0) return Icons.check;
+      if (e.imageIndex == 1) return Icons.close;
+      return Icons.schedule;
+    }
+    if (e.imageIndex == 3) return Icons.location_on;
+    return null;
+  }
+
+  void _rebuildMessages() {
+    final list = <ChatMessage>[];
+    for (var i = 0; i < _entries.length; i++) {
+      final e = _entries[i];
+      if (!e.visible) continue;
+      list.add(
+        ChatMessage(
+          id: '$i',
+          route: e.routingString,
+          senderCallsign: e.senderCallsign,
+          message: e.messageText.trim(),
+          time: e.time,
+          isSender: e.sender,
+          authState: _mapAuth(e.authState),
+          latitude: e.latitude,
+          longitude: e.longitude,
+          icon: _iconFor(e),
+          tag: e,
+        ),
+      );
+    }
+    if (mounted) {
+      setState(() => _messages = list);
+    } else {
+      _messages = list;
+    }
+  }
+
+  /// Ports the C# `AddAprsPacket` display logic.
+  void _addAprsPacket(
+    AprsPacket aprsPacket,
+    bool sender, {
+    bool rebuild = true,
+  }) {
+    final packet = aprsPacket.packet;
+    if (packet == null) return;
+    if (packet.addresses.isEmpty) return;
+
+    String? messageId;
+    String? messageText;
+    PacketDataType messageType = aprsPacket.dataType;
+    int imageIndex = -1;
+
+    final senderAddr = packet.addresses.length > 1
+        ? packet.addresses[1]
+        : packet.addresses[0];
+    String routingString = senderAddr.toString();
+    String senderCallsign = senderAddr.callSignWithId;
+
+    final pos = aprsPacket.position;
+    if (pos.coordinateSet.latitude.value != 0 &&
+        pos.coordinateSet.longitude.value != 0) {
+      imageIndex = 3;
+    }
+
+    if (aprsPacket.dataType == PacketDataType.message) {
+      final localCallsignWithId = _stationId.isEmpty
+          ? _callsign
+          : '$_callsign-$_stationId';
+      final addressee = aprsPacket.messageData.addressee;
+      final forSelf =
+          addressee == _callsign || addressee == localCallsignWithId;
+
+      // ACK / REJ update prior sent messages and return.
+      if (aprsPacket.messageData.msgType == MessageType.mtAck) {
+        if (forSelf) _updateDeliveryIcon(aprsPacket, packet, 0, rebuild);
+        return;
+      }
+      if (aprsPacket.messageData.msgType == MessageType.mtRej) {
+        if (forSelf) _updateDeliveryIcon(aprsPacket, packet, 1, rebuild);
+        return;
+      }
+
+      if (sender) {
+        routingString = '→ $addressee';
+      } else {
+        if (senderAddr.address == addressee ||
+            senderAddr.callSignWithId == addressee) {
+          routingString = addressee;
+        } else {
+          routingString = '$senderCallsign → $addressee';
+        }
+      }
+      if (packet.authState == AuthState.success) routingString += ' ✓';
+      if (packet.authState == AuthState.failed) routingString += ' ❌';
+
+      messageId = aprsPacket.messageData.seqId.isEmpty
+          ? null
+          : aprsPacket.messageData.seqId;
+      messageText = aprsPacket.messageData.msgText;
+
+      // SMS messages with special formatting.
+      final msgText = aprsPacket.messageData.msgText;
+      if (addressee == 'SMS' && msgText.length > 12 && msgText[0] == '@') {
+        final i = msgText.indexOf(' ');
+        if (i >= 0) {
+          routingString = '→ SMS: ${msgText.substring(1, i)}';
+          messageText = msgText.substring(i + 1);
+        }
+      }
+
+      // Drop exact duplicates already shown.
+      if (messageId != null) {
+        for (final n in _entries) {
+          if (n.messageId == messageId &&
+              n.routingString == routingString &&
+              n.messageText == messageText) {
+            return;
+          }
+        }
+      }
+    } else {
+      // Non-message packets (status, telemetry, etc.).
+      if (aprsPacket.comment.isNotEmpty &&
+          aprsPacket.dataType != PacketDataType.micE &&
+          aprsPacket.dataType != PacketDataType.micECurrent &&
+          aprsPacket.dataType != PacketDataType.micEOld) {
+        messageText = aprsPacket.comment;
+      }
+    }
+
+    // Single-address packets.
+    if (packet.addresses.length == 1) {
+      routingString = senderCallsign = packet.addresses[0].toString();
+      messageText = packet.dataStr;
+    }
+
+    if (messageText == null || messageText.trim().isEmpty) return;
+
+    final entry = _AprsEntry(
+      aprsPacket: aprsPacket,
+      packet: packet,
+      routingString: routingString,
+      senderCallsign: senderCallsign,
+      messageText: messageText,
+      time: packet.time,
+      sender: sender,
+      messageId: messageId,
+      messageType: messageType,
+      imageIndex: imageIndex,
+      authState: packet.authState,
+      visible: _showAllMessages || messageType == PacketDataType.message,
+    );
+
+    // Drop duplicates within the last 5 minutes.
+    for (final n in _entries) {
+      if (entry.messageId == n.messageId &&
+          entry.messageText == n.messageText &&
+          n.time.add(const Duration(minutes: 5)).compareTo(packet.time) > 0 &&
+          entry.time != n.time) {
+        return;
+      }
+    }
+
+    if (entry.imageIndex == 3) {
+      entry.latitude = pos.coordinateSet.latitude.value;
+      entry.longitude = pos.coordinateSet.longitude.value;
+    }
+
+    _entries.add(entry);
+    if (rebuild) _rebuildMessages();
+  }
+
+  void _updateDeliveryIcon(
+    AprsPacket aprsPacket,
+    AX25Packet packet,
+    int imageIndex,
+    bool rebuild,
+  ) {
+    bool updated = false;
+    for (final n in _entries) {
+      if (n.sender && n.messageId == aprsPacket.messageData.seqId) {
+        if (n.authState == AuthState.unknown ||
+            (n.authState == AuthState.success &&
+                packet.authState == AuthState.success) ||
+            (n.authState == AuthState.none &&
+                packet.authState == AuthState.none)) {
+          n.imageIndex = imageIndex;
+          updated = true;
+        }
+      }
+    }
+    if (updated && rebuild) _rebuildMessages();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sending
+  // ---------------------------------------------------------------------------
+
+  List<String>? _getSelectedRoute() {
+    if (_aprsRoutes.isEmpty) return null;
+    if (_selectedRouteIndex >= _aprsRoutes.length) _selectedRouteIndex = 0;
+    return _aprsRoutes[_selectedRouteIndex].toRouteArray();
+  }
+
+  void _sendMessage() {
+    final destination = _destinationController.text.trim().toUpperCase();
+    final text = _messageController.text;
+    if (destination.isEmpty || text.trim().isEmpty) return;
+
+    final radioDeviceId = _getPreferredAprsRadioDeviceId();
+    if (radioDeviceId == -1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No radio with an APRS channel is available'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'SendAprsMessage',
+      data: AprsSendMessageData(
+        destination: destination,
+        message: text,
+        radioDeviceId: radioDeviceId,
+        route: _getSelectedRoute(),
+      ),
+      store: false,
+    );
+    _messageController.clear();
+  }
+
   void _onMessageTap(ChatMessage message) {
-    // Show message details
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Message from ${message.senderCallsign}'),
@@ -129,7 +618,6 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   }
 
   void _onMessageLongPress(ChatMessage message) {
-    // Show context menu
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -176,6 +664,34 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           ],
         ),
       ),
+    );
+  }
+
+  void _toggleShowAll() {
+    setState(() {
+      _showAllMessages = !_showAllMessages;
+      for (final e in _entries) {
+        e.visible = _showAllMessages || e.messageType == PacketDataType.message;
+      }
+    });
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'AprsShowTelemetry',
+      data: _showAllMessages ? 1 : 0,
+    );
+    _rebuildMessages();
+  }
+
+  void _clearMessages() {
+    setState(() {
+      _entries.clear();
+      _messages = [];
+    });
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'ClearAprsPackets',
+      data: null,
+      store: false,
     );
   }
 
@@ -254,22 +770,20 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
       if (value == null || !mounted) return;
       switch (value) {
         case 'showAll':
-          setState(() => _showAllMessages = !_showAllMessages);
+          _toggleShowAll();
           break;
         case 'sendMessage':
           _messageFocusNode.requestFocus();
           break;
         case 'weatherReport':
-          if (mounted) {
-            messenger.showSnackBar(
-              const SnackBar(
-                content: Text('Weather report dialog not implemented yet'),
-              ),
-            );
-          }
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Weather report dialog not implemented yet'),
+            ),
+          );
           break;
         case 'clear':
-          setState(() => _messages.clear());
+          _clearMessages();
           break;
         case 'detach':
           _detachWindow();
@@ -288,6 +802,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     return Column(
       children: [
         _buildHeader(),
+        if (_showMissingChannel) _buildMissingChannelBanner(),
         Expanded(
           child: ChatWidget(
             messages: _messages,
@@ -297,6 +812,27 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         ),
         if (_allowTransmit) _buildInputPanel(),
       ],
+    );
+  }
+
+  Widget _buildMissingChannelBanner() {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFFF3CD),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: const Row(
+        children: [
+          Icon(Icons.warning_amber, color: Color(0xFF856404), size: 20),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'No "APRS" channel is configured on the connected radio. '
+              'Add an APRS channel to send and receive APRS messages.',
+              style: TextStyle(color: Color(0xFF856404), fontSize: 13),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -317,7 +853,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const Spacer(),
-              // APRS Route dropdown - hide when too narrow
+              // APRS Route dropdown - hide when too narrow or only one route.
               if (showDropdown)
                 Container(
                   height: 28,
@@ -330,20 +866,31 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedRoute,
+                    child: DropdownButton<int>(
+                      value: _selectedRouteIndex < _aprsRoutes.length
+                          ? _selectedRouteIndex
+                          : 0,
                       isDense: true,
                       isExpanded: true,
                       style: const TextStyle(fontSize: 14, color: Colors.black),
-                      items: _aprsRoutes.map((route) {
-                        return DropdownMenuItem(
-                          value: route,
-                          child: Text(route, overflow: TextOverflow.ellipsis),
-                        );
-                      }).toList(),
+                      items: [
+                        for (var i = 0; i < _aprsRoutes.length; i++)
+                          DropdownMenuItem(
+                            value: i,
+                            child: Text(
+                              _aprsRoutes[i].name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
                       onChanged: (value) {
                         if (value != null) {
-                          setState(() => _selectedRoute = value);
+                          setState(() => _selectedRouteIndex = value);
+                          _broker.dispatch(
+                            deviceId: 0,
+                            name: 'SelectedAprsRoute',
+                            data: value,
+                          );
                         }
                       },
                     ),
@@ -405,6 +952,11 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
                       ),
                       onChanged: (value) {
                         _selectedDestination = value.toUpperCase();
+                        _broker.dispatch(
+                          deviceId: 0,
+                          name: 'AprsDestination',
+                          data: _selectedDestination,
+                        );
                       },
                       textCapitalization: TextCapitalization.characters,
                     ),

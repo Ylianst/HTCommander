@@ -12,6 +12,7 @@ import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/settings_dialog.dart';
 import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
+import 'handlers/aprs_handler.dart';
 import 'radio/radio_transport.dart';
 import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
@@ -45,6 +46,12 @@ void main(List<String> args) async {
   final packetStore = PacketStore();
   await packetStore.init();
   DataBroker.addDataHandler('PacketStore', packetStore);
+
+  // Register the APRS handler so that packets on the "APRS" channel are
+  // decoded, authenticated, stored and made available to the APRS tab.
+  final aprsHandler = AprsHandler();
+  aprsHandler.init();
+  DataBroker.addDataHandler('AprsHandler', aprsHandler);
 
   // Check if this is a sub-window on desktop platforms
   if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
