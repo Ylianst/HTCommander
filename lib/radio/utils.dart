@@ -101,13 +101,20 @@ class RadioUtils {
     }
   }
 
+  /// Gets a byte safely with bounds checking, returns 0 if out of bounds
+  static int getByte(Uint8List d, int p) {
+    return (p < d.length) ? d[p] : 0;
+  }
+
   /// Gets a big-endian short (2 bytes) from data at position
   static int getShort(Uint8List d, int p) {
+    if (p + 1 >= d.length) return 0;
     return (d[p] << 8) + d[p + 1];
   }
 
   /// Gets a big-endian int (4 bytes) from data at position
   static int getInt(Uint8List d, int p) {
+    if (p + 3 >= d.length) return 0;
     return (d[p] << 24) + (d[p + 1] << 16) + (d[p + 2] << 8) + d[p + 3];
   }
 
@@ -230,8 +237,14 @@ class RadioUtils {
   static double _toRadians(double degrees) => degrees * math.pi / 180.0;
 
   /// Decode UTF-8 string from bytes, trimming null characters
+  /// Returns empty string if offset is out of bounds
   static String decodeUtf8Trimmed(Uint8List data, int offset, int length) {
-    final subData = data.sublist(offset, offset + length);
+    // Bounds checking
+    if (offset >= data.length) return '';
+    final actualLength = math.min(length, data.length - offset);
+    if (actualLength <= 0) return '';
+
+    final subData = data.sublist(offset, offset + actualLength);
     String result = utf8.decode(subData, allowMalformed: true);
     final nullIndex = result.indexOf('\x00');
     if (nullIndex >= 0) {
