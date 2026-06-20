@@ -13,6 +13,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import '../radio/bluetooth_classic_transport.dart';
 import '../radio/radio.dart';
+import '../radio/radio_audio.dart';
 import '../radio/radio_transport.dart';
 import 'bluetooth_classic_macos.dart';
 import 'data_broker.dart';
@@ -31,6 +32,9 @@ class BluetoothService {
 
   // Radio instances: deviceId -> Radio
   final Map<int, Radio> _radioInstances = {};
+
+  // Radio audio instances (macOS Bluetooth Classic only): deviceId -> RadioAudio
+  final Map<int, RadioAudio> _radioAudioInstances = {};
 
   // For macOS Bluetooth Classic connections
   final Map<int, String> _classicConnections = {}; // deviceId -> macAddress
@@ -349,6 +353,17 @@ class BluetoothService {
         // Connect the radio to the transport (will start communication)
         await radio.connect(transport);
 
+        // Create the audio handler for this radio. Audio is DISABLED by default
+        // and is only started when a 'SetAudio' true command is dispatched
+        // through the DataBroker (mirrors the C# behavior). RadioAudio itself
+        // subscribes to 'SetAudio' and manages start/stop.
+        final radioAudio = RadioAudio(
+          radio: radio,
+          deviceId: deviceId,
+          macAddress: macAddress,
+        );
+        _radioAudioInstances[deviceId] = radioAudio;
+
         _broker.dispatch(
           deviceId: deviceId,
           name: 'MacAddress',
@@ -461,6 +476,12 @@ class BluetoothService {
 
   /// Disconnect a radio by device ID
   Future<void> disconnectRadio(int deviceId) async {
+    // Dispose of the audio instance if it exists (macOS Classic only)
+    final radioAudio = _radioAudioInstances.remove(deviceId);
+    if (radioAudio != null) {
+      await radioAudio.dispose();
+    }
+
     // Dispose of the Radio instance if it exists
     final radio = _radioInstances.remove(deviceId);
     radio?.dispose();

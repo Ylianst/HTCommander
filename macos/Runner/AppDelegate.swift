@@ -13,10 +13,44 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
     private var methodChannel: FlutterMethodChannel?
     private var dataChannel: FlutterEventChannel?
     private var dataSink: FlutterEventSink?
+
+    // Separate event channel/sink for the audio (Generic Audio) RFCOMM channel
+    private var audioChannel: FlutterEventChannel?
+    fileprivate var audioSink: FlutterEventSink?
+    private let audioStreamHandler = AudioEventStreamHandler()
     
-    // Active RFCOMM connections: deviceAddress -> RFCOMMConnection
+    // Active RFCOMM connections for the SPP data channel: deviceAddress -> RFCOMMConnection
     private var connections: [String: RFCOMMConnection] = [:]
+
+    // Active RFCOMM connections for the Generic Audio channel: deviceAddress -> RFCOMMConnection
+    private var audioConnections: [String: RFCOMMConnection] = [:]
+
+    // Timestamp of the most recent audio-channel open/close per device address.
+    // Opening OR closing the audio RFCOMM channel can trigger a spurious
+    // rfcommChannelClosed on the still-alive DATA channel; this lets the data
+    // close handler verify (rather than immediately report) a disconnect for a
+    // short window around any audio-channel change.
+    private var lastAudioActivity: [String: Date] = [:]
+
+    // Whether audio frames should currently be forwarded to Dart for each device.
+    // On macOS, CLOSING the audio RFCOMM channel also tears down the control/data
+    // RFCOMM channel (both channels to the device share link state). To let the
+    // user enable/disable audio repeatedly WITHOUT dropping the control channel,
+    // we keep the audio channel OPEN once connected and simply gate delivery with
+    // this flag: disabling audio sets it false (channel stays open, frames are
+    // dropped natively); enabling sets it true again. The channel is only really
+    // closed on a full radio disconnect.
+    private var audioForwardingEnabled: [String: Bool] = [:]
     
+    // Vendor "BS AOC" service that carries the SBC audio stream on these radios.
+    // Custom 128-bit UUID 39144315-32FA-40DB-85ED-FBFEBA2D86E6. Audio does NOT
+    // come on the advertised Generic Audio service (0x1203); see
+    // docs/radio-bluetooth.md.
+    fileprivate static let audioVendorUUID = IOBluetoothSDPUUID(data: Data([
+        0x39, 0x14, 0x43, 0x15, 0x32, 0xFA, 0x40, 0xDB,
+        0x85, 0xED, 0xFB, 0xFE, 0xBA, 0x2D, 0x86, 0xE6
+    ]))
+
     // Known compatible radio device name patterns
     private static let targetDeviceNames = [
         "UV-PRO", "UV-50PRO", "GA-5WB", "VR-N75", "VR-N76", "VR-N7500", "VR-N7600", "DB50-B",
@@ -42,6 +76,15 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
         )
         eventChannel.setStreamHandler(instance)
         instance.dataChannel = eventChannel
+
+        // Event channel for audio (Generic Audio RFCOMM) reception
+        let audioEventChannel = FlutterEventChannel(
+            name: "com.htcommander/bluetooth_classic_audio",
+            binaryMessenger: registrar.messenger
+        )
+        instance.audioStreamHandler.owner = instance
+        audioEventChannel.setStreamHandler(instance.audioStreamHandler)
+        instance.audioChannel = audioEventChannel
     }
     
     func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -80,6 +123,33 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
                 return
             }
             let success = send(address: address, data: data.data)
+            result(success)
+
+        case "connectAudio":
+            guard let args = call.arguments as? [String: Any],
+                  let address = args["address"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "Missing address", details: nil))
+                return
+            }
+            connectAudio(address: address, result: result)
+
+        case "disconnectAudio":
+            guard let args = call.arguments as? [String: Any],
+                  let address = args["address"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "Missing address", details: nil))
+                return
+            }
+            disconnectAudio(address: address)
+            result(true)
+
+        case "sendAudio":
+            guard let args = call.arguments as? [String: Any],
+                  let address = args["address"] as? String,
+                  let data = args["data"] as? FlutterStandardTypedData else {
+                result(FlutterError(code: "INVALID_ARGS", message: "Missing address or data", details: nil))
+                return
+            }
+            let success = sendAudio(address: address, data: data.data)
             result(success)
             
         case "getDeviceNames":
@@ -394,10 +464,275 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
     
     private func disconnect(address: String) {
         let normalizedAddress = address.uppercased().replacingOccurrences(of: ":", with: "-")
-        
-        if let connection = connections.removeValue(forKey: normalizedAddress) {
-            connection.channel.close()
+
+        // Full radio disconnect: tear down BOTH the data and audio RFCOMM
+        // channels. The audio channel is kept open across audio enable/disable
+        // cycles, so it may still be open here. Detach the delegate from each
+        // channel BEFORE closing it: the close is asynchronous and the radio may
+        // keep delivering audio frames during the drain, which would otherwise
+        // arrive after we've removed the connection and spam
+        // "rfcommChannelData - no matching connection".
+        audioForwardingEnabled.removeValue(forKey: normalizedAddress)
+        lastAudioActivity.removeValue(forKey: normalizedAddress)
+
+        let audioConnection = audioConnections.removeValue(forKey: normalizedAddress)
+        let dataConnection = connections.removeValue(forKey: normalizedAddress)
+
+        // Close the audio channel first. Closing it also tears down the data
+        // channel at the OS level (both channels to the device share link
+        // state). Skip the explicit close only if it is the SAME object as the
+        // data channel (some radios resolve audio to the data channel); in that
+        // case the data close below handles it.
+        if let audioChannel = audioConnection?.channel {
+            audioChannel.setDelegate(nil)
+            if dataConnection?.channel !== audioChannel {
+                audioChannel.close()
+            }
         }
+
+        if let dataChannel = dataConnection?.channel {
+            dataChannel.setDelegate(nil)
+            dataChannel.close()
+        }
+    }
+
+    // MARK: - Audio (BS AOC vendor RFCOMM) Operations
+
+    /// Resolve the RFCOMM channel number advertised by a service UUID on a device.
+    /// Returns 0 if the device does not advertise that service (or it has no
+    /// RFCOMM channel). Uses the cached SDP records — call performSDPQuery first
+    /// if the records may be stale.
+    private func rfcommChannel(on device: IOBluetoothDevice, for uuid: IOBluetoothSDPUUID?) -> BluetoothRFCOMMChannelID {
+        guard let uuid = uuid, let record = device.getServiceRecord(for: uuid) else { return 0 }
+        var ch: BluetoothRFCOMMChannelID = 0
+        return record.getRFCOMMChannelID(&ch) == kIOReturnSuccess ? ch : 0
+    }
+
+    /// Connect to the audio RFCOMM channel of a device. Audio is carried by the
+    /// vendor "BS AOC" service (128-bit UUID 39144315-32FA-40DB-85ED-FBFEBA2D86E6),
+    /// resolved by UUID since channel numbers are unstable. This is a second,
+    /// independent RFCOMM channel alongside the SPP/control channel.
+    private func connectAudio(address: String, result: @escaping FlutterResult) {
+        let normalizedAddress = address.uppercased().replacingOccurrences(of: ":", with: "-")
+
+        NSLog("BluetoothClassic: connectAudio called for \(normalizedAddress)")
+
+        // Check if already connected to the audio channel
+        if let existingConnection = audioConnections[normalizedAddress] {
+            if existingConnection.isConnected {
+                // The audio channel is kept open across enable/disable cycles to
+                // avoid tearing down the control channel (see audioForwardingEnabled).
+                // Re-enabling simply resumes forwarding on the already-open channel.
+                NSLog("BluetoothClassic: Audio already connected to \(normalizedAddress) - resuming forwarding")
+                audioForwardingEnabled[normalizedAddress] = true
+                lastAudioActivity[normalizedAddress] = Date()
+                result(true)
+                return
+            } else {
+                audioConnections.removeValue(forKey: normalizedAddress)
+                closeAudioChannelSafely(existingConnection.channel, address: normalizedAddress)
+            }
+        }
+
+        // Reuse the IOBluetoothDevice from the existing data connection if we
+        // have one. Creating a brand-new IOBluetoothDevice(addressString:) and
+        // running an SDP query can make IOBluetooth renegotiate the baseband/ACL
+        // link, which tears down the already-open data RFCOMM channel (the radio
+        // then shows as disconnected). Opening the audio channel on the SAME
+        // device object adds a second RFCOMM channel without disturbing the data
+        // channel.
+        let device: IOBluetoothDevice
+        if let dataDevice = connections[normalizedAddress]?.device {
+            device = dataDevice
+            NSLog("BluetoothClassic: Reusing data connection's device for audio")
+        } else if let freshDevice = IOBluetoothDevice(addressString: normalizedAddress) {
+            device = freshDevice
+        } else {
+            result(FlutterError(code: "DEVICE_NOT_FOUND", message: "Device not found: \(address)", details: nil))
+            return
+        }
+
+        // Audio is carried by the vendor "BS AOC" RFCOMM service, identified by
+        // the custom 128-bit UUID 39144315-32FA-40DB-85ED-FBFEBA2D86E6 — NOT by
+        // the advertised Generic Audio service (0x1203). On these radios 0x1203
+        // resolves to a control endpoint (it answers GAIA traffic) and carries
+        // no audio; the SBC audio stream only appears on the BS AOC channel.
+        // See docs/radio-bluetooth.md for the hardware-verified details.
+        //
+        // RFCOMM channel numbers are unstable across SDP queries, so always
+        // resolve the channel from the service record by UUID, never a hardcoded
+        // number.
+        let audioUUID = BluetoothClassicHandler.audioVendorUUID
+        // Generic Audio (0x1203) is kept only as a fallback for radio models that
+        // do not advertise the BS AOC vendor service.
+        let fallbackAudioUUID = IOBluetoothSDPUUID(uuid16: 0x1203)
+        var audioChannelID: BluetoothRFCOMMChannelID = 0
+
+        // Try the cached service records first; only fall back to an SDP query if
+        // the audio service record is not already known. Running an SDP query
+        // while the data channel is open can drop that channel, so we avoid it
+        // whenever possible.
+        audioChannelID = rfcommChannel(on: device, for: audioUUID)
+        if audioChannelID != 0 {
+            NSLog("BluetoothClassic: Found BS AOC audio service directly! Channel: \(audioChannelID)")
+        }
+
+        if audioChannelID == 0 {
+            NSLog("BluetoothClassic: BS AOC audio service not cached, performing SDP query")
+            let sdpResult = device.performSDPQuery(nil)
+            if sdpResult != kIOReturnSuccess {
+                NSLog("BluetoothClassic: Audio SDP query failed: \(sdpResult)")
+            }
+            audioChannelID = rfcommChannel(on: device, for: audioUUID)
+            if audioChannelID != 0 {
+                NSLog("BluetoothClassic: Found BS AOC audio service after SDP query! Channel: \(audioChannelID)")
+            }
+        }
+
+        // Fall back to the Generic Audio (0x1203) service for non-BS-AOC radios.
+        if audioChannelID == 0 {
+            audioChannelID = rfcommChannel(on: device, for: fallbackAudioUUID)
+            if audioChannelID != 0 {
+                NSLog("BluetoothClassic: BS AOC not found, falling back to Generic Audio (0x1203) channel: \(audioChannelID)")
+            }
+        }
+
+        if audioChannelID == 0 {
+            NSLog("BluetoothClassic: No audio RFCOMM channel found (BS AOC or Generic Audio)")
+            result(FlutterError(code: "AUDIO_NOT_FOUND", message: "No audio RFCOMM channel found", details: nil))
+            return
+        }
+
+        // Open the audio RFCOMM channel
+        var rfcommChannel: IOBluetoothRFCOMMChannel?
+        let openResult = device.openRFCOMMChannelAsync(&rfcommChannel, withChannelID: audioChannelID, delegate: self)
+
+        if openResult != kIOReturnSuccess || rfcommChannel == nil {
+            NSLog("BluetoothClassic: Failed to open audio RFCOMM channel \(audioChannelID): \(openResult)")
+            result(FlutterError(code: "AUDIO_CONNECTION_FAILED", message: "Failed to open audio RFCOMM channel", details: nil))
+            return
+        }
+
+        let channel = rfcommChannel!
+        channel.setDelegate(self)
+        NSLog("BluetoothClassic: Audio RFCOMM channel \(audioChannelID) opened, MTU: \(channel.getMTU())")
+        if let dataConn = connections[normalizedAddress] {
+            NSLog("BluetoothClassic: data channel ID=\(dataConn.channel.getID()), audio channel ID=\(channel.getID()), sameObject=\(dataConn.channel === channel)")
+        }
+
+        let connection = RFCOMMConnection(device: device, channel: channel, address: normalizedAddress)
+        connection.connectResult = result
+        audioConnections[normalizedAddress] = connection
+
+        // On some radios the rfcommChannelOpenComplete delegate callback never
+        // fires for the audio channel (the second RFCOMM channel to the device)
+        // and isOpen() keeps returning false even though the channel is actually
+        // open. A negotiated MTU (> 0) is only available once the channel has
+        // opened, so treat that as the authoritative "connected" signal. If the
+        // MTU is already valid here, declare success immediately; otherwise poll.
+        if channel.getMTU() > 0 {
+            markAudioConnected(address: normalizedAddress)
+        } else {
+            pollAudioOpen(address: normalizedAddress, attempt: 0)
+        }
+
+        // Result is sent when the channel open completes (immediately above,
+        // via the delegate callback, or via the poll fallback).
+    }
+
+    /// Marks a tracked audio connection as connected and notifies Dart once.
+    private func markAudioConnected(address: String) {
+        guard let conn = audioConnections[address], !conn.isConnected else { return }
+        NSLog("BluetoothClassic: Audio channel confirmed open (MTU \(conn.channel.getMTU())) for \(address)")
+        conn.isConnected = true
+        conn.didNotifyConnected = true
+        lastAudioActivity[address] = Date()
+        audioForwardingEnabled[address] = true
+        conn.connectResult?(true)
+        conn.connectResult = nil
+        audioSink?([
+            "event": "connected",
+            "address": address.replacingOccurrences(of: "-", with: ":")
+        ])
+    }
+
+    /// Polls the audio RFCOMM channel for completion as a fallback for the
+    /// unreliable rfcommChannelOpenComplete delegate callback.
+    private func pollAudioOpen(address: String, attempt: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self else { return }
+            guard let conn = self.audioConnections[address] else { return }
+
+            // The delegate already completed the connection.
+            if conn.isConnected { return }
+
+            // A negotiated MTU (or isOpen()) indicates the channel is open:
+            // treat it as a successful connection.
+            if conn.channel.getMTU() > 0 || conn.channel.isOpen() {
+                self.markAudioConnected(address: address)
+                return
+            }
+
+            // Give up after ~10 seconds (20 * 0.5s).
+            if attempt >= 20 {
+                NSLog("BluetoothClassic: Audio connection timeout for \(address)")
+                // Remove before closing so the resulting rfcommChannelClosed callback
+                // does not emit a (spurious) disconnect for this failed attempt.
+                self.audioConnections.removeValue(forKey: address)
+                self.closeAudioChannelSafely(conn.channel, address: address)
+                conn.connectResult?(FlutterError(
+                    code: "AUDIO_CONNECTION_TIMEOUT",
+                    message: "Audio connection timed out after 10 seconds",
+                    details: nil
+                ))
+                conn.connectResult = nil
+                return
+            }
+
+            self.pollAudioOpen(address: address, attempt: attempt + 1)
+        }
+    }
+
+    /// "Disable audio" from the user's perspective. IMPORTANT: this does NOT
+    /// close the audio RFCOMM channel. On macOS, closing the audio channel also
+    /// tears down the control/data RFCOMM channel (both channels to the device
+    /// share link state), which would disconnect the radio. Instead we keep the
+    /// audio channel OPEN and simply stop forwarding audio frames to Dart. The
+    /// channel is only closed on a full radio disconnect (disconnect(address:)).
+    private func disconnectAudio(address: String) {
+        let normalizedAddress = address.uppercased().replacingOccurrences(of: ":", with: "-")
+        lastAudioActivity[normalizedAddress] = Date()
+        audioForwardingEnabled[normalizedAddress] = false
+        NSLog("BluetoothClassic: Audio forwarding disabled for \(normalizedAddress) (channel kept open to preserve control channel)")
+    }
+
+    /// Closes an audio RFCOMM channel without disturbing the data channel.
+    /// On some radios the Generic Audio service resolves to the same RFCOMM
+    /// channel ID as the SPP data service, in which case IOBluetooth hands back
+    /// the SAME IOBluetoothRFCOMMChannel object for both. Closing it would tear
+    /// down the data channel (and disconnect the radio). Guard against that by
+    /// only closing when the channel is not the one used by the data connection.
+    private func closeAudioChannelSafely(_ channel: IOBluetoothRFCOMMChannel, address: String) {
+        if let dataConn = connections[address], dataConn.channel === channel {
+            NSLog("BluetoothClassic: Skipping audio channel close for \(address) - shared with data channel")
+            return
+        }
+        channel.close()
+    }
+
+    private func sendAudio(address: String, data: Data) -> Bool {
+        let normalizedAddress = address.uppercased().replacingOccurrences(of: ":", with: "-")
+        guard let connection = audioConnections[normalizedAddress] else {
+            NSLog("BluetoothClassic: sendAudio - no audio connection for \(normalizedAddress)")
+            return false
+        }
+
+        var mutableData = data
+        let result = mutableData.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) -> IOReturn in
+            guard let baseAddress = ptr.baseAddress else { return kIOReturnError }
+            return connection.channel.writeAsync(baseAddress, length: UInt16(data.count), refcon: nil)
+        }
+        return result == kIOReturnSuccess
     }
     
     private func send(address: String, data: Data) -> Bool {
@@ -420,6 +755,18 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
     }
     
     // MARK: - IOBluetoothRFCOMMChannelDelegate
+
+    /// Determine whether a delegate callback belongs to the data or audio channel.
+    /// Returns the role ("data"/"audio"), the owning connection, and the event sink.
+    private func routeFor(channel: IOBluetoothRFCOMMChannel) -> (role: String, connection: RFCOMMConnection, sink: FlutterEventSink?)? {
+        for (_, conn) in connections where conn.channel === channel {
+            return ("data", conn, dataSink)
+        }
+        for (_, conn) in audioConnections where conn.channel === channel {
+            return ("audio", conn, audioSink)
+        }
+        return nil
+    }
     
     func rfcommChannelOpenComplete(_ rfcommChannel: IOBluetoothRFCOMMChannel!, status error: IOReturn) {
         NSLog("BluetoothClassic: rfcommChannelOpenComplete called, error: \(error)")
@@ -429,29 +776,37 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
             NSLog("BluetoothClassic: rfcommChannelOpenComplete - failed to get device info")
             return
         }
-        
-        NSLog("BluetoothClassic: rfcommChannelOpenComplete for \(address)")
-        
-        if let connection = connections[address] {
-            if error == kIOReturnSuccess {
-                connection.isConnected = true
-                connection.connectResult?(true)
-                connection.connectResult = nil
-                
-                // Notify Flutter of successful connection
-                NSLog("BluetoothClassic: Sending connected event to Flutter")
-                dataSink?([
-                    "event": "connected",
-                    "address": address.replacingOccurrences(of: "-", with: ":")
-                ])
+
+        guard let route = routeFor(channel: channel) else {
+            NSLog("BluetoothClassic: rfcommChannelOpenComplete - no matching connection")
+            return
+        }
+
+        NSLog("BluetoothClassic: rfcommChannelOpenComplete for \(address) [\(route.role)]")
+
+        let connection = route.connection
+        if error == kIOReturnSuccess {
+            connection.isConnected = true
+            connection.didNotifyConnected = true
+            connection.connectResult?(true)
+            connection.connectResult = nil
+
+            route.sink?([
+                "event": "connected",
+                "address": address.replacingOccurrences(of: "-", with: ":")
+            ])
+        } else {
+            if route.role == "audio" {
+                audioConnections.removeValue(forKey: address)
             } else {
                 connections.removeValue(forKey: address)
-                connection.connectResult?(FlutterError(
-                    code: "CONNECTION_FAILED",
-                    message: "RFCOMM connection failed: \(error)",
-                    details: nil
-                ))
             }
+            connection.connectResult?(FlutterError(
+                code: route.role == "audio" ? "AUDIO_CONNECTION_FAILED" : "CONNECTION_FAILED",
+                message: "RFCOMM connection failed: \(error)",
+                details: nil
+            ))
+            connection.connectResult = nil
         }
     }
     
@@ -461,18 +816,72 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
               let address = device.addressString?.uppercased().replacingOccurrences(of: ":", with: "-") else {
             return
         }
-        
-        connections.removeValue(forKey: address)
-        
-        // Notify Flutter of disconnection
-        dataSink?([
-            "event": "disconnected",
-            "address": address.replacingOccurrences(of: "-", with: ":")
-        ])
+
+        guard let route = routeFor(channel: channel) else {
+            // The channel is no longer tracked (it was closed as part of a
+            // locally-initiated operation that already cleaned up, e.g. an audio
+            // connection timeout or an intentional disconnect). There is nothing
+            // to report and, crucially, we must NOT fall back to emitting a
+            // disconnect on the data channel.
+            return
+        }
+
+        let connection = route.connection
+
+        // On macOS, opening OR closing the second (audio) RFCOMM channel to a
+        // device can trigger a spurious rfcommChannelClosed callback on the
+        // already-open DATA channel even though the OS-level link stays alive and
+        // data keeps flowing. If an audio channel is present for this device, or
+        // one was opened/closed very recently, defer the decision: keep the
+        // connection and check shortly afterward whether fresh data has arrived.
+        // The radio streams status frames roughly once per second, so continued
+        // data means the close was spurious and must NOT be reported as a radio
+        // disconnect.
+        let audioRecentlyActive: Bool = {
+            if audioConnections[address] != nil { return true }
+            if let last = lastAudioActivity[address], Date().timeIntervalSince(last) < 5.0 { return true }
+            return false
+        }()
+        if route.role == "data", audioRecentlyActive {
+            let closeTime = Date()
+            NSLog("BluetoothClassic: data channel close while audio active for \(address) - verifying (MTU=\(channel.getMTU()), isOpen=\(channel.isOpen()))")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                guard let self = self else { return }
+                guard let conn = self.connections[address] else { return }
+                if conn.lastDataReceived > closeTime {
+                    NSLog("BluetoothClassic: data channel still receiving after close - treating as spurious, radio stays connected")
+                    return
+                }
+                NSLog("BluetoothClassic: data channel confirmed closed (no data after close) for \(address)")
+                self.connections.removeValue(forKey: address)
+                if conn.didNotifyConnected {
+                    self.dataSink?([
+                        "event": "disconnected",
+                        "address": address.replacingOccurrences(of: "-", with: ":")
+                    ])
+                }
+            }
+            return
+        }
+
+        if route.role == "audio" {
+            audioConnections.removeValue(forKey: address)
+        } else {
+            connections.removeValue(forKey: address)
+        }
+
+        // Only report a disconnect if this channel had previously reported a
+        // successful connection. This prevents a failed/timed-out connection
+        // attempt from emitting a spurious "disconnected" event.
+        if connection.didNotifyConnected {
+            route.sink?([
+                "event": "disconnected",
+                "address": address.replacingOccurrences(of: "-", with: ":")
+            ])
+        }
     }
     
     func rfcommChannelData(_ rfcommChannel: IOBluetoothRFCOMMChannel!, data dataPointer: UnsafeMutableRawPointer!, length dataLength: Int) {
-        NSLog("BluetoothClassic: rfcommChannelData called, length: \(dataLength)")
         guard let channel = rfcommChannel,
               let device = channel.getDevice(),
               let address = device.addressString?.uppercased().replacingOccurrences(of: ":", with: "-"),
@@ -480,20 +889,32 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
             NSLog("BluetoothClassic: rfcommChannelData - failed to get device info")
             return
         }
-        
+
+        guard let route = routeFor(channel: channel) else {
+            NSLog("BluetoothClassic: rfcommChannelData - no matching connection")
+            return
+        }
+
         let data = Data(bytes: ptr, count: dataLength)
-        NSLog("BluetoothClassic: Received \(dataLength) bytes from \(address): \(data.map { String(format: "%02X", $0) }.joined())")
-        
-        // Send data to Flutter
-        if dataSink != nil {
-            NSLog("BluetoothClassic: Sending data event to Flutter")
-            dataSink?([
+
+        route.connection.lastDataReceived = Date()
+
+        if route.role == "audio" {
+            lastAudioActivity[address] = Date()
+            // Audio is kept connected across enable/disable cycles; while
+            // disabled we drop incoming frames instead of closing the channel
+            // (closing it would also kill the control channel on macOS).
+            if audioForwardingEnabled[address] != true {
+                return
+            }
+        }
+
+        if let sink = route.sink {
+            sink([
                 "event": "data",
                 "address": address.replacingOccurrences(of: "-", with: ":"),
                 "data": FlutterStandardTypedData(bytes: data)
             ])
-        } else {
-            NSLog("BluetoothClassic: dataSink is nil, cannot send data to Flutter")
         }
     }
     
@@ -522,6 +943,26 @@ extension BluetoothClassicHandler: FlutterStreamHandler {
     }
 }
 
+// MARK: - Audio Event Stream Handler
+
+/// Separate stream handler for the audio (Generic Audio RFCOMM) event channel.
+/// Forwards the event sink to its owning BluetoothClassicHandler.
+private class AudioEventStreamHandler: NSObject, FlutterStreamHandler {
+    weak var owner: BluetoothClassicHandler?
+
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        NSLog("BluetoothClassic: audio onListen called - Audio EventChannel connected")
+        owner?.audioSink = events
+        return nil
+    }
+
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        NSLog("BluetoothClassic: audio onCancel called - Audio EventChannel disconnected")
+        owner?.audioSink = nil
+        return nil
+    }
+}
+
 // MARK: - RFCOMMConnection
 
 private class RFCOMMConnection {
@@ -529,7 +970,15 @@ private class RFCOMMConnection {
     let channel: IOBluetoothRFCOMMChannel
     let address: String
     var isConnected: Bool = false
+    /// True once a "connected" event has been emitted for this channel. Used to
+    /// ensure a matching "disconnected" event is only emitted for channels that
+    /// actually completed their connection (avoids spurious disconnects from
+    /// failed/timed-out connection attempts).
+    var didNotifyConnected: Bool = false
     var connectResult: FlutterResult?
+    /// Timestamp of the most recent inbound data on this channel. Used to detect
+    /// whether a data-channel "close" callback was spurious (data keeps flowing).
+    var lastDataReceived: Date = Date()
     
     init(device: IOBluetoothDevice, channel: IOBluetoothRFCOMMChannel, address: String) {
         self.device = device

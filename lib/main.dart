@@ -255,6 +255,8 @@ class _MainFormState extends State<MainForm>
   bool _dualWatchEnabled =
       false; // Dual-watch state of the currently displayed radio
   bool _scanEnabled = false; // Scan state of the currently displayed radio
+  bool _audioEnabled =
+      false; // Audio path state of the currently displayed radio
 
   // DataBroker client for subscriptions
   final DataBrokerClient _broker = DataBrokerClient();
@@ -364,6 +366,13 @@ class _MainFormState extends State<MainForm>
       deviceId: DataBroker.allDevices,
       name: 'Settings',
       callback: _onRadioSettingsChanged,
+    );
+
+    // Subscribe to AudioState changes from all radio devices (audio path on/off)
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioState',
+      callback: _onAudioStateChanged,
     );
 
     // Initialize tabs with saved index
@@ -503,8 +512,42 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  /// Handle AudioState changes from any radio device (audio path enabled/disabled).
+  void _onAudioStateChanged(int deviceId, String name, Object? data) {
+    // Only update if this is for the currently displayed radio
+    if (deviceId == _currentRadioDeviceId && data is bool) {
+      setState(() {
+        _audioEnabled = data;
+      });
+    }
+  }
+
+  /// Toggle the audio path on the currently selected radio.
+  void _onToggleAudio() {
+    final deviceId = _currentRadioDeviceId;
+    if (deviceId <= 0) return;
+    // Toggle audio state - read the current state from the broker and dispatch
+    // the opposite (mirrors the C# audioEnabledToolStripMenuItem_Click).
+    final currentlyEnabled =
+        DataBroker.getValue<bool>(deviceId, 'AudioState', false) ?? false;
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'SetAudio',
+      data: !currentlyEnabled,
+      store: false,
+    );
+  }
+
   /// Load dual-watch and scan state for the currently selected radio from DataBroker.
   void _loadSettingsForCurrentRadio() {
+    _audioEnabled = _currentRadioDeviceId > 0
+        ? (DataBroker.getValue<bool>(
+                _currentRadioDeviceId,
+                'AudioState',
+                false,
+              ) ??
+              false)
+        : false;
     if (_currentRadioDeviceId > 0) {
       final settings = DataBroker.getValue<Map<String, dynamic>>(
         _currentRadioDeviceId,
@@ -723,7 +766,8 @@ class _MainFormState extends State<MainForm>
         children: [
           AppMenuAction(
             label: 'Audio Enabled',
-            onPressed: _hasConnectedRadio ? () {} : null,
+            onPressed: _hasConnectedRadio ? _onToggleAudio : null,
+            checked: _audioEnabled,
           ),
           AppMenuAction(
             label: 'Audio Controls...',
