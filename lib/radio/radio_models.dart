@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'utils.dart';
 
 /// Radio channel type for dual-channel mode
@@ -275,7 +276,21 @@ class RadioSettings {
     bool scanEnabled,
     int squelch,
   ) {
-    final data = Uint8List(20);
+    // Match C# behavior: buffer size is rawData.length - 5
+    final bufLen = rawData.length - 5;
+    debugPrint(
+      'RadioSettings.toByteArray: rawData.length=${rawData.length}, bufLen=$bufLen',
+    );
+    debugPrint(
+      'RadioSettings.toByteArray: chA=$chA, chB=$chB, dualChannel=$dualChannel, scan=$scanEnabled, squelch=$squelch',
+    );
+    final data = Uint8List(bufLen);
+
+    // Copy all raw data starting from offset 5 (matching C# Array.Copy)
+    for (int i = 0; i < bufLen && i + 5 < rawData.length; i++) {
+      data[i] = rawData[i + 5];
+    }
+    debugPrint('RadioSettings.toByteArray: after copy: $data');
 
     // Channel A and B (split between two bytes)
     data[0] = ((chA & 0x0F) << 4) | (chB & 0x0F);
@@ -287,13 +302,12 @@ class RadioSettings {
         ((dualChannel & 0x03) << 4) |
         (squelch & 0x0F);
 
-    // Copy remaining bytes from raw data
-    for (int i = 2; i < 20 && i + 5 < rawData.length; i++) {
-      data[i] = rawData[i + 5];
+    // Update channel A/B upper bits (chA high nibble in upper, chB high nibble shifted to lower)
+    if (data.length > 9) {
+      data[9] = (chA & 0xF0) | ((chB >> 4) & 0x0F);
     }
 
-    // Update channel A/B upper bits
-    data[9] = ((chA >> 4) & 0xF0) | ((chB >> 4) & 0x0F);
+    debugPrint('RadioSettings.toByteArray: final data: $data');
 
     return data;
   }
