@@ -221,6 +221,11 @@ class _MainFormState extends State<MainForm>
   bool _showTabNames = true;
   bool _isCompactMode = false;
   String _statusText = '';
+  int _batteryPercentage =
+      -1; // Battery percentage of the currently displayed radio (-1 = unknown)
+  bool _dualWatchEnabled =
+      false; // Dual-watch state of the currently displayed radio
+  bool _scanEnabled = false; // Scan state of the currently displayed radio
 
   // DataBroker client for subscriptions
   final DataBrokerClient _broker = DataBrokerClient();
@@ -312,6 +317,20 @@ class _MainFormState extends State<MainForm>
       callback: _onRadioConnectRequested,
     );
 
+    // Subscribe to BatteryAsPercentage from all radio devices
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'BatteryAsPercentage',
+      callback: _onBatteryPercentageChanged,
+    );
+
+    // Subscribe to Settings changes from all radio devices (for dual-watch/scan state)
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Settings',
+      callback: _onRadioSettingsChanged,
+    );
+
     // Initialize tabs with saved index
     _currentTabs = _getTabsForMode(_isCompactMode);
     final savedTabIndex =
@@ -384,11 +403,17 @@ class _MainFormState extends State<MainForm>
         // If we have no current radio selected and radios are connected, select the first
         if (_currentRadioDeviceId < 0 && ids.isNotEmpty) {
           _currentRadioDeviceId = ids.first;
+          // Load battery percentage for the newly selected radio
+          _loadBatteryForCurrentRadio();
+          _loadSettingsForCurrentRadio();
         }
         // If current radio disconnected, switch to another or reset
         if (_currentRadioDeviceId >= 0 &&
             !ids.contains(_currentRadioDeviceId)) {
           _currentRadioDeviceId = ids.isNotEmpty ? ids.first : -1;
+          // Load battery percentage for the newly selected radio (or reset)
+          _loadBatteryForCurrentRadio();
+          _loadSettingsForCurrentRadio();
         }
       });
     }
@@ -397,6 +422,87 @@ class _MainFormState extends State<MainForm>
   /// Handle radio connect request from RadioPanelControl.
   void _onRadioConnectRequested(int deviceId, String name, Object? data) {
     _onConnect();
+  }
+
+  /// Handle battery percentage changes from any radio device.
+  void _onBatteryPercentageChanged(int deviceId, String name, Object? data) {
+    // Only update if this is for the currently displayed radio
+    if (deviceId == _currentRadioDeviceId && data is int) {
+      setState(() {
+        _batteryPercentage = data;
+      });
+    }
+  }
+
+  /// Load battery percentage for the currently selected radio from DataBroker.
+  void _loadBatteryForCurrentRadio() {
+    if (_currentRadioDeviceId > 0) {
+      final battery = DataBroker.getValue<int>(
+        _currentRadioDeviceId,
+        'BatteryAsPercentage',
+      );
+      _batteryPercentage = battery ?? -1;
+    } else {
+      _batteryPercentage = -1;
+    }
+  }
+
+  /// Handle Settings changes from any radio device (dual-watch / scan state).
+  void _onRadioSettingsChanged(int deviceId, String name, Object? data) {
+    // Only update if this is for the currently displayed radio
+    if (deviceId == _currentRadioDeviceId && data is Map) {
+      setState(() {
+        _dualWatchEnabled =
+            (data['doubleChannel'] as int? ??
+                data['double_channel'] as int? ??
+                0) ==
+            1;
+        _scanEnabled = data['scan'] as bool? ?? false;
+      });
+    }
+  }
+
+  /// Load dual-watch and scan state for the currently selected radio from DataBroker.
+  void _loadSettingsForCurrentRadio() {
+    if (_currentRadioDeviceId > 0) {
+      final settings = DataBroker.getValue<Map<String, dynamic>>(
+        _currentRadioDeviceId,
+        'Settings',
+      );
+      if (settings != null) {
+        _dualWatchEnabled =
+            (settings['doubleChannel'] as int? ??
+                settings['double_channel'] as int? ??
+                0) ==
+            1;
+        _scanEnabled = settings['scan'] as bool? ?? false;
+        return;
+      }
+    }
+    _dualWatchEnabled = false;
+    _scanEnabled = false;
+  }
+
+  /// Toggle dual-watch on the currently selected radio.
+  void _onToggleDualWatch() {
+    if (_currentRadioDeviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: _currentRadioDeviceId,
+      name: 'DualWatch',
+      data: !_dualWatchEnabled,
+      store: false,
+    );
+  }
+
+  /// Toggle scan on the currently selected radio.
+  void _onToggleScan() {
+    if (_currentRadioDeviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: _currentRadioDeviceId,
+      name: 'Scan',
+      data: !_scanEnabled,
+      store: false,
+    );
   }
 
   /// Called when the connect button is pressed in RadioPanelControl.
@@ -546,11 +652,13 @@ class _MainFormState extends State<MainForm>
         children: [
           AppMenuAction(
             label: 'Dual-Watch',
-            onPressed: _hasConnectedRadio ? () {} : null,
+            onPressed: _hasConnectedRadio ? _onToggleDualWatch : null,
+            checked: _dualWatchEnabled,
           ),
           AppMenuAction(
             label: 'Scan',
-            onPressed: _hasConnectedRadio ? () {} : null,
+            onPressed: _hasConnectedRadio ? _onToggleScan : null,
+            checked: _scanEnabled,
           ),
           AppMenuAction(
             label: 'Regions',
@@ -630,6 +738,8 @@ class _MainFormState extends State<MainForm>
                 onPressed: () {
                   setState(() {
                     _currentRadioDeviceId = radioId;
+                    _loadBatteryForCurrentRadio();
+                    _loadSettingsForCurrentRadio();
                   });
                   // Dispatch the selected radio device ID
                   _broker.dispatch(
@@ -1079,6 +1189,12 @@ class _MainFormState extends State<MainForm>
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
+          // Battery percentage on the right (only show when connected and battery info available)
+          if (_currentRadioDeviceId > 0 && _batteryPercentage >= 0)
+            Text(
+              'Battery: $_batteryPercentage%',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
         ],
       ),
     );

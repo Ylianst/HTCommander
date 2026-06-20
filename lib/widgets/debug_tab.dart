@@ -1,8 +1,10 @@
 import 'dart:io' show File, Platform;
+import 'dart:ui' as ui show BoxWidthStyle;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../dialogs/about_dialog.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -91,7 +93,7 @@ class _DebugTabState extends State<DebugTab>
 
     // Add startup log only if this is a fresh start (no existing entries)
     if (_logEntries.isEmpty) {
-      _broker.logInfo('HTCommander Flutter started');
+      _broker.logInfo('HTCommander ${HTAboutDialog.version} started');
     }
   }
 
@@ -599,6 +601,8 @@ class _DebugTabState extends State<DebugTab>
               }).toList(),
             ),
             textAlign: TextAlign.left,
+            textWidthBasis: TextWidthBasis.parent,
+            selectionWidthStyle: ui.BoxWidthStyle.max,
           ),
         ),
       ),
