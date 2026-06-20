@@ -1033,6 +1033,15 @@ class Radio {
 
   void _dispatchDataFrame(TncDataFragment fragment) {
     _dispatch('DataFrameTx', fragment.toJson(), store: false);
+    _emitDataFrame(fragment);
+  }
+
+  /// Dispatches the unified "DataFrame" event carrying the fragment object,
+  /// matching the C# architecture. Consumed by the FrameDeduplicator handler.
+  void _emitDataFrame(TncDataFragment fragment) {
+    fragment.radioMac = macAddress;
+    fragment.radioDeviceId = deviceId;
+    _dispatch('DataFrame', fragment, store: false);
   }
 
   // Command handling
@@ -1407,6 +1416,7 @@ class Radio {
       _frameAccumulator!.encoding = FragmentEncodingType.hardwareAfsk1200;
       _frameAccumulator!.frameType = FragmentFrameType.ax25;
       _dispatch('DataFrameRx', _frameAccumulator!.toJson(), store: false);
+      _emitDataFrame(_frameAccumulator!);
       _frameAccumulator = null;
     }
   }
@@ -1440,6 +1450,7 @@ class Radio {
 
       // Dispatch the complete frame
       _dispatch('DataFrameRx', _frameAccumulator!.toJson(), store: false);
+      _emitDataFrame(_frameAccumulator!);
 
       // Try to decode as AX.25 packet
       final packet = AX25Packet.decode(_frameAccumulator!);
