@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'chat_widget.dart';
+import '../dialogs/aprs_sms_dialog.dart';
+import '../dialogs/aprs_weather_dialog.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -122,6 +124,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
       _destinationController.text = savedDest;
     }
     _loadStationDestinations();
+
+    // Re-evaluate the send button enabled state as the user edits the fields.
+    _destinationController.addListener(_onInputChanged);
+    _messageController.addListener(_onInputChanged);
 
     // Subscribe to live APRS events.
     _broker.subscribe(
@@ -325,6 +331,20 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
       if (_radioHasAprsChannel(id)) return id;
     }
     return -1;
+  }
+
+  /// True when a message can be transmitted: an APRS channel is available and
+  /// both the destination and message fields are non-empty (matches the C#
+  /// `UpdateSendButtonState`).
+  bool get _canSend =>
+      _hasAprsChannel &&
+      _destinationController.text.trim().isNotEmpty &&
+      _messageController.text.trim().isNotEmpty;
+
+  /// Rebuilds when the destination/message fields change so the send button
+  /// enabled state stays in sync.
+  void _onInputChanged() {
+    if (mounted) setState(() {});
   }
 
   // ---------------------------------------------------------------------------
@@ -608,6 +628,68 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     _messageController.clear();
   }
 
+  /// Opens the SMS dialog and, on confirmation, sends a specially crafted APRS
+  /// message to the "SMS" gateway (mirrors the C# `aprsSmsButton_Click`).
+  Future<void> _sendSmsMessage() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await showAprsSmsDialog(context);
+    if (result == null || !mounted) return;
+
+    final radioDeviceId = _getPreferredAprsRadioDeviceId();
+    if (radioDeviceId == -1) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No radio with an APRS channel is available'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'SendAprsMessage',
+      data: AprsSendMessageData(
+        destination: 'SMS',
+        message: '@${result.phoneNumber} ${result.message}',
+        radioDeviceId: radioDeviceId,
+        route: _getSelectedRoute(),
+      ),
+      store: false,
+    );
+  }
+
+  /// Opens the weather dialog and, on confirmation, sends a weather request to
+  /// the "WXBOT" APRS gateway (mirrors the C# `weatherReportToolStripMenuItem_Click`).
+  Future<void> _sendWeatherReport() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final weatherMessage = await showAprsWeatherDialog(context);
+    if (weatherMessage == null || !mounted) return;
+
+    final radioDeviceId = _getPreferredAprsRadioDeviceId();
+    if (radioDeviceId == -1) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No radio with an APRS channel is available'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'SendAprsMessage',
+      data: AprsSendMessageData(
+        destination: 'WXBOT',
+        message: weatherMessage,
+        radioDeviceId: radioDeviceId,
+        route: _getSelectedRoute(),
+      ),
+      store: false,
+    );
+  }
+
   void _onMessageTap(ChatMessage message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -698,7 +780,6 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   void _showMenu(BuildContext context) {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
-    final messenger = ScaffoldMessenger.of(context);
 
     const menuItemPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
     const menuItemHeight = 32.0;
@@ -730,19 +811,19 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         ),
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
-          value: 'sendMessage',
+          value: 'sendSms',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit,
+          enabled: _allowTransmit && _hasAprsChannel,
           child: const Row(
-            children: [SizedBox(width: 20), Text('Send Message...')],
+            children: [SizedBox(width: 20), Text('Send SMS Message...')],
           ),
         ),
         PopupMenuItem<String>(
           value: 'weatherReport',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit,
+          enabled: _allowTransmit && _hasAprsChannel,
           child: const Row(
             children: [SizedBox(width: 20), Text('Weather Report...')],
           ),
@@ -772,15 +853,11 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         case 'showAll':
           _toggleShowAll();
           break;
-        case 'sendMessage':
-          _messageFocusNode.requestFocus();
+        case 'sendSms':
+          _sendSmsMessage();
           break;
         case 'weatherReport':
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Weather report dialog not implemented yet'),
-            ),
-          );
+          _sendWeatherReport();
           break;
         case 'clear':
           _clearMessages();
@@ -1019,7 +1096,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           SizedBox(
             height: 34,
             child: ElevatedButton(
-              onPressed: _sendMessage,
+              onPressed: _canSend ? _sendMessage : null,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
               ),

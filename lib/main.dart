@@ -247,6 +247,7 @@ class _MainFormState extends State<MainForm>
   late List<_TabInfo> _currentTabs;
   bool _radioVisible = true;
   bool _showTabNames = true;
+  bool _showAllChannels = false;
   bool _isCompactMode = false;
   String _statusText = '';
   int _batteryPercentage =
@@ -327,7 +328,13 @@ class _MainFormState extends State<MainForm>
     // Subscribe to settings changes
     _broker.subscribeMultiple(
       deviceId: 0,
-      names: ['CallSign', 'StationId', 'AllowTransmit', 'CheckForUpdates'],
+      names: [
+        'CallSign',
+        'StationId',
+        'AllowTransmit',
+        'CheckForUpdates',
+        'ShowAllChannels',
+      ],
       callback: _onSettingsChanged,
     );
 
@@ -386,6 +393,8 @@ class _MainFormState extends State<MainForm>
     _checkForUpdates =
         (DataBroker.getValue<int>(0, 'CheckForUpdates', 0) ?? 0) == 1;
     _showTabNames = (DataBroker.getValue<int>(0, 'ShowTabNames', 1) ?? 1) == 1;
+    _showAllChannels =
+        (DataBroker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
   }
 
   /// Handle settings changes from DataBroker.
@@ -405,6 +414,9 @@ class _MainFormState extends State<MainForm>
           break;
         case 'CheckForUpdates':
           _checkForUpdates = (data as int?) == 1;
+          break;
+        case 'ShowAllChannels':
+          _showAllChannels = (data as int?) == 1;
           break;
       }
     });
@@ -762,7 +774,21 @@ class _MainFormState extends State<MainForm>
             label: 'Radio Window...',
             onPressed: _hasConnectedRadio ? () {} : null,
           ),
-          AppMenuAction(label: 'All Channels', onPressed: () {}),
+          AppMenuAction(
+            label: 'All Channels',
+            onPressed: () {
+              final newValue = !_showAllChannels;
+              setState(() {
+                _showAllChannels = newValue;
+              });
+              _broker.dispatch(
+                deviceId: 0,
+                name: 'ShowAllChannels',
+                data: newValue ? 1 : 0,
+              );
+            },
+            checked: _showAllChannels,
+          ),
           // Dynamic radio selection when multiple radios are connected
           if (_connectedRadioIds.length >= 2) ...[
             const AppMenuDivider(),
