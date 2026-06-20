@@ -10,6 +10,8 @@ import 'package:window_manager/window_manager.dart';
 import 'dialogs/about_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/settings_dialog.dart';
+import 'handlers/frame_deduplicator.dart';
+import 'handlers/packet_store.dart';
 import 'radio/radio_transport.dart';
 import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
@@ -32,6 +34,17 @@ void main(List<String> args) async {
 
   // Initialize the DataBroker for cross-component communication
   await DataBroker.initialize();
+
+  // Register the frame deduplicator so that duplicate DataFrame events received
+  // by multiple radios are collapsed into single UniqueDataFrame events.
+  DataBroker.addDataHandler('FrameDeduplicator', FrameDeduplicator());
+
+  // Register the packet store so that captured packets are persisted to disk
+  // and replayed on the next launch. Must be initialized before registration so
+  // that PacketStoreReady is announced once loading is complete.
+  final packetStore = PacketStore();
+  await packetStore.init();
+  DataBroker.addDataHandler('PacketStore', packetStore);
 
   // Check if this is a sub-window on desktop platforms
   if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {

@@ -185,4 +185,7 @@ class TncDataFragment {
 
   /// Getter for isLast (alias for finalFragment)
   bool get isLast => finalFragment;
+
+  /// Returns the hex string representation of this fragment's data.
+  String toHex() => RadioUtils.bytesToHex(data);
 }

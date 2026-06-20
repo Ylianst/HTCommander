@@ -1,39 +1,33 @@
 import 'package:flutter/material.dart';
+
+import '../radio/packet_decoder.dart';
+import '../radio/tnc_data_fragment.dart';
+import '../radio/utils.dart';
+import '../services/data_broker.dart';
+import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
 
 /// Packet direction
 enum PacketDirection { incoming, outgoing }
 
-/// Captured packet data
+/// A captured packet wrapping a [TncDataFragment], with a cached single-line
+/// summary used for the packet list.
 class CapturedPacket {
-  final String id;
-  final DateTime time;
-  final String channel;
-  final PacketDirection direction;
-  final List<int> data;
-  final String? decodedSummary;
-  final Map<String, String> decodeDetails;
+  final TncDataFragment fragment;
+  final String summary;
 
-  const CapturedPacket({
-    required this.id,
-    required this.time,
-    required this.channel,
-    required this.direction,
-    required this.data,
-    this.decodedSummary,
-    this.decodeDetails = const {},
-  });
+  CapturedPacket(this.fragment)
+    : summary = PacketDecoder.fragmentToShortString(fragment);
 
-  String get dataHex => data
-      .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
-      .join(' ');
-
-  String get dataAscii => String.fromCharCodes(
-    data.map((b) => (b >= 32 && b < 127) ? b : 46),
-  ); // Replace non-printable with '.'
+  DateTime get time => fragment.time;
+  String get channel => fragment.channelName;
+  PacketDirection get direction =>
+      fragment.incoming ? PacketDirection.incoming : PacketDirection.outgoing;
+  String get dataHex => RadioUtils.bytesToHex(fragment.data);
 }
 
-/// Packets tab - packet inspection and analysis
+/// Packets tab - packet inspection and analysis. Subscribes to UniqueDataFrame
+/// events (produced by the FrameDeduplicator) and decodes them for display.
 class PacketsTab extends StatefulWidget {
   const PacketsTab({super.key});
 
@@ -43,7 +37,15 @@ class PacketsTab extends StatefulWidget {
 
 class _PacketsTabState extends State<PacketsTab>
     with AutomaticKeepAliveClientMixin {
+  /// Maximum number of packets to keep in memory.
+  static const int _maxPackets = 2000;
+
+  /// Device id used by the PacketStore for its broker messages.
+  static const int _storeDeviceId = 1;
+
   final List<CapturedPacket> _packets = [];
+  final DataBrokerClient _broker = DataBrokerClient();
+
   int? _selectedPacketIndex;
   bool _showDecode = true;
   int _sortColumnIndex = 0;
@@ -58,97 +60,84 @@ class _PacketsTabState extends State<PacketsTab>
   @override
   void initState() {
     super.initState();
-    _addSamplePackets();
+
+    // The PacketStore (device 1) owns the packet history and persistence.
+    // Subscribe to its events instead of raw UniqueDataFrame events so that
+    // packets persisted from previous sessions are replayed here.
+    _broker.subscribe(
+      deviceId: _storeDeviceId,
+      name: 'PacketList',
+      callback: _onPacketList,
+    );
+    _broker.subscribe(
+      deviceId: _storeDeviceId,
+      name: 'PacketStored',
+      callback: _onPacketStored,
+    );
+    _broker.subscribe(
+      deviceId: _storeDeviceId,
+      name: 'PacketStoreReady',
+      callback: _onPacketStoreReady,
+    );
+
+    // If the store is already ready (it was created before this tab), request
+    // the loaded packet list right away. Otherwise the request is sent when the
+    // PacketStoreReady event arrives.
+    final ready = DataBroker.getValue<bool>(
+      _storeDeviceId,
+      'PacketStoreReady',
+      false,
+    );
+    if (ready == true) {
+      _requestPacketList();
+    }
   }
 
-  void _addSamplePackets() {
-    // Sample packets for demonstration
-    _packets.addAll([
-      CapturedPacket(
-        id: '1',
-        time: DateTime.now().subtract(const Duration(minutes: 5)),
-        channel: 'APRS',
-        direction: PacketDirection.incoming,
-        data: [
-          0x82, 0xA0, 0x9C, 0x66, 0x60, 0x62, 0x60, // Address
-          0x96, 0x68, 0x6C, 0x86, 0xA6, 0x40, 0xE1, // Address
-          0x03, 0xF0, // Control & PID
-          0x3D, 0x34, 0x30, 0x32, 0x33, 0x2E, 0x35, 0x34, // Position
-        ],
-        decodedSummary: 'KC3SLD>APRS: =4023.54N/07958.23W-PHG2360',
-        decodeDetails: {
-          'Channel': 'Received on APRS',
-          'Time': DateTime.now()
-              .subtract(const Duration(minutes: 5))
-              .toString(),
-          'Size': '24 bytes',
-          'Address 1': 'APRS-0  ---',
-          'Address 2': 'KC3SLD-0  --X',
-          'Type': 'U-FRAME',
-          'Protocol ID': '240',
-        },
-      ),
-      CapturedPacket(
-        id: '2',
-        time: DateTime.now().subtract(const Duration(minutes: 3)),
-        channel: 'APRS',
-        direction: PacketDirection.outgoing,
-        data: [
-          0x82,
-          0xA0,
-          0x9C,
-          0x66,
-          0x60,
-          0x62,
-          0x60,
-          0x96,
-          0x6A,
-          0x6A,
-          0x8E,
-          0xAE,
-          0xB4,
-          0xE1,
-          0x03,
-          0xF0,
-          0x21,
-          0x34,
-          0x30,
-          0x32,
-          0x33,
-          0x2E,
-          0x35,
-          0x34,
-        ],
-        decodedSummary: 'KK7VZT>APRS: !4023.54N/07958.23W-',
-        decodeDetails: {
-          'Channel': 'Sent on APRS',
-          'Time': DateTime.now()
-              .subtract(const Duration(minutes: 3))
-              .toString(),
-          'Size': '24 bytes',
-          'Address 1': 'APRS-0  ---',
-          'Address 2': 'KK7VZT-0  --X',
-          'Type': 'U-FRAME',
-          'Protocol ID': '240',
-        },
-      ),
-      CapturedPacket(
-        id: '3',
-        time: DateTime.now().subtract(const Duration(minutes: 1)),
-        channel: 'TNC',
-        direction: PacketDirection.incoming,
-        data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08],
-        decodedSummary: 'BSS: Test packet',
-        decodeDetails: {
-          'Channel': 'Received on TNC',
-          'Time': DateTime.now()
-              .subtract(const Duration(minutes: 1))
-              .toString(),
-          'Size': '8 bytes',
-          'Encoding': 'Hardware AFSK 1200 baud, AX.25, No Corrections',
-        },
-      ),
-    ]);
+  @override
+  void dispose() {
+    _broker.dispose();
+    super.dispose();
+  }
+
+  void _requestPacketList() {
+    _broker.dispatch(
+      deviceId: _storeDeviceId,
+      name: 'RequestPacketList',
+      data: null,
+      store: false,
+    );
+  }
+
+  void _onPacketStoreReady(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    if (data == true) _requestPacketList();
+  }
+
+  void _onPacketList(int deviceId, String name, Object? data) {
+    if (data is! List<TncDataFragment>) return;
+    if (!mounted) return;
+
+    setState(() {
+      _packets
+        ..clear()
+        ..addAll(data.map(CapturedPacket.new));
+      _selectedPacketIndex = null;
+      _applySort(null);
+    });
+  }
+
+  void _onPacketStored(int deviceId, String name, Object? data) {
+    if (data is! TncDataFragment) return;
+    if (!mounted) return;
+
+    setState(() {
+      final selected = _selectedPacket;
+      _packets.add(CapturedPacket(data));
+      if (_packets.length > _maxPackets) {
+        _packets.removeAt(0);
+      }
+      _applySort(selected);
+    });
   }
 
   CapturedPacket? get _selectedPacket {
@@ -166,6 +155,14 @@ class _PacketsTabState extends State<PacketsTab>
   }
 
   void _clearPackets() {
+    // Ask the PacketStore to clear its memory and truncate the file. It will
+    // respond with an empty PacketList which updates the UI.
+    _broker.dispatch(
+      deviceId: _storeDeviceId,
+      name: 'ClearPackets',
+      data: null,
+      store: false,
+    );
     setState(() {
       _packets.clear();
       _selectedPacketIndex = null;
@@ -266,26 +263,33 @@ class _PacketsTabState extends State<PacketsTab>
         _sortColumnIndex = columnIndex;
         _sortAscending = columnIndex != 0; // Descending for time by default
       }
-      _packets.sort((a, b) {
-        int result;
-        switch (columnIndex) {
-          case 0:
-            result = a.time.compareTo(b.time);
-            break;
-          case 1:
-            result = a.channel.compareTo(b.channel);
-            break;
-          case 2:
-            result = (a.decodedSummary ?? a.dataHex).compareTo(
-              b.decodedSummary ?? b.dataHex,
-            );
-            break;
-          default:
-            result = 0;
-        }
-        return _sortAscending ? result : -result;
-      });
+      _applySort(_selectedPacket);
     });
+  }
+
+  void _applySort(CapturedPacket? keepSelected) {
+    _packets.sort((a, b) {
+      int result;
+      switch (_sortColumnIndex) {
+        case 0:
+          result = a.time.compareTo(b.time);
+          break;
+        case 1:
+          result = a.channel.compareTo(b.channel);
+          break;
+        case 2:
+          result = a.summary.compareTo(b.summary);
+          break;
+        default:
+          result = 0;
+      }
+      return _sortAscending ? result : -result;
+    });
+    // Keep the selection pointing at the same packet after sorting.
+    if (keepSelected != null) {
+      final newIndex = _packets.indexOf(keepSelected);
+      _selectedPacketIndex = newIndex >= 0 ? newIndex : null;
+    }
   }
 
   String _formatTime(DateTime time) {
@@ -398,97 +402,105 @@ class _PacketsTabState extends State<PacketsTab>
         children: [
           _buildPacketListHeaders(),
           Expanded(
-            child: ListView.builder(
-              itemCount: _packets.length,
-              itemBuilder: (context, index) {
-                final packet = _packets[index];
-                final isSelected = _selectedPacketIndex == index;
-                return InkWell(
-                  onTap: () => _onPacketSelected(index),
-                  child: Container(
-                    clipBehavior: Clip.hardEdge,
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.blue.shade100 : null,
-                      border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade300),
-                      ),
+            child: _packets.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No packets captured',
+                      style: TextStyle(color: Colors.grey),
                     ),
-                    child: Row(
-                      children: [
-                        // Direction icon
-                        SizedBox(
-                          width: 32,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 6,
-                            ),
-                            child: Icon(
-                              packet.direction == PacketDirection.incoming
-                                  ? Icons.arrow_downward
-                                  : Icons.arrow_upward,
-                              size: 16,
-                              color:
-                                  packet.direction == PacketDirection.incoming
-                                  ? Colors.green
-                                  : Colors.blue,
+                  )
+                : ListView.builder(
+                    itemCount: _packets.length,
+                    itemBuilder: (context, index) {
+                      final packet = _packets[index];
+                      final isSelected = _selectedPacketIndex == index;
+                      return InkWell(
+                        onTap: () => _onPacketSelected(index),
+                        child: Container(
+                          clipBehavior: Clip.hardEdge,
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.blue.shade100 : null,
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey.shade300),
                             ),
                           ),
-                        ),
-                        // Time
-                        SizedBox(
-                          width: 80,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 6,
-                            ),
-                            child: Text(
-                              _formatTime(packet.time),
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 12,
+                          child: Row(
+                            children: [
+                              // Direction icon
+                              SizedBox(
+                                width: 32,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 6,
+                                  ),
+                                  child: Icon(
+                                    packet.direction == PacketDirection.incoming
+                                        ? Icons.arrow_downward
+                                        : Icons.arrow_upward,
+                                    size: 16,
+                                    color:
+                                        packet.direction ==
+                                            PacketDirection.incoming
+                                        ? Colors.green
+                                        : Colors.blue,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
-                        // Channel
-                        SizedBox(
-                          width: 80,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 6,
-                            ),
-                            child: Text(
-                              packet.channel,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ),
-                        // Data summary
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 6,
-                            ),
-                            child: Text(
-                              packet.decodedSummary ?? packet.dataHex,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 12,
+                              // Time
+                              SizedBox(
+                                width: 80,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 6,
+                                  ),
+                                  child: Text(
+                                    _formatTime(packet.time),
+                                    style: const TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                              // Channel
+                              SizedBox(
+                                width: 80,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 6,
+                                  ),
+                                  child: Text(
+                                    packet.channel,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ),
+                              // Data summary
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 6,
+                                  ),
+                                  child: Text(
+                                    packet.summary,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -561,18 +573,7 @@ class _PacketsTabState extends State<PacketsTab>
       );
     }
 
-    final packet = _selectedPacket!;
-    final details = <MapEntry<String, String>>[
-      MapEntry(
-        'Direction',
-        packet.direction == PacketDirection.incoming ? 'Received' : 'Sent',
-      ),
-      MapEntry('Time', packet.time.toString()),
-      MapEntry('Size', '${packet.data.length} bytes'),
-      ...packet.decodeDetails.entries,
-      MapEntry('Data ASCII', packet.dataAscii),
-      MapEntry('Data HEX', packet.dataHex),
-    ];
+    final sections = PacketDecoder.decode(_selectedPacket!.fragment);
 
     return Container(
       color: Colors.white,
@@ -592,48 +593,59 @@ class _PacketsTabState extends State<PacketsTab>
               ),
             ),
           ),
-          // Details list
+          // Details list grouped into sections
           Expanded(
-            child: ListView.builder(
-              itemCount: details.length,
-              itemBuilder: (context, index) {
-                final entry = details[index];
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade200),
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 100,
-                        child: Text(
-                          entry.key,
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: SelectableText(
-                          entry.value,
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+            child: ListView(
+              children: [
+                for (final section in sections) ...[
+                  _buildSectionHeader(section.title),
+                  for (final entry in section.lines)
+                    _buildDetailRow(entry.key, entry.value),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      color: Colors.grey.shade100,
+      child: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 11,
+          color: Colors.grey.shade800,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String key, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              key,
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+            ),
+          ),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
             ),
           ),
         ],
