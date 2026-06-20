@@ -146,6 +146,7 @@ class Radio {
 
   Radio({required this.deviceId, required this.macAddress})
     : _broker = DataBrokerClient() {
+    debugPrint('[Radio $deviceId] Created Radio, setting up subscriptions');
     _setupSubscriptions();
   }
 
@@ -155,6 +156,9 @@ class Radio {
   }
 
   void _setupSubscriptions() {
+    debugPrint(
+      '[Radio $deviceId] Subscribing to ChannelChangeVfoA/B for device $deviceId',
+    );
     // Subscribe to channel change events
     _broker.subscribeMultiple(
       deviceId: deviceId,
@@ -1162,11 +1166,13 @@ class Radio {
   }
 
   void _handleReadSettings(Uint8List data) {
-    _debug('Received settings data, length: ${data.length}');
+    _debug(
+      'Received settings data, length: ${data.length}, data: ${RadioUtils.bytesToHex(data)}',
+    );
     settings = RadioSettings.fromBytes(data);
     if (settings != null) {
       _debug(
-        'Settings parsed: channelA=${settings!.channelA}, channelB=${settings!.channelB}',
+        'Settings parsed: channelA=${settings!.channelA}, channelB=${settings!.channelB}, rawData.length=${settings!.rawData.length}',
       );
       _dispatch('Settings', settings!.toJson());
     } else {

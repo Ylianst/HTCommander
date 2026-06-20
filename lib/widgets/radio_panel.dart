@@ -217,7 +217,16 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   void _onChannelTap(int channelId) {
-    if (widget.deviceId <= 0) return;
+    debugPrint(
+      'RadioPanel: _onChannelTap called with channelId: $channelId, deviceId: ${widget.deviceId}',
+    );
+    if (widget.deviceId <= 0) {
+      debugPrint('RadioPanel: deviceId <= 0, ignoring');
+      return;
+    }
+    debugPrint(
+      'RadioPanel: Dispatching ChannelChangeVfoA for device ${widget.deviceId}',
+    );
     _broker.dispatch(
       deviceId: widget.deviceId,
       name: 'ChannelChangeVfoA',
