@@ -46,6 +46,13 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   @override
   void initState() {
     super.initState();
+    _showAllChannels =
+        (_broker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'ShowAllChannels',
+      callback: _onShowAllChannelsChanged,
+    );
     _subscribeToDevice();
   }
 
@@ -55,6 +62,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     if (oldWidget.deviceId != widget.deviceId) {
       // Device ID changed - resubscribe
       _broker.unsubscribeAll();
+      _broker.subscribe(
+        deviceId: 0,
+        name: 'ShowAllChannels',
+        callback: _onShowAllChannelsChanged,
+      );
       _clearCachedState();
       _subscribeToDevice();
     }
@@ -64,6 +76,16 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   void dispose() {
     _broker.dispose();
     super.dispose();
+  }
+
+  /// Handle ShowAllChannels changes broadcast on device 0 (e.g. from the main
+  /// menu "All Channels" item).
+  void _onShowAllChannelsChanged(int deviceId, String name, Object? data) {
+    final newValue = (data as int?) == 1;
+    if (newValue == _showAllChannels) return;
+    setState(() {
+      _showAllChannels = newValue;
+    });
   }
 
   void _clearCachedState() {
@@ -559,9 +581,14 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           _setChannelB(channel.channelId);
           break;
         case 'showAll':
-          setState(() {
-            _showAllChannels = !_showAllChannels;
-          });
+          // Toggle the shared ShowAllChannels state via the DataBroker so the
+          // main menu "All Channels" item stays in sync.
+          final newValue = !_showAllChannels;
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'ShowAllChannels',
+            data: newValue ? 1 : 0,
+          );
           break;
       }
     });

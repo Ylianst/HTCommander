@@ -9,7 +9,6 @@ Ported from the C# `HTCommander.Airplanes.AirplaneHandler` class.
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/aircraft.dart';
@@ -101,7 +100,6 @@ class AirplaneHandler {
   }
 
   void _startPolling(String url) {
-    debugPrint('AirplaneHandler: starting polling for $url');
     _httpClient = http.Client();
     _polling = true;
     // Fire and forget; the loop exits when the URL changes or on dispose.
@@ -132,31 +130,16 @@ class AirplaneHandler {
                 .whereType<Map>()
                 .map((e) => Aircraft.fromJson(Map<String, dynamic>.from(e)))
                 .toList();
-            final withPosition = aircraft
-                .where((a) => a.hasPosition)
-                .length;
-            debugPrint(
-              'AirplaneHandler: fetched ${aircraft.length} aircraft '
-              '($withPosition with position)',
-            );
             _broker.dispatch(
               deviceId: _settingsDeviceId,
               name: 'Airplanes',
               data: aircraft,
               store: false,
             );
-          } else {
-            debugPrint(
-              'AirplaneHandler: response had no "aircraft" list '
-              '(root type: ${decoded.runtimeType})',
-            );
           }
-        } else {
-          debugPrint('AirplaneHandler: HTTP ${response.statusCode} from $url');
         }
-      } catch (e) {
-        // Log and retry after the delay so failures are visible.
-        debugPrint('AirplaneHandler: poll error for $url: $e');
+      } catch (_) {
+        // Ignore poll errors (network, timeout, bad JSON) and retry.
       }
 
       if (!_polling || _disposed || _currentUrl != url) break;

@@ -79,11 +79,6 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     } else {
       airplanes = const [];
     }
-    debugPrint(
-      'MapTab: received ${airplanes.length} aircraft '
-      '(${airplanes.where((a) => a.hasPosition).length} with position), '
-      'showAirplanes=$_showAirplanes',
-    );
     setState(() => _airplanes = airplanes);
   }
 
@@ -385,9 +380,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     final label = (aircraft.flight != null && aircraft.flight!.isNotEmpty)
         ? aircraft.flight!
         : (aircraft.hex ?? 'Unknown');
-    // The Material "flight" glyph points to the upper-right (~45°), so offset
-    // the rotation so the nose aligns with the reported track (0° = north).
-    final angle = ((aircraft.track ?? 0) - 45) * math.pi / 180;
+    // The Material "flight" glyph points straight up (north), so rotate it
+    // directly by the reported track (0° = north, increasing clockwise).
+    final angle = (aircraft.track ?? 0) * math.pi / 180;
     return Tooltip(
       message:
           'Flight: $label\n'
