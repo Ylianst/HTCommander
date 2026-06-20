@@ -13,6 +13,7 @@ import 'dialogs/settings_dialog.dart';
 import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
 import 'handlers/aprs_handler.dart';
+import 'handlers/airplane_handler.dart';
 import 'radio/radio_transport.dart';
 import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
@@ -52,6 +53,13 @@ void main(List<String> args) async {
   final aprsHandler = AprsHandler();
   aprsHandler.init();
   DataBroker.addDataHandler('AprsHandler', aprsHandler);
+
+  // Register the airplane handler so that, when a Dump1090 server is configured
+  // and airplane display is enabled, aircraft are polled and dispatched on the
+  // "Airplanes" event for the map tab.
+  final airplaneHandler = AirplaneHandler();
+  airplaneHandler.init();
+  DataBroker.addDataHandler('AirplaneHandler', airplaneHandler);
 
   // Check if this is a sub-window on desktop platforms
   if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
@@ -377,6 +385,7 @@ class _MainFormState extends State<MainForm>
         (DataBroker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1;
     _checkForUpdates =
         (DataBroker.getValue<int>(0, 'CheckForUpdates', 0) ?? 0) == 1;
+    _showTabNames = (DataBroker.getValue<int>(0, 'ShowTabNames', 1) ?? 1) == 1;
   }
 
   /// Handle settings changes from DataBroker.
@@ -741,6 +750,11 @@ class _MainFormState extends State<MainForm>
               setState(() {
                 _showTabNames = !_showTabNames;
               });
+              _broker.dispatch(
+                deviceId: 0,
+                name: 'ShowTabNames',
+                data: _showTabNames ? 1 : 0,
+              );
             },
             checked: _showTabNames,
           ),

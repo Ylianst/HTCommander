@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../models/aircraft.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
@@ -23,6 +26,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   bool _showMarkers = true;
   bool _showAirplanes = false;
   bool _largeMarkers = true;
+
+  /// Current aircraft to display, received from the "Airplanes" broker event.
+  List<Aircraft> _airplanes = [];
   // ignore: unused_field
   int _markerTimeFilter = 0; // 0 = all, otherwise minutes (for future use)
 
@@ -47,6 +53,46 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
     _loadSettings();
+
+    // Receive aircraft updates from the AirplaneHandler.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'Airplanes',
+      callback: _onAirplanesChanged,
+    );
+
+    // Keep airplane visibility in sync with the setting.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'ShowAirplanesOnMap',
+      callback: _onShowAirplanesChanged,
+    );
+  }
+
+  void _onAirplanesChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final List<Aircraft> airplanes;
+    if (data is List<Aircraft>) {
+      airplanes = data;
+    } else if (data is List) {
+      airplanes = data.whereType<Aircraft>().toList();
+    } else {
+      airplanes = const [];
+    }
+    debugPrint(
+      'MapTab: received ${airplanes.length} aircraft '
+      '(${airplanes.where((a) => a.hasPosition).length} with position), '
+      'showAirplanes=$_showAirplanes',
+    );
+    setState(() => _airplanes = airplanes);
+  }
+
+  void _onShowAirplanesChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() {
+      _showAirplanes = (data as int?) == 1;
+      if (!_showAirplanes) _airplanes = const [];
+    });
   }
 
   @override
@@ -318,6 +364,41 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     });
   }
 
+  /// Builds the airplane markers for aircraft that have a known position.
+  List<Marker> _buildAirplaneMarkers() {
+    final markers = <Marker>[];
+    for (final aircraft in _airplanes) {
+      if (!aircraft.hasPosition) continue;
+      markers.add(
+        Marker(
+          point: LatLng(aircraft.latitude!, aircraft.longitude!),
+          width: 40,
+          height: 40,
+          child: _buildAirplaneMarker(aircraft),
+        ),
+      );
+    }
+    return markers;
+  }
+
+  Widget _buildAirplaneMarker(Aircraft aircraft) {
+    final label = (aircraft.flight != null && aircraft.flight!.isNotEmpty)
+        ? aircraft.flight!
+        : (aircraft.hex ?? 'Unknown');
+    // The Material "flight" glyph points to the upper-right (~45°), so offset
+    // the rotation so the nose aligns with the reported track (0° = north).
+    final angle = ((aircraft.track ?? 0) - 45) * math.pi / 180;
+    return Tooltip(
+      message:
+          'Flight: $label\n'
+          'Altitude: ${aircraft.getAltitudeDisplay()} ft',
+      child: Transform.rotate(
+        angle: angle,
+        child: const Icon(Icons.flight, color: Color(0xFF1565C0), size: 26),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
@@ -345,6 +426,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.htcommander.app',
                   ),
+                  if (_showAirplanes && _airplanes.isNotEmpty)
+                    MarkerLayer(markers: _buildAirplaneMarkers()),
                 ],
               ),
               // Zoom buttons overlay (top-left, below header)

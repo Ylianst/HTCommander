@@ -1389,6 +1389,8 @@ class Radio {
     final fragment = TncDataFragment.fromBytes(data);
     fragment.encoding = FragmentEncodingType.hardwareAfsk1200;
     fragment.corrections = 0;
+    fragment.incoming = true;
+    fragment.time = DateTime.now();
     if (fragment.channelId == -1 && htStatus != null) {
       fragment.channelId = htStatus!.currChId;
     }

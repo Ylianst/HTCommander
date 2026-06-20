@@ -1,4 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
 import '../services/data_broker.dart';
@@ -259,6 +262,10 @@ class _SettingsDialogState extends State<SettingsDialog>
   late TextEditingController _agwpePortController;
   late TextEditingController _airplaneUrlController;
 
+  // Dump1090 "Test Connection" state.
+  bool _airplaneTesting = false;
+  String _airplaneTestResult = '';
+
   // Language options
   static const List<LanguageOption> _languages = [
     LanguageOption('auto', 'Auto-detect'),
@@ -344,6 +351,66 @@ class _SettingsDialogState extends State<SettingsDialog>
       if (_settings.callSign.length < 3) {
         _settings.allowTransmit = false;
       }
+    });
+  }
+
+  /// Resolves a user-entered dump1090 server value into a full aircraft.json
+  /// URL, mirroring the C# `AirplaneHandler.ResolveUrl`. Bare host[:port]
+  /// values are expanded to `http://<server>/data/aircraft.json`.
+  String? _resolveDump1090Url(String server) {
+    final trimmed = server.trim();
+    if (trimmed.isEmpty) return null;
+    final lower = trimmed.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return trimmed;
+    }
+    return 'http://$trimmed/data/aircraft.json';
+  }
+
+  /// Fetches the dump1090 aircraft.json endpoint and validates the response,
+  /// mirroring the C# `OnTestAirplaneServer` test. Reports the aircraft count
+  /// on success or a failure message otherwise.
+  Future<void> _testAirplaneConnection() async {
+    final url = _resolveDump1090Url(_airplaneUrlController.text);
+    if (url == null) {
+      setState(() => _airplaneTestResult = 'Failed: empty server address');
+      return;
+    }
+
+    setState(() {
+      _airplaneTesting = true;
+      _airplaneTestResult = 'Testing...';
+    });
+
+    String result;
+    try {
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        result = 'Failed: HTTP ${response.statusCode}';
+      } else {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map) {
+          final aircraft = decoded['aircraft'];
+          final count = aircraft is List ? aircraft.length : 0;
+          result = 'Success, $count aircraft found.';
+        } else {
+          result = 'Failed: unexpected JSON format';
+        }
+      }
+    } on TimeoutException {
+      result = 'Failed: request timed out';
+    } on FormatException {
+      result = 'Failed: invalid JSON response';
+    } catch (e) {
+      result = 'Failed: $e';
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _airplaneTesting = false;
+      _airplaneTestResult = result;
     });
   }
 
@@ -1118,16 +1185,42 @@ class _SettingsDialogState extends State<SettingsDialog>
                 const SizedBox(height: 4),
                 TextField(
                   controller: _airplaneUrlController,
+                  onChanged: (_) {
+                    // Clear the previous result when the URL changes, matching
+                    // the C# dump1090urlTextBox_TextChanged behavior.
+                    setState(() => _airplaneTestResult = '');
+                  },
                   decoration: _inputDecoration(
                     hintText: 'http://localhost:8080/data/aircraft.json',
                   ),
                 ),
                 const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: _airplaneUrlController.text.isNotEmpty
-                      ? () {}
-                      : null,
-                  child: const Text('Test Connection'),
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed:
+                          (_airplaneUrlController.text.trim().isNotEmpty &&
+                              !_airplaneTesting)
+                          ? _testAirplaneConnection
+                          : null,
+                      child: const Text('Test Connection'),
+                    ),
+                    if (_airplaneTestResult.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _airplaneTestResult,
+                          style: TextStyle(
+                            color: _airplaneTestResult.startsWith('Success')
+                                ? Colors.green.shade700
+                                : _airplaneTestResult == 'Testing...'
+                                ? Colors.grey.shade700
+                                : Colors.red.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

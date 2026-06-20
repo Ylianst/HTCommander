@@ -1,23 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/window_service.dart';
-
-/// Station type enum matching C# StationTypes
-enum StationType { generic, aprs, terminal, winlink, bbs, torrent }
-
-/// Contact/Station information
-class ContactInfo {
-  final String callsign;
-  final String name;
-  final String description;
-  final StationType stationType;
-
-  const ContactInfo({
-    required this.callsign,
-    required this.name,
-    this.description = '',
-    this.stationType = StationType.generic,
-  });
-}
+import '../services/data_broker_client.dart';
+import '../models/station_info.dart';
+import '../dialogs/add_station_dialog.dart';
 
 /// Contacts tab - contact management
 class ContactsTab extends StatefulWidget {
@@ -29,52 +14,78 @@ class ContactsTab extends StatefulWidget {
 
 class _ContactsTabState extends State<ContactsTab>
     with AutomaticKeepAliveClientMixin {
+  /// Device id that owns persisted application settings (the station list).
+  static const int _settingsDeviceId = 0;
+
+  final DataBrokerClient _broker = DataBrokerClient();
   final Set<int> _selectedIndices = {};
   int _sortColumnIndex = 0;
   bool _sortAscending = true;
 
-  // Sample contacts data
-  final List<ContactInfo> _contacts = [
-    const ContactInfo(
-      callsign: 'KK7VZT',
-      name: 'Ylian Saint-Hilaire',
-      description: 'HTCommander Author',
-      stationType: StationType.generic,
-    ),
-    const ContactInfo(
-      callsign: 'KC3SLD',
-      name: 'Kyle Husmann',
-      description: 'BenLink Author',
-      stationType: StationType.generic,
-    ),
-    const ContactInfo(
-      callsign: 'APRS-1',
-      name: 'Local Digipeater',
-      description: 'Regional APRS digipeater',
-      stationType: StationType.aprs,
-    ),
-    const ContactInfo(
-      callsign: 'WL2K-1',
-      name: 'Winlink Gateway',
-      description: 'Regional Winlink RMS',
-      stationType: StationType.winlink,
-    ),
-    const ContactInfo(
-      callsign: 'BBS-1',
-      name: 'Local BBS',
-      description: 'Community bulletin board',
-      stationType: StationType.bbs,
-    ),
-    const ContactInfo(
-      callsign: 'TERM-1',
-      name: 'Terminal Server',
-      description: 'Packet terminal server',
-      stationType: StationType.terminal,
-    ),
-  ];
+  /// The current station list, loaded from and saved to the DataBroker.
+  List<StationInfo> _contacts = [];
 
   @override
   bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStations();
+    _broker.subscribe(
+      deviceId: _settingsDeviceId,
+      name: 'Stations',
+      callback: _onStationsChanged,
+    );
+  }
+
+  @override
+  void dispose() {
+    _broker.dispose();
+    super.dispose();
+  }
+
+  void _onStationsChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() {
+      _loadStations();
+      _selectedIndices.clear();
+    });
+  }
+
+  /// Reads the current station list from the broker as a fresh, mutable list.
+  ///
+  /// The broker is the single source of truth (mirrors the C# `GetStations()`):
+  /// handlers fetch the list with this, mutate it, then call [_saveStations].
+  /// The UI is only rebuilt from the `Stations` subscription in
+  /// [_onStationsChanged], so any instances sharing a broker stay in sync.
+  List<StationInfo> _getStations() {
+    final raw = _broker.getValueDynamic(_settingsDeviceId, 'Stations', null);
+    final list = <StationInfo>[];
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          list.add(StationInfo.fromJson(item));
+        } else if (item is Map) {
+          list.add(StationInfo.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+    return list;
+  }
+
+  void _loadStations() {
+    _contacts = _getStations();
+    _applySort();
+  }
+
+  void _saveStations(List<StationInfo> stations) {
+    _broker.dispatch(
+      deviceId: _settingsDeviceId,
+      name: 'Stations',
+      data: stations.map((s) => s.toJson()).toList(),
+    );
+  }
 
   String _getStationTypeName(StationType type) {
     switch (type) {
@@ -84,12 +95,14 @@ class _ContactsTabState extends State<ContactsTab>
         return 'APRS Stations';
       case StationType.terminal:
         return 'Terminal Stations';
-      case StationType.winlink:
-        return 'Winlink Stations';
       case StationType.bbs:
         return 'BBS Stations';
+      case StationType.winlink:
+        return 'Winlink Stations';
       case StationType.torrent:
         return 'Torrent Stations';
+      case StationType.agwpe:
+        return 'AGWPE Stations';
     }
   }
 
@@ -101,24 +114,49 @@ class _ContactsTabState extends State<ContactsTab>
         return Icons.location_on;
       case StationType.terminal:
         return Icons.terminal;
-      case StationType.winlink:
-        return Icons.mail;
       case StationType.bbs:
         return Icons.forum;
+      case StationType.winlink:
+        return Icons.mail;
       case StationType.torrent:
         return Icons.swap_horiz;
+      case StationType.agwpe:
+        return Icons.lan;
     }
   }
 
-  void _onAdd() {
-    // TODO: Show add contact dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add contact dialog not implemented yet')),
+  Future<void> _onAdd() async {
+    final station = await showStationDialog(context);
+    if (station == null || !mounted) return;
+    final stations = _getStations();
+    final exists = stations.any(
+      (s) =>
+          s.callsign == station.callsign &&
+          s.stationType == station.stationType,
     );
+    if (exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A station with this callsign and type already exists'),
+        ),
+      );
+      return;
+    }
+    stations.add(station);
+    // The UI updates via the 'Stations' subscription in _onStationsChanged.
+    _saveStations(stations);
   }
 
   void _onRemove() {
     if (_selectedIndices.isEmpty) return;
+
+    // Capture the selected stations from the currently displayed list so we can
+    // match them against the broker's authoritative list when removing.
+    final selectedStations = _selectedIndices
+        .where((i) => i >= 0 && i < _contacts.length)
+        .map((i) => _contacts[i])
+        .toList();
+    if (selectedStations.isEmpty) return;
 
     showDialog<bool>(
       context: context,
@@ -137,24 +175,45 @@ class _ContactsTabState extends State<ContactsTab>
         ],
       ),
     ).then((confirmed) {
-      if (confirmed == true) {
-        setState(() {
-          final indicesToRemove = _selectedIndices.toList()
-            ..sort((a, b) => b.compareTo(a));
-          for (final index in indicesToRemove) {
-            _contacts.removeAt(index);
-          }
-          _selectedIndices.clear();
-        });
+      if (confirmed != true) return;
+      final stations = _getStations();
+      for (final station in selectedStations) {
+        stations.removeWhere(
+          (s) =>
+              s.callsign == station.callsign &&
+              s.stationType == station.stationType,
+        );
       }
+      // The UI updates via the 'Stations' subscription in _onStationsChanged.
+      _saveStations(stations);
     });
   }
 
-  void _onEdit() {
+  Future<void> _onEdit() async {
     if (_selectedIndices.length != 1) return;
-    // TODO: Show edit contact dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit contact dialog not implemented yet')),
+    final index = _selectedIndices.first;
+    if (index < 0 || index >= _contacts.length) return;
+    final existing = _contacts[index];
+
+    final updated = await showStationDialog(context, existing: existing);
+    if (updated == null || !mounted) return;
+
+    final stations = _getStations();
+    // Remove the old entry and add the updated one (mirrors the C# edit flow).
+    stations.removeWhere(
+      (s) =>
+          s.callsign == existing.callsign &&
+          s.stationType == existing.stationType,
+    );
+    stations.add(updated);
+    // The UI updates via the 'Stations' subscription in _onStationsChanged.
+    _saveStations(stations);
+    // Notify listeners (e.g. active station lock) of the update.
+    _broker.dispatch(
+      deviceId: _settingsDeviceId,
+      name: 'StationUpdated',
+      data: updated.toJson(),
+      store: false,
     );
   }
 
@@ -245,29 +304,33 @@ class _ContactsTabState extends State<ContactsTab>
         _sortColumnIndex = columnIndex;
         _sortAscending = true;
       }
-      _contacts.sort((a, b) {
-        String aValue, bValue;
-        switch (columnIndex) {
-          case 0:
-            aValue = a.callsign;
-            bValue = b.callsign;
-            break;
-          case 1:
-            aValue = a.name;
-            bValue = b.name;
-            break;
-          case 2:
-            aValue = a.description;
-            bValue = b.description;
-            break;
-          default:
-            aValue = a.callsign;
-            bValue = b.callsign;
-        }
-        return _sortAscending
-            ? aValue.compareTo(bValue)
-            : bValue.compareTo(aValue);
-      });
+      _applySort();
+    });
+  }
+
+  void _applySort() {
+    _contacts.sort((a, b) {
+      String aValue, bValue;
+      switch (_sortColumnIndex) {
+        case 0:
+          aValue = a.callsign;
+          bValue = b.callsign;
+          break;
+        case 1:
+          aValue = a.name;
+          bValue = b.name;
+          break;
+        case 2:
+          aValue = a.description;
+          bValue = b.description;
+          break;
+        default:
+          aValue = a.callsign;
+          bValue = b.callsign;
+      }
+      return _sortAscending
+          ? aValue.compareTo(bValue)
+          : bValue.compareTo(aValue);
     });
   }
 
@@ -323,7 +386,7 @@ class _ContactsTabState extends State<ContactsTab>
 
   Widget _buildContactList() {
     // Group contacts by station type
-    final groupedContacts = <StationType, List<MapEntry<int, ContactInfo>>>{};
+    final groupedContacts = <StationType, List<MapEntry<int, StationInfo>>>{};
     for (var i = 0; i < _contacts.length; i++) {
       final contact = _contacts[i];
       groupedContacts
@@ -424,7 +487,7 @@ class _ContactsTabState extends State<ContactsTab>
     );
   }
 
-  Widget _buildContactRow(int index, ContactInfo contact) {
+  Widget _buildContactRow(int index, StationInfo contact) {
     final isSelected = _selectedIndices.contains(index);
     return InkWell(
       onTap: () {
@@ -465,7 +528,7 @@ class _ContactsTabState extends State<ContactsTab>
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        contact.callsign,
+                        contact.callsignNoZero,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
