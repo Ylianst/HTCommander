@@ -11,6 +11,8 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
+import '../radio/bluetooth_classic_transport.dart';
+import '../radio/radio.dart';
 import '../radio/radio_transport.dart';
 import 'bluetooth_classic_macos.dart';
 import 'data_broker.dart';
@@ -26,6 +28,9 @@ class BluetoothService {
 
   // Connected radios: deviceId -> RadioTransport (BLE or Classic)
   final Map<int, RadioTransport> _connectedRadios = {};
+
+  // Radio instances: deviceId -> Radio
+  final Map<int, Radio> _radioInstances = {};
 
   // For macOS Bluetooth Classic connections
   final Map<int, String> _classicConnections = {}; // deviceId -> macAddress
@@ -308,20 +313,34 @@ class BluetoothService {
       _classicConnections[deviceId] = macAddress;
       _publishConnectedRadios();
 
-      // Connect using native Bluetooth Classic
+      // Create a BluetoothClassicTransport
+      final transport = BluetoothClassicTransport();
+      final device = DiscoveredDevice(
+        id: macAddress,
+        name: friendlyName.isNotEmpty ? friendlyName : macAddress,
+        type: BluetoothType.classic,
+      );
+
+      // Connect using the transport
       debugPrint(
         'BluetoothService: Connecting via Bluetooth Classic to $macAddress',
       );
-      final success = await BluetoothClassicMacOS.instance.connect(macAddress);
+      final success = await transport.connect(device);
 
       if (success) {
         debugPrint('BluetoothService: Bluetooth Classic connection successful');
-        _broker.dispatch(
-          deviceId: deviceId,
-          name: 'State',
-          data: 'Connected',
-          store: true,
-        );
+
+        // Store the transport
+        _connectedRadios[deviceId] = transport;
+
+        // Create a Radio instance
+        final radio = Radio(deviceId: deviceId, macAddress: macAddress);
+        radio.updateFriendlyName(friendlyName);
+        _radioInstances[deviceId] = radio;
+
+        // Connect the radio to the transport (will start communication)
+        await radio.connect(transport);
+
         _broker.dispatch(
           deviceId: deviceId,
           name: 'MacAddress',
@@ -339,6 +358,7 @@ class BluetoothService {
       } else {
         debugPrint('BluetoothService: Bluetooth Classic connection failed');
         _classicConnections.remove(deviceId);
+        await transport.dispose();
         _broker.dispatch(
           deviceId: deviceId,
           name: 'State',
@@ -425,11 +445,18 @@ class BluetoothService {
 
   /// Disconnect a radio by device ID
   Future<void> disconnectRadio(int deviceId) async {
+    // Dispose of the Radio instance if it exists
+    final radio = _radioInstances.remove(deviceId);
+    radio?.dispose();
+
     // Check for Classic connection (macOS)
     if (_classicConnections.containsKey(deviceId)) {
-      final macAddress = _classicConnections.remove(deviceId);
-      if (macAddress != null) {
-        await BluetoothClassicMacOS.instance.disconnect(macAddress);
+      _classicConnections.remove(deviceId);
+      // Transport handles the actual disconnection
+      final transport = _connectedRadios.remove(deviceId);
+      if (transport != null) {
+        await transport.disconnect();
+        await transport.dispose();
       }
       _broker.dispatch(
         deviceId: deviceId,
@@ -537,6 +564,12 @@ class BluetoothService {
 
   /// Dispose all resources
   Future<void> dispose() async {
+    // Dispose Radio instances
+    for (final radio in _radioInstances.values) {
+      radio.dispose();
+    }
+    _radioInstances.clear();
+
     // Dispose BLE transports
     for (final transport in _connectedRadios.values) {
       await transport.disconnect();
@@ -544,10 +577,7 @@ class BluetoothService {
     }
     _connectedRadios.clear();
 
-    // Disconnect Classic connections
-    for (final macAddress in _classicConnections.values) {
-      await BluetoothClassicMacOS.instance.disconnect(macAddress);
-    }
+    // Clear Classic connections (transports already disposed above)
     _classicConnections.clear();
 
     _broker.dispose();

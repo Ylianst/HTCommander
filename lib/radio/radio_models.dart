@@ -63,23 +63,25 @@ class RadioDevInfo {
 
   RadioDevInfo.fromBytes(Uint8List msg)
     : raw = msg,
-      vendorId = msg[5],
+      vendorId = RadioUtils.getByte(msg, 5),
       productId = RadioUtils.getShort(msg, 6),
-      hwVer = msg[8],
+      hwVer = RadioUtils.getByte(msg, 8),
       softVer = RadioUtils.getShort(msg, 9),
-      supportRadio = (msg[11] & 0x80) != 0,
-      supportMediumPower = (msg[11] & 0x40) != 0,
-      fixedLocSpeakerVol = (msg[11] & 0x20) != 0,
-      notSupportSoftPowerCtrl = (msg[11] & 0x10) != 0,
-      haveNoSpeaker = (msg[11] & 0x08) != 0,
-      haveHmSpeaker = (msg[11] & 0x04) != 0,
-      regionCount = ((msg[11] & 0x03) << 4) + ((msg[12] & 0xF0) >> 4),
-      supportNoaa = (msg[12] & 0x08) != 0,
-      gmrs = (msg[12] & 0x04) != 0,
-      supportVfo = (msg[12] & 0x02) != 0,
-      supportDmr = (msg[12] & 0x01) != 0,
-      channelCount = msg[13],
-      freqRangeCount = (msg[14] & 0xF0) >> 4;
+      supportRadio = (RadioUtils.getByte(msg, 11) & 0x80) != 0,
+      supportMediumPower = (RadioUtils.getByte(msg, 11) & 0x40) != 0,
+      fixedLocSpeakerVol = (RadioUtils.getByte(msg, 11) & 0x20) != 0,
+      notSupportSoftPowerCtrl = (RadioUtils.getByte(msg, 11) & 0x10) != 0,
+      haveNoSpeaker = (RadioUtils.getByte(msg, 11) & 0x08) != 0,
+      haveHmSpeaker = (RadioUtils.getByte(msg, 11) & 0x04) != 0,
+      regionCount =
+          ((RadioUtils.getByte(msg, 11) & 0x03) << 4) +
+          ((RadioUtils.getByte(msg, 12) & 0xF0) >> 4),
+      supportNoaa = (RadioUtils.getByte(msg, 12) & 0x08) != 0,
+      gmrs = (RadioUtils.getByte(msg, 12) & 0x04) != 0,
+      supportVfo = (RadioUtils.getByte(msg, 12) & 0x02) != 0,
+      supportDmr = (RadioUtils.getByte(msg, 12) & 0x01) != 0,
+      channelCount = RadioUtils.getByte(msg, 13),
+      freqRangeCount = (RadioUtils.getByte(msg, 14) & 0xF0) >> 4;
 
   /// Get a friendly device name based on product ID
   String get name {
@@ -134,23 +136,26 @@ class RadioHtStatus {
 
   RadioHtStatus.fromBytes(Uint8List msg)
     : raw = msg,
-      isPowerOn = (msg[5] & 0x80) != 0,
-      isInTx = (msg[5] & 0x40) != 0,
-      isSq = (msg[5] & 0x20) != 0,
-      isInRx = (msg[5] & 0x10) != 0,
-      doubleChannel = RadioChannelType.values[(msg[5] & 0x0C) >> 2],
-      isScan = (msg[5] & 0x02) != 0,
-      isRadio = (msg[5] & 0x01) != 0,
-      currChIdLower = msg[6] >> 4,
-      isGpsLocked = (msg[6] & 0x08) != 0,
-      isHfpConnected = (msg[6] & 0x04) != 0,
-      isAocConnected = (msg[6] & 0x02) != 0,
-      rssi = msg.length >= 9 ? (msg[7] >> 4) : 0,
-      currRegion = msg.length >= 9 ? ((msg[7] & 0x0F) << 2) + (msg[8] >> 6) : 0,
-      currChannelIdUpper = msg.length >= 9 ? ((msg[8] & 0x3C) >> 2) : 0,
-      currChId = msg.length >= 9
-          ? (((msg[8] & 0x3C) >> 2) << 4) + (msg[6] >> 4)
-          : msg[6] >> 4;
+      isPowerOn = (RadioUtils.getByte(msg, 5) & 0x80) != 0,
+      isInTx = (RadioUtils.getByte(msg, 5) & 0x40) != 0,
+      isSq = (RadioUtils.getByte(msg, 5) & 0x20) != 0,
+      isInRx = (RadioUtils.getByte(msg, 5) & 0x10) != 0,
+      doubleChannel =
+          RadioChannelType.values[(RadioUtils.getByte(msg, 5) & 0x0C) >> 2],
+      isScan = (RadioUtils.getByte(msg, 5) & 0x02) != 0,
+      isRadio = (RadioUtils.getByte(msg, 5) & 0x01) != 0,
+      currChIdLower = RadioUtils.getByte(msg, 6) >> 4,
+      isGpsLocked = (RadioUtils.getByte(msg, 6) & 0x08) != 0,
+      isHfpConnected = (RadioUtils.getByte(msg, 6) & 0x04) != 0,
+      isAocConnected = (RadioUtils.getByte(msg, 6) & 0x02) != 0,
+      rssi = RadioUtils.getByte(msg, 7) >> 4,
+      currRegion =
+          ((RadioUtils.getByte(msg, 7) & 0x0F) << 2) +
+          (RadioUtils.getByte(msg, 8) >> 6),
+      currChannelIdUpper = (RadioUtils.getByte(msg, 8) & 0x3C) >> 2,
+      currChId =
+          (((RadioUtils.getByte(msg, 8) & 0x3C) >> 2) << 4) +
+          (RadioUtils.getByte(msg, 6) >> 4);
 
   Map<String, dynamic> toJson() => {
     'isPowerOn': isPowerOn,
@@ -214,43 +219,51 @@ class RadioSettings {
 
   RadioSettings.fromBytes(Uint8List msg)
     : rawData = msg,
-      channelA = ((msg[5] & 0xF0) >> 4) + (msg[14] & 0xF0),
-      channelB = (msg[5] & 0x0F) + ((msg[14] & 0x0F) << 4),
-      scan = (msg[6] & 0x80) != 0,
-      aghfpCallMode = (msg[6] & 0x40) != 0,
-      doubleChannel = (msg[6] & 0x30) >> 4,
-      squelchLevel = msg[6] & 0x0F,
-      tailElim = (msg[7] & 0x80) != 0,
-      autoRelayEn = (msg[7] & 0x40) != 0,
-      autoPowerOn = (msg[7] & 0x20) != 0,
-      keepAghfpLink = (msg[7] & 0x10) != 0,
-      micGain = (msg[7] & 0x0E) >> 1,
-      txHoldTime = ((msg[7] & 0x01) << 4) + ((msg[8] & 0xE0) >> 4),
-      txTimeLimit = msg[8] & 0x1F,
-      localSpeaker = msg[9] >> 6,
-      btMicGain = (msg[9] & 0x38) >> 3,
-      adaptiveResponse = (msg[9] & 0x04) != 0,
-      disTone = (msg[9] & 0x02) != 0,
-      powerSavingMode = (msg[9] & 0x01) != 0,
-      autoPowerOff = msg[10] >> 5,
-      autoShareLocCh = msg[10] & 0x1F,
-      hmSpeaker = msg[11] >> 6,
-      positioningSystem = (msg[11] & 0x3C) >> 2,
-      timeOffset = ((msg[11] & 0x03) << 4) + ((msg[12] & 0xF0) >> 4),
-      useFreqRange2 = (msg[12] & 0x08) != 0,
-      pttLock = (msg[12] & 0x04) != 0,
-      leadingSyncBitEn = (msg[12] & 0x02) != 0,
-      pairingAtPowerOn = (msg[12] & 0x01) != 0,
-      screenTimeout = msg[13] >> 3,
-      vfoX = (msg[13] & 0x06) >> 1,
-      imperialUnit = (msg[13] & 0x01) != 0,
-      wxMode = msg[15] >> 6,
-      noaaCh = (msg[15] & 0x3C) >> 2,
-      vfolTxPowerX = msg[15] & 0x03,
-      vfo2TxPowerX = msg[16] >> 6,
-      disDigitalMute = (msg[16] & 0x20) != 0,
-      signalingEccEn = (msg[16] & 0x10) != 0,
-      chDataLock = (msg[16] & 0x08) != 0,
+      channelA =
+          ((RadioUtils.getByte(msg, 5) & 0xF0) >> 4) +
+          (RadioUtils.getByte(msg, 14) & 0xF0),
+      channelB =
+          (RadioUtils.getByte(msg, 5) & 0x0F) +
+          ((RadioUtils.getByte(msg, 14) & 0x0F) << 4),
+      scan = (RadioUtils.getByte(msg, 6) & 0x80) != 0,
+      aghfpCallMode = (RadioUtils.getByte(msg, 6) & 0x40) != 0,
+      doubleChannel = (RadioUtils.getByte(msg, 6) & 0x30) >> 4,
+      squelchLevel = RadioUtils.getByte(msg, 6) & 0x0F,
+      tailElim = (RadioUtils.getByte(msg, 7) & 0x80) != 0,
+      autoRelayEn = (RadioUtils.getByte(msg, 7) & 0x40) != 0,
+      autoPowerOn = (RadioUtils.getByte(msg, 7) & 0x20) != 0,
+      keepAghfpLink = (RadioUtils.getByte(msg, 7) & 0x10) != 0,
+      micGain = (RadioUtils.getByte(msg, 7) & 0x0E) >> 1,
+      txHoldTime =
+          ((RadioUtils.getByte(msg, 7) & 0x01) << 4) +
+          ((RadioUtils.getByte(msg, 8) & 0xE0) >> 4),
+      txTimeLimit = RadioUtils.getByte(msg, 8) & 0x1F,
+      localSpeaker = RadioUtils.getByte(msg, 9) >> 6,
+      btMicGain = (RadioUtils.getByte(msg, 9) & 0x38) >> 3,
+      adaptiveResponse = (RadioUtils.getByte(msg, 9) & 0x04) != 0,
+      disTone = (RadioUtils.getByte(msg, 9) & 0x02) != 0,
+      powerSavingMode = (RadioUtils.getByte(msg, 9) & 0x01) != 0,
+      autoPowerOff = RadioUtils.getByte(msg, 10) >> 5,
+      autoShareLocCh = RadioUtils.getByte(msg, 10) & 0x1F,
+      hmSpeaker = RadioUtils.getByte(msg, 11) >> 6,
+      positioningSystem = (RadioUtils.getByte(msg, 11) & 0x3C) >> 2,
+      timeOffset =
+          ((RadioUtils.getByte(msg, 11) & 0x03) << 4) +
+          ((RadioUtils.getByte(msg, 12) & 0xF0) >> 4),
+      useFreqRange2 = (RadioUtils.getByte(msg, 12) & 0x08) != 0,
+      pttLock = (RadioUtils.getByte(msg, 12) & 0x04) != 0,
+      leadingSyncBitEn = (RadioUtils.getByte(msg, 12) & 0x02) != 0,
+      pairingAtPowerOn = (RadioUtils.getByte(msg, 12) & 0x01) != 0,
+      screenTimeout = RadioUtils.getByte(msg, 13) >> 3,
+      vfoX = (RadioUtils.getByte(msg, 13) & 0x06) >> 1,
+      imperialUnit = (RadioUtils.getByte(msg, 13) & 0x01) != 0,
+      wxMode = RadioUtils.getByte(msg, 15) >> 6,
+      noaaCh = (RadioUtils.getByte(msg, 15) & 0x3C) >> 2,
+      vfolTxPowerX = RadioUtils.getByte(msg, 15) & 0x03,
+      vfo2TxPowerX = RadioUtils.getByte(msg, 16) >> 6,
+      disDigitalMute = (RadioUtils.getByte(msg, 16) & 0x20) != 0,
+      signalingEccEn = (RadioUtils.getByte(msg, 16) & 0x10) != 0,
+      chDataLock = (RadioUtils.getByte(msg, 16) & 0x08) != 0,
       vfo1ModFreqX = RadioUtils.getInt(msg, 17),
       vfo2ModFreqX = RadioUtils.getInt(msg, 21);
 
@@ -339,27 +352,27 @@ class RadioChannelInfo {
 
   RadioChannelInfo.fromBytes(Uint8List msg)
     : raw = msg,
-      channelId = msg[5],
-      txMod = RadioModulationType.values[msg[6] >> 6],
+      channelId = RadioUtils.getByte(msg, 5),
+      txMod = RadioModulationType.values[RadioUtils.getByte(msg, 6) >> 6],
       txFreq = RadioUtils.getInt(msg, 6) & 0x3FFFFFFF,
-      rxMod = RadioModulationType.values[msg[10] >> 6],
+      rxMod = RadioModulationType.values[RadioUtils.getByte(msg, 10) >> 6],
       rxFreq = RadioUtils.getInt(msg, 10) & 0x3FFFFFFF,
       txSubAudio = RadioUtils.getShort(msg, 14),
       rxSubAudio = RadioUtils.getShort(msg, 16),
-      scan = (msg[18] & 0x80) != 0,
-      txAtMaxPower = (msg[18] & 0x40) != 0,
-      talkAround = (msg[18] & 0x20) != 0,
-      bandwidth = (msg[18] & 0x10) != 0
+      scan = (RadioUtils.getByte(msg, 18) & 0x80) != 0,
+      txAtMaxPower = (RadioUtils.getByte(msg, 18) & 0x40) != 0,
+      talkAround = (RadioUtils.getByte(msg, 18) & 0x20) != 0,
+      bandwidth = (RadioUtils.getByte(msg, 18) & 0x10) != 0
           ? RadioBandwidthType.wide
           : RadioBandwidthType.narrow,
-      preDeEmphBypass = (msg[18] & 0x08) != 0,
-      sign = (msg[18] & 0x04) != 0,
-      txAtMedPower = (msg[18] & 0x02) != 0,
-      txDisable = (msg[18] & 0x01) != 0,
-      fixedFreq = (msg[19] & 0x80) != 0,
-      fixedBandwidth = (msg[19] & 0x40) != 0,
-      fixedTxPower = (msg[19] & 0x20) != 0,
-      mute = (msg[19] & 0x10) != 0,
+      preDeEmphBypass = (RadioUtils.getByte(msg, 18) & 0x08) != 0,
+      sign = (RadioUtils.getByte(msg, 18) & 0x04) != 0,
+      txAtMedPower = (RadioUtils.getByte(msg, 18) & 0x02) != 0,
+      txDisable = (RadioUtils.getByte(msg, 18) & 0x01) != 0,
+      fixedFreq = (RadioUtils.getByte(msg, 19) & 0x80) != 0,
+      fixedBandwidth = (RadioUtils.getByte(msg, 19) & 0x40) != 0,
+      fixedTxPower = (RadioUtils.getByte(msg, 19) & 0x20) != 0,
+      mute = (RadioUtils.getByte(msg, 19) & 0x10) != 0,
       name = RadioUtils.decodeUtf8Trimmed(msg, 20, 10);
 
   /// Frequency display in MHz with 3 decimal places
@@ -434,25 +447,51 @@ class RadioPosition {
   final bool locked;
 
   RadioPosition.fromBytes(Uint8List msg)
-    : status = RadioCommandState.values[msg[4]],
-      latitudeRaw = (msg[5] << 16) + (msg[6] << 8) + msg[7],
-      longitudeRaw = (msg[8] << 16) + (msg[9] << 8) + msg[10],
-      altitude = msg.length > 11 ? (msg[11] << 8) + msg[12] : 0,
-      speed = msg.length > 13 ? (msg[13] << 8) + msg[14] : 0,
-      heading = msg.length > 15 ? (msg[15] << 8) + msg[16] : 0,
-      timeRaw = msg.length > 17
-          ? (msg[17] << 24) + (msg[18] << 16) + (msg[19] << 8) + msg[20]
-          : 0,
-      accuracy = msg.length > 21 ? (msg[21] << 8) + msg[22] : 0,
-      latitude = _convertLatitude((msg[5] << 16) + (msg[6] << 8) + msg[7]),
-      longitude = _convertLatitude((msg[8] << 16) + (msg[9] << 8) + msg[10]),
+    : status = msg.length > 4
+          ? RadioCommandState.values[msg[4]]
+          : RadioCommandState.success,
+      latitudeRaw =
+          (RadioUtils.getByte(msg, 5) << 16) +
+          (RadioUtils.getByte(msg, 6) << 8) +
+          RadioUtils.getByte(msg, 7),
+      longitudeRaw =
+          (RadioUtils.getByte(msg, 8) << 16) +
+          (RadioUtils.getByte(msg, 9) << 8) +
+          RadioUtils.getByte(msg, 10),
+      altitude =
+          (RadioUtils.getByte(msg, 11) << 8) + RadioUtils.getByte(msg, 12),
+      speed = (RadioUtils.getByte(msg, 13) << 8) + RadioUtils.getByte(msg, 14),
+      heading =
+          (RadioUtils.getByte(msg, 15) << 8) + RadioUtils.getByte(msg, 16),
+      timeRaw =
+          (RadioUtils.getByte(msg, 17) << 24) +
+          (RadioUtils.getByte(msg, 18) << 16) +
+          (RadioUtils.getByte(msg, 19) << 8) +
+          RadioUtils.getByte(msg, 20),
+      accuracy =
+          (RadioUtils.getByte(msg, 21) << 8) + RadioUtils.getByte(msg, 22),
+      latitude = _convertLatitude(
+        (RadioUtils.getByte(msg, 5) << 16) +
+            (RadioUtils.getByte(msg, 6) << 8) +
+            RadioUtils.getByte(msg, 7),
+      ),
+      longitude = _convertLatitude(
+        (RadioUtils.getByte(msg, 8) << 16) +
+            (RadioUtils.getByte(msg, 9) << 8) +
+            RadioUtils.getByte(msg, 10),
+      ),
       timeUtc = msg.length > 17
           ? RadioUtils.unixTimeStampToDateTime(
-              (msg[17] << 24) + (msg[18] << 16) + (msg[19] << 8) + msg[20],
+              (RadioUtils.getByte(msg, 17) << 24) +
+                  (RadioUtils.getByte(msg, 18) << 16) +
+                  (RadioUtils.getByte(msg, 19) << 8) +
+                  RadioUtils.getByte(msg, 20),
             )
           : DateTime.now().toUtc(),
       receivedTime = DateTime.now(),
-      locked = RadioCommandState.values[msg[4]] == RadioCommandState.success;
+      locked =
+          msg.length > 4 &&
+          RadioCommandState.values[msg[4]] == RadioCommandState.success;
 
   RadioPosition.fromCoordinates({
     required double lat,
@@ -547,22 +586,30 @@ class RadioBssSettings {
   String aprsCallsign;
 
   RadioBssSettings.fromBytes(Uint8List msg)
-    : maxFwdTimes = (msg[5] & 0xF0) >> 4,
-      timeToLive = msg[5] & 0x0F,
-      pttReleaseSendLocation = (msg[6] & 0x80) != 0,
-      pttReleaseSendIdInfo = (msg[6] & 0x40) != 0,
-      pttReleaseSendBssUserId = (msg[6] & 0x20) != 0,
-      shouldShareLocation = (msg[6] & 0x10) != 0,
-      sendPwrVoltage = (msg[6] & 0x08) != 0,
-      packetFormat = (msg[6] & 0x04) >> 2,
-      allowPositionCheck = (msg[6] & 0x02) != 0,
-      aprsSsid = (msg[7] & 0xF0) >> 4,
-      locationShareInterval = msg[8] * 10,
-      bssUserIdLower = _getInt32LE(msg, 9),
+    : maxFwdTimes = (RadioUtils.getByte(msg, 5) & 0xF0) >> 4,
+      timeToLive = RadioUtils.getByte(msg, 5) & 0x0F,
+      pttReleaseSendLocation = (RadioUtils.getByte(msg, 6) & 0x80) != 0,
+      pttReleaseSendIdInfo = (RadioUtils.getByte(msg, 6) & 0x40) != 0,
+      pttReleaseSendBssUserId = (RadioUtils.getByte(msg, 6) & 0x20) != 0,
+      shouldShareLocation = (RadioUtils.getByte(msg, 6) & 0x10) != 0,
+      sendPwrVoltage = (RadioUtils.getByte(msg, 6) & 0x08) != 0,
+      packetFormat = (RadioUtils.getByte(msg, 6) & 0x04) >> 2,
+      allowPositionCheck = (RadioUtils.getByte(msg, 6) & 0x02) != 0,
+      aprsSsid = (RadioUtils.getByte(msg, 7) & 0xF0) >> 4,
+      locationShareInterval = RadioUtils.getByte(msg, 8) * 10,
+      bssUserIdLower = _getInt32LESafe(msg, 9),
       pttReleaseIdInfo = RadioUtils.decodeUtf8Trimmed(msg, 13, 12),
       beaconMessage = RadioUtils.decodeUtf8Trimmed(msg, 25, 18),
       aprsSymbol = RadioUtils.decodeUtf8Trimmed(msg, 43, 2),
       aprsCallsign = RadioUtils.decodeUtf8Trimmed(msg, 45, 6);
+
+  static int _getInt32LESafe(Uint8List data, int offset) {
+    if (offset + 3 >= data.length) return 0;
+    return data[offset] |
+        (data[offset + 1] << 8) |
+        (data[offset + 2] << 16) |
+        (data[offset + 3] << 24);
+  }
 
   static int _getInt32LE(Uint8List data, int offset) {
     return data[offset] |

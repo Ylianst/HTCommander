@@ -47,9 +47,15 @@ class BluetoothClassicMacOS {
       (event) {
         if (event is Map) {
           final eventType = event['event'] as String?;
-          final address = event['address'] as String?;
+          final rawAddress = event['address'] as String?;
 
-          if (eventType == null || address == null) return;
+          if (eventType == null || rawAddress == null) return;
+
+          // Normalize address to uppercase with colons
+          final address = _normalizeAddress(rawAddress);
+          debugPrint(
+            'BluetoothClassicMacOS: Event: $eventType, address: $address',
+          );
 
           switch (eventType) {
             case 'connected':
@@ -74,6 +80,9 @@ class BluetoothClassicMacOS {
             case 'data':
               final data = event['data'];
               if (data is Uint8List) {
+                debugPrint(
+                  'BluetoothClassicMacOS: Received ${data.length} bytes from $address',
+                );
                 _getOrCreateDataController(address).add(data);
               }
               break;
@@ -86,16 +95,24 @@ class BluetoothClassicMacOS {
     );
   }
 
+  /// Normalize address to uppercase with colons
+  static String _normalizeAddress(String address) {
+    return address.toUpperCase().replaceAll('-', ':');
+  }
+
   StreamController<Uint8List> _getOrCreateDataController(String address) {
+    final normalizedAddress = _normalizeAddress(address);
     return _dataControllers.putIfAbsent(
-      address,
+      normalizedAddress,
       () => StreamController<Uint8List>.broadcast(),
     );
   }
 
   /// Get data stream for a specific device
   Stream<Uint8List> getDataStream(String address) {
-    return _getOrCreateDataController(address).stream;
+    final normalizedAddress = _normalizeAddress(address);
+    debugPrint('BluetoothClassicMacOS: getDataStream for $normalizedAddress');
+    return _getOrCreateDataController(normalizedAddress).stream;
   }
 
   /// Check if Bluetooth is available

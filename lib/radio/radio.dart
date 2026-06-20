@@ -100,6 +100,12 @@ class Radio {
   // Clear channel timer
   Timer? _clearChannelTimer;
 
+  // Initialization retry timer
+  Timer? _initRetryTimer;
+  int _initRetryCount = 0;
+  static const int _maxInitRetries = 3;
+  bool _receivedAnyData = false;
+
   // Lock state
   RadioLockState? _lockState;
   int _savedRegionId = -1;
@@ -124,6 +130,13 @@ class Radio {
   int get transmitQueueLength => _tncFragmentQueue.length;
   String? get lockUsage =>
       (_lockState?.isLocked ?? false) ? _lockState?.usage : null;
+
+  /// Update the friendly name for this radio
+  void updateFriendlyName(String name) {
+    if (name.isNotEmpty) {
+      _friendlyName = name;
+    }
+  }
 
   bool get _packetTrace =>
       _broker.getValue<bool>(0, 'BluetoothFramesDebug') ?? false;
@@ -235,9 +248,28 @@ class Radio {
 
   // Event handlers
   void _onChannelChangeEvent(int devId, String name, dynamic data) {
-    if (devId != deviceId || settings == null || _lockState != null) return;
+    _debug(
+      'Channel change event: $name, data: $data, devId: $devId, myDevId: $deviceId',
+    );
+    _debug(
+      'Settings: ${settings != null ? "loaded" : "null"}, lockState: ${_lockState?.isLocked ?? false}',
+    );
+
+    if (devId != deviceId) {
+      _debug('Ignoring - wrong device ID');
+      return;
+    }
+    if (settings == null) {
+      _debug('Ignoring - settings not loaded yet');
+      return;
+    }
+    if (_lockState?.isLocked == true) {
+      _debug('Ignoring - radio is locked');
+      return;
+    }
 
     final channelId = data as int;
+    _debug('Changing channel: $name to $channelId');
     switch (name) {
       case 'ChannelChangeVfoA':
         writeSettings(settings!.toByteArrayWith(channelA: channelId));
@@ -478,8 +510,9 @@ class Radio {
 
   // Connection management
   Future<void> connect(RadioTransport transport) async {
-    if (_state == RadioState.connected || _state == RadioState.connecting)
+    if (_state == RadioState.connected || _state == RadioState.connecting) {
       return;
+    }
 
     _transport = transport;
     _updateState(RadioState.connecting);
@@ -489,9 +522,10 @@ class Radio {
     _transport!.stateStream.listen(_onTransportStateChanged);
     _transport!.dataStream.listen(_onDataReceived);
 
-    // Start the connection
-    // Note: In real implementation, we'd find the device by MAC first
-    // For now, assume the transport handles the connection
+    // If the transport is already connected, trigger connected handling
+    if (_transport!.state == TransportState.connected) {
+      _onTransportConnected();
+    }
   }
 
   void _onTransportStateChanged(TransportState state) {
@@ -512,6 +546,23 @@ class Radio {
 
   void _onTransportConnected() {
     _updateState(RadioState.connected);
+    _receivedAnyData = false;
+    _initRetryCount = 0;
+
+    // Add a small delay before sending initial commands
+    // Some radios need time to initialize the RFCOMM channel
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (_transport?.state != TransportState.connected) return;
+      _sendInitialCommands();
+    });
+  }
+
+  void _sendInitialCommands() {
+    if (_transport?.state != TransportState.connected) return;
+
+    _debug(
+      'Sending initial commands (attempt ${_initRetryCount + 1}/$_maxInitRetries)',
+    );
 
     // Request initial data
     _sendCommand(
@@ -526,6 +577,22 @@ class Radio {
       null,
     );
     _requestPowerStatus(RadioPowerStatus.batteryLevelAsPercentage);
+
+    // Set up retry timer - if we don't receive any data within 2 seconds, retry
+    _initRetryTimer?.cancel();
+    _initRetryTimer = Timer(const Duration(seconds: 2), () {
+      if (!_receivedAnyData && _transport?.state == TransportState.connected) {
+        _initRetryCount++;
+        if (_initRetryCount < _maxInitRetries) {
+          _debug('No response received, retrying initial commands...');
+          _sendInitialCommands();
+        } else {
+          _debug(
+            'No response after $_maxInitRetries attempts, radio may not be responding',
+          );
+        }
+      }
+    });
   }
 
   void disconnect([String? message]) {
@@ -539,6 +606,7 @@ class Radio {
     if (message != null) _debug(message);
 
     _updateState(newState);
+    _initRetryTimer?.cancel();
     _transport?.disconnect();
 
     // Clear data via broker
@@ -577,8 +645,11 @@ class Radio {
   void _updateState(RadioState newState) {
     if (_state == newState) return;
     _state = newState;
-    _dispatch('State', newState.name);
-    _debug('State changed to: ${newState.name}');
+    // Capitalize first letter for UI display (e.g., "connected" -> "Connected")
+    final stateName =
+        newState.name[0].toUpperCase() + newState.name.substring(1);
+    _dispatch('State', stateName);
+    _debug('State changed to: $stateName');
   }
 
   // Channel management
@@ -702,6 +773,7 @@ class Radio {
 
   // Settings and status
   void writeSettings(Uint8List data) {
+    _debug('writeSettings called, data length: ${data.length}, data: $data');
     _sendCommand(
       RadioCommandGroup.basic,
       RadioBasicCommand.writeSettings,
@@ -962,6 +1034,16 @@ class Radio {
   }
 
   void _onDataReceived(Uint8List data) {
+    // Mark that we received data (for init retry logic)
+    if (!_receivedAnyData) {
+      _receivedAnyData = true;
+      _initRetryTimer?.cancel();
+      _debug('First data received from radio');
+    }
+
+    if (_packetTrace) {
+      _debug('RX raw: ${RadioUtils.bytesToHex(data)}');
+    }
     _receiveBuffer.addAll(data);
 
     // Try to decode GAIA frames
@@ -1000,40 +1082,41 @@ class Radio {
       _debug('RX: ${parsed.command.name} - ${RadioUtils.bytesToHex(payload)}');
     }
 
-    // Handle the command
+    // Handle the command - pass full cmd to handlers that need vendor+cmd+payload offsets
+    // (matching C# behavior where models expect data starting at offset 4 for payload)
     switch (parsed.command) {
       case RadioBasicCommand.getDevInfo:
-        _handleDevInfo(payload);
+        _handleDevInfo(cmd);
         break;
       case RadioBasicCommand.readSettings:
-        _handleReadSettings(payload);
+        _handleReadSettings(cmd);
         break;
       case RadioBasicCommand.getHtStatus:
-        _handleHtStatus(payload);
+        _handleHtStatus(cmd);
         break;
       case RadioBasicCommand.readRfCh:
-        _handleReadRfCh(payload);
+        _handleReadRfCh(cmd);
         break;
       case RadioBasicCommand.readBssSettings:
-        _handleBssSettings(payload);
+        _handleBssSettings(cmd);
         break;
       case RadioBasicCommand.getPosition:
-        _handleGetPosition(payload);
+        _handleGetPosition(cmd);
         break;
       case RadioBasicCommand.readStatus:
-        _handleReadStatus(payload);
+        _handleReadStatus(payload); // Uses payload-relative offsets
         break;
       case RadioBasicCommand.getVolume:
-        _handleGetVolume(payload);
+        _handleGetVolume(payload); // Uses payload-relative offsets
         break;
       case RadioBasicCommand.eventNotification:
-        _handleEventNotification(payload);
+        _handleEventNotification(cmd);
         break;
       case RadioBasicCommand.htSendData:
-        _handleHtSendData(payload);
+        _handleHtSendData(payload); // Uses payload-relative offsets
         break;
       case RadioBasicCommand.rxData:
-        _handleRxData(payload);
+        _handleRxData(cmd); // Needs full cmd for TncDataFragment offset
         break;
       default:
         break;
@@ -1046,7 +1129,30 @@ class Radio {
       _friendlyName = info!.name;
       channels = List<RadioChannelInfo?>.filled(info!.channelCount, null);
       _dispatch('Info', info!.toJson());
+      _dispatch('FriendlyName', _friendlyName);
+      _dispatch('GpsEnabled', _gpsEnabled);
+      _dispatch('AllChannelsLoaded', false);
+
+      // Register for HT status change notifications
+      _sendCommand(
+        RadioCommandGroup.basic,
+        RadioBasicCommand.registerNotification,
+        Uint8List.fromList([RadioNotification.htStatusChanged.value]),
+      );
+
+      // If GPS is enabled, register for position change notifications
+      if (_gpsEnabled) {
+        _sendCommand(
+          RadioCommandGroup.basic,
+          RadioBasicCommand.registerNotification,
+          Uint8List.fromList([RadioNotification.positionChange.value]),
+        );
+      }
+
+      // Request channels
       _updateChannels();
+
+      // Request HT status
       _sendCommand(
         RadioCommandGroup.basic,
         RadioBasicCommand.getHtStatus,
@@ -1056,9 +1162,15 @@ class Radio {
   }
 
   void _handleReadSettings(Uint8List data) {
+    _debug('Received settings data, length: ${data.length}');
     settings = RadioSettings.fromBytes(data);
     if (settings != null) {
+      _debug(
+        'Settings parsed: channelA=${settings!.channelA}, channelB=${settings!.channelB}',
+      );
       _dispatch('Settings', settings!.toJson());
+    } else {
+      _debug('Failed to parse settings');
     }
   }
 
@@ -1077,6 +1189,11 @@ class Radio {
 
       if (allChannelsLoaded()) {
         _dispatch('AllChannelsLoaded', true);
+        // Dispatch the full channels list for UI
+        _dispatch(
+          'Channels',
+          channels!.where((c) => c != null).map((c) => c!.toJson()).toList(),
+        );
       }
     }
   }
@@ -1136,23 +1253,27 @@ class Radio {
   }
 
   void _handleEventNotification(Uint8List data) {
-    if (data.length < 4) return;
+    if (data.length < 5)
+      return; // Need at least vendor(2) + cmd(2) + notification(1)
 
-    final notificationType = RadioUtils.getInt(data, 0);
+    // Notification type is a single byte at offset 4 (after vendor + cmd bytes)
+    final notificationType = RadioUtils.getByte(data, 4);
     final notification = RadioNotification.values.firstWhere(
       (e) => e.value == notificationType,
       orElse: () => RadioNotification.unknown,
     );
 
+    if (_packetTrace) {
+      _debug('Event notification: ${notification.name}');
+    }
+
     switch (notification) {
       case RadioNotification.htStatusChanged:
-        _sendCommand(
-          RadioCommandGroup.basic,
-          RadioBasicCommand.getHtStatus,
-          null,
-        );
+        // The notification contains the HT status data inline (starting at offset 5)
+        _handleHtStatusChanged(data);
         break;
       case RadioNotification.htChChanged:
+        // Channel changed - request fresh settings
         _sendCommand(
           RadioCommandGroup.basic,
           RadioBasicCommand.readSettings,
@@ -1160,11 +1281,8 @@ class Radio {
         );
         break;
       case RadioNotification.htSettingsChanged:
-        _sendCommand(
-          RadioCommandGroup.basic,
-          RadioBasicCommand.readSettings,
-          null,
-        );
+        // The notification contains the settings data inline (starting at offset 5)
+        _handleSettingsChanged(data);
         break;
       case RadioNotification.bssSettingsChanged:
         _sendCommand(
@@ -1174,13 +1292,97 @@ class Radio {
         );
         break;
       case RadioNotification.positionChange:
-        getPosition();
+        // Position change notification contains position data inline
+        _handlePositionChange(data);
         break;
       case RadioNotification.dataRxd:
-        _sendCommand(RadioCommandGroup.basic, RadioBasicCommand.rxData, null);
+        _handleDataReceived(data);
         break;
       default:
         break;
+    }
+  }
+
+  void _handleHtStatusChanged(Uint8List data) {
+    final oldRegion = htStatus?.currRegion ?? -1;
+    htStatus = RadioHtStatus.fromBytes(data);
+    if (htStatus != null) {
+      _dispatch('HtStatus', htStatus!.toJson());
+
+      // Check if region changed
+      if (oldRegion != htStatus!.currRegion && oldRegion != -1) {
+        _dispatch('RegionChange', null, store: false);
+        _dispatch('AllChannelsLoaded', false);
+        if (channels != null) {
+          for (int i = 0; i < channels!.length; i++) {
+            channels![i] = null;
+          }
+        }
+        _dispatch('Channels', null);
+        _updateChannels();
+      }
+
+      _trySendNextFragment();
+    }
+  }
+
+  void _handleSettingsChanged(Uint8List data) {
+    settings = RadioSettings.fromBytes(data);
+    if (settings != null) {
+      _dispatch('Settings', settings!.toJson());
+    }
+  }
+
+  void _handlePositionChange(Uint8List data) {
+    // Set status byte to success for position parsing
+    if (data.length > 4) {
+      final modifiedData = Uint8List.fromList(data);
+      modifiedData[4] = 0; // Set status to success
+      position = RadioPosition.fromBytes(modifiedData);
+      if (position != null && _gpsEnabled) {
+        _dispatch('Position', position!.toJson());
+      }
+    }
+  }
+
+  void _handleDataReceived(Uint8List data) {
+    if (!hardwareModemEnabled) return;
+
+    if (_packetTrace) {
+      _debug('RawData: ${RadioUtils.bytesToHex(data)}');
+    }
+
+    final fragment = TncDataFragment.fromBytes(data);
+    fragment.encoding = FragmentEncodingType.hardwareAfsk1200;
+    fragment.corrections = 0;
+    if (fragment.channelId == -1 && htStatus != null) {
+      fragment.channelId = htStatus!.currChId;
+    }
+    fragment.channelName = _getChannelNameById(fragment.channelId);
+
+    if (_packetTrace) {
+      _debug(
+        'DataFragment, FragId=${fragment.fragmentId}, IsFinal=${fragment.isLast}, ChannelId=${fragment.channelId}, DataLen=${fragment.data.length}',
+      );
+    }
+
+    _accumulateFragment(fragment);
+  }
+
+  void _accumulateFragment(TncDataFragment fragment) {
+    if (_frameAccumulator == null) {
+      if (fragment.fragmentId == 0) {
+        _frameAccumulator = fragment;
+      }
+    } else {
+      _frameAccumulator!.append(fragment);
+    }
+
+    if (fragment.isLast && _frameAccumulator != null) {
+      _frameAccumulator!.encoding = FragmentEncodingType.hardwareAfsk1200;
+      _frameAccumulator!.frameType = FragmentFrameType.ax25;
+      _dispatch('DataFrameRx', _frameAccumulator!.toJson(), store: false);
+      _frameAccumulator = null;
     }
   }
 
@@ -1233,6 +1435,10 @@ class Radio {
 
   void _debug(String message) {
     debugPrint('[Radio $deviceId] $message');
+    // If packet tracing is enabled, also dispatch to DataBroker for debug tab
+    if (_packetTrace) {
+      _broker.logInfo('[Radio $deviceId] $message');
+    }
   }
 
   void dispose() {
