@@ -8,7 +8,12 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'dialogs/about_dialog.dart';
+import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/settings_dialog.dart';
+import 'radio/radio_transport.dart';
+import 'services/bluetooth_service.dart';
+import 'services/data_broker.dart';
+import 'services/data_broker_client.dart';
 import 'services/window_service.dart';
 import 'widgets/radio_panel.dart';
 import 'widgets/voice_tab.dart';
@@ -24,6 +29,9 @@ import 'widgets/debug_tab.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize the DataBroker for cross-component communication
+  await DataBroker.initialize();
 
   // Check if this is a sub-window on desktop platforms
   if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
@@ -214,6 +222,27 @@ class _MainFormState extends State<MainForm>
   bool _isCompactMode = false;
   String _statusText = '';
 
+  // DataBroker client for subscriptions
+  final DataBrokerClient _broker = DataBrokerClient();
+
+  // Starting device ID for radios (each connected radio gets 100, 101, 102, etc.)
+  // ignore: unused_field
+  static const int startingDeviceId = 100;
+
+  // Connected radios tracking (list of device IDs)
+  List<int> _connectedRadioIds = [];
+
+  // Current radio panel device ID (the radio being displayed/controlled)
+  int _currentRadioDeviceId = -1;
+
+  // Menu state from DataBroker
+  String _callSign = '';
+  int _stationId = 0;
+  // ignore: unused_field
+  bool _allowTransmit =
+      false; // Used for tab visibility (BBS, Terminal, Torrent)
+  bool _checkForUpdates = false;
+
   // Width threshold for compact mode (Radio becomes a tab instead of side panel)
   static const double compactWidthThreshold = 600;
 
@@ -258,9 +287,149 @@ class _MainFormState extends State<MainForm>
   @override
   void initState() {
     super.initState();
+
+    // Load settings from DataBroker
+    _loadSettingsFromBroker();
+
+    // Subscribe to settings changes
+    _broker.subscribeMultiple(
+      deviceId: 0,
+      names: ['CallSign', 'StationId', 'AllowTransmit', 'CheckForUpdates'],
+      callback: _onSettingsChanged,
+    );
+
+    // Subscribe to connected radios list from device 1
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'ConnectedRadios',
+      callback: _onConnectedRadiosChanged,
+    );
+
+    // Subscribe to RadioConnect request (from RadioPanelControl)
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'RadioConnect',
+      callback: _onRadioConnectRequested,
+    );
+
+    // Initialize tabs with saved index
     _currentTabs = _getTabsForMode(_isCompactMode);
-    _tabController = TabController(length: _currentTabs.length, vsync: this);
+    final savedTabIndex =
+        DataBroker.getValue<int>(0, 'SelectedTabIndex', 0) ?? 0;
+    final initialIndex = savedTabIndex.clamp(0, _currentTabs.length - 1);
+    _tabController = TabController(
+      length: _currentTabs.length,
+      vsync: this,
+      initialIndex: initialIndex,
+    );
+
+    // Listen for tab changes to save
+    _tabController.addListener(_onTabChanged);
+
     _initWindowManager();
+    _updateWindowTitle();
+  }
+
+  /// Load settings from DataBroker (device 0).
+  void _loadSettingsFromBroker() {
+    _callSign = DataBroker.getValue<String>(0, 'CallSign', '') ?? '';
+    _stationId = DataBroker.getValue<int>(0, 'StationId', 0) ?? 0;
+    _allowTransmit =
+        (DataBroker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1;
+    _checkForUpdates =
+        (DataBroker.getValue<int>(0, 'CheckForUpdates', 0) ?? 0) == 1;
+  }
+
+  /// Handle settings changes from DataBroker.
+  void _onSettingsChanged(int deviceId, String name, Object? data) {
+    setState(() {
+      switch (name) {
+        case 'CallSign':
+          _callSign = data as String? ?? '';
+          _updateWindowTitle();
+          break;
+        case 'StationId':
+          _stationId = data as int? ?? 0;
+          _updateWindowTitle();
+          break;
+        case 'AllowTransmit':
+          _allowTransmit = (data as int?) == 1;
+          break;
+        case 'CheckForUpdates':
+          _checkForUpdates = (data as int?) == 1;
+          break;
+      }
+    });
+  }
+
+  /// Handle connected radios list changes.
+  void _onConnectedRadiosChanged(int deviceId, String name, Object? data) {
+    if (data == null) {
+      setState(() {
+        _connectedRadioIds = [];
+      });
+      return;
+    }
+
+    // Extract device IDs from the connected radios list
+    if (data is List) {
+      final ids = <int>[];
+      for (final radio in data) {
+        if (radio is Map && radio['DeviceId'] != null) {
+          ids.add(radio['DeviceId'] as int);
+        }
+      }
+      setState(() {
+        _connectedRadioIds = ids;
+        // If we have no current radio selected and radios are connected, select the first
+        if (_currentRadioDeviceId < 0 && ids.isNotEmpty) {
+          _currentRadioDeviceId = ids.first;
+        }
+        // If current radio disconnected, switch to another or reset
+        if (_currentRadioDeviceId >= 0 &&
+            !ids.contains(_currentRadioDeviceId)) {
+          _currentRadioDeviceId = ids.isNotEmpty ? ids.first : -1;
+        }
+      });
+    }
+  }
+
+  /// Handle radio connect request from RadioPanelControl.
+  void _onRadioConnectRequested(int deviceId, String name, Object? data) {
+    _onConnect();
+  }
+
+  /// Called when the connect button is pressed in RadioPanelControl.
+  void _onRadioConnect() {
+    _onConnect();
+  }
+
+  /// Called when tab selection changes.
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) {
+      // Save the selected tab index to DataBroker
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'SelectedTabIndex',
+        data: _tabController.index,
+      );
+    }
+  }
+
+  /// Update the window title based on call sign and station ID.
+  Future<void> _updateWindowTitle() async {
+    if (!isDesktop) return;
+
+    String title = 'HTCommander';
+    if (_callSign.isNotEmpty) {
+      if (_stationId == 0) {
+        title = 'HTCommander - $_callSign';
+      } else {
+        title = 'HTCommander - $_callSign-$_stationId';
+      }
+    }
+
+    await windowManager.setTitle(title);
   }
 
   Future<void> _initWindowManager() async {
@@ -281,6 +450,8 @@ class _MainFormState extends State<MainForm>
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _broker.dispose();
     if (isDesktop) {
       windowManager.removeListener(this);
     }
@@ -322,6 +493,16 @@ class _MainFormState extends State<MainForm>
   // Unified Menu Definition - Single source of truth for all menus
   // ============================================================================
 
+  /// Whether we have at least one connected radio.
+  bool get _hasConnectedRadio => _connectedRadioIds.isNotEmpty;
+
+  /// Whether GPS serial port is configured.
+  bool get _hasGpsConfigured {
+    final gpsPort =
+        DataBroker.getValue<String>(0, 'GpsSerialPort', 'None') ?? 'None';
+    return gpsPort.isNotEmpty && gpsPort != 'None';
+  }
+
   List<AppSubmenu> _buildMenuDefinition() {
     return [
       // File menu (renamed to Radio on macOS with only Connect/Disconnect)
@@ -339,7 +520,7 @@ class _MainFormState extends State<MainForm>
           ),
           AppMenuAction(
             label: 'Disconnect',
-            onPressed: null, // Disabled until connected
+            onPressed: _hasConnectedRadio ? _onDisconnect : null,
           ),
           const AppMenuDivider(hideOnMacOS: true),
           AppMenuAction(
@@ -359,16 +540,31 @@ class _MainFormState extends State<MainForm>
           ),
         ],
       ),
-      // Settings menu
+      // Settings menu (radio-dependent items)
       AppSubmenu(
         label: 'Settings',
         children: [
-          const AppMenuAction(label: 'Dual-Watch', onPressed: null),
-          const AppMenuAction(label: 'Scan', onPressed: null),
-          const AppMenuAction(label: 'Regions', onPressed: null),
-          AppMenuAction(label: 'GPS Enabled', onPressed: () {}),
+          AppMenuAction(
+            label: 'Dual-Watch',
+            onPressed: _hasConnectedRadio ? () {} : null,
+          ),
+          AppMenuAction(
+            label: 'Scan',
+            onPressed: _hasConnectedRadio ? () {} : null,
+          ),
+          AppMenuAction(
+            label: 'Regions',
+            onPressed: _hasConnectedRadio ? () {} : null,
+          ),
+          AppMenuAction(
+            label: 'GPS Enabled',
+            onPressed: _hasConnectedRadio ? () {} : null,
+          ),
           const AppMenuDivider(),
-          const AppMenuAction(label: 'Export Channels...', onPressed: null),
+          AppMenuAction(
+            label: 'Export Channels...',
+            onPressed: _hasConnectedRadio ? () {} : null,
+          ),
           AppMenuAction(label: 'Import Channels...', onPressed: () {}),
         ],
       ),
@@ -376,15 +572,21 @@ class _MainFormState extends State<MainForm>
       AppSubmenu(
         label: 'Audio',
         children: [
-          AppMenuAction(label: 'Audio Enabled', onPressed: () {}),
-          AppMenuAction(label: 'Audio Controls...', onPressed: () {}),
+          AppMenuAction(
+            label: 'Audio Enabled',
+            onPressed: _hasConnectedRadio ? () {} : null,
+          ),
+          AppMenuAction(
+            label: 'Audio Controls...',
+            onPressed: _hasConnectedRadio ? () {} : null,
+          ),
           AppMenuAction(label: 'Audio Clips...', onPressed: () {}),
           AppMenuAction(label: 'Spectrogram...', onPressed: () {}),
           AppSubmenu(
             label: 'Software Modem',
             children: [
-              AppMenuAction(label: 'Disabled', onPressed: () {}),
-              AppMenuAction(label: 'AFK 1200', onPressed: () {}),
+              AppMenuAction(label: 'Disabled', onPressed: () {}, checked: true),
+              AppMenuAction(label: 'AFSK 1200', onPressed: () {}),
             ],
           ),
         ],
@@ -414,18 +616,59 @@ class _MainFormState extends State<MainForm>
             },
             checked: _showTabNames,
           ),
-          AppMenuAction(label: 'Radio Window...', onPressed: () {}),
+          AppMenuAction(
+            label: 'Radio Window...',
+            onPressed: _hasConnectedRadio ? () {} : null,
+          ),
           AppMenuAction(label: 'All Channels', onPressed: () {}),
+          // Dynamic radio selection when multiple radios are connected
+          if (_connectedRadioIds.length >= 2) ...[
+            const AppMenuDivider(),
+            ..._connectedRadioIds.map(
+              (radioId) => AppMenuAction(
+                label: 'Radio $radioId',
+                onPressed: () {
+                  setState(() {
+                    _currentRadioDeviceId = radioId;
+                  });
+                  // Dispatch the selected radio device ID
+                  _broker.dispatch(
+                    deviceId: 1,
+                    name: 'SelectedRadioDeviceId',
+                    data: radioId,
+                  );
+                },
+                checked: radioId == _currentRadioDeviceId,
+              ),
+            ),
+          ],
         ],
       ),
       // Help/About menu
       AppSubmenu(
         label: 'Help',
         children: [
-          const AppMenuAction(label: 'Radio Information...', onPressed: null),
-          const AppMenuAction(label: 'GPS Information...', onPressed: null),
+          AppMenuAction(
+            label: 'Radio Information...',
+            onPressed: _hasConnectedRadio ? () {} : null,
+          ),
+          if (_hasGpsConfigured)
+            AppMenuAction(label: 'GPS Information...', onPressed: () {}),
           const AppMenuDivider(),
-          AppMenuAction(label: 'Check for Updates', onPressed: () {}),
+          AppMenuAction(
+            label: 'Check for Updates',
+            onPressed: () {
+              setState(() {
+                _checkForUpdates = !_checkForUpdates;
+              });
+              _broker.dispatch(
+                deviceId: 0,
+                name: 'CheckForUpdates',
+                data: _checkForUpdates ? 1 : 0,
+              );
+            },
+            checked: _checkForUpdates,
+          ),
           AppMenuAction(
             label: 'About...',
             onPressed: _onAbout,
@@ -707,7 +950,10 @@ class _MainFormState extends State<MainForm>
       decoration: BoxDecoration(
         border: Border(right: BorderSide(color: Colors.grey.shade300)),
       ),
-      child: const RadioPanelControl(),
+      child: RadioPanelControl(
+        deviceId: _currentRadioDeviceId,
+        onConnectPressed: _onRadioConnect,
+      ),
     );
   }
 
@@ -783,7 +1029,10 @@ class _MainFormState extends State<MainForm>
     // Return the appropriate widget based on tab label
     switch (tab.label) {
       case 'Radio':
-        return const RadioPanelControl();
+        return RadioPanelControl(
+          deviceId: _currentRadioDeviceId,
+          onConnectPressed: _onRadioConnect,
+        );
       case 'Voice':
         return const VoiceTab();
       case 'APRS':
@@ -839,32 +1088,276 @@ class _MainFormState extends State<MainForm>
   // Menu Actions
   // ============================================================================
 
-  void _onConnect() {
+  void _onConnect() async {
+    _broker.logInfo('Connect requested - checking Bluetooth...');
+
     setState(() {
-      _statusText = 'Connecting...';
+      _statusText = 'Checking Bluetooth...';
     });
+
+    // Check if Bluetooth is available
+    final bluetoothAvailable = await BluetoothService.checkBluetooth();
+    if (!bluetoothAvailable) {
+      if (!mounted) return;
+      _broker.logError('Bluetooth not available');
+      setState(() {
+        _statusText = 'Bluetooth not available';
+      });
+      _showBluetoothWarning();
+      return;
+    }
+
+    _broker.logInfo('Scanning for compatible radios...');
+    setState(() {
+      _statusText = 'Scanning for radios...';
+    });
+
+    // Find compatible devices
+    final bluetoothService = BluetoothService();
+    List<DiscoveredDevice> allDevices;
+
+    try {
+      allDevices = await bluetoothService.findCompatibleDevices(
+        timeout: const Duration(seconds: 5),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _broker.logError('Error scanning for radios: $e');
+      setState(() {
+        _statusText = 'Error scanning for radios';
+      });
+      _showErrorDialog('Error', 'Failed to scan for Bluetooth devices: $e');
+      return;
+    }
+
+    if (!mounted) return;
+
+    // No compatible devices found
+    if (allDevices.isEmpty) {
+      _broker.logInfo('No compatible radios found');
+      setState(() {
+        _statusText = 'No compatible radios found';
+      });
+      _showInfoDialog(
+        'No Radios Found',
+        'No compatible radio devices were found.\n\n'
+            'Make sure your radio is powered on and Bluetooth is enabled.',
+      );
+      return;
+    }
+
+    _broker.logInfo('Found ${allDevices.length} compatible device(s)');
+    for (final device in allDevices) {
+      _broker.logInfo('  ${device.name} (${device.id})');
+    }
+
+    // Apply stored friendly names
+    final compatibleDevices = _applyStoredFriendlyNames(allDevices);
+
+    // Filter out already connected radios
+    final connectedMacs = <String>{};
+    for (final radioId in _connectedRadioIds) {
+      final mac = DataBroker.getValue<String>(radioId, 'MacAddress', '');
+      if (mac != null && mac.isNotEmpty) {
+        connectedMacs.add(mac.toUpperCase());
+      }
+    }
+
+    final availableDevices = compatibleDevices.where((device) {
+      return !connectedMacs.contains(device.mac.toUpperCase());
+    }).toList();
+
+    if (availableDevices.isEmpty) {
+      _broker.logInfo('All radios already connected');
+      setState(() {
+        _statusText = 'All radios already connected';
+      });
+      _showInfoDialog(
+        'All Connected',
+        'All detected radio devices are already connected.',
+      );
+      return;
+    }
+
+    // If only 1 available radio and it's the only one found, connect directly
+    if (availableDevices.length == 1 && allDevices.length == 1) {
+      final device = availableDevices.first;
+      _broker.logInfo('Connecting to ${device.name}...');
+      setState(() {
+        _statusText = 'Connecting to ${device.name}...';
+      });
+
+      final deviceId = await bluetoothService.connectToRadio(
+        device.mac,
+        device.name,
+      );
+
+      if (!mounted) return;
+
+      if (deviceId != null) {
+        _broker.logInfo('Connected to ${device.name} (deviceId: $deviceId)');
+        setState(() {
+          _statusText = 'Connected to ${device.name}';
+        });
+      } else {
+        _broker.logError('Failed to connect to ${device.name}');
+        setState(() {
+          _statusText = 'Failed to connect to ${device.name}';
+        });
+      }
+      return;
+    }
+
+    // Show the radio connection dialog for multiple radios
+    _broker.logInfo('Showing radio selection dialog...');
+    setState(() {
+      _statusText = '';
+    });
+
+    await RadioConnectionDialog.show(context, compatibleDevices);
   }
 
-  // App settings (would normally be loaded/saved to storage)
-  AppSettings _appSettings = AppSettings();
+  /// Apply stored friendly names to discovered devices
+  List<CompatibleDevice> _applyStoredFriendlyNames(
+    List<DiscoveredDevice> devices,
+  ) {
+    final result = <CompatibleDevice>[];
+
+    for (final device in devices) {
+      // Look up stored friendly name by MAC address
+      final storedName = DataBroker.getValue<String>(
+        0,
+        'FriendlyName_${device.id.replaceAll(':', '_')}',
+        '',
+      );
+
+      result.add(
+        CompatibleDevice(
+          name: (storedName != null && storedName.isNotEmpty)
+              ? storedName
+              : device.name,
+          mac: device.id,
+        ),
+      );
+    }
+
+    return result;
+  }
+
+  void _showBluetoothWarning() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bluetooth Not Available'),
+        content: const Text(
+          'Bluetooth is not available or is turned off.\n\n'
+          'Please enable Bluetooth in your device settings and try again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInfoDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        icon: const Icon(Icons.error_outline, color: Colors.red),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onDisconnect() async {
+    if (_connectedRadioIds.isEmpty) return;
+
+    final bluetoothService = BluetoothService();
+
+    // If only one radio, disconnect it directly
+    if (_connectedRadioIds.length == 1) {
+      final deviceId = _connectedRadioIds.first;
+      _broker.logInfo('Disconnecting radio (deviceId: $deviceId)...');
+      setState(() {
+        _statusText = 'Disconnecting...';
+      });
+
+      await bluetoothService.disconnectRadio(deviceId);
+
+      if (!mounted) return;
+      _broker.logInfo('Disconnected');
+      setState(() {
+        _statusText = 'Disconnected';
+      });
+    } else {
+      // Show radio selection dialog for disconnect
+      // For now, disconnect the current selected radio
+      if (_currentRadioDeviceId >= 0) {
+        _broker.logInfo(
+          'Disconnecting radio (deviceId: $_currentRadioDeviceId)...',
+        );
+        setState(() {
+          _statusText = 'Disconnecting...';
+        });
+
+        await bluetoothService.disconnectRadio(_currentRadioDeviceId);
+
+        if (!mounted) return;
+        _broker.logInfo('Disconnected');
+        setState(() {
+          _statusText = 'Disconnected';
+        });
+      }
+    }
+  }
+
   bool _settingsDialogOpen = false;
 
   void _onSettings() async {
     if (_settingsDialogOpen) return;
     _settingsDialogOpen = true;
-    final result = await showDialog<AppSettings>(
+    final result = await showDialog<bool>(
       context: context,
-      builder: (context) => SettingsDialog(initialSettings: _appSettings),
+      builder: (context) => const SettingsDialog(),
     );
     _settingsDialogOpen = false;
-    if (result != null) {
-      setState(() {
-        _appSettings = result;
-      });
+    if (result == true) {
+      // Settings were saved to DataBroker
+      // Reload settings to update UI
+      _loadSettingsFromBroker();
+      setState(() {});
     }
   }
 
   void _onAbout() {
+    _broker.logInfo('Opening About dialog');
     showDialog(context: context, builder: (context) => const HTAboutDialog());
   }
 }

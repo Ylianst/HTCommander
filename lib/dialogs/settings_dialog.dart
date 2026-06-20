@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
+import '../services/data_broker.dart';
 
 /// Settings data model
 class AppSettings {
@@ -90,6 +91,126 @@ class AppSettings {
       airplaneServerUrl: airplaneServerUrl ?? this.airplaneServerUrl,
     );
   }
+
+  /// Load settings from DataBroker (device 0).
+  static AppSettings loadFromDataBroker() {
+    final aprsRoutesStr = DataBroker.getValue<String>(0, 'AprsRoutes', '');
+    final aprsRoutes = _parseAprsRoutes(aprsRoutesStr ?? '');
+
+    return AppSettings(
+      callSign: DataBroker.getValue<String>(0, 'CallSign', '') ?? '',
+      stationId: DataBroker.getValue<int>(0, 'StationId', 0) ?? 0,
+      allowTransmit:
+          (DataBroker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1,
+      aprsRoutes: aprsRoutes.isNotEmpty
+          ? aprsRoutes
+          : [AprsRoute(name: 'Standard', path: 'APN000,WIDE1-1,WIDE2-2')],
+      voiceLanguage:
+          DataBroker.getValue<String>(0, 'VoiceLanguage', 'auto') ?? 'auto',
+      voiceModel: DataBroker.getValue<String>(0, 'VoiceModel', '') ?? '',
+      voice: DataBroker.getValue<String>(0, 'Voice', '') ?? '',
+      winlinkPassword:
+          DataBroker.getValue<String>(0, 'WinlinkPassword', '') ?? '',
+      winlinkUseStationId:
+          (DataBroker.getValue<int>(0, 'WinlinkUseStationId', 0) ?? 0) == 1,
+      webServerEnabled:
+          (DataBroker.getValue<int>(0, 'webServerEnabled', 0) ?? 0) == 1,
+      webServerPort: DataBroker.getValue<int>(0, 'webServerPort', 8080) ?? 8080,
+      agwpeServerEnabled:
+          (DataBroker.getValue<int>(0, 'agwpeServerEnabled', 0) ?? 0) == 1,
+      agwpeServerPort:
+          DataBroker.getValue<int>(0, 'agwpeServerPort', 8000) ?? 8000,
+      gpsSerialPort:
+          DataBroker.getValue<String>(0, 'GpsSerialPort', 'None') ?? 'None',
+      gpsBaudRate: DataBroker.getValue<int>(0, 'GpsBaudRate', 4800) ?? 4800,
+      airplaneServerUrl:
+          DataBroker.getValue<String>(0, 'AirplaneServer', '') ?? '',
+    );
+  }
+
+  /// Save settings to DataBroker (device 0).
+  void saveToDataBroker() {
+    DataBroker.dispatch(deviceId: 0, name: 'CallSign', data: callSign);
+    DataBroker.dispatch(deviceId: 0, name: 'StationId', data: stationId);
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AllowTransmit',
+      data: allowTransmit ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AprsRoutes',
+      data: _serializeAprsRoutes(),
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'VoiceLanguage',
+      data: voiceLanguage,
+    );
+    DataBroker.dispatch(deviceId: 0, name: 'VoiceModel', data: voiceModel);
+    DataBroker.dispatch(deviceId: 0, name: 'Voice', data: voice);
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'WinlinkPassword',
+      data: winlinkPassword,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'WinlinkUseStationId',
+      data: winlinkUseStationId ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'webServerEnabled',
+      data: webServerEnabled ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'webServerPort',
+      data: webServerPort,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'agwpeServerEnabled',
+      data: agwpeServerEnabled ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'agwpeServerPort',
+      data: agwpeServerPort,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'GpsSerialPort',
+      data: gpsSerialPort,
+    );
+    DataBroker.dispatch(deviceId: 0, name: 'GpsBaudRate', data: gpsBaudRate);
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AirplaneServer',
+      data: airplaneServerUrl,
+    );
+  }
+
+  /// Serialize APRS routes to pipe-separated string format: "Name|Path|Name|Path..."
+  String _serializeAprsRoutes() {
+    return aprsRoutes.map((r) => '${r.name}|${r.path}').join('|');
+  }
+
+  /// Parse APRS routes from pipe-separated string format.
+  static List<AprsRoute> _parseAprsRoutes(String routesStr) {
+    if (routesStr.isEmpty) return [];
+
+    final parts = routesStr.split('|');
+    final routes = <AprsRoute>[];
+
+    // Routes are stored as "Name|Path|Name|Path..."
+    for (var i = 0; i + 1 < parts.length; i += 2) {
+      routes.add(AprsRoute(name: parts[i], path: parts[i + 1]));
+    }
+
+    return routes;
+  }
 }
 
 /// APRS Route model
@@ -118,14 +239,9 @@ class ModelOption {
 
 /// Settings dialog with tabbed interface
 class SettingsDialog extends StatefulWidget {
-  final AppSettings initialSettings;
   final int initialTab;
 
-  const SettingsDialog({
-    super.key,
-    required this.initialSettings,
-    this.initialTab = 0,
-  });
+  const SettingsDialog({super.key, this.initialTab = 0});
 
   @override
   State<SettingsDialog> createState() => _SettingsDialogState();
@@ -190,7 +306,9 @@ class _SettingsDialogState extends State<SettingsDialog>
       vsync: this,
       initialIndex: widget.initialTab,
     );
-    _settings = widget.initialSettings.copyWith();
+
+    // Load settings from DataBroker
+    _settings = AppSettings.loadFromDataBroker();
 
     _callSignController = TextEditingController(text: _settings.callSign);
     _winlinkPasswordController = TextEditingController(
@@ -230,11 +348,18 @@ class _SettingsDialogState extends State<SettingsDialog>
   }
 
   void _onSave() {
+    // Update settings from text controllers
     _settings.winlinkPassword = _winlinkPasswordController.text;
     _settings.webServerPort = int.tryParse(_webPortController.text) ?? 8080;
     _settings.agwpeServerPort = int.tryParse(_agwpePortController.text) ?? 8000;
     _settings.airplaneServerUrl = _airplaneUrlController.text;
-    Navigator.of(context).pop(_settings);
+
+    // Save all settings to DataBroker (persisted to SharedPreferences)
+    _settings.saveToDataBroker();
+
+    Navigator.of(
+      context,
+    ).pop(true); // Return true to indicate settings were saved
   }
 
   // Helper for consistent input decoration

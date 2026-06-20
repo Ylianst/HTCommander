@@ -50,7 +50,32 @@ Displays the radio hardware representation:
 
 ## State Management
 
-Currently uses local `StatefulWidget` state. Each tab manages its own state independently.
+HTCommander uses the **DataBroker** pattern for cross-component state management. See [databroker.md](databroker.md) for full documentation.
+
+### DataBroker Overview
+
+The DataBroker is a pub/sub system where:
+- **Producers** (services, handlers) dispatch data with `(deviceId, name, value)`
+- **Consumers** (widgets) subscribe to receive updates
+- **Device ID 0** is reserved for persistent settings (stored in SharedPreferences)
+- Each widget creates a `DataBrokerClient` that auto-unsubscribes on dispose
+
+```dart
+// In a widget
+final _broker = DataBrokerClient();
+
+@override
+void initState() {
+  super.initState();
+  _broker.subscribe(deviceId: 2, name: 'frequency', callback: _onUpdate);
+}
+
+@override  
+void dispose() {
+  _broker.dispose();  // Auto-unsubscribes
+  super.dispose();
+}
+```
 
 ### Connection Flow
 
@@ -82,21 +107,49 @@ Child windows:
 - Have minimum size enforced (550x600)
 - Can be closed independently
 
-## Data Flow (Planned)
+## Data Flow
+
+The DataBroker is the central hub connecting all components:
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   UV-Pro    │────▶│   Service    │────▶│    UI       │
-│   Radio     │     │   Layer      │     │  (Widgets)  │
-└─────────────┘     └──────────────┘     └─────────────┘
-       │                  │
-       │            ┌─────┴─────┐
-   BT Classic       ▼           ▼
-   or BLE     ┌─────────┐ ┌─────────┐
-              │  APRS   │ │  BBS    │
-              │ Service │ │ Service │
-              └─────────┘ └─────────┘
+┌─────────────┐     ┌──────────────────────────────────┐     ┌─────────────┐
+│   UV-Pro    │────▶│           DataBroker             │────▶│    UI       │
+│   Radio     │     │  ┌──────────────────────────┐   │     │  (Widgets)  │
+└─────────────┘     │  │  Device 0: Settings      │   │     └─────────────┘
+       │            │  │  Device 1: Logging       │   │
+   BT Classic       │  │  Device 2+: Radio State  │   │
+   or BLE           │  └──────────────────────────┘   │
+                    │  ┌──────────────────────────┐   │
+              ┌─────│  │     Data Handlers        │   │
+              │     │  │  - APRS Handler          │   │
+              ▼     │  │  - BBS Handler           │   │
+        ┌─────────┐ │  │  - Voice Handler         │   │
+        │  APRS   │ │  │  - Torrent Handler       │   │
+        │ Service │◀┼──└──────────────────────────┘   │
+        └─────────┘ │                                  │
+        ┌─────────┐ │    SharedPreferences             │
+        │  BBS    │◀┤    (Device 0 persistence)        │
+        │ Service │ │                                  │
+        └─────────┘ └──────────────────────────────────┘
 ```
+
+### Data Flow Examples
+
+**Setting saved by user:**
+1. SettingsDialog dispatches `(0, "darkMode", true)`
+2. DataBroker stores in memory AND SharedPreferences
+3. Subscribed widgets receive callback and update
+
+**Radio sends APRS packet:**
+1. Radio service receives packet bytes
+2. APRS handler parses packet
+3. APRS handler dispatches `(2, "aprsPacket", packet)`
+4. AprsTab receives callback, updates list
+
+**App startup:**
+1. DataBroker.initialize() called
+2. Widgets call getValue() for device 0 settings
+3. DataBroker lazy-loads from SharedPreferences
 
 ## Platform Support
 
@@ -198,6 +251,8 @@ lib/
 ├── dialogs/            # Modal dialog boxes
 │   └── *_dialog.dart
 ├── services/           # Business logic, no UI
+│   ├── data_broker.dart      # Central pub/sub system
+│   ├── data_broker_client.dart # Per-component subscription manager
 │   └── *_service.dart
 ├── widgets/            # Reusable UI components
 │   └── *_tab.dart      # Tab content widgets
@@ -215,6 +270,9 @@ The `reference/HTCommander/` folder contains the original C# source:
 | `src/TabControls/*TabUserControl.cs` | `lib/widgets/*_tab.dart` |
 | `src/Dialogs/*.cs` | `lib/dialogs/*_dialog.dart` |
 | `src/RadioControls/RadioPanelControl.cs` | `lib/widgets/radio_panel.dart` |
+| `src/Utils/DataBroker.cs` | `lib/services/data_broker.dart` |
+| `src/Utils/DataBrokerClient.cs` | `lib/services/data_broker_client.dart` |
+| `src/Utils/RegistryHelper.cs` | SharedPreferences (built into DataBroker) |
 | `src/Resources/*.png` | `assets/images/` |
 
 ### Porting Checklist
@@ -222,6 +280,6 @@ The `reference/HTCommander/` folder contains the original C# source:
 1. Read C# `.cs` and `.Designer.cs` files
 2. Identify UI layout and controls
 3. Map to Flutter equivalents
-4. Implement state management
+4. **Use DataBroker for state management**
 5. Port event handlers to callbacks
 6. Test across platforms

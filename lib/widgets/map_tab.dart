@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../services/data_broker.dart';
+import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
 
 /// Map tab - geographic map display with OpenStreetMap
@@ -13,7 +15,17 @@ class MapTab extends StatefulWidget {
 
 class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   final MapController _mapController = MapController();
+  final DataBrokerClient _broker = DataBrokerClient();
+
+  // Map settings (loaded from DataBroker)
   bool _isOfflineMode = false;
+  bool _showTracks = true;
+  bool _showMarkers = true;
+  bool _showAirplanes = false;
+  bool _largeMarkers = true;
+  // ignore: unused_field
+  int _markerTimeFilter = 0; // 0 = all, otherwise minutes (for future use)
+
   // Will be updated when GPS functionality is added
   // ignore: prefer_final_fields
   bool _centerToGpsEnabled = false;
@@ -23,8 +35,72 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   static const double _defaultLng = -98.5795;
   static const double _defaultZoom = 4.0;
 
+  // Loaded map position
+  late double _initialLat;
+  late double _initialLng;
+  late double _initialZoom;
+
   @override
   bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    _broker.dispose();
+    super.dispose();
+  }
+
+  /// Load map settings from DataBroker (device 0 = persistent).
+  void _loadSettings() {
+    // Load position and zoom
+    final latStr =
+        DataBroker.getValue<String>(0, 'MapLatitude', _defaultLat.toString()) ??
+        _defaultLat.toString();
+    final lngStr =
+        DataBroker.getValue<String>(
+          0,
+          'MapLongitude',
+          _defaultLng.toString(),
+        ) ??
+        _defaultLng.toString();
+    _initialLat = double.tryParse(latStr) ?? _defaultLat;
+    _initialLng = double.tryParse(lngStr) ?? _defaultLng;
+    _initialZoom =
+        (DataBroker.getValue<int>(0, 'MapZoom', _defaultZoom.toInt()) ??
+                _defaultZoom.toInt())
+            .toDouble();
+
+    // Load settings
+    _isOfflineMode =
+        (DataBroker.getValue<int>(0, 'MapOfflineMode', 0) ?? 0) == 1;
+    _showTracks = (DataBroker.getValue<int>(0, 'MapShowTracks', 1) ?? 1) == 1;
+    _largeMarkers =
+        (DataBroker.getValue<int>(0, 'MapLargeMarkers', 1) ?? 1) == 1;
+    _markerTimeFilter = DataBroker.getValue<int>(0, 'MapTimeFilter', 0) ?? 0;
+    _showAirplanes =
+        (DataBroker.getValue<int>(0, 'ShowAirplanesOnMap', 0) ?? 0) == 1;
+  }
+
+  /// Called when the map position changes.
+  void _onMapPositionChanged(MapCamera camera, bool hasGesture) {
+    // Save position to DataBroker (device 0 persists to storage)
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'MapLatitude',
+      data: camera.center.latitude.toString(),
+    );
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'MapLongitude',
+      data: camera.center.longitude.toString(),
+    );
+    _broker.dispatch(deviceId: 0, name: 'MapZoom', data: camera.zoom.toInt());
+  }
 
   void _zoomIn() {
     final currentZoom = _mapController.camera.zoom;
@@ -47,6 +123,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   void _showMenu(BuildContext context) {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
+
+    // Check if airplane server is configured
+    final airplaneServer =
+        DataBroker.getValue<String>(0, 'AirplaneServer', '') ?? '';
+    final showAirplanesOption = airplaneServer.isNotEmpty;
 
     // Compact menu item style
     const menuItemPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
@@ -81,6 +162,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           value: 'cache',
           height: menuItemHeight,
           padding: menuItemPadding,
+          enabled: !_isOfflineMode,
           child: const Row(
             children: [SizedBox(width: 20), Text('Cache Area...')],
           ),
@@ -100,13 +182,15 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           value: 'tracks',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
+          child: Row(
             children: [
               SizedBox(
                 width: 20,
-                child: Text('✓', style: TextStyle(fontSize: 14)),
+                child: _showTracks
+                    ? const Text('✓', style: TextStyle(fontSize: 14))
+                    : null,
               ),
-              Text('Show Tracks'),
+              const Text('Show Tracks'),
             ],
           ),
         ),
@@ -114,29 +198,48 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           value: 'markers',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Show Markers')],
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: _showMarkers
+                    ? const Text('✓', style: TextStyle(fontSize: 14))
+                    : null,
+              ),
+              const Text('Show Markers'),
+            ],
           ),
         ),
-        PopupMenuItem<String>(
-          value: 'airplanes',
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Show Airplanes')],
+        if (showAirplanesOption)
+          PopupMenuItem<String>(
+            value: 'airplanes',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _showAirplanes
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('Show Airplanes'),
+              ],
+            ),
           ),
-        ),
         PopupMenuItem<String>(
           value: 'largeMarkers',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
+          child: Row(
             children: [
               SizedBox(
                 width: 20,
-                child: Text('✓', style: TextStyle(fontSize: 14)),
+                child: _largeMarkers
+                    ? const Text('✓', style: TextStyle(fontSize: 14))
+                    : null,
               ),
-              Text('Large Markers'),
+              const Text('Large Markers'),
             ],
           ),
         ),
@@ -159,6 +262,48 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           setState(() {
             _isOfflineMode = !_isOfflineMode;
           });
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'MapOfflineMode',
+            data: _isOfflineMode ? 1 : 0,
+          );
+          break;
+        case 'tracks':
+          setState(() {
+            _showTracks = !_showTracks;
+          });
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'MapShowTracks',
+            data: _showTracks ? 1 : 0,
+          );
+          break;
+        case 'markers':
+          setState(() {
+            _showMarkers = !_showMarkers;
+          });
+          // Note: showMarkers doesn't have a DataBroker key in C# reference,
+          // but we can add one for consistency
+          break;
+        case 'airplanes':
+          setState(() {
+            _showAirplanes = !_showAirplanes;
+          });
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'ShowAirplanesOnMap',
+            data: _showAirplanes ? 1 : 0,
+          );
+          break;
+        case 'largeMarkers':
+          setState(() {
+            _largeMarkers = !_largeMarkers;
+          });
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'MapLargeMarkers',
+            data: _largeMarkers ? 1 : 0,
+          );
           break;
         case 'centerGps':
           _centerToGps();
@@ -166,7 +311,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
         case 'detach':
           windowService.createWindow('map');
           break;
-        // TODO: Handle other menu items
+        case 'cache':
+          // TODO: Implement cache area functionality
+          break;
       }
     });
   }
@@ -185,11 +332,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
               // OpenStreetMap
               FlutterMap(
                 mapController: _mapController,
-                options: const MapOptions(
-                  initialCenter: LatLng(_defaultLat, _defaultLng),
-                  initialZoom: _defaultZoom,
+                options: MapOptions(
+                  initialCenter: LatLng(_initialLat, _initialLng),
+                  initialZoom: _initialZoom,
                   minZoom: 3,
                   maxZoom: 18,
+                  onPositionChanged: _onMapPositionChanged,
                 ),
                 children: [
                   TileLayer(

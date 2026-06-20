@@ -3,6 +3,9 @@ import 'dart:io' show File, Platform;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../services/bluetooth_service.dart';
+import '../services/data_broker.dart';
+import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
 
 /// Debug log entry
@@ -37,6 +40,8 @@ class _DebugTabState extends State<DebugTab>
     with AutomaticKeepAliveClientMixin {
   final List<DebugLogEntry> _logEntries = [];
   final ScrollController _scrollController = ScrollController();
+  final DataBrokerClient _broker = DataBrokerClient();
+
   bool _showBluetoothFrames = false;
   bool _loopbackMode = false;
   bool _autoScroll = true;
@@ -47,45 +52,74 @@ class _DebugTabState extends State<DebugTab>
   @override
   void initState() {
     super.initState();
-    _addSampleLogs();
+
+    // Subscribe to log messages (LogInfo and LogError from device 1)
+    _broker.subscribeMultiple(
+      deviceId: 1,
+      names: ['LogInfo', 'LogError'],
+      callback: _onLogMessage,
+    );
+
+    // Subscribe to Bluetooth frames debug setting changes (persisted, device 0)
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'BluetoothFramesDebug',
+      callback: _onBluetoothFramesDebugChanged,
+    );
+
+    // Subscribe to loopback mode changes (device 1, not persisted)
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'LoopbackMode',
+      callback: _onLoopbackModeChanged,
+    );
+
+    // Initialize states from current broker values
+    _initializeStates();
+
+    // Add startup log
+    _broker.logInfo('HTCommander Flutter started');
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _broker.dispose();
     super.dispose();
   }
 
-  void _addSampleLogs() {
-    // Sample log entries for demonstration
-    _logEntries.addAll([
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(minutes: 5)),
-        message: 'HTCommander started',
-      ),
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(minutes: 4)),
-        message: 'Initializing radio interface...',
-      ),
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(minutes: 3)),
-        message: 'Bluetooth adapter found: Intel AX200',
-      ),
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(minutes: 2)),
-        message: 'Scanning for devices...',
-      ),
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(minutes: 1)),
-        message: 'Found device: HT-UV98 (AA:BB:CC:DD:EE:FF)',
-      ),
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(seconds: 30)),
-        message: 'Connection attempt failed: timeout',
-        isError: true,
-      ),
-      DebugLogEntry(time: DateTime.now(), message: 'Ready for connection'),
-    ]);
+  /// Initialize menu item states from current broker values
+  void _initializeStates() {
+    _showBluetoothFrames =
+        DataBroker.getValue<bool>(0, 'BluetoothFramesDebug', false) ?? false;
+    _loopbackMode =
+        DataBroker.getValue<bool>(1, 'LoopbackMode', false) ?? false;
+  }
+
+  /// Handle log messages from DataBroker
+  void _onLogMessage(int deviceId, String name, Object? data) {
+    if (data is String) {
+      final isError = name == 'LogError';
+      _appendLog(data, isError: isError);
+    }
+  }
+
+  /// Handle Bluetooth frames debug setting changes
+  void _onBluetoothFramesDebugChanged(int deviceId, String name, Object? data) {
+    if (data is bool && _showBluetoothFrames != data) {
+      setState(() {
+        _showBluetoothFrames = data;
+      });
+    }
+  }
+
+  /// Handle loopback mode setting changes
+  void _onLoopbackModeChanged(int deviceId, String name, Object? data) {
+    if (data is bool && _loopbackMode != data) {
+      setState(() {
+        _loopbackMode = data;
+      });
+    }
   }
 
   void _appendLog(String message, {bool isError = false}) {
@@ -111,6 +145,32 @@ class _DebugTabState extends State<DebugTab>
     setState(() {
       _logEntries.clear();
     });
+  }
+
+  /// Toggle Bluetooth frames debug setting (persisted to device 0)
+  void _toggleBluetoothFrames() {
+    final newValue = !_showBluetoothFrames;
+    // Dispatch the new value (persists via broker)
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'BluetoothFramesDebug',
+      data: newValue,
+      store: true,
+    );
+    // Local state will be updated via subscription callback
+  }
+
+  /// Toggle loopback mode setting (device 1, not persisted)
+  void _toggleLoopbackMode() {
+    final newValue = !_loopbackMode;
+    // Dispatch the new value (device 1, not persisted)
+    DataBroker.dispatch(
+      deviceId: 1,
+      name: 'LoopbackMode',
+      data: newValue,
+      store: false,
+    );
+    // Local state will be updated via subscription callback
   }
 
   Future<void> _onSaveToFile() async {
@@ -169,13 +229,26 @@ class _DebugTabState extends State<DebugTab>
     }
   }
 
-  void _onQueryDeviceNames() {
-    _appendLog('Querying device names...');
-    // Simulate device query
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _appendLog('List of devices:');
-      _appendLog('  No devices found');
-    });
+  Future<void> _onQueryDeviceNames() async {
+    _broker.logInfo('Querying Bluetooth device names...');
+
+    try {
+      final bluetoothService = BluetoothService();
+      final devices = await bluetoothService.findCompatibleDevices(
+        timeout: const Duration(seconds: 3),
+      );
+
+      _broker.logInfo('List of devices:');
+      if (devices.isEmpty) {
+        _broker.logInfo('  No compatible devices found');
+      } else {
+        for (final device in devices) {
+          _broker.logInfo('  ${device.name} (${device.id})');
+        }
+      }
+    } catch (e) {
+      _broker.logError('Error querying devices: $e');
+    }
   }
 
   void _showMenu(BuildContext context) {
@@ -306,13 +379,13 @@ class _DebugTabState extends State<DebugTab>
           await _onSaveToFile();
           break;
         case 'showBluetoothFrames':
-          setState(() => _showBluetoothFrames = !_showBluetoothFrames);
+          _toggleBluetoothFrames();
           break;
         case 'loopbackMode':
-          setState(() => _loopbackMode = !_loopbackMode);
+          _toggleLoopbackMode();
           break;
         case 'queryDeviceNames':
-          _onQueryDeviceNames();
+          await _onQueryDeviceNames();
           break;
         case 'autoScroll':
           setState(() => _autoScroll = !_autoScroll);

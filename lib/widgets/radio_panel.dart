@@ -1,172 +1,445 @@
 import 'package:flutter/material.dart';
-
-/// Radio channel info
-class RadioChannelInfo {
-  final int channelId;
-  final String name;
-  final int rxFreq;
-  final int txFreq;
-
-  RadioChannelInfo({
-    required this.channelId,
-    required this.name,
-    required this.rxFreq,
-    this.txFreq = 0,
-  });
-
-  String get frequencyDisplay {
-    if (rxFreq == 0) return '';
-    return (rxFreq / 1000000).toStringAsFixed(3);
-  }
-}
+import '../services/data_broker_client.dart';
+import '../models/radio_models.dart';
 
 /// Radio panel control widget - displays radio image, VFO frequencies, and status
 class RadioPanelControl extends StatefulWidget {
-  const RadioPanelControl({super.key});
+  /// The device ID to display. Set to -1 for disconnected state.
+  final int deviceId;
+
+  /// Callback when the connect button is pressed
+  final VoidCallback? onConnectPressed;
+
+  const RadioPanelControl({
+    super.key,
+    this.deviceId = -1,
+    this.onConnectPressed,
+  });
 
   @override
   State<RadioPanelControl> createState() => _RadioPanelControlState();
 }
 
 class _RadioPanelControlState extends State<RadioPanelControl> {
-  // Connection state
-  bool _isConnected = false;
-  bool _isConnecting = false;
-  String _connectionState = 'Disconnected';
+  // DataBroker client for subscriptions
+  final DataBrokerClient _broker = DataBrokerClient();
+
+  // Cached state from broker
+  String? _currentState;
+  RadioHtStatus? _currentHtStatus;
+  RadioSettings? _currentSettings;
+  List<RadioChannelInfo>? _currentChannels;
   String _friendlyName = '';
+  bool _gpsEnabled = false;
+  RadioPosition? _position;
+  RadioLockState? _lockState;
 
-  // Radio display state
-  String _vfo1Label = '';
-  String _vfo1Freq = '';
-  String _vfo1Status = '';
-  String _vfo2Label = '';
-  String _vfo2Freq = '';
-  String _vfo2Status = '';
-  String _gpsStatus = '';
-  bool _voiceProcessing = false;
-  int _rssi = 0;
-  bool _isTransmitting = false;
-
-  // VFO colors
-  Color _vfo1Color = const Color(0xFFD3D3D3); // LightGray
-  Color _vfo2Color = const Color(0xFFD3D3D3); // LightGray
-
-  // Channels
-  List<RadioChannelInfo> _channels = [];
-  int _selectedChannelA = -1;
-  int _selectedChannelB = -1;
-  bool _dualChannel = false;
-  bool _showAllChannels = true;
+  // UI state
+  bool _showAllChannels = false;
+  int _vfo2LastChannelId = -1;
 
   // Display panel background color (same as C# app)
   static const Color _displayBgColor = Color(0xFF565658);
   static const Color _activeVfoColor = Color(0xFFDDD300); // Yellow when active
+  static const Color _inactiveColor = Color(0xFFD3D3D3); // LightGray
 
   @override
   void initState() {
     super.initState();
-    // Initialize with some demo data
-    _initDemoData();
+    _subscribeToDevice();
   }
 
-  void _initDemoData() {
-    // Demo channels
-    _channels = [
-      RadioChannelInfo(channelId: 0, name: 'APRS', rxFreq: 144390000),
-      RadioChannelInfo(channelId: 1, name: 'Simplex', rxFreq: 146520000),
-      RadioChannelInfo(channelId: 2, name: 'Repeater', rxFreq: 146940000),
-      RadioChannelInfo(channelId: 3, name: 'Weather', rxFreq: 162550000),
-      RadioChannelInfo(channelId: 4, name: 'FRS 1', rxFreq: 462562500),
-      RadioChannelInfo(channelId: 5, name: 'GMRS 1', rxFreq: 462550000),
-    ];
+  @override
+  void didUpdateWidget(RadioPanelControl oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.deviceId != widget.deviceId) {
+      // Device ID changed - resubscribe
+      _broker.unsubscribeAll();
+      _clearCachedState();
+      _subscribeToDevice();
+    }
+  }
+
+  @override
+  void dispose() {
+    _broker.dispose();
+    super.dispose();
+  }
+
+  void _clearCachedState() {
+    _currentState = null;
+    _currentHtStatus = null;
+    _currentSettings = null;
+    _currentChannels = null;
+    _friendlyName = '';
+    _gpsEnabled = false;
+    _position = null;
+    _lockState = null;
+  }
+
+  void _subscribeToDevice() {
+    if (widget.deviceId <= 0) return;
+
+    // Subscribe to device events
+    _broker.subscribeMultiple(
+      deviceId: widget.deviceId,
+      names: [
+        'State',
+        'HtStatus',
+        'Settings',
+        'Channels',
+        'FriendlyName',
+        'GpsEnabled',
+        'Position',
+        'LockState',
+      ],
+      callback: _onBrokerEvent,
+    );
+
+    // Load initial state from broker
+    _loadInitialState();
+  }
+
+  void _loadInitialState() {
+    if (widget.deviceId <= 0) return;
+
+    _currentState = _broker.getValue<String>(widget.deviceId, 'State');
+    _currentHtStatus = _broker.getJsonValue<RadioHtStatus>(
+      widget.deviceId,
+      'HtStatus',
+      (json) => RadioHtStatus.fromJson(json),
+    );
+    _currentSettings = _broker.getJsonValue<RadioSettings>(
+      widget.deviceId,
+      'Settings',
+      (json) => RadioSettings.fromJson(json),
+    );
+    _currentChannels = _broker.getJsonListValue<RadioChannelInfo>(
+      widget.deviceId,
+      'Channels',
+      (json) => RadioChannelInfo.fromJson(json),
+    );
+    _friendlyName =
+        _broker.getValue<String>(widget.deviceId, 'FriendlyName') ?? '';
+    _gpsEnabled =
+        _broker.getValue<bool>(widget.deviceId, 'GpsEnabled') ?? false;
+    _position = _broker.getJsonValue<RadioPosition>(
+      widget.deviceId,
+      'Position',
+      (json) => RadioPosition.fromJson(json),
+    );
+    _lockState = _broker.getJsonValue<RadioLockState>(
+      widget.deviceId,
+      'LockState',
+      (json) => RadioLockState.fromJson(json),
+    );
+
+    // Try to get FriendlyName from ConnectedRadios if not set
+    if (_friendlyName.isEmpty) {
+      _friendlyName = _getFriendlyNameFromConnectedRadios(widget.deviceId);
+    }
+
+    if (mounted) setState(() {});
+  }
+
+  String _getFriendlyNameFromConnectedRadios(int deviceId) {
+    final connectedRadios = _broker.getJsonListValue<ConnectedRadioInfo>(
+      1,
+      'ConnectedRadios',
+      (json) => ConnectedRadioInfo.fromJson(json),
+    );
+    if (connectedRadios == null) return '';
+
+    for (final radio in connectedRadios) {
+      if (radio.deviceId == deviceId) {
+        return radio.friendlyName;
+      }
+    }
+    return '';
+  }
+
+  void _onBrokerEvent(int deviceId, String name, Object? data) {
+    if (deviceId != widget.deviceId) return;
+    if (!mounted) return;
+
+    setState(() {
+      switch (name) {
+        case 'State':
+          _currentState = data as String?;
+          break;
+        case 'HtStatus':
+          if (data is Map<String, dynamic>) {
+            _currentHtStatus = RadioHtStatus.fromJson(data);
+          }
+          break;
+        case 'Settings':
+          if (data is Map<String, dynamic>) {
+            _currentSettings = RadioSettings.fromJson(data);
+          }
+          break;
+        case 'Channels':
+          if (data is List) {
+            _currentChannels = data
+                .whereType<Map<String, dynamic>>()
+                .map((e) => RadioChannelInfo.fromJson(e))
+                .toList();
+          }
+          break;
+        case 'FriendlyName':
+          _friendlyName = data as String? ?? '';
+          break;
+        case 'GpsEnabled':
+          _gpsEnabled = data as bool? ?? false;
+          break;
+        case 'Position':
+          if (data is Map<String, dynamic>) {
+            _position = RadioPosition.fromJson(data);
+          }
+          break;
+        case 'LockState':
+          if (data is Map<String, dynamic>) {
+            _lockState = RadioLockState.fromJson(data);
+          }
+          break;
+      }
+    });
   }
 
   void _onConnect() {
-    setState(() {
-      _isConnecting = true;
-      _connectionState = 'Connecting...';
-    });
-
-    // Simulate connection
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isConnecting = false;
-          _isConnected = true;
-          _connectionState = 'Connected';
-          _friendlyName = 'VR-N76';
-
-          // Set demo VFO data
-          _vfo1Label = 'APRS';
-          _vfo1Freq = '144.390 MHz';
-          _vfo1Status = '';
-          _vfo2Label = 'Simplex';
-          _vfo2Freq = '146.520 MHz';
-          _vfo2Status = '';
-          _gpsStatus = 'GPS: 3D Fix';
-          _rssi = 8;
-          _selectedChannelA = 0;
-          _selectedChannelB = 1;
-          _dualChannel = true;
-          _vfo1Color = _activeVfoColor;
-          _vfo2Color = const Color(0xFFD3D3D3);
-        });
-      }
-    });
-  }
-
-  void _onDisconnect() {
-    setState(() {
-      _isConnected = false;
-      _isConnecting = false;
-      _connectionState = 'Disconnected';
-      _friendlyName = '';
-      _vfo1Label = '';
-      _vfo1Freq = '';
-      _vfo1Status = '';
-      _vfo2Label = '';
-      _vfo2Freq = '';
-      _vfo2Status = '';
-      _gpsStatus = '';
-      _rssi = 0;
-      _isTransmitting = false;
-      _voiceProcessing = false;
-    });
+    // Dispatch connect request to main form via DataBroker
+    // MainForm subscribes to this event and handles the connection flow
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'RadioConnect',
+      data: true,
+      store: false,
+    );
   }
 
   void _onChannelTap(int channelId) {
-    setState(() {
-      _selectedChannelA = channelId;
-      if (_channels.isNotEmpty && channelId < _channels.length) {
-        final channel = _channels[channelId];
-        _vfo1Label = channel.name;
-        _vfo1Freq = '${channel.frequencyDisplay} MHz';
-      }
-    });
+    if (widget.deviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: widget.deviceId,
+      name: 'ChannelChangeVfoA',
+      data: channelId,
+      store: false,
+    );
   }
 
   void _setChannelA(int channelId) {
-    setState(() {
-      _selectedChannelA = channelId;
-      if (_channels.isNotEmpty && channelId < _channels.length) {
-        final channel = _channels[channelId];
-        _vfo1Label = channel.name;
-        _vfo1Freq = '${channel.frequencyDisplay} MHz';
-        _vfo1Color = _activeVfoColor;
-      }
-    });
+    if (widget.deviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: widget.deviceId,
+      name: 'ChannelChangeVfoA',
+      data: channelId,
+      store: false,
+    );
   }
 
   void _setChannelB(int channelId) {
-    setState(() {
-      _selectedChannelB = channelId;
-      _dualChannel = true;
-      if (_channels.isNotEmpty && channelId < _channels.length) {
-        final channel = _channels[channelId];
-        _vfo2Label = channel.name;
-        _vfo2Freq = '${channel.frequencyDisplay} MHz';
+    if (widget.deviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: widget.deviceId,
+      name: 'ChannelChangeVfoB',
+      data: channelId,
+      store: false,
+    );
+  }
+
+  // Computed properties based on broker state
+  bool get _isConnected => _currentState == 'Connected';
+  bool get _isConnecting => _currentState == 'Connecting';
+
+  String get _connectionState {
+    if (widget.deviceId <= 0 || _currentState == null) {
+      return 'Disconnected';
+    }
+    switch (_currentState) {
+      case 'Disconnected':
+      case 'NotRadioFound':
+      case 'BluetoothNotAvailable':
+        return 'Disconnected';
+      case 'Connecting':
+        return 'Connecting...';
+      case 'Connected':
+        return 'Connected';
+      case 'UnableToConnect':
+        return 'Unable to Connect';
+      case 'AccessDenied':
+        return 'Access Denied';
+      case 'MultiRadioSelect':
+        return 'Select Radio';
+      default:
+        return _currentState ?? 'Disconnected';
+    }
+  }
+
+  // VFO display computed properties
+  RadioChannelInfo? get _channelA {
+    if (_currentChannels == null || _currentSettings == null) return null;
+    final idx = _currentSettings!.channelA;
+    if (idx < 0 || idx >= _currentChannels!.length) return null;
+    return _currentChannels![idx];
+  }
+
+  RadioChannelInfo? get _channelB {
+    if (_currentChannels == null || _currentSettings == null) return null;
+    final idx = _currentSettings!.channelB;
+    if (idx < 0 || idx >= _currentChannels!.length) return null;
+    return _currentChannels![idx];
+  }
+
+  bool get _isNoaaChannel {
+    if (_currentHtStatus != null && _currentHtStatus!.currChId >= 254)
+      return true;
+    if (_channelA != null && _channelA!.channelId >= 254) return true;
+    return false;
+  }
+
+  bool get _isDualChannel => _currentSettings?.doubleChannel == 1;
+  bool get _isScanning => _currentSettings?.scan ?? false;
+
+  String get _vfo1Label {
+    if (_isNoaaChannel &&
+        _currentHtStatus != null &&
+        _currentHtStatus!.currChId >= 254) {
+      return 'NOAA';
+    }
+    final ch = _channelA;
+    if (ch == null) return '';
+    if (ch.channelId >= 254) return 'NOAA';
+    if (ch.name.isNotEmpty) return ch.name;
+    if (ch.rxFreq > 0) return (ch.rxFreq / 1000000).toStringAsFixed(3);
+    return 'Empty';
+  }
+
+  String get _vfo1Freq {
+    if (_isNoaaChannel &&
+        _currentHtStatus != null &&
+        _currentHtStatus!.currChId >= 254) {
+      return '';
+    }
+    final ch = _channelA;
+    if (ch == null) return '';
+    if (ch.channelId >= 254 || ch.name.isNotEmpty) {
+      return ch.rxFreq > 0 ? '${ch.frequencyDisplay} MHz' : '';
+    }
+    if (ch.rxFreq > 0) return ' MHz';
+    return '';
+  }
+
+  String get _vfo1Status {
+    if (_lockState != null && _lockState!.isLocked) {
+      return _lockState!.usage;
+    }
+    return '';
+  }
+
+  String get _vfo2Label {
+    if (_isScanning) {
+      // Scanning mode
+      if (_currentHtStatus != null && _currentChannels != null) {
+        final currChId = _currentHtStatus!.currChId;
+        if (currChId < _currentChannels!.length) {
+          final scanCh = _currentChannels![currChId];
+          if (_channelA != null && scanCh.channelId == _channelA!.channelId) {
+            // Current channel is same as VFO A - show last scanned
+            if (_vfo2LastChannelId >= 0 &&
+                _vfo2LastChannelId < _currentChannels!.length) {
+              return _currentChannels![_vfo2LastChannelId].name;
+            }
+            return 'Scanning...';
+          }
+          _vfo2LastChannelId = currChId;
+          return scanCh.name;
+        }
       }
-    });
+      return 'Scanning...';
+    }
+
+    if (!_isDualChannel) return '';
+
+    final ch = _channelB;
+    if (ch == null) return '';
+    if (ch.name.isNotEmpty) return ch.name;
+    if (ch.rxFreq > 0) return (ch.rxFreq / 1000000).toStringAsFixed(3);
+    return 'Empty';
+  }
+
+  String get _vfo2Freq {
+    if (_isScanning) {
+      if (_currentHtStatus != null && _currentChannels != null) {
+        final currChId = _currentHtStatus!.currChId;
+        if (currChId < _currentChannels!.length) {
+          final scanCh = _currentChannels![currChId];
+          if (_channelA != null && scanCh.channelId == _channelA!.channelId) {
+            if (_vfo2LastChannelId >= 0 &&
+                _vfo2LastChannelId < _currentChannels!.length) {
+              final ch = _currentChannels![_vfo2LastChannelId];
+              return ch.rxFreq > 0 ? '${ch.frequencyDisplay} MHz' : '';
+            }
+            return '';
+          }
+          return scanCh.rxFreq > 0 ? '${scanCh.frequencyDisplay} MHz' : '';
+        }
+      }
+      return '';
+    }
+
+    if (!_isDualChannel) return '';
+
+    final ch = _channelB;
+    if (ch == null) return '';
+    if (ch.name.isNotEmpty) {
+      return ch.rxFreq > 0 ? '${ch.frequencyDisplay} MHz' : '';
+    }
+    if (ch.rxFreq > 0) return ' MHz';
+    return '';
+  }
+
+  String get _vfo2Status {
+    if (_isScanning) return 'Scanning...';
+    return '';
+  }
+
+  String get _gpsStatus {
+    if (!_gpsEnabled) return '';
+    if (_position == null) return 'No GPS Lock';
+    return _position!.locked ? 'GPS Lock' : 'No GPS Lock';
+  }
+
+  int get _rssi => _currentHtStatus?.rssi ?? 0;
+  bool get _isTransmitting => _currentHtStatus?.isInTx ?? false;
+  bool get _isReceiving => _currentHtStatus?.isInRx ?? false;
+
+  Color get _vfo1Color {
+    if (!_isConnected) return _inactiveColor;
+
+    // If in dual channel mode and receiving/transmitting on channel B
+    if (_channelB != null && _isDualChannel && _currentHtStatus != null) {
+      if (_currentHtStatus!.doubleChannel == RadioChannelType.a) {
+        if ((_isReceiving || _isTransmitting) &&
+            _currentHtStatus!.currChId == _channelB!.channelId) {
+          return _inactiveColor; // VFO1 inactive, VFO2 active
+        }
+      }
+    }
+    return _activeVfoColor;
+  }
+
+  Color get _vfo2Color {
+    if (!_isConnected || _vfo2Label.isEmpty) return _inactiveColor;
+
+    // If in dual channel mode and receiving/transmitting on channel B
+    if (_channelB != null && _isDualChannel && _currentHtStatus != null) {
+      if (_currentHtStatus!.doubleChannel == RadioChannelType.a) {
+        if ((_isReceiving || _isTransmitting) &&
+            _currentHtStatus!.currChId == _channelB!.channelId) {
+          return _activeVfoColor; // VFO2 active
+        }
+      }
+    }
+    return _inactiveColor;
   }
 
   void _showChannelDetails(RadioChannelInfo channel) {
@@ -209,6 +482,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
 
+    final selectedChannelA = _channelA?.channelId ?? -1;
+    final selectedChannelB = _channelB?.channelId ?? -1;
+
     showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -219,12 +495,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         const PopupMenuItem<String>(value: 'show', child: Text('Show')),
         PopupMenuItem<String>(
           value: 'setA',
-          enabled: channel.channelId != _selectedChannelA,
+          enabled: channel.channelId != selectedChannelA,
           child: const Text('Set VFO A'),
         ),
         PopupMenuItem<String>(
           value: 'setB',
-          enabled: channel.channelId != _selectedChannelB,
+          enabled: channel.channelId != selectedChannelB,
           child: const Text('Set VFO B'),
         ),
         const PopupMenuDivider(),
@@ -544,12 +820,6 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   Widget _buildStatusRow() {
     return Row(
       children: [
-        // Voice processing indicator
-        if (_voiceProcessing)
-          const Text(
-            '●',
-            style: TextStyle(color: Color(0xFFD3D3D3), fontSize: 12),
-          ),
         const Spacer(),
         // GPS status
         Text(
@@ -593,9 +863,22 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   Widget _buildChannelsPanel() {
-    if (_channels.isEmpty) {
+    final channels = _currentChannels;
+    if (channels == null || channels.isEmpty) {
       return const SizedBox.shrink();
     }
+
+    // Filter channels based on _showAllChannels setting
+    final visibleChannels = _showAllChannels
+        ? channels
+        : channels.where((ch) => ch.name.isNotEmpty || ch.rxFreq > 0).toList();
+
+    if (visibleChannels.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final selectedChannelA = _channelA?.channelId ?? -1;
+    final selectedChannelB = _channelB?.channelId ?? -1;
 
     return Container(
       color: const Color(0xFFBDB76B), // DarkKhaki
@@ -609,15 +892,18 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           crossAxisSpacing: 4,
           mainAxisSpacing: 4,
         ),
-        itemCount: _channels.length,
+        itemCount: visibleChannels.length,
         itemBuilder: (context, index) {
-          final channel = _channels[index];
-          final isChannelA = channel.channelId == _selectedChannelA;
+          final channel = visibleChannels[index];
+          final isChannelA = channel.channelId == selectedChannelA;
           final isChannelB =
-              _dualChannel && channel.channelId == _selectedChannelB;
+              _isDualChannel && channel.channelId == selectedChannelB;
 
           Color bgColor;
-          if (isChannelA) {
+          if (_isNoaaChannel) {
+            // NOAA active - no highlighting
+            bgColor = const Color(0xFFBDB76B); // DarkKhaki
+          } else if (isChannelA) {
             bgColor = const Color(0xFFEEE8AA); // PaleGoldenrod
           } else if (isChannelB) {
             bgColor = const Color(0xFFF0E68C); // Khaki
