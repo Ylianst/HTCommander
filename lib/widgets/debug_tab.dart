@@ -38,9 +38,11 @@ class DebugTab extends StatefulWidget {
 
 class _DebugTabState extends State<DebugTab>
     with AutomaticKeepAliveClientMixin {
-  final List<DebugLogEntry> _logEntries = [];
   final ScrollController _scrollController = ScrollController();
   final DataBrokerClient _broker = DataBrokerClient();
+
+  // Log entries are stored in DataBroker to persist across widget rebuilds
+  List<DebugLogEntry> _logEntries = [];
 
   bool _showBluetoothFrames = false;
   bool _loopbackMode = false;
@@ -53,11 +55,21 @@ class _DebugTabState extends State<DebugTab>
   void initState() {
     super.initState();
 
+    // Load existing log entries from DataBroker
+    _loadExistingLogEntries();
+
     // Subscribe to log messages (LogInfo and LogError from device 1)
     _broker.subscribeMultiple(
       deviceId: 1,
       names: ['LogInfo', 'LogError'],
       callback: _onLogMessage,
+    );
+
+    // Subscribe to debug log entries changes (for sync across widgets)
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'DebugLogEntries',
+      callback: _onDebugLogEntriesChanged,
     );
 
     // Subscribe to Bluetooth frames debug setting changes (persisted, device 0)
@@ -77,8 +89,57 @@ class _DebugTabState extends State<DebugTab>
     // Initialize states from current broker values
     _initializeStates();
 
-    // Add startup log
-    _broker.logInfo('HTCommander Flutter started');
+    // Add startup log only if this is a fresh start (no existing entries)
+    if (_logEntries.isEmpty) {
+      _broker.logInfo('HTCommander Flutter started');
+    }
+  }
+
+  void _loadExistingLogEntries() {
+    final storedEntries = DataBroker.getValue<List<dynamic>>(
+      1,
+      'DebugLogEntries',
+    );
+    if (storedEntries != null) {
+      _logEntries = storedEntries
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (e) => DebugLogEntry(
+              time:
+                  DateTime.tryParse(e['time'] as String? ?? '') ??
+                  DateTime.now(),
+              message: e['message'] as String? ?? '',
+              isError: e['isError'] as bool? ?? false,
+            ),
+          )
+          .toList();
+    }
+  }
+
+  void _onDebugLogEntriesChanged(int deviceId, String name, Object? data) {
+    if (data is List) {
+      final newEntries = data
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (e) => DebugLogEntry(
+              time:
+                  DateTime.tryParse(e['time'] as String? ?? '') ??
+                  DateTime.now(),
+              message: e['message'] as String? ?? '',
+              isError: e['isError'] as bool? ?? false,
+            ),
+          )
+          .toList();
+
+      if (newEntries.length != _logEntries.length) {
+        setState(() {
+          _logEntries = newEntries;
+        });
+        if (_autoScroll && newEntries.length > _logEntries.length) {
+          _scrollToBottom();
+        }
+      }
+    }
   }
 
   @override
@@ -123,27 +184,66 @@ class _DebugTabState extends State<DebugTab>
   }
 
   void _appendLog(String message, {bool isError = false}) {
+    final entry = DebugLogEntry(
+      time: DateTime.now(),
+      message: message,
+      isError: isError,
+    );
     setState(() {
-      _logEntries.add(
-        DebugLogEntry(time: DateTime.now(), message: message, isError: isError),
-      );
+      _logEntries.add(entry);
     });
+
+    // Persist to DataBroker
+    _persistLogEntries();
+
     if (_autoScroll) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 100),
-            curve: Curves.easeOut,
-          );
-        }
-      });
+      _scrollToBottom();
     }
   }
 
   void _clearLogs() {
     setState(() {
       _logEntries.clear();
+    });
+    // Clear from DataBroker
+    DataBroker.dispatch(
+      deviceId: 1,
+      name: 'DebugLogEntries',
+      data: <Map<String, dynamic>>[],
+      store: true,
+    );
+  }
+
+  void _persistLogEntries() {
+    // Convert entries to JSON-serializable format
+    final entriesJson = _logEntries
+        .map(
+          (e) => {
+            'time': e.time.toIso8601String(),
+            'message': e.message,
+            'isError': e.isError,
+          },
+        )
+        .toList();
+
+    // Store in DataBroker (not persisted to disk, just in-memory)
+    DataBroker.dispatch(
+      deviceId: 1,
+      name: 'DebugLogEntries',
+      data: entriesJson,
+      store: true,
+    );
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
