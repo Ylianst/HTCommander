@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'chat_widget.dart';
 import '../services/window_service.dart';
+import '../services/data_broker.dart';
+import '../services/data_broker_client.dart';
 
 /// Voice transmit mode
 enum VoiceTransmitMode { chat, speak, morse, dtmf }
@@ -21,6 +23,8 @@ class _VoiceTabState extends State<VoiceTab>
   final List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
+  final DataBrokerClient _broker = DataBrokerClient();
+  int _currentRadioDeviceId = -1;
   VoiceTransmitMode _currentMode = VoiceTransmitMode.chat;
   bool _isEnabled = false;
   bool _isListening = false;
@@ -37,13 +41,102 @@ class _VoiceTabState extends State<VoiceTab>
   void initState() {
     super.initState();
     _addSampleMessages();
+
+    // Track the currently connected radio so we can target SetAudio at it.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'ConnectedRadios',
+      callback: _onConnectedRadiosChanged,
+    );
+
+    // Track which radio the Radio Panel is currently showing.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'SelectedRadioDeviceId',
+      callback: _onSelectedRadioChanged,
+    );
+
+    // Sync the Enable/Disable button with the audio path state.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioState',
+      callback: _onAudioStateChanged,
+    );
+
+    // Initialize from current broker values.
+    _currentRadioDeviceId = _resolveCurrentRadioId();
+    _isEnabled = _readAudioState(_currentRadioDeviceId);
   }
 
   @override
   void dispose() {
+    _broker.dispose();
     _messageController.dispose();
     _messageFocusNode.dispose();
     super.dispose();
+  }
+
+  /// Resolve the device ID of the radio shown in the Radio Panel.
+  /// Prefers the explicitly selected radio, falling back to the first connected one.
+  int _resolveCurrentRadioId() {
+    final connected = DataBroker.getValueDynamic(1, 'ConnectedRadios');
+    final connectedIds = _radioIds(connected);
+    final selected =
+        DataBroker.getValue<int>(1, 'SelectedRadioDeviceId', -1) ?? -1;
+    if (selected > 0 && connectedIds.contains(selected)) return selected;
+    return connectedIds.isNotEmpty ? connectedIds.first : -1;
+  }
+
+  /// Extract all connected radio device IDs from a ConnectedRadios list.
+  List<int> _radioIds(Object? data) {
+    final ids = <int>[];
+    if (data is List) {
+      for (final radio in data) {
+        if (radio is Map && radio['DeviceId'] != null) {
+          ids.add(radio['DeviceId'] as int);
+        }
+      }
+    }
+    return ids;
+  }
+
+  /// Read the stored AudioState for the given radio device.
+  bool _readAudioState(int deviceId) {
+    if (deviceId <= 0) return false;
+    return DataBroker.getValue<bool>(deviceId, 'AudioState', false) ?? false;
+  }
+
+  void _onConnectedRadiosChanged(int deviceId, String name, Object? data) {
+    final id = _resolveCurrentRadioId();
+    setState(() {
+      _currentRadioDeviceId = id;
+      _applyAudioEnabled(_readAudioState(id));
+    });
+  }
+
+  void _onSelectedRadioChanged(int deviceId, String name, Object? data) {
+    if (data is! int) return;
+    setState(() {
+      _currentRadioDeviceId = data;
+      _applyAudioEnabled(_readAudioState(data));
+    });
+  }
+
+  void _onAudioStateChanged(int deviceId, String name, Object? data) {
+    if (deviceId == _currentRadioDeviceId && data is bool) {
+      setState(() => _applyAudioEnabled(data));
+    }
+  }
+
+  /// Apply the enabled state, keeping derived UI flags in sync.
+  void _applyAudioEnabled(bool enabled) {
+    _isEnabled = enabled;
+    if (enabled) {
+      _isListening = true;
+    } else {
+      _isListening = false;
+      _isProcessing = false;
+    }
   }
 
   void _addSampleMessages() {
@@ -136,15 +229,18 @@ class _VoiceTabState extends State<VoiceTab>
   }
 
   void _onEnable() {
-    setState(() {
-      _isEnabled = !_isEnabled;
-      if (_isEnabled) {
-        _isListening = true;
-      } else {
-        _isListening = false;
-        _isProcessing = false;
-      }
-    });
+    final deviceId = _currentRadioDeviceId;
+    if (deviceId <= 0) return;
+    // Toggle the audio path: read the current state and dispatch the opposite.
+    // The actual UI state updates when the 'AudioState' broker value changes
+    // in response.
+    final currentlyEnabled = _readAudioState(deviceId);
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'SetAudio',
+      data: !currentlyEnabled,
+      store: false,
+    );
   }
 
   void _onMessageTap(ChatMessage message) {

@@ -45,6 +45,7 @@ dependencies:
   path_provider: ^2.1.4
   crypto: ^3.0.0
   http: ^1.6.0
+  flutter_pcm_sound: ^3.1.6
 
 dev_dependencies:
   flutter_test:

@@ -19,6 +19,9 @@ class BluetoothClassicMacOS {
   static const EventChannel _eventChannel = EventChannel(
     'com.htcommander/bluetooth_classic_data',
   );
+  static const EventChannel _audioEventChannel = EventChannel(
+    'com.htcommander/bluetooth_classic_audio',
+  );
 
   static BluetoothClassicMacOS? _instance;
   static BluetoothClassicMacOS get instance {
@@ -28,6 +31,7 @@ class BluetoothClassicMacOS {
 
   BluetoothClassicMacOS._() {
     _setupEventChannel();
+    _setupAudioEventChannel();
   }
 
   // Stream controllers for connection events and data
@@ -35,9 +39,18 @@ class BluetoothClassicMacOS {
       StreamController<BluetoothClassicEvent>.broadcast();
   final _dataControllers = <String, StreamController<Uint8List>>{};
 
+  // Stream controllers for the audio (BS AOC vendor) RFCOMM channel
+  final _audioConnectionController =
+      StreamController<BluetoothClassicEvent>.broadcast();
+  final _audioDataControllers = <String, StreamController<Uint8List>>{};
+
   /// Stream of connection events (connected, disconnected)
   Stream<BluetoothClassicEvent> get connectionEvents =>
       _connectionController.stream;
+
+  /// Stream of audio channel connection events (connected, disconnected)
+  Stream<BluetoothClassicEvent> get audioConnectionEvents =>
+      _audioConnectionController.stream;
 
   /// Check if this platform supports Bluetooth Classic via native code
   static bool get isSupported => !kIsWeb && Platform.isMacOS;
@@ -95,6 +108,51 @@ class BluetoothClassicMacOS {
     );
   }
 
+  void _setupAudioEventChannel() {
+    _audioEventChannel.receiveBroadcastStream().listen(
+      (event) {
+        if (event is Map) {
+          final eventType = event['event'] as String?;
+          final rawAddress = event['address'] as String?;
+
+          if (eventType == null || rawAddress == null) return;
+
+          final address = _normalizeAddress(rawAddress);
+
+          switch (eventType) {
+            case 'connected':
+              _audioConnectionController.add(
+                BluetoothClassicEvent(
+                  type: BluetoothClassicEventType.connected,
+                  address: address,
+                ),
+              );
+              break;
+            case 'disconnected':
+              _audioConnectionController.add(
+                BluetoothClassicEvent(
+                  type: BluetoothClassicEventType.disconnected,
+                  address: address,
+                ),
+              );
+              _audioDataControllers[address]?.close();
+              _audioDataControllers.remove(address);
+              break;
+            case 'data':
+              final data = event['data'];
+              if (data is Uint8List) {
+                _getOrCreateAudioDataController(address).add(data);
+              }
+              break;
+          }
+        }
+      },
+      onError: (error) {
+        debugPrint('BluetoothClassicMacOS: Audio event stream error: $error');
+      },
+    );
+  }
+
   /// Normalize address to uppercase with colons
   static String _normalizeAddress(String address) {
     return address.toUpperCase().replaceAll('-', ':');
@@ -108,11 +166,25 @@ class BluetoothClassicMacOS {
     );
   }
 
+  StreamController<Uint8List> _getOrCreateAudioDataController(String address) {
+    final normalizedAddress = _normalizeAddress(address);
+    return _audioDataControllers.putIfAbsent(
+      normalizedAddress,
+      () => StreamController<Uint8List>.broadcast(),
+    );
+  }
+
   /// Get data stream for a specific device
   Stream<Uint8List> getDataStream(String address) {
     final normalizedAddress = _normalizeAddress(address);
     debugPrint('BluetoothClassicMacOS: getDataStream for $normalizedAddress');
     return _getOrCreateDataController(normalizedAddress).stream;
+  }
+
+  /// Get the audio (BS AOC vendor RFCOMM) data stream for a specific device
+  Stream<Uint8List> getAudioDataStream(String address) {
+    final normalizedAddress = _normalizeAddress(address);
+    return _getOrCreateAudioDataController(normalizedAddress).stream;
   }
 
   /// Check if Bluetooth is available
@@ -217,6 +289,51 @@ class BluetoothClassicMacOS {
     }
   }
 
+  /// Connect to the audio RFCOMM channel of a device. Audio is carried by the
+  /// vendor "BS AOC" service (resolved natively by UUID), NOT Generic Audio
+  /// (0x1203). This is a second, independent channel alongside the SPP data
+  /// channel. See docs/radio-bluetooth.md.
+  Future<bool> connectAudio(String address) async {
+    try {
+      final result = await _channel.invokeMethod<bool>('connectAudio', {
+        'address': address,
+      });
+      return result ?? false;
+    } catch (e) {
+      debugPrint(
+        'BluetoothClassicMacOS: Error connecting audio to $address: $e',
+      );
+      return false;
+    }
+  }
+
+  /// Disconnect the audio RFCOMM channel of a device.
+  Future<void> disconnectAudio(String address) async {
+    try {
+      await _channel.invokeMethod<bool>('disconnectAudio', {
+        'address': address,
+      });
+    } catch (e) {
+      debugPrint(
+        'BluetoothClassicMacOS: Error disconnecting audio from $address: $e',
+      );
+    }
+  }
+
+  /// Send data on the audio RFCOMM channel of a device.
+  Future<bool> sendAudio(String address, Uint8List data) async {
+    try {
+      final result = await _channel.invokeMethod<bool>('sendAudio', {
+        'address': address,
+        'data': data,
+      });
+      return result ?? false;
+    } catch (e) {
+      debugPrint('BluetoothClassicMacOS: Error sending audio data: $e');
+      return false;
+    }
+  }
+
   /// Dispose resources
   void dispose() {
     _connectionController.close();
@@ -224,6 +341,11 @@ class BluetoothClassicMacOS {
       controller.close();
     }
     _dataControllers.clear();
+    _audioConnectionController.close();
+    for (final controller in _audioDataControllers.values) {
+      controller.close();
+    }
+    _audioDataControllers.clear();
   }
 }
 

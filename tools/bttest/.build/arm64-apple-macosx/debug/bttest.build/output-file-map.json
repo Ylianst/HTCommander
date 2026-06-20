@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/default/Downloads/HTCommanderEx/tools/bttest/.build/arm64-apple-macosx/debug/bttest.build/master.swiftdeps"
+  },
+  "/Users/default/Downloads/HTCommanderEx/tools/bttest/Sources/bttest/main.swift": {
+    "dependencies": "/Users/default/Downloads/HTCommanderEx/tools/bttest/.build/arm64-apple-macosx/debug/bttest.build/main.d",
+    "object": "/Users/default/Downloads/HTCommanderEx/tools/bttest/.build/arm64-apple-macosx/debug/bttest.build/main.swift.o",
+    "swiftmodule": "/Users/default/Downloads/HTCommanderEx/tools/bttest/.build/arm64-apple-macosx/debug/bttest.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/default/Downloads/HTCommanderEx/tools/bttest/.build/arm64-apple-macosx/debug/bttest.build/main.swiftdeps",
+    "diagnostics": "/Users/default/Downloads/HTCommanderEx/tools/bttest/.build/arm64-apple-macosx/debug/bttest.build/main.dia"
+  }
+}
