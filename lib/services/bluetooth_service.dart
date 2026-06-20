@@ -309,6 +309,14 @@ class BluetoothService {
         store: true,
       );
 
+      // Dispatch FriendlyName early so it's available during connection
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: 'FriendlyName',
+        data: friendlyName,
+        store: true,
+      );
+
       // Store the connection info (before connecting for UI feedback)
       _classicConnections[deviceId] = macAddress;
       _publishConnectedRadios();
@@ -400,6 +408,14 @@ class BluetoothService {
 
       // Store the transport
       _connectedRadios[deviceId] = transport;
+
+      // Dispatch FriendlyName early so it's available during connection
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: 'FriendlyName',
+        data: friendlyName,
+        store: true,
+      );
 
       // Update the connected radios list
       _publishConnectedRadios();

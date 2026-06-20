@@ -633,7 +633,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
             // Friendly name overlay (above the display)
             if (_friendlyName.isNotEmpty)
               Positioned(
-                left: leftMargin,
+                left: leftMargin + 4,
                 width: imageWidth,
                 top:
                     scaledImageHeight * friendlyNameTop + friendlyNameTopOffset,

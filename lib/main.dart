@@ -1223,19 +1223,33 @@ class _MainFormState extends State<MainForm>
   ) {
     final result = <CompatibleDevice>[];
 
+    // Get stored custom names dictionary
+    final customNames = DataBroker.getValue<Map<String, dynamic>>(
+      0,
+      'DeviceFriendlyName',
+    );
+
     for (final device in devices) {
-      // Look up stored friendly name by MAC address
-      final storedName = DataBroker.getValue<String>(
-        0,
-        'FriendlyName_${device.id.replaceAll(':', '_')}',
-        '',
-      );
+      // Look up stored custom name by MAC address (uppercase with dashes removed)
+      final macKey = device.id
+          .toUpperCase()
+          .replaceAll(':', '-')
+          .replaceAll('-', '');
+      final macKeyColons = device.id.toUpperCase();
+
+      String customName = '';
+      if (customNames != null) {
+        // Try both formats for the key
+        customName =
+            customNames[macKey] as String? ??
+            customNames[macKeyColons] as String? ??
+            customNames[device.id.toUpperCase()] as String? ??
+            '';
+      }
 
       result.add(
         CompatibleDevice(
-          name: (storedName != null && storedName.isNotEmpty)
-              ? storedName
-              : device.name,
+          name: customName.isNotEmpty ? customName : device.name,
           mac: device.id,
         ),
       );

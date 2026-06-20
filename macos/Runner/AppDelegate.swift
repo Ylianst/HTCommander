@@ -542,33 +542,10 @@ private class RFCOMMConnection {
 
 @main
 class AppDelegate: FlutterAppDelegate {
-  private var bluetoothHandlerRegistered = false
-  
   override func applicationDidFinishLaunching(_ notification: Notification) {
     // Register window_manager for sub-windows created by desktop_multi_window
     FlutterMultiWindowPlugin.setOnWindowCreatedCallback { controller in
       WindowManagerPlugin.register(with: controller.registrar(forPlugin: "WindowManagerPlugin"))
-    }
-    
-    // Register Bluetooth Classic handler
-    registerBluetoothHandler()
-  }
-  
-  override func applicationDidBecomeActive(_ notification: Notification) {
-    // Register Bluetooth Classic handler when app becomes active (fallback)
-    registerBluetoothHandler()
-  }
-  
-  private func registerBluetoothHandler() {
-    if bluetoothHandlerRegistered {
-      return
-    }
-    
-    if let mainWindow = NSApp.mainWindow,
-       let flutterViewController = mainWindow.contentViewController as? FlutterViewController {
-      let registrar = flutterViewController.registrar(forPlugin: "BluetoothClassicHandler")
-      BluetoothClassicHandler.register(with: registrar)
-      bluetoothHandlerRegistered = true
     }
   }
 

@@ -242,6 +242,13 @@ class Radio {
       callback: _onGetVolumeEvent,
     );
 
+    // Subscribe to friendly name updates
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'UpdateFriendlyName',
+      callback: _onUpdateFriendlyNameEvent,
+    );
+
     // Subscribe to GPS serial data
     _broker.subscribe(
       deviceId: 1,
@@ -251,6 +258,15 @@ class Radio {
   }
 
   // Event handlers
+  void _onUpdateFriendlyNameEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    final newName = data as String? ?? '';
+    if (newName.isNotEmpty) {
+      _friendlyName = newName;
+      _dispatch('FriendlyName', _friendlyName);
+    }
+  }
+
   void _onChannelChangeEvent(int devId, String name, dynamic data) {
     _debug(
       'Channel change event: $name, data: $data, devId: $devId, myDevId: $deviceId',
@@ -1130,7 +1146,10 @@ class Radio {
   void _handleDevInfo(Uint8List data) {
     info = RadioDevInfo.fromBytes(data);
     if (info != null) {
-      _friendlyName = info!.name;
+      // Only use RadioDevInfo name if no Bluetooth friendly name was provided
+      if (_friendlyName.isEmpty) {
+        _friendlyName = info!.name;
+      }
       channels = List<RadioChannelInfo?>.filled(info!.channelCount, null);
       _dispatch('Info', info!.toJson());
       _dispatch('FriendlyName', _friendlyName);
