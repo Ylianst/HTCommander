@@ -54,6 +54,11 @@ class BSSPacket {
 
   BSSPacket();
 
+  /// Creates a BSS packet with the given [callsign], [destination] and
+  /// [message]. Mirrors the C# `BSSPacket(callsign, destination, message)`
+  /// convenience constructor used when transmitting chat packets.
+  BSSPacket.create({this.callsign, this.destination, this.message});
+
   /// Returns true if the given data appears to be a BSS packet (starts with
   /// 0x01 and has at least 2 bytes).
   static bool isBSSPacket(Uint8List? data) {
@@ -135,6 +140,70 @@ class BSSPacket {
 
   /// Gets a raw field value by type, or null if not present.
   Uint8List? getRawField(int fieldType) => rawFields[fieldType];
+
+  /// Encodes this BSS packet to a byte array starting with 0x01. Mirrors the
+  /// C# `BSSPacket.Encode()`. Field length bytes include the type byte, so
+  /// length = value.length + 1.
+  Uint8List encode() {
+    final result = <int>[0x01]; // BSS packet identifier.
+
+    void addStringField(int type, String? value) {
+      if (value == null || value.isEmpty) return;
+      final bytes = utf8.encode(value);
+      result.add(bytes.length + 1);
+      result.add(type);
+      result.addAll(bytes);
+    }
+
+    // Callsign.
+    addStringField(BSSFieldType.callsign, callsign);
+
+    // Message ID (encoded after the callsign).
+    if (messageId != 0) {
+      result.add(0x85);
+      result.add((messageId >> 8) & 0xFF); // MSB first.
+      result.add(messageId & 0xFF); // LSB.
+    }
+
+    // Destination.
+    addStringField(BSSFieldType.destination, destination);
+
+    // Message.
+    addStringField(BSSFieldType.message, message);
+
+    // Location (raw GPS bytes).
+    final loc = location;
+    final hasLocation = loc != null && loc.isNotEmpty;
+    if (hasLocation) {
+      result.add(loc.length + 1);
+      result.add(BSSFieldType.location);
+      result.addAll(loc);
+    }
+
+    // Location request and call request.
+    addStringField(BSSFieldType.locationRequest, locationRequest);
+    addStringField(BSSFieldType.callRequest, callRequest);
+
+    // Any additional raw fields that weren't already encoded above.
+    rawFields.forEach((type, value) {
+      final alreadyEncoded =
+          (type == BSSFieldType.callsign && (callsign?.isNotEmpty ?? false)) ||
+          (type == BSSFieldType.destination &&
+              (destination?.isNotEmpty ?? false)) ||
+          (type == BSSFieldType.message && (message?.isNotEmpty ?? false)) ||
+          (type == BSSFieldType.location && hasLocation) ||
+          (type == BSSFieldType.locationRequest &&
+              (locationRequest?.isNotEmpty ?? false)) ||
+          (type == BSSFieldType.callRequest &&
+              (callRequest?.isNotEmpty ?? false));
+      if (alreadyEncoded) return;
+      result.add(value.length + 1);
+      result.add(type);
+      result.addAll(value);
+    });
+
+    return Uint8List.fromList(result);
+  }
 
   /// Returns true if [fieldType] is one of the known/parsed field types.
   static bool isKnownField(int fieldType) {

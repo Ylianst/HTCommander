@@ -12,6 +12,7 @@ import 'radio_models.dart';
 import 'radio_transport.dart';
 import 'tnc_data_fragment.dart';
 import 'ax25_packet.dart';
+import 'bss_packet.dart';
 import 'gaia_protocol.dart';
 import 'utils.dart';
 
@@ -55,10 +56,16 @@ class _FragmentInQueue {
 /// Data for transmitting a frame
 class TransmitDataFrameData {
   final AX25Packet? packet;
+  final BSSPacket? bssPacket;
   final int channelId;
   final int regionId;
 
-  TransmitDataFrameData({this.packet, this.channelId = -1, this.regionId = -1});
+  TransmitDataFrameData({
+    this.packet,
+    this.bssPacket,
+    this.channelId = -1,
+    this.regionId = -1,
+  });
 }
 
 /// Data for locking the radio
@@ -374,6 +381,16 @@ class Radio {
         regionId: txData.regionId,
         tag: packet.tag,
         deadline: packet.deadline,
+      );
+    } else if (txData.bssPacket != null) {
+      // BSS packets carry no channel name; an empty name plus channelId -1
+      // makes transmitTncData fall back to the current VFO A channel.
+      final outboundData = txData.bssPacket!.encode();
+      transmitTncData(
+        outboundData,
+        '',
+        channelId: txData.channelId,
+        regionId: txData.regionId,
       );
     }
   }
@@ -743,6 +760,14 @@ class Radio {
     }
     return '';
   }
+
+  /// The id (curr_ch_id from the HT status) of the channel currently being
+  /// received — i.e. the active VFO. Returns 0 if the status is not yet known.
+  int get currentChannelId => htStatus?.currChId ?? 0;
+
+  /// The name of the channel currently being received (the active VFO), or an
+  /// empty string if the channel list / HT status is not yet available.
+  String get currentChannelName => _getChannelNameById(htStatus?.currChId ?? 0);
 
   bool isOnMuteChannel() {
     if (_state != RadioState.connected || channels == null || htStatus == null)

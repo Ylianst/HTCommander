@@ -17,6 +17,9 @@ class ChatMessage {
   final IconData? icon;
   final Object? tag;
 
+  /// Filename of an associated media file (e.g. an audio recording), if any.
+  final String? filename;
+
   const ChatMessage({
     required this.id,
     required this.route,
@@ -29,6 +32,7 @@ class ChatMessage {
     this.longitude,
     this.icon,
     this.tag,
+    this.filename,
   });
 
   bool get hasLocation => latitude != null && longitude != null;
@@ -39,6 +43,7 @@ class ChatMessage {
 class ChatWidget extends StatefulWidget {
   final List<ChatMessage> messages;
   final ValueChanged<ChatMessage>? onMessageTap;
+  final ValueChanged<ChatMessage>? onMessageDoubleTap;
   final ValueChanged<ChatMessage>? onMessageLongPress;
   final Color bubbleColor;
   final Color bubbleAuthColor;
@@ -52,6 +57,7 @@ class ChatWidget extends StatefulWidget {
     super.key,
     required this.messages,
     this.onMessageTap,
+    this.onMessageDoubleTap,
     this.onMessageLongPress,
     this.bubbleColor = const Color(0xFFADD8E6), // LightBlue
     this.bubbleAuthColor = const Color(0xFF90EE90), // LightGreen
@@ -69,6 +75,28 @@ class ChatWidget extends StatefulWidget {
 class _ChatWidgetState extends State<ChatWidget> {
   final ScrollController _scrollController = ScrollController();
 
+  /// Number of messages seen at the last build. The messages list is mutated
+  /// in place by the parent, so the widget's own list reference can't be
+  /// compared frame-to-frame; this state value detects newly added bubbles.
+  int _lastMessageCount = 0;
+
+  /// How close (in pixels) to the bottom the view must be for newly added
+  /// messages to trigger auto-scroll.
+  static const double _autoScrollThreshold = 80.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastMessageCount = widget.messages.length;
+    // When the conversation is initially populated, jump to the bottom so the
+    // latest messages are visible right away.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -78,18 +106,39 @@ class _ChatWidgetState extends State<ChatWidget> {
   @override
   void didUpdateWidget(ChatWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Auto-scroll to bottom when new messages are added
-    if (widget.messages.length > oldWidget.messages.length) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-          );
-        }
-      });
+    final newCount = widget.messages.length;
+    if (newCount <= _lastMessageCount) {
+      // No new bubbles (cleared, replaced, or unchanged). Just track the count.
+      _lastMessageCount = newCount;
+      return;
     }
+
+    final wasEmpty = _lastMessageCount == 0;
+    // Capture whether the view was at the bottom BEFORE the new bubbles lay
+    // out (the scroll position here still reflects the previous content).
+    var atBottom = true;
+    if (_scrollController.hasClients) {
+      final pos = _scrollController.position;
+      atBottom = pos.pixels >= pos.maxScrollExtent - _autoScrollThreshold;
+    }
+    _lastMessageCount = newCount;
+
+    if (!wasEmpty && !atBottom) return;
+
+    // Auto-scroll to bottom when new messages are added.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      if (wasEmpty) {
+        // Initial fill: jump straight to the bottom (no animation).
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      } else {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   void scrollToBottom() {
@@ -163,7 +212,11 @@ class _ChatWidgetState extends State<ChatWidget> {
 
   Widget _buildMessageItem(ChatMessage message, int index) {
     final showTimestamp = _shouldShowTimestamp(index);
-    final showRoute = _shouldShowRoute(index);
+    final hasText = message.message.trim().isNotEmpty;
+    // When there is no bubble (empty text), the header is the only content, so
+    // always show it. A header with an icon (e.g. a recording) is tappable.
+    final showRoute = hasText ? _shouldShowRoute(index) : true;
+    final iconHeader = !hasText && message.icon != null;
 
     return Column(
       crossAxisAlignment: message.isSender
@@ -181,23 +234,55 @@ class _ChatWidgetState extends State<ChatWidget> {
               ),
             ),
           ),
-        // Route/callsign (above bubble)
-        if (showRoute)
-          Padding(
-            padding: EdgeInsets.only(
-              left: message.isSender ? 0 : 12,
-              right: message.isSender ? 12 : 0,
-              bottom: 2,
-            ),
-            child: Text(
-              message.route,
-              style: TextStyle(color: widget.routeTextColor, fontSize: 12),
-            ),
-          ),
-        // Message bubble
-        _buildBubble(message),
+        // Route/callsign header (above bubble, or standalone when no bubble)
+        if (showRoute) _buildHeader(message, withIcon: iconHeader),
+        // Message bubble (only when there is text to show)
+        if (hasText) _buildBubble(message),
         const SizedBox(height: 4),
       ],
+    );
+  }
+
+  /// Builds the route/callsign header. When [withIcon] is true the message's
+  /// icon is shown next to the header and the whole header becomes tappable
+  /// (used for recordings and other media that have no text bubble).
+  Widget _buildHeader(ChatMessage message, {bool withIcon = false}) {
+    Widget header = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (withIcon && message.icon != null) ...[
+          Icon(message.icon, size: 16, color: Colors.grey),
+          const SizedBox(width: 4),
+        ],
+        Flexible(
+          child: Text(
+            message.route,
+            style: TextStyle(color: widget.routeTextColor, fontSize: 12),
+          ),
+        ),
+      ],
+    );
+
+    if (withIcon &&
+        (widget.onMessageTap != null || widget.onMessageDoubleTap != null)) {
+      header = InkWell(
+        onTap: widget.onMessageTap != null
+            ? () => widget.onMessageTap!(message)
+            : null,
+        onDoubleTap: widget.onMessageDoubleTap != null
+            ? () => widget.onMessageDoubleTap!(message)
+            : null,
+        child: header,
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: message.isSender ? 0 : 12,
+        right: message.isSender ? 12 : 0,
+        bottom: 2,
+      ),
+      child: header,
     );
   }
 
@@ -205,6 +290,9 @@ class _ChatWidgetState extends State<ChatWidget> {
     return GestureDetector(
       onTap: widget.onMessageTap != null
           ? () => widget.onMessageTap!(message)
+          : null,
+      onDoubleTap: widget.onMessageDoubleTap != null
+          ? () => widget.onMessageDoubleTap!(message)
           : null,
       onLongPress: widget.onMessageLongPress != null
           ? () => widget.onMessageLongPress!(message)

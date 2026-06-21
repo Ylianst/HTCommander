@@ -4,7 +4,6 @@ import 'dart:ui' as ui show BoxWidthStyle;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import '../dialogs/about_dialog.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -60,14 +59,9 @@ class _DebugTabState extends State<DebugTab>
     // Load existing log entries from DataBroker
     _loadExistingLogEntries();
 
-    // Subscribe to log messages (LogInfo and LogError from device 1)
-    _broker.subscribeMultiple(
-      deviceId: 1,
-      names: ['LogInfo', 'LogError'],
-      callback: _onLogMessage,
-    );
-
-    // Subscribe to debug log entries changes (for sync across widgets)
+    // Subscribe to debug log entries changes. The DebugLogHandler captures
+    // LogInfo/LogError messages into DebugLogEntries from application startup,
+    // so this tab only needs to render the accumulated entries.
     _broker.subscribe(
       deviceId: 1,
       name: 'DebugLogEntries',
@@ -90,11 +84,6 @@ class _DebugTabState extends State<DebugTab>
 
     // Initialize states from current broker values
     _initializeStates();
-
-    // Add startup log only if this is a fresh start (no existing entries)
-    if (_logEntries.isEmpty) {
-      _broker.logInfo('HTCommander ${HTAboutDialog.version} started');
-    }
   }
 
   void _loadExistingLogEntries() {
@@ -133,11 +122,12 @@ class _DebugTabState extends State<DebugTab>
           )
           .toList();
 
+      final grew = newEntries.length > _logEntries.length;
       if (newEntries.length != _logEntries.length) {
         setState(() {
           _logEntries = newEntries;
         });
-        if (_autoScroll && newEntries.length > _logEntries.length) {
+        if (_autoScroll && grew) {
           _scrollToBottom();
         }
       }
@@ -159,14 +149,6 @@ class _DebugTabState extends State<DebugTab>
         DataBroker.getValue<bool>(1, 'LoopbackMode', false) ?? false;
   }
 
-  /// Handle log messages from DataBroker
-  void _onLogMessage(int deviceId, String name, Object? data) {
-    if (data is String) {
-      final isError = name == 'LogError';
-      _appendLog(data, isError: isError);
-    }
-  }
-
   /// Handle Bluetooth frames debug setting changes
   void _onBluetoothFramesDebugChanged(int deviceId, String name, Object? data) {
     if (data is bool && _showBluetoothFrames != data) {
@@ -185,56 +167,13 @@ class _DebugTabState extends State<DebugTab>
     }
   }
 
-  void _appendLog(String message, {bool isError = false}) {
-    final entry = DebugLogEntry(
-      time: DateTime.now(),
-      message: message,
-      isError: isError,
-    );
-    setState(() {
-      _logEntries.add(entry);
-    });
-
-    // Persist to DataBroker
-    _persistLogEntries();
-
-    if (_autoScroll) {
-      _scrollToBottom();
-    }
-  }
-
   void _clearLogs() {
     setState(() {
       _logEntries.clear();
     });
-    // Clear from DataBroker
-    DataBroker.dispatch(
-      deviceId: 1,
-      name: 'DebugLogEntries',
-      data: <Map<String, dynamic>>[],
-      store: true,
-    );
-  }
-
-  void _persistLogEntries() {
-    // Convert entries to JSON-serializable format
-    final entriesJson = _logEntries
-        .map(
-          (e) => {
-            'time': e.time.toIso8601String(),
-            'message': e.message,
-            'isError': e.isError,
-          },
-        )
-        .toList();
-
-    // Store in DataBroker (not persisted to disk, just in-memory)
-    DataBroker.dispatch(
-      deviceId: 1,
-      name: 'DebugLogEntries',
-      data: entriesJson,
-      store: true,
-    );
+    // Ask the DebugLogHandler to clear the captured log (it owns the canonical
+    // DebugLogEntries list and will re-dispatch the emptied list).
+    DataBroker.dispatch(deviceId: 1, name: 'ClearDebugLog', data: true);
   }
 
   void _scrollToBottom() {

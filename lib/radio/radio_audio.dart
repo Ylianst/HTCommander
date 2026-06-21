@@ -549,7 +549,12 @@ class RadioAudio {
 
       if (samples.isEmpty) return;
 
-      final bool isOnMuteChannel = false; // Channel mute logic not ported yet.
+      // Resolve the channel currently being received (the active VFO) and
+      // whether it is muted. Audio on a muted channel is neither played on the
+      // speaker nor recorded, but it is still reported on the Data Broker so
+      // subscribers can tell which channel/VFO the frames came from.
+      currentChannelName = radio.currentChannelName;
+      final bool isOnMuteChannel = radio.isOnMuteChannel();
 
       // Scale by output volume for playback (software volume control).
       final Int16List playbackPcm = Int16List(samples.length);
@@ -620,6 +625,7 @@ class RadioAudio {
 
   void _dispatchAudioDataStart(bool transmit) {
     _audioRunStartTime = DateTime.now();
+    currentChannelName = radio.currentChannelName;
     _broker.dispatch(
       deviceId: deviceId,
       name: 'AudioDataStart',
@@ -627,6 +633,7 @@ class RadioAudio {
         'startTime': _audioRunStartTime.millisecondsSinceEpoch,
         'channelName': currentChannelName,
         'transmit': transmit,
+        'muted': radio.isOnMuteChannel(),
         'usage': radio.lockUsage,
       },
       store: false,
