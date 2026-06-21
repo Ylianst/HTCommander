@@ -64,6 +64,11 @@ class _TerminalLine {
   final String? to;
   final bool outgoing;
   final bool system;
+
+  /// Whether this visual line should be prefixed with the sender's callsign
+  /// (when the "Show Callsign" option is enabled). Computed at append time,
+  /// mirroring the C# `AppendTerminalString` logic.
+  bool showCallsignPrefix;
   String text;
 
   _TerminalLine({
@@ -71,6 +76,7 @@ class _TerminalLine {
     this.to,
     this.outgoing = false,
     this.system = false,
+    this.showCallsignPrefix = false,
     this.text = '',
   });
 }
@@ -97,6 +103,12 @@ class _TerminalTabState extends State<TerminalTab>
 
   // Terminal content.
   final List<_TerminalLine> _lines = [];
+
+  // Per-line callsign tracking, mirroring the C# `AppendTerminalString` state:
+  // the last sender whose callsign was shown, and whether the cursor is at the
+  // start of a fresh line.
+  String? _lastFrom;
+  bool _atLineStart = true;
 
   @override
   bool get wantKeepAlive => true;
@@ -708,37 +720,94 @@ class _TerminalTabState extends State<TerminalTab>
   void _appendSystem(String text) {
     setState(() {
       _lines.add(_TerminalLine(system: true, text: text));
+      // A system line is always on its own line and breaks the callsign run.
+      _atLineStart = true;
+      _lastFrom = null;
     });
     _scrollToBottom();
   }
 
+  /// Appends received/sent [text] to the terminal, split into visual lines and
+  /// prefixed with the sender's callsign per line when "Show Callsign" is on.
+  ///
+  /// This is a direct port of the C# `AppendTerminalString`: it tracks
+  /// [_lastFrom] and [_atLineStart] across calls so the callsign is shown only
+  /// when the sender changes or a new line begins, and consecutive fragments
+  /// from the same sender on the same unfinished line are merged.
   void _appendString({
     required bool outgoing,
     required String? from,
     required String? to,
     required String text,
   }) {
-    // Normalize line endings: packet-radio peers terminate lines with a bare
-    // carriage return (\r) or \r\n. Flutter's text layout treats a lone \r as a
-    // carriage return that hides following text on the same visual line, so map
-    // them all to \n to ensure every line is shown.
+    if (text.isEmpty) return;
+
+    // Normalize line endings, then strip C0 control characters (0x00-0x1F) and
+    // DEL (0x7F) - keeping only Tab (0x09) and newline (0x0A) - so non-printable
+    // codes can't hide or clip surrounding characters in the renderer. Done via
+    // code units so no literal control bytes appear in this source file.
     text = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    text = String.fromCharCodes(
+      text.codeUnits.where((c) {
+        if (c == 0x0A) return true; // keep newline (line separator)
+        if (c == 0x09) return true; // keep tab
+        if (c < 0x20) return false; // drop other C0 controls
+        if (c == 0x7F) return false; // drop DEL
+        return true;
+      }),
+    );
+
+    final lines = text.split('\n');
+
     setState(() {
-      // Merge with the previous line if it has the same source/direction and
-      // did not yet end with a newline (mirrors the C# fragment merging).
-      _TerminalLine? last = _lines.isNotEmpty ? _lines.last : null;
-      final canMerge =
-          last != null &&
-          !last.system &&
-          last.outgoing == outgoing &&
-          last.from == from &&
-          !last.text.endsWith('\n');
-      if (canMerge) {
-        last.text += text;
-      } else {
-        _lines.add(
-          _TerminalLine(from: from, to: to, outgoing: outgoing, text: text),
-        );
+      for (var i = 0; i < lines.length; i++) {
+        final line = lines[i];
+        final isLastLine = (i == lines.length - 1);
+
+        // Skip a trailing empty fragment (the text ended with a newline).
+        if (line.isEmpty && isLastLine) continue;
+
+        // Decide whether to show the callsign for this line, mirroring the C#
+        // rule: only when the sender changed or we're at the start of a line.
+        var showPrefix = false;
+        if (_showCallsign && from != null && from.isNotEmpty) {
+          if (_lastFrom != from || _atLineStart) {
+            showPrefix = true;
+            _lastFrom = from;
+          }
+        }
+
+        // Append the line text. When we're mid-line (not at line start) and not
+        // forcing a new callsign prefix, merge onto the current visual line;
+        // otherwise start a new line.
+        final canMerge =
+            !_atLineStart &&
+            !showPrefix &&
+            _lines.isNotEmpty &&
+            !_lines.last.system &&
+            _lines.last.outgoing == outgoing &&
+            _lines.last.from == from;
+        if (canMerge) {
+          _lines.last.text += line;
+        } else {
+          _lines.add(
+            _TerminalLine(
+              from: from,
+              to: to,
+              outgoing: outgoing,
+              showCallsignPrefix: showPrefix,
+              text: line,
+            ),
+          );
+        }
+
+        if (!isLastLine) {
+          // The line is terminated; the next text starts a fresh line.
+          _atLineStart = true;
+        } else {
+          // For the last fragment we're at line start only if it was empty.
+          _atLineStart = line.isEmpty;
+        }
       }
     });
     _scrollToBottom();
@@ -769,7 +838,7 @@ class _TerminalTabState extends State<TerminalTab>
     }
 
     final spans = <TerminalTextSpan>[];
-    if (_showCallsign && line.from != null) {
+    if (_showCallsign && line.showCallsignPrefix && line.from != null) {
       spans.add(
         TerminalTextSpan(
           '${line.from}: ',
@@ -890,7 +959,11 @@ class _TerminalTabState extends State<TerminalTab>
           );
           break;
         case 'clear':
-          setState(() => _lines.clear());
+          setState(() {
+            _lines.clear();
+            _lastFrom = null;
+            _atLineStart = true;
+          });
           break;
         case 'detach':
           windowService.createWindow('terminal');
