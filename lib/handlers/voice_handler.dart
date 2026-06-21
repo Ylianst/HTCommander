@@ -1,0 +1,1416 @@
+/*
+Copyright 2026 Ylian Saint-Hilaire
+Licensed under the Apache License, Version 2.0 (the "License");
+http://www.apache.org/licenses/LICENSE-2.0
+
+Dart port of the C# VoiceHandler. This Data Broker handler listens to audio
+data from radios and maintains a history of decoded/transmitted voice text.
+
+Scope of this port (core handler + broker contract):
+  - Enable / Disable lifecycle, target-radio tracking and state dispatch.
+  - Decoded text history (in-memory + JSON persistence on disk).
+  - Recording-enabled flag and RecordingState dispatch.
+  - Clear-history command and the related broadcast events.
+  - Auto-disable when the target radio disconnects or its audio is turned off.
+
+The following heavy features from the original C# are intentionally STUBBED
+here as clean extension points and produce no functional behaviour yet:
+  - Speech-to-text (Whisper) decoding of incoming audio frames.
+  - Text-to-speech synthesis (Speak command).
+  - SSTV image detection/decoding.
+  - Morse / Chat / BSS / picture transmit.
+
+Received data-packet decoding (UniqueDataFrame) is implemented: AX.25 / BSS /
+APRS / Ident packets that arrive on a non-APRS channel are decoded and added to
+the decoded-text history.
+
+WAV file recording of audio runs is fully implemented: when recording is
+enabled, each audio run is captured to a 32 kHz 16-bit mono WAV file under the
+application-support "recordings" folder and added to the decoded-text history.
+*/
+
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:path_provider/path_provider.dart';
+
+import '../aprs/aprs_packet.dart';
+import '../radio/ax25_packet.dart';
+import '../radio/bss_packet.dart';
+import '../radio/radio.dart';
+import '../radio/tnc_data_fragment.dart';
+import '../services/data_broker.dart';
+import '../services/data_broker_client.dart';
+
+/// Encoding type for voice text entries. Mirrors the C# `VoiceTextEncodingType`.
+enum VoiceTextEncodingType {
+  voice,
+  morse,
+  voiceClip,
+  ax25,
+  bss,
+  recording,
+  picture,
+  aprs,
+  ident,
+}
+
+/// Serializes a [VoiceTextEncodingType] to its C#-compatible name (PascalCase).
+String _encodingToString(VoiceTextEncodingType e) {
+  switch (e) {
+    case VoiceTextEncodingType.voice:
+      return 'Voice';
+    case VoiceTextEncodingType.morse:
+      return 'Morse';
+    case VoiceTextEncodingType.voiceClip:
+      return 'VoiceClip';
+    case VoiceTextEncodingType.ax25:
+      return 'AX25';
+    case VoiceTextEncodingType.bss:
+      return 'BSS';
+    case VoiceTextEncodingType.recording:
+      return 'Recording';
+    case VoiceTextEncodingType.picture:
+      return 'Picture';
+    case VoiceTextEncodingType.aprs:
+      return 'APRS';
+    case VoiceTextEncodingType.ident:
+      return 'Ident';
+  }
+}
+
+/// Parses a [VoiceTextEncodingType] from its string name (case-insensitive).
+VoiceTextEncodingType _encodingFromString(Object? value) {
+  final s = (value is String ? value : 'Voice').toLowerCase();
+  switch (s) {
+    case 'morse':
+      return VoiceTextEncodingType.morse;
+    case 'voiceclip':
+      return VoiceTextEncodingType.voiceClip;
+    case 'ax25':
+      return VoiceTextEncodingType.ax25;
+    case 'bss':
+      return VoiceTextEncodingType.bss;
+    case 'recording':
+      return VoiceTextEncodingType.recording;
+    case 'picture':
+      return VoiceTextEncodingType.picture;
+    case 'aprs':
+      return VoiceTextEncodingType.aprs;
+    case 'ident':
+      return VoiceTextEncodingType.ident;
+    case 'voice':
+    default:
+      return VoiceTextEncodingType.voice;
+  }
+}
+
+/// Represents a voice text entry (received or transmitted).
+class DecodedTextEntry {
+  String? text;
+  String? channel;
+  DateTime time;
+
+  /// True if received (decoded), false if sent (transmitted).
+  bool isReceived;
+  VoiceTextEncodingType encoding;
+
+  /// Source callsign (for BSS packets).
+  String? source;
+
+  /// Destination callsign (for BSS packets, may be null for broadcast).
+  String? destination;
+  double latitude;
+  double longitude;
+
+  /// Filename for picture (SSTV) and recording entries.
+  String? filename;
+
+  /// Duration in seconds (for recording entries).
+  int duration;
+
+  DecodedTextEntry({
+    this.text,
+    this.channel,
+    DateTime? time,
+    this.isReceived = true,
+    this.encoding = VoiceTextEncodingType.voice,
+    this.source,
+    this.destination,
+    this.latitude = 0,
+    this.longitude = 0,
+    this.filename,
+    this.duration = 0,
+  }) : time = time ?? DateTime.now();
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'text': text,
+    'channel': channel,
+    'time': time.millisecondsSinceEpoch,
+    'isReceived': isReceived,
+    'encoding': _encodingToString(encoding),
+    'source': source,
+    'destination': destination,
+    'latitude': latitude,
+    'longitude': longitude,
+    'filename': filename,
+    'duration': duration,
+  };
+
+  factory DecodedTextEntry.fromJson(Map<String, dynamic> json) {
+    final rawTime = json['time'];
+    DateTime time;
+    if (rawTime is int) {
+      time = DateTime.fromMillisecondsSinceEpoch(rawTime);
+    } else if (rawTime is String) {
+      time = DateTime.tryParse(rawTime) ?? DateTime.now();
+    } else {
+      time = DateTime.now();
+    }
+    double toDouble(Object? v) => v is num ? v.toDouble() : 0.0;
+    return DecodedTextEntry(
+      text: json['text'] as String?,
+      channel: json['channel'] as String?,
+      time: time,
+      isReceived: json['isReceived'] as bool? ?? true,
+      encoding: _encodingFromString(json['encoding']),
+      source: json['source'] as String?,
+      destination: json['destination'] as String?,
+      latitude: toDouble(json['latitude']),
+      longitude: toDouble(json['longitude']),
+      filename: json['filename'] as String?,
+      duration: json['duration'] as int? ?? 0,
+    );
+  }
+}
+
+/// Voice Handler - listens to audio data from radios and maintains a history of
+/// decoded/transmitted voice text. Registered as a Data Broker handler.
+class VoiceHandler {
+  static const String _voiceTextFileName = 'voicetext.json';
+  static const int _maxHistorySize = 1000;
+
+  final DataBrokerClient _broker = DataBrokerClient();
+  bool _disposed = false;
+  bool _initialized = false;
+
+  // Handler state.
+  bool _enabled = false;
+  int _targetDeviceId = -1; // -1 means disabled.
+  String _voiceLanguage = 'auto';
+  String? _voiceModel;
+
+  // Recording state.
+  bool _recordingEnabled = false;
+  static const String _recordingsFolderName = 'recordings';
+  static const int _recordingSampleRate = 32000;
+  Directory? _recordingsDir;
+
+  // Active recording context (set while an audio run is being captured).
+  _WavClipRecorder? _recorder;
+  int _recordingDeviceId = -1;
+  DateTime _recordingStartTime = DateTime.now();
+  String _recordingChannel = '';
+  String _recordingFilename = '';
+  bool _recordingIsTransmit = false;
+
+  // Current audio-run context (updated from AudioDataStart events).
+  String _currentChannelName = '';
+  // ignore: unused_field
+  bool _currentAudioIsTransmit = false;
+
+  // Decoded text history.
+  final List<DecodedTextEntry> _decodedTextHistory = <DecodedTextEntry>[];
+  DecodedTextEntry? _currentEntry;
+  bool _voiceTextHistoryLoaded = false;
+
+  File? _historyFile;
+
+  /// Initializes the handler: subscribes to broker events, loads persisted
+  /// state and dispatches the initial handler state. Safe to call once.
+  void init() {
+    if (_initialized || _disposed) return;
+    _initialized = true;
+
+    // Commands directed at the handler (device 1 / global).
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'VoiceHandlerEnable',
+      callback: _onVoiceHandlerEnable,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'VoiceHandlerDisable',
+      callback: _onVoiceHandlerDisable,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'RecordingEnable',
+      callback: _onRecordingEnable,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'RecordingDisable',
+      callback: _onRecordingDisable,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'ClearVoiceText',
+      callback: _onClearVoiceText,
+    );
+
+    // Radio / audio state across all devices.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'State',
+      callback: _onRadioStateChanged,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioState',
+      callback: _onAudioStateChanged,
+    );
+
+    // Audio-run lifecycle and frames across all devices.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioDataStart',
+      callback: _onAudioDataStart,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioDataEnd',
+      callback: _onAudioDataEnd,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioDataAvailable',
+      callback: _onAudioDataAvailable,
+    );
+
+    // Received data packets (AX.25 / BSS / APRS / Ident) across all devices.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'UniqueDataFrame',
+      callback: _onUniqueDataFrame,
+    );
+
+    // Outgoing chat (BSS) messages from the voice panel across all devices.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Chat',
+      callback: _onChat,
+    );
+
+    // Restore persisted recording flag (device 0 = settings).
+    _recordingEnabled =
+        _broker.getValue<bool>(0, 'RecordingState', false) ?? false;
+    _dispatchRecordingState();
+
+    // Pre-resolve the recordings folder so clip capture can start synchronously.
+    unawaited(_ensureRecordingsDir());
+
+    // Dispatch initial handler state.
+    _dispatchVoiceHandlerState();
+
+    // Load the persisted text history asynchronously.
+    unawaited(_loadVoiceTextHistory());
+
+    _broker.logInfo('[VoiceHandler] Initialized');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Enable / Disable
+  // ---------------------------------------------------------------------------
+
+  /// Handles the VoiceHandlerEnable command.
+  /// Expected data: { deviceId/DeviceId, language/Language, model/Model }.
+  void _onVoiceHandlerEnable(int deviceId, String name, Object? data) {
+    if (data is! Map) {
+      _broker.logError('[VoiceHandler] Invalid VoiceHandlerEnable data format');
+      return;
+    }
+    final map = data;
+    final targetDevice = _readInt(map['deviceId'] ?? map['DeviceId']);
+    final language = (map['language'] ?? map['Language']) as String? ?? 'auto';
+    final model = (map['model'] ?? map['Model']) as String?;
+    if (targetDevice == null) {
+      _broker.logError('[VoiceHandler] VoiceHandlerEnable missing deviceId');
+      return;
+    }
+    enable(targetDevice, language, model);
+  }
+
+  /// Handles the VoiceHandlerDisable command.
+  void _onVoiceHandlerDisable(int deviceId, String name, Object? data) {
+    disable();
+  }
+
+  /// Enables the voice handler to listen to a specific radio device.
+  void enable(int deviceId, String language, String? model) {
+    if (_enabled &&
+        _targetDeviceId == deviceId &&
+        _voiceLanguage == language &&
+        _voiceModel == model) {
+      return; // Already enabled with the same settings.
+    }
+
+    // Validate that the radio is connected before enabling.
+    final radioState = _broker.getValue<String>(deviceId, 'State');
+    if (radioState != 'Connected') {
+      _broker.logError(
+        '[VoiceHandler] Cannot enable for device $deviceId: radio not connected (state: ${radioState ?? 'unknown'})',
+      );
+      return;
+    }
+
+    // Voice processing requires audio streaming; turn it on if necessary.
+    final audioEnabled =
+        _broker.getValue<bool>(deviceId, 'AudioState', false) ?? false;
+    if (!audioEnabled) {
+      _broker.logInfo(
+        '[VoiceHandler] Audio not enabled for device $deviceId, enabling audio streaming',
+      );
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: 'SetAudio',
+        data: true,
+        store: false,
+      );
+    }
+
+    if (_enabled) disable();
+
+    _targetDeviceId = deviceId;
+    _voiceLanguage = language;
+    _voiceModel = model;
+    _enabled = true;
+
+    _broker.logInfo(
+      '[VoiceHandler] Enabled for device $deviceId, language: $language',
+    );
+
+    // Speech-to-text engine initialization is deferred in this build.
+    // TODO(stt): initialize the speech-to-text engine here when available.
+
+    _dispatchVoiceHandlerState();
+  }
+
+  /// Disables the voice handler.
+  void disable() {
+    if (!_enabled) return;
+
+    final previousDeviceId = _targetDeviceId;
+    _enabled = false;
+    _targetDeviceId = -1;
+
+    // Speech-to-text / SSTV cleanup is deferred in this build.
+
+    // Indicate we are no longer listening/processing.
+    if (previousDeviceId > 0) {
+      _broker.dispatch(
+        deviceId: previousDeviceId,
+        name: 'ProcessingVoice',
+        data: <String, Object?>{'listening': false, 'processing': false},
+        store: false,
+      );
+    }
+
+    _dispatchVoiceHandlerState();
+    _broker.logInfo('[VoiceHandler] Disabled');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Recording (flag-only; WAV capture is stubbed)
+  // ---------------------------------------------------------------------------
+
+  void _onRecordingEnable(int deviceId, String name, Object? data) {
+    if (_recordingEnabled) return;
+    _recordingEnabled = true;
+    _dispatchRecordingState();
+    _broker.logInfo('[VoiceHandler] Recording enabled');
+  }
+
+  void _onRecordingDisable(int deviceId, String name, Object? data) {
+    if (!_recordingEnabled) return;
+    // Finalize any in-progress recording before turning recording off.
+    if (_recorder != null) _finalizeRecording();
+    _recordingEnabled = false;
+    _dispatchRecordingState();
+    _broker.logInfo('[VoiceHandler] Recording disabled');
+  }
+
+  void _dispatchRecordingState() {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'RecordingState',
+      data: _recordingEnabled,
+      store: true,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Radio / audio state monitoring (auto-disable)
+  // ---------------------------------------------------------------------------
+
+  void _onRadioStateChanged(int deviceId, String name, Object? data) {
+    if (deviceId != _targetDeviceId || !_enabled) return;
+    final state = data is String ? data : null;
+    if (state == null) return;
+    if (state == 'Disconnected' ||
+        state == 'UnableToConnect' ||
+        state == 'BluetoothNotAvailable' ||
+        state == 'AccessDenied') {
+      _broker.logInfo(
+        '[VoiceHandler] Target radio $deviceId disconnected (state: $state), disabling voice handler',
+      );
+      disable();
+    }
+  }
+
+  void _onAudioStateChanged(int deviceId, String name, Object? data) {
+    if (deviceId != _targetDeviceId || !_enabled) return;
+    final audioEnabled = data is bool ? data : false;
+    if (!audioEnabled) {
+      _broker.logInfo(
+        '[VoiceHandler] Audio disabled on target radio $deviceId, disabling voice handler',
+      );
+      disable();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Audio-run lifecycle and frames
+  // ---------------------------------------------------------------------------
+
+  void _onAudioDataStart(int deviceId, String name, Object? data) {
+    // Recording is independent of the voice-handler enable state: it captures
+    // whichever radio is streaming audio while recording is turned on.
+    if (_recordingEnabled) {
+      _handleRecordingStart(deviceId, data);
+    }
+
+    // Speech-to-text segment start (deferred) for the enabled target radio.
+    if (deviceId == _targetDeviceId && _enabled) {
+      if (data is Map) {
+        final cn =
+            (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+        if (cn.isNotEmpty) _currentChannelName = cn;
+        _currentAudioIsTransmit =
+            (data['transmit'] ?? data['Transmit']) as bool? ?? false;
+      }
+      // TODO(stt): begin a new speech segment.
+    }
+  }
+
+  void _onAudioDataEnd(int deviceId, String name, Object? data) {
+    // Finalize the active recording when its audio run ends.
+    if (_recorder != null && deviceId == _recordingDeviceId) {
+      _finalizeRecording();
+    }
+
+    // Speech-to-text flush (deferred) for the enabled target radio.
+    if (deviceId == _targetDeviceId && _enabled) {
+      // TODO(stt): flush the current speech segment.
+    }
+  }
+
+  void _onAudioDataAvailable(int deviceId, String name, Object? data) {
+    if (data is! Map) return;
+
+    // Recording: append PCM frames to the active recording.
+    final recorder = _recorder;
+    if (recorder != null && deviceId == _recordingDeviceId) {
+      final usage = data['usage'] ?? data['Usage'];
+      final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
+      if (usage == null && !muted) {
+        // Capture the channel name from the audio frames; this resolves the
+        // recording's channel even when it wasn't known at the audio-run start.
+        final frameChannel =
+            (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+        if (frameChannel.isNotEmpty && frameChannel != 'APRS') {
+          _currentChannelName = frameChannel;
+          if (_recordingChannel.isEmpty) _recordingChannel = frameChannel;
+        }
+        final transmit = data['transmit'] ?? data['Transmit'];
+        if (transmit is bool) _recordingIsTransmit = transmit;
+        final bytes = data['data'] ?? data['Data'];
+        if (bytes is Uint8List) {
+          final offset = _readInt(data['offset'] ?? data['Offset']) ?? 0;
+          final length =
+              _readInt(data['length'] ?? data['Length']) ??
+              (bytes.length - offset);
+          recorder.write(bytes, offset, length);
+        }
+      }
+    }
+
+    // Speech-to-text (deferred) for the enabled target radio.
+    if (deviceId == _targetDeviceId && _enabled) {
+      // TODO(stt): feed PCM frames to the speech-to-text engine.
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // WAV recording
+  // ---------------------------------------------------------------------------
+
+  Future<Directory?> _ensureRecordingsDir() async {
+    if (_recordingsDir != null) return _recordingsDir;
+    try {
+      final base = await getApplicationSupportDirectory();
+      final dir = Directory(
+        '${base.path}${Platform.pathSeparator}$_recordingsFolderName',
+      );
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      _recordingsDir = dir;
+      return dir;
+    } catch (e) {
+      _broker.logError('[VoiceHandler] Failed to resolve recordings dir: $e');
+      return null;
+    }
+  }
+
+  void _handleRecordingStart(int deviceId, Object? data) {
+    if (data is! Map) return;
+    // Skip if the radio is locked to a usage.
+    final usage = data['usage'] ?? data['Usage'];
+    if (usage != null) return;
+    // Don't record audio coming in on a muted channel.
+    final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
+    if (muted) return;
+    var channel = (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+    // Fall back to the last known channel name if this event didn't carry one
+    // (e.g. channel info had not finished loading when the audio run started).
+    if (channel.isEmpty) channel = _currentChannelName;
+    if (channel.isNotEmpty) _currentChannelName = channel;
+    // Don't record the APRS channel.
+    if (channel == 'APRS') return;
+    final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
+    final startMs = _readInt(data['startTime'] ?? data['StartTime']);
+    final startTime = startMs != null
+        ? DateTime.fromMillisecondsSinceEpoch(startMs)
+        : DateTime.now();
+    _startNewRecording(deviceId, startTime, channel, transmit);
+  }
+
+  void _startNewRecording(
+    int deviceId,
+    DateTime startTime,
+    String channel,
+    bool transmit,
+  ) {
+    // Finalize any previous recording first.
+    if (_recorder != null) _finalizeRecording();
+
+    final dir = _recordingsDir;
+    if (dir == null) {
+      // Folder not resolved yet; trigger resolution and skip this clip.
+      unawaited(_ensureRecordingsDir());
+      return;
+    }
+
+    final filename =
+        'Recording_${_formatTimestamp(startTime)}_${_sanitizeChannel(channel)}.wav';
+    final fullPath = '${dir.path}${Platform.pathSeparator}$filename';
+    final recorder = _WavClipRecorder.open(fullPath, _recordingSampleRate);
+    if (recorder == null) {
+      _broker.logError('[VoiceHandler] Failed to start recording: $filename');
+      return;
+    }
+
+    _recorder = recorder;
+    _recordingDeviceId = deviceId;
+    _recordingStartTime = startTime;
+    _recordingChannel = channel;
+    _recordingFilename = filename;
+    _recordingIsTransmit = transmit;
+  }
+
+  void _finalizeRecording() {
+    final recorder = _recorder;
+    if (recorder == null) return;
+    _recorder = null;
+    final dataBytes = recorder.dataBytes;
+    recorder.close();
+
+    var filename = _recordingFilename;
+    final channel = _recordingChannel;
+    final startTime = _recordingStartTime;
+    final isReceived = !_recordingIsTransmit;
+    final deviceId = _recordingDeviceId;
+    final dir = _recordingsDir;
+
+    _recordingDeviceId = -1;
+    _recordingFilename = '';
+    _recordingChannel = '';
+
+    // 32000 Hz * 2 bytes/sample (16-bit mono) = 64000 bytes per second.
+    final durationSeconds = dataBytes / 64000.0;
+    if (durationSeconds >= 0.5) {
+      // The channel may have been resolved from the audio frames after the file
+      // was created; rename the file so it reflects the correct channel name.
+      if (dir != null && channel.isNotEmpty) {
+        final desired =
+            'Recording_${_formatTimestamp(startTime)}_${_sanitizeChannel(channel)}.wav';
+        if (desired != filename) {
+          try {
+            final oldFile = File(
+              '${dir.path}${Platform.pathSeparator}$filename',
+            );
+            if (oldFile.existsSync()) {
+              oldFile.renameSync(
+                '${dir.path}${Platform.pathSeparator}$desired',
+              );
+              filename = desired;
+            }
+          } catch (e) {
+            _broker.logError('[VoiceHandler] Failed to rename recording: $e');
+          }
+        }
+      }
+      final durationInt = durationSeconds.round();
+      final entry = DecodedTextEntry(
+        text: null,
+        channel: channel,
+        time: startTime,
+        isReceived: isReceived,
+        encoding: VoiceTextEncodingType.recording,
+        filename: filename,
+        duration: durationInt,
+      );
+      _decodedTextHistory.add(entry);
+      _trimHistory();
+      unawaited(_saveVoiceTextHistory());
+      _dispatchDecodedTextHistory();
+      _dispatchRecordingTextReady(
+        deviceId,
+        channel,
+        startTime,
+        isReceived,
+        filename,
+        durationInt,
+      );
+      _broker.logInfo(
+        '[VoiceHandler] Completed recording: $filename (${durationSeconds.toStringAsFixed(1)} sec)',
+      );
+    } else {
+      // Discard recordings that are too short to be useful.
+      if (dir != null) {
+        try {
+          File('${dir.path}${Platform.pathSeparator}$filename').deleteSync();
+        } catch (_) {}
+      }
+      _broker.logInfo('[VoiceHandler] Discarded short recording: $filename');
+    }
+  }
+
+  void _dispatchRecordingTextReady(
+    int deviceId,
+    String channel,
+    DateTime time,
+    bool isReceived,
+    String filename,
+    int duration,
+  ) {
+    if (deviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'TextReady',
+      data: <String, Object?>{
+        'text': null,
+        'channel': channel,
+        'time': time.millisecondsSinceEpoch,
+        'completed': true,
+        'isReceived': isReceived,
+        'encoding': _encodingToString(VoiceTextEncodingType.recording),
+        'latitude': 0,
+        'longitude': 0,
+        'source': null,
+        'destination': null,
+        'filename': filename,
+        'duration': duration,
+      },
+      store: false,
+    );
+  }
+
+  String _sanitizeChannel(String channel) {
+    if (channel.isEmpty) return 'Unknown';
+    final sanitized = channel.replaceAll(RegExp(r'[^A-Za-z0-9_\-]'), '_');
+    return sanitized.isEmpty ? 'Unknown' : sanitized;
+  }
+
+  String _formatTimestamp(DateTime t) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final date =
+        '${t.year.toString().padLeft(4, '0')}-${two(t.month)}-${two(t.day)}';
+    final clock = '${two(t.hour)}-${two(t.minute)}-${two(t.second)}';
+    return '${date}_$clock';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Decoded text history
+  // ---------------------------------------------------------------------------
+
+  /// Adds a transmitted entry to history and dispatches a TextReady event.
+  void addTransmittedTextToHistory(
+    String? text,
+    String? channel,
+    VoiceTextEncodingType encoding, {
+    String? source,
+    String? destination,
+    String? filename,
+    double latitude = 0,
+    double longitude = 0,
+  }) {
+    final entry = DecodedTextEntry(
+      text: text,
+      channel: channel,
+      time: DateTime.now(),
+      isReceived: false,
+      encoding: encoding,
+      source: source,
+      destination: destination,
+      filename: filename,
+      latitude: latitude,
+      longitude: longitude,
+    );
+    _decodedTextHistory.add(entry);
+    _trimHistory();
+    unawaited(_saveVoiceTextHistory());
+    _dispatchTextReady(
+      text,
+      channel,
+      entry.time,
+      true,
+      isReceived: false,
+      encoding: encoding,
+      latitude: latitude,
+      longitude: longitude,
+      source: source,
+      destination: destination,
+      filename: filename,
+    );
+  }
+
+  /// Updates the decoded text history with new (possibly in-progress) text.
+  void updateDecodedTextHistory(
+    String? text,
+    String? channel,
+    DateTime time,
+    bool completed,
+    bool isReceived,
+    VoiceTextEncodingType encoding,
+  ) {
+    if (!completed) {
+      // In-progress text: update or create the current entry.
+      final entry = _currentEntry ?? DecodedTextEntry();
+      entry.text = text;
+      entry.channel = channel;
+      entry.time = time;
+      entry.isReceived = isReceived;
+      entry.encoding = encoding;
+      _currentEntry = entry;
+      _dispatchCurrentEntry();
+    } else {
+      // Completed text: finalize the entry.
+      final entry = _currentEntry ?? DecodedTextEntry();
+      entry.text = text;
+      entry.channel = channel;
+      entry.time = time;
+      entry.isReceived = isReceived;
+      entry.encoding = encoding;
+      _decodedTextHistory.add(entry);
+      _currentEntry = null;
+      _trimHistory();
+      unawaited(_saveVoiceTextHistory());
+      _dispatchCurrentEntry();
+    }
+
+    _dispatchTextReady(
+      text,
+      channel,
+      time,
+      completed,
+      isReceived: isReceived,
+      encoding: encoding,
+    );
+  }
+
+  void _trimHistory() {
+    while (_decodedTextHistory.length > _maxHistorySize) {
+      _decodedTextHistory.removeAt(0);
+    }
+  }
+
+  void _onClearVoiceText(int deviceId, String name, Object? data) {
+    _decodedTextHistory.clear();
+    _currentEntry = null;
+    unawaited(_saveVoiceTextHistory());
+    _dispatchDecodedTextHistory();
+    _dispatchCurrentEntry();
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'VoiceTextCleared',
+      data: null,
+      store: false,
+    );
+    _broker.logInfo('[VoiceHandler] Decoded text history cleared');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Received data-packet decoding (UniqueDataFrame)
+  // ---------------------------------------------------------------------------
+
+  /// Handles incoming UniqueDataFrame events and processes unassigned data
+  /// packets that did NOT arrive on the APRS channel. Mirrors the C#
+  /// `OnUniqueDataFrame`: decodes BSS / Ident / APRS / AX.25 packets and adds
+  /// them to the decoded-text history.
+  void _onUniqueDataFrame(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is! TncDataFragment) return;
+    final frame = data;
+
+    // Only process frames with no usage (unassigned packets).
+    final usage = frame.usage;
+    if (usage != null && usage.isNotEmpty) return;
+
+    // Skip frames from the APRS channel (handled by the APRS handler).
+    if (frame.channelName == 'APRS') return;
+
+    // Try to decode the frame as a BSS packet first.
+    final bssPacket = BSSPacket.decode(frame.data);
+    if (bssPacket != null) {
+      // Only add to history if this is an incoming BSS packet. Outgoing BSS
+      // packets are already recorded by the send path.
+      if (!frame.incoming) return;
+
+      var encoding = VoiceTextEncodingType.bss;
+      var message = bssPacket.message ?? '';
+      final callsign = bssPacket.callsign ?? '';
+      final locationRequest = bssPacket.locationRequest ?? '';
+      final callRequest = bssPacket.callRequest ?? '';
+
+      // Don't create an entry if there is no message and no callsign.
+      if (message.isEmpty && callsign.isEmpty) return;
+
+      if (message.isEmpty && locationRequest.isNotEmpty) {
+        message = 'Location request: $locationRequest';
+      } else if (message.isEmpty && callRequest.isNotEmpty) {
+        message = 'Call request: $callRequest';
+      } else if (message.isEmpty && callsign.isNotEmpty) {
+        encoding = VoiceTextEncodingType.ident;
+        message = '';
+      }
+
+      // Note: the Flutter BSS decoder exposes the raw location bytes only, so
+      // latitude/longitude are not extracted here (left at 0).
+      if (message.isNotEmpty || encoding == VoiceTextEncodingType.ident) {
+        _addDataPacketEntry(
+          deviceId: deviceId,
+          text: message,
+          channel: frame.channelName,
+          time: frame.time,
+          encoding: encoding,
+          source: bssPacket.callsign,
+          destination: bssPacket.destination,
+        );
+      }
+      return;
+    }
+
+    // Decode the frame as AX.25.
+    final ax25Packet = AX25Packet.decode(frame);
+    if (ax25Packet == null) return;
+
+    // Only process U_FRAME_UI or U_FRAME (unnumbered information frames).
+    if (ax25Packet.type != FrameType.uFrameUi &&
+        ax25Packet.type != FrameType.uFrame) {
+      return;
+    }
+
+    // Extract source and destination from the AX.25 packet.
+    if (ax25Packet.addresses.length < 2) return;
+    final destination = ax25Packet.addresses[0].callSignWithId;
+    final source = ax25Packet.addresses[1].callSignWithId;
+
+    // Try to interpret the AX.25 packet as an APRS packet.
+    final aprsPacket = AprsPacket.parse(ax25Packet);
+    if (aprsPacket != null) {
+      final latitude = aprsPacket.position.coordinateSet.latitude.value;
+      final longitude = aprsPacket.position.coordinateSet.longitude.value;
+
+      if (aprsPacket.comment.isNotEmpty) {
+        _addDataPacketEntry(
+          deviceId: deviceId,
+          text: aprsPacket.comment,
+          channel: frame.channelName,
+          time: frame.time,
+          encoding: VoiceTextEncodingType.aprs,
+          source: source,
+          destination: null,
+          latitude: latitude,
+          longitude: longitude,
+        );
+        return;
+      }
+
+      if (aprsPacket.messageData.msgText.isNotEmpty) {
+        _addDataPacketEntry(
+          deviceId: deviceId,
+          text: aprsPacket.messageData.msgText,
+          channel: frame.channelName,
+          time: frame.time,
+          encoding: VoiceTextEncodingType.aprs,
+          source: source,
+          destination: aprsPacket.messageData.addressee,
+          latitude: latitude,
+          longitude: longitude,
+        );
+        return;
+      }
+    }
+
+    // Fall back to a raw AX.25 entry.
+    var messageText = ax25Packet.dataStr ?? '';
+    final rawData = ax25Packet.data;
+    if (messageText.isEmpty && rawData != null && rawData.isNotEmpty) {
+      try {
+        messageText = ascii.decode(rawData, allowInvalid: false);
+      } catch (_) {
+        messageText = '[Binary data]';
+      }
+    }
+
+    _addDataPacketEntry(
+      deviceId: deviceId,
+      text: messageText,
+      channel: frame.channelName,
+      time: frame.time,
+      encoding: VoiceTextEncodingType.ax25,
+      source: source,
+      destination: destination,
+    );
+  }
+
+  /// Adds a data-packet entry (received or transmitted) to history, persists
+  /// it and dispatches both the updated history and a TextReady event to the
+  /// given radio [deviceId].
+  void _addDataPacketEntry({
+    required int deviceId,
+    required String? text,
+    required String channel,
+    required DateTime time,
+    required VoiceTextEncodingType encoding,
+    bool isReceived = true,
+    String? source,
+    String? destination,
+    double latitude = 0,
+    double longitude = 0,
+  }) {
+    final entry = DecodedTextEntry(
+      text: text,
+      channel: channel,
+      time: time,
+      isReceived: isReceived,
+      encoding: encoding,
+      source: source,
+      destination: destination,
+      latitude: latitude,
+      longitude: longitude,
+    );
+    _decodedTextHistory.add(entry);
+    _trimHistory();
+    unawaited(_saveVoiceTextHistory());
+    _dispatchDecodedTextHistory();
+
+    // Dispatch a TextReady event for the radio device. Unlike
+    // _dispatchTextReady (which targets the enabled voice device), data
+    // packets are surfaced regardless of whether the voice handler is enabled,
+    // mirroring how recordings dispatch to their own device.
+    if (deviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'TextReady',
+      data: <String, Object?>{
+        'text': text,
+        'channel': channel,
+        'time': time.millisecondsSinceEpoch,
+        'completed': true,
+        'isReceived': isReceived,
+        'encoding': _encodingToString(encoding),
+        'latitude': latitude,
+        'longitude': longitude,
+        'source': source,
+        'destination': destination,
+        'filename': null,
+        'duration': 0,
+      },
+      store: false,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Chat (BSS) transmit
+  // ---------------------------------------------------------------------------
+
+  /// Handles the Chat command to transmit a BSS chat message on VFO A. Mirrors
+  /// the C# `OnChat`. Dispatched on device 1 (uses the voice-enabled radio) or
+  /// directly on a radio device (100+) which is used as-is.
+  void _onChat(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is! String) return;
+    final message = data;
+
+    // Validate message length (must be between 1 and 254 characters).
+    if (message.isEmpty || message.length >= 255) {
+      _broker.logError(
+        '[VoiceHandler] Cannot send chat: message length must be between 1 '
+        'and 254 characters (got ${message.length})',
+      );
+      return;
+    }
+
+    // Determine the target radio device for transmission.
+    int transmitDeviceId;
+    if (deviceId == 1) {
+      transmitDeviceId = _targetDeviceId;
+      if (transmitDeviceId <= 0) {
+        _broker.logError('[VoiceHandler] Cannot send chat: no radio selected');
+        return;
+      }
+    } else if (deviceId >= 100) {
+      transmitDeviceId = deviceId;
+    } else {
+      return;
+    }
+
+    // Resolve our callsign from settings (device 0).
+    final callsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
+    if (callsign.isEmpty) {
+      _broker.logError(
+        '[VoiceHandler] Cannot send chat: callsign not configured',
+      );
+      return;
+    }
+
+    // Resolve the VFO A channel name for the history entry.
+    final channelName = _getVfoAChannelName(transmitDeviceId);
+
+    _broker.logInfo(
+      '[VoiceHandler] Sending chat on device $transmitDeviceId: '
+      '$callsign: $message',
+    );
+
+    // Build the BSS packet (location is not currently encoded).
+    final bssPacket = BSSPacket.create(callsign: callsign, message: message);
+
+    // Add to history as a transmitted BSS entry and echo it to the radio's
+    // device so the voice panel shows it immediately.
+    _addDataPacketEntry(
+      deviceId: transmitDeviceId,
+      text: message,
+      channel: channelName,
+      time: DateTime.now(),
+      encoding: VoiceTextEncodingType.bss,
+      isReceived: false,
+      source: callsign,
+    );
+
+    // Dispatch the packet to the radio for transmission. channelId -1 makes the
+    // radio transmit on the current VFO A channel using its internal modem.
+    _broker.dispatch(
+      deviceId: transmitDeviceId,
+      name: 'TransmitDataFrame',
+      data: TransmitDataFrameData(
+        bssPacket: bssPacket,
+        channelId: -1,
+        regionId: -1,
+      ),
+      store: false,
+    );
+  }
+
+  /// Resolves the VFO A channel name for a radio device from the broker
+  /// `Settings` (channelA id) and `Channels` (list of channel maps). Returns an
+  /// empty string when the channel information is not yet available.
+  String _getVfoAChannelName(int deviceId) {
+    final settings = _broker.getValueDynamic(deviceId, 'Settings');
+    if (settings is! Map) return '';
+    final channelA = settings['channelA'];
+    if (channelA is! int) return '';
+
+    final channels = _broker.getValueDynamic(deviceId, 'Channels');
+    if (channels is! List) return '';
+    for (final channel in channels) {
+      if (channel is Map && channel['channelId'] == channelA) {
+        final channelName = channel['name'];
+        if (channelName is String && channelName.isNotEmpty) {
+          return channelName;
+        }
+      }
+    }
+    return '';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Persistence
+  // ---------------------------------------------------------------------------
+
+  Future<File?> _resolveHistoryFile() async {
+    if (_historyFile != null) return _historyFile;
+    try {
+      final dir = await getApplicationSupportDirectory();
+      _historyFile = File(
+        '${dir.path}${Platform.pathSeparator}$_voiceTextFileName',
+      );
+      return _historyFile;
+    } catch (e) {
+      _broker.logError('[VoiceHandler] Failed to resolve history file: $e');
+      return null;
+    }
+  }
+
+  Future<void> _loadVoiceTextHistory() async {
+    try {
+      final file = await _resolveHistoryFile();
+      if (file != null && await file.exists()) {
+        final json = await file.readAsString();
+        if (json.trim().isNotEmpty) {
+          final decoded = jsonDecode(json);
+          if (decoded is List) {
+            _decodedTextHistory
+              ..clear()
+              ..addAll(
+                decoded.whereType<Map<String, dynamic>>().map(
+                  DecodedTextEntry.fromJson,
+                ),
+              );
+            _trimHistory();
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore load errors - start with empty history.
+      _broker.logError('[VoiceHandler] Failed to load history: $e');
+    }
+
+    _voiceTextHistoryLoaded = true;
+    _dispatchDecodedTextHistory();
+    _dispatchVoiceTextHistoryLoaded();
+  }
+
+  Future<void> _saveVoiceTextHistory() async {
+    try {
+      final file = await _resolveHistoryFile();
+      if (file == null) return;
+      final list = _decodedTextHistory
+          .map((e) => e.toJson())
+          .toList(growable: false);
+      await file.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(list),
+      );
+    } catch (e) {
+      // Ignore save errors.
+      _broker.logError('[VoiceHandler] Failed to save history: $e');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Broker event dispatch
+  // ---------------------------------------------------------------------------
+
+  void _dispatchDecodedTextHistory() {
+    final historyCopy = _decodedTextHistory
+        .map((e) => e.toJson())
+        .toList(growable: false);
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'DecodedTextHistory',
+      data: historyCopy,
+      store: true,
+    );
+  }
+
+  void _dispatchCurrentEntry() {
+    final entry = _currentEntry;
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'CurrentDecodedTextEntry',
+      data: entry == null
+          ? null
+          : <String, Object?>{
+              'text': entry.text,
+              'channel': entry.channel,
+              'time': entry.time.millisecondsSinceEpoch,
+            },
+      store: true,
+    );
+  }
+
+  void _dispatchVoiceTextHistoryLoaded() {
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'VoiceTextHistoryLoaded',
+      data: _voiceTextHistoryLoaded,
+      store: true,
+    );
+  }
+
+  void _dispatchTextReady(
+    String? text,
+    String? channel,
+    DateTime time,
+    bool completed, {
+    bool isReceived = true,
+    VoiceTextEncodingType encoding = VoiceTextEncodingType.voice,
+    double latitude = 0,
+    double longitude = 0,
+    String? source,
+    String? destination,
+    String? filename,
+    int duration = 0,
+  }) {
+    if (_targetDeviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: _targetDeviceId,
+      name: 'TextReady',
+      data: <String, Object?>{
+        'text': text,
+        'channel': channel,
+        'time': time.millisecondsSinceEpoch,
+        'completed': completed,
+        'isReceived': isReceived,
+        'encoding': _encodingToString(encoding),
+        'latitude': latitude,
+        'longitude': longitude,
+        'source': source,
+        'destination': destination,
+        'filename': filename,
+        'duration': duration,
+      },
+      store: false,
+    );
+  }
+
+  // ignore: unused_element
+  void _dispatchProcessingVoice(bool listening, bool processing) {
+    if (_targetDeviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: _targetDeviceId,
+      name: 'ProcessingVoice',
+      data: <String, Object?>{'listening': listening, 'processing': processing},
+      store: false,
+    );
+  }
+
+  void _dispatchVoiceHandlerState() {
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'VoiceHandlerState',
+      data: <String, Object?>{
+        'enabled': _enabled,
+        'targetDeviceId': _targetDeviceId,
+        'language': _voiceLanguage,
+        'model': _voiceModel,
+        'engineReady': false, // STT engine is stubbed in this build.
+      },
+      store: true,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  int? _readInt(Object? value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  /// Disposes the handler and releases broker subscriptions.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    if (_recorder != null) _finalizeRecording();
+    if (_enabled) disable();
+    _broker.logInfo('[VoiceHandler] Voice Handler disposing');
+    _broker.dispose();
+  }
+}
+
+/// Minimal incremental WAV (PCM 16-bit mono) writer for recorded audio clips.
+/// Writes a 44-byte header up front and patches the size fields on close.
+class _WavClipRecorder {
+  final RandomAccessFile _raf;
+  final int _sampleRate;
+  int _dataBytes = 0;
+
+  _WavClipRecorder._(this._raf, this._sampleRate) {
+    _raf.writeFromSync(_header(0, _sampleRate));
+  }
+
+  int get dataBytes => _dataBytes;
+
+  static _WavClipRecorder? open(String path, int sampleRate) {
+    try {
+      final raf = File(path).openSync(mode: FileMode.write);
+      return _WavClipRecorder._(raf, sampleRate);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  void write(Uint8List bytes, int offset, int length) {
+    try {
+      if (offset == 0 && length == bytes.length) {
+        _raf.writeFromSync(bytes);
+      } else {
+        _raf.writeFromSync(bytes, offset, offset + length);
+      }
+      _dataBytes += length;
+    } catch (_) {}
+  }
+
+  void close() {
+    try {
+      // Patch the RIFF/data sizes now that the total length is known.
+      _raf.setPositionSync(0);
+      _raf.writeFromSync(_header(_dataBytes, _sampleRate));
+      _raf.closeSync();
+    } catch (_) {}
+  }
+
+  // 44-byte canonical WAV header for 16-bit mono PCM.
+  static Uint8List _header(int dataBytes, int sampleRate) {
+    const int channels = 1;
+    const int bitsPerSample = 16;
+    final int byteRate = sampleRate * channels * bitsPerSample ~/ 8;
+    const int blockAlign = channels * bitsPerSample ~/ 8;
+    final int riffSize = 36 + dataBytes;
+
+    final bytes = Uint8List(44);
+    final bd = ByteData.sublistView(bytes);
+    bytes.setAll(0, 'RIFF'.codeUnits);
+    bd.setUint32(4, riffSize, Endian.little);
+    bytes.setAll(8, 'WAVE'.codeUnits);
+    bytes.setAll(12, 'fmt '.codeUnits);
+    bd.setUint32(16, 16, Endian.little); // fmt chunk size
+    bd.setUint16(20, 1, Endian.little); // PCM
+    bd.setUint16(22, channels, Endian.little);
+    bd.setUint32(24, sampleRate, Endian.little);
+    bd.setUint32(28, byteRate, Endian.little);
+    bd.setUint16(32, blockAlign, Endian.little);
+    bd.setUint16(34, bitsPerSample, Endian.little);
+    bytes.setAll(36, 'data'.codeUnits);
+    bd.setUint32(40, dataBytes, Endian.little);
+    return bytes;
+  }
+}

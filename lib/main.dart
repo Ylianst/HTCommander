@@ -14,6 +14,8 @@ import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
 import 'handlers/aprs_handler.dart';
 import 'handlers/airplane_handler.dart';
+import 'handlers/voice_handler.dart';
+import 'handlers/debug_log_handler.dart';
 import 'radio/radio_transport.dart';
 import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
@@ -60,6 +62,19 @@ void main(List<String> args) async {
   final airplaneHandler = AirplaneHandler();
   airplaneHandler.init();
   DataBroker.addDataHandler('AirplaneHandler', airplaneHandler);
+
+  // Register the voice handler so that audio from radios can be turned into a
+  // decoded text history and the voice tab can drive speech-to-text state.
+  final voiceHandler = VoiceHandler();
+  voiceHandler.init();
+  DataBroker.addDataHandler('VoiceHandler', voiceHandler);
+
+  // Register the debug log handler so that LogInfo/LogError messages are
+  // captured into DebugLogEntries from application startup, regardless of
+  // whether the Debug tab has been opened.
+  final debugLogHandler = DebugLogHandler();
+  debugLogHandler.init();
+  DataBroker.addDataHandler('DebugLogHandler', debugLogHandler);
 
   // Check if this is a sub-window on desktop platforms
   if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {

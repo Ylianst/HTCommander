@@ -118,9 +118,6 @@ class BluetoothClassicTransport implements RadioTransport {
             .getDataStream(device.id)
             .listen(
               (data) {
-                debugPrint(
-                  'BluetoothClassicTransport: Received ${data.length} bytes',
-                );
                 _dataController.add(data);
               },
               onError: (error) {

@@ -46,6 +46,7 @@ dependencies:
   crypto: ^3.0.0
   http: ^1.6.0
   flutter_pcm_sound: ^3.1.6
+  audioplayers: ^6.7.1
 
 dev_dependencies:
   flutter_test:

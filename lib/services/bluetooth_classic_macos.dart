@@ -66,9 +66,13 @@ class BluetoothClassicMacOS {
 
           // Normalize address to uppercase with colons
           final address = _normalizeAddress(rawAddress);
-          debugPrint(
-            'BluetoothClassicMacOS: Event: $eventType, address: $address',
-          );
+          // Note: 'data' events are intentionally not logged here as they fire
+          // continuously and flood the console.
+          if (eventType != 'data') {
+            debugPrint(
+              'BluetoothClassicMacOS: Event: $eventType, address: $address',
+            );
+          }
 
           switch (eventType) {
             case 'connected':
@@ -93,9 +97,6 @@ class BluetoothClassicMacOS {
             case 'data':
               final data = event['data'];
               if (data is Uint8List) {
-                debugPrint(
-                  'BluetoothClassicMacOS: Received ${data.length} bytes from $address',
-                );
                 _getOrCreateDataController(address).add(data);
               }
               break;
