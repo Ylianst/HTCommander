@@ -1,3 +1,17 @@
-# Handi-Talky Commander Experimental
+## HTCommander - Adaptación a Flutter (Trabajo en curso)
 
-This is a early experimental version of Handi-Talky Commander entirely built in Flutter. The idea is to target Windows, MacOS, Linux, Android, iOS and the web with a single code base. The most difficult part is getting the UI right, so that is the first thing being done to see how viable this can be.
+<p align="center"><img width="100" height="100" src="assets/images/Radio2.png"></p>
+
+Esta es la nueva versión en Flutter de HTCommander. La aplicación original en C# WinForms se ha movido a la carpeta `reference/HTCommander` y se utiliza únicamente como referencia de desarrollo.
+
+El objetivo de este proyecto es adaptar HTCommander a Flutter, ejecutarlo en tantas plataformas como sea posible (Windows, Linux, macOS, Android, ...) manteniendo la misma apariencia y experiencia que la aplicación original.
+
+## Instrucciones de compilación
+
+POR HACER
+
+## Arquitectura
+
+La versión en Flutter de HTCommander utiliza una arquitectura de bus de mensajes DataBroker. Se trata de un componente central a través del cual se comunican todos los demás componentes. Para obtener más información, consulta la [documentación de DataBroker](docs/databroker.md).
+
+</p>

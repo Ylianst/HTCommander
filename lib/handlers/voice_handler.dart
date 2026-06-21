@@ -242,6 +242,13 @@ class VoiceHandler {
   // The radio device whose received audio is currently being scanned/decoded.
   int _sstvDeviceId = -1;
 
+  // Filename used for the in-progress SSTV picture; partial frames and the
+  // final image are written to the same path so the bubble updates in place.
+  String? _sstvFilename;
+  bool _sstvImageSaved = false;
+  bool _sstvPartialSaveInFlight = false;
+  DateTime _lastSstvPartialSave = DateTime.fromMillisecondsSinceEpoch(0);
+
   // Decoded text history.
   final List<DecodedTextEntry> _decodedTextHistory = <DecodedTextEntry>[];
   DecodedTextEntry? _currentEntry;
@@ -869,6 +876,10 @@ class VoiceHandler {
     _sstvDecoding = false;
     _sstvAutoMuted = false;
     _currentSstvEntry = null;
+    _sstvFilename = null;
+    _sstvImageSaved = false;
+    _sstvPartialSaveInFlight = false;
+    _lastSstvPartialSave = DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   /// Called when the monitor detects the start of an SSTV image.
@@ -878,6 +889,10 @@ class VoiceHandler {
     );
     _sstvDecoding = true;
     _sstvStartTime = DateTime.now();
+    _sstvFilename =
+        'SSTV_${_formatTimestamp(_sstvStartTime)}_${_sanitizeChannel(e.modeName)}.png';
+    _sstvImageSaved = false;
+    _lastSstvPartialSave = DateTime.fromMillisecondsSinceEpoch(0);
 
     // Auto-mute the radio so the user doesn't hear the raw SSTV tones.
     if (_sstvDeviceId > 0) {
@@ -919,12 +934,56 @@ class VoiceHandler {
     final progressText =
         'Receiving ${e.modeName}... ${e.percentComplete.toStringAsFixed(0)}%';
     _currentSstvEntry?.text = progressText;
-    _dispatchSstvTextReady(
-      progressText,
-      _currentChannelName,
-      _sstvStartTime,
-      false,
-    );
+
+    // Periodically save the partial image so it can be shown in the bubble as
+    // it is received. Saving on every scan line would be too costly, so the
+    // saves are throttled; text-only updates are dispatched in between.
+    final now = DateTime.now();
+    final due = now.difference(_lastSstvPartialSave).inMilliseconds >= 600;
+    if (due && !_sstvPartialSaveInFlight) {
+      _lastSstvPartialSave = now;
+      unawaited(_saveSstvPartialImage(progressText));
+    } else {
+      _dispatchSstvTextReady(
+        progressText,
+        _currentChannelName,
+        _sstvStartTime,
+        false,
+        filename: _sstvImageSaved ? _sstvFilename : null,
+      );
+    }
+  }
+
+  /// Encodes and saves the partial SSTV image decoded so far, then notifies the
+  /// UI so the in-progress picture updates in its chat bubble.
+  Future<void> _saveSstvPartialImage(String progressText) async {
+    _sstvPartialSaveInFlight = true;
+    try {
+      final monitor = _sstvMonitor;
+      final filename = _sstvFilename;
+      if (monitor == null || filename == null) return;
+      final partial = monitor.getPartialImage();
+      if (partial == null) return;
+      final dir = await _ensureSstvImagesDir();
+      if (dir == null) return;
+      final pngBytes = await _encodeSstvPng(partial);
+      if (pngBytes == null) return;
+      final fullPath = '${dir.path}${Platform.pathSeparator}$filename';
+      await File(fullPath).writeAsBytes(pngBytes, flush: true);
+      _sstvImageSaved = true;
+      _dispatchSstvTextReady(
+        progressText,
+        _currentChannelName,
+        _sstvStartTime,
+        false,
+        filename: filename,
+        imageUpdated: true,
+      );
+    } catch (e) {
+      _broker.logError('[VoiceHandler] Error saving partial SSTV image: $e');
+    } finally {
+      _sstvPartialSaveInFlight = false;
+    }
   }
 
   /// Called when the monitor has completed decoding an image.
@@ -987,7 +1046,8 @@ class VoiceHandler {
     final now = _sstvStartTime;
     final channelName = _currentChannelName;
     final safeMode = _sanitizeChannel(modeName);
-    final filename = 'SSTV_${_formatTimestamp(now)}_$safeMode.png';
+    final filename =
+        _sstvFilename ?? 'SSTV_${_formatTimestamp(now)}_$safeMode.png';
 
     try {
       final dir = await _ensureSstvImagesDir();
@@ -1034,6 +1094,7 @@ class VoiceHandler {
         now,
         true,
         filename: filename,
+        imageUpdated: true,
       );
     } catch (e) {
       _broker.logError('[VoiceHandler] Error saving SSTV image: $e');
@@ -1050,6 +1111,7 @@ class VoiceHandler {
     DateTime time,
     bool completed, {
     String? filename,
+    bool imageUpdated = false,
   }) {
     if (_sstvDeviceId <= 0) return;
     _broker.dispatch(
@@ -1068,6 +1130,7 @@ class VoiceHandler {
         'destination': null,
         'filename': filename,
         'duration': 0,
+        'imageUpdated': imageUpdated,
       },
       store: false,
     );
