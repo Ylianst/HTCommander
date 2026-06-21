@@ -548,34 +548,51 @@ class BluetoothService {
     }
   }
 
-  /// Get the list of connected radio device IDs
-  List<int> get connectedRadioIds => [
-    ..._connectedRadios.keys,
-    ..._classicConnections.keys,
-  ];
+  /// Get the list of connected radio device IDs.
+  ///
+  /// A Bluetooth Classic radio is tracked in both [_connectedRadios] and
+  /// [_classicConnections] under the same device ID, so the keys are merged
+  /// into a set to avoid reporting the same radio twice.
+  List<int> get connectedRadioIds =>
+      <int>{..._connectedRadios.keys, ..._classicConnections.keys}.toList();
 
   /// Get a transport by device ID (BLE only)
   RadioTransport? getTransport(int deviceId) => _connectedRadios[deviceId];
 
-  /// Publish the connected radios list to the DataBroker
+  /// Publish the connected radios list to the DataBroker.
+  ///
+  /// Builds exactly one entry per device ID. A Bluetooth Classic radio that has
+  /// finished connecting lives in both [_connectedRadios] (its transport) and
+  /// [_classicConnections] (its MAC address) under the same device ID; the two
+  /// maps are merged here so the radio is published only once. The
+  /// [_classicConnections] map is otherwise only needed for radios that are
+  /// still connecting and not yet present in [_connectedRadios].
   void _publishConnectedRadios() {
-    final radioList = <Map<String, dynamic>>[];
+    final byDeviceId = <int, Map<String, dynamic>>{};
 
-    // Add BLE connections
+    // Add radios that have an active transport (BLE, or a connected Classic
+    // radio). The transport carries the most up-to-date MAC / name / state.
     for (final entry in _connectedRadios.entries) {
       final transport = entry.value;
       final device = transport.connectedDevice;
-      radioList.add({
+      final classicMac = _classicConnections[entry.key];
+      byDeviceId[entry.key] = {
         'DeviceId': entry.key,
-        'MacAddress': device?.id ?? '',
-        'FriendlyName': device?.name ?? '',
+        'MacAddress': device?.id ?? classicMac ?? '',
+        'FriendlyName':
+            device?.name ??
+            DataBroker.getValue<String>(entry.key, 'FriendlyName', '') ??
+            '',
         'State': transport.state.name,
-      });
+      };
     }
 
-    // Add Classic connections (macOS)
+    // Add Classic connections that do not yet have a transport (i.e. still
+    // connecting). Anything already represented above is skipped so a radio is
+    // never listed twice.
     for (final entry in _classicConnections.entries) {
       final deviceId = entry.key;
+      if (byDeviceId.containsKey(deviceId)) continue;
       final macAddress = entry.value;
       final state =
           DataBroker.getValue<String>(deviceId, 'State', 'Disconnected') ??
@@ -583,18 +600,18 @@ class BluetoothService {
       final friendlyName =
           DataBroker.getValue<String>(deviceId, 'FriendlyName', macAddress) ??
           macAddress;
-      radioList.add({
+      byDeviceId[deviceId] = {
         'DeviceId': deviceId,
         'MacAddress': macAddress,
         'FriendlyName': friendlyName,
         'State': state,
-      });
+      };
     }
 
     DataBroker.dispatch(
       deviceId: 1,
       name: 'ConnectedRadios',
-      data: radioList,
+      data: byDeviceId.values.toList(),
       store: true,
     );
   }

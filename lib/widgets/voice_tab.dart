@@ -37,6 +37,10 @@ class _VoiceTabState extends State<VoiceTab>
   /// can be replaced as more text arrives and finalized when completed.
   static const String _partialMessageId = '__voice_partial__';
 
+  /// Incremented each time an in-progress SSTV picture file is overwritten, so
+  /// the bubble re-reads the updated image from disk.
+  int _sstvImageRevision = 0;
+
   int _currentRadioDeviceId = -1;
   VoiceTransmitMode _currentMode = VoiceTransmitMode.chat;
   bool _audioEnabled = false;
@@ -461,6 +465,7 @@ class _VoiceTabState extends State<VoiceTab>
       destination: data['destination'] as String?,
       duration: data['duration'] as int? ?? 0,
       filename: data['filename'] as String?,
+      imageUpdated: data['imageUpdated'] as bool? ?? false,
     );
   }
 
@@ -478,8 +483,16 @@ class _VoiceTabState extends State<VoiceTab>
     String? destination,
     int duration = 0,
     String? filename,
+    bool imageUpdated = false,
   }) {
     final hasLocation = latitude != 0 || longitude != 0;
+    final imagePath = _sstvImagePath(encoding, filename);
+    // A received SSTV picture is written to the same file as more scan lines
+    // arrive; bump the revision so the bubble re-reads the new content from
+    // disk (the image provider folds the revision into its cache key).
+    if (imageUpdated && imagePath != null) {
+      _sstvImageRevision++;
+    }
     final message = ChatMessage(
       id: completed
           ? '${time.millisecondsSinceEpoch}_${_messages.length}'
@@ -490,16 +503,18 @@ class _VoiceTabState extends State<VoiceTab>
         source: source,
         destination: destination,
         duration: duration,
+        pictureText: text,
       ),
       senderCallsign: source ?? '',
-      message: text,
+      message: encoding == 'Picture' ? '' : text,
       time: time,
       isSender: !isReceived,
       latitude: hasLocation ? latitude : null,
       longitude: hasLocation ? longitude : null,
       icon: _iconForEncoding(encoding),
       filename: filename,
-      imagePath: _sstvImagePath(encoding, filename),
+      imagePath: imagePath,
+      imageRevision: _sstvImageRevision,
     );
     setState(() {
       _messages.removeWhere((m) => m.id == _partialMessageId);
@@ -575,9 +590,10 @@ class _VoiceTabState extends State<VoiceTab>
         source: source,
         destination: destination,
         duration: duration,
+        pictureText: text,
       ),
       senderCallsign: source ?? '',
-      message: text,
+      message: encoding == 'Picture' ? '' : text,
       time: time,
       isSender: !isReceived,
       latitude: hasLocation ? latitude : null,
@@ -601,15 +617,24 @@ class _VoiceTabState extends State<VoiceTab>
     String? source,
     String? destination,
     int duration = 0,
+    String pictureText = '',
   }) {
     var encodingStr = _encodingDisplayName(encoding);
     if (encoding == 'Recording') {
       encodingStr = duration > 0
           ? 'Recording ${_formatDuration(duration)}'
           : 'Recording';
-      // Recordings show the channel name after the duration, e.g.
-      // "Recording 10s - MyHomeChannel".
-      return channel.isNotEmpty ? '$encodingStr - $channel' : encodingStr;
+      // Recordings put the channel name first in brackets to match the other
+      // entries, e.g. "[MyHomeChannel] Recording 10s".
+      return channel.isNotEmpty ? '[$channel] $encodingStr' : encodingStr;
+    }
+    if (encoding == 'Picture') {
+      // Pictures put the mode/progress text in the title so the bubble holds
+      // only the image, e.g. "[MyHomeChannel] Robot 36 Color".
+      final label = pictureText.trim().isNotEmpty
+          ? pictureText.trim()
+          : encodingStr;
+      return channel.isNotEmpty ? '[$channel] $label' : label;
     }
     var callsignPart = '';
     if (source != null && source.isNotEmpty) {
@@ -1262,8 +1287,14 @@ Uint8List _encodeSstvPcm(Map<String, Object?> args) {
   final encoder = Encoder(sampleRate);
   final samples = encoder.encode(pixels, width, height, modeName);
 
-  final pcm = Uint8List(samples.length * 2);
+  // Prepend 2 seconds of silence so the radio's PTT is fully keyed up before
+  // the actual SSTV tones begin. Uint8List is zero-initialised, so the leading
+  // bytes are already silence.
+  const silenceSeconds = 2;
+  final silenceSamples = sampleRate * silenceSeconds;
+  final pcm = Uint8List((silenceSamples + samples.length) * 2);
   final view = ByteData.view(pcm.buffer);
+  final sampleByteOffset = silenceSamples * 2;
   for (int i = 0; i < samples.length; i++) {
     var s = samples[i];
     if (s > 1.0) {
@@ -1271,7 +1302,7 @@ Uint8List _encodeSstvPcm(Map<String, Object?> args) {
     } else if (s < -1.0) {
       s = -1.0;
     }
-    view.setInt16(i * 2, (s * 32767).round(), Endian.little);
+    view.setInt16(sampleByteOffset + i * 2, (s * 32767).round(), Endian.little);
   }
   return pcm;
 }

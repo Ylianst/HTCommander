@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -12,6 +13,8 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_pcm_sound/flutter_pcm_sound.dart';
 
 import '../sbc/sbc_decoder.dart';
+import '../sbc/sbc_encoder.dart';
+import '../sbc/sbc_enums.dart';
 import '../sbc/sbc_frame.dart';
 import '../services/bluetooth_classic_macos.dart';
 import '../services/data_broker_client.dart';
@@ -21,8 +24,8 @@ import 'radio.dart';
 /// RFCOMM channel and pushes the resulting 32 kHz / 16-bit / mono PCM to the
 /// speaker and to the DataBroker.
 ///
-/// This is a Dart port of the C# `RadioAudio` class (receive path only).
-/// Transmit (encode) support is intentionally not implemented in this build.
+/// This is a Dart port of the C# `RadioAudio` class, covering both the receive
+/// (SBC decode) and transmit (SBC encode) paths.
 class RadioAudio {
   // Audio format: 32 kHz, 16-bit, mono (matches the radio's SBC stream).
   static const int _sampleRate = 32000;
@@ -67,6 +70,43 @@ class RadioAudio {
 
   // Optional WAV recording of received audio.
   _WavRecorder? _recorder;
+
+  // --- Transmit (SBC encode) state ---
+  final SbcEncoder _sbcEncoder = SbcEncoder();
+
+  // Encoder frame configuration (matches the radio's 32 kHz / mono SBC format).
+  late final SbcFrame _encoderFrame = SbcFrame()
+    ..frequency = SbcFrequency.freq32K
+    ..blocks = 16
+    ..mode = SbcMode.mono
+    ..allocationMethod = SbcBitAllocationMethod.loudness
+    ..subbands = 8
+    ..bitpool = 18;
+
+  // PCM bytes consumed per encoded SBC frame: blocks * subbands * 2 (16-bit).
+  static const int _pcmInputSizePerFrame = 16 * 8 * 2; // 256 bytes
+
+  // Frame that tells the radio to stop transmitting.
+  static final Uint8List _endAudioFrame = Uint8List.fromList(<int>[
+    0x7e,
+    0x01,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x7e,
+  ]);
+
+  final Queue<Uint8List> _pcmQueue = Queue<Uint8List>();
+  bool _isTransmitting = false;
+  bool _voiceTransmitCancel = false;
+  bool _playInputBack = false;
+  Uint8List? _reminderTransmitPcm;
+  Completer<void>? _newDataSignal;
 
   RadioAudio({
     required this.radio,
@@ -217,11 +257,33 @@ class RadioAudio {
   }
 
   void _onTransmitVoicePCM(int deviceId, String name, Object? data) {
-    _debug('TransmitVoicePCM ignored (transmit not implemented in this build)');
+    if (data == null) return;
+
+    // Accept a raw PCM buffer, or a Map with 'data'/'Data' and an optional
+    // 'playLocally'/'PlayLocally' flag.
+    Uint8List? pcm;
+    bool playLocally = false;
+    if (data is Uint8List) {
+      pcm = data;
+    } else if (data is List<int>) {
+      pcm = Uint8List.fromList(data);
+    } else if (data is Map) {
+      final Object? d = data['data'] ?? data['Data'];
+      if (d is Uint8List) {
+        pcm = d;
+      } else if (d is List<int>) {
+        pcm = Uint8List.fromList(d);
+      }
+      final Object? p = data['playLocally'] ?? data['PlayLocally'];
+      if (p is bool) playLocally = p;
+    }
+
+    if (pcm == null || pcm.isEmpty) return;
+    transmitVoice(pcm, 0, pcm.length, playLocally);
   }
 
   void _onCancelVoiceTransmit(int deviceId, String name, Object? data) {
-    // No-op: transmit is not implemented in this build.
+    cancelVoiceTransmit();
   }
 
   // ---------------------------------------------------------------------------
@@ -294,6 +356,14 @@ class RadioAudio {
     if (!_running && !_connecting) return;
     _running = false;
     _connecting = false;
+
+    // Abort any in-progress voice transmission.
+    if (_isTransmitting) {
+      _voiceTransmitCancel = true;
+      _signalNewData();
+      _pcmQueue.clear();
+      _reminderTransmitPcm = null;
+    }
 
     await _audioDataSub?.cancel();
     _audioDataSub = null;
@@ -608,6 +678,248 @@ class RadioAudio {
     }
     final double amp = max / 32768.0;
     return amp > 1.0 ? 1.0 : amp;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Transmit (SBC encode) path
+  // ---------------------------------------------------------------------------
+
+  /// Queue [length] bytes of 32 kHz / 16-bit / mono PCM (starting at [offset])
+  /// for transmission to the radio. When [play] is true the audio is also
+  /// played back locally as it is sent.
+  bool transmitVoice(Uint8List pcmInput, int offset, int length, bool play) {
+    if (!_running) {
+      _debug('TransmitVoicePCM ignored: audio is not enabled.');
+      return false;
+    }
+
+    _playInputBack = play;
+    _voiceTransmitCancel = false;
+    _pcmQueue.add(
+      Uint8List.fromList(
+        Uint8List.sublistView(pcmInput, offset, offset + length),
+      ),
+    );
+
+    if (_isTransmitting) _signalNewData();
+    _startTransmissionIfNeeded();
+    return true;
+  }
+
+  /// Abort an in-progress transmission and tell the radio to stop transmitting.
+  void cancelVoiceTransmit() {
+    _voiceTransmitCancel = true;
+    _signalNewData();
+    _pcmQueue.clear();
+    _reminderTransmitPcm = null;
+    _sendAudio(_endAudioFrame);
+  }
+
+  void _signalNewData() {
+    final Completer<void>? c = _newDataSignal;
+    if (c != null && !c.isCompleted) c.complete();
+  }
+
+  void _startTransmissionIfNeeded() {
+    if (_isTransmitting) return;
+    _isTransmitting = true;
+    _transmissionLoop();
+  }
+
+  Future<void> _transmissionLoop() async {
+    _dispatchVoiceTransmitStateChanged(true);
+    try {
+      while (!_voiceTransmitCancel) {
+        if (_pcmQueue.isNotEmpty) {
+          await _processPcmData(_pcmQueue.removeFirst());
+        } else {
+          // Wait briefly for more data; exit if none arrives.
+          _newDataSignal = Completer<void>();
+          await Future.any(<Future<void>>[
+            _newDataSignal!.future,
+            Future<void>.delayed(const Duration(milliseconds: 100)),
+          ]);
+          _newDataSignal = null;
+          if (_pcmQueue.isEmpty) break;
+        }
+      }
+    } catch (e) {
+      _debug('Voice transmit error: $e');
+    } finally {
+      if (_inAudioRun && _inAudioRunIsTransmit) {
+        _inAudioRun = false;
+        _dispatchAudioDataEnd();
+      }
+      _reminderTransmitPcm = null;
+      await _sendAudio(_endAudioFrame);
+      _dispatchVoiceTransmitStateChanged(false);
+      _isTransmitting = false;
+    }
+  }
+
+  Future<void> _processPcmData(Uint8List incoming) async {
+    if (!_inAudioRun) {
+      _inAudioRun = true;
+      _inAudioRunIsTransmit = true;
+      _dispatchAudioDataStart(true);
+    }
+
+    // Prepend any leftover bytes from the previous chunk.
+    Uint8List pcmData = incoming;
+    final Uint8List? reminder = _reminderTransmitPcm;
+    if (reminder != null) {
+      final Uint8List merged = Uint8List(reminder.length + incoming.length);
+      merged.setRange(0, reminder.length, reminder);
+      merged.setRange(reminder.length, merged.length, incoming);
+      pcmData = merged;
+      _reminderTransmitPcm = null;
+    }
+
+    int pcmOffset = 0;
+    int pcmLength = pcmData.length;
+
+    // Real-time pacing: 32 kHz, 16-bit, mono = 64000 bytes/sec.
+    const int bytesPerSecond = _sampleRate * 2;
+    final Stopwatch stopwatch = Stopwatch()..start();
+    int totalBytesSent = 0;
+
+    while (pcmLength >= _pcmInputSizePerFrame && !_voiceTransmitCancel) {
+      final (Uint8List? encoded, int bytesConsumed) = _encodeSbcFrames(
+        pcmData,
+        pcmOffset,
+        pcmLength,
+      );
+      if (encoded == null || bytesConsumed <= 0) break;
+
+      await _sendAudio(_escapeBytes(0, encoded));
+
+      // Record / play back / report the PCM that was just consumed.
+      final Uint8List consumed = Uint8List.sublistView(
+        pcmData,
+        pcmOffset,
+        pcmOffset + bytesConsumed,
+      );
+      _recorder?.write(_int16ListFromBytes(consumed));
+      if (_playInputBack && !_isMuted) {
+        _playPcm(_int16ListFromBytes(consumed));
+      }
+      currentChannelName = radio.currentChannelName;
+      _dispatchAudioDataAvailable(
+        Uint8List.fromList(consumed),
+        bytesConsumed,
+        true,
+        false,
+      );
+
+      pcmOffset += bytesConsumed;
+      pcmLength -= bytesConsumed;
+      totalBytesSent += bytesConsumed;
+
+      // Allow up to ~1 second ahead of real time, then throttle.
+      final int expectedElapsedMs =
+          (totalBytesSent * 1000) ~/ bytesPerSecond - 1000;
+      final int waitMs = expectedElapsedMs - stopwatch.elapsedMilliseconds;
+      if (waitMs > 0 && !_voiceTransmitCancel) {
+        await Future<void>.delayed(
+          Duration(milliseconds: waitMs < 100 ? waitMs : 100),
+        );
+      }
+    }
+
+    // Keep any trailing partial frame for the next chunk.
+    if (pcmLength > 0) {
+      _reminderTransmitPcm = Uint8List.fromList(
+        Uint8List.sublistView(pcmData, pcmOffset, pcmOffset + pcmLength),
+      );
+    }
+  }
+
+  /// Encode as many consecutive SBC frames as fit (up to <300 bytes) from
+  /// [pcmData] starting at [pcmOffset]. Returns the concatenated SBC blob and
+  /// the number of PCM bytes consumed.
+  (Uint8List?, int) _encodeSbcFrames(
+    Uint8List pcmData,
+    int pcmOffset,
+    int pcmLength,
+  ) {
+    if (pcmLength < _pcmInputSizePerFrame) return (null, 0);
+
+    final int samplesPerChannel = _encoderFrame.blocks * _encoderFrame.subbands;
+    final int bytesPerFrame = samplesPerChannel * 2;
+    int totalToConsume = pcmLength;
+    int totalGenerated = 0;
+    int totalBytesConsumed = 0;
+    final BytesBuilder builder = BytesBuilder(copy: false);
+
+    while (totalToConsume >= _pcmInputSizePerFrame && totalGenerated < 300) {
+      final Int16List pcmSamples = _int16ListFromBytes(
+        Uint8List.sublistView(
+          pcmData,
+          pcmOffset + totalBytesConsumed,
+          pcmOffset + totalBytesConsumed + bytesPerFrame,
+        ),
+      );
+      final Uint8List? sbcFrameData = _sbcEncoder.encode(
+        pcmSamples,
+        null,
+        _encoderFrame,
+      );
+      if (sbcFrameData == null || sbcFrameData.isEmpty) break;
+
+      builder.add(sbcFrameData);
+      totalToConsume -= bytesPerFrame;
+      totalGenerated += sbcFrameData.length;
+      totalBytesConsumed += bytesPerFrame;
+    }
+
+    if (totalGenerated > 0) return (builder.toBytes(), totalBytesConsumed);
+    return (null, 0);
+  }
+
+  /// Frame [b] with start/end `0x7e` markers and a leading command byte,
+  /// escaping any `0x7d`/`0x7e` bytes in the payload.
+  Uint8List _escapeBytes(int cmd, Uint8List b) {
+    final BytesBuilder out = BytesBuilder(copy: false);
+    out.addByte(0x7e);
+    out.addByte(cmd);
+    for (final int byte in b) {
+      if (byte == 0x7d || byte == 0x7e) {
+        out.addByte(0x7d);
+        out.addByte(byte ^ 0x20);
+      } else {
+        out.addByte(byte);
+      }
+    }
+    out.addByte(0x7e);
+    return out.toBytes();
+  }
+
+  /// Convert little-endian 16-bit PCM bytes to an [Int16List].
+  Int16List _int16ListFromBytes(Uint8List bytes) {
+    final int count = bytes.length ~/ 2;
+    final Int16List out = Int16List(count);
+    final ByteData bd = ByteData.sublistView(bytes);
+    for (int i = 0; i < count; i++) {
+      out[i] = bd.getInt16(i * 2, Endian.little);
+    }
+    return out;
+  }
+
+  Future<void> _sendAudio(Uint8List data) async {
+    try {
+      await BluetoothClassicMacOS.instance.sendAudio(macAddress, data);
+    } catch (e) {
+      _debug('sendAudio error: $e');
+    }
+  }
+
+  void _dispatchVoiceTransmitStateChanged(bool transmitting) {
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'VoiceTransmitStateChanged',
+      data: transmitting,
+      store: false,
+    );
   }
 
   // ---------------------------------------------------------------------------
