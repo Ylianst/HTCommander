@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'dialogs/about_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
+import 'dialogs/radio_info_dialog.dart';
 import 'dialogs/settings_dialog.dart';
 import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
@@ -455,12 +456,14 @@ class _MainFormState extends State<MainForm>
       return;
     }
 
-    // Extract device IDs from the connected radios list
+    // Extract device IDs from the connected radios list (de-duplicated - the
+    // broker list can contain repeated entries for the same radio).
     if (data is List) {
       final ids = <int>[];
       for (final radio in data) {
         if (radio is Map && radio['DeviceId'] != null) {
-          ids.add(radio['DeviceId'] as int);
+          final id = radio['DeviceId'] as int;
+          if (!ids.contains(id)) ids.add(id);
         }
       }
       setState(() {
@@ -708,6 +711,22 @@ class _MainFormState extends State<MainForm>
     return gpsPort.isNotEmpty && gpsPort != 'None';
   }
 
+  /// Resolves a display label for a radio [deviceId] from the `ConnectedRadios`
+  /// list (device 1), preferring the friendly name (e.g. "UV-PRO") and falling
+  /// back to "Radio $deviceId" when none is available.
+  String _radioMenuLabel(int deviceId) {
+    final radios = DataBroker.getValueDynamic(1, 'ConnectedRadios', null);
+    if (radios is List) {
+      for (final radio in radios) {
+        if (radio is Map && radio['DeviceId'] == deviceId) {
+          final name = radio['FriendlyName'];
+          if (name is String && name.isNotEmpty) return name;
+        }
+      }
+    }
+    return 'Radio $deviceId';
+  }
+
   List<AppSubmenu> _buildMenuDefinition() {
     return [
       // File menu (renamed to Radio on macOS with only Connect/Disconnect)
@@ -853,7 +872,7 @@ class _MainFormState extends State<MainForm>
             const AppMenuDivider(),
             ..._connectedRadioIds.map(
               (radioId) => AppMenuAction(
-                label: 'Radio $radioId',
+                label: _radioMenuLabel(radioId),
                 onPressed: () {
                   setState(() {
                     _currentRadioDeviceId = radioId;
@@ -879,7 +898,12 @@ class _MainFormState extends State<MainForm>
         children: [
           AppMenuAction(
             label: 'Radio Information...',
-            onPressed: _hasConnectedRadio ? () {} : null,
+            onPressed: _hasConnectedRadio
+                ? () => showRadioInfoDialog(
+                    context,
+                    initialDeviceId: _currentRadioDeviceId,
+                  )
+                : null,
           ),
           if (_hasGpsConfigured)
             AppMenuAction(label: 'GPS Information...', onPressed: () {}),

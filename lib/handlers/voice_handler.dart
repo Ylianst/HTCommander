@@ -17,8 +17,12 @@ The following heavy features from the original C# are intentionally STUBBED
 here as clean extension points and produce no functional behaviour yet:
   - Speech-to-text (Whisper) decoding of incoming audio frames.
   - Text-to-speech synthesis (Speak command).
-  - SSTV image detection/decoding.
   - Morse / Chat / BSS / picture transmit.
+
+SSTV image reception is implemented: while the handler is enabled, incoming
+audio is fed to an SstvMonitor that auto-detects and decodes SSTV images. The
+decoded picture is saved as a PNG under the application-support "SSTV" folder
+and added to the decoded-text history as a Picture entry.
 
 Received data-packet decoding (UniqueDataFrame) is implemented: AX.25 / BSS /
 APRS / Ident packets that arrive on a non-APRS channel are decoded and added to
@@ -33,6 +37,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:path_provider/path_provider.dart';
 
@@ -43,6 +48,7 @@ import '../radio/radio.dart';
 import '../radio/tnc_data_fragment.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../sstv/sstv_monitor.dart';
 
 /// Encoding type for voice text entries. Mirrors the C# `VoiceTextEncodingType`.
 enum VoiceTextEncodingType {
@@ -221,6 +227,21 @@ class VoiceHandler {
   // ignore: unused_field
   bool _currentAudioIsTransmit = false;
 
+  // SSTV auto-decode state.
+  static const String _sstvFolderName = 'SSTV';
+  static const int _sstvSampleRate = 32000;
+  SstvMonitor? _sstvMonitor;
+  StreamSubscription<SstvDecodingStarted>? _sstvStartedSub;
+  StreamSubscription<SstvDecodingProgress>? _sstvProgressSub;
+  StreamSubscription<SstvDecodingComplete>? _sstvCompleteSub;
+  bool _sstvDecoding = false;
+  bool _sstvAutoMuted = false;
+  DateTime _sstvStartTime = DateTime.now();
+  DecodedTextEntry? _currentSstvEntry;
+  Directory? _sstvImagesDir;
+  // The radio device whose received audio is currently being scanned/decoded.
+  int _sstvDeviceId = -1;
+
   // Decoded text history.
   final List<DecodedTextEntry> _decodedTextHistory = <DecodedTextEntry>[];
   DecodedTextEntry? _currentEntry;
@@ -304,6 +325,13 @@ class VoiceHandler {
       callback: _onChat,
     );
 
+    // SSTV picture transmissions recorded in history across all devices.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'PictureTransmitted',
+      callback: _onPictureTransmitted,
+    );
+
     // Restore persisted recording flag (device 0 = settings).
     _recordingEnabled =
         _broker.getValue<bool>(0, 'RecordingState', false) ?? false;
@@ -311,6 +339,12 @@ class VoiceHandler {
 
     // Pre-resolve the recordings folder so clip capture can start synchronously.
     unawaited(_ensureRecordingsDir());
+
+    // Pre-resolve the SSTV images folder so decoded pictures can be saved.
+    unawaited(_ensureSstvImagesDir());
+
+    // Start the always-on SSTV monitor that auto-detects incoming images.
+    _initializeSstvMonitor();
 
     // Dispatch initial handler state.
     _dispatchVoiceHandlerState();
@@ -406,7 +440,7 @@ class VoiceHandler {
     _enabled = false;
     _targetDeviceId = -1;
 
-    // Speech-to-text / SSTV cleanup is deferred in this build.
+    // Speech-to-text cleanup is deferred in this build.
 
     // Indicate we are no longer listening/processing.
     if (previousDeviceId > 0) {
@@ -511,6 +545,11 @@ class VoiceHandler {
       _finalizeRecording();
     }
 
+    // Finalize any in-progress SSTV decoding when the audio stream ends.
+    if (_sstvDecoding && deviceId == _sstvDeviceId) {
+      _finalizeSstvOnAudioEnd();
+    }
+
     // Speech-to-text flush (deferred) for the enabled target radio.
     if (deviceId == _targetDeviceId && _enabled) {
       // TODO(stt): flush the current speech segment.
@@ -550,6 +589,33 @@ class VoiceHandler {
     // Speech-to-text (deferred) for the enabled target radio.
     if (deviceId == _targetDeviceId && _enabled) {
       // TODO(stt): feed PCM frames to the speech-to-text engine.
+    }
+
+    // SSTV auto-detection: feed received (non-transmit) PCM to the monitor.
+    // This runs independently of the voice-handler enable state, tracking the
+    // radio device that is currently streaming received audio.
+    final monitor = _sstvMonitor;
+    if (monitor != null && deviceId > 0) {
+      final usage = data['usage'] ?? data['Usage'];
+      final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
+      final channelName =
+          (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+      final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
+      if (usage == null && !transmit && !muted && channelName != 'APRS') {
+        // Lock onto a single device for the duration of a decode.
+        if (!_sstvDecoding) _sstvDeviceId = deviceId;
+        if (deviceId == _sstvDeviceId) {
+          if (channelName.isNotEmpty) _currentChannelName = channelName;
+          final bytes = data['data'] ?? data['Data'];
+          if (bytes is Uint8List) {
+            final offset = _readInt(data['offset'] ?? data['Offset']) ?? 0;
+            final length =
+                _readInt(data['length'] ?? data['Length']) ??
+                (bytes.length - offset);
+            monitor.processPcm16(bytes, offset, length);
+          }
+        }
+      }
     }
   }
 
@@ -751,6 +817,355 @@ class VoiceHandler {
         '${t.year.toString().padLeft(4, '0')}-${two(t.month)}-${two(t.day)}';
     final clock = '${two(t.hour)}-${two(t.minute)}-${two(t.second)}';
     return '${date}_$clock';
+  }
+
+  // ---------------------------------------------------------------------------
+  // SSTV image reception
+  // ---------------------------------------------------------------------------
+
+  Future<Directory?> _ensureSstvImagesDir() async {
+    if (_sstvImagesDir != null) return _sstvImagesDir;
+    try {
+      final base = await getApplicationSupportDirectory();
+      final dir = Directory(
+        '${base.path}${Platform.pathSeparator}$_sstvFolderName',
+      );
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      _sstvImagesDir = dir;
+      return dir;
+    } catch (e) {
+      _broker.logError('[VoiceHandler] Failed to resolve SSTV dir: $e');
+      return null;
+    }
+  }
+
+  /// Creates a fresh SSTV monitor and subscribes to its decoding events.
+  void _initializeSstvMonitor() {
+    _cleanupSstvMonitor();
+    final monitor = SstvMonitor(sampleRate: _sstvSampleRate);
+    _sstvStartedSub = monitor.onDecodingStarted.listen(_onSstvDecodingStarted);
+    _sstvProgressSub = monitor.onDecodingProgress.listen(
+      _onSstvDecodingProgress,
+    );
+    _sstvCompleteSub = monitor.onDecodingComplete.listen(
+      _onSstvDecodingComplete,
+    );
+    _sstvMonitor = monitor;
+    _broker.logInfo('[VoiceHandler] SSTV monitor initialized');
+  }
+
+  /// Cancels the SSTV monitor subscriptions and disposes the monitor.
+  void _cleanupSstvMonitor() {
+    _sstvStartedSub?.cancel();
+    _sstvProgressSub?.cancel();
+    _sstvCompleteSub?.cancel();
+    _sstvStartedSub = null;
+    _sstvProgressSub = null;
+    _sstvCompleteSub = null;
+    _sstvMonitor?.dispose();
+    _sstvMonitor = null;
+    _sstvDecoding = false;
+    _sstvAutoMuted = false;
+    _currentSstvEntry = null;
+  }
+
+  /// Called when the monitor detects the start of an SSTV image.
+  void _onSstvDecodingStarted(SstvDecodingStarted e) {
+    _broker.logInfo(
+      '[VoiceHandler] SSTV decoding started: ${e.modeName} (${e.width}x${e.height})',
+    );
+    _sstvDecoding = true;
+    _sstvStartTime = DateTime.now();
+
+    // Auto-mute the radio so the user doesn't hear the raw SSTV tones.
+    if (_sstvDeviceId > 0) {
+      final alreadyMuted =
+          _broker.getValue<bool>(_sstvDeviceId, 'Mute', false) ?? false;
+      if (!alreadyMuted) {
+        _sstvAutoMuted = true;
+        _broker.dispatch(
+          deviceId: _sstvDeviceId,
+          name: 'SetMute',
+          data: true,
+          store: false,
+        );
+      } else {
+        _sstvAutoMuted = false;
+      }
+    }
+
+    final channelName = _currentChannelName;
+    _currentSstvEntry = DecodedTextEntry(
+      text: 'Receiving ${e.modeName}...',
+      channel: channelName,
+      time: _sstvStartTime,
+      isReceived: true,
+      encoding: VoiceTextEncodingType.picture,
+    );
+
+    // Dispatch a partial TextReady so the UI shows the in-progress entry.
+    _dispatchSstvTextReady(
+      'Receiving ${e.modeName}...',
+      channelName,
+      _sstvStartTime,
+      false,
+    );
+  }
+
+  /// Called when the monitor has decoded more scan lines (progress update).
+  void _onSstvDecodingProgress(SstvDecodingProgress e) {
+    final progressText =
+        'Receiving ${e.modeName}... ${e.percentComplete.toStringAsFixed(0)}%';
+    _currentSstvEntry?.text = progressText;
+    _dispatchSstvTextReady(
+      progressText,
+      _currentChannelName,
+      _sstvStartTime,
+      false,
+    );
+  }
+
+  /// Called when the monitor has completed decoding an image.
+  void _onSstvDecodingComplete(SstvDecodingComplete e) {
+    unawaited(_handleSstvComplete(e.modeName, e.image));
+  }
+
+  /// Finalizes any in-progress SSTV decoding when the audio stream ends,
+  /// saving whatever partial image has been decoded so far.
+  void _finalizeSstvOnAudioEnd() {
+    try {
+      _broker.logInfo(
+        '[VoiceHandler] Audio ended during SSTV decoding, finalizing partial reception',
+      );
+      final monitor = _sstvMonitor;
+      SstvImage? partialImage;
+      if (monitor != null) {
+        partialImage = monitor.getPartialImage();
+        monitor.reset();
+      }
+      final modeName = (_currentSstvEntry?.text ?? 'SSTV')
+          .replaceAll('Receiving ', '')
+          .replaceAll('...', '');
+      unawaited(_handleSstvComplete(modeName, partialImage));
+    } catch (e) {
+      _broker.logError('[VoiceHandler] Error finalizing SSTV on audio end: $e');
+      _sstvDecoding = false;
+    }
+  }
+
+  /// Saves a decoded SSTV image to disk and records it in the text history.
+  Future<void> _handleSstvComplete(String modeName, SstvImage? image) async {
+    _broker.logInfo(
+      '[VoiceHandler] SSTV image decoded: $modeName (${image?.width ?? 0}x${image?.height ?? 0})',
+    );
+    _sstvDecoding = false;
+
+    // Restore the mute state if we auto-muted for SSTV reception.
+    if (_sstvAutoMuted && _sstvDeviceId > 0) {
+      _broker.dispatch(
+        deviceId: _sstvDeviceId,
+        name: 'SetMute',
+        data: false,
+        store: false,
+      );
+    }
+    _sstvAutoMuted = false;
+
+    if (image == null) {
+      _currentSstvEntry = null;
+      _dispatchSstvTextReady(
+        '$modeName - Reception failed',
+        _currentChannelName,
+        _sstvStartTime,
+        true,
+      );
+      return;
+    }
+
+    final now = _sstvStartTime;
+    final channelName = _currentChannelName;
+    final safeMode = _sanitizeChannel(modeName);
+    final filename = 'SSTV_${_formatTimestamp(now)}_$safeMode.png';
+
+    try {
+      final dir = await _ensureSstvImagesDir();
+      if (dir == null) {
+        _currentSstvEntry = null;
+        return;
+      }
+      final pngBytes = await _encodeSstvPng(image);
+      if (pngBytes == null) {
+        _broker.logError('[VoiceHandler] Failed to encode SSTV image');
+        _currentSstvEntry = null;
+        return;
+      }
+      final fullPath = '${dir.path}${Platform.pathSeparator}$filename';
+      await File(fullPath).writeAsBytes(pngBytes, flush: true);
+      _broker.logInfo('[VoiceHandler] SSTV image saved: $filename');
+
+      // Finalize the partial entry (or create one) in the text history.
+      final entry = _currentSstvEntry;
+      if (entry != null) {
+        entry.text = modeName;
+        entry.filename = filename;
+        _decodedTextHistory.add(entry);
+      } else {
+        _decodedTextHistory.add(
+          DecodedTextEntry(
+            text: modeName,
+            channel: channelName,
+            time: now,
+            isReceived: true,
+            encoding: VoiceTextEncodingType.picture,
+            filename: filename,
+          ),
+        );
+      }
+      _currentSstvEntry = null;
+      _trimHistory();
+      unawaited(_saveVoiceTextHistory());
+      _dispatchDecodedTextHistory();
+
+      _dispatchSstvTextReady(
+        modeName,
+        channelName,
+        now,
+        true,
+        filename: filename,
+      );
+    } catch (e) {
+      _broker.logError('[VoiceHandler] Error saving SSTV image: $e');
+      _currentSstvEntry = null;
+    }
+  }
+
+  /// Dispatches a TextReady event for an SSTV picture to the radio device that
+  /// is currently being decoded. Mirrors [_dispatchRecordingTextReady] so the
+  /// voice tab shows the entry regardless of the voice-handler enable state.
+  void _dispatchSstvTextReady(
+    String? text,
+    String? channel,
+    DateTime time,
+    bool completed, {
+    String? filename,
+  }) {
+    if (_sstvDeviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: _sstvDeviceId,
+      name: 'TextReady',
+      data: <String, Object?>{
+        'text': text,
+        'channel': channel,
+        'time': time.millisecondsSinceEpoch,
+        'completed': completed,
+        'isReceived': true,
+        'encoding': _encodingToString(VoiceTextEncodingType.picture),
+        'latitude': 0,
+        'longitude': 0,
+        'source': null,
+        'destination': null,
+        'filename': filename,
+        'duration': 0,
+      },
+      store: false,
+    );
+  }
+
+  /// Handles the `PictureTransmitted` command to record an SSTV picture
+  /// transmission in history. Expected data: `{ modeName, filename }`.
+  ///
+  /// Dispatches a TextReady event directly to the transmitting device so the
+  /// voice tab shows the sent picture regardless of the enable state, mirroring
+  /// [_dispatchSstvTextReady] on the receive side.
+  void _onPictureTransmitted(int deviceId, String name, Object? data) {
+    if (data is! Map) return;
+    try {
+      final modeName =
+          (data['modeName'] ?? data['ModeName']) as String? ?? 'SSTV';
+      final filename = (data['filename'] ?? data['Filename']) as String? ?? '';
+      if (filename.isEmpty) {
+        _broker.logError(
+          '[VoiceHandler] PictureTransmitted: Filename is empty',
+        );
+        return;
+      }
+
+      final now = DateTime.now();
+      final channel = _currentChannelName;
+
+      _broker.logInfo(
+        '[VoiceHandler] SSTV picture transmitted on device $deviceId: '
+        '$modeName, file: $filename',
+      );
+
+      final entry = DecodedTextEntry(
+        text: modeName,
+        channel: channel,
+        time: now,
+        isReceived: false,
+        encoding: VoiceTextEncodingType.picture,
+        filename: filename,
+      );
+      _decodedTextHistory.add(entry);
+      _trimHistory();
+      unawaited(_saveVoiceTextHistory());
+      _dispatchDecodedTextHistory();
+
+      if (deviceId > 0) {
+        _broker.dispatch(
+          deviceId: deviceId,
+          name: 'TextReady',
+          data: <String, Object?>{
+            'text': modeName,
+            'channel': channel,
+            'time': now.millisecondsSinceEpoch,
+            'completed': true,
+            'isReceived': false,
+            'encoding': _encodingToString(VoiceTextEncodingType.picture),
+            'latitude': 0,
+            'longitude': 0,
+            'source': null,
+            'destination': null,
+            'filename': filename,
+            'duration': 0,
+          },
+          store: false,
+        );
+      }
+    } catch (e) {
+      _broker.logError('[VoiceHandler] Error in _onPictureTransmitted: $e');
+    }
+  }
+
+  Future<Uint8List?> _encodeSstvPng(SstvImage image) async {
+    final w = image.width;
+    final h = image.height;
+    if (w <= 0 || h <= 0) return null;
+    final px = image.pixels;
+    final count = w * h;
+    final rgba = Uint8List(count * 4);
+    for (int i = 0; i < count; i++) {
+      final p = i < px.length ? px[i] : 0xFF000000;
+      final o = i * 4;
+      rgba[o] = (p >> 16) & 0xff; // R
+      rgba[o + 1] = (p >> 8) & 0xff; // G
+      rgba[o + 2] = p & 0xff; // B
+      rgba[o + 3] = (p >> 24) & 0xff; // A
+    }
+    final completer = Completer<ui.Image>();
+    ui.decodeImageFromPixels(
+      rgba,
+      w,
+      h,
+      ui.PixelFormat.rgba8888,
+      completer.complete,
+    );
+    final uiImage = await completer.future;
+    final byteData = await uiImage.toByteData(format: ui.ImageByteFormat.png);
+    uiImage.dispose();
+    return byteData?.buffer.asUint8List();
   }
 
   // ---------------------------------------------------------------------------
@@ -1340,6 +1755,7 @@ class VoiceHandler {
     if (_disposed) return;
     _disposed = true;
     if (_recorder != null) _finalizeRecording();
+    _cleanupSstvMonitor();
     if (_enabled) disable();
     _broker.logInfo('[VoiceHandler] Voice Handler disposing');
     _broker.dispose();

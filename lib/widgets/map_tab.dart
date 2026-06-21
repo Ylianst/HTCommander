@@ -1,12 +1,52 @@
+/*
+Copyright 2026 Ylian Saint-Hilaire
+Licensed under the Apache License, Version 2.0 (the "License");
+http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../aprs/aprs_events.dart';
+import '../aprs/aprs_packet.dart';
 import '../models/aircraft.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
+
+/// Holds the latest known position, time and track points for a single
+/// station rendered on the map (APRS red/blue markers or voice/BSS orange
+/// markers). Mirrors the per-callsign marker + GMapRoute bookkeeping the C#
+/// `MapTabUserControl` performed with `mapRoutes` and the markers overlay.
+class _StationMarkerData {
+  _StationMarkerData({
+    required this.callsign,
+    required this.position,
+    required this.time,
+    required this.isSelf,
+  }) : track = <LatLng>[position];
+
+  final String callsign;
+  LatLng position;
+  DateTime time;
+  final bool isSelf;
+  final List<LatLng> track;
+
+  /// Appends a new point to the track when the position actually changed,
+  /// matching the C# `AddMapMarker` route behaviour.
+  void update(LatLng newPosition, DateTime newTime) {
+    final last = track.isNotEmpty ? track.last : null;
+    if (last == null ||
+        last.latitude != newPosition.latitude ||
+        last.longitude != newPosition.longitude) {
+      track.add(newPosition);
+    }
+    position = newPosition;
+    time = newTime;
+  }
+}
 
 /// Map tab - geographic map display with OpenStreetMap
 class MapTab extends StatefulWidget {
@@ -20,6 +60,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   final MapController _mapController = MapController();
   final DataBrokerClient _broker = DataBrokerClient();
 
+  // APRS device id used for broker messages (matches the C# reference).
+  static const int _aprsDeviceId = 1;
+
   // Map settings (loaded from DataBroker)
   bool _isOfflineMode = false;
   bool _showTracks = true;
@@ -29,8 +72,20 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
 
   /// Current aircraft to display, received from the "Airplanes" broker event.
   List<Aircraft> _airplanes = [];
-  // ignore: unused_field
-  int _markerTimeFilter = 0; // 0 = all, otherwise minutes (for future use)
+
+  /// Time filter in minutes (0 = show all). Markers/tracks older than this are
+  /// hidden, mirroring the C# `MapTimeFilter` behaviour.
+  int _markerTimeFilter = 0;
+
+  /// APRS station markers keyed by callsign (red, or blue for "Self").
+  final Map<String, _StationMarkerData> _aprsStations = {};
+
+  /// Voice / BSS source-station markers keyed by source callsign (orange).
+  final Map<String, _StationMarkerData> _voiceStations = {};
+
+  /// Guards against loading the historical APRS packet list more than once,
+  /// mirroring the C# `_historicalPacketsLoaded` flag.
+  bool _historicalPacketsLoaded = false;
 
   // Will be updated when GPS functionality is added
   // ignore: prefer_final_fields
@@ -67,6 +122,44 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
       name: 'ShowAirplanesOnMap',
       callback: _onShowAirplanesChanged,
     );
+
+    // --- APRS markers (mirrors the C# APRS Marker Code region) ---
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsFrame',
+      callback: _onAprsFrame,
+    );
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsStoreReady',
+      callback: _onAprsStoreReady,
+    );
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsPacketList',
+      callback: _onAprsPacketList,
+    );
+
+    // Request the current packet list from the AprsHandler on-demand.
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'RequestAprsPackets',
+      data: null,
+      store: false,
+    );
+
+    // --- Voice / BSS source markers (orange) ---
+    // Historical decoded-text entries (with location) and real-time updates.
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'DecodedTextHistory',
+      callback: _onDecodedTextHistory,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'TextReady',
+      callback: _onTextReady,
+    );
   }
 
   void _onAirplanesChanged(int deviceId, String name, Object? data) {
@@ -88,6 +181,149 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
       _showAirplanes = (data as int?) == 1;
       if (!_showAirplanes) _airplanes = const [];
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // APRS marker handlers
+  // ---------------------------------------------------------------------------
+
+  /// The APRS store is ready - request the packet list (once).
+  void _onAprsStoreReady(int deviceId, String name, Object? data) {
+    if (_historicalPacketsLoaded) return;
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'RequestAprsPackets',
+      data: null,
+      store: false,
+    );
+  }
+
+  /// Loads APRS packets from the on-demand request (history), once.
+  void _onAprsPacketList(int deviceId, String name, Object? data) {
+    if (_historicalPacketsLoaded) return;
+    if (data is! List) return;
+    _historicalPacketsLoaded = true;
+
+    var changed = false;
+    for (final item in data) {
+      if (item is AprsPacket) {
+        changed = _processAprsPacket(item) || changed;
+      }
+    }
+    if (changed && mounted) setState(() {});
+  }
+
+  /// Handles a single incoming APRS frame from the broker.
+  void _onAprsFrame(int deviceId, String name, Object? data) {
+    if (data is! AprsFrameEventArgs) return;
+    if (_processAprsPacket(data.aprsPacket) && mounted) {
+      setState(() {});
+    }
+  }
+
+  /// Extracts the callsign/position/time from an [AprsPacket] and updates the
+  /// per-callsign marker + track. Returns true when the marker set changed.
+  /// Mirrors the C# `ProcessAprsPacketForMap` + `AddMapMarker`.
+  bool _processAprsPacket(AprsPacket aprsPacket) {
+    final packet = aprsPacket.packet;
+    if (packet == null) return false;
+    if (!aprsPacket.position.isValid()) return false;
+
+    final lat = aprsPacket.position.coordinateSet.latitude.value;
+    final lng = aprsPacket.position.coordinateSet.longitude.value;
+    if (lat == 0 && lng == 0) return false;
+
+    // The sender callsign is the second AX.25 address (index 1).
+    if (packet.addresses.length < 2) return false;
+    final callsign = packet.addresses[1].callSignWithId;
+    if (callsign.isEmpty) return false;
+
+    final time = aprsPacket.timeStamp ?? packet.time;
+    final point = LatLng(lat, lng);
+
+    final existing = _aprsStations[callsign];
+    if (existing != null) {
+      existing.update(point, time);
+    } else {
+      _aprsStations[callsign] = _StationMarkerData(
+        callsign: callsign,
+        position: point,
+        time: time,
+        isSelf: callsign == 'Self',
+      );
+    }
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Voice / BSS source marker handlers (orange)
+  // ---------------------------------------------------------------------------
+
+  /// Handles the DecodedTextHistory event - loads historical voice/BSS entries
+  /// that carry a location. Mirrors the C# `OnDecodedTextHistory`.
+  void _onDecodedTextHistory(int deviceId, String name, Object? data) {
+    if (data is! List) return;
+    var changed = false;
+    for (final entry in data) {
+      if (entry is Map) {
+        changed = _processVoiceEntry(entry) || changed;
+      }
+    }
+    if (changed && mounted) setState(() {});
+  }
+
+  /// Handles the TextReady event - processes real-time voice/BSS entries that
+  /// carry a location. Mirrors the C# `OnTextReady`.
+  void _onTextReady(int deviceId, String name, Object? data) {
+    if (data is! Map) return;
+    // Only process completed entries (matches the C# guard).
+    final completed = data['completed'];
+    if (completed is bool && !completed) return;
+    if (_processVoiceEntry(data) && mounted) {
+      setState(() {});
+    }
+  }
+
+  /// Adds or updates an orange marker for a voice/BSS source station from a
+  /// decoded-text entry map. Returns true when the marker set changed.
+  bool _processVoiceEntry(Map<dynamic, dynamic> entry) {
+    final source = entry['source'];
+    if (source is! String || source.isEmpty) return false;
+
+    final lat = _toDouble(entry['latitude']);
+    final lng = _toDouble(entry['longitude']);
+    if (lat == 0 && lng == 0) return false;
+
+    final time = _toDateTime(entry['time']);
+    final point = LatLng(lat, lng);
+
+    final existing = _voiceStations[source];
+    if (existing != null) {
+      existing.update(point, time);
+    } else {
+      _voiceStations[source] = _StationMarkerData(
+        callsign: source,
+        position: point,
+        time: time,
+        isSelf: false,
+      );
+    }
+    return true;
+  }
+
+  static double _toDouble(Object? v) => v is num ? v.toDouble() : 0.0;
+
+  static DateTime _toDateTime(Object? v) {
+    if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+    if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
+    return DateTime.now();
+  }
+
+  /// True when [time] is within the active time filter window (or no filter).
+  bool _passesTimeFilter(DateTime time) {
+    if (_markerTimeFilter == 0) return true;
+    final cutoff = time.add(Duration(minutes: _markerTimeFilter));
+    return DateTime.now().compareTo(cutoff) <= 0;
   }
 
   @override
@@ -394,9 +630,74 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     );
   }
 
+  /// Builds the station markers (APRS red/blue + voice/BSS orange) that pass
+  /// the active time filter.
+  List<Marker> _buildStationMarkers() {
+    final markers = <Marker>[];
+    final double size = _largeMarkers ? 30 : 20;
+
+    void addStation(_StationMarkerData s, Color color) {
+      if (!_passesTimeFilter(s.time)) return;
+      markers.add(
+        Marker(
+          point: s.position,
+          width: size,
+          height: size,
+          alignment: Alignment.topCenter,
+          child: Tooltip(
+            message: '${s.callsign}\n${s.time.toLocal()}',
+            child: Icon(Icons.location_pin, color: color, size: size),
+          ),
+        ),
+      );
+    }
+
+    // APRS markers: blue for "Self", red otherwise.
+    for (final station in _aprsStations.values) {
+      addStation(station, station.isSelf ? Colors.blue : Colors.red);
+    }
+
+    // Voice / BSS source markers: orange.
+    for (final station in _voiceStations.values) {
+      addStation(station, Colors.orange);
+    }
+
+    return markers;
+  }
+
+  /// Builds the track polylines for stations when "Show Tracks" is enabled.
+  List<Polyline> _buildTracks() {
+    final polylines = <Polyline>[];
+
+    void addTrack(_StationMarkerData s, Color color) {
+      if (s.track.length < 2) return;
+      if (!_passesTimeFilter(s.time)) return;
+      polylines.add(
+        Polyline(
+          points: List<LatLng>.from(s.track),
+          color: color,
+          strokeWidth: 2,
+        ),
+      );
+    }
+
+    for (final station in _aprsStations.values) {
+      addTrack(station, station.isSelf ? Colors.blue : Colors.red);
+    }
+    for (final station in _voiceStations.values) {
+      addTrack(station, Colors.orange);
+    }
+
+    return polylines;
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+    final tracks = _showTracks ? _buildTracks() : const <Polyline>[];
+    final stationMarkers = _showMarkers
+        ? _buildStationMarkers()
+        : const <Marker>[];
     return Column(
       children: [
         // Header bar matching C# UI
@@ -421,6 +722,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.htcommander.app',
                   ),
+                  if (tracks.isNotEmpty) PolylineLayer(polylines: tracks),
+                  if (stationMarkers.isNotEmpty)
+                    MarkerLayer(markers: stationMarkers),
                   if (_showAirplanes && _airplanes.isNotEmpty)
                     MarkerLayer(markers: _buildAirplaneMarkers()),
                 ],
