@@ -44,6 +44,7 @@ dependencies:
   flutter_blue_plus: ^1.35.2
   path_provider: ^2.1.4
   crypto: ^3.0.0
+  es_compression: ^2.0.13
   http: ^1.6.0
   flutter_pcm_sound: ^3.1.6
   audioplayers: ^6.7.1

@@ -770,6 +770,13 @@ class WinlinkClient {
         store: false,
       );
 
+      // Server notice / error lines start with "***" (e.g. a failed secure
+      // login). Surface these to the user via the status bar.
+      if (str.trimLeft().startsWith('***')) {
+        final notice = str.replaceFirst(RegExp(r'^\s*\*+\s*'), '').trim();
+        if (notice.isNotEmpty) _stateMessage(notice);
+      }
+
       // Handle TCP callsign prompt
       if (_transportType == WinlinkTransportType.tcp &&
           str.trim().toLowerCase() == 'callsign :') {

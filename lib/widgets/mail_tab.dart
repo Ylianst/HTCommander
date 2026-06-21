@@ -1,5 +1,15 @@
 import 'package:flutter/material.dart';
+import '../dialogs/mail_compose_dialog.dart';
+import '../dialogs/mail_viewer_dialog.dart';
+import '../dialogs/mail_debug_dialog.dart';
+import '../dialogs/active_station_selector_dialog.dart';
+import '../dialogs/dialog_utils.dart';
+import '../models/station_info.dart';
+import '../services/data_broker.dart';
+import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
+import '../winlink/mail_store.dart';
+import '../winlink/winlink_mail.dart';
 
 /// Email message data
 class MailMessage {
@@ -7,6 +17,7 @@ class MailMessage {
   final DateTime time;
   final String from;
   final String to;
+  final String cc;
   final String subject;
   final String body;
   final bool isRead;
@@ -16,6 +27,7 @@ class MailMessage {
     required this.time,
     required this.from,
     required this.to,
+    this.cc = '',
     required this.subject,
     required this.body,
     this.isRead = false,
@@ -45,6 +57,13 @@ class MailTab extends StatefulWidget {
 class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   String _selectedMailbox = 'Inbox';
   int? _selectedMailIndex;
+
+  // Outgoing mailboxes show the recipient ("To") instead of the sender ("From").
+  bool get _showRecipientColumn =>
+      _selectedMailbox == 'Outbox' ||
+      _selectedMailbox == 'Draft' ||
+      _selectedMailbox == 'Sent';
+
   bool _showPreview = true;
   int _sortColumnIndex = 0;
   bool _sortAscending = false; // Descending by default for time
@@ -52,8 +71,17 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   static const double _minPreviewRatio = 0.15;
   static const double _maxPreviewRatio = 0.75;
 
-  // Mailboxes with sample data
+  // Winlink transfer status shown in the bottom status bar. Null hides the bar.
+  String? _statusMessage;
+  bool _statusIsError = false;
+
+  // Mailboxes (populated from the real MailStore).
   late final Map<String, Mailbox> _mailboxes;
+
+  // Raw Winlink mail keyed by MID, used for read-flag updates and lookups.
+  final Map<String, WinLinkMail> _rawMails = {};
+
+  final DataBrokerClient _broker = DataBrokerClient();
 
   @override
   bool get wantKeepAlive => true;
@@ -62,78 +90,120 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
     _initializeMailboxes();
+    _broker.subscribe(deviceId: 0, name: 'MailsChanged', callback: _onMailsChanged);
+    _broker.subscribe(deviceId: 0, name: 'MailStoreReady', callback: _onMailsChanged);
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkStateMessage',
+      callback: _onWinlinkStateMessage,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkConnectionState',
+      callback: _onWinlinkConnectionState,
+    );
+    _loadMails();
+  }
+
+  @override
+  void dispose() {
+    _broker.dispose();
+    super.dispose();
   }
 
   void _initializeMailboxes() {
     _mailboxes = {
-      'Inbox': Mailbox(
-        name: 'Inbox',
-        icon: Icons.inbox,
-        messages: [
-          MailMessage(
-            id: '1',
-            time: DateTime.now().subtract(const Duration(hours: 2)),
-            from: 'KK7VZT',
-            to: 'KC3SLD',
-            subject: 'Welcome to Winlink!',
-            body:
-                'Hello and welcome to the Winlink network!\n\nThis is a test message to demonstrate the mail functionality.\n\n73,\nKK7VZT',
-          ),
-          MailMessage(
-            id: '2',
-            time: DateTime.now().subtract(const Duration(days: 1)),
-            from: 'WL2K-1',
-            to: 'KC3SLD',
-            subject: 'System Notification',
-            body:
-                'Your message has been successfully delivered.\n\nWinlink Gateway',
-            isRead: true,
-          ),
-          MailMessage(
-            id: '3',
-            time: DateTime.now().subtract(const Duration(days: 3)),
-            from: 'N0CALL',
-            to: 'KC3SLD',
-            subject: 'Re: Field Day Planning',
-            body:
-                'Sounds good! I will bring the antenna.\n\nSee you there!\n\n73,\nN0CALL',
-            isRead: true,
-          ),
-        ],
-      ),
+      'Inbox': Mailbox(name: 'Inbox', icon: Icons.inbox),
       'Outbox': Mailbox(name: 'Outbox', icon: Icons.outbox),
-      'Draft': Mailbox(
-        name: 'Draft',
-        icon: Icons.drafts,
-        messages: [
-          MailMessage(
-            id: '4',
-            time: DateTime.now().subtract(const Duration(hours: 5)),
-            from: 'KC3SLD',
-            to: 'KK7VZT',
-            subject: 'Draft message',
-            body: 'This is a draft message that has not been sent yet...',
-          ),
-        ],
-      ),
-      'Sent': Mailbox(
-        name: 'Sent',
-        icon: Icons.send,
-        messages: [
-          MailMessage(
-            id: '5',
-            time: DateTime.now().subtract(const Duration(days: 2)),
-            from: 'KC3SLD',
-            to: 'KK7VZT',
-            subject: 'Hello!',
-            body: 'Hi there!\n\nJust testing the mail system.\n\n73,\nKC3SLD',
-            isRead: true,
-          ),
-        ],
-      ),
+      'Draft': Mailbox(name: 'Draft', icon: Icons.drafts),
+      'Sent': Mailbox(name: 'Sent', icon: Icons.send),
       'Archive': Mailbox(name: 'Archive', icon: Icons.archive),
       'Trash': Mailbox(name: 'Trash', icon: Icons.delete),
     };
+  }
+
+  void _onMailsChanged(int deviceId, String name, Object? data) {
+    if (mounted) _loadMails();
+  }
+
+  /// Handles Winlink transfer status updates for the bottom status bar.
+  void _onWinlinkStateMessage(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final msg = data as String?;
+    setState(() {
+      if (msg == null || msg.isEmpty) {
+        // Keep an existing error visible so the user can read and dismiss it.
+        if (!_statusIsError) _statusMessage = null;
+      } else if (_isErrorMessage(msg)) {
+        _statusMessage = msg;
+        _statusIsError = true;
+      } else if (!_statusIsError) {
+        // Don't let routine progress messages overwrite an unacknowledged error.
+        _statusMessage = msg;
+      }
+    });
+  }
+
+  /// Clears a stale error when a new connection attempt begins.
+  void _onWinlinkConnectionState(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    if (data is String && data.toUpperCase() == 'CONNECTING') {
+      _dismissStatus();
+    }
+  }
+
+  bool _isErrorMessage(String msg) {
+    final m = msg.toLowerCase();
+    return m.contains('error') ||
+        m.contains('failed') ||
+        m.contains('not found');
+  }
+
+  void _dismissStatus() {
+    setState(() {
+      _statusMessage = null;
+      _statusIsError = false;
+    });
+  }
+
+  /// Loads all mail from the global MailStore and groups it by mailbox.
+  void _loadMails() {
+    final store = DataBroker.getDataHandler<MailStore>('MailStore');
+    if (store == null) return;
+
+    final mails = store.getAllMails();
+    setState(() {
+      _rawMails.clear();
+      for (final box in _mailboxes.values) {
+        box.messages.clear();
+      }
+      for (final mail in mails) {
+        final mid = mail.mid;
+        if (mid == null) continue;
+        _rawMails[mid] = mail;
+        final box = _mailboxes[mail.mailbox] ?? _mailboxes['Inbox']!;
+        box.messages.add(
+          MailMessage(
+            id: mid,
+            time: mail.dateTime,
+            from: mail.from ?? '',
+            to: mail.to ?? '',
+            cc: mail.cc ?? '',
+            subject: mail.subject ?? '',
+            body: mail.body ?? '',
+            isRead: (mail.flags & MailFlags.unread.value) == 0,
+          ),
+        );
+      }
+      // Keep each mailbox sorted by the active sort settings.
+      for (final box in _mailboxes.values) {
+        _applySort(box.messages);
+      }
+      if (_selectedMailIndex != null &&
+          _selectedMailIndex! >= _currentMessages.length) {
+        _selectedMailIndex = null;
+      }
+    });
   }
 
   List<MailMessage> get _currentMessages =>
@@ -160,46 +230,224 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
     });
   }
 
-  void _onNewMail() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('New mail dialog not implemented yet')),
-    );
+  void _onNewMail() async {
+    final result = await showMailComposeDialog(context);
+    if (result != null) _addComposedMail(result);
   }
 
-  void _onConnect() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Connect to Winlink not implemented yet')),
-    );
+  /// Adds (or updates) a composed message in the MailStore. Messages go to the
+  /// Outbox (queued for sending) or the Draft mailbox.
+  void _addComposedMail(ComposedMail c, {String? replaceId}) {
+    final target = c.isDraft ? 'Draft' : 'Outbox';
+
+    final mail = WinLinkMail()
+      ..mid = replaceId ?? WinLinkMail.generateMID()
+      ..dateTime = DateTime.now()
+      ..from = c.from
+      ..to = c.to
+      ..cc = c.cc
+      ..subject = c.subject
+      ..body = c.body
+      ..mailbox = target;
+
+    if (replaceId != null && _rawMails.containsKey(replaceId)) {
+      _broker.dispatch(deviceId: 0, name: 'MailUpdate', data: mail, store: false);
+    } else {
+      _broker.dispatch(deviceId: 0, name: 'MailAdd', data: mail, store: false);
+    }
+    // The store will emit MailsChanged, which triggers _loadMails().
   }
 
-  void _onReply() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Reply not implemented yet')));
-  }
+  void _onConnect(BuildContext buttonContext) {
+    final RenderBox box = buttonContext.findRenderObject() as RenderBox;
+    final Offset offset = box.localToGlobal(Offset.zero);
 
-  void _onForward() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Forward not implemented yet')),
-    );
-  }
+    final items = <PopupMenuEntry<Object>>[
+      const PopupMenuItem<Object>(
+        value: '__internet__',
+        child: Text('Internet (Winlink Server)'),
+      ),
+    ];
 
-  void _onDelete() {
-    if (_selectedMailIndex == null) return;
-    setState(() {
-      _currentMessages.removeAt(_selectedMailIndex!);
-      _selectedMailIndex = null;
+    final radios = _broker.getValueDynamic(1, 'ConnectedRadios');
+    if (radios is List && radios.isNotEmpty) {
+      items.add(const PopupMenuDivider());
+      for (final r in radios) {
+        if (r is Map) {
+          final id = r['DeviceId'];
+          final name = (r['FriendlyName'] as String?) ?? 'Radio';
+          if (id is int) {
+            items.add(PopupMenuItem<Object>(value: id, child: Text(name)));
+          }
+        }
+      }
+    }
+
+    showMenu<Object>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        offset.dx,
+        offset.dy + box.size.height,
+        offset.dx + box.size.width,
+        offset.dy,
+      ),
+      items: items,
+    ).then((value) {
+      if (value == null) return;
+      if (value == '__internet__') {
+        _connectInternet();
+      } else if (value is int) {
+        _connectRadio(value);
+      }
     });
   }
 
-  void _showMenu(BuildContext context) {
+  void _connectInternet() {
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'WinlinkSync',
+      data: {'Server': 'server.winlink.org', 'Port': 8773, 'UseTls': true},
+      store: false,
+    );
+  }
+
+  void _connectRadio(int radioId) async {
+    final station = await showActiveStationSelector(
+      context,
+      stationType: StationType.winlink,
+    );
+    if (station == null) return;
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'WinlinkSync',
+      data: {'RadioId': radioId, 'Station': station},
+      store: false,
+    );
+  }
+
+  String _quotedReplyBody(MailMessage m) {
+    return '\n\n--- Original Message ---\n'
+        'From: ${m.from}\n'
+        'Date: ${m.time.toLocal()}\n\n'
+        '${m.body}';
+  }
+
+  String _replySubject(MailMessage m) =>
+      m.subject.startsWith('Re: ') ? m.subject : 'Re: ${m.subject}';
+
+  void _onReply() async {
+    final m = _selectedMail;
+    if (m == null) return;
+    final result = await showMailComposeDialog(
+      context,
+      initialTo: m.from,
+      initialSubject: _replySubject(m),
+      initialBody: _quotedReplyBody(m),
+    );
+    if (result != null) _addComposedMail(result);
+  }
+
+  void _onReplyAll() async {
+    final m = _selectedMail;
+    if (m == null) return;
+    final result = await showMailComposeDialog(
+      context,
+      initialTo: m.from,
+      initialCc: m.cc,
+      initialSubject: _replySubject(m),
+      initialBody: _quotedReplyBody(m),
+    );
+    if (result != null) _addComposedMail(result);
+  }
+
+  void _onForward() async {
+    final m = _selectedMail;
+    if (m == null) return;
+    final subject = m.subject.startsWith('Fwd: ') ? m.subject : 'Fwd: ${m.subject}';
+    final body = '\n\n--- Forwarded Message ---\n'
+        'From: ${m.from}\n'
+        'To: ${m.to}\n'
+        'Date: ${m.time.toLocal()}\n'
+        'Subject: ${m.subject}\n\n'
+        '${m.body}';
+    final result = await showMailComposeDialog(
+      context,
+      initialSubject: subject,
+      initialBody: body,
+    );
+    if (result != null) _addComposedMail(result);
+  }
+
+  void _onOpenMail(MailMessage m) async {
+    final isEditable =
+        _selectedMailbox == 'Draft' || _selectedMailbox == 'Outbox';
+    if (isEditable) {
+      final result = await showMailComposeDialog(
+        context,
+        isEdit: true,
+        initialTo: m.to,
+        initialCc: m.cc,
+        initialSubject: m.subject,
+        initialBody: m.body,
+      );
+      if (result != null) _addComposedMail(result, replaceId: m.id);
+    } else {
+      _markRead(m);
+      await showMailViewerDialog(
+        context,
+        from: m.from,
+        to: m.to,
+        cc: m.cc,
+        time: m.time,
+        subject: m.subject,
+        body: m.body,
+      );
+    }
+  }
+
+  /// Clears the unread flag on a message and persists it via the MailStore.
+  void _markRead(MailMessage m) {
+    final raw = _rawMails[m.id];
+    if (raw == null) return;
+    if ((raw.flags & MailFlags.unread.value) == 0) return;
+    raw.flags &= ~MailFlags.unread.value;
+    _broker.dispatch(deviceId: 0, name: 'MailUpdate', data: raw, store: false);
+  }
+
+  void _onDelete() async {
+    final m = _selectedMail;
+    if (m == null) return;
+    final inTrash = _selectedMailbox == 'Trash';
+    final confirmed = await DialogHelper.showConfirmDialog(
+      context,
+      title: inTrash ? 'Delete Mail' : 'Move to Trash',
+      message: inTrash
+          ? 'Permanently delete the selected mail? This cannot be undone.'
+          : 'Move the selected mail to Trash?',
+      okText: inTrash ? 'Delete' : 'Move',
+    );
+    if (!confirmed) return;
+    if (inTrash) {
+      _broker.dispatch(deviceId: 0, name: 'MailDelete', data: m.id, store: false);
+    } else {
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'MailMove',
+        data: {'MID': m.id, 'Mailbox': 'Trash'},
+        store: false,
+      );
+    }
+    setState(() => _selectedMailIndex = null);
+  }
+
+  void _showMenu(BuildContext context) async {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
 
     const menuItemPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
     const menuItemHeight = 32.0;
 
-    showMenu<String>(
+    final value = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
         offset.dx,
@@ -241,6 +489,15 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
             children: [SizedBox(width: 20), Text('Restore Mail...')],
           ),
         ),
+        const PopupMenuDivider(height: 8),
+        PopupMenuItem<String>(
+          value: 'showTraffic',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: const Row(
+            children: [SizedBox(width: 20), Text('Show Traffic...')],
+          ),
+        ),
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
@@ -253,17 +510,19 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
           ),
         ],
       ],
-    ).then((value) {
-      if (value == null) return;
-      switch (value) {
-        case 'showPreview':
-          setState(() => _showPreview = !_showPreview);
-          break;
-        case 'detach':
-          windowService.createWindow('mail');
-          break;
-      }
-    });
+    );
+    if (value == null || !context.mounted) return;
+    switch (value) {
+      case 'showPreview':
+        setState(() => _showPreview = !_showPreview);
+        break;
+      case 'showTraffic':
+        showMailDebugDialog(context);
+        break;
+      case 'detach':
+        windowService.createWindow('mail');
+        break;
+    }
   }
 
   void _sort(int columnIndex) {
@@ -274,23 +533,30 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
         _sortColumnIndex = columnIndex;
         _sortAscending = columnIndex != 0; // Descending for time by default
       }
-      _currentMessages.sort((a, b) {
-        int result;
-        switch (columnIndex) {
-          case 0:
-            result = a.time.compareTo(b.time);
-            break;
-          case 1:
-            result = a.from.compareTo(b.from);
-            break;
-          case 2:
-            result = a.subject.compareTo(b.subject);
-            break;
-          default:
-            result = 0;
-        }
-        return _sortAscending ? result : -result;
-      });
+      _applySort(_currentMessages);
+    });
+  }
+
+  /// Sorts a message list in place using the active sort column/direction.
+  void _applySort(List<MailMessage> messages) {
+    messages.sort((a, b) {
+      int result;
+      switch (_sortColumnIndex) {
+        case 0:
+          result = a.time.compareTo(b.time);
+          break;
+        case 1:
+          result = _showRecipientColumn
+              ? a.to.compareTo(b.to)
+              : a.from.compareTo(b.from);
+          break;
+        case 2:
+          result = a.subject.compareTo(b.subject);
+          break;
+        default:
+          result = 0;
+      }
+      return _sortAscending ? result : -result;
     });
   }
 
@@ -338,7 +604,73 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                 )
               : _buildMailListArea(),
         ),
+        _buildStatusBar(),
       ],
+    );
+  }
+
+  Widget _buildStatusBar() {
+    final message = _statusMessage;
+    if (message == null) return const SizedBox.shrink();
+
+    final isError = _statusIsError;
+    final background =
+        isError ? const Color(0xFFFDECEA) : const Color(0xFFE8F0FE);
+    final accent = isError ? Colors.red.shade700 : Colors.blue.shade700;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: background,
+        border: Border(
+          top: BorderSide(
+            color: isError ? Colors.red.shade200 : Colors.blue.shade100,
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          isError
+              ? Icon(Icons.error_outline, size: 16, color: accent)
+              : SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(accent),
+                  ),
+                ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 12,
+                color: isError ? Colors.red.shade900 : Colors.black87,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+          ),
+          if (isError) ...[
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 26,
+              child: ElevatedButton(
+                onPressed: _dismissStatus,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade600,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                child: const Text('OK'),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -407,13 +739,15 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                 const SizedBox(width: 8),
                 SizedBox(
                   height: 28,
-                  child: ElevatedButton(
-                    onPressed: _onConnect,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      textStyle: const TextStyle(fontSize: 12),
+                  child: Builder(
+                    builder: (buttonContext) => ElevatedButton(
+                      onPressed: () => _onConnect(buttonContext),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
+                      child: const Text('Connect'),
                     ),
-                    child: const Text('Connect'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -507,7 +841,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                   onTap: () => _onMailSelected(index),
                   onDoubleTap: () {
                     _onMailSelected(index);
-                    // TODO: Open mail viewer
+                    _onOpenMail(mail);
                   },
                   child: Container(
                     clipBehavior: Clip.hardEdge,
@@ -545,7 +879,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                               vertical: 6,
                             ),
                             child: Text(
-                              mail.from,
+                              _showRecipientColumn ? mail.to : mail.from,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontWeight: mail.isRead
@@ -595,7 +929,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       child: Row(
         children: [
           _buildColumnHeader('Time', 0, flex: 2),
-          _buildColumnHeader('From', 1, flex: 2),
+          _buildColumnHeader(_showRecipientColumn ? 'To' : 'From', 1, flex: 2),
           _buildColumnHeader('Subject', 2, flex: 3),
         ],
       ),
@@ -679,7 +1013,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                 ),
                 IconButton(
                   icon: const Icon(Icons.reply_all, size: 20),
-                  onPressed: _onReply,
+                  onPressed: _onReplyAll,
                   tooltip: 'Reply All',
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),

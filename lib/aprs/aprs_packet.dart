@@ -356,8 +356,9 @@ class AprsPacket {
     position.coordinateSet.latitude = Coordinate.fromValue(lat, true);
 
     // Parse the symbol.
-    if (informationField.length > 6)
+    if (informationField.length > 6) {
       symbolCode = informationField.codeUnitAt(6);
+    }
     if (informationField.length > 7) {
       symbolTableIdentifier = informationField.codeUnitAt(7);
     }

@@ -462,7 +462,7 @@ class _SettingsDialogState extends State<SettingsDialog>
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.05),
+          color: Colors.black.withValues(alpha: 0.05),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),
@@ -590,7 +590,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 const Text('Station ID', style: DialogStyles.labelStyle),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<int>(
-                  value: _settings.stationId,
+                  initialValue: _settings.stationId,
                   decoration: _inputDecoration(),
                   items: List.generate(
                     16,
@@ -692,12 +692,34 @@ class _SettingsDialogState extends State<SettingsDialog>
                       itemCount: _settings.aprsRoutes.length,
                       itemBuilder: (context, index) {
                         final route = _settings.aprsRoutes[index];
+                        final canDelete = _settings.aprsRoutes.length > 1;
                         return ListTile(
                           dense: true,
                           title: Text(route.name),
                           subtitle: Text(route.path),
-                          selected: false,
-                          onTap: () => _editAprsRoute(index),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, size: 20),
+                                tooltip: 'Edit route',
+                                onPressed: () => _editAprsRoute(index),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete,
+                                  size: 20,
+                                  color: canDelete ? Colors.red.shade400 : null,
+                                ),
+                                tooltip: canDelete
+                                    ? 'Delete route'
+                                    : 'At least one route is required',
+                                onPressed: canDelete
+                                    ? () => _deleteAprsRoute(index)
+                                    : null,
+                              ),
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -709,20 +731,6 @@ class _SettingsDialogState extends State<SettingsDialog>
                     ElevatedButton(
                       onPressed: _addAprsRoute,
                       child: const Text('Add'),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: _settings.aprsRoutes.isNotEmpty
-                          ? () => _editAprsRoute(0)
-                          : null,
-                      child: const Text('Edit'),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: _settings.aprsRoutes.length > 1
-                          ? () => _deleteAprsRoute(0)
-                          : null,
-                      child: const Text('Delete'),
                     ),
                   ],
                 ),
@@ -787,7 +795,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 const Text('Language', style: DialogStyles.labelStyle),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<String>(
-                  value: _settings.voiceLanguage,
+                  initialValue: _settings.voiceLanguage,
                   decoration: _inputDecoration(),
                   items: _languages
                       .map(
@@ -805,7 +813,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 const Text('Model', style: DialogStyles.labelStyle),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<String>(
-                  value: _settings.voiceModel,
+                  initialValue: _settings.voiceModel,
                   decoration: _inputDecoration(),
                   items: _models
                       .map(
@@ -853,7 +861,9 @@ class _SettingsDialogState extends State<SettingsDialog>
                 const Text('Voice', style: DialogStyles.labelStyle),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<String>(
-                  value: _settings.voice.isEmpty ? null : _settings.voice,
+                  initialValue: _settings.voice.isEmpty
+                      ? null
+                      : _settings.voice,
                   decoration: _inputDecoration(),
                   items: const [
                     DropdownMenuItem(
@@ -1113,7 +1123,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                           ),
                           const SizedBox(height: 4),
                           DropdownButtonFormField<String>(
-                            value: _settings.gpsSerialPort,
+                            initialValue: _settings.gpsSerialPort,
                             decoration: _inputDecoration(),
                             items: const [
                               DropdownMenuItem(
@@ -1141,7 +1151,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                           ),
                           const SizedBox(height: 4),
                           DropdownButtonFormField<int>(
-                            value: _settings.gpsBaudRate,
+                            initialValue: _settings.gpsBaudRate,
                             decoration: _inputDecoration(),
                             items: _baudRates
                                 .map(

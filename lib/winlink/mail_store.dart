@@ -244,8 +244,9 @@ class MailStore implements IMailStore {
 
   @override
   void addMail(WinLinkMail mail) {
-    if (mail.mid == null || mail.mid!.isEmpty)
+    if (mail.mid == null || mail.mid!.isEmpty) {
       mail.mid = WinLinkMail.generateMID();
+    }
     _cachedMails.add(mail);
     _saveToFile();
   }

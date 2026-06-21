@@ -214,8 +214,9 @@ class WinLinkMail {
     final sb = StringBuffer();
     sb.write('MID: ${mail.mid}\r\n');
     sb.write('Date: ${_formatDate(mail.dateTime)}\r\n');
-    if ((mail.flags & MailFlags.private.value) != 0)
+    if ((mail.flags & MailFlags.private.value) != 0) {
       sb.write('Type: Private\r\n');
+    }
     if (_notEmpty(mail.from)) sb.write('From: ${mail.from}\r\n');
     if (_notEmpty(mail.to)) sb.write('To: ${mail.to}\r\n');
     if (_notEmpty(mail.cc)) sb.write('Cc: ${mail.cc}\r\n');

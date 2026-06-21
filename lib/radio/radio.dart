@@ -770,8 +770,11 @@ class Radio {
   String get currentChannelName => _getChannelNameById(htStatus?.currChId ?? 0);
 
   bool isOnMuteChannel() {
-    if (_state != RadioState.connected || channels == null || htStatus == null)
+    if (_state != RadioState.connected ||
+        channels == null ||
+        htStatus == null) {
       return true;
+    }
     if (htStatus!.currChId == 254) return false;
     if (htStatus!.currChId >= channels!.length) return true;
     if (channels![htStatus!.currChId] == null) return true;
@@ -1049,8 +1052,9 @@ class Radio {
   }
 
   void _clearTransmitQueue() {
-    if (_tncFragmentQueue.isEmpty || _tncFragmentQueue.first.fragId != 0)
+    if (_tncFragmentQueue.isEmpty || _tncFragmentQueue.first.fragId != 0) {
       return;
+    }
 
     final now = DateTime.now();
     _tncFragmentQueue.removeWhere((f) => f.deleted || f.deadline.isBefore(now));
@@ -1312,8 +1316,9 @@ class Radio {
   }
 
   void _handleEventNotification(Uint8List data) {
-    if (data.length < 5)
+    if (data.length < 5) {
       return; // Need at least vendor(2) + cmd(2) + notification(1)
+    }
 
     // Notification type is a single byte at offset 4 (after vendor + cmd bytes)
     final notificationType = RadioUtils.getByte(data, 4);
