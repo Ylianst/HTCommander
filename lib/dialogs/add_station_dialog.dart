@@ -456,8 +456,9 @@ class _StationDialogState extends State<_StationDialog> {
 
     final current = _channelController.text.trim();
     final items = <String>[..._channelNames];
-    if (current.isNotEmpty && !items.contains(current))
+    if (current.isNotEmpty && !items.contains(current)) {
       items.insert(0, current);
+    }
 
     return DropdownButtonFormField<String>(
       initialValue: items.contains(current) && current.isNotEmpty

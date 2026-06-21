@@ -321,8 +321,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   bool get _isNoaaChannel {
-    if (_currentHtStatus != null && _currentHtStatus!.currChId >= 254)
+    if (_currentHtStatus != null && _currentHtStatus!.currChId >= 254) {
       return true;
+    }
     if (_channelA != null && _channelA!.channelId >= 254) return true;
     return false;
   }

@@ -565,9 +565,28 @@ class AX25Session {
         type: FrameType.uFrameDisc,
       ),
     );
+    // Arm the disconnect timer WITHOUT going through _setTimer/_clearTimer,
+    // because those reset `disconnectAttempts` to 0. Re-arming via _setTimer
+    // would zero the counter on every retry, so the retry cap (`>= retries`)
+    // could never be reached and DISC frames would be sent forever while the
+    // remote keeps replying. Arming directly lets the counter accumulate so the
+    // disconnect sequence sends a few DISCs and then times out.
     if (!_isTimerEnabled(_TimerName.disconnect)) {
-      _setTimer(_TimerName.disconnect);
+      _armTimer(_TimerName.disconnect);
     }
+  }
+
+  /// Arms [timerName] without resetting its retry counter (unlike [_setTimer],
+  /// which first calls [_clearTimer]). Used by the disconnect retry sequence so
+  /// the attempt counter accumulates across re-arms and the retry cap is
+  /// actually reached.
+  void _armTimer(_TimerName timerName) {
+    if (addresses == null) return;
+    final ms = _getTimerTimeout(timerName).round();
+    _trace('ArmTimer $timerName to ${ms}ms');
+    final duration = Duration(milliseconds: ms < 1 ? 1 : ms);
+    final timer = Timer(duration, () => _onTimerElapsed(timerName));
+    _timers.set(timerName, timer);
   }
 
   /// Sends [info] over the connection as a UTF-8 encoded string.

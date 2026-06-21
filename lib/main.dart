@@ -22,6 +22,8 @@ import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
 import 'services/window_service.dart';
+import 'winlink/mail_store.dart';
+import 'winlink/winlink_client.dart';
 import 'widgets/radio_panel.dart';
 import 'widgets/voice_tab.dart';
 import 'widgets/aprs_tab.dart';
@@ -76,6 +78,17 @@ void main(List<String> args) async {
   final debugLogHandler = DebugLogHandler();
   debugLogHandler.init();
   DataBroker.addDataHandler('DebugLogHandler', debugLogHandler);
+
+  // Register the mail store so that Winlink mail is persisted to disk and made
+  // available to the mail tab and the Winlink client. Must be initialized
+  // before the Winlink client so that mail can be read/written during a sync.
+  final mailStore = MailStore();
+  await mailStore.initialize();
+
+  // Start the Winlink client so that it listens for WinlinkSync requests from
+  // the mail tab (Connect -> Internet / Radio) and runs the B2F protocol.
+  final winlinkClient = WinlinkClient();
+  DataBroker.addDataHandler('WinlinkClient', winlinkClient);
 
   // Check if this is a sub-window on desktop platforms
   if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {

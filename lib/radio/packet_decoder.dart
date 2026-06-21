@@ -51,7 +51,7 @@ class PacketDecoder {
     }
     for (int i = 2; i < packet.addresses.length; i++) {
       final addr = packet.addresses[i];
-      sb.write(',${addr}${addr.crBit1 ? '*' : ''}');
+      sb.write(',$addr${addr.crBit1 ? '*' : ''}');
     }
 
     if (sb.isNotEmpty) sb.write(': ');
