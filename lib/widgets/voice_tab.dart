@@ -1,9 +1,16 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
+import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'chat_widget.dart';
+import '../dialogs/image_view_dialog.dart';
 import '../dialogs/recording_playback_dialog.dart';
+import '../dialogs/sstv_send_dialog.dart';
+import '../sstv/encoder.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -39,6 +46,13 @@ class _VoiceTabState extends State<VoiceTab>
   bool _speechToTextEnabled = true;
   bool _recordAudio = false;
   bool _allowTransmit = true;
+
+  /// Absolute path to the application-support directory, resolved on init. Used
+  /// to locate decoded SSTV pictures saved by the voice handler.
+  String? _appSupportPath;
+
+  /// True while a file is being dragged over the chat area.
+  bool _dragOver = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -116,6 +130,204 @@ class _VoiceTabState extends State<VoiceTab>
     _recordAudio = _broker.getValue<bool>(0, 'RecordingState', false) ?? false;
     _audioEnabled = _readAudioState();
     _loadDecodedTextHistory();
+
+    // Resolve the application-support path so decoded SSTV pictures can be
+    // shown inline; reload history once it is known to attach image paths.
+    _resolveAppSupportPath();
+  }
+
+  /// Resolves the application-support directory path and re-attaches SSTV image
+  /// paths to any already-loaded history entries.
+  Future<void> _resolveAppSupportPath() async {
+    try {
+      final base = await getApplicationSupportDirectory();
+      if (!mounted) return;
+      _appSupportPath = base.path;
+      _loadDecodedTextHistory();
+    } catch (_) {
+      // Image previews simply won't be shown if the path can't be resolved.
+    }
+  }
+
+  /// Builds the absolute path of a decoded SSTV picture, or null when the
+  /// entry is not a picture or the support path is not yet known.
+  String? _sstvImagePath(String encoding, String? filename) {
+    if (encoding != 'Picture' || filename == null || filename.isEmpty) {
+      return null;
+    }
+    final base = _appSupportPath;
+    if (base == null) return null;
+    return '$base${Platform.pathSeparator}SSTV${Platform.pathSeparator}$filename';
+  }
+
+  // ---------------------------------------------------------------------------
+  // SSTV image transmission
+  // ---------------------------------------------------------------------------
+
+  /// Supported image file extensions for SSTV transmission (lowercase, no dot).
+  static const Set<String> _imageExtensions = {
+    'png',
+    'jpg',
+    'jpeg',
+    'bmp',
+    'gif',
+    'tif',
+    'tiff',
+    'ico',
+    'webp',
+  };
+
+  /// Whether image/audio media may be sent right now (audio active and not
+  /// already transmitting).
+  bool get _canSendMedia => _audioEnabled && !_isTransmitting;
+
+  bool _isImageFile(String path) {
+    final dot = path.lastIndexOf('.');
+    if (dot < 0 || dot == path.length - 1) return false;
+    return _imageExtensions.contains(path.substring(dot + 1).toLowerCase());
+  }
+
+  /// Handles files dropped onto the chat area. Only a single image file is
+  /// accepted; everything else is ignored.
+  void _onFilesDropped(DropDoneDetails details) {
+    if (_dragOver) setState(() => _dragOver = false);
+    if (!_canSendMedia) return;
+    final files = details.files;
+    if (files.length != 1) return;
+    final path = files.first.path;
+    if (!_isImageFile(path)) return;
+    _loadAndSendImage(path);
+  }
+
+  /// Opens a file picker to choose an image, then shows the SSTV send dialog.
+  Future<void> _pickAndSendImage() async {
+    if (!_canSendMedia) return;
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: 'Select Image for SSTV',
+      type: FileType.custom,
+      allowedExtensions: _imageExtensions.toList(),
+    );
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.single.path;
+    if (path == null || !_isImageFile(path)) return;
+    await _loadAndSendImage(path);
+  }
+
+  /// Decodes the image at [path] and presents the SSTV send dialog.
+  Future<void> _loadAndSendImage(String path) async {
+    final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    ui.Image image;
+    try {
+      final bytes = await File(path).readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      image = frame.image;
+    } catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Failed to load image: $e')),
+      );
+      return;
+    }
+    if (!mounted) {
+      image.dispose();
+      return;
+    }
+
+    final result = await showDialog<SstvSendResult>(
+      context: context,
+      builder: (context) => SstvSendDialog(
+        sourceImage: image,
+        sourceName: path.split(Platform.pathSeparator).last,
+      ),
+    );
+    image.dispose();
+    if (result == null || !mounted) return;
+    await _transmitSstv(result);
+  }
+
+  /// Saves the scaled image, records the transmission in history and sends the
+  /// encoded SSTV audio to the radio.
+  Future<void> _transmitSstv(SstvSendResult result) async {
+    final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    final deviceId = _currentRadioDeviceId;
+    if (deviceId <= 0 || !_isCurrentRadioConnected) {
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('No radio is connected for voice transmission.'),
+        ),
+      );
+      return;
+    }
+
+    // Save the scaled image to the SSTV application folder.
+    String? filename;
+    try {
+      final base =
+          _appSupportPath ?? (await getApplicationSupportDirectory()).path;
+      _appSupportPath = base;
+      final dir = Directory('$base${Platform.pathSeparator}SSTV');
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      final now = DateTime.now();
+      final safeMode = result.modeName
+          .replaceAll(' ', '_')
+          .replaceAll('\u2013', '-');
+      filename = 'SSTV_${_formatDate(now)}_${_formatTime(now)}_$safeMode.png';
+      final file = File('${dir.path}${Platform.pathSeparator}$filename');
+      await file.writeAsBytes(result.pngBytes);
+    } catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Failed to save image: $e')),
+      );
+      return;
+    }
+
+    // Notify the voice handler to record the picture transmission in history.
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'PictureTransmitted',
+      data: <String, Object?>{
+        'modeName': result.modeName,
+        'filename': filename,
+      },
+      store: false,
+    );
+
+    // Encode to PCM on a background isolate to keep the UI responsive.
+    Uint8List pcm;
+    try {
+      pcm = await compute(_encodeSstvPcm, <String, Object?>{
+        'pixels': result.pixels,
+        'width': result.width,
+        'height': result.height,
+        'modeName': result.modeName,
+        'sampleRate': 32000,
+      });
+    } catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Failed to encode SSTV audio: $e')),
+      );
+      return;
+    }
+
+    // Send the PCM data to the radio for transmission.
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'TransmitVoicePCM',
+      data: <String, Object?>{'data': pcm, 'playLocally': false},
+      store: false,
+    );
+  }
+
+  static String _formatDate(DateTime t) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${t.year.toString().padLeft(4, '0')}-${two(t.month)}-${two(t.day)}';
+  }
+
+  static String _formatTime(DateTime t) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(t.hour)}-${two(t.minute)}-${two(t.second)}';
   }
 
   @override
@@ -287,6 +499,7 @@ class _VoiceTabState extends State<VoiceTab>
       longitude: hasLocation ? longitude : null,
       icon: _iconForEncoding(encoding),
       filename: filename,
+      imagePath: _sstvImagePath(encoding, filename),
     );
     setState(() {
       _messages.removeWhere((m) => m.id == _partialMessageId);
@@ -371,6 +584,7 @@ class _VoiceTabState extends State<VoiceTab>
       longitude: hasLocation ? longitude : null,
       icon: _iconForEncoding(encoding),
       filename: filename,
+      imagePath: _sstvImagePath(encoding, filename),
     );
   }
 
@@ -542,6 +756,17 @@ class _VoiceTabState extends State<VoiceTab>
     // A recording header was tapped: open the playback dialog.
     if (message.icon == Icons.play_circle && message.filename != null) {
       _openRecordingPlayback(message.filename!);
+      return;
+    }
+    // An SSTV picture was tapped: open it larger in a dialog.
+    if (message.imagePath != null) {
+      showDialog<void>(
+        context: context,
+        builder: (context) => ImageViewDialog(
+          filePath: message.imagePath!,
+          title: message.message.isNotEmpty ? message.message : null,
+        ),
+      );
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
@@ -813,9 +1038,7 @@ class _VoiceTabState extends State<VoiceTab>
           );
           break;
         case 'sendImage':
-          messenger.showSnackBar(
-            const SnackBar(content: Text('Send image not implemented yet')),
-          );
+          _pickAndSendImage();
           break;
         case 'sendAudio':
           messenger.showSnackBar(
@@ -845,11 +1068,28 @@ class _VoiceTabState extends State<VoiceTab>
       children: [
         _buildHeader(),
         Expanded(
-          child: ChatWidget(
-            messages: _messages,
-            onMessageTap: _onMessageTap,
-            onMessageDoubleTap: _onMessageDoubleTap,
-            onMessageLongPress: _onMessageLongPress,
+          child: DropTarget(
+            onDragEntered: (_) {
+              if (_canSendMedia) setState(() => _dragOver = true);
+            },
+            onDragExited: (_) {
+              if (_dragOver) setState(() => _dragOver = false);
+            },
+            onDragDone: _onFilesDropped,
+            child: Container(
+              foregroundDecoration: _dragOver
+                  ? BoxDecoration(
+                      border: Border.all(color: Colors.blue, width: 2),
+                      color: Colors.blue.withValues(alpha: 0.08),
+                    )
+                  : null,
+              child: ChatWidget(
+                messages: _messages,
+                onMessageTap: _onMessageTap,
+                onMessageDoubleTap: _onMessageDoubleTap,
+                onMessageLongPress: _onMessageLongPress,
+              ),
+            ),
           ),
         ),
         if (_allowTransmit) _buildInputPanel(),
@@ -1008,4 +1248,30 @@ class _VoiceTabState extends State<VoiceTab>
       ),
     );
   }
+}
+
+/// Encodes scaled ARGB image pixels into 16-bit little-endian PCM bytes using
+/// the SSTV [Encoder]. Runs on a background isolate via `compute`.
+Uint8List _encodeSstvPcm(Map<String, Object?> args) {
+  final pixels = args['pixels'] as Int32List;
+  final width = args['width'] as int;
+  final height = args['height'] as int;
+  final modeName = args['modeName'] as String;
+  final sampleRate = args['sampleRate'] as int;
+
+  final encoder = Encoder(sampleRate);
+  final samples = encoder.encode(pixels, width, height, modeName);
+
+  final pcm = Uint8List(samples.length * 2);
+  final view = ByteData.view(pcm.buffer);
+  for (int i = 0; i < samples.length; i++) {
+    var s = samples[i];
+    if (s > 1.0) {
+      s = 1.0;
+    } else if (s < -1.0) {
+      s = -1.0;
+    }
+    view.setInt16(i * 2, (s * 32767).round(), Endian.little);
+  }
+  return pcm;
 }

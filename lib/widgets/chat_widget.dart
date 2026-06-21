@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 /// Authentication state for chat messages
@@ -20,6 +22,10 @@ class ChatMessage {
   /// Filename of an associated media file (e.g. an audio recording), if any.
   final String? filename;
 
+  /// Absolute path to an inline image to display in the bubble (e.g. a decoded
+  /// SSTV picture), if any.
+  final String? imagePath;
+
   const ChatMessage({
     required this.id,
     required this.route,
@@ -33,6 +39,7 @@ class ChatMessage {
     this.icon,
     this.tag,
     this.filename,
+    this.imagePath,
   });
 
   bool get hasLocation => latitude != null && longitude != null;
@@ -90,17 +97,28 @@ class _ChatWidgetState extends State<ChatWidget> {
     _lastMessageCount = widget.messages.length;
     // When the conversation is initially populated, jump to the bottom so the
     // latest messages are visible right away.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      }
-    });
+    _jumpToBottom();
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Jumps to the bottom of the list, re-pinning across several frames. The
+  /// ListView builds its items lazily, so its reported maxScrollExtent grows
+  /// as off-screen bubbles lay out; a single jump would land short of the true
+  /// bottom. Re-jumping until the extent stabilizes guarantees we end up fully
+  /// scrolled down.
+  void _jumpToBottom([int attemptsRemaining = 6]) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      if (attemptsRemaining > 0) {
+        _jumpToBottom(attemptsRemaining - 1);
+      }
+    });
   }
 
   @override
@@ -125,19 +143,20 @@ class _ChatWidgetState extends State<ChatWidget> {
 
     if (!wasEmpty && !atBottom) return;
 
+    if (wasEmpty) {
+      // Initial fill: pin to the bottom across frames as the lazy list lays out.
+      _jumpToBottom();
+      return;
+    }
+
     // Auto-scroll to bottom when new messages are added.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-      if (wasEmpty) {
-        // Initial fill: jump straight to the bottom (no animation).
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      } else {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
-      }
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
     });
   }
 
@@ -215,8 +234,14 @@ class _ChatWidgetState extends State<ChatWidget> {
     final hasText = message.message.trim().isNotEmpty;
     // When there is no bubble (empty text), the header is the only content, so
     // always show it. A header with an icon (e.g. a recording) is tappable.
-    final showRoute = hasText ? _shouldShowRoute(index) : true;
-    final iconHeader = !hasText && message.icon != null;
+    // Show the icon in the header when the bubble has no text, or when the
+    // bubble contains an inline image (e.g. an SSTV picture) so the icon sits
+    // in the title instead of beside the large image bubble.
+    final iconHeader =
+        message.icon != null && (!hasText || message.imagePath != null);
+    final showRoute = iconHeader
+        ? true
+        : (hasText ? _shouldShowRoute(index) : true);
 
     return Column(
       crossAxisAlignment: message.isSender
@@ -302,8 +327,11 @@ class _ChatWidgetState extends State<ChatWidget> {
             ? MainAxisAlignment.end
             : MainAxisAlignment.start,
         children: [
-          // Icon on left for received messages
-          if (!message.isSender && message.icon != null)
+          // Icon on left for received messages (image bubbles show the icon
+          // in the header instead).
+          if (!message.isSender &&
+              message.icon != null &&
+              message.imagePath == null)
             Padding(
               padding: const EdgeInsets.only(right: 4),
               child: Icon(message.icon, size: 16, color: Colors.grey),
@@ -337,32 +365,60 @@ class _ChatWidgetState extends State<ChatWidget> {
                 ],
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Flexible(
-                    child: Text(
-                      message.message,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ),
-                  // Location indicator
-                  if (message.hasLocation)
+                  // Inline image (e.g. a decoded SSTV picture).
+                  if (message.imagePath != null)
                     Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Icon(
-                        Icons.location_on,
-                        size: 14,
-                        color: Colors.grey.shade600,
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.file(
+                          File(message.imagePath!),
+                          fit: BoxFit.contain,
+                          gaplessPlayback: true,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox.shrink(),
+                        ),
                       ),
                     ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          message.message,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                      // Authentication indicator (lock = verified, broken =
+                      // failed). Surfaces AX25 auth state on the bubble itself,
+                      // complementing the bubble color coding.
+                      ..._buildAuthIcon(message),
+                      // Location indicator
+                      if (message.hasLocation)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Icon(
+                            Icons.location_on,
+                            size: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
-          // Icon on right for sent messages
-          if (message.isSender && message.icon != null)
+          // Icon on right for sent messages (image bubbles show the icon in
+          // the header instead).
+          if (message.isSender &&
+              message.icon != null &&
+              message.imagePath == null)
             Padding(
               padding: const EdgeInsets.only(left: 4),
               child: Icon(message.icon, size: 16, color: Colors.grey),
@@ -370,5 +426,38 @@ class _ChatWidgetState extends State<ChatWidget> {
         ],
       ),
     );
+  }
+
+  /// Builds the inline authentication indicator shown inside the bubble.
+  /// Returns a green closed lock for verified messages, a red broken lock for
+  /// messages that failed verification, and nothing otherwise.
+  List<Widget> _buildAuthIcon(ChatMessage message) {
+    final IconData icon;
+    final Color color;
+    final String tooltip;
+    switch (message.authState) {
+      case ChatAuthState.success:
+        icon = Icons.lock;
+        color = Colors.green.shade700;
+        tooltip = 'Authenticated';
+        break;
+      case ChatAuthState.failed:
+        icon = Icons.lock_open;
+        color = Colors.red.shade700;
+        tooltip = 'Authentication failed';
+        break;
+      case ChatAuthState.none:
+      case ChatAuthState.unknown:
+        return const [];
+    }
+    return [
+      Padding(
+        padding: const EdgeInsets.only(left: 4),
+        child: Tooltip(
+          message: tooltip,
+          child: Icon(icon, size: 14, color: color),
+        ),
+      ),
+    ];
   }
 }
