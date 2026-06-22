@@ -5,14 +5,14 @@ import 'package:url_launcher/url_launcher.dart';
 class HTAboutDialog extends StatelessWidget {
   const HTAboutDialog({super.key});
 
-  static const String version = '1.0';
+  static const String version = '0.1';
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: const Color(0xFFD3D3D3), // Light gray like C# app
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 650, maxHeight: 420),
+        constraints: const BoxConstraints(maxWidth: 650, maxHeight: 360),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -92,13 +92,6 @@ class HTAboutDialog extends StatelessWidget {
                                   style: TextStyle(fontSize: 13),
                                 ),
                                 _buildLink('github.com/k0qed/aprs-parser'),
-                                const SizedBox(height: 12),
-                                // Adventurer credit
-                                const Text(
-                                  'Adventurer Text Game',
-                                  style: TextStyle(fontSize: 13),
-                                ),
-                                _buildLink('github.com/TheTextAdventurer'),
                               ],
                             ),
                           ),

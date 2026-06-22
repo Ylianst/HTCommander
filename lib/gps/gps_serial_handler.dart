@@ -9,8 +9,8 @@ Ported from the C# `HTCommander.Gps.GpsSerialHandler` class.
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_libserialport/flutter_libserialport.dart';
 
+import '../services/serial/serial_port.dart';
 import '../services/data_broker_client.dart';
 import 'gps_data.dart';
 

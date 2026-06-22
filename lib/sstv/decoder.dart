@@ -232,7 +232,8 @@ class Decoder {
 
   IMode _detectMode(List<IMode> modes, int line) {
     IMode bestMode = _rawMode;
-    int bestDist = 0x7fffffffffffffff;
+    // 2^53 - 1: largest integer exactly representable on the web (JS) backend.
+    int bestDist = 0x1fffffffffffff;
     for (final mode in modes) {
       final dist = (line - mode.getScanLineSamples()).abs();
       if (dist <= _scanLineToleranceSamples && dist < bestDist) {

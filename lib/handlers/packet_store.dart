@@ -58,15 +58,19 @@ class PacketStore {
   /// opens the file for appending, subscribes to broker events, and announces
   /// readiness. Must be awaited before registering the handler.
   Future<void> init() async {
-    try {
-      final dir = await getApplicationSupportDirectory();
-      _file = File('${dir.path}${Platform.pathSeparator}$_packetFileName');
-      await _loadPackets();
-      _sink = _file!.openWrite(mode: FileMode.append);
-    } catch (e) {
-      debugPrint('PacketStore: failed to open packet file: $e');
-      _file = null;
-      _sink = null;
+    // The web build has no file-system access through path_provider, so packet
+    // persistence is skipped there and packets are kept in memory only.
+    if (!kIsWeb) {
+      try {
+        final dir = await getApplicationSupportDirectory();
+        _file = File('${dir.path}${Platform.pathSeparator}$_packetFileName');
+        await _loadPackets();
+        _sink = _file!.openWrite(mode: FileMode.append);
+      } catch (e) {
+        debugPrint('PacketStore: failed to open packet file: $e');
+        _file = null;
+        _sink = null;
+      }
     }
 
     // Subscribe to unique data frames from all radios.

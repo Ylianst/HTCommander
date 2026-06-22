@@ -337,9 +337,10 @@ class _MainFormState extends State<MainForm>
   // Menu state from DataBroker
   String _callSign = '';
   int _stationId = 0;
-  // ignore: unused_field
   bool _allowTransmit =
-      false; // Used for tab visibility (BBS, Terminal, Torrent)
+      false; // Tab visibility (Winlink/Mail, Terminal, BBS, Torrent)
+  bool _winlinkPasswordSet =
+      false; // Winlink/Mail tab visibility (requires a password)
 
   // Width threshold for compact mode (Radio becomes a tab instead of side panel)
   static const double compactWidthThreshold = 600;
@@ -378,9 +379,36 @@ class _MainFormState extends State<MainForm>
     Icons.radio,
   );
 
+  // Tabs that are only useful when the application is allowed to transmit.
+  // These are hidden entirely when the "AllowTransmit" setting is disabled.
+  static const Set<String> _transmitOnlyTabs = {
+    'Mail', // Winlink
+    'Terminal',
+    'BBS',
+    'Torrent',
+  };
+
   // Get tabs for a given mode
-  static List<_TabInfo> _getTabsForMode(bool isCompact) {
-    return isCompact ? [_radioTab, ..._baseTabs] : _baseTabs;
+  static List<_TabInfo> _getTabsForMode(
+    bool isCompact,
+    bool allowTransmit,
+    bool winlinkPasswordSet,
+  ) {
+    // The web build talks to the radio over the BLE control channel only; there
+    // is no audio channel, so the audio-only "Audio" tab is removed at runtime.
+    // The "BBS" and "Torrent" tabs are also hidden on the web. The "Voice" tab
+    // is kept but restricted to "Chat" mode (control-channel data only).
+    const hiddenOnWeb = {'Audio', 'BBS', 'Torrent'};
+    final base = _baseTabs.where((t) {
+      if (kIsWeb && hiddenOnWeb.contains(t.label)) return false;
+      // Hide transmit-only tabs (Winlink/Mail, Terminal, BBS, Torrent) when
+      // transmitting is not allowed.
+      if (!allowTransmit && _transmitOnlyTabs.contains(t.label)) return false;
+      // The Winlink (Mail) tab additionally requires a Winlink password.
+      if (!winlinkPasswordSet && t.label == 'Mail') return false;
+      return true;
+    }).toList();
+    return isCompact ? [_radioTab, ...base] : base;
   }
 
   @override
@@ -397,6 +425,7 @@ class _MainFormState extends State<MainForm>
         'CallSign',
         'StationId',
         'AllowTransmit',
+        'WinlinkPassword',
         'CheckForUpdates',
         'ShowAllChannels',
       ],
@@ -446,7 +475,11 @@ class _MainFormState extends State<MainForm>
     );
 
     // Initialize tabs with saved index
-    _currentTabs = _getTabsForMode(_isCompactMode);
+    _currentTabs = _getTabsForMode(
+      _isCompactMode,
+      _allowTransmit,
+      _winlinkPasswordSet,
+    );
     final savedTabIndex =
         DataBroker.getValue<int>(0, 'SelectedTabIndex', 0) ?? 0;
     final initialIndex = savedTabIndex.clamp(0, _currentTabs.length - 1);
@@ -469,6 +502,9 @@ class _MainFormState extends State<MainForm>
     _stationId = DataBroker.getValue<int>(0, 'StationId', 0) ?? 0;
     _allowTransmit =
         (DataBroker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1;
+    _winlinkPasswordSet =
+        (DataBroker.getValue<String>(0, 'WinlinkPassword', '') ?? '')
+            .isNotEmpty;
     _showTabNames = (DataBroker.getValue<int>(0, 'ShowTabNames', 1) ?? 1) == 1;
     _showAllChannels =
         (DataBroker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
@@ -488,6 +524,11 @@ class _MainFormState extends State<MainForm>
           break;
         case 'AllowTransmit':
           _allowTransmit = (data as int?) == 1;
+          _rebuildTabsForTransmit();
+          break;
+        case 'WinlinkPassword':
+          _winlinkPasswordSet = (data as String? ?? '').isNotEmpty;
+          _rebuildTabsForTransmit();
           break;
         case 'ShowAllChannels':
           _showAllChannels = (data as int?) == 1;
@@ -760,7 +801,11 @@ class _MainFormState extends State<MainForm>
     if (_isCompactMode == isCompact) return;
 
     final oldIndex = _tabController.index;
-    final newTabs = _getTabsForMode(isCompact);
+    final newTabs = _getTabsForMode(
+      isCompact,
+      _allowTransmit,
+      _winlinkPasswordSet,
+    );
 
     // Calculate new index
     int newIndex;
@@ -784,6 +829,43 @@ class _MainFormState extends State<MainForm>
         initialIndex: newIndex,
       );
     });
+  }
+
+  /// Rebuilds the tab list and controller when the "AllowTransmit" or
+  /// "WinlinkPassword" setting changes, adding or removing the transmit-only
+  /// tabs (Winlink/Mail, Terminal, BBS, Torrent) and the Winlink/Mail tab
+  /// (which also requires a password). Called from within `_onSettingsChanged`'s
+  /// `setState`, so it mutates state directly without its own `setState`.
+  void _rebuildTabsForTransmit() {
+    final newTabs = _getTabsForMode(
+      _isCompactMode,
+      _allowTransmit,
+      _winlinkPasswordSet,
+    );
+    if (newTabs.length == _currentTabs.length) return;
+
+    // Preserve the current selection by label where possible.
+    final int oldIndex = _tabController.index;
+    final String? oldLabel = (oldIndex >= 0 && oldIndex < _currentTabs.length)
+        ? _currentTabs[oldIndex].label
+        : null;
+    int newIndex = 0;
+    if (oldLabel != null) {
+      final idx = newTabs.indexWhere((t) => t.label == oldLabel);
+      if (idx >= 0) newIndex = idx;
+    }
+    newIndex = newIndex.clamp(0, newTabs.length - 1);
+
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
+
+    _currentTabs = newTabs;
+    _tabController = TabController(
+      length: _currentTabs.length,
+      vsync: this,
+      initialIndex: newIndex,
+    );
+    _tabController.addListener(_onTabChanged);
   }
 
   // ============================================================================
@@ -871,25 +953,30 @@ class _MainFormState extends State<MainForm>
             ),
             hideOnMacOS: true,
           ),
-          const AppMenuDivider(hideOnMacOS: true),
-          AppMenuAction(
-            label: 'Exit',
-            onPressed: () => Navigator.of(context).maybePop(),
-            hideOnMacOS: true,
-          ),
+          // The web build runs in the browser and cannot quit itself, so the
+          // "Exit" item (and its divider) are omitted there.
+          if (!kIsWeb) ...[
+            const AppMenuDivider(hideOnMacOS: true),
+            AppMenuAction(
+              label: 'Exit',
+              onPressed: () => Navigator.of(context).maybePop(),
+              hideOnMacOS: true,
+            ),
+          ],
         ],
       ),
-      // Audio menu
-      AppSubmenu(
-        label: 'Audio',
-        children: [
-          AppMenuAction(
-            label: 'Audio Enabled',
-            onPressed: _hasConnectedRadio ? _onToggleAudio : null,
-            checked: _audioEnabled,
-          ),
-        ],
-      ),
+      // Audio menu (hidden on web: no audio channel over BLE control-only)
+      if (!kIsWeb)
+        AppSubmenu(
+          label: 'Audio',
+          children: [
+            AppMenuAction(
+              label: 'Audio Enabled',
+              onPressed: _hasConnectedRadio ? _onToggleAudio : null,
+              checked: _audioEnabled,
+            ),
+          ],
+        ),
       // View menu (renamed on macOS to avoid automatic system items like "Show Tab Bar")
       AppSubmenu(
         label: 'View',

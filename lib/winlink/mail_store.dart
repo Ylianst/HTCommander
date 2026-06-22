@@ -7,6 +7,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 
 import '../services/data_broker.dart';
@@ -43,19 +44,28 @@ class MailStore implements IMailStore {
   /// Initializes storage, loads persisted mail, subscribes to broker events and
   /// registers this instance as the "MailStore" data handler.
   Future<void> initialize() async {
-    if (_storagePath == null) {
-      final dir = await getApplicationSupportDirectory();
-      _storagePath = '${dir.path}${Platform.pathSeparator}HTCommander';
-    }
+    // On the web there is no local filesystem; mail is kept in memory only.
+    // Leaving _mailsFilePath null makes _loadMailsFromFile/_saveToFile no-ops.
+    if (!kIsWeb) {
+      try {
+        if (_storagePath == null) {
+          final dir = await getApplicationSupportDirectory();
+          _storagePath = '${dir.path}${Platform.pathSeparator}HTCommander';
+        }
 
-    final storageDir = Directory(_storagePath!);
-    if (!storageDir.existsSync()) {
-      storageDir.createSync(recursive: true);
-    }
-    _mailsFilePath = '${_storagePath!}${Platform.pathSeparator}mails.txt';
+        final storageDir = Directory(_storagePath!);
+        if (!storageDir.existsSync()) {
+          storageDir.createSync(recursive: true);
+        }
+        _mailsFilePath = '${_storagePath!}${Platform.pathSeparator}mails.txt';
 
-    // Load initial data
-    _loadMailsFromFile();
+        // Load initial data
+        _loadMailsFromFile();
+      } catch (e) {
+        // Filesystem unavailable - fall back to an in-memory store.
+        _mailsFilePath = null;
+      }
+    }
 
     // Register as the global mail store data handler
     DataBroker.addDataHandler('MailStore', this);
