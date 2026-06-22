@@ -153,7 +153,6 @@ class Radio {
 
   Radio({required this.deviceId, required this.macAddress})
     : _broker = DataBrokerClient() {
-    debugPrint('[Radio $deviceId] Created Radio, setting up subscriptions');
     _setupSubscriptions();
   }
 
@@ -275,13 +274,6 @@ class Radio {
   }
 
   void _onChannelChangeEvent(int devId, String name, dynamic data) {
-    _debug(
-      'Channel change event: $name, data: $data, devId: $devId, myDevId: $deviceId',
-    );
-    _debug(
-      'Settings: ${settings != null ? "loaded" : "null"}, lockState: ${_lockState?.isLocked ?? false}',
-    );
-
     if (devId != deviceId) {
       _debug('Ignoring - wrong device ID');
       return;
@@ -296,7 +288,6 @@ class Radio {
     }
 
     final channelId = data as int;
-    _debug('Changing channel: $name to $channelId');
     switch (name) {
       case 'ChannelChangeVfoA':
         writeSettings(settings!.toByteArrayWith(channelA: channelId));
@@ -821,7 +812,6 @@ class Radio {
 
   // Settings and status
   void writeSettings(Uint8List data) {
-    _debug('writeSettings called, data length: ${data.length}, data: $data');
     _sendCommand(
       RadioCommandGroup.basic,
       RadioBasicCommand.writeSettings,
@@ -1502,8 +1492,7 @@ class Radio {
   }
 
   void _debug(String message) {
-    debugPrint('[Radio $deviceId] $message');
-    // If packet tracing is enabled, also dispatch to DataBroker for debug tab
+    // If packet tracing is enabled, dispatch to DataBroker for debug tab
     if (_packetTrace) {
       _broker.logInfo('[Radio $deviceId] $message');
     }

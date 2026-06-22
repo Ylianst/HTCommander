@@ -69,8 +69,7 @@ class AprsDetailsDialog extends StatelessWidget {
     Offset position,
     AprsDetailItem item,
   ) async {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final value = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -171,7 +170,9 @@ class AprsDetailsDialog extends StatelessWidget {
                 children: [
                   TextButton(
                     onPressed: () => _copyAll(context),
-                    style: TextButton.styleFrom(foregroundColor: Colors.black87),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                    ),
                     child: const Text('Copy All'),
                   ),
                   const SizedBox(width: 8),

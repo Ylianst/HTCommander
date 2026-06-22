@@ -3,6 +3,7 @@ import 'chat_widget.dart';
 import '../dialogs/aprs_details_dialog.dart';
 import '../dialogs/aprs_sms_dialog.dart';
 import '../dialogs/aprs_weather_dialog.dart';
+import '../dialogs/dialog_utils.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -863,7 +864,16 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     _rebuildMessages();
   }
 
-  void _clearMessages() {
+  Future<void> _clearMessages() async {
+    final confirmed = await DialogHelper.showConfirmDialog(
+      context,
+      title: 'Clear APRS Messages',
+      message:
+          'Clear all APRS messages? This also removes all APRS markers from '
+          'the map. This cannot be undone.',
+      okText: 'Clear',
+    );
+    if (!confirmed || !mounted) return;
     setState(() {
       _entries.clear();
       _messages = [];

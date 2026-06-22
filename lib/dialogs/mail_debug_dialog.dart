@@ -17,7 +17,12 @@ Future<void> showMailDebugDialog(BuildContext context) {
 
 /// A single rendered console line with a colored prefix and body.
 class _DebugLine {
-  const _DebugLine({this.prefix, this.prefixColor, required this.text, required this.textColor});
+  const _DebugLine({
+    this.prefix,
+    this.prefixColor,
+    required this.text,
+    required this.textColor,
+  });
 
   final String? prefix;
   final Color? prefixColor;
@@ -45,13 +50,34 @@ class _MailDebugDialogState extends State<_MailDebugDialog> {
   @override
   void initState() {
     super.initState();
-    _broker.subscribe(deviceId: 1, name: 'WinlinkTraffic', callback: _onTraffic);
-    _broker.subscribe(deviceId: 1, name: 'WinlinkStateMessage', callback: _onStateMessage);
-    _broker.subscribe(deviceId: 1, name: 'WinlinkDebugClear', callback: _onClear);
-    _broker.subscribe(deviceId: 1, name: 'WinlinkDebugHistory', callback: _onHistory);
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkTraffic',
+      callback: _onTraffic,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkStateMessage',
+      callback: _onStateMessage,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkDebugClear',
+      callback: _onClear,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkDebugHistory',
+      callback: _onHistory,
+    );
 
     // Request debug history from the WinlinkClient.
-    _broker.dispatch(deviceId: 1, name: 'WinlinkDebugHistoryRequest', data: true, store: false);
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'WinlinkDebugHistoryRequest',
+      data: true,
+      store: false,
+    );
   }
 
   @override
@@ -67,7 +93,12 @@ class _MailDebugDialogState extends State<_MailDebugDialog> {
     setState(() {
       _lines.clear();
       for (final entry in history) {
-        _appendEntry(entry.address, entry.outgoing, entry.data, entry.isStateMessage);
+        _appendEntry(
+          entry.address,
+          entry.outgoing,
+          entry.data,
+          entry.isStateMessage,
+        );
       }
     });
     _scrollToBottom();
@@ -94,7 +125,12 @@ class _MailDebugDialogState extends State<_MailDebugDialog> {
     setState(() => _lines.clear());
   }
 
-  void _appendEntry(String address, bool outgoing, String text, bool isStateMessage) {
+  void _appendEntry(
+    String address,
+    bool outgoing,
+    String text,
+    bool isStateMessage,
+  ) {
     if (isStateMessage) {
       _lines.add(_DebugLine(text: text, textColor: _yellow));
     } else {

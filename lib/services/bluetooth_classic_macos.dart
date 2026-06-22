@@ -7,7 +7,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'dart:async';
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 
 /// Dart wrapper for native Bluetooth Classic (RFCOMM) on macOS
@@ -56,102 +56,85 @@ class BluetoothClassicMacOS {
   static bool get isSupported => !kIsWeb && Platform.isMacOS;
 
   void _setupEventChannel() {
-    _eventChannel.receiveBroadcastStream().listen(
-      (event) {
-        if (event is Map) {
-          final eventType = event['event'] as String?;
-          final rawAddress = event['address'] as String?;
+    _eventChannel.receiveBroadcastStream().listen((event) {
+      if (event is Map) {
+        final eventType = event['event'] as String?;
+        final rawAddress = event['address'] as String?;
 
-          if (eventType == null || rawAddress == null) return;
+        if (eventType == null || rawAddress == null) return;
 
-          // Normalize address to uppercase with colons
-          final address = _normalizeAddress(rawAddress);
-          // Note: 'data' events are intentionally not logged here as they fire
-          // continuously and flood the console.
-          if (eventType != 'data') {
-            debugPrint(
-              'BluetoothClassicMacOS: Event: $eventType, address: $address',
+        // Normalize address to uppercase with colons
+        final address = _normalizeAddress(rawAddress);
+
+        switch (eventType) {
+          case 'connected':
+            _connectionController.add(
+              BluetoothClassicEvent(
+                type: BluetoothClassicEventType.connected,
+                address: address,
+              ),
             );
-          }
-
-          switch (eventType) {
-            case 'connected':
-              _connectionController.add(
-                BluetoothClassicEvent(
-                  type: BluetoothClassicEventType.connected,
-                  address: address,
-                ),
-              );
-              break;
-            case 'disconnected':
-              _connectionController.add(
-                BluetoothClassicEvent(
-                  type: BluetoothClassicEventType.disconnected,
-                  address: address,
-                ),
-              );
-              // Clean up data controller
-              _dataControllers[address]?.close();
-              _dataControllers.remove(address);
-              break;
-            case 'data':
-              final data = event['data'];
-              if (data is Uint8List) {
-                _getOrCreateDataController(address).add(data);
-              }
-              break;
-          }
+            break;
+          case 'disconnected':
+            _connectionController.add(
+              BluetoothClassicEvent(
+                type: BluetoothClassicEventType.disconnected,
+                address: address,
+              ),
+            );
+            // Clean up data controller
+            _dataControllers[address]?.close();
+            _dataControllers.remove(address);
+            break;
+          case 'data':
+            final data = event['data'];
+            if (data is Uint8List) {
+              _getOrCreateDataController(address).add(data);
+            }
+            break;
         }
-      },
-      onError: (error) {
-        debugPrint('BluetoothClassicMacOS: Event stream error: $error');
-      },
-    );
+      }
+    }, onError: (error) {});
   }
 
   void _setupAudioEventChannel() {
-    _audioEventChannel.receiveBroadcastStream().listen(
-      (event) {
-        if (event is Map) {
-          final eventType = event['event'] as String?;
-          final rawAddress = event['address'] as String?;
+    _audioEventChannel.receiveBroadcastStream().listen((event) {
+      if (event is Map) {
+        final eventType = event['event'] as String?;
+        final rawAddress = event['address'] as String?;
 
-          if (eventType == null || rawAddress == null) return;
+        if (eventType == null || rawAddress == null) return;
 
-          final address = _normalizeAddress(rawAddress);
+        final address = _normalizeAddress(rawAddress);
 
-          switch (eventType) {
-            case 'connected':
-              _audioConnectionController.add(
-                BluetoothClassicEvent(
-                  type: BluetoothClassicEventType.connected,
-                  address: address,
-                ),
-              );
-              break;
-            case 'disconnected':
-              _audioConnectionController.add(
-                BluetoothClassicEvent(
-                  type: BluetoothClassicEventType.disconnected,
-                  address: address,
-                ),
-              );
-              _audioDataControllers[address]?.close();
-              _audioDataControllers.remove(address);
-              break;
-            case 'data':
-              final data = event['data'];
-              if (data is Uint8List) {
-                _getOrCreateAudioDataController(address).add(data);
-              }
-              break;
-          }
+        switch (eventType) {
+          case 'connected':
+            _audioConnectionController.add(
+              BluetoothClassicEvent(
+                type: BluetoothClassicEventType.connected,
+                address: address,
+              ),
+            );
+            break;
+          case 'disconnected':
+            _audioConnectionController.add(
+              BluetoothClassicEvent(
+                type: BluetoothClassicEventType.disconnected,
+                address: address,
+              ),
+            );
+            _audioDataControllers[address]?.close();
+            _audioDataControllers.remove(address);
+            break;
+          case 'data':
+            final data = event['data'];
+            if (data is Uint8List) {
+              _getOrCreateAudioDataController(address).add(data);
+            }
+            break;
         }
-      },
-      onError: (error) {
-        debugPrint('BluetoothClassicMacOS: Audio event stream error: $error');
-      },
-    );
+      }
+    }, onError: (error) {});
   }
 
   /// Normalize address to uppercase with colons
@@ -178,7 +161,6 @@ class BluetoothClassicMacOS {
   /// Get data stream for a specific device
   Stream<Uint8List> getDataStream(String address) {
     final normalizedAddress = _normalizeAddress(address);
-    debugPrint('BluetoothClassicMacOS: getDataStream for $normalizedAddress');
     return _getOrCreateDataController(normalizedAddress).stream;
   }
 
@@ -194,7 +176,6 @@ class BluetoothClassicMacOS {
       final result = await _channel.invokeMethod<bool>('isAvailable');
       return result ?? false;
     } catch (e) {
-      debugPrint('BluetoothClassicMacOS: Error checking availability: $e');
       return false;
     }
   }
@@ -215,7 +196,6 @@ class BluetoothClassicMacOS {
         );
       }).toList();
     } catch (e) {
-      debugPrint('BluetoothClassicMacOS: Error getting paired devices: $e');
       return [];
     }
   }
@@ -236,7 +216,6 @@ class BluetoothClassicMacOS {
         );
       }).toList();
     } catch (e) {
-      debugPrint('BluetoothClassicMacOS: Error finding compatible devices: $e');
       return [];
     }
   }
@@ -247,7 +226,6 @@ class BluetoothClassicMacOS {
       final result = await _channel.invokeMethod<List>('getDeviceNames');
       return result?.cast<String>() ?? [];
     } catch (e) {
-      debugPrint('BluetoothClassicMacOS: Error getting device names: $e');
       return [];
     }
   }
@@ -260,7 +238,6 @@ class BluetoothClassicMacOS {
       });
       return result ?? false;
     } catch (e) {
-      debugPrint('BluetoothClassicMacOS: Error connecting to $address: $e');
       return false;
     }
   }
@@ -270,9 +247,7 @@ class BluetoothClassicMacOS {
     try {
       await _channel.invokeMethod<bool>('disconnect', {'address': address});
     } catch (e) {
-      debugPrint(
-        'BluetoothClassicMacOS: Error disconnecting from $address: $e',
-      );
+      // Ignore disconnect errors
     }
   }
 
@@ -285,7 +260,6 @@ class BluetoothClassicMacOS {
       });
       return result ?? false;
     } catch (e) {
-      debugPrint('BluetoothClassicMacOS: Error sending data: $e');
       return false;
     }
   }
@@ -301,9 +275,6 @@ class BluetoothClassicMacOS {
       });
       return result ?? false;
     } catch (e) {
-      debugPrint(
-        'BluetoothClassicMacOS: Error connecting audio to $address: $e',
-      );
       return false;
     }
   }
@@ -315,9 +286,7 @@ class BluetoothClassicMacOS {
         'address': address,
       });
     } catch (e) {
-      debugPrint(
-        'BluetoothClassicMacOS: Error disconnecting audio from $address: $e',
-      );
+      // Ignore disconnect errors
     }
   }
 
@@ -330,7 +299,6 @@ class BluetoothClassicMacOS {
       });
       return result ?? false;
     } catch (e) {
-      debugPrint('BluetoothClassicMacOS: Error sending audio data: $e');
       return false;
     }
   }

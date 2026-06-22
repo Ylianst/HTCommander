@@ -72,13 +72,6 @@ class DataBroker {
   }) {
     final broker = _instance;
 
-    // Debug logging for channel change events
-    if (name.startsWith('ChannelChange')) {
-      debugPrint(
-        'DataBroker.dispatch: $name for device $deviceId, data: $data',
-      );
-    }
-
     if (store) {
       final key = _DataKey(deviceId, name);
       broker._dataStore[key] = data;
@@ -98,13 +91,6 @@ class DataBroker {
       if (deviceMatches && nameMatches) {
         matchingSubscriptions.add(sub);
       }
-    }
-
-    // Debug logging for channel change events
-    if (name.startsWith('ChannelChange')) {
-      debugPrint(
-        'DataBroker: Found ${matchingSubscriptions.length} matching subscriptions for $name (device $deviceId)',
-      );
     }
 
     // Invoke callbacks

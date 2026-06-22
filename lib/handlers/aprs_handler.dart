@@ -92,7 +92,7 @@ class AprsHandler {
     _broker.subscribe(
       deviceId: _aprsDeviceId,
       name: 'ClearAprsPackets',
-      callback: (_, _, _) => clearFrames(),
+      callback: _onClearAprsPackets,
     );
 
     // Station list (auth passwords) from device 0.
@@ -510,6 +510,20 @@ class AprsHandler {
 
   /// Clears all stored APRS frames.
   void clearFrames() => _aprsFrames.clear();
+
+  /// Handles the `ClearAprsPackets` request from the UI: clears the stored
+  /// frames and notifies listeners (e.g. the map) so they can remove all APRS
+  /// markers.
+  void _onClearAprsPackets(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    clearFrames();
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'AprsPacketsCleared',
+      data: null,
+      store: false,
+    );
+  }
 
   /// Disposes the handler, unsubscribing from the broker.
   void dispose() {

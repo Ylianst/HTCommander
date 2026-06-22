@@ -277,19 +277,12 @@ class RadioSettings {
   ) {
     // Match C# behavior: buffer size is rawData.length - 5
     final bufLen = rawData.length - 5;
-    debugPrint(
-      'RadioSettings.toByteArray: rawData.length=${rawData.length}, bufLen=$bufLen',
-    );
-    debugPrint(
-      'RadioSettings.toByteArray: chA=$chA, chB=$chB, dualChannel=$dualChannel, scan=$scanEnabled, squelch=$squelch',
-    );
     final data = Uint8List(bufLen);
 
     // Copy all raw data starting from offset 5 (matching C# Array.Copy)
     for (int i = 0; i < bufLen && i + 5 < rawData.length; i++) {
       data[i] = rawData[i + 5];
     }
-    debugPrint('RadioSettings.toByteArray: after copy: $data');
 
     // Channel A and B (split between two bytes)
     data[0] = ((chA & 0x0F) << 4) | (chB & 0x0F);
@@ -305,8 +298,6 @@ class RadioSettings {
     if (data.length > 9) {
       data[9] = (chA & 0xF0) | ((chB >> 4) & 0x0F);
     }
-
-    debugPrint('RadioSettings.toByteArray: final data: $data');
 
     return data;
   }
