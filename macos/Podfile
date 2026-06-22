@@ -38,5 +38,14 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
+    target.build_configurations.each do |config|
+      # Some pods (e.g. libserialport) declare an outdated macOS deployment
+      # target (10.11). Force them to match the project minimum (10.15) to
+      # silence the "deployment target is set to 10.11" build warning.
+      current = config.build_settings['MACOSX_DEPLOYMENT_TARGET']
+      if current.nil? || current.to_f < 10.15
+        config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '10.15'
+      end
+    end
   end
 end

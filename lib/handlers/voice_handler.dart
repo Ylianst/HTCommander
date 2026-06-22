@@ -17,7 +17,9 @@ The following heavy features from the original C# are intentionally STUBBED
 here as clean extension points and produce no functional behaviour yet:
   - Speech-to-text (Whisper) decoding of incoming audio frames.
   - Text-to-speech synthesis (Speak command).
-  - Morse / Chat / BSS / picture transmit.
+
+Morse-code transmit is implemented: the Morse command generates tone PCM via
+MorseCodeEngine and transmits it through the radio audio path.
 
 SSTV image reception is implemented: while the handler is enabled, incoming
 audio is fed to an SstvMonitor that auto-detects and decodes SSTV images. The
@@ -44,11 +46,14 @@ import 'package:path_provider/path_provider.dart';
 import '../aprs/aprs_packet.dart';
 import '../radio/ax25_packet.dart';
 import '../radio/bss_packet.dart';
+import '../radio/morse_code_engine.dart';
 import '../radio/radio.dart';
 import '../radio/tnc_data_fragment.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/tts_service.dart';
 import '../sstv/sstv_monitor.dart';
+import 'speech_to_text_engine.dart';
 
 /// Encoding type for voice text entries. Mirrors the C# `VoiceTextEncodingType`.
 enum VoiceTextEncodingType {
@@ -227,6 +232,25 @@ class VoiceHandler {
   // ignore: unused_field
   bool _currentAudioIsTransmit = false;
 
+  // Speech-to-text state. STT is always-on (gated by the persisted
+  // `SpeechToTextEnabled` setting), independent of the voice-handler enable
+  // state, mirroring the recording and SSTV features. It tracks whichever radio
+  // device is currently streaming received audio.
+  static const int _sttSampleRate = 32000;
+  // Force a final result if a single segment runs longer than ~30s of audio
+  // (32000 Hz * 2 bytes/sample * 30 s) to bound recognizer memory/latency.
+  static const int _sttMaxSegmentBytes = 32000 * 2 * 30;
+  SpeechToTextEngine? _sttEngine;
+  StreamSubscription<SpeechResult>? _sttResultSub;
+  StreamSubscription<bool>? _sttProcessingSub;
+  bool _speechToTextEnabled = true;
+  bool _sttReady = false;
+  int _sttDeviceId = -1;
+  bool _sttSegmentActive = false;
+  int _sttSegmentBytes = 0;
+  String _sttChannel = '';
+  DecodedTextEntry? _sttCurrentEntry;
+
   // SSTV auto-decode state.
   static const String _sstvFolderName = 'SSTV';
   static const int _sstvSampleRate = 32000;
@@ -332,12 +356,37 @@ class VoiceHandler {
       callback: _onChat,
     );
 
+    // Outgoing Morse-code transmissions from the voice panel across all
+    // devices.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Morse',
+      callback: _onMorse,
+    );
+
+    // Outgoing text-to-speech transmissions from the voice panel across all
+    // devices.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Speak',
+      callback: _onSpeak,
+    );
+
     // SSTV picture transmissions recorded in history across all devices.
     _broker.subscribe(
       deviceId: DataBroker.allDevices,
       name: 'PictureTransmitted',
       callback: _onPictureTransmitted,
     );
+
+    // Speech-to-text on/off setting (device 0 = global settings).
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SpeechToTextEnabled',
+      callback: _onSpeechToTextEnabledChanged,
+    );
+    _speechToTextEnabled =
+        _broker.getValue<bool>(0, 'SpeechToTextEnabled', true) ?? true;
 
     // Restore persisted recording flag (device 0 = settings).
     _recordingEnabled =
@@ -352,6 +401,11 @@ class VoiceHandler {
 
     // Start the always-on SSTV monitor that auto-detects incoming images.
     _initializeSstvMonitor();
+
+    // Initialize the speech-to-text engine if speech-to-text is enabled.
+    if (_speechToTextEnabled) {
+      unawaited(_initializeSpeechEngine());
+    }
 
     // Dispatch initial handler state.
     _dispatchVoiceHandlerState();
@@ -464,6 +518,175 @@ class VoiceHandler {
   }
 
   // ---------------------------------------------------------------------------
+  // Speech-to-text (always-on, gated by the SpeechToTextEnabled setting)
+  // ---------------------------------------------------------------------------
+
+  /// Handles changes to the persisted `SpeechToTextEnabled` setting (device 0).
+  void _onSpeechToTextEnabledChanged(int deviceId, String name, Object? data) {
+    final enabled = data is bool ? data : true;
+    if (_speechToTextEnabled == enabled) return;
+    _speechToTextEnabled = enabled;
+    _broker.logInfo('[VoiceHandler] SpeechToTextEnabled changed to: $enabled');
+    if (enabled) {
+      unawaited(_initializeSpeechEngine());
+    } else {
+      unawaited(_cleanupSpeechEngine());
+    }
+    _dispatchVoiceHandlerState();
+  }
+
+  /// Creates and initializes the platform speech-to-text engine. Safe to call
+  /// repeatedly; only the first successful initialization takes effect.
+  Future<void> _initializeSpeechEngine() async {
+    if (_disposed || _sttEngine != null) return;
+    final engine = createSpeechToTextEngine();
+    _sttEngine = engine;
+    if (!engine.isSupported) {
+      _broker.logInfo(
+        '[VoiceHandler] Speech-to-text is not supported on this platform',
+      );
+      return;
+    }
+    _sttResultSub = engine.results.listen(_onSpeechResult);
+    _sttProcessingSub = engine.processing.listen(_onSpeechProcessing);
+    try {
+      final localeId = (_voiceLanguage == 'auto') ? '' : _voiceLanguage;
+      final ready = await engine.initialize(localeId: localeId);
+      // The engine may have been disposed while we awaited initialization.
+      if (_disposed || _sttEngine != engine) return;
+      _sttReady = ready;
+      if (ready) {
+        _broker.logInfo('[VoiceHandler] Speech-to-text engine ready');
+      } else {
+        _broker.logError(
+          '[VoiceHandler] Speech-to-text unavailable (not authorized or '
+          'no recognizer)',
+        );
+      }
+      _dispatchVoiceHandlerState();
+    } catch (e) {
+      _broker.logError('[VoiceHandler] Failed to initialize speech engine: $e');
+      _sttReady = false;
+    }
+  }
+
+  /// Tears down the speech-to-text engine and any in-progress segment.
+  Future<void> _cleanupSpeechEngine() async {
+    final engine = _sttEngine;
+    _sttEngine = null;
+    _sttReady = false;
+    _sttSegmentActive = false;
+    _sttSegmentBytes = 0;
+    _sttDeviceId = -1;
+    _sttCurrentEntry = null;
+    await _sttResultSub?.cancel();
+    _sttResultSub = null;
+    await _sttProcessingSub?.cancel();
+    _sttProcessingSub = null;
+    if (engine != null) {
+      try {
+        await engine.dispose();
+      } catch (e) {
+        _broker.logError('[VoiceHandler] Error disposing speech engine: $e');
+      }
+    }
+  }
+
+  /// Handles a partial or final recognition result from the speech engine.
+  void _onSpeechResult(SpeechResult result) {
+    if (_disposed || _sttDeviceId <= 0) return;
+    final text = result.text.trim();
+    final now = DateTime.now();
+    final channel = _sttChannel.isNotEmpty ? _sttChannel : _currentChannelName;
+
+    if (!result.isFinal) {
+      // In-progress text: update or create the current STT entry.
+      if (text.isEmpty) return;
+      final entry = _sttCurrentEntry ?? DecodedTextEntry();
+      entry.text = text;
+      entry.channel = channel;
+      entry.time = now;
+      entry.isReceived = true;
+      entry.encoding = VoiceTextEncodingType.voice;
+      _sttCurrentEntry = entry;
+      _currentEntry = entry;
+      _dispatchCurrentEntry();
+      _dispatchSttTextReady(text, channel, now, false);
+    } else {
+      // Final text: commit a non-empty result to history.
+      _sttCurrentEntry = null;
+      _currentEntry = null;
+      if (text.isNotEmpty) {
+        final entry = DecodedTextEntry(
+          text: text,
+          channel: channel,
+          time: now,
+          isReceived: true,
+          encoding: VoiceTextEncodingType.voice,
+        );
+        _decodedTextHistory.add(entry);
+        _trimHistory();
+        unawaited(_saveVoiceTextHistory());
+        _dispatchDecodedTextHistory();
+        _dispatchSttTextReady(text, channel, now, true);
+      }
+      _dispatchCurrentEntry();
+    }
+  }
+
+  /// Handles the engine's processing (listening/recognizing) indicator.
+  void _onSpeechProcessing(bool active) {
+    if (_disposed) return;
+    _dispatchSttProcessing(listening: true, processing: active);
+  }
+
+  /// Dispatches a TextReady event directly to the radio device whose audio is
+  /// being transcribed. Mirrors [_dispatchSstvTextReady] / the recording path:
+  /// the voice tab subscribes to TextReady on all devices, but the gated
+  /// [_dispatchTextReady] only fires for an enabled target radio (never set in
+  /// this build).
+  void _dispatchSttTextReady(
+    String text,
+    String channel,
+    DateTime time,
+    bool completed,
+  ) {
+    if (_sttDeviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: _sttDeviceId,
+      name: 'TextReady',
+      data: <String, Object?>{
+        'text': text,
+        'channel': channel,
+        'time': time.millisecondsSinceEpoch,
+        'completed': completed,
+        'isReceived': true,
+        'encoding': _encodingToString(VoiceTextEncodingType.voice),
+        'latitude': 0,
+        'longitude': 0,
+        'source': null,
+        'destination': null,
+        'filename': null,
+        'duration': 0,
+      },
+      store: false,
+    );
+  }
+
+  void _dispatchSttProcessing({
+    required bool listening,
+    required bool processing,
+  }) {
+    if (_sttDeviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: _sttDeviceId,
+      name: 'ProcessingVoice',
+      data: <String, Object?>{'listening': listening, 'processing': processing},
+      store: false,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Recording (flag-only; WAV capture is stubbed)
   // ---------------------------------------------------------------------------
 
@@ -544,6 +767,51 @@ class VoiceHandler {
       }
       // TODO(stt): begin a new speech segment.
     }
+
+    // Speech-to-text: begin a new recognition segment for received audio.
+    _handleSttStart(deviceId, data);
+  }
+
+  /// Starts a new speech-to-text segment for received (non-transmit) audio on
+  /// [deviceId]. Locks onto a single device for the duration of the segment.
+  void _handleSttStart(int deviceId, Object? data) {
+    if (!_speechToTextEnabled || !_sttReady || deviceId <= 0) return;
+    final engine = _sttEngine;
+    if (engine == null) return;
+
+    String channel = _currentChannelName;
+    bool transmit = false;
+    Object? usage;
+    if (data is Map) {
+      final cn = (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+      if (cn.isNotEmpty) channel = cn;
+      transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
+      usage = data['usage'] ?? data['Usage'];
+    }
+
+    // Only transcribe received audio on a normal channel (not APRS, not when
+    // the radio is locked to a usage).
+    if (transmit || usage != null || channel == 'APRS') return;
+
+    // If a segment is already active on another device, leave it alone.
+    if (_sttSegmentActive && deviceId != _sttDeviceId) return;
+
+    _beginSttSegment(deviceId, channel);
+  }
+
+  /// Opens a fresh recognition segment locked to [deviceId]. Shared by the
+  /// AudioDataStart path and the lazy start in [_handleSttFrame].
+  void _beginSttSegment(int deviceId, String channel) {
+    final engine = _sttEngine;
+    if (engine == null) return;
+    _sttDeviceId = deviceId;
+    _sttChannel = channel;
+    _sttSegmentActive = true;
+    _sttSegmentBytes = 0;
+    _sttCurrentEntry = null;
+    if (channel.isNotEmpty) _currentChannelName = channel;
+    unawaited(engine.startSegment());
+    _dispatchSttProcessing(listening: true, processing: false);
   }
 
   void _onAudioDataEnd(int deviceId, String name, Object? data) {
@@ -560,6 +828,75 @@ class VoiceHandler {
     // Speech-to-text flush (deferred) for the enabled target radio.
     if (deviceId == _targetDeviceId && _enabled) {
       // TODO(stt): flush the current speech segment.
+    }
+
+    // Speech-to-text: complete the active segment to force a final result.
+    if (_sttSegmentActive && deviceId == _sttDeviceId) {
+      _handleSttEnd();
+    }
+  }
+
+  /// Completes the active speech-to-text segment, forcing a final result. The
+  /// device lock is kept so the trailing final result still dispatches to the
+  /// correct radio.
+  void _handleSttEnd() {
+    final engine = _sttEngine;
+    _sttSegmentActive = false;
+    _sttSegmentBytes = 0;
+    if (engine != null) unawaited(engine.completeSegment());
+    _dispatchSttProcessing(listening: true, processing: false);
+  }
+
+  /// Feeds a received PCM frame into the active speech-to-text segment. Bounds
+  /// the segment size by forcing a final result and restarting if it grows too
+  /// large.
+  void _handleSttFrame(int deviceId, Map data) {
+    if (!_speechToTextEnabled || !_sttReady || deviceId <= 0) return;
+    final engine = _sttEngine;
+    if (engine == null) return;
+
+    final usage = data['usage'] ?? data['Usage'];
+    final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
+    final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
+    final channelName =
+        (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+    if (usage != null || transmit || muted || channelName == 'APRS') return;
+
+    // If a segment is active on a different device, leave it alone.
+    if (_sttSegmentActive && deviceId != _sttDeviceId) return;
+
+    final bytes = data['data'] ?? data['Data'];
+    if (bytes is! Uint8List) return;
+    final offset = _readInt(data['offset'] ?? data['Offset']) ?? 0;
+    final length =
+        _readInt(data['length'] ?? data['Length']) ?? (bytes.length - offset);
+    if (length <= 0) return;
+
+    // Lazily begin a segment if none is active. Continuous broadcasts (e.g.
+    // NOAA weather) fire AudioDataStart only once — possibly before the engine
+    // became ready or before the user enabled STT — so the start event can be
+    // missed. Starting here from the audio frames (like the SSTV monitor) keeps
+    // recognition working mid-stream.
+    if (!_sttSegmentActive) {
+      final channel = channelName.isNotEmpty
+          ? channelName
+          : _currentChannelName;
+      _beginSttSegment(deviceId, channel);
+    }
+
+    unawaited(engine.processPcm16(bytes, offset, length, _sttSampleRate));
+    _sttSegmentBytes += length;
+
+    if (_sttSegmentBytes >= _sttMaxSegmentBytes) {
+      // Segment ran too long: force a final result and start a fresh segment so
+      // recognition keeps flowing without unbounded memory growth.
+      _broker.logInfo(
+        '[VoiceHandler] Speech segment reset due to length limit',
+      );
+      unawaited(engine.completeSegment());
+      _sttSegmentBytes = 0;
+      _sttCurrentEntry = null;
+      unawaited(engine.startSegment());
     }
   }
 
@@ -597,6 +934,9 @@ class VoiceHandler {
     if (deviceId == _targetDeviceId && _enabled) {
       // TODO(stt): feed PCM frames to the speech-to-text engine.
     }
+
+    // Speech-to-text: feed received PCM frames into the active segment.
+    _handleSttFrame(deviceId, data);
 
     // SSTV auto-detection: feed received (non-transmit) PCM to the monitor.
     // This runs independently of the voice-handler enable state, tracking the
@@ -1614,6 +1954,179 @@ class VoiceHandler {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Morse transmit
+  // ---------------------------------------------------------------------------
+
+  /// Handles the Morse command to generate and transmit Morse code. Mirrors the
+  /// C# `OnMorse`. Dispatched on device 1 (uses the voice-enabled radio) or
+  /// directly on a radio device (100+) which is used as-is.
+  void _onMorse(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is! String) return;
+    final textToMorse = data;
+    if (textToMorse.isEmpty) return;
+
+    // Determine the target radio device for transmission.
+    int transmitDeviceId;
+    if (deviceId == 1) {
+      transmitDeviceId = _targetDeviceId;
+      if (transmitDeviceId <= 0) {
+        _broker.logError(
+          '[VoiceHandler] Cannot transmit morse: no radio is voice-enabled',
+        );
+        return;
+      }
+    } else if (deviceId >= 100) {
+      transmitDeviceId = deviceId;
+    } else {
+      return;
+    }
+
+    try {
+      final channelName = _getVfoAChannelName(transmitDeviceId);
+
+      _broker.logInfo(
+        '[VoiceHandler] Generating morse code on device $transmitDeviceId: '
+        '$textToMorse',
+      );
+
+      // Generate morse code PCM (8-bit unsigned, 32 kHz).
+      final morsePcm8bit = MorseCodeEngine.generateMorsePcm(textToMorse);
+      if (morsePcm8bit.isEmpty) {
+        _broker.logError('[VoiceHandler] Failed to generate morse code PCM');
+        return;
+      }
+
+      // Add to history as a transmitted morse entry and echo it to the radio's
+      // device so the voice panel shows it immediately.
+      _addDataPacketEntry(
+        deviceId: transmitDeviceId,
+        text: textToMorse,
+        channel: channelName,
+        time: DateTime.now(),
+        encoding: VoiceTextEncodingType.morse,
+        isReceived: false,
+      );
+
+      // Convert 8-bit unsigned PCM (center 128) to 16-bit signed PCM (center 0).
+      final pcm16 = _pcm8ToPcm16(morsePcm8bit);
+
+      // Send PCM to the radio for transmission. PlayLocally=true lets the user
+      // hear the morse output locally.
+      _broker.dispatch(
+        deviceId: transmitDeviceId,
+        name: 'TransmitVoicePCM',
+        data: <String, Object?>{'data': pcm16, 'playLocally': true},
+        store: false,
+      );
+      _broker.logInfo(
+        '[VoiceHandler] Transmitted ${pcm16.length} bytes of morse PCM to '
+        'device $transmitDeviceId',
+      );
+    } catch (e) {
+      _broker.logError('[VoiceHandler] Error generating morse code: $e');
+    }
+  }
+
+  /// Converts 8-bit unsigned PCM (0-255, center 128) to little-endian 16-bit
+  /// signed PCM (center 0).
+  static Uint8List _pcm8ToPcm16(Uint8List pcm8) {
+    final pcm16 = Uint8List(pcm8.length * 2);
+    for (int i = 0; i < pcm8.length; i++) {
+      final int s = (pcm8[i] - 128) * 256;
+      pcm16[i * 2] = s & 0xFF;
+      pcm16[i * 2 + 1] = (s >> 8) & 0xFF;
+    }
+    return pcm16;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Text-to-speech transmit
+  // ---------------------------------------------------------------------------
+
+  /// Handles the Speak command: synthesizes [data] to speech, converts it to
+  /// 32 kHz / mono / 16-bit PCM and transmits it through the radio audio path.
+  /// Mirrors the target-resolution logic of [_onMorse]: dispatched on device 1
+  /// (uses the voice-enabled radio) or directly on a radio device (100+).
+  Future<void> _onSpeak(int deviceId, String name, Object? data) async {
+    if (_disposed) return;
+    if (data is! String) return;
+    final textToSpeak = data.trim();
+    if (textToSpeak.isEmpty) return;
+
+    // Determine the target radio device for transmission.
+    int transmitDeviceId;
+    if (deviceId == 1) {
+      transmitDeviceId = _targetDeviceId;
+      if (transmitDeviceId <= 0) {
+        _broker.logError(
+          '[VoiceHandler] Cannot speak: no radio is voice-enabled',
+        );
+        return;
+      }
+    } else if (deviceId >= 100) {
+      transmitDeviceId = deviceId;
+    } else {
+      return;
+    }
+
+    try {
+      final channelName = _getVfoAChannelName(transmitDeviceId);
+
+      _broker.logInfo(
+        '[VoiceHandler] Synthesizing speech on device $transmitDeviceId: '
+        '$textToSpeak',
+      );
+
+      // Read text-to-speech settings (device 0 = settings).
+      final voiceJson = _broker.getValue<String>(0, 'Voice', '') ?? '';
+      final rate = _broker.getValue<double>(0, 'VoiceSpeechRate', 0.5) ?? 0.5;
+      final pitch = _broker.getValue<double>(0, 'VoicePitch', 1.0) ?? 1.0;
+
+      final pcm16 = await TtsService.instance.synthesizeToPcm(
+        textToSpeak,
+        voiceJson: voiceJson.isEmpty ? null : voiceJson,
+        rate: rate,
+        pitch: pitch,
+      );
+
+      if (_disposed) return;
+      if (pcm16 == null || pcm16.isEmpty) {
+        _broker.logError(
+          '[VoiceHandler] Failed to synthesize speech (no audio produced)',
+        );
+        return;
+      }
+
+      // Add to history as a transmitted voice entry and echo it to the radio's
+      // device so the voice panel shows it immediately.
+      _addDataPacketEntry(
+        deviceId: transmitDeviceId,
+        text: textToSpeak,
+        channel: channelName,
+        time: DateTime.now(),
+        encoding: VoiceTextEncodingType.voice,
+        isReceived: false,
+      );
+
+      // Send PCM to the radio for transmission. PlayLocally=true lets the user
+      // hear the spoken output locally.
+      _broker.dispatch(
+        deviceId: transmitDeviceId,
+        name: 'TransmitVoicePCM',
+        data: <String, Object?>{'data': pcm16, 'playLocally': true},
+        store: false,
+      );
+      _broker.logInfo(
+        '[VoiceHandler] Transmitted ${pcm16.length} bytes of speech PCM to '
+        'device $transmitDeviceId',
+      );
+    } catch (e) {
+      _broker.logError('[VoiceHandler] Error synthesizing speech: $e');
+    }
+  }
+
   /// Resolves the VFO A channel name for a radio device from the broker
   /// `Settings` (channelA id) and `Channels` (list of channel maps). Returns an
   /// empty string when the channel information is not yet available.
@@ -1796,7 +2309,7 @@ class VoiceHandler {
         'targetDeviceId': _targetDeviceId,
         'language': _voiceLanguage,
         'model': _voiceModel,
-        'engineReady': false, // STT engine is stubbed in this build.
+        'engineReady': _sttReady,
       },
       store: true,
     );
@@ -1819,6 +2332,7 @@ class VoiceHandler {
     _disposed = true;
     if (_recorder != null) _finalizeRecording();
     _cleanupSstvMonitor();
+    unawaited(_cleanupSpeechEngine());
     if (_enabled) disable();
     _broker.logInfo('[VoiceHandler] Voice Handler disposing');
     _broker.dispose();

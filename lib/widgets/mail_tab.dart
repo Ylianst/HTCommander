@@ -57,23 +57,12 @@ class MailTab extends StatefulWidget {
 class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   String _selectedMailbox = 'Inbox';
   int? _selectedMailIndex;
-
-  // Outgoing mailboxes show the recipient ("To") instead of the sender ("From").
-  bool get _showRecipientColumn =>
-      _selectedMailbox == 'Outbox' ||
-      _selectedMailbox == 'Draft' ||
-      _selectedMailbox == 'Sent';
-
   bool _showPreview = true;
   int _sortColumnIndex = 0;
   bool _sortAscending = false; // Descending by default for time
   double _previewHeightRatio = 0.45; // Preview takes 45% of available height
   static const double _minPreviewRatio = 0.15;
   static const double _maxPreviewRatio = 0.75;
-
-  // Winlink transfer status shown in the bottom status bar. Null hides the bar.
-  String? _statusMessage;
-  bool _statusIsError = false;
 
   // Mailboxes (populated from the real MailStore).
   late final Map<String, Mailbox> _mailboxes;
@@ -90,17 +79,15 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
     _initializeMailboxes();
-    _broker.subscribe(deviceId: 0, name: 'MailsChanged', callback: _onMailsChanged);
-    _broker.subscribe(deviceId: 0, name: 'MailStoreReady', callback: _onMailsChanged);
     _broker.subscribe(
-      deviceId: 1,
-      name: 'WinlinkStateMessage',
-      callback: _onWinlinkStateMessage,
+      deviceId: 0,
+      name: 'MailsChanged',
+      callback: _onMailsChanged,
     );
     _broker.subscribe(
-      deviceId: 1,
-      name: 'WinlinkConnectionState',
-      callback: _onWinlinkConnectionState,
+      deviceId: 0,
+      name: 'MailStoreReady',
+      callback: _onMailsChanged,
     );
     _loadMails();
   }
@@ -124,46 +111,6 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
 
   void _onMailsChanged(int deviceId, String name, Object? data) {
     if (mounted) _loadMails();
-  }
-
-  /// Handles Winlink transfer status updates for the bottom status bar.
-  void _onWinlinkStateMessage(int deviceId, String name, Object? data) {
-    if (!mounted) return;
-    final msg = data as String?;
-    setState(() {
-      if (msg == null || msg.isEmpty) {
-        // Keep an existing error visible so the user can read and dismiss it.
-        if (!_statusIsError) _statusMessage = null;
-      } else if (_isErrorMessage(msg)) {
-        _statusMessage = msg;
-        _statusIsError = true;
-      } else if (!_statusIsError) {
-        // Don't let routine progress messages overwrite an unacknowledged error.
-        _statusMessage = msg;
-      }
-    });
-  }
-
-  /// Clears a stale error when a new connection attempt begins.
-  void _onWinlinkConnectionState(int deviceId, String name, Object? data) {
-    if (!mounted) return;
-    if (data is String && data.toUpperCase() == 'CONNECTING') {
-      _dismissStatus();
-    }
-  }
-
-  bool _isErrorMessage(String msg) {
-    final m = msg.toLowerCase();
-    return m.contains('error') ||
-        m.contains('failed') ||
-        m.contains('not found');
-  }
-
-  void _dismissStatus() {
-    setState(() {
-      _statusMessage = null;
-      _statusIsError = false;
-    });
   }
 
   /// Loads all mail from the global MailStore and groups it by mailbox.
@@ -251,7 +198,12 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       ..mailbox = target;
 
     if (replaceId != null && _rawMails.containsKey(replaceId)) {
-      _broker.dispatch(deviceId: 0, name: 'MailUpdate', data: mail, store: false);
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'MailUpdate',
+        data: mail,
+        store: false,
+      );
     } else {
       _broker.dispatch(deviceId: 0, name: 'MailAdd', data: mail, store: false);
     }
@@ -363,8 +315,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   void _onForward() async {
     final m = _selectedMail;
     if (m == null) return;
-    final subject = m.subject.startsWith('Fwd: ') ? m.subject : 'Fwd: ${m.subject}';
-    final body = '\n\n--- Forwarded Message ---\n'
+    final subject = m.subject.startsWith('Fwd: ')
+        ? m.subject
+        : 'Fwd: ${m.subject}';
+    final body =
+        '\n\n--- Forwarded Message ---\n'
         'From: ${m.from}\n'
         'To: ${m.to}\n'
         'Date: ${m.time.toLocal()}\n'
@@ -428,7 +383,12 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
     );
     if (!confirmed) return;
     if (inTrash) {
-      _broker.dispatch(deviceId: 0, name: 'MailDelete', data: m.id, store: false);
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'MailDelete',
+        data: m.id,
+        store: false,
+      );
     } else {
       _broker.dispatch(
         deviceId: 0,
@@ -546,9 +506,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
           result = a.time.compareTo(b.time);
           break;
         case 1:
-          result = _showRecipientColumn
-              ? a.to.compareTo(b.to)
-              : a.from.compareTo(b.from);
+          result = a.from.compareTo(b.from);
           break;
         case 2:
           result = a.subject.compareTo(b.subject);
@@ -604,73 +562,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                 )
               : _buildMailListArea(),
         ),
-        _buildStatusBar(),
       ],
-    );
-  }
-
-  Widget _buildStatusBar() {
-    final message = _statusMessage;
-    if (message == null) return const SizedBox.shrink();
-
-    final isError = _statusIsError;
-    final background =
-        isError ? const Color(0xFFFDECEA) : const Color(0xFFE8F0FE);
-    final accent = isError ? Colors.red.shade700 : Colors.blue.shade700;
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: background,
-        border: Border(
-          top: BorderSide(
-            color: isError ? Colors.red.shade200 : Colors.blue.shade100,
-          ),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Row(
-        children: [
-          isError
-              ? Icon(Icons.error_outline, size: 16, color: accent)
-              : SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(accent),
-                  ),
-                ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                fontSize: 12,
-                color: isError ? Colors.red.shade900 : Colors.black87,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
-            ),
-          ),
-          if (isError) ...[
-            const SizedBox(width: 8),
-            SizedBox(
-              height: 26,
-              child: ElevatedButton(
-                onPressed: _dismissStatus,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade600,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  textStyle: const TextStyle(fontSize: 12),
-                ),
-                child: const Text('OK'),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 
@@ -879,7 +771,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                               vertical: 6,
                             ),
                             child: Text(
-                              _showRecipientColumn ? mail.to : mail.from,
+                              mail.from,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontWeight: mail.isRead
@@ -929,7 +821,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       child: Row(
         children: [
           _buildColumnHeader('Time', 0, flex: 2),
-          _buildColumnHeader(_showRecipientColumn ? 'To' : 'From', 1, flex: 2),
+          _buildColumnHeader('From', 1, flex: 2),
           _buildColumnHeader('Subject', 2, flex: 3),
         ],
       ),

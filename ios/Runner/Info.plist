@@ -70,5 +70,7 @@
 	<string>HTCommander needs Bluetooth to connect to your radio.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>HTCommander needs Bluetooth to connect to your radio.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>HTCommander uses speech recognition to transcribe received radio audio into text.</string>
 </dict>
 </plist>

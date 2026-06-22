@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'chat_widget.dart';
+import '../dialogs/aprs_details_dialog.dart';
 import '../dialogs/aprs_sms_dialog.dart';
 import '../dialogs/aprs_weather_dialog.dart';
 import '../services/window_service.dart';
@@ -699,6 +700,104 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     );
   }
 
+  /// Shows the APRS packet details dialog for a double-tapped message.
+  void _onMessageDoubleTap(ChatMessage message) {
+    final tag = message.tag;
+    if (tag is! _AprsEntry) return;
+    AprsDetailsDialog.show(context, items: _buildDetailItems(tag));
+  }
+
+  /// Builds the name/value detail rows for an APRS entry, mirroring the C#
+  /// `AprsDetailsForm.SetMessage` logic.
+  List<AprsDetailItem> _buildDetailItems(_AprsEntry e) {
+    final items = <AprsDetailItem>[];
+    items.add(AprsDetailItem('Time', e.time.toString()));
+
+    var i = 1;
+    for (final addr in e.packet.addresses) {
+      items.add(AprsDetailItem('AX.25 Addr $i', addr.callSignWithId));
+      i++;
+    }
+
+    final aprs = e.aprsPacket;
+    items.add(AprsDetailItem('Type', _dataTypeLabel(aprs.dataType)));
+    if (aprs.comment.isNotEmpty) {
+      items.add(AprsDetailItem('Comment', aprs.comment));
+    }
+    final dest = aprs.destCallsign?.stationCallsign ?? '';
+    if (dest.isNotEmpty) {
+      items.add(AprsDetailItem('DestCallsign', dest));
+    }
+    final thirdParty = aprs.thirdPartyHeader ?? '';
+    if (thirdParty.isNotEmpty) {
+      items.add(AprsDetailItem('ThirdParty Header', thirdParty));
+    }
+
+    final md = aprs.messageData;
+    if (md.addressee.isNotEmpty || md.msgText.isNotEmpty) {
+      items.add(AprsDetailItem('MsgType', md.msgType.name));
+      if (md.addressee.isNotEmpty) {
+        items.add(AprsDetailItem('Addressee', md.addressee));
+      }
+      if (md.seqId.isNotEmpty) {
+        items.add(AprsDetailItem('SeqId', md.seqId));
+      }
+      if (md.msgText.isNotEmpty) {
+        items.add(AprsDetailItem('MsgText', md.msgText));
+      }
+    }
+
+    final pos = aprs.position;
+    if (pos.course != 0) {
+      items.add(AprsDetailItem('Course', pos.course.toString()));
+    }
+    if (pos.speed != 0) {
+      items.add(AprsDetailItem('Speed', pos.speed.toString()));
+    }
+    if (pos.altitude != 0) {
+      items.add(AprsDetailItem('Altitude', pos.altitude.toString()));
+    }
+    if (pos.ambiguity != 0) {
+      items.add(AprsDetailItem('Ambiguity', pos.ambiguity.toString()));
+    }
+    if (pos.gridsquare.isNotEmpty) {
+      items.add(AprsDetailItem('Gridsquare', pos.gridsquare));
+    }
+    final lat = pos.coordinateSet.latitude.value;
+    final lon = pos.coordinateSet.longitude.value;
+    if (lat != 0) {
+      items.add(AprsDetailItem('Latitude', lat.toString()));
+    }
+    if (lon != 0) {
+      items.add(AprsDetailItem('Longitude', lon.toString()));
+    }
+
+    final auth = aprs.authCode ?? '';
+    if (auth.isNotEmpty) {
+      items.add(AprsDetailItem('Authentication', auth));
+    }
+
+    return items;
+  }
+
+  /// Returns a human-readable label for an APRS [PacketDataType].
+  String _dataTypeLabel(PacketDataType type) {
+    final name = type.name;
+    final buffer = StringBuffer();
+    for (var c = 0; c < name.length; c++) {
+      final ch = name[c];
+      if (c == 0) {
+        buffer.write(ch.toUpperCase());
+      } else if (ch == ch.toUpperCase() && ch != ch.toLowerCase()) {
+        buffer.write(' ');
+        buffer.write(ch);
+      } else {
+        buffer.write(ch);
+      }
+    }
+    return buffer.toString();
+  }
+
   void _onMessageLongPress(ChatMessage message) {
     showModalBottomSheet(
       context: context,
@@ -884,6 +983,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           child: ChatWidget(
             messages: _messages,
             onMessageTap: _onMessageTap,
+            onMessageDoubleTap: _onMessageDoubleTap,
             onMessageLongPress: _onMessageLongPress,
           ),
         ),

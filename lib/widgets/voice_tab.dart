@@ -11,6 +11,7 @@ import '../dialogs/image_view_dialog.dart';
 import '../dialogs/recording_playback_dialog.dart';
 import '../dialogs/sstv_send_dialog.dart';
 import '../sstv/encoder.dart';
+import '../radio/dtmf_engine.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -36,10 +37,6 @@ class _VoiceTabState extends State<VoiceTab>
   /// Sentinel id used for the single in-progress (partial) decoded entry so it
   /// can be replaced as more text arrives and finalized when completed.
   static const String _partialMessageId = '__voice_partial__';
-
-  /// Incremented each time an in-progress SSTV picture file is overwritten, so
-  /// the bubble re-reads the updated image from disk.
-  int _sstvImageRevision = 0;
 
   int _currentRadioDeviceId = -1;
   VoiceTransmitMode _currentMode = VoiceTransmitMode.chat;
@@ -465,7 +462,6 @@ class _VoiceTabState extends State<VoiceTab>
       destination: data['destination'] as String?,
       duration: data['duration'] as int? ?? 0,
       filename: data['filename'] as String?,
-      imageUpdated: data['imageUpdated'] as bool? ?? false,
     );
   }
 
@@ -483,16 +479,8 @@ class _VoiceTabState extends State<VoiceTab>
     String? destination,
     int duration = 0,
     String? filename,
-    bool imageUpdated = false,
   }) {
     final hasLocation = latitude != 0 || longitude != 0;
-    final imagePath = _sstvImagePath(encoding, filename);
-    // A received SSTV picture is written to the same file as more scan lines
-    // arrive; bump the revision so the bubble re-reads the new content from
-    // disk (the image provider folds the revision into its cache key).
-    if (imageUpdated && imagePath != null) {
-      _sstvImageRevision++;
-    }
     final message = ChatMessage(
       id: completed
           ? '${time.millisecondsSinceEpoch}_${_messages.length}'
@@ -503,18 +491,16 @@ class _VoiceTabState extends State<VoiceTab>
         source: source,
         destination: destination,
         duration: duration,
-        pictureText: text,
       ),
       senderCallsign: source ?? '',
-      message: encoding == 'Picture' ? '' : text,
+      message: text,
       time: time,
       isSender: !isReceived,
       latitude: hasLocation ? latitude : null,
       longitude: hasLocation ? longitude : null,
       icon: _iconForEncoding(encoding),
       filename: filename,
-      imagePath: imagePath,
-      imageRevision: _sstvImageRevision,
+      imagePath: _sstvImagePath(encoding, filename),
     );
     setState(() {
       _messages.removeWhere((m) => m.id == _partialMessageId);
@@ -590,10 +576,9 @@ class _VoiceTabState extends State<VoiceTab>
         source: source,
         destination: destination,
         duration: duration,
-        pictureText: text,
       ),
       senderCallsign: source ?? '',
-      message: encoding == 'Picture' ? '' : text,
+      message: text,
       time: time,
       isSender: !isReceived,
       latitude: hasLocation ? latitude : null,
@@ -617,24 +602,15 @@ class _VoiceTabState extends State<VoiceTab>
     String? source,
     String? destination,
     int duration = 0,
-    String pictureText = '',
   }) {
     var encodingStr = _encodingDisplayName(encoding);
     if (encoding == 'Recording') {
       encodingStr = duration > 0
           ? 'Recording ${_formatDuration(duration)}'
           : 'Recording';
-      // Recordings put the channel name first in brackets to match the other
-      // entries, e.g. "[MyHomeChannel] Recording 10s".
-      return channel.isNotEmpty ? '[$channel] $encodingStr' : encodingStr;
-    }
-    if (encoding == 'Picture') {
-      // Pictures put the mode/progress text in the title so the bubble holds
-      // only the image, e.g. "[MyHomeChannel] Robot 36 Color".
-      final label = pictureText.trim().isNotEmpty
-          ? pictureText.trim()
-          : encodingStr;
-      return channel.isNotEmpty ? '[$channel] $label' : label;
+      // Recordings show the channel name after the duration, e.g.
+      // "Recording 10s - MyHomeChannel".
+      return channel.isNotEmpty ? '$encodingStr - $channel' : encodingStr;
     }
     var callsignPart = '';
     if (source != null && source.isNotEmpty) {
@@ -682,7 +658,11 @@ class _VoiceTabState extends State<VoiceTab>
 
   void _sendMessage() {
     final text = _messageController.text.trim();
-    if (text.isEmpty || !_canSend) return;
+    if (text.isEmpty) return;
+    if (!_canSend) {
+      _showSendDisabledHint();
+      return;
+    }
 
     switch (_currentMode) {
       case VoiceTransmitMode.chat:
@@ -696,20 +676,76 @@ class _VoiceTabState extends State<VoiceTab>
         );
         break;
       case VoiceTransmitMode.speak:
-        _broker.dispatch(deviceId: 1, name: 'Speak', data: text, store: false);
+        // The voice handler synthesizes the speech PCM and transmits it.
+        // Dispatch to the connected radio device (100+) directly, because the
+        // voice handler is never "enabled" in this build so it has no target
+        // radio of its own (same as Morse).
+        _broker.dispatch(
+          deviceId: _currentRadioDeviceId,
+          name: 'Speak',
+          data: text,
+          store: false,
+        );
         break;
       case VoiceTransmitMode.morse:
-        _broker.dispatch(deviceId: 1, name: 'Morse', data: text, store: false);
+        // The voice handler generates the Morse tone PCM and transmits it.
+        // Dispatch to the connected radio device (100+) directly, because the
+        // voice handler is never "enabled" in this build so it has no target
+        // radio of its own.
+        _broker.dispatch(
+          deviceId: _currentRadioDeviceId,
+          name: 'Morse',
+          data: text,
+          store: false,
+        );
         break;
       case VoiceTransmitMode.dtmf:
-        // DTMF tone generation is not implemented in this build.
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('DTMF transmit not implemented yet')),
-        );
+        _sendDtmf(text);
         break;
     }
 
     _messageController.clear();
+  }
+
+  /// Shows a brief hint explaining why a message can't be sent in the current
+  /// mode, so pressing Send is never silently ignored.
+  void _showSendDisabledHint() {
+    if (!mounted) return;
+    final String message;
+    if (_isTransmitting) {
+      message = 'Please wait for the current transmission to finish.';
+    } else if (_currentMode == VoiceTransmitMode.chat) {
+      message = 'Connect a radio before sending a chat message.';
+    } else {
+      message = 'Enable audio (the Enable button) before sending in this mode.';
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+    );
+  }
+
+  /// Generates DTMF dual-tone PCM for [digits] locally and transmits it to the
+  /// connected radio. Mirrors the C# DMTF case in `VoiceTabUserControl`.
+  void _sendDtmf(String digits) {
+    final deviceId = _currentRadioDeviceId;
+    if (deviceId <= 0) return;
+
+    // Generate 8-bit unsigned PCM, then convert to little-endian 16-bit signed.
+    final pcm8 = DtmfEngine.generateDtmfPcm(digits);
+    if (pcm8.isEmpty) return;
+    final pcm16 = Uint8List(pcm8.length * 2);
+    for (int i = 0; i < pcm8.length; i++) {
+      final int s = (pcm8[i] - 128) << 8;
+      pcm16[i * 2] = s & 0xFF;
+      pcm16[i * 2 + 1] = (s >> 8) & 0xFF;
+    }
+
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'TransmitVoicePCM',
+      data: <String, Object?>{'data': pcm16, 'playLocally': true},
+      store: false,
+    );
   }
 
   /// Whether the input field and Send button should be enabled. In Chat mode
@@ -1212,7 +1248,7 @@ class _VoiceTabState extends State<VoiceTab>
               child: TextField(
                 controller: _messageController,
                 focusNode: _messageFocusNode,
-                enabled: _canSend,
+                enabled: !_isTransmitting,
                 style: const TextStyle(fontSize: 14),
                 decoration: InputDecoration(
                   hintText: _currentMode == VoiceTransmitMode.dtmf
@@ -1246,7 +1282,7 @@ class _VoiceTabState extends State<VoiceTab>
           SizedBox(
             height: 34,
             child: ElevatedButton(
-              onPressed: _canSend ? _sendMessage : null,
+              onPressed: _isTransmitting ? null : _sendMessage,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
               ),
@@ -1287,14 +1323,8 @@ Uint8List _encodeSstvPcm(Map<String, Object?> args) {
   final encoder = Encoder(sampleRate);
   final samples = encoder.encode(pixels, width, height, modeName);
 
-  // Prepend 2 seconds of silence so the radio's PTT is fully keyed up before
-  // the actual SSTV tones begin. Uint8List is zero-initialised, so the leading
-  // bytes are already silence.
-  const silenceSeconds = 2;
-  final silenceSamples = sampleRate * silenceSeconds;
-  final pcm = Uint8List((silenceSamples + samples.length) * 2);
+  final pcm = Uint8List(samples.length * 2);
   final view = ByteData.view(pcm.buffer);
-  final sampleByteOffset = silenceSamples * 2;
   for (int i = 0; i < samples.length; i++) {
     var s = samples[i];
     if (s > 1.0) {
@@ -1302,7 +1332,7 @@ Uint8List _encodeSstvPcm(Map<String, Object?> args) {
     } else if (s < -1.0) {
       s = -1.0;
     }
-    view.setInt16(sampleByteOffset + i * 2, (s * 32767).round(), Endian.little);
+    view.setInt16(i * 2, (s * 32767).round(), Endian.little);
   }
   return pcm;
 }

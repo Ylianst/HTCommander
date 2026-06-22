@@ -144,7 +144,9 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
       return RegExp(r'^[a-zA-Z0-9]+(-[0-9]{1,2})?$').hasMatch(t);
     }
     // Email address.
-    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(t);
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(t);
   }
 
   /// Trims items and re-joins them with semicolons (ports `CleanString`).
@@ -202,145 +204,85 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 620),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                widget.isEdit ? 'Edit Message' : 'New Message',
-                style: DialogStyles.titleStyle,
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: _sectionDecoration(),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        controller: _toController,
-                        onEditingComplete: () {
-                          _toController.text =
-                              _cleanString(_toController.text);
-                        },
-                        decoration: _inputDecoration(
-                          labelText: 'To',
-                          fillColor: _toValid ? null : _invalidColor,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _ccController,
-                        onEditingComplete: () {
-                          _ccController.text =
-                              _cleanString(_ccController.text);
-                        },
-                        decoration: _inputDecoration(
-                          labelText: 'Cc',
-                          fillColor: _ccValid ? null : _invalidColor,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _subjectController,
-                        decoration: _inputDecoration(labelText: 'Subject'),
-                      ),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: _bodyController,
-                          expands: true,
-                          maxLines: null,
-                          minLines: null,
-                          textAlignVertical: TextAlignVertical.top,
-                          keyboardType: TextInputType.multiline,
-                          decoration: _inputDecoration(
-                            labelText: 'Message',
-                            alignLabelWithHint: true,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: _onCancel,
-                    style: DialogStyles.secondaryButtonStyle(context),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () => _submit(isDraft: true),
-                    style: DialogStyles.secondaryButtonStyle(context),
-                    child: const Text('Save Draft'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _canSend ? () => _submit(isDraft: false) : null,
-                    style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('Send'),
-                  ),
-                ],
-              ),
-            ],
+    return HTDialog(
+      title: widget.isEdit ? 'Edit Message' : 'New Message',
+      maxWidth: 600,
+      maxHeight: 620,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _toController,
+            onEditingComplete: () {
+              _toController.text = _cleanString(_toController.text);
+            },
+            decoration: InputDecoration(
+              labelText: 'To',
+              border: const OutlineInputBorder(),
+              isDense: true,
+              filled: !_toValid,
+              fillColor: _invalidColor,
+            ),
           ),
-        ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _ccController,
+            onEditingComplete: () {
+              _ccController.text = _cleanString(_ccController.text);
+            },
+            decoration: InputDecoration(
+              labelText: 'Cc',
+              border: const OutlineInputBorder(),
+              isDense: true,
+              filled: !_ccValid,
+              fillColor: _invalidColor,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _subjectController,
+            decoration: const InputDecoration(
+              labelText: 'Subject',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: TextField(
+              controller: _bodyController,
+              expands: true,
+              maxLines: null,
+              minLines: null,
+              textAlignVertical: TextAlignVertical.top,
+              keyboardType: TextInputType.multiline,
+              decoration: const InputDecoration(
+                labelText: 'Message',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+            ),
+          ),
+        ],
       ),
-    );
-  }
-
-  BoxDecoration _sectionDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
+      actions: [
+        TextButton(
+          onPressed: _onCancel,
+          style: DialogStyles.secondaryButtonStyle(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => _submit(isDraft: true),
+          style: DialogStyles.secondaryButtonStyle(context),
+          child: const Text('Save Draft'),
+        ),
+        ElevatedButton(
+          onPressed: _canSend ? () => _submit(isDraft: false) : null,
+          style: DialogStyles.primaryButtonStyle(context),
+          child: const Text('Send'),
         ),
       ],
-    );
-  }
-
-  InputDecoration _inputDecoration({
-    String? labelText,
-    Color? fillColor,
-    bool alignLabelWithHint = false,
-  }) {
-    return InputDecoration(
-      filled: true,
-      fillColor: fillColor ?? Colors.grey.shade100,
-      labelText: labelText,
-      isDense: true,
-      alignLabelWithHint: alignLabelWithHint,
-      contentPadding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
-      ),
     );
   }
 }

@@ -26,11 +26,6 @@ class ChatMessage {
   /// SSTV picture), if any.
   final String? imagePath;
 
-  /// Revision counter for [imagePath]. Increment this whenever the file at
-  /// [imagePath] is overwritten (e.g. an in-progress SSTV picture) so the
-  /// bubble re-reads it from disk instead of showing the cached decode.
-  final int imageRevision;
-
   const ChatMessage({
     required this.id,
     required this.route,
@@ -45,7 +40,6 @@ class ChatMessage {
     this.tag,
     this.filename,
     this.imagePath,
-    this.imageRevision = 0,
   });
 
   bool get hasLocation => latitude != null && longitude != null;
@@ -97,19 +91,10 @@ class _ChatWidgetState extends State<ChatWidget> {
   /// messages to trigger auto-scroll.
   static const double _autoScrollThreshold = 80.0;
 
-  /// Image path of the bottom-most message at the last build. Used to detect
-  /// when an existing bubble (e.g. an in-progress SSTV picture) first gains an
-  /// image so we scroll to the bottom once, then leave the scroll position
-  /// alone as the picture refreshes in place.
-  String? _lastImagePath;
-
   @override
   void initState() {
     super.initState();
     _lastMessageCount = widget.messages.length;
-    _lastImagePath = widget.messages.isNotEmpty
-        ? widget.messages.last.imagePath
-        : null;
     // When the conversation is initially populated, jump to the bottom so the
     // latest messages are visible right away.
     _jumpToBottom();
@@ -140,35 +125,21 @@ class _ChatWidgetState extends State<ChatWidget> {
   void didUpdateWidget(ChatWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     final newCount = widget.messages.length;
-    final lastImagePath = widget.messages.isNotEmpty
-        ? widget.messages.last.imagePath
-        : null;
-    // Capture whether the view was at the bottom BEFORE any new content lays
+    if (newCount <= _lastMessageCount) {
+      // No new bubbles (cleared, replaced, or unchanged). Just track the count.
+      _lastMessageCount = newCount;
+      return;
+    }
+
+    final wasEmpty = _lastMessageCount == 0;
+    // Capture whether the view was at the bottom BEFORE the new bubbles lay
     // out (the scroll position here still reflects the previous content).
     var atBottom = true;
     if (_scrollController.hasClients) {
       final pos = _scrollController.position;
       atBottom = pos.pixels >= pos.maxScrollExtent - _autoScrollThreshold;
     }
-
-    if (newCount <= _lastMessageCount) {
-      // No new bubbles (cleared, replaced, or unchanged). The bottom-most
-      // bubble may, however, have just gained an image (e.g. an SSTV picture
-      // beginning to render). Scroll to the bottom once on that transition so
-      // the whole picture is visible, but not on the subsequent in-place
-      // refreshes as more scan lines arrive.
-      final gainedImage = lastImagePath != null && _lastImagePath == null;
-      _lastMessageCount = newCount;
-      _lastImagePath = lastImagePath;
-      if (gainedImage && atBottom) {
-        _jumpToBottom();
-      }
-      return;
-    }
-
-    final wasEmpty = _lastMessageCount == 0;
     _lastMessageCount = newCount;
-    _lastImagePath = lastImagePath;
 
     if (!wasEmpty && !atBottom) return;
 
@@ -290,8 +261,8 @@ class _ChatWidgetState extends State<ChatWidget> {
           ),
         // Route/callsign header (above bubble, or standalone when no bubble)
         if (showRoute) _buildHeader(message, withIcon: iconHeader),
-        // Message bubble (when there is text or an inline image to show)
-        if (hasText || message.imagePath != null) _buildBubble(message),
+        // Message bubble (only when there is text to show)
+        if (hasText) _buildBubble(message),
         const SizedBox(height: 4),
       ],
     );
@@ -341,7 +312,6 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 
   Widget _buildBubble(ChatMessage message) {
-    final bool hasBubbleText = message.message.trim().isNotEmpty;
     return GestureDetector(
       onTap: widget.onMessageTap != null
           ? () => widget.onMessageTap!(message)
@@ -402,23 +372,11 @@ class _ChatWidgetState extends State<ChatWidget> {
                   // Inline image (e.g. a decoded SSTV picture).
                   if (message.imagePath != null)
                     Padding(
-                      padding: EdgeInsets.only(bottom: hasBubbleText ? 6 : 0),
+                      padding: const EdgeInsets.only(bottom: 6),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: Image(
-                          // Keep the element stable across revisions (key by
-                          // path only) so gaplessPlayback keeps the previously
-                          // decoded frame on screen while the next revision
-                          // loads. This avoids the bubble briefly collapsing to
-                          // zero height (which would yank the scroll position).
-                          // The provider's identity changes with the revision so
-                          // an overwritten file (an in-progress SSTV picture) is
-                          // re-read from disk instead of served from the cache.
-                          key: ValueKey(message.imagePath),
-                          image: _RevisionedFileImage(
-                            File(message.imagePath!),
-                            message.imageRevision,
-                          ),
+                        child: Image.file(
+                          File(message.imagePath!),
                           fit: BoxFit.contain,
                           gaplessPlayback: true,
                           errorBuilder: (context, error, stackTrace) =>
@@ -426,33 +384,32 @@ class _ChatWidgetState extends State<ChatWidget> {
                         ),
                       ),
                     ),
-                  if (hasBubbleText)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            message.message,
-                            style: const TextStyle(fontSize: 14),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          message.message,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                      // Authentication indicator (lock = verified, broken =
+                      // failed). Surfaces AX25 auth state on the bubble itself,
+                      // complementing the bubble color coding.
+                      ..._buildAuthIcon(message),
+                      // Location indicator
+                      if (message.hasLocation)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Icon(
+                            Icons.location_on,
+                            size: 14,
+                            color: Colors.grey.shade600,
                           ),
                         ),
-                        // Authentication indicator (lock = verified, broken =
-                        // failed). Surfaces AX25 auth state on the bubble
-                        // itself, complementing the bubble color coding.
-                        ..._buildAuthIcon(message),
-                        // Location indicator
-                        if (message.hasLocation)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 4),
-                            child: Icon(
-                              Icons.location_on,
-                              size: 14,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                      ],
-                    ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -503,29 +460,4 @@ class _ChatWidgetState extends State<ChatWidget> {
       ),
     ];
   }
-}
-
-/// A [FileImage] whose cache identity also depends on a [revision] counter.
-///
-/// Plain [FileImage]s compare equal whenever the path matches, so an overwritten
-/// file is served from the image cache instead of being re-read. Folding the
-/// revision into equality makes each revision a distinct cache key, forcing a
-/// fresh decode from disk while letting the hosting [Image] widget keep the same
-/// element (and therefore honour `gaplessPlayback`).
-class _RevisionedFileImage extends FileImage {
-  const _RevisionedFileImage(super.file, this.revision);
-
-  final int revision;
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is _RevisionedFileImage &&
-        other.file.path == file.path &&
-        other.scale == scale &&
-        other.revision == revision;
-  }
-
-  @override
-  int get hashCode => Object.hash(file.path, scale, revision);
 }

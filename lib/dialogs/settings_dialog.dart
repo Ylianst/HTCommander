@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
 import '../services/data_broker.dart';
+import '../services/tts_service.dart';
 
 /// Settings data model
 class AppSettings {
@@ -20,6 +23,8 @@ class AppSettings {
   String voiceLanguage;
   String voiceModel;
   String voice;
+  double voiceSpeechRate;
+  double voicePitch;
 
   // Winlink tab
   String winlinkPassword;
@@ -44,6 +49,8 @@ class AppSettings {
     this.voiceLanguage = 'auto',
     this.voiceModel = '',
     this.voice = '',
+    this.voiceSpeechRate = 0.5,
+    this.voicePitch = 1.0,
     this.winlinkPassword = '',
     this.winlinkUseStationId = false,
     this.webServerEnabled = false,
@@ -65,6 +72,8 @@ class AppSettings {
     String? voiceLanguage,
     String? voiceModel,
     String? voice,
+    double? voiceSpeechRate,
+    double? voicePitch,
     String? winlinkPassword,
     bool? winlinkUseStationId,
     bool? webServerEnabled,
@@ -83,6 +92,8 @@ class AppSettings {
       voiceLanguage: voiceLanguage ?? this.voiceLanguage,
       voiceModel: voiceModel ?? this.voiceModel,
       voice: voice ?? this.voice,
+      voiceSpeechRate: voiceSpeechRate ?? this.voiceSpeechRate,
+      voicePitch: voicePitch ?? this.voicePitch,
       winlinkPassword: winlinkPassword ?? this.winlinkPassword,
       winlinkUseStationId: winlinkUseStationId ?? this.winlinkUseStationId,
       webServerEnabled: webServerEnabled ?? this.webServerEnabled,
@@ -112,6 +123,9 @@ class AppSettings {
           DataBroker.getValue<String>(0, 'VoiceLanguage', 'auto') ?? 'auto',
       voiceModel: DataBroker.getValue<String>(0, 'VoiceModel', '') ?? '',
       voice: DataBroker.getValue<String>(0, 'Voice', '') ?? '',
+      voiceSpeechRate:
+          DataBroker.getValue<double>(0, 'VoiceSpeechRate', 0.5) ?? 0.5,
+      voicePitch: DataBroker.getValue<double>(0, 'VoicePitch', 1.0) ?? 1.0,
       winlinkPassword:
           DataBroker.getValue<String>(0, 'WinlinkPassword', '') ?? '',
       winlinkUseStationId:
@@ -152,6 +166,12 @@ class AppSettings {
     );
     DataBroker.dispatch(deviceId: 0, name: 'VoiceModel', data: voiceModel);
     DataBroker.dispatch(deviceId: 0, name: 'Voice', data: voice);
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'VoiceSpeechRate',
+      data: voiceSpeechRate,
+    );
+    DataBroker.dispatch(deviceId: 0, name: 'VoicePitch', data: voicePitch);
     DataBroker.dispatch(
       deviceId: 0,
       name: 'WinlinkPassword',
@@ -266,6 +286,13 @@ class _SettingsDialogState extends State<SettingsDialog>
   bool _airplaneTesting = false;
   String _airplaneTestResult = '';
 
+  // Serial ports available for the GPS receiver (desktop only).
+  List<String> _availablePorts = const [];
+
+  // Available text-to-speech voices, loaded asynchronously.
+  List<Map<String, String>> _voices = const [];
+  bool _voicesLoaded = false;
+
   // Language options
   static const List<LanguageOption> _languages = [
     LanguageOption('auto', 'Auto-detect'),
@@ -317,6 +344,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     // Load settings from DataBroker
     _settings = AppSettings.loadFromDataBroker();
 
+    // Enumerate serial ports for the GPS receiver dropdown (desktop only).
+    _availablePorts = _listSerialPorts();
+
     _callSignController = TextEditingController(text: _settings.callSign);
     _winlinkPasswordController = TextEditingController(
       text: _settings.winlinkPassword,
@@ -332,6 +362,24 @@ class _SettingsDialogState extends State<SettingsDialog>
     );
 
     _callSignController.addListener(_onCallSignChanged);
+
+    // Load the available TTS voices for the Voice tab.
+    _loadVoices();
+  }
+
+  /// Loads the available text-to-speech voices for the Voice settings tab.
+  Future<void> _loadVoices() async {
+    final voices = await TtsService.instance.getVoices();
+    voices.sort((a, b) {
+      final byLocale = (a['locale'] ?? '').compareTo(b['locale'] ?? '');
+      if (byLocale != 0) return byLocale;
+      return (a['name'] ?? '').compareTo(b['name'] ?? '');
+    });
+    if (!mounted) return;
+    setState(() {
+      _voices = voices;
+      _voicesLoaded = true;
+    });
   }
 
   @override
@@ -857,22 +905,55 @@ class _SettingsDialogState extends State<SettingsDialog>
                     color: Colors.grey.shade800,
                   ),
                 ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Used when sending text in "Speech" mode from the Voice tab.',
+                  style: DialogStyles.bodyStyle,
+                ),
                 const SizedBox(height: 16),
                 const Text('Voice', style: DialogStyles.labelStyle),
                 const SizedBox(height: 4),
-                DropdownButtonFormField<String>(
-                  initialValue: _settings.voice.isEmpty
-                      ? null
-                      : _settings.voice,
-                  decoration: _inputDecoration(),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'default',
-                      child: Text('System Default'),
+                _buildVoiceDropdown(),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text('Speech Rate', style: DialogStyles.labelStyle),
+                    const Spacer(),
+                    Text(
+                      _settings.voiceSpeechRate.toStringAsFixed(2),
+                      style: DialogStyles.bodyStyle,
                     ),
                   ],
+                ),
+                Slider(
+                  value: _settings.voiceSpeechRate.clamp(0.0, 1.0),
+                  min: 0.0,
+                  max: 1.0,
+                  divisions: 20,
+                  label: _settings.voiceSpeechRate.toStringAsFixed(2),
                   onChanged: (value) {
-                    setState(() => _settings.voice = value ?? 'default');
+                    setState(() => _settings.voiceSpeechRate = value);
+                  },
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Text('Pitch', style: DialogStyles.labelStyle),
+                    const Spacer(),
+                    Text(
+                      _settings.voicePitch.toStringAsFixed(2),
+                      style: DialogStyles.bodyStyle,
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: _settings.voicePitch.clamp(0.5, 2.0),
+                  min: 0.5,
+                  max: 2.0,
+                  divisions: 30,
+                  label: _settings.voicePitch.toStringAsFixed(2),
+                  onChanged: (value) {
+                    setState(() => _settings.voicePitch = value);
                   },
                 ),
               ],
@@ -880,6 +961,50 @@ class _SettingsDialogState extends State<SettingsDialog>
           ),
         ],
       ),
+    );
+  }
+
+  /// Builds the voice selection dropdown for the Text-to-Speech section,
+  /// populated from the platform's available voices.
+  Widget _buildVoiceDropdown() {
+    if (!_voicesLoaded) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Loading voices…', style: DialogStyles.bodyStyle),
+          ],
+        ),
+      );
+    }
+
+    final items = <DropdownMenuItem<String>>[
+      const DropdownMenuItem(value: '', child: Text('System Default')),
+      for (final voice in _voices)
+        DropdownMenuItem(
+          value: TtsService.encodeVoice(voice),
+          child: Text(TtsService.voiceLabel(voice)),
+        ),
+    ];
+
+    // Ensure the persisted value is selectable even if the voice list changed.
+    final values = items.map((i) => i.value).toSet();
+    final current = values.contains(_settings.voice) ? _settings.voice : '';
+
+    return DropdownButtonFormField<String>(
+      initialValue: current,
+      isExpanded: true,
+      decoration: _inputDecoration(),
+      items: items,
+      onChanged: (value) {
+        setState(() => _settings.voice = value ?? '');
+      },
     );
   }
 
@@ -1084,6 +1209,37 @@ class _SettingsDialogState extends State<SettingsDialog>
     );
   }
 
+  /// Returns the serial ports available on the system, or an empty list on
+  /// platforms that do not support serial access (web/mobile). Wrapped in a
+  /// try/catch because port enumeration can throw on unsupported platforms.
+  static List<String> _listSerialPorts() {
+    final desktop =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux);
+    if (!desktop) return const [];
+    try {
+      return SerialPort.availablePorts;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Builds the dropdown items for the GPS serial port: always "None" plus any
+  /// available ports, and the currently-configured value even if it is no
+  /// longer present (so the saved selection stays visible).
+  List<DropdownMenuItem<String>> _gpsPortItems() {
+    final values = <String>['None', ..._availablePorts];
+    if (_settings.gpsSerialPort.isNotEmpty &&
+        !values.contains(_settings.gpsSerialPort)) {
+      values.add(_settings.gpsSerialPort);
+    }
+    return values
+        .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+        .toList();
+  }
+
   Widget _buildMapTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1114,6 +1270,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
+                      flex: 13,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1125,12 +1282,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                           DropdownButtonFormField<String>(
                             initialValue: _settings.gpsSerialPort,
                             decoration: _inputDecoration(),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'None',
-                                child: Text('None'),
-                              ),
-                            ],
+                            items: _gpsPortItems(),
                             onChanged: (value) {
                               setState(
                                 () => _settings.gpsSerialPort = value ?? 'None',
@@ -1142,6 +1294,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                     ),
                     const SizedBox(width: 16),
                     Expanded(
+                      flex: 7,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

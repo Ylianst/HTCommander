@@ -1,29 +1,9 @@
 import 'package:flutter/material.dart';
+import '../handlers/bbs_handler.dart';
+import '../radio/radio_models.dart';
+import '../services/data_broker.dart';
+import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
-
-/// BBS station stats
-class BbsStationStats {
-  final String callsign;
-  final DateTime lastSeen;
-  final String protocol;
-  final int packetsIn;
-  final int packetsOut;
-  final int bytesIn;
-  final int bytesOut;
-
-  const BbsStationStats({
-    required this.callsign,
-    required this.lastSeen,
-    this.protocol = 'AX.25',
-    this.packetsIn = 0,
-    this.packetsOut = 0,
-    this.bytesIn = 0,
-    this.bytesOut = 0,
-  });
-
-  String get statsString =>
-      '$protocol, $packetsIn in / $packetsOut out, $bytesIn bytes in / $bytesOut bytes out';
-}
 
 /// BBS traffic entry
 class BbsTrafficEntry {
@@ -49,12 +29,19 @@ class BbsTab extends StatefulWidget {
 }
 
 class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
-  final List<BbsStationStats> _stations = [];
+  final DataBrokerClient _broker = DataBrokerClient();
+  final List<MergedStationStats> _stations = [];
   final List<BbsTrafficEntry> _traffic = [];
   final ScrollController _trafficScrollController = ScrollController();
+
+  /// Connected radios, each a map with 'DeviceId' and 'FriendlyName'.
+  final List<Map<String, dynamic>> _connectedRadios = [];
+
+  /// Latest lock state reported for each radio device id.
+  final Map<int, RadioLockState> _lockStates = {};
+
   int? _selectedStationIndex;
   bool _viewTraffic = true;
-  bool _isActivated = false;
   int _sortColumnIndex = 0;
   bool _sortAscending = true;
   double _trafficHeightRatio = 0.35;
@@ -67,81 +54,169 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
   @override
   void initState() {
     super.initState();
-    _addSampleData();
+
+    // Connected radios and lock state drive the Activate/Deactivate button.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'ConnectedRadios',
+      callback: _onConnectedRadiosChanged,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'LockState',
+      callback: _onLockStateChanged,
+    );
+
+    // BBS conversation traffic and control/error messages (dispatched on dev 0).
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'BbsTraffic',
+      callback: _onBbsTraffic,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'BbsControlMessage',
+      callback: _onBbsControlMessage,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'BbsError',
+      callback: _onBbsError,
+    );
+
+    // Merged per-station statistics from the BBS manager (device 1).
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'BbsMergedStats',
+      callback: _onBbsMergedStats,
+    );
+
+    // Persisted "View Traffic" setting (device 0).
+    _viewTraffic = (_broker.getValue<int>(0, 'ViewBbsTraffic', 1) ?? 1) == 1;
+
+    // Seed current state from the broker.
+    _loadConnectedRadios();
+    _applyMergedStats(DataBroker.getValueDynamic(1, 'BbsMergedStats'));
   }
 
   @override
   void dispose() {
+    _broker.dispose();
     _trafficScrollController.dispose();
     super.dispose();
   }
 
-  void _addSampleData() {
-    _stations.addAll([
-      BbsStationStats(
-        callsign: 'KC3SLD',
-        lastSeen: DateTime.now().subtract(const Duration(minutes: 5)),
-        protocol: 'AX.25',
-        packetsIn: 42,
-        packetsOut: 38,
-        bytesIn: 4200,
-        bytesOut: 3800,
-      ),
-      BbsStationStats(
-        callsign: 'KK7VZT',
-        lastSeen: DateTime.now().subtract(const Duration(minutes: 15)),
-        protocol: 'AX.25',
-        packetsIn: 18,
-        packetsOut: 22,
-        bytesIn: 1800,
-        bytesOut: 2200,
-      ),
-      BbsStationStats(
-        callsign: 'N0CALL',
-        lastSeen: DateTime.now().subtract(const Duration(hours: 1)),
-        protocol: 'AX.25',
-        packetsIn: 5,
-        packetsOut: 3,
-        bytesIn: 500,
-        bytesOut: 300,
-      ),
-    ]);
+  // ---------------------------------------------------------------------------
+  // Radio / lock state
+  // ---------------------------------------------------------------------------
 
-    _traffic.addAll([
-      const BbsTrafficEntry(
-        callsign: '',
-        message: 'BBS mode activated',
-        isControl: true,
-      ),
-      const BbsTrafficEntry(
-        callsign: 'KC3SLD',
-        message: 'Hello, anyone there?',
-        outgoing: false,
-      ),
-      const BbsTrafficEntry(
-        callsign: 'KC3SLD',
-        message: 'Yes, reading you loud and clear!',
-        outgoing: true,
-      ),
-      const BbsTrafficEntry(
-        callsign: 'KK7VZT',
-        message: 'Good morning! Checking in.',
-        outgoing: false,
-      ),
-      const BbsTrafficEntry(
-        callsign: 'KK7VZT',
-        message: 'Good morning! Welcome to the net.',
-        outgoing: true,
-      ),
-    ]);
+  void _loadConnectedRadios() {
+    _setConnectedRadios(DataBroker.getValueDynamic(1, 'ConnectedRadios'));
   }
 
-  BbsStationStats? get _selectedStation {
-    if (_selectedStationIndex == null ||
-        _selectedStationIndex! >= _stations.length) {
-      return null;
+  void _setConnectedRadios(Object? data) {
+    _connectedRadios.clear();
+    if (data is List) {
+      for (final r in data) {
+        if (r is Map && r['DeviceId'] != null) {
+          _connectedRadios.add({
+            'DeviceId': r['DeviceId'],
+            'FriendlyName': r['FriendlyName'],
+          });
+        }
+      }
     }
-    return _stations[_selectedStationIndex!];
+  }
+
+  void _onConnectedRadiosChanged(int deviceId, String name, Object? data) {
+    setState(() => _setConnectedRadios(data));
+  }
+
+  void _onLockStateChanged(int deviceId, String name, Object? data) {
+    if (data is! Map) return;
+    setState(() {
+      _lockStates[deviceId] = RadioLockState.fromJson(
+        Map<String, dynamic>.from(data),
+      );
+    });
+  }
+
+  /// The radio currently locked to BBS usage, or -1 if none.
+  int get _activeBbsRadioId {
+    for (final r in _connectedRadios) {
+      final id = r['DeviceId'] as int;
+      final ls = _lockStates[id];
+      if (ls != null && ls.isLocked && ls.usage == 'BBS') return id;
+    }
+    return -1;
+  }
+
+  bool get _isActive => _activeBbsRadioId > 0;
+
+  /// Connected radios that are not locked to any usage.
+  List<Map<String, dynamic>> get _availableRadios {
+    final result = <Map<String, dynamic>>[];
+    for (final r in _connectedRadios) {
+      final id = r['DeviceId'] as int;
+      final ls = _lockStates[id];
+      if (ls == null || !ls.isLocked) result.add(r);
+    }
+    return result;
+  }
+
+  bool get _buttonEnabled => _isActive || _availableRadios.isNotEmpty;
+
+  // ---------------------------------------------------------------------------
+  // Stats
+  // ---------------------------------------------------------------------------
+
+  void _onBbsMergedStats(int deviceId, String name, Object? data) {
+    setState(() => _applyMergedStats(data));
+  }
+
+  void _applyMergedStats(Object? data) {
+    if (data is! List) return;
+    _stations
+      ..clear()
+      ..addAll(data.whereType<MergedStationStats>());
+    _applySort();
+    if (_selectedStationIndex != null &&
+        _selectedStationIndex! >= _stations.length) {
+      _selectedStationIndex = null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Traffic
+  // ---------------------------------------------------------------------------
+
+  void _onBbsTraffic(int deviceId, String name, Object? data) {
+    if (data is! BbsTrafficData) return;
+    _addTrafficEntry(
+      BbsTrafficEntry(
+        callsign: data.callsign,
+        outgoing: data.outgoing,
+        message: data.message,
+      ),
+    );
+  }
+
+  void _onBbsControlMessage(int deviceId, String name, Object? data) {
+    if (data is! BbsControlMessageData) return;
+    _addTrafficEntry(
+      BbsTrafficEntry(callsign: '', message: data.message, isControl: true),
+    );
+  }
+
+  void _onBbsError(int deviceId, String name, Object? data) {
+    if (data is! BbsErrorEventData) return;
+    _addTrafficEntry(
+      BbsTrafficEntry(
+        callsign: '',
+        message: 'Error: ${data.error}',
+        isControl: true,
+      ),
+    );
   }
 
   void _onStationSelected(int index) {
@@ -150,27 +225,87 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
     });
   }
 
-  void _onActivate() {
-    setState(() {
-      _isActivated = !_isActivated;
-    });
-    if (_isActivated) {
-      _addTrafficEntry(
-        const BbsTrafficEntry(
-          callsign: '',
-          message: 'BBS mode activated',
-          isControl: true,
-        ),
+  // ---------------------------------------------------------------------------
+  // Activate / deactivate
+  // ---------------------------------------------------------------------------
+
+  void _onActivate(BuildContext buttonContext) {
+    final activeId = _activeBbsRadioId;
+    if (activeId > 0) {
+      // Deactivate the active BBS.
+      _broker.dispatch(
+        deviceId: 1,
+        name: 'RemoveBbs',
+        data: RemoveBbsData(radioDeviceId: activeId),
+        store: false,
       );
-    } else {
-      _addTrafficEntry(
-        const BbsTrafficEntry(
-          callsign: '',
-          message: 'BBS mode deactivated',
-          isControl: true,
-        ),
-      );
+      _broker.logInfo('[BbsTab] Deactivating BBS on radio $activeId');
+      return;
     }
+
+    final available = _availableRadios;
+    if (available.isEmpty) return;
+    if (available.length > 1) {
+      _showRadioSelectionMenu(buttonContext, available);
+      return;
+    }
+    _activateBbsOnRadio(available.first['DeviceId'] as int);
+  }
+
+  void _showRadioSelectionMenu(
+    BuildContext buttonContext,
+    List<Map<String, dynamic>> radios,
+  ) {
+    final box = buttonContext.findRenderObject() as RenderBox;
+    final offset = box.localToGlobal(Offset.zero);
+    showMenu<int>(
+      context: buttonContext,
+      position: RelativeRect.fromLTRB(
+        offset.dx,
+        offset.dy + box.size.height,
+        offset.dx + box.size.width,
+        offset.dy,
+      ),
+      items: [
+        for (final r in radios)
+          PopupMenuItem<int>(
+            value: r['DeviceId'] as int,
+            child: Text(
+              (r['FriendlyName'] as String?)?.isNotEmpty == true
+                  ? r['FriendlyName'] as String
+                  : 'Radio ${r['DeviceId']}',
+            ),
+          ),
+      ],
+    ).then((id) {
+      if (id != null) _activateBbsOnRadio(id);
+    });
+  }
+
+  void _activateBbsOnRadio(int radioId) {
+    if (radioId <= 0) return;
+
+    // Region from HtStatus, channel from Settings (both stored as JSON maps).
+    final htStatus = DataBroker.getValueDynamic(radioId, 'HtStatus');
+    final regionId =
+        (htStatus is Map ? htStatus['currRegion'] as int? : null) ?? 0;
+    final settings = DataBroker.getValueDynamic(radioId, 'Settings');
+    final channelId =
+        (settings is Map ? settings['channelA'] as int? : null) ?? 0;
+
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'CreateBbs',
+      data: CreateBbsData(
+        radioDeviceId: radioId,
+        channelId: channelId,
+        regionId: regionId,
+      ),
+      store: false,
+    );
+    _broker.logInfo(
+      '[BbsTab] Activating BBS on radio $radioId (Region: $regionId, Channel: $channelId)',
+    );
   }
 
   void _addTrafficEntry(BbsTrafficEntry entry) {
@@ -195,6 +330,13 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
   }
 
   void _clearStats() {
+    // Ask the BBS manager (device 1) to clear all aggregated stats.
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'BbsClearAllStats',
+      data: null,
+      store: false,
+    );
     setState(() {
       _stations.clear();
       _selectedStationIndex = null;
@@ -267,6 +409,12 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
       switch (value) {
         case 'viewTraffic':
           setState(() => _viewTraffic = !_viewTraffic);
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'ViewBbsTraffic',
+            data: _viewTraffic ? 1 : 0,
+            store: true,
+          );
           break;
         case 'clearTraffic':
           _clearTraffic();
@@ -289,23 +437,27 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
         _sortColumnIndex = columnIndex;
         _sortAscending = true;
       }
-      _stations.sort((a, b) {
-        int result;
-        switch (columnIndex) {
-          case 0:
-            result = a.callsign.compareTo(b.callsign);
-            break;
-          case 1:
-            result = a.lastSeen.compareTo(b.lastSeen);
-            break;
-          case 2:
-            result = a.statsString.compareTo(b.statsString);
-            break;
-          default:
-            result = 0;
-        }
-        return _sortAscending ? result : -result;
-      });
+      _applySort();
+    });
+  }
+
+  void _applySort() {
+    _stations.sort((a, b) {
+      int result;
+      switch (_sortColumnIndex) {
+        case 0:
+          result = a.callsign.compareTo(b.callsign);
+          break;
+        case 1:
+          result = a.lastSeen.compareTo(b.lastSeen);
+          break;
+        case 2:
+          result = a.statsString.compareTo(b.statsString);
+          break;
+        default:
+          result = 0;
+      }
+      return _sortAscending ? result : -result;
     });
   }
 
@@ -369,7 +521,7 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
           return Row(
             children: [
               Text(
-                _isActivated ? 'BBS - Active' : 'BBS',
+                _isActive ? 'BBS - Active' : 'BBS',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -379,13 +531,17 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
               if (showButton) ...[
                 SizedBox(
                   height: 28,
-                  child: ElevatedButton(
-                    onPressed: _onActivate,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      textStyle: const TextStyle(fontSize: 12),
+                  child: Builder(
+                    builder: (btnContext) => ElevatedButton(
+                      onPressed: _buttonEnabled
+                          ? () => _onActivate(btnContext)
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
+                      child: Text(_isActive ? 'Deactivate' : 'Activate'),
                     ),
-                    child: Text(_isActivated ? 'Deactivate' : 'Activate'),
                   ),
                 ),
                 const SizedBox(width: 8),
