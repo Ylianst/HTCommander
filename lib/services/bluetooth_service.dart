@@ -59,7 +59,6 @@ class BluetoothService {
 
     // On macOS, use native Bluetooth Classic
     if (_useBluetoothClassic) {
-      debugPrint('BluetoothService: Using Bluetooth Classic on macOS');
       return await BluetoothClassicMacOS.instance.isAvailable();
     }
 
@@ -73,9 +72,6 @@ class BluetoothService {
       // The CBCentralManager reports transient states before settling
       if (!_bluetoothInitialized) {
         _bluetoothInitialized = true;
-        debugPrint(
-          'BluetoothService: First Bluetooth check, initializing adapter...',
-        );
 
         // Small delay to let the adapter initialize
         await Future<void>.delayed(const Duration(milliseconds: 500));
@@ -86,9 +82,6 @@ class BluetoothService {
         try {
           final state = await FlutterBluePlus.adapterState.first.timeout(
             const Duration(seconds: 2),
-          );
-          debugPrint(
-            'BluetoothService: Adapter state (attempt ${attempt + 1}): $state',
           );
 
           if (state == BluetoothAdapterState.on) {
@@ -104,9 +97,6 @@ class BluetoothService {
             await Future<void>.delayed(const Duration(milliseconds: 500));
           }
         } catch (e) {
-          debugPrint(
-            'BluetoothService: State check timeout (attempt ${attempt + 1})',
-          );
           if (attempt < 2) {
             await Future<void>.delayed(const Duration(milliseconds: 300));
           }
@@ -118,13 +108,11 @@ class BluetoothService {
         final finalState = await FlutterBluePlus.adapterState.first.timeout(
           const Duration(seconds: 1),
         );
-        debugPrint('BluetoothService: Final adapter state: $finalState');
         return finalState == BluetoothAdapterState.on;
       } catch (e) {
         return false;
       }
     } catch (e) {
-      debugPrint('BluetoothService: Error checking Bluetooth: $e');
       return false;
     }
   }
@@ -177,12 +165,8 @@ class BluetoothService {
           ),
         );
       }
-
-      debugPrint(
-        'BluetoothService: Found ${devices.length} compatible devices via Bluetooth Classic',
-      );
     } catch (e) {
-      debugPrint('BluetoothService: Error finding Classic devices: $e');
+      // Ignore errors finding Classic devices
     }
 
     return devices;
@@ -232,7 +216,7 @@ class BluetoothService {
         }
       }
     } catch (e) {
-      debugPrint('BluetoothService: Error during BLE scan: $e');
+      // Ignore BLE scan errors
     } finally {
       await FlutterBluePlus.stopScan();
     }
@@ -260,7 +244,7 @@ class BluetoothService {
         }
       }
     } catch (e) {
-      debugPrint('BluetoothService: Error getting bonded devices: $e');
+      // Ignore errors getting bonded devices
     }
 
     return devices;
@@ -334,14 +318,9 @@ class BluetoothService {
       );
 
       // Connect using the transport
-      debugPrint(
-        'BluetoothService: Connecting via Bluetooth Classic to $macAddress',
-      );
       final success = await transport.connect(device);
 
       if (success) {
-        debugPrint('BluetoothService: Bluetooth Classic connection successful');
-
         // Store the transport
         _connectedRadios[deviceId] = transport;
 
@@ -364,6 +343,19 @@ class BluetoothService {
         );
         _radioAudioInstances[deviceId] = radioAudio;
 
+        // If the user previously enabled audio, automatically enable the audio
+        // channel for this newly connected radio (preference stored on device 0).
+        final audioEnabledPref =
+            _broker.getValue<bool>(0, 'AudioEnabled', false) ?? false;
+        if (audioEnabledPref) {
+          _broker.dispatch(
+            deviceId: deviceId,
+            name: 'SetAudio',
+            data: true,
+            store: false,
+          );
+        }
+
         _broker.dispatch(
           deviceId: deviceId,
           name: 'MacAddress',
@@ -379,7 +371,6 @@ class BluetoothService {
         _publishConnectedRadios();
         return deviceId;
       } else {
-        debugPrint('BluetoothService: Bluetooth Classic connection failed');
         _classicConnections.remove(deviceId);
         await transport.dispose();
         _broker.dispatch(
@@ -392,7 +383,6 @@ class BluetoothService {
         return null;
       }
     } catch (e) {
-      debugPrint('BluetoothService: Error connecting via Classic: $e');
       return null;
     }
   }
@@ -469,7 +459,6 @@ class BluetoothService {
         return null;
       }
     } catch (e) {
-      debugPrint('BluetoothService: Error connecting via BLE: $e');
       return null;
     }
   }

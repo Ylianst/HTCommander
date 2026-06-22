@@ -398,16 +398,6 @@ class _ChatWidgetState extends State<ChatWidget> {
                       // failed). Surfaces AX25 auth state on the bubble itself,
                       // complementing the bubble color coding.
                       ..._buildAuthIcon(message),
-                      // Location indicator
-                      if (message.hasLocation)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Icon(
-                            Icons.location_on,
-                            size: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
                     ],
                   ),
                 ],

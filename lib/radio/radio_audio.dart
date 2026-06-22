@@ -105,6 +105,11 @@ class RadioAudio {
   bool _isTransmitting = false;
   bool _voiceTransmitCancel = false;
   bool _playInputBack = false;
+
+  /// When true, the transmission loop keeps the audio run open while waiting for
+  /// more PCM, instead of ending it as soon as the queue drains. Used for live
+  /// push-to-talk streaming so the whole session is a single audio run.
+  bool _voiceTransmitHold = false;
   Uint8List? _reminderTransmitPcm;
   Completer<void>? _newDataSignal;
 
@@ -259,10 +264,11 @@ class RadioAudio {
   void _onTransmitVoicePCM(int deviceId, String name, Object? data) {
     if (data == null) return;
 
-    // Accept a raw PCM buffer, or a Map with 'data'/'Data' and an optional
-    // 'playLocally'/'PlayLocally' flag.
+    // Accept a raw PCM buffer, or a Map with 'data'/'Data', an optional
+    // 'playLocally'/'PlayLocally' flag and an optional 'hold'/'Hold' flag.
     Uint8List? pcm;
     bool playLocally = false;
+    bool? hold;
     if (data is Uint8List) {
       pcm = data;
     } else if (data is List<int>) {
@@ -276,9 +282,18 @@ class RadioAudio {
       }
       final Object? p = data['playLocally'] ?? data['PlayLocally'];
       if (p is bool) playLocally = p;
+      final Object? h = data['hold'] ?? data['Hold'];
+      if (h is bool) hold = h;
     }
 
-    if (pcm == null || pcm.isEmpty) return;
+    if (hold != null) _voiceTransmitHold = hold;
+
+    if (pcm == null || pcm.isEmpty) {
+      // A hold-only update (e.g. the end of a PTT stream). Releasing the hold
+      // wakes the transmission loop so it can drain and end the audio run.
+      if (hold == false) _signalNewData();
+      return;
+    }
     transmitVoice(pcm, 0, pcm.length, playLocally);
   }
 
@@ -359,6 +374,7 @@ class RadioAudio {
 
     // Abort any in-progress voice transmission.
     if (_isTransmitting) {
+      _voiceTransmitHold = false;
       _voiceTransmitCancel = true;
       _signalNewData();
       _pcmQueue.clear();
@@ -708,6 +724,7 @@ class RadioAudio {
 
   /// Abort an in-progress transmission and tell the radio to stop transmitting.
   void cancelVoiceTransmit() {
+    _voiceTransmitHold = false;
     _voiceTransmitCancel = true;
     _signalNewData();
     _pcmQueue.clear();
@@ -733,14 +750,16 @@ class RadioAudio {
         if (_pcmQueue.isNotEmpty) {
           await _processPcmData(_pcmQueue.removeFirst());
         } else {
-          // Wait briefly for more data; exit if none arrives.
+          // Wait briefly for more data. While a PTT stream is held open keep
+          // the audio run alive across gaps; otherwise end once the queue is
+          // empty so the audio run is finalized.
           _newDataSignal = Completer<void>();
           await Future.any(<Future<void>>[
             _newDataSignal!.future,
             Future<void>.delayed(const Duration(milliseconds: 100)),
           ]);
           _newDataSignal = null;
-          if (_pcmQueue.isEmpty) break;
+          if (_pcmQueue.isEmpty && !_voiceTransmitHold) break;
         }
       }
     } catch (e) {

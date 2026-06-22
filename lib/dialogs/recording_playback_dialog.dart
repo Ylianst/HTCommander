@@ -67,8 +67,11 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
         return;
       }
       await _player.setSource(DeviceFileSource(widget.filePath));
-      final d = await _player.getDuration();
-      if (mounted && d != null) setState(() => _duration = d);
+      // Duration is delivered via the onDurationChanged listener set up in
+      // initState. Avoid a manual getDuration() here: on the audioplayers
+      // Darwin backend, calling it right after setSource races with the
+      // native "prepared" completion and triggers duplicate platform-channel
+      // responses ("Message responses can be sent only once").
       if (widget.autoPlay && mounted) {
         await _player.resume();
       }

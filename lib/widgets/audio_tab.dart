@@ -11,11 +11,12 @@ import 'package:flutter/material.dart';
 
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/microphone_capture.dart';
 import '../services/system_audio.dart';
 import 'spectrogram/spectrogram_view.dart';
 
-/// Which audio source the spectrogram visualizes.
-enum SpectrogramSource { received, microphone, both }
+/// Which audio source the spectrograph visualizes (or none to hide it).
+enum SpectrogramSource { none, radio, microphone }
 
 /// Audio tab - radio + application + computer audio controls.
 ///
@@ -24,8 +25,9 @@ enum SpectrogramSource { received, microphone, both }
 ///   * The application's audio output volume (software gain on received radio
 ///     audio) and mute.
 ///   * The computer's master output volume and mute (macOS only).
-///   * An optional spectrogram of the received and/or transmitted audio,
-///     toggled from the tab's sub-menu.
+///   * An optional spectrograph of either the received radio audio or the
+///     microphone, selected from the tab's sub-menu. The selection persists
+///     across app restarts (stored on DataBroker device 0).
 ///
 /// Device selection (audio input/output endpoints) from the C# form is not
 /// included in this version.
@@ -42,6 +44,10 @@ class _AudioTabState extends State<AudioTab>
 
   int _currentRadioDeviceId = -1;
 
+  // Whether the radio's audio channel is enabled. Mirrors the Voice tab's
+  // Enable/Disable button and the radio's 'AudioState' broker value.
+  bool _audioEnabled = false;
+
   // Radio controls.
   int _radioVolume = 0; // 0-15
   int _squelchLevel = 0; // 0-9
@@ -57,10 +63,22 @@ class _AudioTabState extends State<AudioTab>
   bool _draggingMaster = false;
   Timer? _masterPollTimer;
 
-  // Spectrogram.
-  bool _showSpectrogram = false;
-  SpectrogramSource _spectrogramSource = SpectrogramSource.received;
+  // Spectrograph. Persisted on DataBroker device 0 ('SpectrogramSource').
+  SpectrogramSource _spectrogramSource = SpectrogramSource.none;
   SpectrogramController? _spectrogram;
+
+  /// Whether the spectrograph is currently shown (any source other than none).
+  bool get _showSpectrogram => _spectrogramSource != SpectrogramSource.none;
+
+  // Live microphone capture (used by the microphone source).
+  MicrophoneCapture? _micCapture;
+  bool _micStarting = false;
+  String? _micError;
+
+  // Microphone transmit gain (linear multiplier, 1.0 = unchanged). Persisted
+  // on DataBroker device 0 ('MicrophoneGain'). Shared with the Voice tab's
+  // push-to-talk path so boosting here also boosts transmitted audio.
+  double _micGain = 1.0;
 
   @override
   bool get wantKeepAlive => true;
@@ -112,15 +130,48 @@ class _AudioTabState extends State<AudioTab>
       name: 'AudioDataAvailable',
       callback: _onAudioDataAvailable,
     );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioState',
+      callback: _onAudioStateChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MicrophoneGain',
+      callback: _onMicGainChanged,
+    );
 
     _currentRadioDeviceId = _resolveCurrentRadioId();
+    _audioEnabled = _readAudioState();
     _loadForCurrentRadio();
     _initMasterVolume();
+
+    // Restore the persisted microphone gain (device 0 = global settings).
+    _micGain = (_broker.getValue<double>(0, 'MicrophoneGain', 1.0) ?? 1.0)
+        .clamp(1.0, 8.0);
+
+    // Restore the persisted spectrograph source (device 0 = global settings).
+    final savedSource =
+        _broker.getValue<String>(0, 'SpectrogramSource', 'none') ?? 'none';
+    _spectrogramSource = _sourceFromName(savedSource);
+    if (_spectrogramSource != SpectrogramSource.none) {
+      _spectrogram = SpectrogramController(
+        sampleRate: 32000,
+        fftSize: 512,
+        // Only the bottom quarter of the band (0-4000 Hz of the 16 kHz
+        // Nyquist) is displayed, so the generator computes only those bins.
+        maxFrequency: 4000,
+        intensity: 5,
+        decibel: true,
+      );
+      _updateMicCapture();
+    }
   }
 
   @override
   void dispose() {
     _masterPollTimer?.cancel();
+    _micCapture?.dispose();
     _spectrogram?.dispose();
     _broker.dispose();
     super.dispose();
@@ -199,6 +250,7 @@ class _AudioTabState extends State<AudioTab>
     if (!mounted) return;
     setState(() {
       _currentRadioDeviceId = _resolveCurrentRadioId();
+      _audioEnabled = _readAudioState();
       _loadForCurrentRadio();
     });
   }
@@ -207,8 +259,43 @@ class _AudioTabState extends State<AudioTab>
     if (!mounted || data is! int) return;
     setState(() {
       _currentRadioDeviceId = data;
+      _audioEnabled = _readAudioState();
       _loadForCurrentRadio();
     });
+  }
+
+  /// Reads the current AudioState of the radio shown in the Radio Panel.
+  bool _readAudioState() {
+    if (_currentRadioDeviceId <= 0) return false;
+    return _broker.getValue<bool>(_currentRadioDeviceId, 'AudioState', false) ??
+        false;
+  }
+
+  void _onAudioStateChanged(int deviceId, String name, Object? data) {
+    if (!mounted || deviceId != _currentRadioDeviceId) return;
+    if (data is bool) setState(() => _audioEnabled = data);
+  }
+
+  /// Toggles the audio channel of the radio shown in the Radio Panel. The UI
+  /// updates when the 'AudioState' broker value changes in response.
+  void _onEnable() {
+    final deviceId = _currentRadioDeviceId;
+    if (deviceId <= 0) return;
+    final desired = !_audioEnabled;
+    // Persist the user's audio-enabled preference (device 0) so the audio
+    // channel is automatically enabled when a radio connects.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'AudioEnabled',
+      data: desired,
+      store: true,
+    );
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'SetAudio',
+      data: desired,
+      store: false,
+    );
   }
 
   void _onRadioStateChanged(int deviceId, String name, Object? data) {
@@ -233,9 +320,7 @@ class _AudioTabState extends State<AudioTab>
   void _onSettingsChanged(int deviceId, String name, Object? data) {
     if (!mounted || deviceId != _currentRadioDeviceId) return;
     if (data is Map && data['squelchLevel'] is int) {
-      setState(
-        () => _squelchLevel = (data['squelchLevel'] as int).clamp(0, 9),
-      );
+      setState(() => _squelchLevel = (data['squelchLevel'] as int).clamp(0, 9));
     }
   }
 
@@ -256,23 +341,34 @@ class _AudioTabState extends State<AudioTab>
     if (data is bool) setState(() => _appMuted = data);
   }
 
+  void _onMicGainChanged(int deviceId, String name, Object? data) {
+    final double? gain = data is double
+        ? data
+        : (data is int ? data.toDouble() : null);
+    if (gain == null) return;
+    final clamped = gain.clamp(1.0, 8.0);
+    _micCapture?.gain = clamped;
+    if (!mounted) return;
+    setState(() => _micGain = clamped);
+  }
+
   void _onAudioDataAvailable(int deviceId, String name, Object? data) {
     final controller = _spectrogram;
-    if (!_showSpectrogram || controller == null) return;
+    // Only the radio source consumes the received audio stream. The microphone
+    // source is fed from live capture instead.
+    if (controller == null || _spectrogramSource != SpectrogramSource.radio) {
+      return;
+    }
     if (deviceId != _currentRadioDeviceId) return;
     if (data is! Map) return;
 
+    // Visualize the received (non-transmit) radio audio.
     final transmit = data['transmit'] as bool? ?? false;
-    switch (_spectrogramSource) {
-      case SpectrogramSource.received:
-        if (transmit) return;
-        break;
-      case SpectrogramSource.microphone:
-        if (!transmit) return;
-        break;
-      case SpectrogramSource.both:
-        break;
-    }
+    if (transmit) return;
+
+    // Don't draw audio received on a muted channel.
+    final muted = data['muted'] as bool? ?? false;
+    if (muted) return;
 
     final pcm = data['data'];
     final offset = data['offset'] as int? ?? 0;
@@ -380,31 +476,112 @@ class _AudioTabState extends State<AudioTab>
     SystemAudio.setMute(newValue);
   }
 
+  void _onMicGainSliderChanged(double value) {
+    final clamped = value.clamp(1.0, 8.0);
+    setState(() => _micGain = clamped);
+    _micCapture?.gain = clamped;
+    // Persist on device 0 so the Voice tab and the next launch pick it up.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'MicrophoneGain',
+      data: clamped,
+      store: true,
+    );
+  }
+
   // ---------------------------------------------------------------------------
-  // Spectrogram
+  // Spectrograph
   // ---------------------------------------------------------------------------
 
-  void _toggleSpectrogram() {
+  SpectrogramSource _sourceFromName(String name) {
+    switch (name) {
+      case 'radio':
+        return SpectrogramSource.radio;
+      case 'microphone':
+        return SpectrogramSource.microphone;
+      default:
+        return SpectrogramSource.none;
+    }
+  }
+
+  void _setSpectrogramSource(SpectrogramSource source) {
     setState(() {
-      _showSpectrogram = !_showSpectrogram;
-      if (_showSpectrogram) {
+      _spectrogramSource = source;
+      if (source != SpectrogramSource.none) {
         _spectrogram ??= SpectrogramController(
           sampleRate: 32000,
           fftSize: 512,
-          maxFrequency: 16000,
+          // Only the bottom quarter of the band (0-4000 Hz of the 16 kHz
+          // Nyquist) is displayed, so the generator computes only those bins.
+          maxFrequency: 4000,
           intensity: 5,
           decibel: true,
         );
         _spectrogram!.clear();
       }
     });
+
+    // Persist the selection on device 0 so it is restored on the next launch.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SpectrogramSource',
+      data: source.name,
+      store: true,
+    );
+
+    _updateMicCapture();
   }
 
-  void _setSpectrogramSource(SpectrogramSource source) {
+  // ---------------------------------------------------------------------------
+  // Live microphone capture
+  // ---------------------------------------------------------------------------
+
+  /// Whether the current spectrograph configuration needs the live microphone.
+  bool get _micNeeded => _spectrogramSource == SpectrogramSource.microphone;
+
+  /// Starts or stops microphone capture to match the current spectrogram state.
+  Future<void> _updateMicCapture() async {
+    if (_micNeeded) {
+      await _startMic();
+    } else {
+      await _stopMic();
+    }
+  }
+
+  Future<void> _startMic() async {
+    if (!MicrophoneCapture.isSupported) {
+      if (mounted) {
+        setState(() => _micError = 'Microphone capture is not supported here.');
+      }
+      return;
+    }
+    final capture = _micCapture ??= MicrophoneCapture(sampleRate: 32000);
+    capture.gain = _micGain;
+    if (capture.isCapturing || _micStarting) return;
+    _micStarting = true;
+    final ok = await capture.start(_onMicPcm);
+    _micStarting = false;
+    if (!mounted) return;
     setState(() {
-      _spectrogramSource = source;
-      _spectrogram?.clear();
+      _micError = ok
+          ? null
+          : 'Microphone unavailable. Grant access in System Settings > '
+                'Privacy & Security > Microphone.';
     });
+  }
+
+  Future<void> _stopMic() async {
+    await _micCapture?.stop();
+    if (mounted && _micError != null) setState(() => _micError = null);
+  }
+
+  void _onMicPcm(Uint8List pcm16) {
+    final controller = _spectrogram;
+    if (controller == null ||
+        _spectrogramSource != SpectrogramSource.microphone) {
+      return;
+    }
+    controller.feedPcm16(pcm16);
   }
 
   // ---------------------------------------------------------------------------
@@ -462,6 +639,25 @@ class _AudioTabState extends State<AudioTab>
                   onChanged: _onAppVolumeChanged,
                 ),
                 const SizedBox(height: 16),
+                _buildSectionTitle('Microphone'),
+                _buildSliderRow(
+                  label: 'Gain',
+                  value: _micGain,
+                  min: 1,
+                  max: 8,
+                  valueLabel: '${(_micGain * 100).round()}%',
+                  enabled: MicrophoneCapture.isSupported,
+                  onChanged: _onMicGainSliderChanged,
+                ),
+                if (!MicrophoneCapture.isSupported)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4, top: 2),
+                    child: Text(
+                      'Microphone capture is not available on this platform.',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ),
+                const SizedBox(height: 16),
                 _buildSectionTitle('Computer'),
                 _buildSliderRow(
                   label: 'Master',
@@ -497,6 +693,17 @@ class _AudioTabState extends State<AudioTab>
                           : SpectrogramView(controller: _spectrogram!),
                     ),
                   ),
+                  if (_micNeeded && _micError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, top: 4),
+                      child: Text(
+                        _micError!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ),
                 ],
               ],
             ),
@@ -508,12 +715,12 @@ class _AudioTabState extends State<AudioTab>
 
   String _spectrogramTitle() {
     switch (_spectrogramSource) {
-      case SpectrogramSource.received:
-        return 'Spectrogram (Received)';
+      case SpectrogramSource.radio:
+        return 'Radio Spectrograph';
       case SpectrogramSource.microphone:
-        return 'Spectrogram (Microphone)';
-      case SpectrogramSource.both:
-        return 'Spectrogram (Both)';
+        return 'Microphone Spectrograph';
+      case SpectrogramSource.none:
+        return 'Spectrograph';
     }
   }
 
@@ -601,30 +808,53 @@ class _AudioTabState extends State<AudioTab>
       decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       clipBehavior: Clip.hardEdge,
-      child: Row(
-        children: [
-          const Text(
-            'Audio',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const Spacer(),
-          Builder(
-            builder: (context) => InkWell(
-              onTap: () => _showMenu(context),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Image.asset(
-                  'assets/images/MenuIcon.png',
-                  width: 24,
-                  height: 24,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.menu, size: 24);
-                  },
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showButton = constraints.maxWidth > 180;
+          return Row(
+            children: [
+              const Text(
+                'Audio',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const Spacer(),
+              if (showButton)
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton(
+                    onPressed: (_audioEnabled || _isConnected)
+                        ? _onEnable
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(fontSize: 12),
+                      backgroundColor: _audioEnabled
+                          ? Colors.red.shade100
+                          : null,
+                    ),
+                    child: Text(_audioEnabled ? 'Disable' : 'Enable'),
+                  ),
+                ),
+              if (showButton) const SizedBox(width: 8),
+              Builder(
+                builder: (context) => InkWell(
+                  onTap: () => _showMenu(context),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Image.asset(
+                      'assets/images/MenuIcon.png',
+                      width: 24,
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.menu, size: 24);
+                      },
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -658,56 +888,44 @@ class _AudioTabState extends State<AudioTab>
       ),
       items: [
         PopupMenuItem<String>(
-          value: 'toggleSpectrogram',
+          value: 'sourceNone',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: checkRow('Show Spectrogram', _showSpectrogram),
+          child: checkRow(
+            'No Spectrograph',
+            _spectrogramSource == SpectrogramSource.none,
+          ),
         ),
-        if (_showSpectrogram) ...[
-          const PopupMenuDivider(height: 8),
-          PopupMenuItem<String>(
-            value: 'sourceReceived',
-            height: menuItemHeight,
-            padding: menuItemPadding,
-            child: checkRow(
-              'Received audio',
-              _spectrogramSource == SpectrogramSource.received,
-            ),
+        PopupMenuItem<String>(
+          value: 'sourceRadio',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: checkRow(
+            'Radio Spectrograph',
+            _spectrogramSource == SpectrogramSource.radio,
           ),
-          PopupMenuItem<String>(
-            value: 'sourceMicrophone',
-            height: menuItemHeight,
-            padding: menuItemPadding,
-            child: checkRow(
-              'Microphone audio',
-              _spectrogramSource == SpectrogramSource.microphone,
-            ),
+        ),
+        PopupMenuItem<String>(
+          value: 'sourceMicrophone',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: checkRow(
+            'Microphone Spectrograph',
+            _spectrogramSource == SpectrogramSource.microphone,
           ),
-          PopupMenuItem<String>(
-            value: 'sourceBoth',
-            height: menuItemHeight,
-            padding: menuItemPadding,
-            child: checkRow(
-              'Both',
-              _spectrogramSource == SpectrogramSource.both,
-            ),
-          ),
-        ],
+        ),
       ],
     ).then((value) {
       if (!mounted || value == null) return;
       switch (value) {
-        case 'toggleSpectrogram':
-          _toggleSpectrogram();
+        case 'sourceNone':
+          _setSpectrogramSource(SpectrogramSource.none);
           break;
-        case 'sourceReceived':
-          _setSpectrogramSource(SpectrogramSource.received);
+        case 'sourceRadio':
+          _setSpectrogramSource(SpectrogramSource.radio);
           break;
         case 'sourceMicrophone':
           _setSpectrogramSource(SpectrogramSource.microphone);
-          break;
-        case 'sourceBoth':
-          _setSpectrogramSource(SpectrogramSource.both);
           break;
       }
     });

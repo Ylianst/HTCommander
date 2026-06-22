@@ -13,6 +13,7 @@ import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../gps/gps_data.dart';
 import '../models/aircraft.dart';
+import '../models/radio_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
@@ -93,6 +94,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   /// `MapTabUserControl` serial GPS marker (reserved key 0).
   GpsData? _serialGps;
 
+  /// Latest GPS-locked positions reported by connected radios, keyed by device
+  /// ID. Only contains radios that currently have a valid GPS lock. Mirrors the
+  /// C# `MapTabUserControl.radioMarkers` (blue markers per device).
+  final Map<int, RadioPosition> _radioPositions = {};
+
   /// "Center to GPS" is available whenever we have a serial GPS fix.
   bool get _centerToGpsEnabled => _serialGps != null;
 
@@ -144,6 +150,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
       name: 'AprsPacketList',
       callback: _onAprsPacketList,
     );
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsPacketsCleared',
+      callback: _onAprsPacketsCleared,
+    );
 
     // Request the current packet list from the AprsHandler on-demand.
     _broker.dispatch(
@@ -181,6 +192,57 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     if (initialGps != null && initialGps.isFixed) {
       _serialGps = initialGps;
     }
+
+    // --- Radio GPS position markers (mirrors the C# MapTabUserControl) ---
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Position',
+      callback: _onRadioPositionChanged,
+    );
+    // Load initial positions for any already connected radios that have a lock.
+    _loadInitialRadioPositions();
+  }
+
+  /// Loads the current GPS-locked position for every connected radio so the
+  /// markers are present when switching to the Map tab. Mirrors the C#
+  /// `LoadInitialRadioPositions`.
+  void _loadInitialRadioPositions() {
+    final radios = _broker.getValueDynamic(_aprsDeviceId, 'ConnectedRadios');
+    if (radios is! List) return;
+    for (final radio in radios) {
+      if (radio is! Map) continue;
+      final deviceId = radio['DeviceId'] as int? ?? radio['deviceId'] as int?;
+      if (deviceId == null || deviceId <= 0) continue;
+      final posData = _broker.getValueDynamic(deviceId, 'Position');
+      if (posData is Map) {
+        final pos = RadioPosition.fromJson(Map<String, dynamic>.from(posData));
+        if (pos.locked) {
+          _radioPositions[deviceId] = pos;
+        }
+      }
+    }
+  }
+
+  /// Handles radio `Position` updates. Keeps a marker for every radio that has
+  /// a valid GPS lock and removes it otherwise, matching the C#
+  /// `OnPositionChanged`.
+  void _onRadioPositionChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    if (deviceId <= 0)
+      return; // Ignore device 0 (app settings) and invalid ids.
+    RadioPosition? pos;
+    if (data is RadioPosition) {
+      pos = data;
+    } else if (data is Map) {
+      pos = RadioPosition.fromJson(Map<String, dynamic>.from(data));
+    }
+    setState(() {
+      if (pos != null && pos.locked) {
+        _radioPositions[deviceId] = pos;
+      } else {
+        _radioPositions.remove(deviceId);
+      }
+    });
   }
 
   /// Handles serial GPS updates. Shows the marker when there is a valid fix and
@@ -255,6 +317,18 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     if (_processAprsPacket(data.aprsPacket) && mounted) {
       setState(() {});
     }
+  }
+
+  /// Handles the `AprsPacketsCleared` event - removes all APRS station markers
+  /// and tracks from the map and redraws.
+  void _onAprsPacketsCleared(int deviceId, String name, Object? data) {
+    if (_aprsStations.isEmpty) {
+      _historicalPacketsLoaded = false;
+      return;
+    }
+    _aprsStations.clear();
+    _historicalPacketsLoaded = false;
+    if (mounted) setState(() {});
   }
 
   /// Extracts the callsign/position/time from an [AprsPacket] and updates the
@@ -722,6 +796,28 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
         ),
       );
     }
+
+    // Connected radio GPS markers (blue), one per radio with a valid GPS lock.
+    _radioPositions.forEach((deviceId, pos) {
+      final friendlyName =
+          _broker.getValue<String>(deviceId, 'FriendlyName') ??
+          'Radio $deviceId';
+      markers.add(
+        Marker(
+          point: LatLng(pos.latitude, pos.longitude),
+          width: size,
+          height: size,
+          alignment: Alignment.topCenter,
+          child: Tooltip(
+            message:
+                '$friendlyName\n'
+                '${pos.latitude.toStringAsFixed(5)}\u00B0, '
+                '${pos.longitude.toStringAsFixed(5)}\u00B0',
+            child: Icon(Icons.location_pin, color: Colors.blue, size: size),
+          ),
+        ),
+      );
+    });
 
     return markers;
   }

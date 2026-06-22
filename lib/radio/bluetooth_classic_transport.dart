@@ -7,8 +7,6 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show debugPrint;
-
 import '../services/bluetooth_classic_macos.dart';
 import 'radio_transport.dart';
 
@@ -43,9 +41,6 @@ class BluetoothClassicTransport implements RadioTransport {
     // Listen for connection events from native layer
     _connectionSubscription = BluetoothClassicMacOS.instance.connectionEvents
         .listen((event) {
-          debugPrint(
-            'BluetoothClassicTransport: Connection event: ${event.type}, address: ${event.address}',
-          );
           final eventAddress = event.address.toUpperCase().replaceAll('-', ':');
           final connectedAddress = _connectedDevice?.id
               .toUpperCase()
@@ -82,7 +77,7 @@ class BluetoothClassicTransport implements RadioTransport {
         );
       }
     } catch (e) {
-      debugPrint('BluetoothClassicTransport: Error getting devices: $e');
+      // Ignore errors enumerating paired devices.
     }
   }
 
@@ -99,9 +94,6 @@ class BluetoothClassicTransport implements RadioTransport {
     }
 
     _updateState(TransportState.connecting);
-    debugPrint(
-      'BluetoothClassicTransport: Connecting to ${device.name} (${device.id})',
-    );
 
     try {
       final success = await BluetoothClassicMacOS.instance.connect(device.id);
@@ -111,32 +103,19 @@ class BluetoothClassicTransport implements RadioTransport {
         _updateState(TransportState.connected);
 
         // Start listening for data
-        debugPrint(
-          'BluetoothClassicTransport: Setting up data listener for ${device.id}',
-        );
         _dataSubscription = BluetoothClassicMacOS.instance
             .getDataStream(device.id)
-            .listen(
-              (data) {
-                _dataController.add(data);
-              },
-              onError: (error) {
-                debugPrint(
-                  'BluetoothClassicTransport: Data stream error: $error',
-                );
-              },
-            );
+            .listen((data) {
+              _dataController.add(data);
+            }, onError: (error) {});
 
-        debugPrint('BluetoothClassicTransport: Connected successfully');
         return true;
       } else {
         _updateState(TransportState.disconnected);
-        debugPrint('BluetoothClassicTransport: Connection failed');
         return false;
       }
     } catch (e) {
       _updateState(TransportState.disconnected);
-      debugPrint('BluetoothClassicTransport: Connection error: $e');
       return false;
     }
   }
@@ -146,14 +125,11 @@ class BluetoothClassicTransport implements RadioTransport {
     if (_connectedDevice == null) return;
 
     _updateState(TransportState.disconnecting);
-    debugPrint(
-      'BluetoothClassicTransport: Disconnecting from ${_connectedDevice!.name}',
-    );
 
     try {
       await BluetoothClassicMacOS.instance.disconnect(_connectedDevice!.id);
     } catch (e) {
-      debugPrint('BluetoothClassicTransport: Disconnect error: $e');
+      // Ignore disconnect errors.
     }
 
     _dataSubscription?.cancel();
@@ -165,22 +141,16 @@ class BluetoothClassicTransport implements RadioTransport {
   @override
   Future<bool> send(Uint8List data) async {
     if (_state != TransportState.connected || _connectedDevice == null) {
-      debugPrint('BluetoothClassicTransport: send called but not connected');
       return false;
     }
 
     try {
-      debugPrint(
-        'BluetoothClassicTransport: Sending ${data.length} bytes to ${_connectedDevice!.id}',
-      );
       final result = await BluetoothClassicMacOS.instance.send(
         _connectedDevice!.id,
         data,
       );
-      debugPrint('BluetoothClassicTransport: Send result: $result');
       return result;
     } catch (e) {
-      debugPrint('BluetoothClassicTransport: Send error: $e');
       return false;
     }
   }

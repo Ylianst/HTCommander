@@ -318,6 +318,8 @@ class _MainFormState extends State<MainForm>
   bool _scanEnabled = false; // Scan state of the currently displayed radio
   bool _audioEnabled =
       false; // Audio path state of the currently displayed radio
+  bool _gpsEnabled =
+      false; // GPS enabled state of the currently displayed radio
 
   // DataBroker client for subscriptions
   final DataBrokerClient _broker = DataBrokerClient();
@@ -338,7 +340,6 @@ class _MainFormState extends State<MainForm>
   // ignore: unused_field
   bool _allowTransmit =
       false; // Used for tab visibility (BBS, Terminal, Torrent)
-  bool _checkForUpdates = false;
 
   // Width threshold for compact mode (Radio becomes a tab instead of side panel)
   static const double compactWidthThreshold = 600;
@@ -437,6 +438,13 @@ class _MainFormState extends State<MainForm>
       callback: _onAudioStateChanged,
     );
 
+    // Subscribe to GpsEnabled changes from all radio devices (GPS on/off)
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'GpsEnabled',
+      callback: _onGpsEnabledChanged,
+    );
+
     // Initialize tabs with saved index
     _currentTabs = _getTabsForMode(_isCompactMode);
     final savedTabIndex =
@@ -461,8 +469,6 @@ class _MainFormState extends State<MainForm>
     _stationId = DataBroker.getValue<int>(0, 'StationId', 0) ?? 0;
     _allowTransmit =
         (DataBroker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1;
-    _checkForUpdates =
-        (DataBroker.getValue<int>(0, 'CheckForUpdates', 0) ?? 0) == 1;
     _showTabNames = (DataBroker.getValue<int>(0, 'ShowTabNames', 1) ?? 1) == 1;
     _showAllChannels =
         (DataBroker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
@@ -482,9 +488,6 @@ class _MainFormState extends State<MainForm>
           break;
         case 'AllowTransmit':
           _allowTransmit = (data as int?) == 1;
-          break;
-        case 'CheckForUpdates':
-          _checkForUpdates = (data as int?) == 1;
           break;
         case 'ShowAllChannels':
           _showAllChannels = (data as int?) == 1;
@@ -586,6 +589,30 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  /// Handle GpsEnabled changes from any radio device (GPS enabled/disabled).
+  void _onGpsEnabledChanged(int deviceId, String name, Object? data) {
+    // Only update if this is for the currently displayed radio
+    if (deviceId == _currentRadioDeviceId && data is bool) {
+      setState(() {
+        _gpsEnabled = data;
+      });
+    }
+  }
+
+  /// Toggle GPS on the currently selected radio (mirrors the C#
+  /// gPSEnabledToolStripMenuItem_Click). Dispatches a SetGPS event which the
+  /// radio handles by enabling/disabling GPS notifications.
+  void _onToggleGps() {
+    final deviceId = _currentRadioDeviceId;
+    if (deviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'SetGPS',
+      data: !_gpsEnabled,
+      store: false,
+    );
+  }
+
   /// Toggle the audio path on the currently selected radio.
   void _onToggleAudio() {
     final deviceId = _currentRadioDeviceId;
@@ -594,6 +621,14 @@ class _MainFormState extends State<MainForm>
     // the opposite (mirrors the C# audioEnabledToolStripMenuItem_Click).
     final currentlyEnabled =
         DataBroker.getValue<bool>(deviceId, 'AudioState', false) ?? false;
+    // Persist the user's audio-enabled preference (device 0) so the audio
+    // channel is automatically enabled when a radio connects.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'AudioEnabled',
+      data: !currentlyEnabled,
+      store: true,
+    );
     _broker.dispatch(
       deviceId: deviceId,
       name: 'SetAudio',
@@ -608,6 +643,14 @@ class _MainFormState extends State<MainForm>
         ? (DataBroker.getValue<bool>(
                 _currentRadioDeviceId,
                 'AudioState',
+                false,
+              ) ??
+              false)
+        : false;
+    _gpsEnabled = _currentRadioDeviceId > 0
+        ? (DataBroker.getValue<bool>(
+                _currentRadioDeviceId,
+                'GpsEnabled',
                 false,
               ) ??
               false)
@@ -809,7 +852,8 @@ class _MainFormState extends State<MainForm>
           ),
           AppMenuAction(
             label: 'GPS Enabled',
-            onPressed: _hasConnectedRadio ? () {} : null,
+            onPressed: _hasConnectedRadio ? _onToggleGps : null,
+            checked: _gpsEnabled,
           ),
           const AppMenuDivider(),
           AppMenuAction(
@@ -844,19 +888,6 @@ class _MainFormState extends State<MainForm>
             onPressed: _hasConnectedRadio ? _onToggleAudio : null,
             checked: _audioEnabled,
           ),
-          AppMenuAction(
-            label: 'Audio Controls...',
-            onPressed: _hasConnectedRadio ? () {} : null,
-          ),
-          AppMenuAction(label: 'Audio Clips...', onPressed: () {}),
-          AppMenuAction(label: 'Spectrogram...', onPressed: () {}),
-          AppSubmenu(
-            label: 'Software Modem',
-            children: [
-              AppMenuAction(label: 'Disabled', onPressed: () {}, checked: true),
-              AppMenuAction(label: 'AFSK 1200', onPressed: () {}),
-            ],
-          ),
         ],
       ),
       // View menu (renamed on macOS to avoid automatic system items like "Show Tab Bar")
@@ -888,10 +919,6 @@ class _MainFormState extends State<MainForm>
               );
             },
             checked: _showTabNames,
-          ),
-          AppMenuAction(
-            label: 'Radio Window...',
-            onPressed: _hasConnectedRadio ? () {} : null,
           ),
           AppMenuAction(
             label: 'All Channels',
@@ -949,20 +976,6 @@ class _MainFormState extends State<MainForm>
           if (_hasGpsConfigured)
             AppMenuAction(label: 'GPS Information...', onPressed: () {}),
           const AppMenuDivider(),
-          AppMenuAction(
-            label: 'Check for Updates',
-            onPressed: () {
-              setState(() {
-                _checkForUpdates = !_checkForUpdates;
-              });
-              _broker.dispatch(
-                deviceId: 0,
-                name: 'CheckForUpdates',
-                data: _checkForUpdates ? 1 : 0,
-              );
-            },
-            checked: _checkForUpdates,
-          ),
           AppMenuAction(
             label: 'About...',
             onPressed: _onAbout,
