@@ -16,7 +16,9 @@ import 'handlers/packet_store.dart';
 import 'handlers/aprs_handler.dart';
 import 'handlers/airplane_handler.dart';
 import 'handlers/voice_handler.dart';
+import 'handlers/bbs_handler.dart';
 import 'handlers/debug_log_handler.dart';
+import 'gps/gps_serial_handler.dart';
 import 'radio/radio_transport.dart';
 import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
@@ -26,6 +28,7 @@ import 'winlink/mail_store.dart';
 import 'winlink/winlink_client.dart';
 import 'widgets/radio_panel.dart';
 import 'widgets/voice_tab.dart';
+import 'widgets/audio_tab.dart';
 import 'widgets/aprs_tab.dart';
 import 'widgets/map_tab.dart';
 import 'widgets/mail_tab.dart';
@@ -38,6 +41,18 @@ import 'widgets/debug_tab.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Some widgets (e.g. dropdowns showing long serial port names) can
+  // legitimately overflow their available width. In those cases it's acceptable
+  // to clip rather than treat it as a fatal error, so suppress RenderFlex
+  // overflow errors while forwarding all other errors to the default handler.
+  final originalOnError = FlutterError.onError;
+  FlutterError.onError = (FlutterErrorDetails details) {
+    if (details.exception.toString().contains('A RenderFlex overflowed')) {
+      return;
+    }
+    originalOnError?.call(details);
+  };
 
   // Initialize the DataBroker for cross-component communication
   await DataBroker.initialize();
@@ -71,6 +86,20 @@ void main(List<String> args) async {
   final voiceHandler = VoiceHandler();
   voiceHandler.init();
   DataBroker.addDataHandler('VoiceHandler', voiceHandler);
+
+  // Register the GPS serial handler so that an external GPS receiver connected
+  // to a serial port is read, its NMEA sentences parsed, and a GpsData object
+  // dispatched on device 1 for the radio panel and map tab.
+  final gpsSerialHandler = GpsSerialHandler();
+  gpsSerialHandler.init();
+  DataBroker.addDataHandler('GpsSerialHandler', gpsSerialHandler);
+
+  // Register the BBS handler so that the BBS tab can activate a bulletin-board /
+  // Winlink server on a radio. It creates per-radio BBS instances on CreateBbs,
+  // locks the radio for "BBS" usage, and aggregates station statistics.
+  final bbsHandler = BbsHandler();
+  bbsHandler.init();
+  DataBroker.addDataHandler('BbsHandler', bbsHandler);
 
   // Register the debug log handler so that LogInfo/LogError messages are
   // captured into DebugLogEntries from application startup, regardless of
@@ -137,6 +166,9 @@ class _SubWindowAppState extends State<SubWindowApp> {
       case 'voice':
         tabTitle = 'Voice';
         tabContent = const VoiceTab();
+      case 'audio':
+        tabTitle = 'Audio';
+        tabContent = const AudioTab();
       case 'aprs':
         tabTitle = 'APRS';
         tabContent = const AprsTab();
@@ -326,6 +358,7 @@ class _MainFormState extends State<MainForm>
   // Tab definitions matching C# MainForm
   static const List<_TabInfo> _baseTabs = [
     _TabInfo('Voice', 'assets/images/Voice.png', Icons.mic),
+    _TabInfo('Audio', 'assets/images/Speaker-48-Blue.png', Icons.volume_up),
     _TabInfo('APRS', 'assets/images/Signal.png', Icons.people),
     _TabInfo('Map', 'assets/images/MapPoint1.png', Icons.public),
     _TabInfo('Mail', 'assets/images/Mail.png', Icons.mail),
@@ -742,7 +775,7 @@ class _MainFormState extends State<MainForm>
 
   List<AppSubmenu> _buildMenuDefinition() {
     return [
-      // File menu (renamed to Radio on macOS with only Connect/Disconnect)
+      // Radio menu (Connect/Disconnect on top, radio settings below)
       AppSubmenu(
         label: 'File',
         macOSLabel: 'Radio',
@@ -759,28 +792,7 @@ class _MainFormState extends State<MainForm>
             label: 'Disconnect',
             onPressed: _hasConnectedRadio ? _onDisconnect : null,
           ),
-          const AppMenuDivider(hideOnMacOS: true),
-          AppMenuAction(
-            label: 'Settings...',
-            onPressed: _onSettings,
-            shortcut: const SingleActivator(
-              LogicalKeyboardKey.comma,
-              meta: true,
-            ),
-            hideOnMacOS: true,
-          ),
-          const AppMenuDivider(hideOnMacOS: true),
-          AppMenuAction(
-            label: 'Exit',
-            onPressed: () => Navigator.of(context).maybePop(),
-            hideOnMacOS: true,
-          ),
-        ],
-      ),
-      // Settings menu (radio-dependent items)
-      AppSubmenu(
-        label: 'Settings',
-        children: [
+          const AppMenuDivider(),
           AppMenuAction(
             label: 'Dual-Watch',
             onPressed: _hasConnectedRadio ? _onToggleDualWatch : null,
@@ -805,6 +817,22 @@ class _MainFormState extends State<MainForm>
             onPressed: _hasConnectedRadio ? () {} : null,
           ),
           AppMenuAction(label: 'Import Channels...', onPressed: () {}),
+          const AppMenuDivider(hideOnMacOS: true),
+          AppMenuAction(
+            label: 'Settings...',
+            onPressed: _onSettings,
+            shortcut: const SingleActivator(
+              LogicalKeyboardKey.comma,
+              meta: true,
+            ),
+            hideOnMacOS: true,
+          ),
+          const AppMenuDivider(hideOnMacOS: true),
+          AppMenuAction(
+            label: 'Exit',
+            onPressed: () => Navigator.of(context).maybePop(),
+            hideOnMacOS: true,
+          ),
         ],
       ),
       // Audio menu
@@ -1301,6 +1329,8 @@ class _MainFormState extends State<MainForm>
         );
       case 'Voice':
         return const VoiceTab();
+      case 'Audio':
+        return const AudioTab();
       case 'APRS':
         return const AprsTab();
       case 'Map':

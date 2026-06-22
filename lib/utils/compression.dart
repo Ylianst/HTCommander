@@ -11,16 +11,42 @@ import 'package:es_compression/brotli.dart';
 
 /// Torrent compression algorithms.
 ///
-/// The integer values MUST match the C# `TorrentFile.TorrentCompression` enum
-/// ordinals, because the chosen algorithm is written as a single tag byte at
-/// the front of the compressed payload and read back by peers (including the
-/// original C# HTCommander):
-///   Unknown = 0, None = 1, Deflate = 2, Brotli = 3
-enum TorrentCompression {
-  unknown, // 0
-  none, // 1
-  deflate, // 2
-  brotli, // 3
+/// The 1-byte wire tag written at the front of a compressed payload uses the
+/// C# `TorrentFile.TorrentCompression` values (NOT the Dart enum ordinals):
+///   Unknown = -1, None = 0, Deflate = 1, Brotli = 2
+/// Use [CompressionWire.wireByte] / [CompressionWire.fromWireByte] for any
+/// on-air or on-disk tag conversion rather than `index`.
+enum TorrentCompression { unknown, none, deflate, brotli }
+
+/// Maps [TorrentCompression] to/from the C# wire tag byte.
+extension CompressionWire on TorrentCompression {
+  /// The byte written as the compression tag (matches the C# enum values).
+  int get wireByte {
+    switch (this) {
+      case TorrentCompression.none:
+        return 0;
+      case TorrentCompression.deflate:
+        return 1;
+      case TorrentCompression.brotli:
+        return 2;
+      case TorrentCompression.unknown:
+        return 0xFF; // C# -1 as an unsigned byte; never actually transmitted.
+    }
+  }
+
+  /// Decodes a compression tag byte back into a [TorrentCompression].
+  static TorrentCompression fromWireByte(int b) {
+    switch (b) {
+      case 0:
+        return TorrentCompression.none;
+      case 1:
+        return TorrentCompression.deflate;
+      case 2:
+        return TorrentCompression.brotli;
+      default:
+        return TorrentCompression.unknown;
+    }
+  }
 }
 
 /// Compression helpers used by the Torrent feature.
@@ -116,7 +142,7 @@ class Compression {
   /// value (as produced by [tagAndPack]). Returns the original bytes.
   static Uint8List decompressTagged(Uint8List tagged) {
     if (tagged.isEmpty) return Uint8List(0);
-    final compression = TorrentCompression.values[tagged[0]];
+    final compression = CompressionWire.fromWireByte(tagged[0]);
     switch (compression) {
       case TorrentCompression.deflate:
         return decompressDeflate(tagged, 1, tagged.length - 1);
@@ -132,7 +158,7 @@ class Compression {
   /// on-disk payload format used by the Torrent protocol.
   static Uint8List tagAndPack(TorrentCompression compression, Uint8List data) {
     final out = Uint8List(data.length + 1);
-    out[0] = compression.index;
+    out[0] = compression.wireByte;
     out.setRange(1, out.length, data);
     return out;
   }

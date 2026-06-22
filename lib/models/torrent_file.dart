@@ -14,6 +14,15 @@ import '../utils/compression.dart';
 /// Sharing mode for a torrent file (port of C# `TorrentFile.TorrentModes`).
 enum TorrentMode { pause, sharing, request, error }
 
+/// Thrown by [TorrentFile.fromFileBytes] when a file cannot be imported
+/// (too large before/after compression, or the name is too long).
+class TorrentImportException implements Exception {
+  TorrentImportException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
 /// A file shared/transferred via the Torrent feature.
 ///
 /// Direct port of the C# `TorrentFile`. A file's bytes are wrapped as
@@ -22,6 +31,9 @@ enum TorrentMode { pause, sharing, request, error }
 /// fixed-size blocks. The first 12 bytes of the hash form [id]; the first 6
 /// (with a station-file flag in the low bits of byte 5) form [shortId].
 class TorrentFile {
+  /// Size of each on-air/on-disk block (port of C# `Torrent.DefaultBlockSize`).
+  static const int defaultBlockSize = 170;
+
   /// First 12 bytes of the SHA-256 hash of the compressed (tagged) payload.
   Uint8List? id;
 
@@ -52,6 +64,100 @@ class TorrentFile {
   List<Uint8List?>? blocks;
 
   TorrentFile();
+
+  /// Builds a shareable [TorrentFile] from raw [fileBytes] (port of the C#
+  /// `AddTorrentFileForm.Import`).
+  ///
+  /// Wraps the bytes as `[nameLen][name][bytes]`, picks the smallest of
+  /// None/Deflate/Brotli, prefixes the 1-byte compression tag, hashes the
+  /// result for [id], and splits it into [defaultBlockSize] blocks. Throws a
+  /// [TorrentImportException] if the file exceeds 10 MB raw, the name exceeds
+  /// 100 characters, or the compressed payload exceeds 1 MB.
+  static TorrentFile fromFileBytes({
+    required String fileName,
+    required Uint8List fileBytes,
+    String description = '',
+  }) {
+    if (fileBytes.length > 10000000) {
+      throw TorrentImportException('File is too large, maximum size is 10MB');
+    }
+    final nameBytes = utf8.encode(fileName);
+    if (nameBytes.length > 100) {
+      throw TorrentImportException(
+        'File name is too long, maximum length is 100 characters',
+      );
+    }
+
+    // Wrap as [nameLen][name][fileBytes].
+    final wrapped = Uint8List(fileBytes.length + nameBytes.length + 1);
+    wrapped[0] = nameBytes.length;
+    wrapped.setRange(1, 1 + nameBytes.length, nameBytes);
+    wrapped.setRange(1 + nameBytes.length, wrapped.length, fileBytes);
+
+    final best = Compression.chooseBest(wrapped);
+    final tagged = Compression.tagAndPack(best.compression, best.data);
+    if (tagged.length > 1000000) {
+      throw TorrentImportException(
+        'File is too large, maximum size is 1MB after compression',
+      );
+    }
+
+    final hash = sha256.convert(tagged).bytes;
+    final file = TorrentFile()
+      ..id = Uint8List.fromList(hash.sublist(0, 12))
+      ..fileName = fileName
+      ..description = description.length > 200
+          ? description.substring(0, 200)
+          : description
+      ..mode = TorrentMode.sharing
+      ..completed = true
+      ..size = fileBytes.length
+      ..compressedSize = tagged.length
+      ..compression = best.compression
+      ..blocks = _splitBlocks(tagged);
+    return file;
+  }
+
+  /// Builds a [TorrentFile] from an already compression-[tagged] payload.
+  ///
+  /// Used for the station advertisement file (port of the C# `UpdateAdvertised`
+  /// tail): hashes [tagged] for [id] and splits it into [defaultBlockSize]
+  /// blocks. [rawSize] is the uncompressed size and [compression] the algorithm
+  /// already applied (the tag byte is the first byte of [tagged]).
+  static TorrentFile fromTaggedPayload({
+    required Uint8List tagged,
+    required String callsign,
+    required int stationId,
+    required int rawSize,
+    required TorrentCompression compression,
+    bool stationFile = false,
+  }) {
+    final hash = sha256.convert(tagged).bytes;
+    return TorrentFile()
+      ..id = Uint8List.fromList(hash.sublist(0, 12))
+      ..callsign = callsign
+      ..stationId = stationId
+      ..completed = true
+      ..stationFile = stationFile
+      ..mode = TorrentMode.sharing
+      ..size = rawSize
+      ..compressedSize = tagged.length
+      ..compression = compression
+      ..blocks = _splitBlocks(tagged);
+  }
+
+  /// Splits [data] into [defaultBlockSize]-byte blocks (last block may be
+  /// shorter).
+  static List<Uint8List> _splitBlocks(Uint8List data) {
+    final blocks = <Uint8List>[];
+    for (var start = 0; start < data.length; start += defaultBlockSize) {
+      final end = (start + defaultBlockSize < data.length)
+          ? start + defaultBlockSize
+          : data.length;
+      blocks.add(Uint8List.fromList(data.sublist(start, end)));
+    }
+    return blocks;
+  }
 
   Uint8List? _shortId;
 

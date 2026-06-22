@@ -11,6 +11,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
+import '../gps/gps_data.dart';
 import '../models/aircraft.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -87,9 +88,13 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   /// mirroring the C# `_historicalPacketsLoaded` flag.
   bool _historicalPacketsLoaded = false;
 
-  // Will be updated when GPS functionality is added
-  // ignore: prefer_final_fields
-  bool _centerToGpsEnabled = false;
+  /// Latest fixed position from an external serial GPS receiver (device 1,
+  /// `GpsData`). Null when there is no GPS or no valid fix. Mirrors the C#
+  /// `MapTabUserControl` serial GPS marker (reserved key 0).
+  GpsData? _serialGps;
+
+  /// "Center to GPS" is available whenever we have a serial GPS fix.
+  bool get _centerToGpsEnabled => _serialGps != null;
 
   // Default map position (center of US)
   static const double _defaultLat = 39.8283;
@@ -160,6 +165,37 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
       name: 'TextReady',
       callback: _onTextReady,
     );
+
+    // --- External serial GPS marker (mirrors the C# MapTabUserControl) ---
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'GpsData',
+      callback: _onSerialGpsDataChanged,
+    );
+    // Load the initial serial GPS position if it is already communicating.
+    final initialGps = _broker.getValue<GpsData>(
+      _aprsDeviceId,
+      'GpsData',
+      null,
+    );
+    if (initialGps != null && initialGps.isFixed) {
+      _serialGps = initialGps;
+    }
+  }
+
+  /// Handles serial GPS updates. Shows the marker when there is a valid fix and
+  /// removes it otherwise, matching the C# `OnSerialGpsDataChanged`.
+  void _onSerialGpsDataChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    GpsData? gps;
+    if (data is GpsData) {
+      gps = data;
+    } else if (data is Map) {
+      gps = GpsData.fromJson(Map<String, dynamic>.from(data));
+    }
+    setState(() {
+      _serialGps = (gps != null && gps.isFixed) ? gps : null;
+    });
   }
 
   void _onAirplanesChanged(int deviceId, String name, Object? data) {
@@ -394,7 +430,13 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   }
 
   void _centerToGps() {
-    // TODO: Implement GPS centering when radio position is available
+    final gps = _serialGps;
+    if (gps == null) return;
+    final currentZoom = _mapController.camera.zoom;
+    _mapController.move(
+      LatLng(gps.latitude, gps.longitude),
+      currentZoom < 12 ? 14 : currentZoom,
+    );
   }
 
   void _showMenu(BuildContext context) {
@@ -660,6 +702,25 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     // Voice / BSS source markers: orange.
     for (final station in _voiceStations.values) {
       addStation(station, Colors.orange);
+    }
+
+    // External serial GPS marker (blue), shown whenever there is a valid fix.
+    final gps = _serialGps;
+    if (gps != null) {
+      markers.add(
+        Marker(
+          point: LatLng(gps.latitude, gps.longitude),
+          width: size,
+          height: size,
+          child: Tooltip(
+            message:
+                'Serial GPS\n'
+                '${gps.latitude.toStringAsFixed(5)}\u00B0, '
+                '${gps.longitude.toStringAsFixed(5)}\u00B0',
+            child: Icon(Icons.my_location, color: Colors.blue, size: size),
+          ),
+        ),
+      );
     }
 
     return markers;

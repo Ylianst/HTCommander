@@ -523,7 +523,7 @@ class _ContactsTabState extends State<ContactsTab>
                     Icon(
                       _getStationIcon(contact.stationType),
                       size: 16,
-                      color: Colors.grey.shade600,
+                      color: Colors.blue.shade700,
                     ),
                     const SizedBox(width: 4),
                     Expanded(

@@ -14,6 +14,14 @@ class MainFlutterWindow: NSWindow {
     let registrar = flutterViewController.registrar(forPlugin: "BluetoothClassicHandler")
     BluetoothClassicHandler.register(with: registrar)
 
+    // Register the speech-to-text handler (Apple SFSpeechRecognizer)
+    let sttRegistrar = flutterViewController.registrar(forPlugin: "SpeechToTextHandler")
+    SpeechToTextHandler.register(with: sttRegistrar)
+
+    // Register the system audio (computer master volume) handler
+    let sysAudioRegistrar = flutterViewController.registrar(forPlugin: "SystemAudioHandler")
+    SystemAudioHandler.register(with: sysAudioRegistrar)
+
     super.awakeFromNib()
   }
 }
