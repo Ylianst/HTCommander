@@ -8,6 +8,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:latlong2/latlong.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
@@ -878,6 +879,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.htcommander.app',
+                    // Cancels tile requests that are no longer needed (e.g.
+                    // when panning/zooming quickly), which notably improves
+                    // performance on the web where browsers cap simultaneous
+                    // connections per host.
+                    tileProvider: CancellableNetworkTileProvider(),
                   ),
                   if (tracks.isNotEmpty) PolylineLayer(polylines: tracks),
                   if (stationMarkers.isNotEmpty)

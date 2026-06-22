@@ -3,6 +3,7 @@ import 'dart:io' show File, Platform;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
 
 /// Debug log entry
@@ -35,8 +36,12 @@ class DebugTab extends StatefulWidget {
 
 class _DebugTabState extends State<DebugTab>
     with AutomaticKeepAliveClientMixin {
+  /// Device id under which application log messages are published/stored.
+  static const int _logDeviceId = 1;
+
   final List<DebugLogEntry> _logEntries = [];
   final ScrollController _scrollController = ScrollController();
+  final DataBrokerClient _broker = DataBrokerClient();
   bool _showBluetoothFrames = false;
   bool _loopbackMode = false;
   bool _autoScroll = true;
@@ -47,70 +52,83 @@ class _DebugTabState extends State<DebugTab>
   @override
   void initState() {
     super.initState();
-    _addSampleLogs();
+    // The Debug tab renders the application log captured by the DebugLogHandler
+    // into the broker's 'DebugLogEntries' value. Load whatever has accumulated
+    // since startup, then keep in sync with future changes.
+    _logEntries.addAll(
+      _parseEntries(_broker.getValueDynamic(_logDeviceId, 'DebugLogEntries')),
+    );
+    _broker.subscribe(
+      deviceId: _logDeviceId,
+      name: 'DebugLogEntries',
+      callback: _onDebugLogEntriesChanged,
+    );
+    _scrollToBottomIfNeeded();
   }
 
   @override
   void dispose() {
+    _broker.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _addSampleLogs() {
-    // Sample log entries for demonstration
-    _logEntries.addAll([
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(minutes: 5)),
-        message: 'HTCommander started',
-      ),
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(minutes: 4)),
-        message: 'Initializing radio interface...',
-      ),
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(minutes: 3)),
-        message: 'Bluetooth adapter found: Intel AX200',
-      ),
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(minutes: 2)),
-        message: 'Scanning for devices...',
-      ),
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(minutes: 1)),
-        message: 'Found device: HT-UV98 (AA:BB:CC:DD:EE:FF)',
-      ),
-      DebugLogEntry(
-        time: DateTime.now().subtract(const Duration(seconds: 30)),
-        message: 'Connection attempt failed: timeout',
-        isError: true,
-      ),
-      DebugLogEntry(time: DateTime.now(), message: 'Ready for connection'),
-    ]);
-  }
-
-  void _appendLog(String message, {bool isError = false}) {
-    setState(() {
-      _logEntries.add(
-        DebugLogEntry(time: DateTime.now(), message: message, isError: isError),
-      );
-    });
-    if (_autoScroll) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 100),
-            curve: Curves.easeOut,
+  /// Converts the broker's serialized 'DebugLogEntries' payload into the
+  /// strongly-typed [DebugLogEntry] list used for rendering.
+  List<DebugLogEntry> _parseEntries(Object? raw) {
+    final entries = <DebugLogEntry>[];
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map) {
+          final timeStr = item['time'];
+          final time = timeStr is String
+              ? (DateTime.tryParse(timeStr) ?? DateTime.now())
+              : DateTime.now();
+          entries.add(
+            DebugLogEntry(
+              time: time,
+              message: item['message']?.toString() ?? '',
+              isError: item['isError'] == true,
+            ),
           );
         }
-      });
+      }
     }
+    return entries;
+  }
+
+  void _onDebugLogEntriesChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() {
+      _logEntries
+        ..clear()
+        ..addAll(_parseEntries(data));
+    });
+    _scrollToBottomIfNeeded();
+  }
+
+  void _scrollToBottomIfNeeded() {
+    if (!_autoScroll) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   void _clearLogs() {
-    setState(() {
-      _logEntries.clear();
-    });
+    // The DebugLogHandler owns the log; ask it to clear and it will publish the
+    // emptied list back through 'DebugLogEntries'.
+    _broker.dispatch(
+      deviceId: _logDeviceId,
+      name: 'ClearDebugLog',
+      data: null,
+      store: false,
+    );
   }
 
   Future<void> _onSaveToFile() async {
@@ -170,11 +188,13 @@ class _DebugTabState extends State<DebugTab>
   }
 
   void _onQueryDeviceNames() {
-    _appendLog('Querying device names...');
+    // Publish through the broker so the message flows back into the Debug tab
+    // via 'DebugLogEntries' like every other application log message.
+    _broker.logInfo('Querying device names...');
     // Simulate device query
     Future.delayed(const Duration(milliseconds: 500), () {
-      _appendLog('List of devices:');
-      _appendLog('  No devices found');
+      _broker.logInfo('List of devices:');
+      _broker.logInfo('  No devices found');
     });
   }
 

@@ -41,6 +41,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 
 import '../aprs/aprs_packet.dart';
@@ -972,6 +973,9 @@ class VoiceHandler {
 
   Future<Directory?> _ensureRecordingsDir() async {
     if (_recordingsDir != null) return _recordingsDir;
+    // The web build has no audio channel and no file-system access through
+    // path_provider, so audio recordings are not supported there.
+    if (kIsWeb) return null;
     try {
       final base = await getApplicationSupportDirectory();
       final dir = Directory(
@@ -1172,6 +1176,9 @@ class VoiceHandler {
 
   Future<Directory?> _ensureSstvImagesDir() async {
     if (_sstvImagesDir != null) return _sstvImagesDir;
+    // The web build has no audio channel and no file-system access through
+    // path_provider, so SSTV image reception is not supported there.
+    if (kIsWeb) return null;
     try {
       final base = await getApplicationSupportDirectory();
       final dir = Directory(
@@ -2155,6 +2162,9 @@ class VoiceHandler {
 
   Future<File?> _resolveHistoryFile() async {
     if (_historyFile != null) return _historyFile;
+    // The web build has no file-system access through path_provider, so the
+    // decoded-text history is kept in memory only.
+    if (kIsWeb) return null;
     try {
       final dir = await getApplicationSupportDirectory();
       _historyFile = File(

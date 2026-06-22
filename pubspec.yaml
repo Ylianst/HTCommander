@@ -52,6 +52,7 @@ dependencies:
   flutter_libserialport: ^0.6.0
   flutter_tts: ^4.2.5
   record: ^6.1.1
+  flutter_map_cancellable_tile_provider: ^3.0.2
 
 dev_dependencies:
   flutter_test:

@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
+import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
 import '../services/tts_service.dart';
 
@@ -332,13 +332,44 @@ class _SettingsDialogState extends State<SettingsDialog>
   // GPS baud rates
   static const List<int> _baudRates = [4800, 9600, 19200, 38400, 57600, 115200];
 
+  /// Settings tabs in display order. On the web the radio is used over the BLE
+  /// control channel only, so the audio-centric "Voice" tab and the
+  /// internet-service "Servers" / "Map" tabs are hidden. All tabs are shown on
+  /// every other platform.
+  List<String> get _visibleTabs {
+    const all = ['License', 'APRS', 'Voice', 'Winlink', 'Servers', 'Map'];
+    if (!kIsWeb) return all;
+    return all
+        .where((t) => t != 'Voice' && t != 'Servers' && t != 'Map')
+        .toList();
+  }
+
+  /// Builds the content widget for a given tab title (see [_visibleTabs]).
+  Widget _buildTabContentFor(String title) {
+    switch (title) {
+      case 'License':
+        return _buildLicenseTab();
+      case 'APRS':
+        return _buildAprsTab();
+      case 'Voice':
+        return _buildVoiceTab();
+      case 'Winlink':
+        return _buildWinlinkTab();
+      case 'Servers':
+        return _buildServersTab();
+      case 'Map':
+        return _buildMapTab();
+    }
+    return const SizedBox.shrink();
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 6,
+      length: _visibleTabs.length,
       vsync: this,
-      initialIndex: widget.initialTab,
+      initialIndex: widget.initialTab.clamp(0, _visibleTabs.length - 1),
     );
 
     // Load settings from DataBroker
@@ -369,7 +400,9 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   /// Loads the available text-to-speech voices for the Voice settings tab.
   Future<void> _loadVoices() async {
-    final voices = await TtsService.instance.getVoices();
+    final voices = List<Map<String, String>>.from(
+      await TtsService.instance.getVoices(),
+    );
     voices.sort((a, b) {
       final byLocale = (a['locale'] ?? '').compareTo(b['locale'] ?? '');
       if (byLocale != 0) return byLocale;
@@ -540,28 +573,14 @@ class _SettingsDialogState extends State<SettingsDialog>
                 indicatorColor: Colors.blue,
                 indicatorSize: TabBarIndicatorSize.label,
                 dividerColor: Colors.transparent,
-                tabs: const [
-                  Tab(text: 'License'),
-                  Tab(text: 'APRS'),
-                  Tab(text: 'Voice'),
-                  Tab(text: 'Winlink'),
-                  Tab(text: 'Servers'),
-                  Tab(text: 'Map'),
-                ],
+                tabs: _visibleTabs.map((t) => Tab(text: t)).toList(),
               ),
               const SizedBox(height: 8),
               // Tab content
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
-                  children: [
-                    _buildLicenseTab(),
-                    _buildAprsTab(),
-                    _buildVoiceTab(),
-                    _buildWinlinkTab(),
-                    _buildServersTab(),
-                    _buildMapTab(),
-                  ],
+                  children: _visibleTabs.map(_buildTabContentFor).toList(),
                 ),
               ),
               const SizedBox(height: 16),

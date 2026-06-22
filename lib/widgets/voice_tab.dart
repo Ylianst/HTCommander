@@ -149,7 +149,11 @@ class _VoiceTabState extends State<VoiceTab>
     _currentMode = _modeFromName(
       _broker.getValue<String>(0, 'VoiceTransmitMode', null),
     );
-    _allowTransmit = _broker.getValue<bool>(0, 'AllowTransmit', true) ?? true;
+    // The web build has no audio channel, so only the data-only "Chat" mode
+    // (which uses the radio's internal modem over the control channel) is
+    // available. Force it regardless of any previously stored mode.
+    if (kIsWeb) _currentMode = VoiceTransmitMode.chat;
+    _allowTransmit = (_broker.getValue<int>(0, 'AllowTransmit', 1) ?? 1) != 0;
     _speechToTextEnabled =
         _broker.getValue<bool>(0, 'SpeechToTextEnabled', true) ?? true;
     _recordAudio = _broker.getValue<bool>(0, 'RecordingState', false) ?? false;
@@ -517,10 +521,9 @@ class _VoiceTabState extends State<VoiceTab>
   }
 
   void _onAllowTransmitChanged(int deviceId, String name, Object? data) {
-    if (data is bool) {
-      setState(() => _allowTransmit = data);
-      _updatePttMic();
-    }
+    final int v = data is int ? data : int.tryParse('$data') ?? 1;
+    setState(() => _allowTransmit = v != 0);
+    _updatePttMic();
   }
 
   void _onSpeechToTextEnabledChanged(int deviceId, String name, Object? data) {
@@ -1271,11 +1274,11 @@ class _VoiceTabState extends State<VoiceTab>
         globalPosition.dy,
       ),
       items: [
-        modeItem(VoiceTransmitMode.ptt, 'PTT'),
+        if (!kIsWeb) modeItem(VoiceTransmitMode.ptt, 'PTT'),
         modeItem(VoiceTransmitMode.chat, 'Chat'),
-        modeItem(VoiceTransmitMode.speak, 'Speak'),
-        modeItem(VoiceTransmitMode.morse, 'Morse'),
-        modeItem(VoiceTransmitMode.dtmf, 'DTMF'),
+        if (!kIsWeb) modeItem(VoiceTransmitMode.speak, 'Speak'),
+        if (!kIsWeb) modeItem(VoiceTransmitMode.morse, 'Morse'),
+        if (!kIsWeb) modeItem(VoiceTransmitMode.dtmf, 'DTMF'),
       ],
     ).then((mode) {
       if (mode == null || !mounted) return;
@@ -1299,139 +1302,150 @@ class _VoiceTabState extends State<VoiceTab>
         offset.dy,
       ),
       items: [
-        // Mode selection
-        PopupMenuItem<String>(
-          value: 'modePtt',
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                child: _currentMode == VoiceTransmitMode.ptt
-                    ? const Text('✓', style: TextStyle(fontSize: 14))
-                    : null,
-              ),
-              const Text('PTT'),
-            ],
+        // Mode selection (only the data-only Chat mode is offered on web).
+        // Hidden entirely when transmitting is not allowed.
+        if (!kIsWeb && _allowTransmit)
+          PopupMenuItem<String>(
+            value: 'modePtt',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _currentMode == VoiceTransmitMode.ptt
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('PTT'),
+              ],
+            ),
           ),
-        ),
-        PopupMenuItem<String>(
-          value: 'modeChat',
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                child: _currentMode == VoiceTransmitMode.chat
-                    ? const Text('✓', style: TextStyle(fontSize: 14))
-                    : null,
-              ),
-              const Text('Chat'),
-            ],
+        if (_allowTransmit)
+          PopupMenuItem<String>(
+            value: 'modeChat',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _currentMode == VoiceTransmitMode.chat
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('Chat'),
+              ],
+            ),
           ),
-        ),
-        PopupMenuItem<String>(
-          value: 'modeSpeak',
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                child: _currentMode == VoiceTransmitMode.speak
-                    ? const Text('✓', style: TextStyle(fontSize: 14))
-                    : null,
-              ),
-              const Text('Speak'),
-            ],
+        if (!kIsWeb && _allowTransmit)
+          PopupMenuItem<String>(
+            value: 'modeSpeak',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _currentMode == VoiceTransmitMode.speak
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('Speak'),
+              ],
+            ),
           ),
-        ),
-        PopupMenuItem<String>(
-          value: 'modeMorse',
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                child: _currentMode == VoiceTransmitMode.morse
-                    ? const Text('✓', style: TextStyle(fontSize: 14))
-                    : null,
-              ),
-              const Text('Morse'),
-            ],
+        if (!kIsWeb && _allowTransmit)
+          PopupMenuItem<String>(
+            value: 'modeMorse',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _currentMode == VoiceTransmitMode.morse
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('Morse'),
+              ],
+            ),
           ),
-        ),
-        PopupMenuItem<String>(
-          value: 'modeDtmf',
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                child: _currentMode == VoiceTransmitMode.dtmf
-                    ? const Text('✓', style: TextStyle(fontSize: 14))
-                    : null,
-              ),
-              const Text('DTMF'),
-            ],
+        if (!kIsWeb && _allowTransmit)
+          PopupMenuItem<String>(
+            value: 'modeDtmf',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _currentMode == VoiceTransmitMode.dtmf
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('DTMF'),
+              ],
+            ),
           ),
-        ),
-        const PopupMenuDivider(height: 8),
-        PopupMenuItem<String>(
-          value: 'speechToText',
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                child: _speechToTextEnabled
-                    ? const Text('✓', style: TextStyle(fontSize: 14))
-                    : null,
-              ),
-              const Text('Speech-to-Text'),
-            ],
+        // Speech-to-text, recording and SSTV/audio send all require the audio
+        // channel, which does not exist on web.
+        if (!kIsWeb) ...[
+          // Only draw the separating divider when mode items precede it.
+          if (_allowTransmit) const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'speechToText',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _speechToTextEnabled
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('Speech-to-Text'),
+              ],
+            ),
           ),
-        ),
-        PopupMenuItem<String>(
-          value: 'recordAudio',
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                child: _recordAudio
-                    ? const Text('✓', style: TextStyle(fontSize: 14))
-                    : null,
-              ),
-              const Text('Record Audio'),
-            ],
+          PopupMenuItem<String>(
+            value: 'recordAudio',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _recordAudio
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('Record Audio'),
+              ],
+            ),
           ),
-        ),
-        const PopupMenuDivider(height: 8),
-        PopupMenuItem<String>(
-          value: 'sendImage',
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          enabled: _audioEnabled && !_isTransmitting,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Send Image...')],
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'sendImage',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            enabled: _audioEnabled && !_isTransmitting,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Send Image...')],
+            ),
           ),
-        ),
-        PopupMenuItem<String>(
-          value: 'sendAudio',
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          enabled: _audioEnabled && !_isTransmitting,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Send Audio...')],
+          PopupMenuItem<String>(
+            value: 'sendAudio',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            enabled: _audioEnabled && !_isTransmitting,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Send Audio...')],
+            ),
           ),
-        ),
+        ],
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
           value: 'clear',
@@ -1602,7 +1616,7 @@ class _VoiceTabState extends State<VoiceTab>
                   ),
                 ),
               const Spacer(),
-              if (showButton)
+              if (showButton && !kIsWeb)
                 SizedBox(
                   height: 28,
                   child: ElevatedButton(
@@ -1619,7 +1633,7 @@ class _VoiceTabState extends State<VoiceTab>
                     child: Text(_audioEnabled ? 'Disable' : 'Enable'),
                   ),
                 ),
-              if (showButton) const SizedBox(width: 8),
+              if (showButton && !kIsWeb) const SizedBox(width: 8),
               Builder(
                 builder: (context) => InkWell(
                   onTap: () => _showMenu(context),

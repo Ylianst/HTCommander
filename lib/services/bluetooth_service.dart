@@ -13,11 +13,24 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import '../radio/bluetooth_classic_transport.dart';
 import '../radio/radio.dart';
-import '../radio/radio_audio.dart';
+import '../radio/radio_audio_stub.dart'
+    if (dart.library.io) '../radio/radio_audio.dart';
 import '../radio/radio_transport.dart';
 import 'bluetooth_classic_macos.dart';
 import 'data_broker.dart';
 import 'data_broker_client.dart';
+
+/// BLE GATT service UUIDs the radio control channel may expose.
+///
+/// On the web (Web Bluetooth API) the set of GATT services an application is
+/// allowed to access must be declared up-front: after the user picks a device
+/// in the browser's chooser, `discoverServices()` only returns services listed
+/// here. These are passed as `webOptionalServices` on every scan so the BLE
+/// control channel works in the browser. Ignored on native platforms.
+final List<Guid> kRadioBleOptionalServices = [
+  Guid('6e400001-b5a3-f393-e0a9-e50e24dcca9e'), // Nordic UART Service
+  Guid('00001101-0000-1000-8000-00805f9b34fb'), // SPP-like service
+];
 
 /// Service for managing Bluetooth radio connections
 class BluetoothService {
@@ -184,6 +197,7 @@ class BluetoothService {
       await FlutterBluePlus.startScan(
         timeout: timeout,
         androidUsesFineLocation: true,
+        webOptionalServices: kRadioBleOptionalServices,
       );
 
       // Listen for results during the scan
@@ -210,6 +224,12 @@ class BluetoothService {
           );
 
           if (device.isCompatibleRadio) {
+            seen.add(deviceId);
+            devices.add(device);
+          } else if (kIsWeb) {
+            // On the web the user already explicitly selected this device in the
+            // browser's Bluetooth chooser, so accept it even if the advertised
+            // name doesn't match a known radio pattern.
             seen.add(deviceId);
             devices.add(device);
           }
@@ -672,7 +692,10 @@ class BleRadioTransport implements RadioTransport {
     Duration timeout = const Duration(seconds: 10),
   }) async {
     try {
-      await FlutterBluePlus.startScan(timeout: timeout);
+      await FlutterBluePlus.startScan(
+        timeout: timeout,
+        webOptionalServices: kRadioBleOptionalServices,
+      );
 
       FlutterBluePlus.scanResults.listen((results) {
         for (final result in results) {
