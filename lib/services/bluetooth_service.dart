@@ -28,6 +28,11 @@ import 'data_broker_client.dart';
 /// here. These are passed as `webOptionalServices` on every scan so the BLE
 /// control channel works in the browser. Ignored on native platforms.
 final List<Guid> kRadioBleOptionalServices = [
+  // Benshi / UV-PRO style radio control service (and its write/indicate
+  // characteristics). This is the service the HT actually exposes; it must be
+  // whitelisted here or Web Bluetooth rejects GATT access with
+  // "NetworkError: Unsupported device.".
+  Guid('00001100-d102-11e1-9b23-00025b00a5a5'), // Radio control service
   Guid('6e400001-b5a3-f393-e0a9-e50e24dcca9e'), // Nordic UART Service
   Guid('00001101-0000-1000-8000-00805f9b34fb'), // SPP-like service
 ];
@@ -653,6 +658,10 @@ class BleRadioTransport implements RadioTransport {
   final _dataController = StreamController<Uint8List>.broadcast();
   final _scanController = StreamController<DiscoveredDevice>.broadcast();
 
+  /// Broker used to surface connection diagnostics in the Debug tab in addition
+  /// to the console.
+  final DataBrokerClient _broker = DataBrokerClient();
+
   TransportState _state = TransportState.disconnected;
   DiscoveredDevice? _connectedDevice;
   BluetoothDevice? _bleDevice;
@@ -671,6 +680,16 @@ class BleRadioTransport implements RadioTransport {
 
   // Alternative SPP-like UUIDs that some radios use
   static const String _sppServiceUuid = '00001101-0000-1000-8000-00805f9b34fb';
+
+  // Benshi / UV-PRO style radio control service. The HT exposes a "write"
+  // characteristic (commands TO the radio = our TX) and an "indicate"
+  // characteristic (notifications FROM the radio = our RX).
+  static const String _btRadioServiceUuid =
+      '00001100-d102-11e1-9b23-00025b00a5a5';
+  static const String _btRadioWriteCharUuid =
+      '00001101-d102-11e1-9b23-00025b00a5a5';
+  static const String _btRadioIndicateCharUuid =
+      '00001102-d102-11e1-9b23-00025b00a5a5';
 
   @override
   TransportState get state => _state;
@@ -725,6 +744,18 @@ class BleRadioTransport implements RadioTransport {
     await FlutterBluePlus.stopScan();
   }
 
+  /// Logs an informational diagnostic both to the console and the Debug tab.
+  void _logInfo(String msg) {
+    debugPrint('BleRadioTransport: $msg');
+    _broker.logInfo('[BLE] $msg');
+  }
+
+  /// Logs an error diagnostic both to the console and the Debug tab.
+  void _logError(String msg) {
+    debugPrint('BleRadioTransport: $msg');
+    _broker.logError('[BLE] $msg');
+  }
+
   @override
   Future<bool> connect(DiscoveredDevice device) async {
     if (_state == TransportState.connected ||
@@ -735,38 +766,60 @@ class BleRadioTransport implements RadioTransport {
     _state = TransportState.connecting;
     _stateController.add(_state);
 
+    _logInfo(
+      'Connecting to "${device.name}" (id=${device.id}, type=${device.type.name})...',
+    );
+
     try {
       _bleDevice = BluetoothDevice.fromId(device.id);
 
       // Listen for connection state changes
       _connectionSubscription = _bleDevice!.connectionState.listen((state) {
+        _logInfo('Connection state: ${state.name}');
         if (state == BluetoothConnectionState.disconnected) {
           _handleDisconnect();
         }
       });
 
       // Connect to the device
+      _logInfo('Opening GATT connection (timeout 15s)...');
       await _bleDevice!.connect(
         timeout: const Duration(seconds: 15),
         autoConnect: false,
       );
+      _logInfo('GATT connected, discovering services...');
 
       // Discover services
       final services = await _bleDevice!.discoverServices();
+      _logInfo('Discovered ${services.length} service(s).');
 
       // Find the UART service and characteristics
       bool foundService = false;
       for (final service in services) {
         final serviceUuid = service.uuid.toString().toLowerCase();
+        _logInfo(
+          'Service $serviceUuid with ${service.characteristics.length} '
+          'characteristic(s).',
+        );
 
         if (serviceUuid == _nordicUartServiceUuid.toLowerCase() ||
-            serviceUuid == _sppServiceUuid.toLowerCase()) {
+            serviceUuid == _sppServiceUuid.toLowerCase() ||
+            serviceUuid == _btRadioServiceUuid.toLowerCase()) {
           for (final char in service.characteristics) {
             final charUuid = char.uuid.toString().toLowerCase();
+            _logInfo(
+              '  char $charUuid '
+              '(write=${char.properties.write}, '
+              'writeNoResp=${char.properties.writeWithoutResponse}, '
+              'notify=${char.properties.notify}, '
+              'indicate=${char.properties.indicate})',
+            );
 
-            if (charUuid == _nordicUartTxCharUuid.toLowerCase()) {
+            if (charUuid == _nordicUartTxCharUuid.toLowerCase() ||
+                charUuid == _btRadioWriteCharUuid.toLowerCase()) {
               _txCharacteristic = char;
-            } else if (charUuid == _nordicUartRxCharUuid.toLowerCase()) {
+            } else if (charUuid == _nordicUartRxCharUuid.toLowerCase() ||
+                charUuid == _btRadioIndicateCharUuid.toLowerCase()) {
               _rxCharacteristic = char;
             } else if (char.properties.write ||
                 char.properties.writeWithoutResponse) {
@@ -784,6 +837,10 @@ class BleRadioTransport implements RadioTransport {
 
       // If no UART service found, try to find any suitable characteristics
       if (!foundService) {
+        _logInfo(
+          'No Nordic UART / SPP service found; scanning all services for '
+          'usable characteristics...',
+        );
         for (final service in services) {
           for (final char in service.characteristics) {
             if (_txCharacteristic == null &&
@@ -800,10 +857,17 @@ class BleRadioTransport implements RadioTransport {
       }
 
       if (_txCharacteristic == null) {
-        debugPrint('BleRadioTransport: No writable characteristic found');
+        _logError(
+          'No writable characteristic found; cannot use this device as a '
+          'radio transport.',
+        );
         await disconnect();
         return false;
       }
+      _logInfo(
+        'Using TX ${_txCharacteristic!.uuid.toString().toLowerCase()}'
+        '${_rxCharacteristic != null ? ', RX ${_rxCharacteristic!.uuid.toString().toLowerCase()}' : ' (no RX/notify characteristic)'}.',
+      );
 
       // Set up notifications for RX characteristic
       if (_rxCharacteristic != null) {
@@ -817,10 +881,17 @@ class BleRadioTransport implements RadioTransport {
       _state = TransportState.connected;
       _stateController.add(_state);
 
-      debugPrint('BleRadioTransport: Connected to ${device.name}');
+      _logInfo('Connected to ${device.name}');
       return true;
-    } catch (e) {
-      debugPrint('BleRadioTransport: Error connecting: $e');
+    } catch (e, stack) {
+      // Surface the error type as well as the message: on the web, GATT
+      // failures such as "NetworkError: Unsupported device" come back as
+      // opaque strings, so the runtime type helps narrow down the cause.
+      _logError(
+        'Error connecting to "${device.name}" (id=${device.id}): '
+        '$e (type: ${e.runtimeType})',
+      );
+      debugPrint('BleRadioTransport: connect stack trace:\n$stack');
       _state = TransportState.disconnected;
       _stateController.add(_state);
       return false;
