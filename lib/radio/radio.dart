@@ -766,7 +766,9 @@ class Radio {
         htStatus == null) {
       return true;
     }
-    if (htStatus!.currChId == 254) return false;
+    // NOAA weather channels (curr_ch_id >= 254) are never muted; they cover a
+    // range of sub-channels, so any id at or above 254 is NOAA, not just 254.
+    if (htStatus!.currChId >= 254) return false;
     if (htStatus!.currChId >= channels!.length) return true;
     if (channels![htStatus!.currChId] == null) return true;
     return channels![htStatus!.currChId]!.mute;

@@ -23,10 +23,11 @@ engine so each platform can use the most native capability available:
 */
 
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
+
+import 'sherpa_speech_to_text_engine.dart';
 
 /// A single speech-recognition result for the current voice segment.
 class SpeechResult {
@@ -85,11 +86,16 @@ abstract class SpeechToTextEngine {
 }
 
 /// Returns the speech-to-text engine appropriate for the current platform.
+///
+/// All native platforms use sherpa-onnx (SenseVoice) for consistent,
+/// high-quality offline recognition that accepts raw PCM buffers. Web has no
+/// PCM-buffer recognizer, so it falls back to the no-op engine.
+///
+/// [AppleSpeechToTextEngine] remains available as a lightweight native
+/// fallback (Apple `SFSpeechRecognizer`) if sherpa-onnx is undesired.
 SpeechToTextEngine createSpeechToTextEngine() {
-  if (!kIsWeb && (Platform.isMacOS || Platform.isIOS)) {
-    return AppleSpeechToTextEngine();
-  }
-  return UnsupportedSpeechToTextEngine();
+  if (kIsWeb) return UnsupportedSpeechToTextEngine();
+  return SherpaSpeechToTextEngine();
 }
 
 /// No-op engine used on platforms without a native PCM-buffer recognizer
