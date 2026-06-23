@@ -22,6 +22,10 @@ class MainFlutterWindow: NSWindow {
     let sysAudioRegistrar = flutterViewController.registrar(forPlugin: "SystemAudioHandler")
     SystemAudioHandler.register(with: sysAudioRegistrar)
 
+    // Register the text-to-speech handler (Apple AVSpeechSynthesizer)
+    let ttsRegistrar = flutterViewController.registrar(forPlugin: "TextToSpeechHandler")
+    TextToSpeechHandler.register(with: ttsRegistrar)
+
     super.awakeFromNib()
   }
 }

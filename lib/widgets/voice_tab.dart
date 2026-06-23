@@ -1577,10 +1577,10 @@ class _VoiceTabState extends State<VoiceTab>
               ),
             ),
           ),
-          if (_allowTransmit)
-            _currentMode == VoiceTransmitMode.ptt
-                ? _buildPttPanel()
-                : _buildInputPanel(),
+          if (_allowTransmit && _currentMode == VoiceTransmitMode.ptt)
+            _buildPttPanel()
+          else if (_allowTransmit && !_isTransmitting)
+            _buildInputPanel(),
           if (_isTransmitting) _buildCancelPanel(),
         ],
       ),

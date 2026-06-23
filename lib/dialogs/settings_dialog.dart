@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
@@ -417,6 +418,7 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   @override
   void dispose() {
+    TtsService.instance.stopPreview();
     _tabController.dispose();
     _callSignController.dispose();
     _winlinkPasswordController.dispose();
@@ -644,31 +646,67 @@ class _SettingsDialogState extends State<SettingsDialog>
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Call Sign
-                const Text('Call Sign', style: DialogStyles.labelStyle),
-                const SizedBox(height: 4),
-                TextField(
-                  controller: _callSignController,
-                  decoration: _inputDecoration(hintText: 'e.g. W1AW'),
-                  textCapitalization: TextCapitalization.characters,
-                ),
-                const SizedBox(height: 16),
-                // Station ID
-                const Text('Station ID', style: DialogStyles.labelStyle),
-                const SizedBox(height: 4),
-                DropdownButtonFormField<int>(
-                  initialValue: _settings.stationId,
-                  decoration: _inputDecoration(),
-                  items: List.generate(
-                    16,
-                    (i) => DropdownMenuItem(
-                      value: i,
-                      child: Text(i == 0 ? 'None' : i.toString()),
+                // Call Sign & Station ID on the same line
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Call Sign
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Call Sign',
+                            style: DialogStyles.labelStyle,
+                          ),
+                          const SizedBox(height: 4),
+                          TextField(
+                            controller: _callSignController,
+                            decoration: _inputDecoration(hintText: 'e.g. W1AW'),
+                            textCapitalization: TextCapitalization.characters,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'[A-Za-z0-9]'),
+                              ),
+                              TextInputFormatter.withFunction(
+                                (oldValue, newValue) => newValue.copyWith(
+                                  text: newValue.text.toUpperCase(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  onChanged: (value) {
-                    setState(() => _settings.stationId = value ?? 0);
-                  },
+                    const SizedBox(width: 16),
+                    // Station ID
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Station ID',
+                            style: DialogStyles.labelStyle,
+                          ),
+                          const SizedBox(height: 4),
+                          DropdownButtonFormField<int>(
+                            initialValue: _settings.stationId,
+                            decoration: _inputDecoration(),
+                            items: List.generate(
+                              16,
+                              (i) => DropdownMenuItem(
+                                value: i,
+                                child: Text(i == 0 ? 'None' : i.toString()),
+                              ),
+                            ),
+                            onChanged: (value) {
+                              setState(() => _settings.stationId = value ?? 0);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 // Allow Transmit
@@ -975,11 +1013,33 @@ class _SettingsDialogState extends State<SettingsDialog>
                     setState(() => _settings.voicePitch = value);
                   },
                 ),
+                if (TtsService.instance.isPreviewSupported) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ElevatedButton.icon(
+                      onPressed: _previewVoice,
+                      icon: const Icon(Icons.volume_up, size: 18),
+                      label: const Text('Preview'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Speaks a short sample using the currently selected voice, rate and pitch
+  /// so the user can audition the Text-to-Speech settings before saving.
+  void _previewVoice() {
+    TtsService.instance.preview(
+      'This is a Handi-Talky Commander voice preview.',
+      voiceJson: _settings.voice.isEmpty ? null : _settings.voice,
+      rate: _settings.voiceSpeechRate,
+      pitch: _settings.voicePitch,
     );
   }
 
@@ -1255,7 +1315,12 @@ class _SettingsDialogState extends State<SettingsDialog>
       values.add(_settings.gpsSerialPort);
     }
     return values
-        .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+        .map(
+          (p) => DropdownMenuItem(
+            value: p,
+            child: Text(p, overflow: TextOverflow.ellipsis),
+          ),
+        )
         .toList();
   }
 
@@ -1300,6 +1365,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                           const SizedBox(height: 4),
                           DropdownButtonFormField<String>(
                             initialValue: _settings.gpsSerialPort,
+                            isExpanded: true,
                             decoration: _inputDecoration(),
                             items: _gpsPortItems(),
                             onChanged: (value) {

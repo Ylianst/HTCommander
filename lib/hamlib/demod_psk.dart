@@ -152,8 +152,9 @@ class DemodPsk {
       a += n;
     }
     int i = a.toInt();
-    if (i == n)
+    if (i == n) {
       i = n - 1; // Should be < N. Watch out for possible roundoff errors
+    }
     final double f = a - i;
     assert(i >= 0 && i < n);
     assert(f >= -0.001 && f <= 1.001);

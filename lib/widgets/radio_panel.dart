@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/data_broker_client.dart';
 import '../models/radio_models.dart';
+import '../dialogs/radio_channel_dialog.dart';
 
 /// Radio panel control widget - displays radio image, VFO frequencies, and status
 class RadioPanelControl extends StatefulWidget {
@@ -487,34 +488,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   void _showChannelDetails(RadioChannelInfo channel) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          channel.name.isNotEmpty
-              ? channel.name
-              : 'Channel ${channel.channelId + 1}',
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Channel ID: ${channel.channelId + 1}'),
-            if (channel.rxFreq > 0)
-              Text('RX Frequency: ${channel.frequencyDisplay} MHz'),
-            if (channel.txFreq > 0)
-              Text(
-                'TX Frequency: ${(channel.txFreq / 1000000).toStringAsFixed(3)} MHz',
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
+    if (widget.deviceId <= 0) return;
+    showRadioChannelDialog(
+      context,
+      deviceId: widget.deviceId,
+      channelId: channel.channelId,
+      radioName: _friendlyName,
     );
   }
 
@@ -536,7 +515,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         Offset.zero & overlay.size,
       ),
       items: [
-        const PopupMenuItem<String>(value: 'show', child: Text('Show')),
+        const PopupMenuItem<String>(value: 'show', child: Text('Edit...')),
         PopupMenuItem<String>(
           value: 'setA',
           enabled: channel.channelId != selectedChannelA,
@@ -990,6 +969,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
           return GestureDetector(
             onTap: () => _onChannelTap(channel.channelId),
+            onDoubleTap: () => _showChannelDetails(channel),
             onSecondaryTapDown: (details) {
               _showChannelContextMenu(context, details.globalPosition, channel);
             },

@@ -3,16 +3,23 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Wraps [FlutterTts] to convert text into 32 kHz / mono / signed 16-bit
-/// little-endian PCM suitable for transmission through the radio audio path
-/// (same format as the Morse/DTMF/SSTV PCM producers).
+/// Converts text into 32 kHz / mono / signed 16-bit little-endian PCM suitable
+/// for transmission through the radio audio path (same format as the
+/// Morse/DTMF/SSTV PCM producers).
 ///
-/// Text-to-speech is rendered to an audio file by the platform engine
-/// (`synthesizeToFile`), then decoded (WAV or CAF), down-mixed to mono and
-/// resampled to 32 kHz before being returned as raw PCM bytes.
+/// On Apple platforms (macOS / iOS) synthesis is done entirely in memory by a
+/// native `AVSpeechSynthesizer` plugin (channel `com.htcommander/tts`): the
+/// engine streams raw float PCM buffers back to Dart, which are resampled to
+/// 32 kHz without ever touching the filesystem. This is the robust path and
+/// avoids the file-flush timing and format-detection failures of writing a WAV
+/// file with `flutter_tts`.
+///
+/// On other platforms it falls back to [FlutterTts.synthesizeToFile], decoding
+/// the written file (WAV or CAF) and resampling it the same way.
 class TtsService {
   TtsService._();
 
@@ -21,6 +28,13 @@ class TtsService {
 
   /// Target PCM format expected by the radio audio path.
   static const int targetSampleRate = 32000;
+
+  /// Native in-memory text-to-speech channel, implemented by the Apple runners.
+  static const MethodChannel _channel = MethodChannel('com.htcommander/tts');
+
+  /// Whether the native in-memory synthesizer is available on this platform.
+  static final bool _useNativeChannel =
+      !kIsWeb && (Platform.isMacOS || Platform.isIOS);
 
   final FlutterTts _tts = FlutterTts();
   bool _initialized = false;
@@ -36,6 +50,28 @@ class TtsService {
   /// least `name` and `locale`, and on Apple platforms also `identifier`,
   /// `quality` and `gender`.
   Future<List<Map<String, String>>> getVoices() async {
+    if (_useNativeChannel) {
+      try {
+        final raw = await _channel.invokeMethod<dynamic>('getVoices');
+        final result = <Map<String, String>>[];
+        if (raw is List) {
+          for (final v in raw) {
+            if (v is Map) {
+              result.add(
+                v.map(
+                  (k, val) => MapEntry(k.toString(), val?.toString() ?? ''),
+                ),
+              );
+            }
+          }
+        }
+        return result;
+      } catch (e) {
+        debugPrint('TtsService.getVoices (native) failed: $e');
+        return const <Map<String, String>>[];
+      }
+    }
+
     await _ensureInit();
     final result = <Map<String, String>>[];
     try {
@@ -66,17 +102,71 @@ class TtsService {
     });
   }
 
-  /// A human-readable label for a voice map.
+  /// A human-readable label for a voice map, including its quality tier
+  /// (Enhanced / Premium) when the platform reports it.
   static String voiceLabel(Map<String, String> voice) {
     final name = voice['name'] ?? '';
     final locale = voice['locale'] ?? '';
-    if (name.isEmpty) return locale.isEmpty ? 'Unknown' : locale;
-    return locale.isEmpty ? name : '$name ($locale)';
+    final base = name.isEmpty
+        ? (locale.isEmpty ? 'Unknown' : locale)
+        : (locale.isEmpty ? name : '$name ($locale)');
+    switch (voice['quality']) {
+      case 'premium':
+        return '$base — Premium';
+      case 'enhanced':
+        return '$base — Enhanced';
+      default:
+        return base;
+    }
+  }
+
+  /// Whether on-device preview playback is supported (Apple platforms only).
+  bool get isPreviewSupported => _useNativeChannel;
+
+  /// Speaks [text] through the computer's speakers so the user can audition the
+  /// selected voice / rate / pitch without transmitting. No-op where the native
+  /// channel is unavailable.
+  Future<void> preview(
+    String text, {
+    String? voiceJson,
+    double? rate,
+    double? pitch,
+  }) async {
+    if (!_useNativeChannel || text.trim().isEmpty) return;
+    String voiceIdentifier = '';
+    String locale = '';
+    if (voiceJson != null && voiceJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(voiceJson);
+        if (decoded is Map) {
+          voiceIdentifier = decoded['identifier']?.toString() ?? '';
+          locale = decoded['locale']?.toString() ?? '';
+        }
+      } catch (_) {}
+    }
+    try {
+      await _channel.invokeMethod<void>('preview', <String, Object?>{
+        'text': text,
+        'voiceIdentifier': voiceIdentifier,
+        'locale': locale,
+        'rate': rate ?? 0.5,
+        'pitch': pitch ?? 1.0,
+      });
+    } catch (e) {
+      debugPrint('TtsService: preview failed: $e');
+    }
+  }
+
+  /// Stops any in-progress [preview] playback.
+  Future<void> stopPreview() async {
+    if (!_useNativeChannel) return;
+    try {
+      await _channel.invokeMethod<void>('stopPreview');
+    } catch (_) {}
   }
 
   /// Synthesizes [text] and returns 32 kHz / mono / signed 16-bit LE PCM, or
-  /// null if synthesis or decoding failed (e.g. on a platform without
-  /// `synthesizeToFile` support).
+  /// null if synthesis failed.
   ///
   /// [voiceJson] is a string produced by [encodeVoice]. [rate] and [pitch] are
   /// passed straight to the engine (rate 0.0-1.0, pitch 0.5-2.0).
@@ -87,6 +177,77 @@ class TtsService {
     double? pitch,
   }) async {
     if (text.trim().isEmpty) return null;
+    if (_useNativeChannel) {
+      return _synthesizeNative(
+        text,
+        voiceJson: voiceJson,
+        rate: rate,
+        pitch: pitch,
+      );
+    }
+    return _synthesizeViaFile(
+      text,
+      voiceJson: voiceJson,
+      rate: rate,
+      pitch: pitch,
+    );
+  }
+
+  /// In-memory synthesis on Apple platforms. The native plugin streams mono
+  /// float PCM samples plus the source sample rate; nothing is written to disk.
+  Future<Uint8List?> _synthesizeNative(
+    String text, {
+    String? voiceJson,
+    double? rate,
+    double? pitch,
+  }) async {
+    String voiceIdentifier = '';
+    String locale = '';
+    if (voiceJson != null && voiceJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(voiceJson);
+        if (decoded is Map) {
+          voiceIdentifier = decoded['identifier']?.toString() ?? '';
+          locale = decoded['locale']?.toString() ?? '';
+        }
+      } catch (_) {}
+    }
+
+    dynamic res;
+    try {
+      res = await _channel
+          .invokeMethod<dynamic>('synthesize', <String, Object?>{
+            'text': text,
+            'voiceIdentifier': voiceIdentifier,
+            'locale': locale,
+            'rate': rate ?? 0.5,
+            'pitch': pitch ?? 1.0,
+          });
+    } catch (e) {
+      debugPrint('TtsService: native synthesize failed: $e');
+      return null;
+    }
+
+    if (res is! Map) {
+      debugPrint('TtsService: native synthesize produced no audio');
+      return null;
+    }
+    final samples = res['samples'];
+    final sampleRate = (res['sampleRate'] as num?)?.toInt() ?? 0;
+    if (samples is! Float32List || samples.isEmpty || sampleRate <= 0) {
+      debugPrint('TtsService: native synthesize returned invalid audio');
+      return null;
+    }
+    return _toPcm16Mono(samples, sampleRate);
+  }
+
+  /// File-based synthesis fallback for platforms without the native plugin.
+  Future<Uint8List?> _synthesizeViaFile(
+    String text, {
+    String? voiceJson,
+    double? rate,
+    double? pitch,
+  }) async {
     await _ensureInit();
 
     try {
@@ -221,8 +382,9 @@ class TtsService {
       pos = body + size + (size & 1);
     }
     if (dataOffset < 0) return null;
-    if (dataOffset + dataLen > bytes.length)
+    if (dataOffset + dataLen > bytes.length) {
       dataLen = bytes.length - dataOffset;
+    }
     final samples = _pcmToFloatMono(
       bd,
       dataOffset,
@@ -270,8 +432,9 @@ class TtsService {
     final bool isFloat = (formatFlags & 0x1) != 0;
     final bool isLittleEndian = (formatFlags & 0x2) != 0;
     final Endian endian = isLittleEndian ? Endian.little : Endian.big;
-    if (dataOffset + dataLen > bytes.length)
+    if (dataOffset + dataLen > bytes.length) {
       dataLen = bytes.length - dataOffset;
+    }
     final samples = _pcmToFloatMono(
       bd,
       dataOffset,
