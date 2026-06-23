@@ -354,6 +354,108 @@ class RadioChannelInfo {
   final bool mute;
   final String name;
 
+  /// Generative constructor used when building a channel from edited form
+  /// values (e.g. the channel editor dialog) rather than from radio bytes.
+  /// [raw] is not needed for [toByteArray], which rebuilds the payload from the
+  /// individual fields, so it defaults to an empty buffer.
+  RadioChannelInfo({
+    required this.channelId,
+    this.name = '',
+    this.txMod = RadioModulationType.fm,
+    this.txFreq = 0,
+    this.rxMod = RadioModulationType.fm,
+    this.rxFreq = 0,
+    this.txSubAudio = 0,
+    this.rxSubAudio = 0,
+    this.scan = false,
+    this.txAtMaxPower = true,
+    this.talkAround = false,
+    this.bandwidth = RadioBandwidthType.narrow,
+    this.preDeEmphBypass = false,
+    this.sign = false,
+    this.txAtMedPower = false,
+    this.txDisable = false,
+    this.fixedFreq = false,
+    this.fixedBandwidth = false,
+    this.fixedTxPower = false,
+    this.mute = false,
+  }) : raw = Uint8List(0);
+
+  /// Builds a channel from a broker JSON map (as produced by [toJson]).
+  factory RadioChannelInfo.fromJson(Map<String, dynamic> json) {
+    return RadioChannelInfo(
+      channelId: json['channelId'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+      txMod: RadioModulationType.values[json['txMod'] as int? ?? 0],
+      txFreq: json['txFreq'] as int? ?? 0,
+      rxMod: RadioModulationType.values[json['rxMod'] as int? ?? 0],
+      rxFreq: json['rxFreq'] as int? ?? 0,
+      txSubAudio: json['txSubAudio'] as int? ?? 0,
+      rxSubAudio: json['rxSubAudio'] as int? ?? 0,
+      scan: json['scan'] as bool? ?? false,
+      txAtMaxPower: json['txAtMaxPower'] as bool? ?? false,
+      talkAround: json['talkAround'] as bool? ?? false,
+      bandwidth: (json['bandwidth'] as int? ?? 0) == 1
+          ? RadioBandwidthType.wide
+          : RadioBandwidthType.narrow,
+      preDeEmphBypass: json['preDeEmphBypass'] as bool? ?? false,
+      sign: json['sign'] as bool? ?? false,
+      txAtMedPower: json['txAtMedPower'] as bool? ?? false,
+      txDisable: json['txDisable'] as bool? ?? false,
+      fixedFreq: json['fixedFreq'] as bool? ?? false,
+      fixedBandwidth: json['fixedBandwidth'] as bool? ?? false,
+      fixedTxPower: json['fixedTxPower'] as bool? ?? false,
+      mute: json['mute'] as bool? ?? false,
+    );
+  }
+
+  /// Returns a copy of this channel with the given fields replaced.
+  RadioChannelInfo copyWith({
+    int? channelId,
+    String? name,
+    RadioModulationType? txMod,
+    int? txFreq,
+    RadioModulationType? rxMod,
+    int? rxFreq,
+    int? txSubAudio,
+    int? rxSubAudio,
+    bool? scan,
+    bool? txAtMaxPower,
+    bool? talkAround,
+    RadioBandwidthType? bandwidth,
+    bool? preDeEmphBypass,
+    bool? sign,
+    bool? txAtMedPower,
+    bool? txDisable,
+    bool? fixedFreq,
+    bool? fixedBandwidth,
+    bool? fixedTxPower,
+    bool? mute,
+  }) {
+    return RadioChannelInfo(
+      channelId: channelId ?? this.channelId,
+      name: name ?? this.name,
+      txMod: txMod ?? this.txMod,
+      txFreq: txFreq ?? this.txFreq,
+      rxMod: rxMod ?? this.rxMod,
+      rxFreq: rxFreq ?? this.rxFreq,
+      txSubAudio: txSubAudio ?? this.txSubAudio,
+      rxSubAudio: rxSubAudio ?? this.rxSubAudio,
+      scan: scan ?? this.scan,
+      txAtMaxPower: txAtMaxPower ?? this.txAtMaxPower,
+      talkAround: talkAround ?? this.talkAround,
+      bandwidth: bandwidth ?? this.bandwidth,
+      preDeEmphBypass: preDeEmphBypass ?? this.preDeEmphBypass,
+      sign: sign ?? this.sign,
+      txAtMedPower: txAtMedPower ?? this.txAtMedPower,
+      txDisable: txDisable ?? this.txDisable,
+      fixedFreq: fixedFreq ?? this.fixedFreq,
+      fixedBandwidth: fixedBandwidth ?? this.fixedBandwidth,
+      fixedTxPower: fixedTxPower ?? this.fixedTxPower,
+      mute: mute ?? this.mute,
+    );
+  }
+
   RadioChannelInfo.fromBytes(Uint8List msg)
     : raw = msg,
       channelId = RadioUtils.getByte(msg, 5),
@@ -425,9 +527,19 @@ class RadioChannelInfo {
     'name': name,
     'rxFreq': rxFreq,
     'txFreq': txFreq,
+    'txSubAudio': txSubAudio,
+    'rxSubAudio': rxSubAudio,
     'scan': scan,
+    'txAtMaxPower': txAtMaxPower,
+    'txAtMedPower': txAtMedPower,
+    'talkAround': talkAround,
+    'preDeEmphBypass': preDeEmphBypass,
+    'sign': sign,
     'txDisable': txDisable,
     'mute': mute,
+    'fixedFreq': fixedFreq,
+    'fixedBandwidth': fixedBandwidth,
+    'fixedTxPower': fixedTxPower,
     'txMod': txMod.index,
     'rxMod': rxMod.index,
     'bandwidth': bandwidth == RadioBandwidthType.wide ? 1 : 0,

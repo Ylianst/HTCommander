@@ -69,7 +69,6 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   // Map settings (loaded from DataBroker)
   bool _isOfflineMode = false;
   bool _showTracks = true;
-  bool _showMarkers = true;
   bool _showAirplanes = false;
   bool _largeMarkers = true;
 
@@ -229,8 +228,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   /// `OnPositionChanged`.
   void _onRadioPositionChanged(int deviceId, String name, Object? data) {
     if (!mounted) return;
-    if (deviceId <= 0)
+    if (deviceId <= 0) {
       return; // Ignore device 0 (app settings) and invalid ids.
+    }
     RadioPosition? pos;
     if (data is RadioPosition) {
       pos = data;
@@ -527,14 +527,16 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     const menuItemPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
     const menuItemHeight = 32.0;
 
+    final position = RelativeRect.fromLTRB(
+      offset.dx,
+      offset.dy + button.size.height,
+      offset.dx + button.size.width,
+      offset.dy,
+    );
+
     showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx,
-        offset.dy + button.size.height,
-        offset.dx + button.size.width,
-        offset.dy,
-      ),
+      position: position,
       items: [
         PopupMenuItem<String>(
           value: 'offline',
@@ -594,13 +596,14 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           padding: menuItemPadding,
           child: Row(
             children: [
-              SizedBox(
-                width: 20,
-                child: _showMarkers
-                    ? const Text('✓', style: TextStyle(fontSize: 14))
-                    : null,
-              ),
+              const SizedBox(width: 20),
               const Text('Show Markers'),
+              const Spacer(),
+              Text(
+                _markerFilterLabel(_markerTimeFilter),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              const Icon(Icons.arrow_right, size: 18),
             ],
           ),
         ),
@@ -673,11 +676,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           );
           break;
         case 'markers':
-          setState(() {
-            _showMarkers = !_showMarkers;
-          });
-          // Note: showMarkers doesn't have a DataBroker key in C# reference,
-          // but we can add one for consistency
+          // Open the cascading time-filter submenu, anchored at the same
+          // position as the main menu (mirrors the C# "Show Markers" submenu).
+          if (context.mounted) _showMarkerFilterMenu(context, position);
           break;
         case 'airplanes':
           setState(() {
@@ -709,6 +710,62 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           // TODO: Implement cache area functionality
           break;
       }
+    });
+  }
+
+  /// Time-filter options shown under "Show Markers", mirroring the C#
+  /// `MapTabUserControl` submenu (label, minutes; 0 = show all).
+  static const List<(String, int)> _markerFilterOptions = [
+    ('All', 0),
+    ('Last 30 Minutes', 30),
+    ('Last Hour', 60),
+    ('Last 6 Hours', 360),
+    ('Last 12 Hours', 720),
+    ('Last 24 Hours', 1440),
+  ];
+
+  /// Human-readable label for the active marker time filter (in minutes).
+  String _markerFilterLabel(int minutes) {
+    for (final (label, value) in _markerFilterOptions) {
+      if (value == minutes) return label;
+    }
+    return 'All';
+  }
+
+  /// Opens the cascading "Show Markers" time-filter submenu. Selecting an
+  /// option updates `MapTimeFilter` so only recent markers/tracks are shown.
+  void _showMarkerFilterMenu(BuildContext context, RelativeRect position) {
+    const menuItemPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
+    const menuItemHeight = 32.0;
+
+    showMenu<int>(
+      context: context,
+      position: position,
+      items: [
+        for (final (label, minutes) in _markerFilterOptions)
+          PopupMenuItem<int>(
+            value: minutes,
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _markerTimeFilter == minutes
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                Text(label),
+              ],
+            ),
+          ),
+      ],
+    ).then((minutes) {
+      if (minutes == null || minutes == _markerTimeFilter) return;
+      setState(() {
+        _markerTimeFilter = minutes;
+      });
+      _broker.dispatch(deviceId: 0, name: 'MapTimeFilter', data: minutes);
     });
   }
 
@@ -853,9 +910,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     final tracks = _showTracks ? _buildTracks() : const <Polyline>[];
-    final stationMarkers = _showMarkers
-        ? _buildStationMarkers()
-        : const <Marker>[];
+    final stationMarkers = _buildStationMarkers();
     return Column(
       children: [
         // Header bar matching C# UI

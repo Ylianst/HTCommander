@@ -1145,6 +1145,19 @@ class Radio {
       case RadioBasicCommand.readRfCh:
         _handleReadRfCh(cmd);
         break;
+      case RadioBasicCommand.writeRfCh:
+        // After a successful channel write the radio does not notify of the
+        // change, so re-read that channel to refresh the cached value (matches
+        // the C# Radio.cs WRITE_RF_CH handling). cmd[4] is the status byte
+        // (0 = success) and cmd[5] is the channel id that was written.
+        if (cmd.length > 5 && cmd[4] == 0) {
+          _sendCommand(
+            RadioCommandGroup.basic,
+            RadioBasicCommand.readRfCh,
+            Uint8List.fromList([cmd[5]]),
+          );
+        }
+        break;
       case RadioBasicCommand.readBssSettings:
         _handleBssSettings(cmd);
         break;

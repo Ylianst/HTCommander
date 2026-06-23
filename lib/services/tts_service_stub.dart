@@ -32,13 +32,37 @@ class TtsService {
     });
   }
 
-  /// A human-readable label for a voice map.
+  /// A human-readable label for a voice map, including its quality tier
+  /// (Enhanced / Premium) when reported. Kept identical to the native build.
   static String voiceLabel(Map<String, String> voice) {
     final name = voice['name'] ?? '';
     final locale = voice['locale'] ?? '';
-    if (name.isEmpty) return locale.isEmpty ? 'Unknown' : locale;
-    return locale.isEmpty ? name : '$name ($locale)';
+    final base = name.isEmpty
+        ? (locale.isEmpty ? 'Unknown' : locale)
+        : (locale.isEmpty ? name : '$name ($locale)');
+    switch (voice['quality']) {
+      case 'premium':
+        return '$base — Premium';
+      case 'enhanced':
+        return '$base — Enhanced';
+      default:
+        return base;
+    }
   }
+
+  /// On-device preview playback is not available on the web.
+  bool get isPreviewSupported => false;
+
+  /// No-op preview on the web (no audio channel).
+  Future<void> preview(
+    String text, {
+    String? voiceJson,
+    double? rate,
+    double? pitch,
+  }) async {}
+
+  /// No-op preview stop on the web.
+  Future<void> stopPreview() async {}
 
   /// Text-to-speech is not supported on the web, so this always returns null.
   Future<Uint8List?> synthesizeToPcm(

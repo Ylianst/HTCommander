@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +25,7 @@ import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
 import 'services/window_service.dart';
+import 'utils/channel_export.dart';
 import 'winlink/mail_store.dart';
 import 'winlink/winlink_client.dart';
 import 'widgets/radio_panel.dart';
@@ -737,6 +739,106 @@ class _MainFormState extends State<MainForm>
     );
   }
 
+  /// Export the channels of the currently selected radio to a CSV file.
+  ///
+  /// Mirrors `exportChannelsToolStripMenuItem_Click` in the C# MainForm: the
+  /// user picks a format (native HTCommander CSV or CHIRP CSV) and a
+  /// destination file, then all configured channels are written out.
+  Future<void> _onExportChannels() async {
+    // Read the channels for the radio currently shown in the radio panel.
+    final raw = _broker.getValueDynamic(_currentRadioDeviceId, 'Channels');
+    final channels = (raw is List)
+        ? raw.whereType<Map>().map((m) => m.cast<String, dynamic>()).toList()
+        : <Map<String, dynamic>>[];
+
+    // Only keep channels that have valid TX/RX frequencies (same filter the
+    // export routines apply per row).
+    final hasExportable = channels.any(
+      (c) =>
+          ((c['txFreq'] ?? c['tx_freq'] ?? 0) as int) != 0 &&
+          ((c['rxFreq'] ?? c['rx_freq'] ?? 0) as int) != 0,
+    );
+
+    if (channels.isEmpty || !hasExportable) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Export Channels'),
+          content: const Text('No channels available to export.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Ask the user which format to export.
+    final format = await showDialog<ChannelExportFormat>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Export Channels'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () =>
+                Navigator.of(context).pop(ChannelExportFormat.native),
+            child: const Text('Native Channel File (CSV)'),
+          ),
+          SimpleDialogOption(
+            onPressed: () =>
+                Navigator.of(context).pop(ChannelExportFormat.chirp),
+            child: const Text('CHIRP Channel File (CSV)'),
+          ),
+        ],
+      ),
+    );
+    if (format == null) return; // Cancelled.
+
+    final content = format == ChannelExportFormat.native
+        ? ChannelExport.exportToNativeFormat(channels)
+        : ChannelExport.exportToChirpFormat(channels);
+
+    final defaultFileName = format == ChannelExportFormat.native
+        ? 'channels.csv'
+        : 'channels_chirp.csv';
+
+    // Show the save dialog and write the file.
+    try {
+      if (kIsWeb) {
+        // On the web the file is delivered as a download via the bytes payload.
+        await FilePicker.platform.saveFile(
+          dialogTitle: 'Export Channels',
+          fileName: defaultFileName,
+          bytes: utf8.encode(content),
+        );
+        return;
+      }
+
+      final outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Export Channels',
+        fileName: defaultFileName,
+        type: FileType.custom,
+        allowedExtensions: const ['csv'],
+      );
+      if (outputPath == null) return; // Cancelled.
+
+      await File(outputPath).writeAsString(content);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Channels exported to $outputPath')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error exporting channels: $e')));
+    }
+  }
+
   /// Called when the connect button is pressed in RadioPanelControl.
   void _onRadioConnect() {
     _onConnect();
@@ -940,7 +1042,7 @@ class _MainFormState extends State<MainForm>
           const AppMenuDivider(),
           AppMenuAction(
             label: 'Export Channels...',
-            onPressed: _hasConnectedRadio ? () {} : null,
+            onPressed: _hasConnectedRadio ? _onExportChannels : null,
           ),
           AppMenuAction(label: 'Import Channels...', onPressed: () {}),
           const AppMenuDivider(hideOnMacOS: true),
