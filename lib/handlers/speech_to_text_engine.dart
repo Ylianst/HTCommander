@@ -27,7 +27,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 
-import 'sherpa_speech_to_text_engine.dart';
+// The sherpa-onnx engine depends on dart:ffi and must never be compiled into
+// the web build. Resolve to the native factory only on dart:io platforms; web
+// falls back to the no-op stub so speech-to-text is fully removed there.
+import 'speech_to_text_engine_stub.dart'
+    if (dart.library.io) 'speech_to_text_engine_native.dart';
 
 /// A single speech-recognition result for the current voice segment.
 class SpeechResult {
@@ -95,7 +99,7 @@ abstract class SpeechToTextEngine {
 /// fallback (Apple `SFSpeechRecognizer`) if sherpa-onnx is undesired.
 SpeechToTextEngine createSpeechToTextEngine() {
   if (kIsWeb) return UnsupportedSpeechToTextEngine();
-  return SherpaSpeechToTextEngine();
+  return createPlatformSpeechToTextEngine();
 }
 
 /// No-op engine used on platforms without a native PCM-buffer recognizer
