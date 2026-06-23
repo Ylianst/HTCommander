@@ -9,6 +9,7 @@ import 'dialog_utils.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
 import '../services/tts_service.dart';
+import '../services/sherpa_model_manager.dart';
 
 /// Settings data model
 class AppSettings {
@@ -48,7 +49,7 @@ class AppSettings {
     this.allowTransmit = false,
     List<AprsRoute>? aprsRoutes,
     this.voiceLanguage = 'auto',
-    this.voiceModel = '',
+    this.voiceModel = 'sense-voice',
     this.voice = '',
     this.voiceSpeechRate = 0.5,
     this.voicePitch = 1.0,
@@ -122,7 +123,9 @@ class AppSettings {
           : [AprsRoute(name: 'Standard', path: 'APN000,WIDE1-1,WIDE2-2')],
       voiceLanguage:
           DataBroker.getValue<String>(0, 'VoiceLanguage', 'auto') ?? 'auto',
-      voiceModel: DataBroker.getValue<String>(0, 'VoiceModel', '') ?? '',
+      voiceModel:
+          DataBroker.getValue<String>(0, 'VoiceModel', 'sense-voice') ??
+          'sense-voice',
       voice: DataBroker.getValue<String>(0, 'Voice', '') ?? '',
       voiceSpeechRate:
           DataBroker.getValue<double>(0, 'VoiceSpeechRate', 0.5) ?? 0.5,
@@ -253,14 +256,6 @@ class LanguageOption {
   const LanguageOption(this.code, this.name);
 }
 
-/// Voice model option
-class ModelOption {
-  final String id;
-  final String name;
-
-  const ModelOption(this.id, this.name);
-}
-
 /// Settings dialog with tabbed interface
 class SettingsDialog extends StatefulWidget {
   final int initialTab;
@@ -294,40 +289,14 @@ class _SettingsDialogState extends State<SettingsDialog>
   List<Map<String, String>> _voices = const [];
   bool _voicesLoaded = false;
 
-  // Language options
+  // Language options (SenseVoice-supported recognition languages).
   static const List<LanguageOption> _languages = [
     LanguageOption('auto', 'Auto-detect'),
     LanguageOption('en', 'English'),
-    LanguageOption('es', 'Spanish'),
-    LanguageOption('fr', 'French'),
-    LanguageOption('de', 'German'),
-    LanguageOption('it', 'Italian'),
-    LanguageOption('pt', 'Portuguese'),
-    LanguageOption('ru', 'Russian'),
     LanguageOption('zh', 'Chinese'),
     LanguageOption('ja', 'Japanese'),
     LanguageOption('ko', 'Korean'),
-    LanguageOption('ar', 'Arabic'),
-    LanguageOption('hi', 'Hindi'),
-    LanguageOption('nl', 'Dutch'),
-    LanguageOption('pl', 'Polish'),
-    LanguageOption('sv', 'Swedish'),
-    LanguageOption('da', 'Danish'),
-    LanguageOption('fi', 'Finnish'),
-    LanguageOption('no', 'Norwegian'),
-  ];
-
-  // Voice model options
-  static const List<ModelOption> _models = [
-    ModelOption('', 'None'),
-    ModelOption('tiny', 'Tiny, 77.7 MB'),
-    ModelOption('tiny.en', 'Tiny.en, 77.7 MB, English'),
-    ModelOption('base', 'Base, 148 MB'),
-    ModelOption('base.en', 'Base.en, 148 MB, English (Recommended)'),
-    ModelOption('small', 'Small, 488 MB'),
-    ModelOption('small.en', 'Small.en, 488 MB, English'),
-    ModelOption('medium', 'Medium, 1.53 GB'),
-    ModelOption('medium.en', 'Medium.en, 1.53 GB, English'),
+    LanguageOption('yue', 'Cantonese'),
   ];
 
   // GPS baud rates
@@ -397,6 +366,11 @@ class _SettingsDialogState extends State<SettingsDialog>
 
     // Load the available TTS voices for the Voice tab.
     _loadVoices();
+
+    // Sync the speech-to-text model status shown in the Voice tab.
+    SherpaModelManager.refreshStatus(
+      SherpaModelManager.modelById(_settings.voiceModel).id,
+    );
   }
 
   /// Loads the available text-to-speech voices for the Voice settings tab.
@@ -871,6 +845,262 @@ class _SettingsDialogState extends State<SettingsDialog>
     setState(() => _settings.aprsRoutes.removeAt(index));
   }
 
+  /// Human-readable size, e.g. "923 MB" or "1.2 GB".
+  static String _formatBytes(int bytes) {
+    if (bytes <= 0) return '0 MB';
+    final mb = bytes / (1024 * 1024);
+    if (mb >= 1024) return '${(mb / 1024).toStringAsFixed(1)} GB';
+    return '${mb.toStringAsFixed(0)} MB';
+  }
+
+  /// Display name for a recognition language code.
+  String _sttLanguageName(String code) {
+    for (final l in _languages) {
+      if (l.code == code) return l.name;
+    }
+    return code;
+  }
+
+  /// Speech-to-text setup: model selection, language and on-device management.
+  Widget _buildSpeechRecognitionSection() {
+    final model = SherpaModelManager.modelById(_settings.voiceModel);
+    final langCodes = model.languages ?? const <String>[];
+    final sttLang = langCodes.contains(_settings.voiceLanguage)
+        ? _settings.voiceLanguage
+        : (langCodes.isNotEmpty ? langCodes.first : 'auto');
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _sectionDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Speech-to-Text',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Transcribes received radio audio to text. Runs fully offline on '
+            'this device; audio is never written to disk.',
+            style: DialogStyles.bodyStyle,
+          ),
+          const SizedBox(height: 16),
+          const Text('Model', style: DialogStyles.labelStyle),
+          const SizedBox(height: 4),
+          DropdownButtonFormField<String>(
+            initialValue: model.id,
+            decoration: _inputDecoration(),
+            items: SherpaModelManager.models
+                .map(
+                  (m) => DropdownMenuItem(
+                    value: m.id,
+                    child: Text('${m.name}  (${m.downloadLabel})'),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              final id = value ?? SherpaModelManager.defaultModelId;
+              setState(() => _settings.voiceModel = id);
+              SherpaModelManager.refreshStatus(id);
+            },
+          ),
+          const SizedBox(height: 6),
+          Text(
+            model.description,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 16),
+          if (model.multilingual) ...[
+            const Text('Recognition Language', style: DialogStyles.labelStyle),
+            const SizedBox(height: 4),
+            DropdownButtonFormField<String>(
+              initialValue: sttLang,
+              decoration: _inputDecoration(),
+              items: langCodes
+                  .map(
+                    (c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(_sttLanguageName(c)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                setState(() => _settings.voiceLanguage = value ?? 'auto');
+              },
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Language changes take effect the next time the engine starts.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+          ],
+          const Text('Status', style: DialogStyles.labelStyle),
+          const SizedBox(height: 4),
+          ValueListenableBuilder<SttModelStatus>(
+            valueListenable: SherpaModelManager.statusOf(model.id),
+            builder: (context, status, _) =>
+                _buildSttModelStatus(model, status),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Status line + actions for the selected recognition [model].
+  Widget _buildSttModelStatus(SttModel model, SttModelStatus status) {
+    final busy =
+        status.state == SttModelState.downloading ||
+        status.state == SttModelState.installing;
+
+    Widget statusLine;
+    switch (status.state) {
+      case SttModelState.ready:
+        statusLine = Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 18),
+            const SizedBox(width: 6),
+            Expanded(
+              child: FutureBuilder<int>(
+                future: SherpaModelManager.installedSizeBytes(model.id),
+                builder: (context, snap) {
+                  final size = snap.data ?? 0;
+                  final suffix = size > 0 ? ' (${_formatBytes(size)})' : '';
+                  return Text(
+                    'Model installed$suffix',
+                    style: DialogStyles.bodyStyle,
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+        break;
+      case SttModelState.downloading:
+        final pct = status.progress;
+        final detail = status.totalBytes > 0
+            ? '${_formatBytes(status.receivedBytes)} of '
+                  '${_formatBytes(status.totalBytes)}'
+            : _formatBytes(status.receivedBytes);
+        statusLine = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              pct != null
+                  ? 'Downloading model… ${(pct * 100).toStringAsFixed(0)}%'
+                  : 'Downloading model…',
+              style: DialogStyles.bodyStyle,
+            ),
+            const SizedBox(height: 6),
+            LinearProgressIndicator(value: pct),
+            const SizedBox(height: 4),
+            Text(
+              detail,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
+        );
+        break;
+      case SttModelState.installing:
+        final pct = status.progress;
+        statusLine = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              pct != null
+                  ? 'Installing model… ${(pct * 100).toStringAsFixed(0)}%'
+                  : 'Installing model…',
+              style: DialogStyles.bodyStyle,
+            ),
+            const SizedBox(height: 6),
+            LinearProgressIndicator(value: pct),
+          ],
+        );
+        break;
+      case SttModelState.error:
+        statusLine = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 18),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                status.message ?? 'Model could not be installed.',
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+        break;
+      case SttModelState.notInstalled:
+        statusLine = Text(
+          'Model not downloaded. ${model.downloadLabel} happens once and is '
+          'cached on this device.',
+          style: DialogStyles.bodyStyle,
+        );
+        break;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        statusLine,
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            ElevatedButton.icon(
+              onPressed: busy || status.state == SttModelState.ready
+                  ? null
+                  : () => SherpaModelManager.ensureModel(model.id),
+              icon: const Icon(Icons.download, size: 18),
+              label: Text(
+                status.state == SttModelState.error ? 'Retry' : 'Download',
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: busy || status.state != SttModelState.ready
+                  ? null
+                  : () => _confirmRemoveSttModel(model),
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('Remove'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Confirms then deletes the cached files for [model] from disk.
+  Future<void> _confirmRemoveSttModel(SttModel model) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove speech-to-text model?'),
+        content: Text(
+          'The downloaded "${model.name}" model will be deleted to reclaim '
+          'disk space. It will be downloaded again the next time it is used.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await SherpaModelManager.deleteModel(model.id);
+    }
+  }
+
   Widget _buildVoiceTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -882,71 +1112,8 @@ class _SettingsDialogState extends State<SettingsDialog>
             style: DialogStyles.bodyStyle,
           ),
           const SizedBox(height: 16),
-          // Speech Recognition
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: _sectionDecoration(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Speech Recognition (Whisper)',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text('Language', style: DialogStyles.labelStyle),
-                const SizedBox(height: 4),
-                DropdownButtonFormField<String>(
-                  initialValue: _settings.voiceLanguage,
-                  decoration: _inputDecoration(),
-                  items: _languages
-                      .map(
-                        (l) => DropdownMenuItem(
-                          value: l.code,
-                          child: Text(l.name),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() => _settings.voiceLanguage = value ?? 'auto');
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Text('Model', style: DialogStyles.labelStyle),
-                const SizedBox(height: 4),
-                DropdownButtonFormField<String>(
-                  initialValue: _settings.voiceModel,
-                  decoration: _inputDecoration(),
-                  items: _models
-                      .map(
-                        (m) =>
-                            DropdownMenuItem(value: m.id, child: Text(m.name)),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() => _settings.voiceModel = value ?? '');
-                  },
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: _settings.voiceModel.isNotEmpty ? () {} : null,
-                      child: const Text('Download'),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: _settings.voiceModel.isNotEmpty ? () {} : null,
-                      child: const Text('Delete'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          // Speech Recognition (sherpa-onnx)
+          _buildSpeechRecognitionSection(),
           const SizedBox(height: 16),
           // Text-to-Speech
           Container(
