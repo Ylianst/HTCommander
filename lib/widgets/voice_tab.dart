@@ -173,6 +173,7 @@ class _VoiceTabState extends State<VoiceTab>
   /// Resolves the application-support directory path and re-attaches SSTV image
   /// paths to any already-loaded history entries.
   Future<void> _resolveAppSupportPath() async {
+    if (kIsWeb) return;
     try {
       final base = await getApplicationSupportDirectory();
       if (!mounted) return;
@@ -300,6 +301,14 @@ class _VoiceTabState extends State<VoiceTab>
     // Save the scaled image to the SSTV application folder.
     String? filename;
     try {
+      if (kIsWeb) {
+        messenger?.showSnackBar(
+          const SnackBar(
+            content: Text('SSTV image save/transmit is not available on web.'),
+          ),
+        );
+        return;
+      }
       final base =
           _appSupportPath ?? (await getApplicationSupportDirectory()).path;
       _appSupportPath = base;
@@ -1176,6 +1185,15 @@ class _VoiceTabState extends State<VoiceTab>
     String filename, {
     bool autoPlay = false,
   }) async {
+    if (kIsWeb) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Recording playback from files is unavailable on web.'),
+        ),
+      );
+      return;
+    }
     final base = await getApplicationSupportDirectory();
     final fullPath =
         '${base.path}${Platform.pathSeparator}recordings'
