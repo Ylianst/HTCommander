@@ -112,6 +112,15 @@ class Radio {
   int _initRetryCount = 0;
   static const int _maxInitRetries = 3;
   bool _receivedAnyData = false;
+  int _webInitCommandCount = 0;
+  DateTime? _connectedAt;
+  bool _webBleCompactMode = false;
+  int _webBleCompactVariant = 0;
+  int _compactRxLogCount = 0;
+  int _lastCompactCmdValue = -1;
+  int _lastCompactStatus = -1;
+  DateTime _lastCompactLogAt = DateTime.fromMillisecondsSinceEpoch(0);
+  bool _webBleCompactUnsupported = false;
 
   // Lock state
   RadioLockState? _lockState;
@@ -576,6 +585,19 @@ class Radio {
     _updateState(RadioState.connected);
     _receivedAnyData = false;
     _initRetryCount = 0;
+    _webInitCommandCount = 0;
+    _connectedAt = DateTime.now();
+    _webBleCompactMode = false;
+    _webBleCompactVariant = 0;
+    _compactRxLogCount = 0;
+    _lastCompactCmdValue = -1;
+    _lastCompactStatus = -1;
+    _lastCompactLogAt = DateTime.fromMillisecondsSinceEpoch(0);
+    _webBleCompactUnsupported = false;
+
+    if (kIsWeb) {
+      _broker.logInfo('[Radio $deviceId] [WEB-BLE] Transport connected');
+    }
 
     // Add a small delay before sending initial commands
     // Some radios need time to initialize the RFCOMM channel
@@ -588,9 +610,30 @@ class Radio {
   void _sendInitialCommands() {
     if (_transport?.state != TransportState.connected) return;
 
+    final maxInitRetries = (kIsWeb && _webBleCompactMode) ? 6 : _maxInitRetries;
+
     _debug(
-      'Sending initial commands (attempt ${_initRetryCount + 1}/$_maxInitRetries)',
+      'Sending initial commands (attempt ${_initRetryCount + 1}/$maxInitRetries)',
     );
+    if (kIsWeb) {
+      _broker.logInfo(
+        '[Radio $deviceId] [WEB-BLE] Sending init command batch '
+        '${_initRetryCount + 1}/$maxInitRetries',
+      );
+      if (_webBleCompactMode) {
+        final variantName = switch (_webBleCompactVariant) {
+          0 => 'cmd16-be',
+          1 => 'group+cmd8',
+          2 => 'cmd8',
+          3 => 'cmd16-le',
+          4 => 'group+cmd16-be',
+          _ => 'group+cmd16-le',
+        };
+        _broker.logInfo(
+          '[Radio $deviceId] [WEB-BLE] Compact variant: $variantName',
+        );
+      }
+    }
 
     // Request initial data
     _sendCommand(
@@ -611,13 +654,62 @@ class Radio {
     _initRetryTimer = Timer(const Duration(seconds: 2), () {
       if (!_receivedAnyData && _transport?.state == TransportState.connected) {
         _initRetryCount++;
-        if (_initRetryCount < _maxInitRetries) {
+        if (_initRetryCount < maxInitRetries) {
           _debug('No response received, retrying initial commands...');
+          if (kIsWeb) {
+            if (_webBleCompactMode) {
+              _webBleCompactVariant = (_webBleCompactVariant + 1) % 6;
+              final variantName = switch (_webBleCompactVariant) {
+                0 => 'cmd16-be',
+                1 => 'group+cmd8',
+                2 => 'cmd8',
+                3 => 'cmd16-le',
+                4 => 'group+cmd16-be',
+                _ => 'group+cmd16-le',
+              };
+              _broker.logInfo(
+                '[Radio $deviceId] [WEB-BLE] Switching compact variant to '
+                '$variantName',
+              );
+            }
+            final connectedAt = _connectedAt;
+            final elapsedMs = connectedAt == null
+                ? 0
+                : DateTime.now().difference(connectedAt).inMilliseconds;
+            _broker.logInfo(
+              '[Radio $deviceId] [WEB-BLE] No RX yet after ${elapsedMs}ms; '
+              'retrying init commands',
+            );
+          }
           _sendInitialCommands();
         } else {
           _debug(
-            'No response after $_maxInitRetries attempts, radio may not be responding',
+            'No response after $maxInitRetries attempts, radio may not be responding',
           );
+          if (kIsWeb) {
+            final connectedAt = _connectedAt;
+            final elapsedMs = connectedAt == null
+                ? 0
+                : DateTime.now().difference(connectedAt).inMilliseconds;
+            if (_webBleCompactMode) {
+              _webBleCompactUnsupported = true;
+              _broker.logError(
+                '[Radio $deviceId] [WEB-BLE] Radio rejected all compact BLE '
+                'control variants (status=notSupported). This firmware/browser '
+                'path does not support web BLE control for this device.',
+              );
+            }
+            _broker.logError(
+              '[Radio $deviceId] [WEB-BLE] No RX after $maxInitRetries init '
+              'attempts (${elapsedMs}ms since connected)',
+            );
+            if (_webBleCompactMode && _transport?.state == TransportState.connected) {
+              _handleDisconnect(
+                'Web BLE control not supported by this radio/browser path',
+                RadioState.unableToConnect,
+              );
+            }
+          }
         }
       }
     });
@@ -1073,22 +1165,243 @@ class Radio {
   ) {
     if (_transport == null) return;
 
-    final cmdData = GaiaProtocol.buildCommand(group, cmd, data);
-    final gaiaFrame = GaiaProtocol.encode(cmdData);
+    Uint8List gaiaFrame;
+    if (kIsWeb && _webBleCompactMode && group == RadioCommandGroup.basic) {
+      // Web BLE compact mode: radios may use one of several compact command
+      // layouts. We rotate variants across retries until one responds.
+      final payloadLen = data?.length ?? 0;
+      if (_webBleCompactVariant == 1) {
+        // FF 01 <group8> <cmd8> [data]
+        gaiaFrame = Uint8List(4 + payloadLen);
+        gaiaFrame[0] = 0xFF;
+        gaiaFrame[1] = 0x01;
+        gaiaFrame[2] = group.value & 0xFF;
+        gaiaFrame[3] = cmd.value & 0xFF;
+        if (data != null) {
+          for (int i = 0; i < data.length; i++) {
+            gaiaFrame[4 + i] = data[i];
+          }
+        }
+      } else if (_webBleCompactVariant == 2) {
+        // FF 01 <cmd8> [data]
+        gaiaFrame = Uint8List(3 + payloadLen);
+        gaiaFrame[0] = 0xFF;
+        gaiaFrame[1] = 0x01;
+        gaiaFrame[2] = cmd.value & 0xFF;
+        if (data != null) {
+          for (int i = 0; i < data.length; i++) {
+            gaiaFrame[3 + i] = data[i];
+          }
+        }
+      } else if (_webBleCompactVariant == 3) {
+        // FF 01 <cmd16_le> [data]
+        gaiaFrame = Uint8List(4 + payloadLen);
+        gaiaFrame[0] = 0xFF;
+        gaiaFrame[1] = 0x01;
+        gaiaFrame[2] = cmd.value & 0xFF;
+        gaiaFrame[3] = (cmd.value >> 8) & 0xFF;
+        if (data != null) {
+          for (int i = 0; i < data.length; i++) {
+            gaiaFrame[4 + i] = data[i];
+          }
+        }
+      } else if (_webBleCompactVariant == 4) {
+        // FF 01 <group8> <cmd16_be> [data]
+        gaiaFrame = Uint8List(5 + payloadLen);
+        gaiaFrame[0] = 0xFF;
+        gaiaFrame[1] = 0x01;
+        gaiaFrame[2] = group.value & 0xFF;
+        gaiaFrame[3] = (cmd.value >> 8) & 0xFF;
+        gaiaFrame[4] = cmd.value & 0xFF;
+        if (data != null) {
+          for (int i = 0; i < data.length; i++) {
+            gaiaFrame[5 + i] = data[i];
+          }
+        }
+      } else if (_webBleCompactVariant == 5) {
+        // FF 01 <group8> <cmd16_le> [data]
+        gaiaFrame = Uint8List(5 + payloadLen);
+        gaiaFrame[0] = 0xFF;
+        gaiaFrame[1] = 0x01;
+        gaiaFrame[2] = group.value & 0xFF;
+        gaiaFrame[3] = cmd.value & 0xFF;
+        gaiaFrame[4] = (cmd.value >> 8) & 0xFF;
+        if (data != null) {
+          for (int i = 0; i < data.length; i++) {
+            gaiaFrame[5 + i] = data[i];
+          }
+        }
+      } else {
+        // FF 01 <cmd16_be> [data]
+        gaiaFrame = Uint8List(4 + payloadLen);
+        gaiaFrame[0] = 0xFF;
+        gaiaFrame[1] = 0x01;
+        gaiaFrame[2] = (cmd.value >> 8) & 0xFF;
+        gaiaFrame[3] = cmd.value & 0xFF;
+        if (data != null) {
+          for (int i = 0; i < data.length; i++) {
+            gaiaFrame[4 + i] = data[i];
+          }
+        }
+      }
+    } else {
+      final cmdData = GaiaProtocol.buildCommand(group, cmd, data);
+      gaiaFrame = GaiaProtocol.encode(cmdData);
+    }
 
     if (_packetTrace) {
       _debug('TX: ${RadioUtils.bytesToHex(gaiaFrame)}');
     }
 
+    if (kIsWeb && !_receivedAnyData && _webInitCommandCount < 20) {
+      _webInitCommandCount++;
+      _broker.logInfo(
+        '[Radio $deviceId] [WEB-BLE] TX init[$_webInitCommandCount] '
+        '${cmd.name} (${gaiaFrame.length} bytes)',
+      );
+    }
+
     _transport!.send(gaiaFrame);
   }
 
+  bool _tryHandleWebCompactResponse(Uint8List data) {
+    if (!kIsWeb || data.length < 5) return false;
+    if (_webBleCompactUnsupported) return true;
+    if (data[0] != 0xFF || data[1] != 0x01) return false;
+
+    final cmdHi = data[2];
+    final cmdLo = data[3];
+    final isResponse = (cmdHi & 0x80) != 0;
+    if (!isResponse) return false;
+
+    // Signature seen on UV-PRO web BLE when using GAIA framing against a
+    // compact command endpoint: FF 01 80 02 01 (error for cmd 0x0002).
+    if (!_webBleCompactMode && cmdHi == 0x80 && cmdLo == 0x02 && data[4] == 1) {
+      _webBleCompactMode = true;
+      _webBleCompactVariant = 0;
+      _broker.logInfo(
+        '[Radio $deviceId] [WEB-BLE] Detected compact BLE protocol; '
+        'switching command framing and retrying init',
+      );
+
+      _receivedAnyData = false;
+      _initRetryCount = 0;
+      _webInitCommandCount = 0;
+      _initRetryTimer?.cancel();
+
+      Future<void>.delayed(const Duration(milliseconds: 120), () {
+        if (_transport?.state == TransportState.connected) {
+          _sendInitialCommands();
+        }
+      });
+      return true;
+    }
+
+    if (!_webBleCompactMode) return false;
+
+    final status = data[4];
+    // Two response forms have been observed:
+    // - FF 01 80 05 01      (response bit in cmd hi, cmd=0x0005)
+    // - FF 01 82 05 01      (response bit + group8 in byte2, cmd8 in byte3)
+    // Normalize both to a 16-bit command id for logging/dispatch.
+    final compactCmdValue = ((cmdHi & 0x7F) == RadioCommandGroup.basic.value)
+        ? cmdLo
+        : (((cmdHi & 0x7F) << 8) | cmdLo);
+    final compactCmd = RadioBasicCommand.fromValue(compactCmdValue);
+    final isStatusOnlyNak = data.length == 5 && status != 0;
+    final statusName = switch (status) {
+      0 => 'success',
+      1 => 'notSupported',
+      2 => 'notAuthenticated',
+      3 => 'insufficientResources',
+      4 => 'authenticating',
+      5 => 'invalidParameter',
+      6 => 'incorrectState',
+      7 => 'inProgress',
+      _ => 'unknown',
+    };
+
+    if (kIsWeb) {
+      final now = DateTime.now();
+      final shouldLog = _compactRxLogCount < 120 &&
+          (compactCmdValue != _lastCompactCmdValue ||
+              status != _lastCompactStatus ||
+              now.difference(_lastCompactLogAt).inMilliseconds >= 1500);
+      if (shouldLog) {
+        _compactRxLogCount++;
+        _lastCompactCmdValue = compactCmdValue;
+        _lastCompactStatus = status;
+        _lastCompactLogAt = now;
+        _broker.logInfo(
+          '[Radio $deviceId] [WEB-BLE] Compact RX cmd=${compactCmd.name} '
+          '(0x${compactCmdValue.toRadixString(16).padLeft(4, '0')}) '
+          'status=$status($statusName) len=${data.length}',
+        );
+      }
+    }
+
+    // Compact frame counts as RX for init retry logic.
+    // Keep retry logic active for status-only NAK frames so we can rotate
+    // compact command variants automatically.
+    if (!_receivedAnyData && !isStatusOnlyNak) {
+      _receivedAnyData = true;
+      _initRetryTimer?.cancel();
+      if (kIsWeb) {
+        final connectedAt = _connectedAt;
+        final elapsedMs = connectedAt == null
+            ? 0
+            : DateTime.now().difference(connectedAt).inMilliseconds;
+        _broker.logInfo(
+          '[Radio $deviceId] [WEB-BLE] First compact RX data received '
+          '(${data.length} bytes, ${elapsedMs}ms after connect)',
+        );
+      }
+    }
+
+    if (isStatusOnlyNak) {
+      return true;
+    }
+
+    // Convert compact response to the internal command shape expected by
+    // _handleCommand: [group_hi group_lo cmd_hi cmd_lo status payload...].
+    final cmd = Uint8List(data.length);
+    cmd[0] = 0x00;
+    cmd[1] = RadioCommandGroup.basic.value;
+    cmd[2] = data[2];
+    cmd[3] = data[3];
+    for (int i = 4; i < data.length; i++) {
+      cmd[i] = data[i];
+    }
+
+    if (_packetTrace) {
+      _debug(
+        'RX compact: ${RadioUtils.bytesToHex(data)} -> ${RadioUtils.bytesToHex(cmd)}',
+      );
+    }
+    _handleCommand(cmd);
+    return true;
+  }
+
   void _onDataReceived(Uint8List data) {
+    if (_tryHandleWebCompactResponse(data)) {
+      return;
+    }
+
     // Mark that we received data (for init retry logic)
     if (!_receivedAnyData) {
       _receivedAnyData = true;
       _initRetryTimer?.cancel();
       _debug('First data received from radio');
+      if (kIsWeb) {
+        final connectedAt = _connectedAt;
+        final elapsedMs = connectedAt == null
+            ? 0
+            : DateTime.now().difference(connectedAt).inMilliseconds;
+        _broker.logInfo(
+          '[Radio $deviceId] [WEB-BLE] First RX data received '
+          '(${data.length} bytes, ${elapsedMs}ms after connect)',
+        );
+      }
     }
 
     if (_packetTrace) {

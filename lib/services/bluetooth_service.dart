@@ -63,9 +63,9 @@ class BluetoothService {
   // Track if Bluetooth has been initialized
   static bool _bluetoothInitialized = false;
 
-  /// Check if we should use Bluetooth Classic (macOS) or BLE
+  /// Check if we should use Bluetooth Classic (macOS/Windows) or BLE
   static bool get _useBluetoothClassic =>
-      !kIsWeb && Platform.isMacOS && BluetoothClassicMacOS.isSupported;
+      !kIsWeb && (Platform.isMacOS || Platform.isWindows) && BluetoothClassicMacOS.isSupported;
 
   /// Check if Bluetooth is available on this platform
   /// On first call, waits for adapter to initialize
@@ -259,7 +259,7 @@ class BluetoothService {
         final discovered = DiscoveredDevice(
           id: deviceId,
           name: name,
-          type: BluetoothType.classic,
+          type: BluetoothType.ble,
           rssi: 0,
         );
 
@@ -462,6 +462,25 @@ class BluetoothService {
       final success = await transport.connect(discovered);
 
       if (success) {
+        // Create a Radio instance and attach the BLE transport so GAIA
+        // initialization commands start immediately after link-up.
+        final radio = Radio(deviceId: deviceId, macAddress: macAddress);
+        radio.updateFriendlyName(friendlyName);
+        _radioInstances[deviceId] = radio;
+        await radio.connect(transport);
+
+        _broker.dispatch(
+          deviceId: deviceId,
+          name: 'MacAddress',
+          data: macAddress,
+          store: true,
+        );
+        _broker.dispatch(
+          deviceId: deviceId,
+          name: 'FriendlyName',
+          data: friendlyName,
+          store: true,
+        );
         _broker.dispatch(
           deviceId: deviceId,
           name: 'State',
@@ -666,9 +685,15 @@ class BleRadioTransport implements RadioTransport {
   DiscoveredDevice? _connectedDevice;
   BluetoothDevice? _bleDevice;
   BluetoothCharacteristic? _txCharacteristic;
+  BluetoothCharacteristic? _altTxCharacteristic;
   BluetoothCharacteristic? _rxCharacteristic;
   StreamSubscription<List<int>>? _notifySubscription;
   StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
+  Timer? _rxPollTimer;
+  bool _rxPollInFlight = false;
+  final Map<String, List<int>> _lastPolledByChar = {};
+  int _rxTraceCount = 0;
+  int _txTraceCount = 0;
 
   // Nordic UART Service UUIDs (commonly used by radio devices)
   static const String _nordicUartServiceUuid =
@@ -688,6 +713,8 @@ class BleRadioTransport implements RadioTransport {
       '00001100-d102-11e1-9b23-00025b00a5a5';
   static const String _btRadioWriteCharUuid =
       '00001101-d102-11e1-9b23-00025b00a5a5';
+  static const String _btRadioAltWriteCharUuid =
+      '00001103-d102-11e1-9b23-00025b00a5a5';
   static const String _btRadioIndicateCharUuid =
       '00001102-d102-11e1-9b23-00025b00a5a5';
 
@@ -756,6 +783,96 @@ class BleRadioTransport implements RadioTransport {
     _broker.logError('[BLE] $msg');
   }
 
+  void _emitRxData(List<int> data) {
+    if (data.isEmpty) return;
+    _dataController.add(Uint8List.fromList(data));
+  }
+
+  void _startRxPolling() {
+    final candidates = <BluetoothCharacteristic>[];
+    if (_rxCharacteristic != null && _rxCharacteristic!.properties.read) {
+      candidates.add(_rxCharacteristic!);
+    }
+    if (_txCharacteristic != null && _txCharacteristic!.properties.read) {
+      final txUuid = _txCharacteristic!.uuid.toString().toLowerCase();
+      final exists = candidates.any(
+        (c) => c.uuid.toString().toLowerCase() == txUuid,
+      );
+      if (!exists) candidates.add(_txCharacteristic!);
+    }
+    if (_altTxCharacteristic != null && _altTxCharacteristic!.properties.read) {
+      final altUuid = _altTxCharacteristic!.uuid.toString().toLowerCase();
+      final exists = candidates.any(
+        (c) => c.uuid.toString().toLowerCase() == altUuid,
+      );
+      if (!exists) candidates.add(_altTxCharacteristic!);
+    }
+
+    if (candidates.isEmpty) {
+      _logInfo(
+        'No readable characteristic available; polling fallback unavailable.',
+      );
+      return;
+    }
+
+    _rxPollTimer?.cancel();
+    _rxPollTimer = Timer.periodic(const Duration(milliseconds: 200), (_) async {
+      if (_rxPollInFlight || _state != TransportState.connected) return;
+      _rxPollInFlight = true;
+      try {
+        for (final characteristic in candidates) {
+          final data = await characteristic.read();
+          if (data.isEmpty) continue;
+
+          final key = characteristic.uuid.toString().toLowerCase();
+          // Avoid dispatching duplicates when polling the same last value from
+          // a given characteristic.
+          final last = _lastPolledByChar[key];
+          if (last != null && _listEquals(last, data)) continue;
+          _lastPolledByChar[key] = List<int>.from(data);
+          if (_rxTraceCount < 12) {
+            _rxTraceCount++;
+            _logInfo(
+              'RX poll[$_rxTraceCount] from $key: ${data.length} byte(s): '
+              '${_hexPreview(data)}',
+            );
+          }
+          _emitRxData(data);
+        }
+      } catch (_) {
+        // Ignore transient read failures while the connection stabilizes.
+      } finally {
+        _rxPollInFlight = false;
+      }
+    });
+    final uuids = candidates
+        .map((c) => c.uuid.toString().toLowerCase())
+        .join(', ');
+    _logInfo(
+      'Started RX polling fallback at 200 ms interval on: $uuids',
+    );
+  }
+
+  bool _listEquals(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  String _hexPreview(List<int> data, {int max = 24}) {
+    if (data.isEmpty) return '';
+    final take = data.length < max ? data.length : max;
+    final sb = StringBuffer();
+    for (int i = 0; i < take; i++) {
+      if (i > 0) sb.write(' ');
+      sb.write(data[i].toRadixString(16).padLeft(2, '0').toUpperCase());
+    }
+    if (data.length > max) sb.write(' ...');
+    return sb.toString();
+  }
+
   @override
   Future<bool> connect(DiscoveredDevice device) async {
     if (_state == TransportState.connected ||
@@ -811,6 +928,7 @@ class BleRadioTransport implements RadioTransport {
               '  char $charUuid '
               '(write=${char.properties.write}, '
               'writeNoResp=${char.properties.writeWithoutResponse}, '
+              'read=${char.properties.read}, '
               'notify=${char.properties.notify}, '
               'indicate=${char.properties.indicate})',
             );
@@ -818,13 +936,19 @@ class BleRadioTransport implements RadioTransport {
             if (charUuid == _nordicUartTxCharUuid.toLowerCase() ||
                 charUuid == _btRadioWriteCharUuid.toLowerCase()) {
               _txCharacteristic = char;
+            } else if (charUuid == _btRadioAltWriteCharUuid.toLowerCase()) {
+              _altTxCharacteristic = char;
             } else if (charUuid == _nordicUartRxCharUuid.toLowerCase() ||
                 charUuid == _btRadioIndicateCharUuid.toLowerCase()) {
               _rxCharacteristic = char;
             } else if (char.properties.write ||
                 char.properties.writeWithoutResponse) {
               // Fallback: use any writable characteristic for TX
-              _txCharacteristic ??= char;
+              if (_txCharacteristic == null) {
+                _txCharacteristic = char;
+              } else {
+                _altTxCharacteristic ??= char;
+              }
             } else if (char.properties.notify || char.properties.indicate) {
               // Fallback: use any notifiable characteristic for RX
               _rxCharacteristic ??= char;
@@ -846,7 +970,11 @@ class BleRadioTransport implements RadioTransport {
             if (_txCharacteristic == null &&
                 (char.properties.write ||
                     char.properties.writeWithoutResponse)) {
-              _txCharacteristic = char;
+              if (_txCharacteristic == null) {
+                _txCharacteristic = char;
+              } else {
+                _altTxCharacteristic ??= char;
+              }
             }
             if (_rxCharacteristic == null &&
                 (char.properties.notify || char.properties.indicate)) {
@@ -866,15 +994,53 @@ class BleRadioTransport implements RadioTransport {
       }
       _logInfo(
         'Using TX ${_txCharacteristic!.uuid.toString().toLowerCase()}'
+        '${_altTxCharacteristic != null ? ', ALT-TX ${_altTxCharacteristic!.uuid.toString().toLowerCase()}' : ''}'
         '${_rxCharacteristic != null ? ', RX ${_rxCharacteristic!.uuid.toString().toLowerCase()}' : ' (no RX/notify characteristic)'}.',
       );
 
+      // On some web/BLE radios (e.g., UV-PRO profile), the command write
+      // endpoint is exposed on 0x1103 while 0x1101 appears writable but does
+      // not accept control frames. Prefer the alternate endpoint on web.
+      if (kIsWeb && _altTxCharacteristic != null) {
+        final primaryUuid = _txCharacteristic!.uuid.toString().toLowerCase();
+        final altUuid = _altTxCharacteristic!.uuid.toString().toLowerCase();
+        if (primaryUuid == _btRadioWriteCharUuid.toLowerCase() &&
+            altUuid == _btRadioAltWriteCharUuid.toLowerCase()) {
+          final tmp = _txCharacteristic;
+          _txCharacteristic = _altTxCharacteristic;
+          _altTxCharacteristic = tmp;
+          _logInfo(
+            'Web mode: preferring TX ${_txCharacteristic!.uuid.toString().toLowerCase()} '
+            'over ALT-TX ${_altTxCharacteristic!.uuid.toString().toLowerCase()}.',
+          );
+        }
+      }
+
       // Set up notifications for RX characteristic
       if (_rxCharacteristic != null) {
-        await _rxCharacteristic!.setNotifyValue(true);
+        // Subscribe first so values are not missed if they arrive immediately
+        // after the CCCD change.
         _notifySubscription = _rxCharacteristic!.onValueReceived.listen((data) {
-          _dataController.add(Uint8List.fromList(data));
+          _emitRxData(data);
         });
+
+        try {
+          await _rxCharacteristic!.setNotifyValue(true);
+          _logInfo('RX notifications/indications enabled.');
+        } catch (e) {
+          if (kIsWeb) {
+            // Web Bluetooth can time out on setNotifyValue for some
+            // indicate-only radios even though the link is otherwise usable.
+            // Keep the connection up and fall back to periodic reads.
+            _logInfo(
+              'RX notify setup timed out on web; continuing with '
+              'read-poll fallback. Error: $e',
+            );
+            _startRxPolling();
+          } else {
+            rethrow;
+          }
+        }
       }
 
       _connectedDevice = device;
@@ -904,6 +1070,7 @@ class BleRadioTransport implements RadioTransport {
     _state = TransportState.disconnected;
     _connectedDevice = null;
     _txCharacteristic = null;
+    _altTxCharacteristic = null;
     _rxCharacteristic = null;
     _stateController.add(_state);
   }
@@ -918,6 +1085,12 @@ class BleRadioTransport implements RadioTransport {
     await _notifySubscription?.cancel();
     _notifySubscription = null;
 
+    _rxPollTimer?.cancel();
+    _rxPollTimer = null;
+    _lastPolledByChar.clear();
+    _rxTraceCount = 0;
+    _txTraceCount = 0;
+
     await _connectionSubscription?.cancel();
     _connectionSubscription = null;
 
@@ -930,6 +1103,7 @@ class BleRadioTransport implements RadioTransport {
     _bleDevice = null;
     _connectedDevice = null;
     _txCharacteristic = null;
+    _altTxCharacteristic = null;
     _rxCharacteristic = null;
 
     _state = TransportState.disconnected;
@@ -943,13 +1117,65 @@ class BleRadioTransport implements RadioTransport {
     }
 
     try {
-      await _txCharacteristic!.write(
+      final primary = _txCharacteristic!;
+      if (kIsWeb && _txTraceCount < 20) {
+        _txTraceCount++;
+        _logInfo(
+          'TX[$_txTraceCount] -> ${primary.uuid.toString().toLowerCase()} '
+          '${data.length} byte(s): ${_hexPreview(data)}',
+        );
+      }
+      await primary.write(
         data.toList(),
-        withoutResponse: _txCharacteristic!.properties.writeWithoutResponse,
+        withoutResponse: primary.properties.writeWithoutResponse,
       );
+
+      // Web BLE radios may expose two writable characteristics where only one
+      // actually processes control commands. Mirror writes to improve
+      // compatibility while probing the active endpoint.
+      if (kIsWeb && _altTxCharacteristic != null) {
+        final alt = _altTxCharacteristic!;
+        try {
+          if (_txTraceCount < 20) {
+            _txTraceCount++;
+            _logInfo(
+              'TX[$_txTraceCount] mirror -> ${alt.uuid.toString().toLowerCase()} '
+              '${data.length} byte(s): ${_hexPreview(data)}',
+            );
+          }
+          await alt.write(
+            data.toList(),
+            withoutResponse: alt.properties.writeWithoutResponse,
+          );
+        } catch (_) {
+          // Ignore bootstrap mirror failures; primary write already succeeded.
+        }
+      }
       return true;
-    } catch (e) {
-      debugPrint('BleRadioTransport: Error sending data: $e');
+    } catch (e1) {
+      final fallback = _altTxCharacteristic;
+      if (fallback != null) {
+        try {
+          _logInfo(
+            'Primary TX write failed (${_txCharacteristic!.uuid.toString().toLowerCase()}); '
+            'retrying on ALT-TX ${fallback.uuid.toString().toLowerCase()}.',
+          );
+          await fallback.write(
+            data.toList(),
+            withoutResponse: fallback.properties.writeWithoutResponse,
+          );
+          final oldPrimary = _txCharacteristic;
+          _txCharacteristic = fallback;
+          _altTxCharacteristic = oldPrimary;
+          return true;
+        } catch (e2) {
+          debugPrint(
+            'BleRadioTransport: Error sending data (primary: $e1, alt: $e2)',
+          );
+          return false;
+        }
+      }
+      debugPrint('BleRadioTransport: Error sending data: $e1');
       return false;
     }
   }
