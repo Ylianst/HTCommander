@@ -38,11 +38,32 @@ class TtsService {
 
   final FlutterTts _tts = FlutterTts();
   bool _initialized = false;
+  bool _ttsAvailable = true;
 
   Future<void> _ensureInit() async {
     if (_initialized) return;
     // Make synthesizeToFile() resolve only once the file has been written.
-    await _tts.awaitSynthCompletion(true);
+    // Some platform/plugin combinations (notably Windows builds where
+    // flutter_tts is present but method support is partial) do not implement
+    // this method; treat that as "TTS unavailable" instead of crashing.
+    try {
+      await _tts.awaitSynthCompletion(true);
+    } on MissingPluginException {
+      _ttsAvailable = false;
+      debugPrint(
+        'TtsService: flutter_tts.awaitSynthCompletion unavailable; '
+        'disabling TTS on this platform.',
+      );
+    } on PlatformException catch (e) {
+      _ttsAvailable = false;
+      debugPrint(
+        'TtsService: flutter_tts init failed (${e.code}); '
+        'disabling TTS on this platform.',
+      );
+    } catch (e) {
+      _ttsAvailable = false;
+      debugPrint('TtsService: flutter_tts init failed: $e');
+    }
     _initialized = true;
   }
 
@@ -73,6 +94,7 @@ class TtsService {
     }
 
     await _ensureInit();
+    if (!_ttsAvailable) return const <Map<String, String>>[];
     final result = <Map<String, String>>[];
     try {
       final raw = await _tts.getVoices;
@@ -249,6 +271,7 @@ class TtsService {
     double? pitch,
   }) async {
     await _ensureInit();
+    if (!_ttsAvailable) return null;
 
     try {
       if (rate != null) await _tts.setSpeechRate(rate);

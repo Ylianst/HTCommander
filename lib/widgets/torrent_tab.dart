@@ -424,7 +424,7 @@ class _TorrentTabState extends State<TorrentTab>
 
   Future<void> _onSaveAs(_TorrentView view) async {
     if (!view.completed) return;
-    final path = await FilePicker.platform.saveFile(
+    final path = await FilePicker.saveFile(
       dialogTitle: 'Save Torrent File',
       fileName: view.fileName,
     );

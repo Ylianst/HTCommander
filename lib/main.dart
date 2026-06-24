@@ -3,7 +3,7 @@ import 'dart:io' show File, Platform;
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
@@ -139,6 +139,12 @@ void main(List<String> args) async {
   }
   runApp(const HTCommanderApp());
 }
+
+bool get _serialGpsSupported =>
+  !kIsWeb &&
+  (defaultTargetPlatform == TargetPlatform.windows ||
+    defaultTargetPlatform == TargetPlatform.macOS ||
+    defaultTargetPlatform == TargetPlatform.linux);
 
 /// Sub-window application for detached tabs
 class SubWindowApp extends StatefulWidget {
@@ -810,7 +816,7 @@ class _MainFormState extends State<MainForm>
     try {
       if (kIsWeb) {
         // On the web the file is delivered as a download via the bytes payload.
-        await FilePicker.platform.saveFile(
+        await FilePicker.saveFile(
           dialogTitle: 'Export Channels',
           fileName: defaultFileName,
           bytes: utf8.encode(content),
@@ -818,7 +824,7 @@ class _MainFormState extends State<MainForm>
         return;
       }
 
-      final outputPath = await FilePicker.platform.saveFile(
+      final outputPath = await FilePicker.saveFile(
         dialogTitle: 'Export Channels',
         fileName: defaultFileName,
         type: FileType.custom,
@@ -979,6 +985,7 @@ class _MainFormState extends State<MainForm>
 
   /// Whether GPS serial port is configured.
   bool get _hasGpsConfigured {
+    if (!_serialGpsSupported) return false;
     final gpsPort =
         DataBroker.getValue<String>(0, 'GpsSerialPort', 'None') ?? 'None';
     return gpsPort.isNotEmpty && gpsPort != 'None';

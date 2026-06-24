@@ -202,6 +202,7 @@ class BluetoothService {
       await FlutterBluePlus.startScan(
         timeout: timeout,
         androidUsesFineLocation: true,
+        withKeywords: kIsWeb ? const ['UV-PRO'] : const [],
         webOptionalServices: kRadioBleOptionalServices,
       );
 
@@ -231,12 +232,11 @@ class BluetoothService {
           if (device.isCompatibleRadio) {
             seen.add(deviceId);
             devices.add(device);
-          } else if (kIsWeb) {
-            // On the web the user already explicitly selected this device in the
-            // browser's Bluetooth chooser, so accept it even if the advertised
-            // name doesn't match a known radio pattern.
-            seen.add(deviceId);
-            devices.add(device);
+            if (kIsWeb) {
+              // Web scan uses a browser chooser; once we have one compatible
+              // device, return immediately to avoid waiting for scan timeout.
+              return devices;
+            }
           }
         }
       }
@@ -690,10 +690,13 @@ class BleRadioTransport implements RadioTransport {
   StreamSubscription<List<int>>? _notifySubscription;
   StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
   Timer? _rxPollTimer;
+  Timer? _notifyRetryTimer;
   bool _rxPollInFlight = false;
+  bool _webNotifyFallbackMode = false;
   final Map<String, List<int>> _lastPolledByChar = {};
   int _rxTraceCount = 0;
   int _txTraceCount = 0;
+  bool _usingReferenceWebProfile = false;
 
   // Nordic UART Service UUIDs (commonly used by radio devices)
   static const String _nordicUartServiceUuid =
@@ -740,6 +743,7 @@ class BleRadioTransport implements RadioTransport {
     try {
       await FlutterBluePlus.startScan(
         timeout: timeout,
+        withKeywords: kIsWeb ? const ['UV-PRO'] : const [],
         webOptionalServices: kRadioBleOptionalServices,
       );
 
@@ -788,6 +792,42 @@ class BleRadioTransport implements RadioTransport {
     _dataController.add(Uint8List.fromList(data));
   }
 
+  Future<void> _tryRearmWebNotify() async {
+    final rx = _rxCharacteristic;
+    if (!kIsWeb || rx == null || _state != TransportState.connected) return;
+    try {
+      await rx.setNotifyValue(true, timeout: 3);
+      _webNotifyFallbackMode = false;
+      _notifyRetryTimer?.cancel();
+      _logInfo('Web notify recovery succeeded; using notifications/indications.');
+    } catch (_) {
+      // Keep retry timer running while connected.
+    }
+  }
+
+  Future<void> _readAssistAfterTx() async {
+    if (!kIsWeb || !_webNotifyFallbackMode || _state != TransportState.connected) {
+      return;
+    }
+
+    final rx = _rxCharacteristic;
+    if (rx == null || !rx.properties.read || _rxPollInFlight) return;
+    _rxPollInFlight = true;
+    try {
+      final data = await rx.read();
+      if (data.isEmpty) return;
+      final key = rx.uuid.toString().toLowerCase();
+      final last = _lastPolledByChar[key];
+      if (last != null && _listEquals(last, data)) return;
+      _lastPolledByChar[key] = List<int>.from(data);
+      _emitRxData(data);
+    } catch (_) {
+      // Ignore; periodic polling continues.
+    } finally {
+      _rxPollInFlight = false;
+    }
+  }
+
   void _startRxPolling() {
     final candidates = <BluetoothCharacteristic>[];
     if (_rxCharacteristic != null && _rxCharacteristic!.properties.read) {
@@ -798,14 +838,18 @@ class BleRadioTransport implements RadioTransport {
       final exists = candidates.any(
         (c) => c.uuid.toString().toLowerCase() == txUuid,
       );
-      if (!exists) candidates.add(_txCharacteristic!);
+      if (!exists && !_usingReferenceWebProfile) {
+        candidates.add(_txCharacteristic!);
+      }
     }
     if (_altTxCharacteristic != null && _altTxCharacteristic!.properties.read) {
       final altUuid = _altTxCharacteristic!.uuid.toString().toLowerCase();
       final exists = candidates.any(
         (c) => c.uuid.toString().toLowerCase() == altUuid,
       );
-      if (!exists) candidates.add(_altTxCharacteristic!);
+      if (!exists && !_usingReferenceWebProfile) {
+        candidates.add(_altTxCharacteristic!);
+      }
     }
 
     if (candidates.isEmpty) {
@@ -815,8 +859,11 @@ class BleRadioTransport implements RadioTransport {
       return;
     }
 
+    final pollIntervalMs = kIsWeb
+      ? (_usingReferenceWebProfile ? 80 : 120)
+      : 200;
     _rxPollTimer?.cancel();
-    _rxPollTimer = Timer.periodic(const Duration(milliseconds: 200), (_) async {
+    _rxPollTimer = Timer.periodic(Duration(milliseconds: pollIntervalMs), (_) async {
       if (_rxPollInFlight || _state != TransportState.connected) return;
       _rxPollInFlight = true;
       try {
@@ -849,7 +896,7 @@ class BleRadioTransport implements RadioTransport {
         .map((c) => c.uuid.toString().toLowerCase())
         .join(', ');
     _logInfo(
-      'Started RX polling fallback at 200 ms interval on: $uuids',
+      'Started RX polling fallback at ${pollIntervalMs}ms interval on: $uuids',
     );
   }
 
@@ -912,6 +959,7 @@ class BleRadioTransport implements RadioTransport {
 
       // Find the UART service and characteristics
       bool foundService = false;
+      bool foundBtRadioService = false;
       for (final service in services) {
         final serviceUuid = service.uuid.toString().toLowerCase();
         _logInfo(
@@ -922,6 +970,8 @@ class BleRadioTransport implements RadioTransport {
         if (serviceUuid == _nordicUartServiceUuid.toLowerCase() ||
             serviceUuid == _sppServiceUuid.toLowerCase() ||
             serviceUuid == _btRadioServiceUuid.toLowerCase()) {
+          foundBtRadioService =
+              serviceUuid == _btRadioServiceUuid.toLowerCase();
           for (final char in service.characteristics) {
             final charUuid = char.uuid.toString().toLowerCase();
             _logInfo(
@@ -998,22 +1048,19 @@ class BleRadioTransport implements RadioTransport {
         '${_rxCharacteristic != null ? ', RX ${_rxCharacteristic!.uuid.toString().toLowerCase()}' : ' (no RX/notify characteristic)'}.',
       );
 
-      // On some web/BLE radios (e.g., UV-PRO profile), the command write
-      // endpoint is exposed on 0x1103 while 0x1101 appears writable but does
-      // not accept control frames. Prefer the alternate endpoint on web.
-      if (kIsWeb && _altTxCharacteristic != null) {
-        final primaryUuid = _txCharacteristic!.uuid.toString().toLowerCase();
-        final altUuid = _altTxCharacteristic!.uuid.toString().toLowerCase();
-        if (primaryUuid == _btRadioWriteCharUuid.toLowerCase() &&
-            altUuid == _btRadioAltWriteCharUuid.toLowerCase()) {
-          final tmp = _txCharacteristic;
-          _txCharacteristic = _altTxCharacteristic;
-          _altTxCharacteristic = tmp;
-          _logInfo(
-            'Web mode: preferring TX ${_txCharacteristic!.uuid.toString().toLowerCase()} '
-            'over ALT-TX ${_altTxCharacteristic!.uuid.toString().toLowerCase()}.',
-          );
-        }
+      _usingReferenceWebProfile =
+          kIsWeb &&
+          foundBtRadioService &&
+          _txCharacteristic!.uuid.toString().toLowerCase() ==
+              _btRadioWriteCharUuid.toLowerCase() &&
+          _rxCharacteristic != null &&
+          _rxCharacteristic!.uuid.toString().toLowerCase() ==
+              _btRadioIndicateCharUuid.toLowerCase();
+      if (_usingReferenceWebProfile) {
+        _logInfo(
+          'Web reference profile active: TX=$_btRadioWriteCharUuid '
+          'RX=$_btRadioIndicateCharUuid',
+        );
       }
 
       // Set up notifications for RX characteristic
@@ -1025,7 +1072,11 @@ class BleRadioTransport implements RadioTransport {
         });
 
         try {
-          await _rxCharacteristic!.setNotifyValue(true);
+          await _rxCharacteristic!.setNotifyValue(
+            true,
+            timeout: kIsWeb ? 3 : 15,
+          );
+          _webNotifyFallbackMode = false;
           _logInfo('RX notifications/indications enabled.');
         } catch (e) {
           if (kIsWeb) {
@@ -1036,7 +1087,12 @@ class BleRadioTransport implements RadioTransport {
               'RX notify setup timed out on web; continuing with '
               'read-poll fallback. Error: $e',
             );
+            _webNotifyFallbackMode = true;
             _startRxPolling();
+            _notifyRetryTimer?.cancel();
+            _notifyRetryTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+              _tryRearmWebNotify();
+            });
           } else {
             rethrow;
           }
@@ -1087,9 +1143,13 @@ class BleRadioTransport implements RadioTransport {
 
     _rxPollTimer?.cancel();
     _rxPollTimer = null;
+    _notifyRetryTimer?.cancel();
+    _notifyRetryTimer = null;
     _lastPolledByChar.clear();
     _rxTraceCount = 0;
     _txTraceCount = 0;
+    _usingReferenceWebProfile = false;
+    _webNotifyFallbackMode = false;
 
     await _connectionSubscription?.cancel();
     _connectionSubscription = null;
@@ -1129,11 +1189,12 @@ class BleRadioTransport implements RadioTransport {
         data.toList(),
         withoutResponse: primary.properties.writeWithoutResponse,
       );
+      await _readAssistAfterTx();
 
       // Web BLE radios may expose two writable characteristics where only one
       // actually processes control commands. Mirror writes to improve
       // compatibility while probing the active endpoint.
-      if (kIsWeb && _altTxCharacteristic != null) {
+      if (kIsWeb && !_usingReferenceWebProfile && _altTxCharacteristic != null) {
         final alt = _altTxCharacteristic!;
         try {
           if (_txTraceCount < 20) {
@@ -1164,6 +1225,7 @@ class BleRadioTransport implements RadioTransport {
             data.toList(),
             withoutResponse: fallback.properties.writeWithoutResponse,
           );
+          await _readAssistAfterTx();
           final oldPrimary = _txCharacteristic;
           _txCharacteristic = fallback;
           _altTxCharacteristic = oldPrimary;

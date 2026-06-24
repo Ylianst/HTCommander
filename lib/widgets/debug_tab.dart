@@ -155,7 +155,7 @@ class _DebugTabState extends State<DebugTab>
     // Show file save dialog
     String? outputPath;
     try {
-      outputPath = await FilePicker.platform.saveFile(
+      outputPath = await FilePicker.saveFile(
         dialogTitle: 'Save Debug Log',
         fileName: defaultFileName,
       );

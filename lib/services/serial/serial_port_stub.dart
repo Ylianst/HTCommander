@@ -5,7 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 // Web stub for serial port access. Mirrors the subset of the
-// `flutter_libserialport` API used by the application so that web builds
+// `libserialport` API used by the application so that web builds
 // compile. None of these are ever invoked on the web because every call site
 // is guarded by `kIsWeb` / a desktop platform check.
 
