@@ -38,6 +38,7 @@ class DiscoveredDevice {
 
   /// List of known compatible radio device name patterns
   static const List<String> targetDeviceNames = [
+    'UV-PRO',
     'WP-C1',
     'HT-CH1',
     'QUANSHENG',

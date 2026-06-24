@@ -121,6 +121,7 @@ class Radio {
   int _lastCompactStatus = -1;
   DateTime _lastCompactLogAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _webBleCompactUnsupported = false;
+  final List<Timer> _pendingChannelReadTimers = [];
 
   // Lock state
   RadioLockState? _lockState;
@@ -297,6 +298,7 @@ class Radio {
     }
 
     final channelId = data as int;
+    _cancelPendingChannelReads();
     switch (name) {
       case 'ChannelChangeVfoA':
         writeSettings(settings!.toByteArrayWith(channelA: channelId));
@@ -635,24 +637,30 @@ class Radio {
       }
     }
 
-    // Request initial data
+    // Request initial data.
+    // On web BLE, stage init to avoid losing early responses when
+    // notifications are unreliable and read-poll fallback is active.
     _sendCommand(
       RadioCommandGroup.basic,
       RadioBasicCommand.getDevInfo,
       Uint8List.fromList([3]),
     );
-    _sendCommand(RadioCommandGroup.basic, RadioBasicCommand.readSettings, null);
-    _sendCommand(
-      RadioCommandGroup.basic,
-      RadioBasicCommand.readBssSettings,
-      null,
-    );
-    _requestPowerStatus(RadioPowerStatus.batteryLevelAsPercentage);
+    if (!kIsWeb) {
+      _sendCommand(RadioCommandGroup.basic, RadioBasicCommand.readSettings, null);
+      _sendCommand(
+        RadioCommandGroup.basic,
+        RadioBasicCommand.readBssSettings,
+        null,
+      );
+      _requestPowerStatus(RadioPowerStatus.batteryLevelAsPercentage);
+    }
 
     // Set up retry timer - if we don't receive any data within 2 seconds, retry
     _initRetryTimer?.cancel();
     _initRetryTimer = Timer(const Duration(seconds: 2), () {
-      if (!_receivedAnyData && _transport?.state == TransportState.connected) {
+      final needsWebInitData = kIsWeb && (info == null || settings == null);
+      if ((!_receivedAnyData || needsWebInitData) &&
+          _transport?.state == TransportState.connected) {
         _initRetryCount++;
         if (_initRetryCount < maxInitRetries) {
           _debug('No response received, retrying initial commands...');
@@ -757,6 +765,7 @@ class Radio {
     _tncFragmentInFlight = false;
     _lockState = null;
     _gpsEnabled = false;
+    _cancelPendingChannelReads();
     _receiveBuffer.clear();
     _clearChannelTimer?.cancel();
     _clearChannelTimer = null;
@@ -825,6 +834,24 @@ class Radio {
 
   void _updateChannels() {
     if (_state != RadioState.connected || info == null) return;
+    _cancelPendingChannelReads();
+    if (kIsWeb) {
+      // Web BLE polling mode often exposes only one latest readable value per
+      // characteristic. Pace channel reads so each response can be observed.
+      for (int i = 0; i < info!.channelCount; i++) {
+        final timer = Timer(Duration(milliseconds: 25 * i), () {
+          if (_state != RadioState.connected || info == null) return;
+          _sendCommand(
+            RadioCommandGroup.basic,
+            RadioBasicCommand.readRfCh,
+            Uint8List.fromList([i]),
+          );
+        });
+        _pendingChannelReadTimers.add(timer);
+      }
+      return;
+    }
+
     for (int i = 0; i < info!.channelCount; i++) {
       _sendCommand(
         RadioCommandGroup.basic,
@@ -906,11 +933,20 @@ class Radio {
 
   // Settings and status
   void writeSettings(Uint8List data) {
+    _cancelPendingChannelReads();
     _sendCommand(
       RadioCommandGroup.basic,
       RadioBasicCommand.writeSettings,
       data,
     );
+  }
+
+  void _cancelPendingChannelReads() {
+    if (_pendingChannelReadTimers.isEmpty) return;
+    for (final timer in _pendingChannelReadTimers) {
+      timer.cancel();
+    }
+    _pendingChannelReadTimers.clear();
   }
 
   void getVolumeLevel() {
@@ -1166,7 +1202,24 @@ class Radio {
     if (_transport == null) return;
 
     Uint8List gaiaFrame;
-    if (kIsWeb && _webBleCompactMode && group == RadioCommandGroup.basic) {
+    if (kIsWeb && !_webBleCompactMode && group == RadioCommandGroup.basic) {
+      // Match the working reference web implementation:
+      // [group_hi, group_lo, cmd_hi, cmd_lo, payload...]
+      // and send a trailing 0 byte when no payload is provided.
+      final payloadLen = (data == null || data.isEmpty) ? 1 : data.length;
+      gaiaFrame = Uint8List(4 + payloadLen);
+      gaiaFrame[0] = 0x00;
+      gaiaFrame[1] = group.value & 0xFF;
+      gaiaFrame[2] = 0x00;
+      gaiaFrame[3] = cmd.value & 0xFF;
+      if (data != null && data.isNotEmpty) {
+        for (int i = 0; i < data.length; i++) {
+          gaiaFrame[4 + i] = data[i];
+        }
+      } else {
+        gaiaFrame[4] = 0x00;
+      }
+    } else if (kIsWeb && _webBleCompactMode && group == RadioCommandGroup.basic) {
       // Web BLE compact mode: radios may use one of several compact command
       // layouts. We rotate variants across retries until one responds.
       final payloadLen = data?.length ?? 0;
@@ -1382,7 +1435,43 @@ class Radio {
     return true;
   }
 
+  bool _tryHandleWebDirectResponse(Uint8List data) {
+    if (!kIsWeb || data.length < 5) return false;
+    if (_webBleCompactUnsupported) return true;
+
+    final groupValue = (data[0] << 8) | data[1];
+    final isKnownGroup =
+        groupValue == RadioCommandGroup.basic.value ||
+        groupValue == RadioCommandGroup.extended.value;
+    if (!isKnownGroup) return false;
+
+    if (!_receivedAnyData) {
+      _receivedAnyData = true;
+      _initRetryTimer?.cancel();
+      if (kIsWeb) {
+        final connectedAt = _connectedAt;
+        final elapsedMs = connectedAt == null
+            ? 0
+            : DateTime.now().difference(connectedAt).inMilliseconds;
+        _broker.logInfo(
+          '[Radio $deviceId] [WEB-BLE] First direct RX data received '
+          '(${data.length} bytes, ${elapsedMs}ms after connect)',
+        );
+      }
+    }
+
+    if (_packetTrace) {
+      _debug('RX web-direct: ${RadioUtils.bytesToHex(data)}');
+    }
+    _handleCommand(data);
+    return true;
+  }
+
   void _onDataReceived(Uint8List data) {
+    if (_tryHandleWebDirectResponse(data)) {
+      return;
+    }
+
     if (_tryHandleWebCompactResponse(data)) {
       return;
     }
@@ -1519,6 +1608,15 @@ class Radio {
         Uint8List.fromList([RadioNotification.htStatusChanged.value]),
       );
 
+      // On web BLE, issue staged init reads after dev info is parsed.
+      if (kIsWeb) {
+        _sendCommand(
+          RadioCommandGroup.basic,
+          RadioBasicCommand.readSettings,
+          null,
+        );
+      }
+
       // If GPS is enabled, register for position change notifications
       if (_gpsEnabled) {
         _sendCommand(
@@ -1528,15 +1626,13 @@ class Radio {
         );
       }
 
-      // Request channels
-      _updateChannels();
-
-      // Request HT status
+      // Request HT status and channels.
       _sendCommand(
         RadioCommandGroup.basic,
         RadioBasicCommand.getHtStatus,
         null,
       );
+      _updateChannels();
     }
   }
 

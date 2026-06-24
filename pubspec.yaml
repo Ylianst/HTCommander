@@ -39,7 +39,7 @@ dependencies:
   latlong2: ^0.9.1
   desktop_multi_window: ^0.3.0
   window_manager: ^0.4.3
-  file_picker: ^8.0.0+1
+  file_picker: ^11.0.2
   shared_preferences: ^2.2.3
   flutter_blue_plus: ^1.35.2
   path_provider: ^2.1.4
@@ -49,7 +49,7 @@ dependencies:
   flutter_pcm_sound: ^3.1.6
   audioplayers: ^6.7.1
   desktop_drop: ^0.7.1
-  flutter_libserialport: ^0.6.0
+  libserialport: ^0.3.0+1
   flutter_tts: ^4.2.5
   record: ^6.1.1
   flutter_map_cancellable_tile_provider: ^3.0.2

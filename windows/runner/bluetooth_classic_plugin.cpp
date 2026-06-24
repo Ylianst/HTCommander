@@ -169,28 +169,24 @@ class BtStreamHandler
       : dispatcher_(nullptr) {}
 
   void Send(const flutter::EncodableValue& value) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!sink_) return;
+    winrt::Windows::System::DispatcherQueue dispatcher{nullptr};
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!sink_ || !dispatcher_) return;
+      pending_events_.push_back(value);
+      dispatcher = dispatcher_;  // Copy the dispatcher outside the lock
+    }
 
-    // Queue the event and try to dispatch it safely.
-    pending_events_.push_back(value);
-
-    // Try to drain the queue on the dispatcher thread.
-    if (dispatcher_) {
-      try {
-        auto dq = winrt::Windows::System::DispatcherQueue::GetForCurrentThread();
-        if (dq) {
-          // We're on the platform/UI thread; drain immediately.
-          DrainQueue();
-        } else if (dispatcher_) {
-          // Queue is not available from this thread; post to the stored dispatcher.
-          dispatcher_.TryEnqueue(
-              winrt::Windows::System::DispatcherQueuePriority::Normal,
-              [this]() { DrainQueue(); });
-        }
-      } catch (...) {
-        // If anything fails, just leave events in the queue for next drain.
-      }
+    // Try to post a drain task to the dispatcher (outside the lock).
+    try {
+      dispatcher.TryEnqueue(
+          winrt::Windows::System::DispatcherQueuePriority::Normal,
+          [this]() {
+            std::lock_guard<std::mutex> lock(mutex_);
+            DrainQueue();
+          });
+    } catch (...) {
+      // If posting fails, events will stay in queue until next opportunity.
     }
   }
 

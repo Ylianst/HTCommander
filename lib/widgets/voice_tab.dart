@@ -241,7 +241,7 @@ class _VoiceTabState extends State<VoiceTab>
   /// Opens a file picker to choose an image, then shows the SSTV send dialog.
   Future<void> _pickAndSendImage() async {
     if (!_canSendMedia) return;
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       dialogTitle: 'Select Image for SSTV',
       type: FileType.custom,
       allowedExtensions: _imageExtensions.toList(),
@@ -376,7 +376,7 @@ class _VoiceTabState extends State<VoiceTab>
   /// Opens a file picker to choose a WAV file, then converts and sends it.
   Future<void> _pickAndSendAudio() async {
     if (!_canSendMedia) return;
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       dialogTitle: 'Select WAV Audio',
       type: FileType.custom,
       allowedExtensions: const ['wav'],

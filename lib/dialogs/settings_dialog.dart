@@ -268,6 +268,12 @@ class SettingsDialog extends StatefulWidget {
 
 class _SettingsDialogState extends State<SettingsDialog>
     with SingleTickerProviderStateMixin {
+  static bool get _serialGpsSupported =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux);
+
   late TabController _tabController;
   late AppSettings _settings;
 
@@ -1459,12 +1465,7 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// platforms that do not support serial access (web/mobile). Wrapped in a
   /// try/catch because port enumeration can throw on unsupported platforms.
   static List<String> _listSerialPorts() {
-    final desktop =
-        !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.windows ||
-            defaultTargetPlatform == TargetPlatform.macOS ||
-            defaultTargetPlatform == TargetPlatform.linux);
-    if (!desktop) return const [];
+    if (!_serialGpsSupported) return const [];
     try {
       return SerialPort.availablePorts;
     } catch (_) {
@@ -1492,95 +1493,102 @@ class _SettingsDialogState extends State<SettingsDialog>
   }
 
   Widget _buildMapTab() {
+    final mapIntro = _serialGpsSupported
+        ? 'Configure GPS and airplane tracking data sources.'
+        : 'Configure airplane tracking data sources.';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Configure GPS and airplane tracking data sources.',
+          Text(
+            mapIntro,
             style: DialogStyles.bodyStyle,
           ),
           const SizedBox(height: 16),
-          // GPS Settings
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: _sectionDecoration(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'GPS Serial Port',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
+          if (_serialGpsSupported) ...[
+            // GPS Settings
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: _sectionDecoration(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'GPS Serial Port',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade800,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 13,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Serial Port',
-                            style: DialogStyles.labelStyle,
-                          ),
-                          const SizedBox(height: 4),
-                          DropdownButtonFormField<String>(
-                            initialValue: _settings.gpsSerialPort,
-                            isExpanded: true,
-                            decoration: _inputDecoration(),
-                            items: _gpsPortItems(),
-                            onChanged: (value) {
-                              setState(
-                                () => _settings.gpsSerialPort = value ?? 'None',
-                              );
-                            },
-                          ),
-                        ],
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 13,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Serial Port',
+                              style: DialogStyles.labelStyle,
+                            ),
+                            const SizedBox(height: 4),
+                            DropdownButtonFormField<String>(
+                              initialValue: _settings.gpsSerialPort,
+                              isExpanded: true,
+                              decoration: _inputDecoration(),
+                              items: _gpsPortItems(),
+                              onChanged: (value) {
+                                setState(
+                                  () =>
+                                      _settings.gpsSerialPort = value ?? 'None',
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 7,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Baud Rate',
-                            style: DialogStyles.labelStyle,
-                          ),
-                          const SizedBox(height: 4),
-                          DropdownButtonFormField<int>(
-                            initialValue: _settings.gpsBaudRate,
-                            decoration: _inputDecoration(),
-                            items: _baudRates
-                                .map(
-                                  (b) => DropdownMenuItem(
-                                    value: b,
-                                    child: Text(b.toString()),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setState(
-                                () => _settings.gpsBaudRate = value ?? 4800,
-                              );
-                            },
-                          ),
-                        ],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 7,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Baud Rate',
+                              style: DialogStyles.labelStyle,
+                            ),
+                            const SizedBox(height: 4),
+                            DropdownButtonFormField<int>(
+                              initialValue: _settings.gpsBaudRate,
+                              decoration: _inputDecoration(),
+                              items: _baudRates
+                                  .map(
+                                    (b) => DropdownMenuItem(
+                                      value: b,
+                                      child: Text(b.toString()),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(
+                                  () => _settings.gpsBaudRate = value ?? 4800,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
           // Airplane Tracking
           Container(
             padding: const EdgeInsets.all(16),

@@ -69,7 +69,7 @@ class _AddTorrentFileDialogState extends State<AddTorrentFileDialog> {
   }
 
   Future<void> _selectFile() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       dialogTitle: 'Select File to Share',
     );
     final path = result?.files.single.path;
