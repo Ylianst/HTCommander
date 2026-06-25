@@ -692,7 +692,6 @@ class BleRadioTransport implements RadioTransport {
   Timer? _rxPollTimer;
   Timer? _notifyRetryTimer;
   bool _rxPollInFlight = false;
-  bool _webNotifyFallbackMode = false;
   final Map<String, List<int>> _lastPolledByChar = {};
   int _rxTraceCount = 0;
   int _txTraceCount = 0;
@@ -792,42 +791,17 @@ class BleRadioTransport implements RadioTransport {
     _dataController.add(Uint8List.fromList(data));
   }
 
+  // ignore: unused_element
   Future<void> _tryRearmWebNotify() async {
-    final rx = _rxCharacteristic;
-    if (!kIsWeb || rx == null || _state != TransportState.connected) return;
-    try {
-      await rx.setNotifyValue(true, timeout: 3);
-      _webNotifyFallbackMode = false;
-      _notifyRetryTimer?.cancel();
-      _logInfo('Web notify recovery succeeded; using notifications/indications.');
-    } catch (_) {
-      // Keep retry timer running while connected.
-    }
+    // Disabled to keep web BLE command path free of background operations.
   }
 
   Future<void> _readAssistAfterTx() async {
-    if (!kIsWeb || !_webNotifyFallbackMode || _state != TransportState.connected) {
-      return;
-    }
-
-    final rx = _rxCharacteristic;
-    if (rx == null || !rx.properties.read || _rxPollInFlight) return;
-    _rxPollInFlight = true;
-    try {
-      final data = await rx.read();
-      if (data.isEmpty) return;
-      final key = rx.uuid.toString().toLowerCase();
-      final last = _lastPolledByChar[key];
-      if (last != null && _listEquals(last, data)) return;
-      _lastPolledByChar[key] = List<int>.from(data);
-      _emitRxData(data);
-    } catch (_) {
-      // Ignore; periodic polling continues.
-    } finally {
-      _rxPollInFlight = false;
-    }
+    // Disabled in fast mode to avoid read/write contention on web BLE.
+    return;
   }
 
+  // ignore: unused_element
   void _startRxPolling() {
     final candidates = <BluetoothCharacteristic>[];
     if (_rxCharacteristic != null && _rxCharacteristic!.properties.read) {
@@ -1076,23 +1050,22 @@ class BleRadioTransport implements RadioTransport {
             true,
             timeout: kIsWeb ? 3 : 15,
           );
-          _webNotifyFallbackMode = false;
           _logInfo('RX notifications/indications enabled.');
         } catch (e) {
           if (kIsWeb) {
             // Web Bluetooth can time out on setNotifyValue for some
             // indicate-only radios even though the link is otherwise usable.
-            // Keep the connection up and fall back to periodic reads.
+            // Keep the connection up. Poll/retry is intentionally disabled in
+            // fast mode to avoid delaying user-initiated commands.
             _logInfo(
               'RX notify setup timed out on web; continuing with '
               'read-poll fallback. Error: $e',
             );
-            _webNotifyFallbackMode = true;
-            _startRxPolling();
-            _notifyRetryTimer?.cancel();
-            _notifyRetryTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-              _tryRearmWebNotify();
-            });
+            // _startRxPolling();
+            // _notifyRetryTimer?.cancel();
+            // _notifyRetryTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+            //   _tryRearmWebNotify();
+            // });
           } else {
             rethrow;
           }
@@ -1149,7 +1122,6 @@ class BleRadioTransport implements RadioTransport {
     _rxTraceCount = 0;
     _txTraceCount = 0;
     _usingReferenceWebProfile = false;
-    _webNotifyFallbackMode = false;
 
     await _connectionSubscription?.cancel();
     _connectionSubscription = null;
