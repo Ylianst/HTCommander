@@ -777,6 +777,10 @@ class VoiceHandler {
   /// [deviceId]. Locks onto a single device for the duration of the segment.
   void _handleSttStart(int deviceId, Object? data) {
     if (!_speechToTextEnabled || !_sttReady || deviceId <= 0) return;
+    // Don't run speech-to-text while an SSTV image is being received: the SSTV
+    // tones aren't speech and the recognizer would compete for CPU with the
+    // image decoder, stalling reception.
+    if (_sstvDecoding) return;
     final engine = _sttEngine;
     if (engine == null) return;
 
@@ -848,11 +852,28 @@ class VoiceHandler {
     _dispatchSttProcessing(listening: true, processing: false);
   }
 
+  /// Discards any in-progress speech-to-text segment without emitting a final
+  /// result. Called when SSTV reception starts so the recognizer stops trying
+  /// to transcribe the SSTV tones and frees CPU for the image decoder.
+  void _abortSttForSstv() {
+    if (!_sttSegmentActive) return;
+    final engine = _sttEngine;
+    _sttSegmentActive = false;
+    _sttSegmentBytes = 0;
+    _sttCurrentEntry = null;
+    _currentEntry = null;
+    if (engine != null) unawaited(engine.resetSegment());
+    _dispatchSttProcessing(listening: false, processing: false);
+  }
+
   /// Feeds a received PCM frame into the active speech-to-text segment. Bounds
   /// the segment size by forcing a final result and restarting if it grows too
   /// large.
   void _handleSttFrame(int deviceId, Map data) {
     if (!_speechToTextEnabled || !_sttReady || deviceId <= 0) return;
+    // Suspend speech-to-text while an SSTV image is being received so the
+    // recognizer doesn't process the SSTV tones or starve the image decoder.
+    if (_sstvDecoding) return;
     final engine = _sttEngine;
     if (engine == null) return;
 
@@ -1240,6 +1261,10 @@ class VoiceHandler {
         'SSTV_${_formatTimestamp(_sstvStartTime)}_${_sanitizeChannel(e.modeName)}.png';
     _sstvImageSaved = false;
     _lastSstvPartialSave = DateTime.fromMillisecondsSinceEpoch(0);
+
+    // Stop any in-progress speech-to-text so it doesn't transcribe the SSTV
+    // tones and compete for CPU with the image decoder during reception.
+    _abortSttForSstv();
 
     // Auto-mute the radio so the user doesn't hear the raw SSTV tones.
     if (_sstvDeviceId > 0) {
