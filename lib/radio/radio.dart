@@ -122,6 +122,9 @@ class Radio {
   DateTime _lastCompactLogAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _webBleCompactUnsupported = false;
   final List<Timer> _pendingChannelReadTimers = [];
+  int _diagnosticRxLogCount = 0;
+  int _diagnosticCommandLogCount = 0;
+  int _diagnosticDecodeLogCount = 0;
 
   // Lock state
   RadioLockState? _lockState;
@@ -556,6 +559,9 @@ class Radio {
     _transport = transport;
     _updateState(RadioState.connecting);
     _debug('Attempting to connect to radio MAC: $macAddress');
+    _broker.logInfo(
+      '[Radio $deviceId] Binding transport ${transport.runtimeType} for $macAddress',
+    );
 
     // Listen to transport events
     _transport!.stateStream.listen(_onTransportStateChanged);
@@ -568,6 +574,7 @@ class Radio {
   }
 
   void _onTransportStateChanged(TransportState state) {
+    _broker.logInfo('[Radio $deviceId] Transport state changed to ${state.name}');
     switch (state) {
       case TransportState.connected:
         _onTransportConnected();
@@ -596,6 +603,13 @@ class Radio {
     _lastCompactStatus = -1;
     _lastCompactLogAt = DateTime.fromMillisecondsSinceEpoch(0);
     _webBleCompactUnsupported = false;
+    _diagnosticRxLogCount = 0;
+    _diagnosticCommandLogCount = 0;
+    _diagnosticDecodeLogCount = 0;
+
+    _broker.logInfo(
+      '[Radio $deviceId] Transport connected; scheduling initial command batch',
+    );
 
     if (kIsWeb) {
       _broker.logInfo('[Radio $deviceId] [WEB-BLE] Transport connected');
@@ -616,6 +630,10 @@ class Radio {
 
     _debug(
       'Sending initial commands (attempt ${_initRetryCount + 1}/$maxInitRetries)',
+    );
+    _broker.logInfo(
+      '[Radio $deviceId] Sending initial commands '
+      '(attempt ${_initRetryCount + 1}/$maxInitRetries)',
     );
     if (kIsWeb) {
       _broker.logInfo(
@@ -664,6 +682,10 @@ class Radio {
         _initRetryCount++;
         if (_initRetryCount < maxInitRetries) {
           _debug('No response received, retrying initial commands...');
+          _broker.logInfo(
+            '[Radio $deviceId] No RX yet; retrying initial command batch '
+            '(${_initRetryCount + 1}/$maxInitRetries)',
+          );
           if (kIsWeb) {
             if (_webBleCompactMode) {
               _webBleCompactVariant = (_webBleCompactVariant + 1) % 6;
@@ -693,6 +715,9 @@ class Radio {
         } else {
           _debug(
             'No response after $maxInitRetries attempts, radio may not be responding',
+          );
+          _broker.logError(
+            '[Radio $deviceId] No response after $maxInitRetries init attempts',
           );
           if (kIsWeb) {
             final connectedAt = _connectedAt;
@@ -1306,6 +1331,15 @@ class Radio {
       _debug('TX: ${RadioUtils.bytesToHex(gaiaFrame)}');
     }
 
+    if (_diagnosticCommandLogCount < 80) {
+      _diagnosticCommandLogCount++;
+      _broker.logInfo(
+        '[Radio $deviceId] TX cmd[$_diagnosticCommandLogCount] '
+        '${group.name}.${cmd.name} len=${gaiaFrame.length} '
+        'payload=${data?.length ?? 0}',
+      );
+    }
+
     if (kIsWeb && !_receivedAnyData && _webInitCommandCount < 20) {
       _webInitCommandCount++;
       _broker.logInfo(
@@ -1468,6 +1502,17 @@ class Radio {
   }
 
   void _onDataReceived(Uint8List data) {
+    if (_diagnosticRxLogCount < 80) {
+      _diagnosticRxLogCount++;
+      final preview = data.length > 24
+          ? Uint8List.fromList(data.sublist(0, 24))
+          : data;
+      _broker.logInfo(
+        '[Radio $deviceId] RX raw[$_diagnosticRxLogCount] ${data.length} byte(s): '
+        '${RadioUtils.bytesToHex(preview)}${data.length > 24 ? ' ...' : ''}',
+      );
+    }
+
     if (_tryHandleWebDirectResponse(data)) {
       return;
     }
@@ -1481,6 +1526,9 @@ class Radio {
       _receivedAnyData = true;
       _initRetryTimer?.cancel();
       _debug('First data received from radio');
+      _broker.logInfo(
+        '[Radio $deviceId] First RX data received from radio (${data.length} byte(s))',
+      );
       if (kIsWeb) {
         final connectedAt = _connectedAt;
         final elapsedMs = connectedAt == null
@@ -1507,13 +1555,34 @@ class Radio {
       );
 
       if (result.consumed == -1) {
+        if (_diagnosticDecodeLogCount < 40) {
+          _diagnosticDecodeLogCount++;
+          _broker.logInfo(
+            '[Radio $deviceId] GAIA decode miss; skipping one byte '
+            '(buffer=${_receiveBuffer.length})',
+          );
+        }
         // Error, skip one byte
         _receiveBuffer.removeAt(0);
       } else if (result.consumed == 0) {
+        if (_diagnosticDecodeLogCount < 40) {
+          _diagnosticDecodeLogCount++;
+          _broker.logInfo(
+            '[Radio $deviceId] GAIA decode awaiting more data '
+            '(buffer=${_receiveBuffer.length})',
+          );
+        }
         // Need more data
         break;
       } else {
         // Got a command
+        if (_diagnosticDecodeLogCount < 40) {
+          _diagnosticDecodeLogCount++;
+          _broker.logInfo(
+            '[Radio $deviceId] GAIA command decoded '
+            '(consumed=${result.consumed}, cmdLen=${result.command?.length ?? 0})',
+          );
+        }
         _receiveBuffer.removeRange(0, result.consumed);
         if (result.command != null) {
           _handleCommand(result.command!);
@@ -1532,6 +1601,14 @@ class Radio {
 
     if (_packetTrace) {
       _debug('RX: ${parsed.command.name} - ${RadioUtils.bytesToHex(payload)}');
+    }
+
+    if (_diagnosticCommandLogCount < 120) {
+      _diagnosticCommandLogCount++;
+      _broker.logInfo(
+        '[Radio $deviceId] RX cmd[$_diagnosticCommandLogCount] '
+        '${parsed.command.name} payloadLen=${payload.length}',
+      );
     }
 
     // Handle the command - pass full cmd to handlers that need vendor+cmd+payload offsets

@@ -211,6 +211,9 @@ class SherpaModelManager {
     return Directory('${supportDir.path}/models/${model.dirName}');
   }
 
+  /// Public helper returning the on-disk directory for [model].
+  static Future<Directory> modelDirectory(SttModel model) => _modelDir(model);
+
   static Future<bool> _isInstalledIn(SttModel model, Directory dir) async {
     for (final local in model.files.keys) {
       if (!await File('${dir.path}/$local').exists()) return false;
@@ -317,6 +320,12 @@ class SherpaModelManager {
     return SttModelPaths(model.family, <String, String>{
       for (final local in model.files.keys) local: '${dir.path}/$local',
     });
+  }
+
+  /// Resolves model file paths from an already known install directory without
+  /// downloading or extracting any files.
+  static SttModelPaths resolveInstalledModelPaths(SttModel model, Directory dir) {
+    return _resolve(model, dir);
   }
 
   /// Decompresses and extracts [model] in a background isolate, reporting

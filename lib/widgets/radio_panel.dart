@@ -935,6 +935,13 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     // Total panel height
     final double panelHeight = blockHeight * rowCount;
 
+    // Guard against zero/negative dimensions during layout, which would make
+    // childAspectRatio non-positive and trigger a SliverGrid assertion failure.
+    double childAspectRatio = (panelWidth / 3) / blockHeight;
+    if (!childAspectRatio.isFinite || childAspectRatio <= 0) {
+      childAspectRatio = 1.0;
+    }
+
     return Container(
       width: panelWidth,
       height: panelHeight,
@@ -944,7 +951,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         padding: EdgeInsets.zero,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          childAspectRatio: (panelWidth / 3) / blockHeight,
+          childAspectRatio: childAspectRatio,
           crossAxisSpacing: 0,
           mainAxisSpacing: 0,
         ),

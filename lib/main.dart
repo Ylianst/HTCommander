@@ -335,6 +335,7 @@ class MainForm extends StatefulWidget {
 class _MainFormState extends State<MainForm>
     with TickerProviderStateMixin, WindowListener {
   late TabController _tabController;
+  final ScrollController _tabListScrollController = ScrollController();
   late List<_TabInfo> _currentTabs;
   bool _radioVisible = true;
   bool _showTabNames = true;
@@ -389,17 +390,17 @@ class _MainFormState extends State<MainForm>
 
   // Tab definitions matching C# MainForm
   static const List<_TabInfo> _baseTabs = [
-    _TabInfo('Voice', 'assets/images/Voice.png', Icons.mic),
-    _TabInfo('Audio', 'assets/images/Speaker-48-Blue.png', Icons.volume_up),
-    _TabInfo('APRS', 'assets/images/Signal.png', Icons.people),
-    _TabInfo('Map', 'assets/images/MapPoint1.png', Icons.public),
-    _TabInfo('Mail', 'assets/images/Mail.png', Icons.mail),
-    _TabInfo('Terminal', 'assets/images/Terminal.png', Icons.terminal),
-    _TabInfo('Contacts', 'assets/images/Person.png', Icons.contacts),
-    _TabInfo('BBS', 'assets/images/BBS.png', Icons.forum),
-    _TabInfo('Torrent', 'assets/images/Graph-48.png', Icons.swap_horiz),
-    _TabInfo('Packets', 'assets/images/Messaging.png', Icons.search),
-    _TabInfo('Debug', 'assets/images/About.png', Icons.info),
+    _TabInfo('Voice', 'assets/images/tabs/voice.png', Icons.mic),
+    _TabInfo('Audio', 'assets/images/tabs/audio.png', Icons.volume_up),
+    _TabInfo('APRS', 'assets/images/tabs/aprs.png', Icons.people),
+    _TabInfo('Map', 'assets/images/tabs/map.png', Icons.public),
+    _TabInfo('Mail', 'assets/images/tabs/email.png', Icons.mail),
+    _TabInfo('Terminal', 'assets/images/tabs/terminal.png', Icons.terminal),
+    _TabInfo('Contacts', 'assets/images/tabs/contacts.png', Icons.contacts),
+    _TabInfo('BBS', 'assets/images/tabs/bbs.png', Icons.forum),
+    _TabInfo('Torrent', 'assets/images/tabs/torrent.png', Icons.swap_horiz),
+    _TabInfo('Packets', 'assets/images/tabs/packets.png', Icons.search),
+    _TabInfo('Debug', 'assets/images/tabs/debug.png', Icons.info),
   ];
 
   // Radio tab shown only in compact mode
@@ -924,6 +925,7 @@ class _MainFormState extends State<MainForm>
       windowManager.removeListener(this);
     }
     _tabController.dispose();
+    _tabListScrollController.dispose();
     super.dispose();
   }
 
@@ -1073,7 +1075,10 @@ class _MainFormState extends State<MainForm>
             label: 'Export Channels...',
             onPressed: _hasConnectedRadio ? _onExportChannels : null,
           ),
-          AppMenuAction(label: 'Import Channels...', onPressed: () {}),
+          AppMenuAction(
+            label: 'Import Channels...',
+            onPressed: _hasConnectedRadio ? () {} : null,
+          ),
           const AppMenuDivider(hideOnMacOS: true),
           AppMenuAction(
             label: 'Settings...',
@@ -1504,53 +1509,113 @@ class _MainFormState extends State<MainForm>
                       .toList(),
                 ),
               ),
-              // Vertical tab bar on the right
-              RotatedBox(
-                quarterTurns: 1,
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  labelColor: Theme.of(context).colorScheme.primary,
-                  unselectedLabelColor: Colors.grey,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  tabs: _currentTabs.map((tab) {
-                    return RotatedBox(
-                      quarterTurns: -1,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 6,
-                          horizontal: 6,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              tab.assetPath,
-                              width: 32,
-                              height: 32,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Icon(tab.fallbackIcon, size: 32);
-                              },
-                            ),
-                            if (_showTabNames) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                tab.label,
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
+              _buildVerticalTabList(),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildVerticalTabList() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final tabWidth = _showTabNames ? 92.0 : 56.0;
+
+    return SizedBox(
+      width: tabWidth,
+      child: AnimatedBuilder(
+        animation: _tabController,
+        builder: (context, child) {
+          return Scrollbar(
+            controller: _tabListScrollController,
+            thumbVisibility: true,
+            child: ListView.builder(
+              controller: _tabListScrollController,
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+              itemCount: _currentTabs.length,
+              itemBuilder: (context, index) {
+                final tab = _currentTabs[index];
+                final isSelected = _tabController.index == index;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _tabController.animateTo(index),
+                      child: Stack(
+                        children: [
+                          // Selection marker on the leading edge, matching the
+                          // previous TabBar indicator.
+                          Positioned(
+                            top: 0,
+                            bottom: 0,
+                            left: 0,
+                            child: Center(
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                width: 3,
+                                height: isSelected ? 36 : 0,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 6,
+                            ),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image.asset(
+                                    tab.assetPath,
+                                    width: 32,
+                                    height: 32,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Icon(
+                                        tab.fallbackIcon,
+                                        size: 32,
+                                        color: isSelected
+                                            ? colorScheme.primary
+                                            : Colors.grey,
+                                      );
+                                    },
+                                  ),
+                                  if (_showTabNames) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      tab.label,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: isSelected
+                                            ? colorScheme.primary
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 

@@ -29,7 +29,7 @@ import 'speech_to_text_engine.dart';
 /// Speech-to-text engine backed by sherpa-onnx with the SenseVoice model.
 ///
 /// Works on every native platform (macOS, iOS, Android, Windows, Linux). The
-/// model is downloaded and cached on first use by [SherpaModelManager].
+/// model must be downloaded by the user in Settings before use.
 class SherpaSpeechToTextEngine implements SpeechToTextEngine {
   final StreamController<SpeechResult> _results =
       StreamController<SpeechResult>.broadcast();
@@ -63,14 +63,24 @@ class SherpaSpeechToTextEngine implements SpeechToTextEngine {
     if (_disposed) return false;
     if (_ready) return true;
 
-    // Make sure the model files exist (downloads on first run).
+    // Do not auto-download models here. The user must explicitly download
+    // from Settings -> Voice -> Speech-to-Text.
     final modelId = SherpaModelManager.selectedModelId();
-    final paths = await SherpaModelManager.ensureModel(modelId);
-    if (_disposed) return false;
-    if (paths == null) {
+    final installed = await SherpaModelManager.isInstalled(modelId);
+    if (!installed) {
+      await SherpaModelManager.refreshStatus(modelId);
+      debugPrint(
+        '[SherpaSTT] initialize skipped: model "$modelId" not installed. '
+        'Use Settings -> Voice -> Download.',
+      );
       _ready = false;
       return false;
     }
+
+    final model = SherpaModelManager.modelById(modelId);
+    final modelDir = await SherpaModelManager.modelDirectory(model);
+    final paths = SherpaModelManager.resolveInstalledModelPaths(model, modelDir);
+    if (_disposed) return false;
 
     try {
       _receivePort = ReceivePort();
