@@ -146,6 +146,26 @@ bool get _serialGpsSupported =>
     defaultTargetPlatform == TargetPlatform.macOS ||
     defaultTargetPlatform == TargetPlatform.linux);
 
+const double _narrowDialogBreakpoint = 700;
+
+EdgeInsets _responsiveDialogInsetPadding(BuildContext context) {
+  final screenWidth = MediaQuery.sizeOf(context).width;
+  final isNarrow = screenWidth < _narrowDialogBreakpoint;
+  return EdgeInsets.symmetric(
+    horizontal: isNarrow ? 8 : 40,
+    vertical: isNarrow ? 12 : 24,
+  );
+}
+
+Widget _wrapWithResponsiveDialogTheme(BuildContext context, Widget? child) {
+  final themed = Theme.of(context).copyWith(
+    dialogTheme: Theme.of(context).dialogTheme.copyWith(
+      insetPadding: _responsiveDialogInsetPadding(context),
+    ),
+  );
+  return Theme(data: themed, child: child ?? const SizedBox.shrink());
+}
+
 /// Sub-window application for detached tabs
 class SubWindowApp extends StatefulWidget {
   final WindowController windowController;
@@ -224,6 +244,7 @@ class _SubWindowAppState extends State<SubWindowApp> {
     return MaterialApp(
       title: 'Handi-Talkie Commander - $tabTitle',
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => _wrapWithResponsiveDialogTheme(context, child),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
@@ -244,6 +265,7 @@ class HTCommanderApp extends StatelessWidget {
     return MaterialApp(
       title: 'Handi-Talkie Commander',
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => _wrapWithResponsiveDialogTheme(context, child),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
@@ -1200,24 +1222,28 @@ class _MainFormState extends State<MainForm>
         }
 
         final content = Scaffold(
-          body: Column(
-            children: [
-              // Menu bar (only show built-in if not using native macOS menus)
-              if (_showBuiltInMenus) _buildBuiltInMenuBar(),
-              // Main content
-              Expanded(
-                child: Row(
-                  children: [
-                    // Left: Radio panel (hidden in compact mode - Radio becomes a tab)
-                    if (_radioVisible && !_isCompactMode) _buildRadioPanel(),
-                    // Right: Tab control
-                    Expanded(child: _buildTabPanel()),
-                  ],
+          body: SafeArea(
+            top: true,
+            bottom: false,
+            child: Column(
+              children: [
+                // Menu bar (only show built-in if not using native macOS menus)
+                if (_showBuiltInMenus) _buildBuiltInMenuBar(),
+                // Main content
+                Expanded(
+                  child: Row(
+                    children: [
+                      // Left: Radio panel (hidden in compact mode - Radio becomes a tab)
+                      if (_radioVisible && !_isCompactMode) _buildRadioPanel(),
+                      // Right: Tab control
+                      Expanded(child: _buildTabPanel()),
+                    ],
+                  ),
                 ),
-              ),
-              // Status bar
-              _buildStatusBar(),
-            ],
+                // Status bar
+                _buildStatusBar(),
+              ],
+            ),
           ),
         );
 
