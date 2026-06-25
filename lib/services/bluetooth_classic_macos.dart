@@ -37,8 +37,6 @@ class BluetoothClassicMacOS {
   }
 
   final DataBrokerClient _broker = DataBrokerClient();
-  int _controlDataLogCount = 0;
-  int _audioDataLogCount = 0;
 
   // Stream controllers for connection events and data
   final _connectionController =
@@ -68,16 +66,6 @@ class BluetoothClassicMacOS {
 
   void _logError(String msg) {
     _broker.logError('[BT-ClassicBridge] $msg');
-  }
-
-  String _previewBytes(Uint8List data, {int max = 24}) {
-    if (data.isEmpty) return '';
-    final take = data.length < max ? data.length : max;
-    final parts = <String>[];
-    for (int i = 0; i < take; i++) {
-      parts.add(data[i].toRadixString(16).padLeft(2, '0').toUpperCase());
-    }
-    return data.length > max ? '${parts.join(' ')} ...' : parts.join(' ');
   }
 
   Uint8List? _coerceBytes(dynamic data) {
@@ -124,13 +112,6 @@ class BluetoothClassicMacOS {
           case 'data':
             final bytes = _coerceBytes(event['data']);
             if (bytes != null) {
-              if (_controlDataLogCount < 60) {
-                _controlDataLogCount++;
-                _logInfo(
-                  'Control event data[$_controlDataLogCount] ${bytes.length} byte(s) '
-                  'for $address: ${_previewBytes(bytes)}',
-                );
-              }
               _getOrCreateDataController(address).add(bytes);
             } else {
               _logError(
@@ -180,13 +161,6 @@ class BluetoothClassicMacOS {
           case 'data':
             final bytes = _coerceBytes(event['data']);
             if (bytes != null) {
-              if (_audioDataLogCount < 60) {
-                _audioDataLogCount++;
-                _logInfo(
-                  'Audio event data[$_audioDataLogCount] ${bytes.length} byte(s) '
-                  'for $address: ${_previewBytes(bytes)}',
-                );
-              }
               _getOrCreateAudioDataController(address).add(bytes);
             } else {
               _logError(
@@ -330,15 +304,10 @@ class BluetoothClassicMacOS {
   /// Send data to a connected device
   Future<bool> send(String address, Uint8List data) async {
     try {
-      _logInfo(
-        'Invoking native Classic send for $address (${data.length} byte(s)): '
-        '${_previewBytes(data)}',
-      );
       final result = await _channel.invokeMethod<bool>('send', {
         'address': address,
         'data': data,
       });
-      _logInfo('Native Classic send result for $address: ${result ?? false}');
       return result ?? false;
     } catch (e) {
       _logError('send threw for $address: $e');

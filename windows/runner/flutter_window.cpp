@@ -27,6 +27,8 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   bluetooth_plugin_ = std::make_unique<BluetoothClassicPlugin>(
       flutter_controller_->engine()->messenger());
+  pcm_player_plugin_ = std::make_unique<PcmPlayerPlugin>(
+      flutter_controller_->engine()->messenger());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
