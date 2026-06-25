@@ -146,6 +146,7 @@ struct RfcommConn {
   std::string         address;
   std::atomic<bool>   running{false};
   std::thread         read_thread;
+  std::mutex          write_mutex;
 
   RfcommConn() = default;
   ~RfcommConn() {
@@ -170,11 +171,19 @@ class BtStreamHandler
 
   void Send(const flutter::EncodableValue& value) {
     winrt::Windows::System::DispatcherQueue dispatcher{nullptr};
+    bool can_drain_inline = false;
     {
       std::lock_guard<std::mutex> lock(mutex_);
-      if (!sink_ || !dispatcher_) return;
       pending_events_.push_back(value);
+      if (!sink_) return;
       dispatcher = dispatcher_;  // Copy the dispatcher outside the lock
+      can_drain_inline = !dispatcher;
+    }
+
+    if (can_drain_inline) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      DrainQueue();
+      return;
     }
 
     // Try to post a drain task to the dispatcher (outside the lock).
@@ -186,7 +195,9 @@ class BtStreamHandler
             DrainQueue();
           });
     } catch (...) {
-      // If posting fails, events will stay in queue until next opportunity.
+      // Fall back to inline delivery if dispatcher posting fails.
+      std::lock_guard<std::mutex> lock(mutex_);
+      DrainQueue();
     }
   }
 
@@ -761,6 +772,7 @@ void BluetoothClassicPlugin::Impl::DoSend(
   std::thread([conn, data = std::move(data), res]() {
     winrt::init_apartment(winrt::apartment_type::multi_threaded);
     try {
+      std::lock_guard<std::mutex> write_lock(conn->write_mutex);
       conn->writer.WriteBytes(data);
       conn->writer.StoreAsync().get();
       res->Success(flutter::EncodableValue(true));
@@ -862,6 +874,7 @@ void BluetoothClassicPlugin::Impl::DoSendAudio(
   std::thread([conn, data = std::move(data), res]() {
     winrt::init_apartment(winrt::apartment_type::multi_threaded);
     try {
+      std::lock_guard<std::mutex> write_lock(conn->write_mutex);
       conn->writer.WriteBytes(data);
       conn->writer.StoreAsync().get();
       res->Success(flutter::EncodableValue(true));

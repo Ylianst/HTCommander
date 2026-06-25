@@ -20,6 +20,14 @@ import 'bluetooth_classic_macos.dart';
 import 'data_broker.dart';
 import 'data_broker_client.dart';
 
+part 'radio_bluetooth_common.dart';
+part 'radio_bluetooth_web.dart';
+part 'radio_bluetooth_android.dart';
+part 'radio_bluetooth_ios.dart';
+part 'radio_bluetooth_linux.dart';
+part 'radio_bluetooth_windows.dart';
+part 'radio_bluetooth_macos.dart';
+
 /// BLE GATT service UUIDs the radio control channel may expose.
 ///
 /// On the web (Web Bluetooth API) the set of GATT services an application is
@@ -63,92 +71,27 @@ class BluetoothService {
   // Track if Bluetooth has been initialized
   static bool _bluetoothInitialized = false;
 
-  /// Check if we should use Bluetooth Classic (macOS/Windows) or BLE
-  static bool get _useBluetoothClassic =>
-      !kIsWeb && (Platform.isMacOS || Platform.isWindows) && BluetoothClassicMacOS.isSupported;
-
   /// Check if Bluetooth is available on this platform
   /// On first call, waits for adapter to initialize
   static Future<bool> checkBluetooth() async {
-    if (kIsWeb) {
-      // Web Bluetooth API availability
-      return true; // We'll handle errors when scanning
-    }
-
-    // On macOS, use native Bluetooth Classic
-    if (_useBluetoothClassic) {
-      return await BluetoothClassicMacOS.instance.isAvailable();
-    }
-
-    // On other platforms, use BLE via flutter_blue_plus
-    try {
-      // Check if Bluetooth adapter is available
-      final isSupported = await FlutterBluePlus.isSupported;
-      if (!isSupported) return false;
-
-      // On first call, give the adapter time to initialize
-      // The CBCentralManager reports transient states before settling
-      if (!_bluetoothInitialized) {
-        _bluetoothInitialized = true;
-
-        // Small delay to let the adapter initialize
-        await Future<void>.delayed(const Duration(milliseconds: 500));
-      }
-
-      // Check adapter state, retry a few times if we get transient states
-      for (int attempt = 0; attempt < 3; attempt++) {
-        try {
-          final state = await FlutterBluePlus.adapterState.first.timeout(
-            const Duration(seconds: 2),
-          );
-
-          if (state == BluetoothAdapterState.on) {
-            return true;
-          } else if (state == BluetoothAdapterState.off ||
-              state == BluetoothAdapterState.unauthorized) {
-            // Definitive states - Bluetooth exists but is off or not permitted
-            return false;
-          }
-
-          // Unknown/unavailable/turningOn/turningOff - wait and retry
-          if (attempt < 2) {
-            await Future<void>.delayed(const Duration(milliseconds: 500));
-          }
-        } catch (e) {
-          if (attempt < 2) {
-            await Future<void>.delayed(const Duration(milliseconds: 300));
-          }
-        }
-      }
-
-      // After retries, do a final check
-      try {
-        final finalState = await FlutterBluePlus.adapterState.first.timeout(
-          const Duration(seconds: 1),
-        );
-        return finalState == BluetoothAdapterState.on;
-      } catch (e) {
-        return false;
-      }
-    } catch (e) {
-      return false;
-    }
+    if (kIsWeb) return _checkBluetoothWeb();
+    if (Platform.isWindows) return _checkBluetoothWindows();
+    if (Platform.isMacOS) return _checkBluetoothMacos();
+    if (Platform.isAndroid) return _checkBluetoothAndroid();
+    if (Platform.isIOS) return _checkBluetoothIos();
+    if (Platform.isLinux) return _checkBluetoothLinux();
+    return false;
   }
 
   /// Check if Bluetooth adapter is turned on
   static Future<bool> isBluetoothOn() async {
-    if (_useBluetoothClassic) {
-      return await BluetoothClassicMacOS.instance.isAvailable();
-    }
-
-    try {
-      final state = await FlutterBluePlus.adapterState.first.timeout(
-        const Duration(milliseconds: 500),
-      );
-      return state == BluetoothAdapterState.on;
-    } catch (e) {
-      return false;
-    }
+    if (kIsWeb) return _isBluetoothOnWeb();
+    if (Platform.isWindows) return _isBluetoothOnWindows();
+    if (Platform.isMacOS) return _isBluetoothOnMacos();
+    if (Platform.isAndroid) return _isBluetoothOnAndroid();
+    if (Platform.isIOS) return _isBluetoothOnIos();
+    if (Platform.isLinux) return _isBluetoothOnLinux();
+    return false;
   }
 
   /// Find compatible radio devices
@@ -156,123 +99,25 @@ class BluetoothService {
   Future<List<DiscoveredDevice>> findCompatibleDevices({
     Duration timeout = const Duration(seconds: 5),
   }) async {
-    // On macOS, use Bluetooth Classic to find paired radio devices
-    if (_useBluetoothClassic) {
-      return await _findCompatibleDevicesMacOS();
+    if (kIsWeb) {
+      return _findCompatibleDevicesWeb(this, timeout: timeout);
     }
-
-    // On other platforms, use BLE scanning
-    return await _findCompatibleDevicesBLE(timeout: timeout);
-  }
-
-  /// Find compatible devices using Bluetooth Classic (macOS)
-  Future<List<DiscoveredDevice>> _findCompatibleDevicesMacOS() async {
-    final devices = <DiscoveredDevice>[];
-
-    try {
-      final classicDevices = await BluetoothClassicMacOS.instance
-          .findCompatibleDevices();
-
-      for (final device in classicDevices) {
-        devices.add(
-          DiscoveredDevice(
-            id: device.address,
-            name: device.name,
-            type: BluetoothType.classic,
-            rssi: 0,
-          ),
-        );
-      }
-    } catch (e) {
-      // Ignore errors finding Classic devices
+    if (Platform.isWindows) {
+      return _findCompatibleDevicesWindows(this, timeout: timeout);
     }
-
-    return devices;
-  }
-
-  /// Find compatible devices using BLE scanning
-  Future<List<DiscoveredDevice>> _findCompatibleDevicesBLE({
-    required Duration timeout,
-  }) async {
-    final devices = <DiscoveredDevice>[];
-    final seen = <String>{};
-
-    try {
-      // Start scanning
-      await FlutterBluePlus.startScan(
-        timeout: timeout,
-        androidUsesFineLocation: true,
-        withKeywords: kIsWeb ? const ['UV-PRO'] : const [],
-        webOptionalServices: kRadioBleOptionalServices,
-      );
-
-      // Listen for results during the scan
-      await for (final results in FlutterBluePlus.scanResults.timeout(
-        timeout,
-        onTimeout: (sink) => sink.close(),
-      )) {
-        for (final result in results) {
-          final deviceId = result.device.remoteId.str;
-          if (seen.contains(deviceId)) continue;
-
-          final name = result.device.platformName.isNotEmpty
-              ? result.device.platformName
-              : result.advertisementData.advName;
-
-          if (name.isEmpty) continue;
-
-          // Check if this is a compatible device
-          final device = DiscoveredDevice(
-            id: deviceId,
-            name: name,
-            type: BluetoothType.ble,
-            rssi: result.rssi,
-          );
-
-          if (device.isCompatibleRadio) {
-            seen.add(deviceId);
-            devices.add(device);
-            if (kIsWeb) {
-              // Web scan uses a browser chooser; once we have one compatible
-              // device, return immediately to avoid waiting for scan timeout.
-              return devices;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      // Ignore BLE scan errors
-    } finally {
-      await FlutterBluePlus.stopScan();
+    if (Platform.isMacOS) {
+      return _findCompatibleDevicesMacos(this, timeout: timeout);
     }
-
-    // Also check bonded/paired devices
-    try {
-      final bonded = await FlutterBluePlus.bondedDevices;
-      for (final device in bonded) {
-        final deviceId = device.remoteId.str;
-        if (seen.contains(deviceId)) continue;
-
-        final name = device.platformName;
-        if (name.isEmpty) continue;
-
-        final discovered = DiscoveredDevice(
-          id: deviceId,
-          name: name,
-          type: BluetoothType.ble,
-          rssi: 0,
-        );
-
-        if (discovered.isCompatibleRadio) {
-          seen.add(deviceId);
-          devices.add(discovered);
-        }
-      }
-    } catch (e) {
-      // Ignore errors getting bonded devices
+    if (Platform.isAndroid) {
+      return _findCompatibleDevicesAndroid(this, timeout: timeout);
     }
-
-    return devices;
+    if (Platform.isIOS) {
+      return _findCompatibleDevicesIos(this, timeout: timeout);
+    }
+    if (Platform.isLinux) {
+      return _findCompatibleDevicesLinux(this, timeout: timeout);
+    }
+    return const [];
   }
 
   /// Get the next available device ID for a new radio
@@ -288,223 +133,25 @@ class BluetoothService {
   /// Connect to a radio by MAC address
   /// Returns the device ID if successful, or null if failed
   Future<int?> connectToRadio(String macAddress, String friendlyName) async {
-    // On macOS, use Bluetooth Classic
-    if (_useBluetoothClassic) {
-      return await _connectToRadioClassic(macAddress, friendlyName);
+    if (kIsWeb) {
+      return _connectToRadioWeb(this, macAddress, friendlyName);
     }
-
-    // On other platforms, use BLE
-    return await _connectToRadioBLE(macAddress, friendlyName);
-  }
-
-  /// Connect using Bluetooth Classic (macOS)
-  Future<int?> _connectToRadioClassic(
-    String macAddress,
-    String friendlyName,
-  ) async {
-    final macUpper = macAddress.toUpperCase();
-
-    // Check if already connected
-    for (final entry in _classicConnections.entries) {
-      if (entry.value.toUpperCase() == macUpper) {
-        return entry.key;
-      }
+    if (Platform.isWindows) {
+      return _connectToRadioWindows(this, macAddress, friendlyName);
     }
-
-    try {
-      final deviceId = _getNextDeviceId();
-
-      // Dispatch state change
-      _broker.dispatch(
-        deviceId: deviceId,
-        name: 'State',
-        data: 'Connecting',
-        store: true,
-      );
-
-      // Dispatch FriendlyName early so it's available during connection
-      _broker.dispatch(
-        deviceId: deviceId,
-        name: 'FriendlyName',
-        data: friendlyName,
-        store: true,
-      );
-
-      // Store the connection info (before connecting for UI feedback)
-      _classicConnections[deviceId] = macAddress;
-      _publishConnectedRadios();
-
-      // Create a BluetoothClassicTransport
-      final transport = BluetoothClassicTransport();
-      final device = DiscoveredDevice(
-        id: macAddress,
-        name: friendlyName.isNotEmpty ? friendlyName : macAddress,
-        type: BluetoothType.classic,
-      );
-
-      // Connect using the transport
-      final success = await transport.connect(device);
-
-      if (success) {
-        // Store the transport
-        _connectedRadios[deviceId] = transport;
-
-        // Create a Radio instance
-        final radio = Radio(deviceId: deviceId, macAddress: macAddress);
-        radio.updateFriendlyName(friendlyName);
-        _radioInstances[deviceId] = radio;
-
-        // Connect the radio to the transport (will start communication)
-        await radio.connect(transport);
-
-        // Create the audio handler for this radio. Audio is DISABLED by default
-        // and is only started when a 'SetAudio' true command is dispatched
-        // through the DataBroker (mirrors the C# behavior). RadioAudio itself
-        // subscribes to 'SetAudio' and manages start/stop.
-        final radioAudio = RadioAudio(
-          radio: radio,
-          deviceId: deviceId,
-          macAddress: macAddress,
-        );
-        _radioAudioInstances[deviceId] = radioAudio;
-
-        // If the user previously enabled audio, automatically enable the audio
-        // channel for this newly connected radio (preference stored on device 0).
-        final audioEnabledPref =
-            _broker.getValue<bool>(0, 'AudioEnabled', false) ?? false;
-        if (audioEnabledPref) {
-          _broker.dispatch(
-            deviceId: deviceId,
-            name: 'SetAudio',
-            data: true,
-            store: false,
-          );
-        }
-
-        _broker.dispatch(
-          deviceId: deviceId,
-          name: 'MacAddress',
-          data: macAddress,
-          store: true,
-        );
-        _broker.dispatch(
-          deviceId: deviceId,
-          name: 'FriendlyName',
-          data: friendlyName,
-          store: true,
-        );
-        _publishConnectedRadios();
-        return deviceId;
-      } else {
-        _classicConnections.remove(deviceId);
-        await transport.dispose();
-        _broker.dispatch(
-          deviceId: deviceId,
-          name: 'State',
-          data: 'UnableToConnect',
-          store: true,
-        );
-        _publishConnectedRadios();
-        return null;
-      }
-    } catch (e) {
-      return null;
+    if (Platform.isMacOS) {
+      return _connectToRadioMacos(this, macAddress, friendlyName);
     }
-  }
-
-  /// Connect using BLE
-  Future<int?> _connectToRadioBLE(
-    String macAddress,
-    String friendlyName,
-  ) async {
-    // Check if already connected
-    for (final entry in _connectedRadios.entries) {
-      if (entry.value.connectedDevice?.id.toUpperCase() ==
-          macAddress.toUpperCase()) {
-        return entry.key;
-      }
+    if (Platform.isAndroid) {
+      return _connectToRadioAndroid(this, macAddress, friendlyName);
     }
-
-    try {
-      final deviceId = _getNextDeviceId();
-      final transport = BleRadioTransport();
-
-      // Create a DiscoveredDevice for the transport
-      final discovered = DiscoveredDevice(
-        id: macAddress,
-        name: friendlyName.isNotEmpty ? friendlyName : macAddress,
-        type: BluetoothType.ble,
-      );
-
-      // Store the transport
-      _connectedRadios[deviceId] = transport;
-
-      // Dispatch FriendlyName early so it's available during connection
-      _broker.dispatch(
-        deviceId: deviceId,
-        name: 'FriendlyName',
-        data: friendlyName,
-        store: true,
-      );
-
-      // Update the connected radios list
-      _publishConnectedRadios();
-
-      // Dispatch state change
-      _broker.dispatch(
-        deviceId: deviceId,
-        name: 'State',
-        data: 'Connecting',
-        store: true,
-      );
-
-      // Connect
-      final success = await transport.connect(discovered);
-
-      if (success) {
-        // Create a Radio instance and attach the BLE transport so GAIA
-        // initialization commands start immediately after link-up.
-        final radio = Radio(deviceId: deviceId, macAddress: macAddress);
-        radio.updateFriendlyName(friendlyName);
-        _radioInstances[deviceId] = radio;
-        await radio.connect(transport);
-
-        _broker.dispatch(
-          deviceId: deviceId,
-          name: 'MacAddress',
-          data: macAddress,
-          store: true,
-        );
-        _broker.dispatch(
-          deviceId: deviceId,
-          name: 'FriendlyName',
-          data: friendlyName,
-          store: true,
-        );
-        _broker.dispatch(
-          deviceId: deviceId,
-          name: 'State',
-          data: 'Connected',
-          store: true,
-        );
-        _publishConnectedRadios();
-        return deviceId;
-      } else {
-        // Connection failed
-        _connectedRadios.remove(deviceId);
-        _broker.dispatch(
-          deviceId: deviceId,
-          name: 'State',
-          data: 'UnableToConnect',
-          store: true,
-        );
-        _publishConnectedRadios();
-        await transport.dispose();
-        return null;
-      }
-    } catch (e) {
-      return null;
+    if (Platform.isIOS) {
+      return _connectToRadioIos(this, macAddress, friendlyName);
     }
+    if (Platform.isLinux) {
+      return _connectToRadioLinux(this, macAddress, friendlyName);
+    }
+    return null;
   }
 
   /// Disconnect a radio by device ID
@@ -676,6 +323,7 @@ class BleRadioTransport implements RadioTransport {
   final _stateController = StreamController<TransportState>.broadcast();
   final _dataController = StreamController<Uint8List>.broadcast();
   final _scanController = StreamController<DiscoveredDevice>.broadcast();
+  final bool webFastMode;
 
   /// Broker used to surface connection diagnostics in the Debug tab in addition
   /// to the console.
@@ -696,6 +344,8 @@ class BleRadioTransport implements RadioTransport {
   int _rxTraceCount = 0;
   int _txTraceCount = 0;
   bool _usingReferenceWebProfile = false;
+
+  BleRadioTransport({this.webFastMode = false});
 
   // Nordic UART Service UUIDs (commonly used by radio devices)
   static const String _nordicUartServiceUuid =
@@ -793,15 +443,50 @@ class BleRadioTransport implements RadioTransport {
 
   // ignore: unused_element
   Future<void> _tryRearmWebNotify() async {
-    // Disabled to keep web BLE command path free of background operations.
+    if (webFastMode) {
+      // Disabled in web fast mode to keep command path free of background BLE operations.
+      return;
+    }
+
+    final rx = _rxCharacteristic;
+    if (!kIsWeb || rx == null || _state != TransportState.connected) return;
+    try {
+      await rx.setNotifyValue(true, timeout: 3);
+      _notifyRetryTimer?.cancel();
+      _logInfo('Web notify recovery succeeded; using notifications/indications.');
+    } catch (_) {
+      // Keep retry timer running while connected.
+    }
   }
 
   Future<void> _readAssistAfterTx() async {
-    // Disabled in fast mode to avoid read/write contention on web BLE.
-    return;
+    if (webFastMode) {
+      // Disabled in web fast mode to avoid read/write contention on web BLE.
+      return;
+    }
+
+    if (!kIsWeb || _state != TransportState.connected) {
+      return;
+    }
+
+    final rx = _rxCharacteristic;
+    if (rx == null || !rx.properties.read || _rxPollInFlight) return;
+    _rxPollInFlight = true;
+    try {
+      final data = await rx.read();
+      if (data.isEmpty) return;
+      final key = rx.uuid.toString().toLowerCase();
+      final last = _lastPolledByChar[key];
+      if (last != null && _listEquals(last, data)) return;
+      _lastPolledByChar[key] = List<int>.from(data);
+      _emitRxData(data);
+    } catch (_) {
+      // Ignore; periodic polling continues.
+    } finally {
+      _rxPollInFlight = false;
+    }
   }
 
-  // ignore: unused_element
   void _startRxPolling() {
     final candidates = <BluetoothCharacteristic>[];
     if (_rxCharacteristic != null && _rxCharacteristic!.properties.read) {
@@ -1055,17 +740,19 @@ class BleRadioTransport implements RadioTransport {
           if (kIsWeb) {
             // Web Bluetooth can time out on setNotifyValue for some
             // indicate-only radios even though the link is otherwise usable.
-            // Keep the connection up. Poll/retry is intentionally disabled in
-            // fast mode to avoid delaying user-initiated commands.
             _logInfo(
               'RX notify setup timed out on web; continuing with '
               'read-poll fallback. Error: $e',
             );
-            // _startRxPolling();
-            // _notifyRetryTimer?.cancel();
-            // _notifyRetryTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-            //   _tryRearmWebNotify();
-            // });
+            if (webFastMode) {
+              // In fast mode, avoid background BLE operations that delay user commands.
+            } else {
+              _startRxPolling();
+              _notifyRetryTimer?.cancel();
+              _notifyRetryTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+                _tryRearmWebNotify();
+              });
+            }
           } else {
             rethrow;
           }

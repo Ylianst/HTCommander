@@ -8,6 +8,7 @@ not need to be opened first for messages to be recorded.
 */
 
 import '../dialogs/about_dialog.dart';
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 
@@ -20,6 +21,24 @@ class DebugLogHandler {
   final DataBrokerClient _broker = DataBrokerClient();
   final List<Map<String, dynamic>> _entries = <Map<String, dynamic>>[];
   bool _initialized = false;
+
+  String get _platformLabel {
+    if (kIsWeb) return 'web';
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.windows:
+        return 'windows';
+      case TargetPlatform.macOS:
+        return 'macos';
+      case TargetPlatform.linux:
+        return 'linux';
+      case TargetPlatform.android:
+        return 'android';
+      case TargetPlatform.iOS:
+        return 'ios';
+      case TargetPlatform.fuchsia:
+        return 'fuchsia';
+    }
+  }
 
   void init() {
     if (_initialized) return;
@@ -47,7 +66,9 @@ class DebugLogHandler {
 
     // Emit the startup banner only on a fresh start.
     if (_entries.isEmpty) {
-      _broker.logInfo('HTCommander ${HTAboutDialog.version} started');
+      _broker.logInfo(
+        'HTCommander ${HTAboutDialog.version} started on $_platformLabel',
+      );
     }
   }
 

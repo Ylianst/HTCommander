@@ -310,14 +310,20 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   /// Settings tabs in display order. On the web the radio is used over the BLE
   /// control channel only, so the audio-centric "Voice" tab and the
-  /// internet-service "Servers" / "Map" tabs are hidden. All tabs are shown on
-  /// every other platform.
+  /// internet-service "Servers" / "Map" tabs are hidden. On Android/iOS the
+  /// "Servers" tab is hidden. All tabs remain visible on desktop platforms.
   List<String> get _visibleTabs {
     const all = ['License', 'APRS', 'Voice', 'Winlink', 'Servers', 'Map'];
-    if (!kIsWeb) return all;
-    return all
-        .where((t) => t != 'Voice' && t != 'Servers' && t != 'Map')
-        .toList();
+    if (kIsWeb) {
+      return all
+          .where((t) => t != 'Voice' && t != 'Servers' && t != 'Map')
+          .toList();
+    }
+    if (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS) {
+      return all.where((t) => t != 'Servers').toList();
+    }
+    return all;
   }
 
   /// Builds the content widget for a given tab title (see [_visibleTabs]).
