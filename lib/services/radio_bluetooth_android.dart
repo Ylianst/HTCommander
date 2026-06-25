@@ -12,12 +12,10 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesAndroid(
   BluetoothService service, {
   required Duration timeout,
 }) async {
-  return _findCompatibleDevicesBle(
-    service,
-    timeout: timeout,
-    useWebKeywordFilter: false,
-    returnEarlyOnFirstMatch: false,
-  );
+  // Android uses Bluetooth Classic (RFCOMM/SPP) for the radio control channel.
+  // Compatible radios must be paired (bonded) in the Android Bluetooth settings;
+  // they are enumerated from the bonded device list by the native plugin.
+  return _findCompatibleDevicesClassic(service);
 }
 
 Future<int?> _connectToRadioAndroid(
@@ -25,10 +23,7 @@ Future<int?> _connectToRadioAndroid(
   String macAddress,
   String friendlyName,
 ) async {
-  return _connectToRadioBleImpl(
-    service,
-    macAddress,
-    friendlyName,
-    webFastMode: false,
-  );
+  // Android connects over Bluetooth Classic (RFCOMM/SPP) via the native plugin,
+  // reusing the shared Classic connect flow (control channel).
+  return _connectToRadioClassicImpl(service, macAddress, friendlyName);
 }
