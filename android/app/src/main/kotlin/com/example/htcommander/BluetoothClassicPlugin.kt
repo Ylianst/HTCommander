@@ -57,6 +57,12 @@ class BluetoothClassicPlugin(
             "SA-888S", "HG-UV98", "UV-98", "HAM-AIO", "VR-6600PRO", "TH-UV88",
             "3B01B", "E1WPR", "PNI-HP98WP",
         )
+
+        // Remembers the RFCOMM channel that last connected for a given radio
+        // address so reconnects can skip the channel scan. The radio's SDP
+        // record advertises an unstable channel, so the working channel is
+        // discovered by probing; caching it makes later connects near-instant.
+        private val lastGoodChannel = ConcurrentHashMap<String, Int>()
     }
 
     /** Set by [MainActivity] so we can request runtime permissions. */
@@ -279,6 +285,7 @@ class BluetoothClassicPlugin(
         uuid: UUID,
     ): BluetoothSocket {
         var lastError: Exception? = null
+        val address = device.address
 
         fun attempt(label: String, factory: () -> BluetoothSocket): BluetoothSocket? {
             var candidate: BluetoothSocket? = null
@@ -302,6 +309,23 @@ class BluetoothClassicPlugin(
             }
         }
 
+        val insecureByChannel = device.javaClass.getMethod(
+            "createInsecureRfcommSocket",
+            Int::class.javaPrimitiveType,
+        )
+
+        fun tryChannel(channel: Int): BluetoothSocket? =
+            attempt("insecure-ch$channel") {
+                insecureByChannel.invoke(device, channel) as BluetoothSocket
+            }?.also { lastGoodChannel[address] = channel }
+
+        // 0. Fast path: reuse the channel that last worked for this radio so we
+        //    skip the full scan on reconnect.
+        val cachedChannel = lastGoodChannel[address]
+        if (cachedChannel != null) {
+            tryChannel(cachedChannel)?.let { return it }
+        }
+
         // 1. UUID/SDP-resolved sockets (channel comes from the radio's SDP
         //    record). Insecure first to match the radio's null-auth requirement.
         attempt("insecure-sdp") {
@@ -314,14 +338,9 @@ class BluetoothClassicPlugin(
         // 2. Probe fixed RFCOMM channels with an insecure socket. The radio's
         //    SPP channel has been observed on 1 and 4; scan a small range and
         //    take the first the radio accepts.
-        val insecureByChannel = device.javaClass.getMethod(
-            "createInsecureRfcommSocket",
-            Int::class.javaPrimitiveType,
-        )
         for (channel in 1..12) {
-            attempt("insecure-ch$channel") {
-                insecureByChannel.invoke(device, channel) as BluetoothSocket
-            }?.let { return it }
+            if (channel == cachedChannel) continue // already tried above
+            tryChannel(channel)?.let { return it }
         }
 
         // 3. Final fallback: secure fixed channel 1.

@@ -10,7 +10,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:flutter_pcm_sound/flutter_pcm_sound.dart';
+import 'pcm_player.dart';
 
 import '../sbc/sbc_decoder.dart';
 import '../sbc/sbc_encoder.dart';
@@ -52,6 +52,9 @@ class RadioAudio {
   bool _running = false;
   bool _connecting = false;
   bool _pcmSoundReady = false;
+
+  // PCM playback sink (native waveOut on Windows, flutter_pcm_sound elsewhere).
+  final PcmPlayer _pcm = PcmPlayer();
 
   // Estimated number of PCM frames currently buffered in the audio engine.
   int _bufferedFrames = 0;
@@ -405,8 +408,8 @@ class RadioAudio {
     stopRecording();
     if (_pcmSoundReady) {
       try {
-        FlutterPcmSound.setFeedCallback(null);
-        await FlutterPcmSound.release();
+        _pcm.setFeedCallback(null);
+        await _pcm.release();
       } catch (_) {}
       _pcmSoundReady = false;
     }
@@ -429,12 +432,12 @@ class RadioAudio {
 
   Future<void> _initPcmSound() async {
     if (_pcmSoundReady) return;
-    FlutterPcmSound.setLogLevel(LogLevel.error);
-    await FlutterPcmSound.setup(sampleRate: _sampleRate, channelCount: 1);
+    await _pcm.setLogLevelError();
+    await _pcm.setup(sampleRate: _sampleRate, channelCount: 1);
     // ~125 ms threshold; the plugin signals us when it drains below this.
-    await FlutterPcmSound.setFeedThreshold(_sampleRate ~/ 8);
-    FlutterPcmSound.setFeedCallback(_onFeed);
-    FlutterPcmSound.start();
+    await _pcm.setFeedThreshold(_sampleRate ~/ 8);
+    _pcm.setFeedCallback(_onFeed);
+    _pcm.start();
     _pcmSoundReady = true;
   }
 
@@ -450,7 +453,7 @@ class RadioAudio {
 
     _bufferedFrames += pcm.length;
     try {
-      await FlutterPcmSound.feed(PcmArrayInt16.fromList(pcm));
+      await _pcm.feed(pcm);
     } catch (e) {
       _debug('PCM feed error: $e');
     }

@@ -161,41 +161,37 @@ struct RfcommConn {
 };
 
 // ---------------------------------------------------------------------------
-// Thread-safe event stream handler with queue + dispatcher marshaling
+// Thread-safe event stream handler that marshals events to the platform thread
+//
+// Flutter platform channel messages must be delivered on the platform (UI)
+// thread. RFCOMM reads happen on background threads, so we cannot call
+// EventSink::Success directly from there. The Flutter Windows platform thread
+// runs a Win32 message loop (it has no WinRT DispatcherQueue), so we create a
+// message-only window on that thread when the stream is listened to and post a
+// drain message to it from background threads. The window procedure runs on the
+// platform thread and delivers the queued events safely.
 // ---------------------------------------------------------------------------
 class BtStreamHandler
     : public flutter::StreamHandler<flutter::EncodableValue> {
  public:
-  BtStreamHandler()
-      : dispatcher_(nullptr) {}
+  BtStreamHandler() = default;
+  ~BtStreamHandler() override { DestroyMessageWindow(); }
 
   void Send(const flutter::EncodableValue& value) {
-    winrt::Windows::System::DispatcherQueue dispatcher{nullptr};
-    bool can_drain_inline = false;
+    HWND hwnd = nullptr;
     {
       std::lock_guard<std::mutex> lock(mutex_);
       pending_events_.push_back(value);
       if (!sink_) return;
-      dispatcher = dispatcher_;  // Copy the dispatcher outside the lock
-      can_drain_inline = !dispatcher;
+      hwnd = message_hwnd_;
     }
 
-    if (can_drain_inline) {
-      std::lock_guard<std::mutex> lock(mutex_);
-      DrainQueue();
-      return;
-    }
-
-    // Try to post a drain task to the dispatcher (outside the lock).
-    try {
-      dispatcher.TryEnqueue(
-          winrt::Windows::System::DispatcherQueuePriority::Normal,
-          [this]() {
-            std::lock_guard<std::mutex> lock(mutex_);
-            DrainQueue();
-          });
-    } catch (...) {
-      // Fall back to inline delivery if dispatcher posting fails.
+    if (hwnd) {
+      // Marshal the drain onto the platform thread via its message loop.
+      ::PostMessageW(hwnd, kDrainMessage, 0, 0);
+    } else {
+      // No marshaling window yet; deliver inline (we are on the platform
+      // thread during OnListen, which is the only time this happens).
       std::lock_guard<std::mutex> lock(mutex_);
       DrainQueue();
     }
@@ -210,12 +206,9 @@ class BtStreamHandler
     std::lock_guard<std::mutex> lock(mutex_);
     sink_ = std::move(events);
 
-    // Capture the current dispatcher queue (should be the platform/UI thread).
-    try {
-      dispatcher_ = winrt::Windows::System::DispatcherQueue::GetForCurrentThread();
-    } catch (...) {
-      dispatcher_ = nullptr;
-    }
+    // OnListen runs on the platform thread, so create the marshaling window
+    // here to give it platform-thread affinity.
+    EnsureMessageWindow();
 
     // Drain any events that accumulated before the listener was attached.
     DrainQueue();
@@ -226,19 +219,20 @@ class BtStreamHandler
   OnCancelInternal(const flutter::EncodableValue*) override {
     std::lock_guard<std::mutex> lock(mutex_);
     sink_ = nullptr;
-    dispatcher_ = nullptr;
     pending_events_.clear();
     return nullptr;
   }
 
  private:
+  static constexpr UINT kDrainMessage = WM_USER + 0x42;
+
   std::mutex mutex_;
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink_;
-  winrt::Windows::System::DispatcherQueue dispatcher_;
   std::vector<flutter::EncodableValue> pending_events_;
+  HWND message_hwnd_ = nullptr;
 
   void DrainQueue() {
-    // Must be called under mutex_ lock or from platform thread context.
+    // Must be called under mutex_ lock and on the platform thread.
     if (!sink_ || pending_events_.empty()) return;
     auto events = std::move(pending_events_);
     for (const auto& ev : events) {
@@ -248,6 +242,52 @@ class BtStreamHandler
         // Ignore errors; sink might be invalidated.
       }
     }
+  }
+
+  // Must be called on the platform thread (from OnListen).
+  void EnsureMessageWindow() {
+    if (message_hwnd_) return;
+    static const wchar_t* kClassName = L"HTCommanderBtClassicMsgWindow";
+    HINSTANCE instance = ::GetModuleHandleW(nullptr);
+
+    WNDCLASSEXW wc = {};
+    wc.cbSize = sizeof(wc);
+    wc.lpfnWndProc = &BtStreamHandler::WndProc;
+    wc.hInstance = instance;
+    wc.lpszClassName = kClassName;
+    // Ignore failure if the class is already registered by another handler.
+    ::RegisterClassExW(&wc);
+
+    message_hwnd_ = ::CreateWindowExW(
+        0, kClassName, L"", 0, 0, 0, 0, 0,
+        HWND_MESSAGE, nullptr, instance, this);
+  }
+
+  void DestroyMessageWindow() {
+    if (message_hwnd_) {
+      ::DestroyWindow(message_hwnd_);
+      message_hwnd_ = nullptr;
+    }
+  }
+
+  static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam,
+                                  LPARAM lparam) {
+    if (msg == WM_NCCREATE) {
+      auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
+      ::SetWindowLongPtrW(hwnd, GWLP_USERDATA,
+                          reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+      return ::DefWindowProcW(hwnd, msg, wparam, lparam);
+    }
+    if (msg == kDrainMessage) {
+      auto* self = reinterpret_cast<BtStreamHandler*>(
+          ::GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+      if (self) {
+        std::lock_guard<std::mutex> lock(self->mutex_);
+        self->DrainQueue();
+      }
+      return 0;
+    }
+    return ::DefWindowProcW(hwnd, msg, wparam, lparam);
   }
 };
 

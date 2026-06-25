@@ -23,8 +23,6 @@ class BluetoothClassicTransport implements RadioTransport {
   DiscoveredDevice? _connectedDevice;
   StreamSubscription<Uint8List>? _dataSubscription;
   StreamSubscription<BluetoothClassicEvent>? _connectionSubscription;
-  int _rxLogCount = 0;
-  int _txLogCount = 0;
 
   @override
   TransportState get state => _state;
@@ -47,16 +45,6 @@ class BluetoothClassicTransport implements RadioTransport {
 
   void _logError(String msg) {
     _broker.logError('[BT-Classic] $msg');
-  }
-
-  String _hexPreview(Uint8List data, {int max = 24}) {
-    if (data.isEmpty) return '';
-    final take = data.length < max ? data.length : max;
-    final parts = <String>[];
-    for (int i = 0; i < take; i++) {
-      parts.add(data[i].toRadixString(16).padLeft(2, '0').toUpperCase());
-    }
-    return data.length > max ? '${parts.join(' ')} ...' : parts.join(' ');
   }
 
   BluetoothClassicTransport() {
@@ -134,8 +122,6 @@ class BluetoothClassicTransport implements RadioTransport {
 
       if (success) {
         _connectedDevice = device;
-        _rxLogCount = 0;
-        _txLogCount = 0;
         _updateState(TransportState.connected);
         _logInfo('Connected transport for ${device.id}; subscribing to RFCOMM RX stream');
 
@@ -143,13 +129,6 @@ class BluetoothClassicTransport implements RadioTransport {
         _dataSubscription = BluetoothClassicMacOS.instance
             .getDataStream(device.id)
             .listen((data) {
-              if (_rxLogCount < 60) {
-                _rxLogCount++;
-                _logInfo(
-                  'RX chunk[$_rxLogCount] ${data.length} byte(s) from ${device.id}: '
-                  '${_hexPreview(data)}',
-                );
-              }
               _dataController.add(data);
             }, onError: (error) {
               _logError('RX stream error for ${device.id}: $error');
@@ -199,18 +178,10 @@ class BluetoothClassicTransport implements RadioTransport {
     }
 
     try {
-      if (_txLogCount < 60) {
-        _txLogCount++;
-        _logInfo(
-          'TX chunk[$_txLogCount] ${data.length} byte(s) to ${_connectedDevice!.id}: '
-          '${_hexPreview(data)}',
-        );
-      }
       final result = await BluetoothClassicMacOS.instance.send(
         _connectedDevice!.id,
         data,
       );
-      _logInfo('Native send result for ${_connectedDevice!.id}: $result');
       return result;
     } catch (e) {
       _logError('Send threw for ${_connectedDevice!.id}: $e');
