@@ -571,7 +571,9 @@ class Radio {
   }
 
   void _onTransportStateChanged(TransportState state) {
-    _broker.logInfo('[Radio $deviceId] Transport state changed to ${state.name}');
+    _broker.logInfo(
+      '[Radio $deviceId] Transport state changed to ${state.name}',
+    );
     switch (state) {
       case TransportState.connected:
         _onTransportConnected();
@@ -658,7 +660,11 @@ class Radio {
       Uint8List.fromList([3]),
     );
     if (!kIsWeb) {
-      _sendCommand(RadioCommandGroup.basic, RadioBasicCommand.readSettings, null);
+      _sendCommand(
+        RadioCommandGroup.basic,
+        RadioBasicCommand.readSettings,
+        null,
+      );
       _sendCommand(
         RadioCommandGroup.basic,
         RadioBasicCommand.readBssSettings,
@@ -730,7 +736,8 @@ class Radio {
               '[Radio $deviceId] [WEB-BLE] No RX after $maxInitRetries init '
               'attempts (${elapsedMs}ms since connected)',
             );
-            if (_webBleCompactMode && _transport?.state == TransportState.connected) {
+            if (_webBleCompactMode &&
+                _transport?.state == TransportState.connected) {
               _handleDisconnect(
                 'Web BLE control not supported by this radio/browser path',
                 RadioState.unableToConnect,
@@ -1213,6 +1220,14 @@ class Radio {
   }
 
   // Command handling
+  /// True when the active transport speaks BLE GATT (web, iOS, Linux), where
+  /// the radio expects the command un-wrapped:
+  /// `[group_hi, group_lo, cmd_hi, cmd_lo, payload...]`. Bluetooth Classic /
+  /// RFCOMM transports (macOS, Windows, Android) instead need the command
+  /// wrapped in the `0xFF 0x01 ...` GAIA serial framing.
+  bool get _useGattFraming =>
+      kIsWeb || _transport?.connectedDevice?.type == BluetoothType.ble;
+
   void _sendCommand(
     RadioCommandGroup group,
     RadioBasicCommand cmd,
@@ -1221,7 +1236,9 @@ class Radio {
     if (_transport == null) return;
 
     Uint8List gaiaFrame;
-    if (kIsWeb && !_webBleCompactMode && group == RadioCommandGroup.basic) {
+    if (_useGattFraming &&
+        !_webBleCompactMode &&
+        group == RadioCommandGroup.basic) {
       // Match the working reference web implementation:
       // [group_hi, group_lo, cmd_hi, cmd_lo, payload...]
       // and send a trailing 0 byte when no payload is provided.
@@ -1238,7 +1255,9 @@ class Radio {
       } else {
         gaiaFrame[4] = 0x00;
       }
-    } else if (kIsWeb && _webBleCompactMode && group == RadioCommandGroup.basic) {
+    } else if (kIsWeb &&
+        _webBleCompactMode &&
+        group == RadioCommandGroup.basic) {
       // Web BLE compact mode: radios may use one of several compact command
       // layouts. We rotate variants across retries until one responds.
       final payloadLen = data?.length ?? 0;
@@ -1395,7 +1414,8 @@ class Radio {
 
     if (kIsWeb) {
       final now = DateTime.now();
-      final shouldLog = _compactRxLogCount < 120 &&
+      final shouldLog =
+          _compactRxLogCount < 120 &&
           (compactCmdValue != _lastCompactCmdValue ||
               status != _lastCompactStatus ||
               now.difference(_lastCompactLogAt).inMilliseconds >= 1500);
@@ -1455,7 +1475,7 @@ class Radio {
   }
 
   bool _tryHandleWebDirectResponse(Uint8List data) {
-    if (!kIsWeb || data.length < 5) return false;
+    if (!_useGattFraming || data.length < 5) return false;
     if (_webBleCompactUnsupported) return true;
 
     final groupValue = (data[0] << 8) | data[1];
