@@ -1093,9 +1093,10 @@ class _MainFormState extends State<MainForm>
             ),
             hideOnMacOS: true,
           ),
-          // The web build runs in the browser and cannot quit itself, so the
-          // "Exit" item (and its divider) are omitted there.
-          if (!kIsWeb) ...[
+          // The web build runs in the browser and cannot quit itself, and iOS
+          // apps are not expected to quit themselves, so the "Exit" item (and
+          // its divider) are omitted there.
+          if (!kIsWeb && !Platform.isIOS) ...[
             const AppMenuDivider(hideOnMacOS: true),
             AppMenuAction(
               label: 'Exit',
@@ -1422,22 +1423,23 @@ class _MainFormState extends State<MainForm>
       color: Theme.of(context).colorScheme.surface,
       child: Row(
         children: [
-          MenuBar(
-            style: menuStyle,
-            children: menuDef.map((submenu) {
-              return SubmenuButton(
-                style: submenuStyle,
-                menuStyle: menuStyle,
-                menuChildren: _buildBuiltInMenuItems(
-                  submenu.children,
-                  menuItemStyle,
-                  menuStyle,
-                ),
-                child: Text(submenu.label),
-              );
-            }).toList(),
+          Expanded(
+            child: MenuBar(
+              style: menuStyle,
+              children: menuDef.map((submenu) {
+                return SubmenuButton(
+                  style: submenuStyle,
+                  menuStyle: menuStyle,
+                  menuChildren: _buildBuiltInMenuItems(
+                    submenu.children,
+                    menuItemStyle,
+                    menuStyle,
+                  ),
+                  child: Text(submenu.label),
+                );
+              }).toList(),
+            ),
           ),
-          const Spacer(),
         ],
       ),
     );
