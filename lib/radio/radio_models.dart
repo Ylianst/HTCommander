@@ -107,11 +107,15 @@ class RadioDevInfo {
     'hwVer': hwVer,
     'softVer': softVer,
     'supportRadio': supportRadio,
+    'supportMediumPower': supportMediumPower,
+    'haveHmSpeaker': haveHmSpeaker,
     'channelCount': channelCount,
     'regionCount': regionCount,
     'supportNoaa': supportNoaa,
+    'gmrs': gmrs,
     'supportVfo': supportVfo,
     'supportDmr': supportDmr,
+    'freqRangeCount': freqRangeCount,
   };
 }
 
@@ -306,10 +310,42 @@ class RadioSettings {
     'channelA': channelA,
     'channelB': channelB,
     'scan': scan,
+    'aghfpCallMode': aghfpCallMode,
     'doubleChannel': doubleChannel,
     'squelchLevel': squelchLevel,
+    'tailElim': tailElim,
+    'autoRelayEn': autoRelayEn,
+    'autoPowerOn': autoPowerOn,
+    'keepAghfpLink': keepAghfpLink,
+    'micGain': micGain,
+    'txHoldTime': txHoldTime,
+    'txTimeLimit': txTimeLimit,
+    'localSpeaker': localSpeaker,
+    'btMicGain': btMicGain,
+    'adaptiveResponse': adaptiveResponse,
+    'disTone': disTone,
+    'powerSavingMode': powerSavingMode,
+    'autoPowerOff': autoPowerOff,
+    'autoShareLocCh': autoShareLocCh,
+    'hmSpeaker': hmSpeaker,
+    'positioningSystem': positioningSystem,
+    'timeOffset': timeOffset,
+    'useFreqRange2': useFreqRange2,
     'pttLock': pttLock,
+    'leadingSyncBitEn': leadingSyncBitEn,
+    'pairingAtPowerOn': pairingAtPowerOn,
+    'screenTimeout': screenTimeout,
+    'vfoX': vfoX,
+    'imperialUnit': imperialUnit,
+    'wxMode': wxMode,
     'noaaCh': noaaCh,
+    'vfolTxPowerX': vfolTxPowerX,
+    'vfo2TxPowerX': vfo2TxPowerX,
+    'disDigitalMute': disDigitalMute,
+    'signalingEccEn': signalingEccEn,
+    'chDataLock': chDataLock,
+    'vfo1ModFreqX': vfo1ModFreqX,
+    'vfo2ModFreqX': vfo2ModFreqX,
   };
 
   /// Create a modified byte array for settings, using current values for any null parameters
@@ -632,11 +668,12 @@ class RadioPosition {
        locked = true;
 
   static double _convertLatitude(int latitudeRaw) {
-    // Handle 24-bit two's complement
+    // Handle 24-bit two's complement. Dart ints are 64-bit, so OR-ing high
+    // bits (as the 32-bit C# code does) would yield a large positive value
+    // instead of a negative one. Subtract 2^24 when the sign bit is set.
+    latitudeRaw &= 0x00FFFFFF;
     if ((latitudeRaw & 0x00800000) != 0) {
-      latitudeRaw |= 0xFF000000; // Sign extend
-    } else {
-      latitudeRaw &= 0x00FFFFFF;
+      latitudeRaw -= 0x01000000; // Sign extend (negative)
     }
     return latitudeRaw / 60.0 / 500.0;
   }
@@ -677,8 +714,10 @@ class RadioPosition {
     'altitude': altitude,
     'speed': speed,
     'heading': heading,
+    'accuracy': accuracy,
     'locked': locked,
     'timestamp': timeUtc.toIso8601String(),
+    'receivedTime': receivedTime.toIso8601String(),
   };
 }
 
@@ -783,13 +822,66 @@ class RadioBssSettings {
     'maxFwdTimes': maxFwdTimes,
     'timeToLive': timeToLive,
     'pttReleaseSendLocation': pttReleaseSendLocation,
+    'pttReleaseSendIdInfo': pttReleaseSendIdInfo,
+    'pttReleaseSendBssUserId': pttReleaseSendBssUserId,
     'shouldShareLocation': shouldShareLocation,
+    'sendPwrVoltage': sendPwrVoltage,
+    'packetFormat': packetFormat,
+    'allowPositionCheck': allowPositionCheck,
     'aprsSsid': aprsSsid,
     'locationShareInterval': locationShareInterval,
+    'bssUserIdLower': bssUserIdLower,
+    'pttReleaseIdInfo': pttReleaseIdInfo,
     'aprsCallsign': aprsCallsign,
     'aprsSymbol': aprsSymbol,
     'beaconMessage': beaconMessage,
   };
+
+  /// Generative constructor used by [RadioBssSettings.fromJson] to rebuild a
+  /// complete settings object from a previously serialized [toJson] map.
+  RadioBssSettings._({
+    required this.maxFwdTimes,
+    required this.timeToLive,
+    required this.pttReleaseSendLocation,
+    required this.pttReleaseSendIdInfo,
+    required this.pttReleaseSendBssUserId,
+    required this.shouldShareLocation,
+    required this.sendPwrVoltage,
+    required this.packetFormat,
+    required this.allowPositionCheck,
+    required this.aprsSsid,
+    required this.locationShareInterval,
+    required this.bssUserIdLower,
+    required this.pttReleaseIdInfo,
+    required this.beaconMessage,
+    required this.aprsSymbol,
+    required this.aprsCallsign,
+  });
+
+  /// Rebuilds a [RadioBssSettings] from a [toJson] map. All fields are restored
+  /// so the object round-trips losslessly and unchanged values are preserved
+  /// when only a few fields are edited before writing back to the radio.
+  factory RadioBssSettings.fromJson(Map<String, dynamic> json) {
+    return RadioBssSettings._(
+      maxFwdTimes: json['maxFwdTimes'] as int? ?? 0,
+      timeToLive: json['timeToLive'] as int? ?? 0,
+      pttReleaseSendLocation: json['pttReleaseSendLocation'] as bool? ?? false,
+      pttReleaseSendIdInfo: json['pttReleaseSendIdInfo'] as bool? ?? false,
+      pttReleaseSendBssUserId:
+          json['pttReleaseSendBssUserId'] as bool? ?? false,
+      shouldShareLocation: json['shouldShareLocation'] as bool? ?? false,
+      sendPwrVoltage: json['sendPwrVoltage'] as bool? ?? false,
+      packetFormat: json['packetFormat'] as int? ?? 0,
+      allowPositionCheck: json['allowPositionCheck'] as bool? ?? false,
+      aprsSsid: json['aprsSsid'] as int? ?? 0,
+      locationShareInterval: json['locationShareInterval'] as int? ?? 0,
+      bssUserIdLower: json['bssUserIdLower'] as int? ?? 0,
+      pttReleaseIdInfo: json['pttReleaseIdInfo'] as String? ?? '',
+      beaconMessage: json['beaconMessage'] as String? ?? '',
+      aprsSymbol: json['aprsSymbol'] as String? ?? '',
+      aprsCallsign: json['aprsCallsign'] as String? ?? '',
+    );
+  }
 }
 
 /// Radio lock state - for exclusive operations

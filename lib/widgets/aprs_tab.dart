@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'chat_widget.dart';
+import '../dialogs/aprs_configuration_dialog.dart';
 import '../dialogs/aprs_details_dialog.dart';
 import '../dialogs/aprs_sms_dialog.dart';
 import '../dialogs/aprs_weather_dialog.dart';
 import '../dialogs/dialog_utils.dart';
+import '../dialogs/edit_beacon_settings_dialog.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -13,6 +15,7 @@ import '../aprs/aprs_auth.dart';
 import '../aprs/message_data.dart';
 import '../aprs/packet_data_type.dart';
 import '../models/radio_models.dart';
+import '../radio/radio_models.dart' as radio;
 import '../radio/ax25_packet.dart';
 
 /// A configured APRS route (a display name plus a comma-separated path).
@@ -939,6 +942,16 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         ),
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
+          value: 'beaconSettings',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          enabled: _connectedRadioDeviceIds().isNotEmpty,
+          child: const Row(
+            children: [SizedBox(width: 20), Text('Beacon Settings...')],
+          ),
+        ),
+        const PopupMenuDivider(height: 8),
+        PopupMenuItem<String>(
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
@@ -967,6 +980,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           break;
         case 'weatherReport':
           _sendWeatherReport();
+          break;
+        case 'beaconSettings':
+          if (context.mounted) showEditBeaconSettingsDialog(context);
           break;
         case 'clear':
           _clearMessages();
@@ -1007,19 +1023,106 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
       width: double.infinity,
       color: const Color(0xFFFFF3CD),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.warning_amber, color: Color(0xFF856404), size: 20),
-          SizedBox(width: 8),
-          Expanded(
+          const Icon(Icons.warning_amber, color: Color(0xFF856404), size: 20),
+          const SizedBox(width: 8),
+          const Expanded(
             child: Text(
               'No "APRS" channel is configured on the connected radio. '
               'Add an APRS channel to send and receive APRS messages.',
               style: TextStyle(color: Color(0xFF856404), fontSize: 13),
             ),
           ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: _setupAprsChannel,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF856404),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            child: const Text('Set up'),
+          ),
         ],
       ),
+    );
+  }
+
+  /// Opens the APRS channel setup dialog and, on confirmation, writes a new
+  /// "APRS" channel to the radio by overwriting the selected channel slot.
+  /// Mirrors the C# `aprsSetupButton_Click`.
+  Future<void> _setupAprsChannel() async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Find a connected radio with all channels loaded.
+    int radioDeviceId = -1;
+    List<radio.RadioChannelInfo>? channels;
+    for (final id in _connectedRadioDeviceIds()) {
+      final allLoaded =
+          _broker.getValue<bool>(id, 'AllChannelsLoaded', false) ?? false;
+      if (!allLoaded) continue;
+      final list = _broker.getJsonListValue<radio.RadioChannelInfo>(
+        id,
+        'Channels',
+        (json) => radio.RadioChannelInfo.fromJson(json),
+      );
+      if (list != null && list.isNotEmpty) {
+        radioDeviceId = id;
+        channels = list;
+        break;
+      }
+    }
+
+    if (radioDeviceId == -1 || channels == null) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No radio with loaded channels is available'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final result = await showAprsConfigurationDialog(
+      context,
+      channels: channels,
+    );
+    if (result == null || !mounted) return;
+
+    radio.RadioChannelInfo? selected;
+    for (final c in channels) {
+      if (c.channelId == result.channelId) {
+        selected = c;
+        break;
+      }
+    }
+    if (selected == null) return;
+
+    final freqHz = (result.frequencyMhz * 1000000).round();
+    final aprsChannel = selected.copyWith(
+      name: 'APRS',
+      rxFreq: freqHz,
+      txFreq: freqHz,
+      rxMod: radio.RadioModulationType.fm,
+      txMod: radio.RadioModulationType.fm,
+      bandwidth: radio.RadioBandwidthType.wide,
+      mute: true,
+      preDeEmphBypass: true,
+      scan: false,
+      talkAround: false,
+      txAtMaxPower: true,
+      txAtMedPower: false,
+      txSubAudio: 0,
+      rxSubAudio: 0,
+      txDisable: false,
+    );
+
+    _broker.dispatch(
+      deviceId: radioDeviceId,
+      name: 'WriteChannel',
+      data: aprsChannel,
+      store: false,
     );
   }
 

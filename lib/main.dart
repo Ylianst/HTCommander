@@ -60,6 +60,10 @@ void main(List<String> args) async {
   // Initialize the DataBroker for cross-component communication
   await DataBroker.initialize();
 
+  // Ensure the built-in protected APRS routes ("Standard" and "None") always
+  // exist before any component reads the APRS route configuration.
+  AppSettings.ensureDefaultRoutes();
+
   // Register the frame deduplicator so that duplicate DataFrame events received
   // by multiple radios are collapsed into single UniqueDataFrame events.
   DataBroker.addDataHandler('FrameDeduplicator', FrameDeduplicator());

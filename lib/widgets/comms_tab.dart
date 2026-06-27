@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'chat_widget.dart';
+import '../dialogs/edit_ident_settings_dialog.dart';
 import '../dialogs/image_view_dialog.dart';
 import '../dialogs/recording_playback_dialog.dart';
 import '../dialogs/sstv_send_dialog.dart';
@@ -1473,6 +1474,15 @@ class _CommsTabState extends State<CommsTab>
         ],
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
+          value: 'pttReleaseSettings',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          enabled: _currentRadioDeviceId > 0,
+          child: const Row(
+            children: [SizedBox(width: 20), Text('PTT Release Settings...')],
+          ),
+        ),
+        PopupMenuItem<String>(
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
@@ -1531,6 +1541,14 @@ class _CommsTabState extends State<CommsTab>
           break;
         case 'sendAudio':
           _pickAndSendAudio();
+          break;
+        case 'pttReleaseSettings':
+          if (context.mounted) {
+            showEditIdentSettingsDialog(
+              context,
+              initialDeviceId: _currentRadioDeviceId,
+            );
+          }
           break;
         case 'clear':
           _confirmClearHistory();

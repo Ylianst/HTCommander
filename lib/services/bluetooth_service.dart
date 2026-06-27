@@ -239,6 +239,13 @@ class BluetoothService {
   /// Get a transport by device ID (BLE only)
   RadioTransport? getTransport(int deviceId) => _connectedRadios[deviceId];
 
+  /// Get the [Radio] instance for a connected device, or null if not connected.
+  ///
+  /// Exposes the full radio state (settings, BSS/beacon settings, channels) to
+  /// UI that needs the complete objects rather than the partial JSON published
+  /// to the DataBroker.
+  Radio? radioInstance(int deviceId) => _radioInstances[deviceId];
+
   /// Publish the connected radios list to the DataBroker.
   ///
   /// Builds exactly one entry per device ID. A Bluetooth Classic radio that has

@@ -636,9 +636,9 @@ class _AudioTabState extends State<AudioTab>
                 // the spectrograph, so those sections are hidden there.
                 if (_audioChannelSupported) ...[
                   const SizedBox(height: 16),
-                  _buildSectionTitle('Application'),
+                  _buildSectionTitle('Computer'),
                   _buildSliderRow(
-                    label: 'Volume',
+                    label: 'Application',
                     value: _appVolume,
                     min: 0,
                     max: 1,
@@ -650,28 +650,7 @@ class _AudioTabState extends State<AudioTab>
                         : null,
                     onChanged: _onAppVolumeChanged,
                   ),
-                  const SizedBox(height: 16),
-                  _buildSectionTitle('Microphone'),
-                  _buildSliderRow(
-                    label: 'Gain',
-                    value: _micGain,
-                    min: 1,
-                    max: 8,
-                    valueLabel: '${(_micGain * 100).round()}%',
-                    enabled: MicrophoneCapture.isSupported,
-                    onChanged: _onMicGainSliderChanged,
-                  ),
-                  if (!MicrophoneCapture.isSupported)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4, top: 2),
-                      child: Text(
-                        'Microphone capture is not available on this platform.',
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
-                    ),
-                  if (SystemAudio.isSupported) ...[
-                    const SizedBox(height: 16),
-                    _buildSectionTitle('Computer'),
+                  if (SystemAudio.isSupported)
                     _buildSliderRow(
                       label: 'Master',
                       value: _masterVolume,
@@ -689,7 +668,23 @@ class _AudioTabState extends State<AudioTab>
                       onChanged: _onMasterVolumeChanged,
                       onChangeEnd: (_) => _draggingMaster = false,
                     ),
-                  ],
+                  _buildSliderRow(
+                    label: 'Mic Gain',
+                    value: _micGain,
+                    min: 1,
+                    max: 8,
+                    valueLabel: '${(_micGain * 100).round()}%',
+                    enabled: MicrophoneCapture.isSupported,
+                    onChanged: _onMicGainSliderChanged,
+                  ),
+                  if (!MicrophoneCapture.isSupported)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4, top: 2),
+                      child: Text(
+                        'Microphone capture is not available on this platform.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ),
                   if (_showSpectrogram) ...[
                     const SizedBox(height: 16),
                     _buildSectionTitle(_spectrogramTitle()),
@@ -762,7 +757,7 @@ class _AudioTabState extends State<AudioTab>
       child: Row(
         children: [
           SizedBox(
-            width: 70,
+            width: 90,
             child: Text(
               label,
               style: TextStyle(
