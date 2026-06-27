@@ -193,6 +193,13 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   List<MailMessage> get _currentMessages =>
       _mailboxes[_selectedMailbox]?.messages ?? [];
 
+  /// In the Outbox, Draft and Sent mailboxes we care about the recipient, so
+  /// the address column shows "To" instead of "From".
+  bool get _showRecipientColumn =>
+      _selectedMailbox == 'Outbox' ||
+      _selectedMailbox == 'Draft' ||
+      _selectedMailbox == 'Sent';
+
   MailMessage? get _selectedMail {
     if (_selectedMailIndex == null ||
         _selectedMailIndex! >= _currentMessages.length) {
@@ -439,6 +446,92 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
     setState(() => _selectedMailIndex = null);
   }
 
+  /// Shows a right-click context menu for a mail row with common actions.
+  void _showMailContextMenu(BuildContext context, Offset globalPosition) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final inTrash = _selectedMailbox == 'Trash';
+
+    final value = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(48, 48),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        const PopupMenuItem<String>(
+          value: 'open',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.open_in_new),
+            title: Text('Open'),
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'reply',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.reply),
+            title: Text('Reply'),
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'replyAll',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.reply_all),
+            title: Text('Reply All'),
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'forward',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.forward),
+            title: Text('Forward'),
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'delete',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.delete_outline, color: Colors.red),
+            title: Text(
+              inTrash ? 'Delete' : 'Move to Trash',
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (!mounted) return;
+    switch (value) {
+      case 'open':
+        final m = _selectedMail;
+        if (m != null) _onOpenMail(m);
+        break;
+      case 'reply':
+        _onReply();
+        break;
+      case 'replyAll':
+        _onReplyAll();
+        break;
+      case 'forward':
+        _onForward();
+        break;
+      case 'delete':
+        _onDelete();
+        break;
+    }
+  }
+
   void _showMenu(BuildContext context) async {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
@@ -545,7 +638,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
           result = a.time.compareTo(b.time);
           break;
         case 1:
-          result = a.from.compareTo(b.from);
+          result = _showRecipientColumn
+              ? a.to.compareTo(b.to)
+              : a.from.compareTo(b.from);
           break;
         case 2:
           result = a.subject.compareTo(b.subject);
@@ -846,6 +941,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                     _onMailSelected(index);
                     _onOpenMail(mail);
                   },
+                  onSecondaryTapDown: (details) {
+                    _onMailSelected(index);
+                    _showMailContextMenu(context, details.globalPosition);
+                  },
                   child: Container(
                     clipBehavior: Clip.hardEdge,
                     decoration: BoxDecoration(
@@ -882,7 +981,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                               vertical: 6,
                             ),
                             child: Text(
-                              mail.from,
+                              _showRecipientColumn ? mail.to : mail.from,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontWeight: mail.isRead
@@ -932,7 +1031,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       child: Row(
         children: [
           _buildColumnHeader('Time', 0, flex: 2),
-          _buildColumnHeader('From', 1, flex: 2),
+          _buildColumnHeader(_showRecipientColumn ? 'To' : 'From', 1, flex: 2),
           _buildColumnHeader('Subject', 2, flex: 3),
         ],
       ),

@@ -1,3 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/window_service.dart';
 import '../services/data_broker_client.dart';
@@ -217,6 +222,129 @@ class _ContactsTabState extends State<ContactsTab>
     );
   }
 
+  /// Exports the current station list to a plain-text address book file
+  /// (mirrors the C# `exportStationsToolStripMenuItem_Click`).
+  Future<void> _onExport() async {
+    final stations = _getStations();
+    if (stations.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('There are no stations to export')),
+        );
+      }
+      return;
+    }
+
+    final content = StationInfo.serializeList(stations);
+    final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+
+    // Web and mobile require the bytes up front; desktop returns a path that
+    // we write to ourselves.
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
+
+    String? outputPath;
+    try {
+      outputPath = await FilePicker.saveFile(
+        dialogTitle: 'Export Stations',
+        fileName: 'stations.txt',
+        type: FileType.custom,
+        allowedExtensions: const ['txt'],
+        bytes: needsBytes ? Uint8List.fromList(utf8.encode(content)) : null,
+      );
+    } catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Error opening file dialog: $e')),
+      );
+      return;
+    }
+
+    if (outputPath == null) return;
+
+    // On desktop the picker only returns a path, so we still write the file.
+    // On web/mobile the bytes were already written by the picker.
+    if (!needsBytes) {
+      try {
+        await File(outputPath).writeAsString(content);
+      } catch (e) {
+        messenger?.showSnackBar(
+          SnackBar(content: Text('Error saving file: $e')),
+        );
+        return;
+      }
+    }
+
+    messenger?.showSnackBar(
+      SnackBar(content: Text('Exported ${stations.length} stations')),
+    );
+  }
+
+  /// Imports stations from a plain-text address book file, merging them with
+  /// the existing list (mirrors the C# `importStationsToolStripMenuItem_Click`).
+  Future<void> _onImport() async {
+    final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.pickFiles(
+        dialogTitle: 'Import Stations',
+        type: FileType.custom,
+        allowedExtensions: const ['txt'],
+        withData: true,
+      );
+    } catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Error opening file dialog: $e')),
+      );
+      return;
+    }
+
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.single;
+    String? data;
+    try {
+      if (file.bytes != null) {
+        data = utf8.decode(file.bytes!, allowMalformed: true);
+      } else if (!kIsWeb && file.path != null) {
+        data = await File(file.path!).readAsString();
+      }
+    } catch (_) {
+      data = null;
+    }
+
+    if (data == null) {
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Unable to open address book')),
+      );
+      return;
+    }
+
+    final imported = StationInfo.deserializeList(data);
+    if (imported.isEmpty) {
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Invalid address book')),
+      );
+      return;
+    }
+
+    final stations = _getStations();
+    // Replace existing stations that match the imported ones, then add them.
+    for (final station in imported) {
+      stations.removeWhere(
+        (s) =>
+            s.callsign == station.callsign &&
+            s.stationType == station.stationType,
+      );
+    }
+    stations.addAll(imported);
+    // The UI updates via the 'Stations' subscription in _onStationsChanged.
+    _saveStations(stations);
+
+    messenger?.showSnackBar(
+      SnackBar(content: Text('Imported ${imported.length} stations')),
+    );
+  }
+
   void _showMenu(BuildContext context) {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
@@ -284,13 +412,71 @@ class _ContactsTabState extends State<ContactsTab>
           _onRemove();
           break;
         case 'export':
-          // TODO: Implement export
+          _onExport();
           break;
         case 'import':
-          // TODO: Implement import
+          _onImport();
           break;
         case 'detach':
           windowService.createWindow('contacts');
+          break;
+      }
+    });
+  }
+
+  /// Shows a right-click / long-press context menu for a single contact row.
+  void _showContactContextMenu(int index, Offset position) {
+    if (index < 0 || index >= _contacts.length) return;
+
+    // Select the right-clicked row so the edit/remove actions operate on it.
+    setState(() {
+      _selectedIndices
+        ..clear()
+        ..add(index);
+    });
+
+    const menuItemPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
+    const menuItemHeight = 32.0;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        position & const Size(40, 40),
+        Offset.zero & overlay.size,
+      ),
+      items: const [
+        PopupMenuItem<String>(
+          value: 'edit',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(children: [SizedBox(width: 20), Text('Edit...')]),
+        ),
+        PopupMenuItem<String>(
+          value: 'remove',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(children: [SizedBox(width: 20), Text('Remove')]),
+        ),
+        PopupMenuDivider(height: 8),
+        PopupMenuItem<String>(
+          value: 'add',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(children: [SizedBox(width: 20), Text('Add...')]),
+        ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+      switch (value) {
+        case 'edit':
+          _onEdit();
+          break;
+        case 'remove':
+          _onRemove();
+          break;
+        case 'add':
+          _onAdd();
           break;
       }
     });
@@ -505,6 +691,16 @@ class _ContactsTabState extends State<ContactsTab>
           _selectedIndices.add(index);
         });
         _onEdit();
+      },
+      onSecondaryTapDown: (details) =>
+          _showContactContextMenu(index, details.globalPosition),
+      onLongPress: () {
+        // Touch-friendly fallback for platforms without a right mouse button.
+        final box = context.findRenderObject() as RenderBox?;
+        final position = box != null
+            ? box.localToGlobal(box.size.center(Offset.zero))
+            : Offset.zero;
+        _showContactContextMenu(index, position);
       },
       child: Container(
         clipBehavior: Clip.hardEdge,
