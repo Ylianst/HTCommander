@@ -39,10 +39,34 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   bool _showAllChannels = false;
   int _vfo2LastChannelId = -1;
 
+  // In compact mode (limited height), false shows the radio display while true
+  // shows the channel list filling the whole area. Toggled via a small button.
+  bool _compactShowChannels = false;
+
   // Display panel background color (same as C# app)
   static const Color _displayBgColor = Color(0xFF565658);
   static const Color _activeVfoColor = Color(0xFFDDD300); // Yellow when active
   static const Color _inactiveColor = Color(0xFFD3D3D3); // LightGray
+
+  // --- Radio image geometry (Radio.png is 341x848). The LCD display sits at
+  // (84, 215) with size (205, 189) in the original image. ---------------------
+  static const double _kImageAspectRatio = 848 / 341;
+  static const double _kDisplayLeft = 84 / 341;
+  static const double _kDisplayTop = 215 / 848;
+  static const double _kDisplayWidth = 205 / 341;
+  static const double _kDisplayHeight = 189 / 848;
+  static const double _kFriendlyNameTop = 106 / 848; // above the display
+  static const double _kFixedImageWidth = 280.0; // fixed radio width
+  static const double _kDisplayLeftOffset = -8.0; // fine-tuning
+  static const double _kFriendlyNameTopOffset = 8.0; // fine-tuning
+
+  // Below this available height the panel switches to compact mode (show the
+  // radio OR the channels, toggled by a button).
+  static const double _kCompactModeMaxHeight = 320.0;
+  // At/above this available height the decorative top of the radio image (and
+  // friendly name) is shown in full. Between this height and the fully-cropped
+  // height the top is progressively cropped down to 6px above the VFO A label.
+  static const double _kCropStartHeight = 560.0;
 
   @override
   void initState() {
@@ -576,120 +600,63 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   Widget _buildRadioDisplayWithChannels() {
-    // Radio.png dimensions: 341x848, aspect ratio ~2.486
-    // Display panel position in original image: (84, 215) size (205, 189)
-    const double imageAspectRatio = 848 / 341;
-    const double displayLeft = 84 / 341;
-    const double displayTop = 215 / 848;
-    const double displayWidth = 205 / 341;
-    const double displayHeight = 189 / 848;
-    const double friendlyNameTop =
-        106 / 848; // Approximate position above display
-
-    // Fixed radio width for consistent appearance
-    const double fixedImageWidth = 280.0;
-
-    // Pixel adjustments for fine-tuning
-    const double displayLeftOffset = -8.0;
-    const double friendlyNameTopOffset = 8.0;
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Use fixed image width, centered in container
-        final double imageWidth = fixedImageWidth;
-        // Calculate left margin to center the radio
+        final double maxHeight = constraints.maxHeight;
+        // Use fixed image width, centered in container.
+        const double imageWidth = _kFixedImageWidth;
         final double leftMargin = (constraints.maxWidth - imageWidth) / 2;
-        // Calculate scaled image height based on fixed width
-        final double scaledImageHeight = imageWidth * imageAspectRatio;
+        final double scaledImageHeight = imageWidth * _kImageAspectRatio;
+        final double displayPanelTop = scaledImageHeight * _kDisplayTop;
 
-        // RSSI bar position: just below GPS text
+        // Maximum amount we can crop off the top: bring the top edge to 6px
+        // above the VFO A label. The VFO A label sits ~18px above the display
+        // panel top (Transform.translate -20 + 2px container padding).
+        final double maxTopCrop = (displayPanelTop - 18 - 6).clamp(
+          0.0,
+          double.infinity,
+        );
+
+        // Decide compact mode (very limited height).
+        final bool compact = maxHeight < _kCompactModeMaxHeight;
+
+        // Progressive top crop based on available height.
+        final double topCrop = compact
+            ? maxTopCrop
+            : (_kCropStartHeight - maxHeight).clamp(0.0, maxTopCrop);
+
+        // RSSI bar position: just below GPS text (shifted up by the crop).
         final double rssiTop =
-            scaledImageHeight * (displayTop + displayHeight) + 2 - 50;
+            scaledImageHeight * (_kDisplayTop + _kDisplayHeight) +
+            2 -
+            50 -
+            topCrop;
 
-        // Calculate maximum channels panel height (24 pixels below RSSI bar)
-        final double maxChannelsPanelTop =
-            rssiTop + 6 + 24; // RSSI bar height + 24px margin
-        final double maxChannelsPanelHeight =
-            constraints.maxHeight - maxChannelsPanelTop;
+        if (compact) {
+          return _buildCompactLayout(
+            constraints: constraints,
+            leftMargin: leftMargin,
+            scaledImageHeight: scaledImageHeight,
+            topCrop: topCrop,
+            rssiTop: rssiTop,
+          );
+        }
+
+        // Maximum channels panel height (24 pixels below RSSI bar).
+        final double maxChannelsPanelTop = rssiTop + 6 + 24;
+        final double maxChannelsPanelHeight = maxHeight - maxChannelsPanelTop;
 
         return Stack(
           clipBehavior: Clip.hardEdge,
           children: [
-            // Radio background image - fixed width, centered
-            Positioned(
-              top: 0,
-              left: leftMargin,
-              width: imageWidth,
-              height: scaledImageHeight,
-              child: Image.asset(
-                'assets/images/Radio.png',
-                fit: BoxFit.fitWidth,
-                alignment: Alignment.topCenter,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey.shade800,
-                    child: const Center(
-                      child: Icon(
-                        Icons.radio,
-                        size: 100,
-                        color: Colors.white54,
-                      ),
-                    ),
-                  );
-                },
-              ),
+            ..._buildRadioLayers(
+              leftMargin: leftMargin,
+              scaledImageHeight: scaledImageHeight,
+              topCrop: topCrop,
+              rssiTop: rssiTop,
             ),
-
-            // Overlay the display panel on top of the radio LCD area
-            Positioned(
-              left: leftMargin + (imageWidth * displayLeft) + displayLeftOffset,
-              top: scaledImageHeight * displayTop,
-              width: imageWidth * displayWidth,
-              child: _buildDisplayPanel(),
-            ),
-
-            // Friendly name overlay (above the display)
-            if (_friendlyName.isNotEmpty)
-              Positioned(
-                left: leftMargin + 4,
-                width: imageWidth,
-                top:
-                    scaledImageHeight * friendlyNameTop + friendlyNameTopOffset,
-                child: Center(
-                  child: Text(
-                    _friendlyName,
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ),
-              ),
-
-            // RSSI / Transmit bar
-            if (_isConnected && (_rssi > 0 || _isTransmitting))
-              Positioned(
-                left:
-                    leftMargin + (imageWidth * displayLeft) + displayLeftOffset,
-                top: rssiTop,
-                width: imageWidth * displayWidth,
-                height: 6,
-                child: _isTransmitting
-                    ? Container(color: Colors.red)
-                    : ClipRRect(
-                        borderRadius: BorderRadius.circular(1),
-                        child: LinearProgressIndicator(
-                          value: _rssi / 15,
-                          backgroundColor: _displayBgColor,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.green,
-                          ),
-                        ),
-                      ),
-              ),
-
-            // Bottom panel - connect button or channels panel (full width, overlapping radio image)
+            // Bottom panel - connect button or channels panel (full width,
+            // overlapping the radio image).
             Positioned(
               left: 0,
               right: 0,
@@ -702,6 +669,164 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           ],
         );
       },
+    );
+  }
+
+  /// Builds the radio image, LCD display panel, friendly name and RSSI bar as
+  /// a list of positioned layers. Everything is shifted up by [topCrop] so the
+  /// decorative top of the radio (and the friendly name) is cropped away.
+  List<Widget> _buildRadioLayers({
+    required double leftMargin,
+    required double scaledImageHeight,
+    required double topCrop,
+    required double rssiTop,
+  }) {
+    return [
+      // Radio background image - fixed width, centered, cropped at the top.
+      Positioned(
+        top: -topCrop,
+        left: leftMargin,
+        width: _kFixedImageWidth,
+        height: scaledImageHeight,
+        child: Image.asset(
+          'assets/images/Radio.png',
+          fit: BoxFit.fitWidth,
+          alignment: Alignment.topCenter,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey.shade800,
+              child: const Center(
+                child: Icon(Icons.radio, size: 100, color: Colors.white54),
+              ),
+            );
+          },
+        ),
+      ),
+
+      // Overlay the display panel on top of the radio LCD area.
+      Positioned(
+        left:
+            leftMargin +
+            (_kFixedImageWidth * _kDisplayLeft) +
+            _kDisplayLeftOffset,
+        top: scaledImageHeight * _kDisplayTop - topCrop,
+        width: _kFixedImageWidth * _kDisplayWidth,
+        child: _buildDisplayPanel(),
+      ),
+
+      // Friendly name overlay (above the display). Cropped away first when the
+      // available height shrinks.
+      if (_friendlyName.isNotEmpty)
+        Positioned(
+          left: leftMargin + 4,
+          width: _kFixedImageWidth,
+          top:
+              scaledImageHeight * _kFriendlyNameTop +
+              _kFriendlyNameTopOffset -
+              topCrop,
+          child: Center(
+            child: Text(
+              _friendlyName,
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+        ),
+
+      // RSSI / Transmit bar.
+      if (_isConnected && (_rssi > 0 || _isTransmitting))
+        Positioned(
+          left:
+              leftMargin +
+              (_kFixedImageWidth * _kDisplayLeft) +
+              _kDisplayLeftOffset,
+          top: rssiTop,
+          width: _kFixedImageWidth * _kDisplayWidth,
+          height: 6,
+          child: _isTransmitting
+              ? Container(color: Colors.red)
+              : ClipRRect(
+                  borderRadius: BorderRadius.circular(1),
+                  child: LinearProgressIndicator(
+                    value: _rssi / 15,
+                    backgroundColor: _displayBgColor,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Colors.green,
+                    ),
+                  ),
+                ),
+        ),
+    ];
+  }
+
+  /// Compact layout used when the available height is very small. Shows either
+  /// the radio display or the channel list (filling the whole area), toggled
+  /// via a small button in the top-right corner.
+  Widget _buildCompactLayout({
+    required BoxConstraints constraints,
+    required double leftMargin,
+    required double scaledImageHeight,
+    required double topCrop,
+    required double rssiTop,
+  }) {
+    final bool hasChannels = _isConnected && _hasVisibleChannels;
+    final bool showChannels = hasChannels && _compactShowChannels;
+
+    return Stack(
+      clipBehavior: Clip.hardEdge,
+      children: [
+        if (showChannels)
+          Positioned.fill(
+            child: _buildChannelsGridFull(
+              constraints.maxWidth,
+              constraints.maxHeight,
+            ),
+          )
+        else ...[
+          ..._buildRadioLayers(
+            leftMargin: leftMargin,
+            scaledImageHeight: scaledImageHeight,
+            topCrop: topCrop,
+            rssiTop: rssiTop,
+          ),
+          // Connect button when disconnected (no channels to show).
+          if (!_isConnected)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildConnectPanel(),
+            ),
+        ],
+        // Toggle between the radio and the channels (only when channels exist).
+        if (hasChannels)
+          Positioned(top: 4, right: 4, child: _buildCompactToggleButton()),
+      ],
+    );
+  }
+
+  /// Small circular button shown in compact mode to switch between the radio
+  /// display and the channel list.
+  Widget _buildCompactToggleButton() {
+    return Material(
+      color: Colors.black54,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () =>
+            setState(() => _compactShowChannels = !_compactShowChannels),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(
+            _compactShowChannels ? Icons.radio : Icons.list,
+            size: 18,
+            color: Colors.white,
+          ),
+        ),
+      ),
     );
   }
 
@@ -905,17 +1030,19 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     );
   }
 
-  Widget _buildChannelsPanel(double panelWidth, double maxHeight) {
+  /// Channels visible given the current `_showAllChannels` setting.
+  List<RadioChannelInfo> get _visibleChannels {
     final channels = _currentChannels;
-    if (channels == null || channels.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (channels == null || channels.isEmpty) return const [];
+    if (_showAllChannels) return channels;
+    return channels.where((ch) => ch.name.isNotEmpty || ch.rxFreq > 0).toList();
+  }
 
-    // Filter channels based on _showAllChannels setting
-    final visibleChannels = _showAllChannels
-        ? channels
-        : channels.where((ch) => ch.name.isNotEmpty || ch.rxFreq > 0).toList();
+  /// Whether there are any channels to display.
+  bool get _hasVisibleChannels => _visibleChannels.isNotEmpty;
 
+  Widget _buildChannelsPanel(double panelWidth, double maxHeight) {
+    final visibleChannels = _visibleChannels;
     if (visibleChannels.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -956,75 +1083,112 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           mainAxisSpacing: 0,
         ),
         itemCount: visibleChannels.length,
-        itemBuilder: (context, index) {
-          final channel = visibleChannels[index];
-          final isChannelA = channel.channelId == selectedChannelA;
-          final isChannelB =
-              _isDualChannel && channel.channelId == selectedChannelB;
+        itemBuilder: (context, index) => _buildChannelTile(
+          visibleChannels[index],
+          selectedChannelA,
+          selectedChannelB,
+        ),
+      ),
+    );
+  }
 
-          Color bgColor;
-          if (_isNoaaChannel) {
-            // NOAA active - no highlighting
-            bgColor = const Color(0xFFBDB76B); // DarkKhaki
-          } else if (isChannelA) {
-            bgColor = const Color(0xFFEEE8AA); // PaleGoldenrod
-          } else if (isChannelB) {
-            bgColor = const Color(0xFFF0E68C); // Khaki
-          } else {
-            bgColor = const Color(0xFFBDB76B); // DarkKhaki
-          }
+  /// Channels grid that fills the whole area and scrolls if needed. Used in
+  /// compact mode to overlay the channels over the entire radio.
+  Widget _buildChannelsGridFull(double panelWidth, double maxHeight) {
+    final visibleChannels = _visibleChannels;
+    if (visibleChannels.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-          return GestureDetector(
-            onTap: () => _onChannelTap(channel.channelId),
-            onDoubleTap: () => _showChannelDetails(channel),
-            onSecondaryTapDown: (details) {
-              _showChannelContextMenu(context, details.globalPosition, channel);
-            },
-            onLongPressStart: (details) {
-              _showChannelContextMenu(context, details.globalPosition, channel);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(2),
-                border: Border.all(color: Colors.grey.shade600, width: 0.5),
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Only show frequency if there's enough vertical space (need ~28px for both)
-                  final bool showFrequency =
-                      channel.rxFreq > 0 && constraints.maxHeight >= 28;
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        channel.name.isNotEmpty
-                            ? channel.name
-                            : 'Ch ${channel.channelId + 1}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (showFrequency)
-                        Text(
-                          '${channel.frequencyDisplay} MHz',
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          );
-        },
+    final selectedChannelA = _channelA?.channelId ?? -1;
+    final selectedChannelB = _channelB?.channelId ?? -1;
+
+    return Container(
+      color: const Color(0xFFBDB76B), // DarkKhaki
+      child: GridView.builder(
+        padding: EdgeInsets.zero,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisExtent: 44,
+          crossAxisSpacing: 0,
+          mainAxisSpacing: 0,
+        ),
+        itemCount: visibleChannels.length,
+        itemBuilder: (context, index) => _buildChannelTile(
+          visibleChannels[index],
+          selectedChannelA,
+          selectedChannelB,
+        ),
+      ),
+    );
+  }
+
+  /// Builds a single channel tile shared by the normal and compact grids.
+  Widget _buildChannelTile(
+    RadioChannelInfo channel,
+    int selectedChannelA,
+    int selectedChannelB,
+  ) {
+    final isChannelA = channel.channelId == selectedChannelA;
+    final isChannelB = _isDualChannel && channel.channelId == selectedChannelB;
+
+    Color bgColor;
+    if (_isNoaaChannel) {
+      // NOAA active - no highlighting
+      bgColor = const Color(0xFFBDB76B); // DarkKhaki
+    } else if (isChannelA) {
+      bgColor = const Color(0xFFEEE8AA); // PaleGoldenrod
+    } else if (isChannelB) {
+      bgColor = const Color(0xFFF0E68C); // Khaki
+    } else {
+      bgColor = const Color(0xFFBDB76B); // DarkKhaki
+    }
+
+    return GestureDetector(
+      onTap: () => _onChannelTap(channel.channelId),
+      onDoubleTap: () => _showChannelDetails(channel),
+      onSecondaryTapDown: (details) {
+        _showChannelContextMenu(context, details.globalPosition, channel);
+      },
+      onLongPressStart: (details) {
+        _showChannelContextMenu(context, details.globalPosition, channel);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: Colors.grey.shade600, width: 0.5),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Only show frequency if there's enough vertical space (need ~28px for both)
+            final bool showFrequency =
+                channel.rxFreq > 0 && constraints.maxHeight >= 28;
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  channel.name.isNotEmpty
+                      ? channel.name
+                      : 'Ch ${channel.channelId + 1}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (showFrequency)
+                  Text(
+                    '${channel.frequencyDisplay} MHz',
+                    style: TextStyle(fontSize: 9, color: Colors.grey.shade700),
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
