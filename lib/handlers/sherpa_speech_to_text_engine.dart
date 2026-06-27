@@ -79,7 +79,10 @@ class SherpaSpeechToTextEngine implements SpeechToTextEngine {
 
     final model = SherpaModelManager.modelById(modelId);
     final modelDir = await SherpaModelManager.modelDirectory(model);
-    final paths = SherpaModelManager.resolveInstalledModelPaths(model, modelDir);
+    final paths = SherpaModelManager.resolveInstalledModelPaths(
+      model,
+      modelDir,
+    );
     if (_disposed) return false;
 
     try {

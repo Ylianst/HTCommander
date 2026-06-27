@@ -1508,10 +1508,7 @@ class _SettingsDialogState extends State<SettingsDialog>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            mapIntro,
-            style: DialogStyles.bodyStyle,
-          ),
+          Text(mapIntro, style: DialogStyles.bodyStyle),
           const SizedBox(height: 16),
           if (_serialGpsSupported) ...[
             // GPS Settings
