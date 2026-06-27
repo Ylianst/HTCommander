@@ -228,18 +228,13 @@ class WinlinkClient {
     _disposeAX25Session();
 
     // Get our callsign from settings
-    final myCallsignWithId =
-        _broker.getValue<String>(0, 'Callsign', 'N0CALL-0') ?? 'N0CALL-0';
-    String myCallsign;
-    int myStationId;
-    final myParsed = RadioUtils.parseCallsignWithId(myCallsignWithId);
-    if (myParsed == null) {
-      myCallsign = myCallsignWithId;
-      myStationId = 0;
-    } else {
-      myCallsign = myParsed.callsign;
-      myStationId = myParsed.stationId;
-    }
+    final myCallsign =
+        _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
+    final useStationId =
+        (_broker.getValue<int>(0, 'WinlinkUseStationId', 0) ?? 0) == 1;
+    final myStationId = useStationId
+        ? (_broker.getValue<int>(0, 'StationId', 0) ?? 0)
+        : 0;
 
     // Parse the destination callsign
     String destCallsign;
