@@ -2,6 +2,7 @@ import 'dart:io' show File;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../radio/packet_decoder.dart';
 import '../radio/tnc_data_fragment.dart';
@@ -155,6 +156,43 @@ class _PacketsTabState extends State<PacketsTab>
     setState(() {
       _selectedPacketIndex = index;
     });
+  }
+
+  void _showPacketContextMenu(
+    BuildContext context,
+    int index,
+    Offset globalPosition,
+  ) {
+    _onPacketSelected(index);
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        overlay.size.width - globalPosition.dx,
+        overlay.size.height - globalPosition.dy,
+      ),
+      items: const [
+        PopupMenuItem<String>(value: 'copyHex', child: Text('Copy HEX packet')),
+      ],
+    ).then((value) {
+      if (value == 'copyHex') {
+        _copyPacketHex(index);
+      }
+    });
+  }
+
+  void _copyPacketHex(int index) {
+    if (index < 0 || index >= _packets.length) return;
+    final hex = _packets[index].dataHex;
+    Clipboard.setData(ClipboardData(text: hex));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('HEX packet copied to clipboard')),
+      );
+    }
   }
 
   void _clearPackets() {
@@ -465,6 +503,11 @@ class _PacketsTabState extends State<PacketsTab>
                       final isSelected = _selectedPacketIndex == index;
                       return InkWell(
                         onTap: () => _onPacketSelected(index),
+                        onSecondaryTapDown: (details) => _showPacketContextMenu(
+                          context,
+                          index,
+                          details.globalPosition,
+                        ),
                         child: Container(
                           clipBehavior: Clip.hardEdge,
                           decoration: BoxDecoration(

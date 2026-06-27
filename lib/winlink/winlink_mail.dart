@@ -17,6 +17,28 @@ class WinLinkMailAttachement {
 
   String name;
   Uint8List data;
+
+  /// Serializes to a JSON-compatible map matching the C# backup format, where
+  /// the attachment bytes are encoded as a Base64 string.
+  Map<String, dynamic> toJson() => {'Name': name, 'Data': base64.encode(data)};
+
+  /// Recreates an attachment from a map produced by [toJson] (or by the C#
+  /// application's JSON backup).
+  static WinLinkMailAttachement fromJson(Map<String, dynamic> json) {
+    final rawData = json['Data'];
+    Uint8List bytes;
+    if (rawData is String) {
+      bytes = base64.decode(rawData);
+    } else if (rawData is List) {
+      bytes = Uint8List.fromList(rawData.cast<int>());
+    } else {
+      bytes = Uint8List(0);
+    }
+    return WinLinkMailAttachement(
+      name: (json['Name'] as String?) ?? '',
+      data: bytes,
+    );
+  }
 }
 
 /// Bit flags applied to a [WinLinkMail].
@@ -361,6 +383,56 @@ class WinLinkMail {
     }
 
     return currentMail;
+  }
+
+  /// Serializes to a JSON-compatible map matching the C# backup format, used by
+  /// the mail backup / restore feature.
+  Map<String, dynamic> toJson() => {
+    'MID': mid,
+    'DateTime': dateTime.toIso8601String(),
+    'From': from,
+    'To': to,
+    'Cc': cc,
+    'Subject': subject,
+    'Mbo': mbo,
+    'Body': body,
+    'Tag': tag,
+    'Location': location,
+    'Attachments': attachments?.map((a) => a.toJson()).toList(),
+    'Flags': flags,
+    'Mailbox': mailbox,
+  };
+
+  /// Recreates a mail from a map produced by [toJson] (or by the C#
+  /// application's JSON backup). Tolerant of missing keys.
+  static WinLinkMail fromJson(Map<String, dynamic> json) {
+    final mail = WinLinkMail();
+    mail.mid = json['MID'] as String?;
+    final dt = json['DateTime'];
+    if (dt is String && dt.isNotEmpty) {
+      mail.dateTime = DateTime.tryParse(dt) ?? DateTime.now();
+    }
+    mail.from = json['From'] as String?;
+    mail.to = json['To'] as String?;
+    mail.cc = json['Cc'] as String?;
+    mail.subject = json['Subject'] as String?;
+    mail.mbo = json['Mbo'] as String?;
+    mail.body = json['Body'] as String?;
+    mail.tag = json['Tag'] as String?;
+    mail.location = json['Location'] as String?;
+    final atts = json['Attachments'];
+    if (atts is List) {
+      mail.attachments = atts
+          .whereType<Map>()
+          .map(
+            (a) => WinLinkMailAttachement.fromJson(a.cast<String, dynamic>()),
+          )
+          .toList();
+    }
+    mail.flags = (json['Flags'] as num?)?.toInt() ?? 0;
+    final mailbox = json['Mailbox'] as String?;
+    if (mailbox != null && mailbox.isNotEmpty) mail.mailbox = mailbox;
+    return mail;
   }
 
   // Serialize a list of mails to a plain text format
