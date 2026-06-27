@@ -16,7 +16,15 @@ class CompatibleDevice {
   String name;
   final String mac;
 
-  CompatibleDevice({required this.name, required this.mac});
+  /// The original Bluetooth (discovered) name of the device, used as the
+  /// default name placeholder when renaming.
+  final String bluetoothName;
+
+  CompatibleDevice({
+    required this.name,
+    required this.mac,
+    this.bluetoothName = '',
+  });
 }
 
 /// Dialog for connecting to Bluetooth radios
@@ -42,7 +50,13 @@ class RadioConnectionDialog extends StatefulWidget {
   ) {
     return discovered
         .where((d) => d.isCompatibleRadio)
-        .map((d) => CompatibleDevice(name: d.name, mac: d.id))
+        .map(
+          (d) => CompatibleDevice(
+            name: d.name,
+            mac: d.id,
+            bluetoothName: d.name,
+          ),
+        )
         .toList();
   }
 
@@ -58,9 +72,6 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
 
   // Track deviceId -> MAC address mapping for state updates
   final Map<int, String> _deviceIdToMac = {};
-
-  // Selected MAC addresses
-  final Set<String> _selectedMacs = {};
 
   @override
   void initState() {
@@ -137,67 +148,45 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
     return _connectedRadioStates[macAddress.toUpperCase()] ?? 'Disconnected';
   }
 
-  bool get _hasDisconnectedSelected {
-    for (final mac in _selectedMacs) {
-      final status = _getRadioStatus(mac);
-      if (status == 'Disconnected' ||
-          status == 'UnableToConnect' ||
-          status == 'AccessDenied') {
-        return true;
-      }
-    }
-    return false;
+  bool _isConnectable(String status) {
+    return status == 'Disconnected' ||
+        status == 'UnableToConnect' ||
+        status == 'AccessDenied';
   }
 
-  bool get _hasConnectedSelected {
-    for (final mac in _selectedMacs) {
-      final status = _getRadioStatus(mac);
-      if (status == 'Connected' || status == 'Connecting') {
-        return true;
-      }
-    }
-    return false;
+  bool _isConnectedOrConnecting(String status) {
+    return status == 'Connected' || status == 'Connecting';
   }
 
-  void _onConnect() async {
+  String _friendlyNameForMac(String mac) {
+    for (final device in widget.devices) {
+      if (device.mac.toUpperCase() == mac.toUpperCase()) {
+        return device.name;
+      }
+    }
+    return '';
+  }
+
+  void _connectMac(String mac) async {
     final bluetoothService = BluetoothService();
-
-    for (final mac in _selectedMacs) {
-      final status = _getRadioStatus(mac);
-      if (status == 'Disconnected' ||
-          status == 'UnableToConnect' ||
-          status == 'AccessDenied') {
-        // Find the friendly name from the devices list
-        String friendlyName = '';
-        for (final device in widget.devices) {
-          if (device.mac.toUpperCase() == mac.toUpperCase()) {
-            friendlyName = device.name;
-            break;
-          }
-        }
-
-        // Connect using BluetoothService
-        await bluetoothService.connectToRadio(mac, friendlyName);
-      }
-    }
+    await bluetoothService.connectToRadio(mac, _friendlyNameForMac(mac));
   }
 
-  void _onDisconnect() async {
+  void _disconnectMac(String mac) async {
     final bluetoothService = BluetoothService();
+    await bluetoothService.disconnectRadioByMac(mac);
+  }
 
-    for (final mac in _selectedMacs) {
-      final status = _getRadioStatus(mac);
-      if (status == 'Connected' || status == 'Connecting') {
-        // Disconnect using BluetoothService
-        await bluetoothService.disconnectRadioByMac(mac);
-      }
+  void _toggleMac(String mac) {
+    final status = _getRadioStatus(mac);
+    if (_isConnectedOrConnecting(status)) {
+      _disconnectMac(mac);
+    } else if (_isConnectable(status)) {
+      _connectMac(mac);
     }
   }
 
-  void _onRename() {
-    if (_selectedMacs.length != 1) return;
-
-    final mac = _selectedMacs.first;
+  void _onRename(String mac) {
     final macKey = mac.toUpperCase();
 
     // Get the stored friendly names dictionary
@@ -206,14 +195,13 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
       'DeviceFriendlyName',
     );
 
-    // Get the original Bluetooth name from the stored DeviceBluetoothName dictionary
-    final bluetoothNames = DataBroker.getValue<Map<String, dynamic>>(
-      0,
-      'DeviceBluetoothName',
-    );
+    // Use the original discovered Bluetooth name as the default name.
     String defaultFriendlyName = '';
-    if (bluetoothNames != null && bluetoothNames.containsKey(macKey)) {
-      defaultFriendlyName = bluetoothNames[macKey] as String? ?? '';
+    for (final device in widget.devices) {
+      if (device.mac.toUpperCase() == macKey) {
+        defaultFriendlyName = device.bluetoothName;
+        break;
+      }
     }
 
     // Find the current custom name (if any) from the stored dictionary
@@ -345,23 +333,6 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
     return null;
   }
 
-  void _onDoubleTap(String mac) {
-    final status = _getRadioStatus(mac);
-    if (status == 'Disconnected' ||
-        status == 'UnableToConnect' ||
-        status == 'AccessDenied') {
-      _selectedMacs
-        ..clear()
-        ..add(mac);
-      _onConnect();
-    } else if (status == 'Connected' || status == 'Connecting') {
-      _selectedMacs
-        ..clear()
-        ..add(mac);
-      _onDisconnect();
-    }
-  }
-
   Color _getStatusColor(String status) {
     switch (status) {
       case 'Connected':
@@ -406,54 +377,73 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                         itemBuilder: (context, index) {
                           final device = widget.devices[index];
                           final status = _getRadioStatus(device.mac);
-                          final isSelected = _selectedMacs.contains(
-                            device.mac.toUpperCase(),
-                          );
+                          final connectable = _isConnectable(status);
+                          final connected = _isConnectedOrConnecting(status);
 
                           final displayName = device.name.isEmpty
                               ? device.mac
-                              : '${device.name} (${device.mac})';
+                              : device.name;
 
-                          return InkWell(
-                            onDoubleTap: () => _onDoubleTap(device.mac),
-                            onTap: () {
-                              setState(() {
-                                final macUpper = device.mac.toUpperCase();
-                                if (isSelected) {
-                                  _selectedMacs.remove(macUpper);
-                                } else {
-                                  _selectedMacs.add(macUpper);
-                                }
-                              });
-                            },
-                            child: ListTile(
-                              selected: isSelected,
-                              selectedTileColor: Colors.blue.withAlpha(50),
-                              title: Text(
-                                displayName,
-                                style: DialogStyles.bodyStyle,
+                          return ListTile(
+                            dense: true,
+                            visualDensity: VisualDensity.compact,
+                            leading: IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: connected ? 'Disconnect' : 'Connect',
+                              icon: Icon(
+                                connected
+                                    ? Icons.bluetooth_connected
+                                    : Icons.bluetooth_disabled,
+                                color: _getStatusColor(status),
                               ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: _getStatusColor(status),
+                              onPressed: (connected || connectable)
+                                  ? () => _toggleMac(device.mac)
+                                  : null,
+                            ),
+                            title: Text(
+                              displayName,
+                              style: DialogStyles.bodyStyle,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: device.name.isEmpty
+                                ? null
+                                : Text(
+                                    device.mac,
+                                    style: DialogStyles.bodyStyle.copyWith(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
                                     ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    width: 120,
-                                    child: Text(
-                                      status,
-                                      style: DialogStyles.bodyStyle,
-                                    ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: connected
+                                      ? 'Disconnect'
+                                      : 'Connect',
+                                  icon: Icon(
+                                    connected
+                                        ? Icons.link_off
+                                        : Icons.link,
+                                    color: connected
+                                        ? Colors.red
+                                        : Colors.green,
                                   ),
-                                ],
-                              ),
+                                  onPressed: connected
+                                      ? () => _disconnectMac(device.mac)
+                                      : (connectable
+                                            ? () => _connectMac(device.mac)
+                                            : null),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: 'Rename',
+                                  icon: const Icon(Icons.edit),
+                                  onPressed: () => _onRename(device.mac),
+                                ),
+                              ],
                             ),
                           );
                         },
@@ -466,21 +456,6 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              ElevatedButton(
-                onPressed: _hasDisconnectedSelected ? _onConnect : null,
-                child: const Text('Connect'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _hasConnectedSelected ? _onDisconnect : null,
-                child: const Text('Disconnect'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _selectedMacs.length == 1 ? _onRename : null,
-                child: const Text('Rename'),
-              ),
-              const SizedBox(width: 16),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('Close'),
