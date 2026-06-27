@@ -455,7 +455,9 @@ class BleRadioTransport implements RadioTransport {
     try {
       await rx.setNotifyValue(true, timeout: 3);
       _notifyRetryTimer?.cancel();
-      _logInfo('Web notify recovery succeeded; using notifications/indications.');
+      _logInfo(
+        'Web notify recovery succeeded; using notifications/indications.',
+      );
     } catch (_) {
       // Keep retry timer running while connected.
     }
@@ -521,10 +523,12 @@ class BleRadioTransport implements RadioTransport {
     }
 
     final pollIntervalMs = kIsWeb
-      ? (_usingReferenceWebProfile ? 80 : 120)
-      : 200;
+        ? (_usingReferenceWebProfile ? 80 : 120)
+        : 200;
     _rxPollTimer?.cancel();
-    _rxPollTimer = Timer.periodic(Duration(milliseconds: pollIntervalMs), (_) async {
+    _rxPollTimer = Timer.periodic(Duration(milliseconds: pollIntervalMs), (
+      _,
+    ) async {
       if (_rxPollInFlight || _state != TransportState.connected) return;
       _rxPollInFlight = true;
       try {
@@ -751,7 +755,9 @@ class BleRadioTransport implements RadioTransport {
             } else {
               _startRxPolling();
               _notifyRetryTimer?.cancel();
-              _notifyRetryTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+              _notifyRetryTimer = Timer.periodic(const Duration(seconds: 3), (
+                _,
+              ) {
                 _tryRearmWebNotify();
               });
             }
@@ -848,7 +854,9 @@ class BleRadioTransport implements RadioTransport {
       // Web BLE radios may expose two writable characteristics where only one
       // actually processes control commands. Mirror writes to improve
       // compatibility while probing the active endpoint.
-      if (kIsWeb && !_usingReferenceWebProfile && _altTxCharacteristic != null) {
+      if (kIsWeb &&
+          !_usingReferenceWebProfile &&
+          _altTxCharacteristic != null) {
         final alt = _altTxCharacteristic!;
         try {
           if (_txTraceCount < 20) {
