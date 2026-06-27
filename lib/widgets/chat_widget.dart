@@ -232,6 +232,9 @@ class _ChatWidgetState extends State<ChatWidget> {
   Widget _buildMessageItem(ChatMessage message, int index) {
     final showTimestamp = _shouldShowTimestamp(index);
     final hasText = message.message.trim().isNotEmpty;
+    // A bubble is shown when there is text or an inline image. Only an entry
+    // with neither has no bubble at all.
+    final hasBubble = hasText || message.imagePath != null;
     // When there is no bubble (empty text), the header is the only content, so
     // always show it. A header with an icon (e.g. a recording) is tappable.
     // Show the icon in the header when the bubble has no text, or when the
@@ -261,8 +264,8 @@ class _ChatWidgetState extends State<ChatWidget> {
           ),
         // Route/callsign header (above bubble, or standalone when no bubble)
         if (showRoute) _buildHeader(message, withIcon: iconHeader),
-        // Message bubble (only when there is text to show)
-        if (hasText) _buildBubble(message),
+        // Message bubble (shown when there is text or an inline image)
+        if (hasBubble) _buildBubble(message),
         const SizedBox(height: 4),
       ],
     );
@@ -372,34 +375,34 @@ class _ChatWidgetState extends State<ChatWidget> {
                   // Inline image (e.g. a decoded SSTV picture).
                   if (message.imagePath != null)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
+                      padding: EdgeInsets.only(
+                        bottom: message.message.isEmpty ? 0 : 6,
+                      ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: Image.file(
-                          File(message.imagePath!),
-                          fit: BoxFit.contain,
-                          gaplessPlayback: true,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const SizedBox.shrink(),
-                        ),
+                        child: _buildInlineImage(message.imagePath!),
                       ),
                     ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          message.message,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ),
-                      // Authentication indicator (lock = verified, broken =
-                      // failed). Surfaces AX25 auth state on the bubble itself,
-                      // complementing the bubble color coding.
-                      ..._buildAuthIcon(message),
-                    ],
-                  ),
+                  // Text row (hidden for image-only bubbles with no caption).
+                  if (message.message.isNotEmpty ||
+                      _buildAuthIcon(message).isNotEmpty)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (message.message.isNotEmpty)
+                          Flexible(
+                            child: Text(
+                              message.message,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        // Authentication indicator (lock = verified, broken =
+                        // failed). Surfaces AX25 auth state on the bubble itself,
+                        // complementing the bubble color coding.
+                        ..._buildAuthIcon(message),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -423,6 +426,31 @@ class _ChatWidgetState extends State<ChatWidget> {
   /// for messages that failed verification, and nothing otherwise. A shield
   /// (rather than a lock) is used so the indicator reads as "authenticated"
   /// rather than implying the message is encrypted.
+  /// Builds an inline image for a bubble (e.g. a decoded SSTV picture).
+  ///
+  /// SSTV pictures are written to the same file path repeatedly while the
+  /// image is still being received. A plain [FileImage] is keyed only by its
+  /// path, so the image cache (and the already-resolved [Image] stream) keeps
+  /// showing the first decode and never refreshes. Keying the provider on the
+  /// file's last-modified time forces a reload whenever the file is rewritten,
+  /// while [gaplessPlayback] keeps the previous frame visible until the new one
+  /// is decoded so the bubble updates smoothly.
+  Widget _buildInlineImage(String path) {
+    final file = File(path);
+    int version = 0;
+    try {
+      version = file.lastModifiedSync().millisecondsSinceEpoch;
+    } catch (_) {
+      // File may not exist yet; fall back to a stable version.
+    }
+    return Image(
+      image: _VersionedFileImage(file, version),
+      fit: BoxFit.contain,
+      gaplessPlayback: true,
+      errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+    );
+  }
+
   List<Widget> _buildAuthIcon(ChatMessage message) {
     final IconData icon;
     final Color color;
@@ -452,4 +480,26 @@ class _ChatWidgetState extends State<ChatWidget> {
       ),
     ];
   }
+}
+
+/// A [FileImage] whose identity also depends on a [version] token, so the same
+/// file path can be reloaded (bypassing the image cache) when the underlying
+/// file is rewritten — used for in-progress SSTV pictures that are saved to the
+/// same path as scan lines are received.
+class _VersionedFileImage extends FileImage {
+  const _VersionedFileImage(super.file, this.version);
+
+  final int version;
+
+  @override
+  bool operator ==(Object other) {
+    if (other.runtimeType != runtimeType) return false;
+    return other is _VersionedFileImage &&
+        other.file.path == file.path &&
+        other.scale == scale &&
+        other.version == version;
+  }
+
+  @override
+  int get hashCode => Object.hash(file.path, scale, version);
 }

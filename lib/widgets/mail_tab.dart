@@ -70,6 +70,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   // Raw Winlink mail keyed by MID, used for read-flag updates and lookups.
   final Map<String, WinLinkMail> _rawMails = {};
 
+  // Transient status shown in the bottom panel while mail is being processed.
+  String? _transferStatus;
+  // Persistent error shown in the bottom panel until the user dismisses it.
+  String? _errorMessage;
+
   final DataBrokerClient _broker = DataBrokerClient();
 
   @override
@@ -89,6 +94,21 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       name: 'MailStoreReady',
       callback: _onMailsChanged,
     );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkStateMessage',
+      callback: _onWinlinkStateMessage,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkError',
+      callback: _onWinlinkError,
+    );
+    // Pick up any status that was already set before this tab was built.
+    final initialStatus = _broker.getValueDynamic(1, 'WinlinkStateMessage');
+    if (initialStatus is String && initialStatus.isNotEmpty) {
+      _transferStatus = initialStatus;
+    }
     _loadMails();
   }
 
@@ -111,6 +131,23 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
 
   void _onMailsChanged(int deviceId, String name, Object? data) {
     if (mounted) _loadMails();
+  }
+
+  void _onWinlinkStateMessage(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final status = (data is String && data.isNotEmpty) ? data : null;
+    setState(() => _transferStatus = status);
+  }
+
+  void _onWinlinkError(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    if (data is String && data.isNotEmpty) {
+      setState(() => _errorMessage = data);
+    }
+  }
+
+  void _dismissError() {
+    setState(() => _errorMessage = null);
   }
 
   /// Loads all mail from the global MailStore and groups it by mailbox.
@@ -255,6 +292,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   }
 
   void _connectInternet() {
+    _dismissError();
     _broker.dispatch(
       deviceId: 1,
       name: 'WinlinkSync',
@@ -264,6 +302,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   }
 
   void _connectRadio(int radioId) async {
+    _dismissError();
     final station = await showActiveStationSelector(
       context,
       stationType: StationType.winlink,
@@ -562,8 +601,80 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                 )
               : _buildMailListArea(),
         ),
+        _buildStatusPanel(),
       ],
     );
+  }
+
+  /// Bottom panel showing either a persistent error (with a dismiss button) or
+  /// a transient transfer status while mail is being processed. Mirrors the C#
+  /// mailTransferStatusPanel behaviour, with an added error display.
+  Widget _buildStatusPanel() {
+    if (_errorMessage != null) {
+      return Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFDECEA),
+          border: Border(top: BorderSide(color: Color(0xFFE0A0A0))),
+        ),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Color(0xFFC62828), size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(color: Color(0xFFB71C1C), fontSize: 13),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 28,
+              child: ElevatedButton(
+                onPressed: _dismissError,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                child: const Text('OK'),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final status = _transferStatus;
+    if (status != null && status.isNotEmpty) {
+      return Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          color: Color(0xFFE8E8E8),
+          border: Border(top: BorderSide(color: Color(0xFFC0C0C0))),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                status,
+                style: const TextStyle(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildSplitter(double totalHeight) {

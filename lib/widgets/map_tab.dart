@@ -565,8 +565,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     final target = targets[_centerToGpsCycleIndex];
     _centerToGpsCycleIndex = (_centerToGpsCycleIndex + 1) % targets.length;
 
-    final currentZoom = _mapController.camera.zoom;
-    _mapController.move(target, currentZoom < 12 ? 14 : currentZoom);
+    _mapController.move(target, _mapController.camera.zoom);
   }
 
   void _showMenu(BuildContext context) {

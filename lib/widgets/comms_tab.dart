@@ -52,6 +52,11 @@ class _CommsTabState extends State<CommsTab>
   bool _recordAudio = false;
   bool _allowTransmit = true;
 
+  /// Whether the radio shown in the Radio Panel is muted. While an SSTV image
+  /// is being received the audio is auto-muted; a banner with an Un-mute button
+  /// is shown so the user can restore audio.
+  bool _isMuted = false;
+
   /// Live microphone capture used by the push-to-talk (PTT) mode.
   MicrophoneCapture? _micCapture;
 
@@ -106,6 +111,11 @@ class _CommsTabState extends State<CommsTab>
       deviceId: DataBroker.allDevices,
       name: 'AudioState',
       callback: _onAudioStateChanged,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Mute',
+      callback: _onMuteChanged,
     );
 
     // Global voice handler state and history events (device 1).
@@ -168,6 +178,7 @@ class _CommsTabState extends State<CommsTab>
     _micGain = (_broker.getValue<double>(0, 'MicrophoneGain', 1.0) ?? 1.0)
         .clamp(1.0, 8.0);
     _audioEnabled = _readAudioState();
+    _isMuted = _readMuteState();
     _loadDecodedTextHistory();
 
     // Resolve the application-support path so decoded SSTV pictures can be
@@ -493,6 +504,7 @@ class _CommsTabState extends State<CommsTab>
     setState(() {
       _currentRadioDeviceId = _resolveCurrentRadioId();
       _audioEnabled = _readAudioState();
+      _isMuted = _readMuteState();
     });
     _updatePttMic();
   }
@@ -502,6 +514,7 @@ class _CommsTabState extends State<CommsTab>
     setState(() {
       _currentRadioDeviceId = data;
       _audioEnabled = _readAudioState();
+      _isMuted = _readMuteState();
     });
     _updatePttMic();
   }
@@ -511,6 +524,30 @@ class _CommsTabState extends State<CommsTab>
     if (_currentRadioDeviceId <= 0) return false;
     return _broker.getValue<bool>(_currentRadioDeviceId, 'AudioState', false) ??
         false;
+  }
+
+  /// Reads the current Mute state of the radio shown in the Radio Panel.
+  bool _readMuteState() {
+    if (_currentRadioDeviceId <= 0) return false;
+    return _broker.getValue<bool>(_currentRadioDeviceId, 'Mute', false) ??
+        false;
+  }
+
+  /// Handles Mute changes for the radio shown in the Radio Panel.
+  void _onMuteChanged(int deviceId, String name, Object? data) {
+    if (!mounted || deviceId != _currentRadioDeviceId) return;
+    if (data is bool) setState(() => _isMuted = data);
+  }
+
+  /// Un-mutes the radio shown in the Radio Panel.
+  void _onUnMutePressed() {
+    if (_currentRadioDeviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: _currentRadioDeviceId,
+      name: 'SetMute',
+      data: false,
+      store: false,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -615,6 +652,10 @@ class _CommsTabState extends State<CommsTab>
     String? filename,
   }) {
     final hasLocation = latitude != 0 || longitude != 0;
+    final imagePath = _sstvImagePath(encoding, filename);
+    // SSTV pictures show the mode/progress label in the header above the
+    // bubble; the bubble itself contains only the image.
+    final isPicture = encoding == 'Picture' && imagePath != null;
     final message = ChatMessage(
       id: completed
           ? '${time.millisecondsSinceEpoch}_${_messages.length}'
@@ -625,16 +666,17 @@ class _CommsTabState extends State<CommsTab>
         source: source,
         destination: destination,
         duration: duration,
+        pictureLabel: isPicture ? text : null,
       ),
       senderCallsign: source ?? '',
-      message: text,
+      message: isPicture ? '' : text,
       time: time,
       isSender: !isReceived,
       latitude: hasLocation ? latitude : null,
       longitude: hasLocation ? longitude : null,
       icon: _iconForEncoding(encoding),
       filename: filename,
-      imagePath: _sstvImagePath(encoding, filename),
+      imagePath: imagePath,
     );
     setState(() {
       _messages.removeWhere((m) => m.id == _partialMessageId);
@@ -699,6 +741,9 @@ class _CommsTabState extends State<CommsTab>
     final time = _parseTime(raw['time']);
     final hasLocation = latitude != 0 || longitude != 0;
     final filename = raw['filename'] as String?;
+    final imagePath = _sstvImagePath(encoding, filename);
+    // SSTV pictures show the mode label in the header; the bubble is image-only.
+    final isPicture = encoding == 'Picture' && imagePath != null;
 
     return ChatMessage(
       id: completed
@@ -710,16 +755,17 @@ class _CommsTabState extends State<CommsTab>
         source: source,
         destination: destination,
         duration: duration,
+        pictureLabel: isPicture ? text : null,
       ),
       senderCallsign: source ?? '',
-      message: text,
+      message: isPicture ? '' : text,
       time: time,
       isSender: !isReceived,
       latitude: hasLocation ? latitude : null,
       longitude: hasLocation ? longitude : null,
       icon: _iconForEncoding(encoding),
       filename: filename,
-      imagePath: _sstvImagePath(encoding, filename),
+      imagePath: imagePath,
     );
   }
 
@@ -736,15 +782,23 @@ class _CommsTabState extends State<CommsTab>
     String? source,
     String? destination,
     int duration = 0,
+    String? pictureLabel,
   }) {
     var encodingStr = _encodingDisplayName(encoding);
     if (encoding == 'Recording') {
       encodingStr = duration > 0
           ? 'Recording ${_formatDuration(duration)}'
           : 'Recording';
-      // Recordings show the channel name after the duration, e.g.
-      // "Recording 10s - MyHomeChannel".
-      return channel.isNotEmpty ? '$encodingStr - $channel' : encodingStr;
+      // Recordings show the channel name before the encoding, e.g.
+      // "[MyHomeChannel] Recording 10s".
+      return channel.isNotEmpty ? '[$channel] $encodingStr' : encodingStr;
+    }
+    // SSTV pictures show their mode/progress label (e.g. "Robot 36 Color")
+    // in the header instead of the generic "SSTV" tag.
+    if (encoding == 'Picture' &&
+        pictureLabel != null &&
+        pictureLabel.isNotEmpty) {
+      encodingStr = pictureLabel;
     }
     var callsignPart = '';
     if (source != null && source.isNotEmpty) {
@@ -1042,6 +1096,22 @@ class _CommsTabState extends State<CommsTab>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
     );
+  }
+
+  /// The label shown on the Send button, reflecting the current transmit mode
+  /// so the user can tell at a glance what pressing it will do.
+  String get _sendButtonLabel {
+    switch (_currentMode) {
+      case VoiceTransmitMode.speak:
+        return 'Speak';
+      case VoiceTransmitMode.morse:
+        return 'Morse';
+      case VoiceTransmitMode.dtmf:
+        return 'DTMF';
+      case VoiceTransmitMode.chat:
+      case VoiceTransmitMode.ptt:
+        return 'Send';
+    }
   }
 
   /// Serializes a [VoiceTransmitMode] to its stored string name.
@@ -1595,6 +1665,7 @@ class _CommsTabState extends State<CommsTab>
       child: Column(
         children: [
           _buildHeader(),
+          if (_isMuted) _buildMuteBanner(),
           Expanded(
             child: DropTarget(
               onDragEntered: (_) {
@@ -1625,6 +1696,36 @@ class _CommsTabState extends State<CommsTab>
           else if (_allowTransmit && !_isTransmitting)
             _buildInputPanel(),
           if (_isTransmitting) _buildCancelPanel(),
+        ],
+      ),
+    );
+  }
+
+  /// Banner shown above the chat when the radio is muted (e.g. auto-muted while
+  /// receiving an SSTV image). Mirrors the C# mutePanel: a misty-rose strip
+  /// with an "Audio is muted." message and an Un-mute button.
+  Widget _buildMuteBanner() {
+    return Container(
+      color: const Color(0xFFFFE4E1), // MistyRose
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          const Icon(Icons.volume_off, size: 18, color: Colors.black54),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text('Audio is muted.', style: TextStyle(fontSize: 14)),
+          ),
+          SizedBox(
+            height: 28,
+            child: ElevatedButton(
+              onPressed: _onUnMutePressed,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                textStyle: const TextStyle(fontSize: 12),
+              ),
+              child: const Text('Un-mute'),
+            ),
+          ),
         ],
       ),
     );
@@ -1826,7 +1927,7 @@ class _CommsTabState extends State<CommsTab>
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
-                child: const Text('Send'),
+                child: Text(_sendButtonLabel),
               ),
             ),
           ),
