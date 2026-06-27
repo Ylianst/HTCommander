@@ -244,6 +244,19 @@ Future<int?> _connectToRadioClassicImpl(
       );
     }
 
+    // Restore the user's GPS-enabled preference (device 0). Radios without
+    // GPS support silently ignore the enable command.
+    final gpsEnabledPref =
+        service._broker.getValue<bool>(0, 'GpsEnabled', false) ?? false;
+    if (gpsEnabledPref) {
+      service._broker.dispatch(
+        deviceId: deviceId,
+        name: 'SetGPS',
+        data: true,
+        store: false,
+      );
+    }
+
     service._broker.dispatch(
       deviceId: deviceId,
       name: 'MacAddress',
@@ -332,6 +345,19 @@ Future<int?> _connectToRadioBleImpl(
     radio.updateFriendlyName(friendlyName);
     service._radioInstances[deviceId] = radio;
     await radio.connect(transport);
+
+    // Restore the user's GPS-enabled preference (device 0). Radios without
+    // GPS support silently ignore the enable command.
+    final gpsEnabledPref =
+        service._broker.getValue<bool>(0, 'GpsEnabled', false) ?? false;
+    if (gpsEnabledPref) {
+      service._broker.dispatch(
+        deviceId: deviceId,
+        name: 'SetGPS',
+        data: true,
+        store: false,
+      );
+    }
 
     service._broker.dispatch(
       deviceId: deviceId,

@@ -688,6 +688,15 @@ class _MainFormState extends State<MainForm>
   void _onToggleGps() {
     final deviceId = _currentRadioDeviceId;
     if (deviceId <= 0) return;
+    // Persist the user's GPS-enabled preference (device 0) so GPS is
+    // automatically enabled when a radio connects. Radios without GPS
+    // support silently ignore the enable command.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'GpsEnabled',
+      data: !_gpsEnabled,
+      store: true,
+    );
     _broker.dispatch(
       deviceId: deviceId,
       name: 'SetGPS',

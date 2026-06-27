@@ -985,6 +985,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                   initialZoom: _initialZoom,
                   minZoom: 3,
                   maxZoom: 18,
+                  // In offline mode no tiles are fetched from the internet, so
+                  // render a neutral background behind the markers/tracks.
+                  backgroundColor: _isOfflineMode
+                      ? const Color(0xFFE0E0E0)
+                      : const Color(0xFFAAD3DF),
                   // Keep the map permanently north-up: allow all touch gestures
                   // except rotation (e.g. two-finger twist on a touch screen).
                   interactionOptions: const InteractionOptions(
@@ -993,16 +998,20 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                   onPositionChanged: _onMapPositionChanged,
                 ),
                 children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.htcommander.app',
-                    // Cancels tile requests that are no longer needed (e.g.
-                    // when panning/zooming quickly), which notably improves
-                    // performance on the web where browsers cap simultaneous
-                    // connections per host.
-                    tileProvider: CancellableNetworkTileProvider(),
-                  ),
+                  // Only fetch OpenStreetMap tiles when online. In offline mode
+                  // the tile layer is omitted entirely so nothing is loaded
+                  // from the internet.
+                  if (!_isOfflineMode)
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.htcommander.app',
+                      // Cancels tile requests that are no longer needed (e.g.
+                      // when panning/zooming quickly), which notably improves
+                      // performance on the web where browsers cap simultaneous
+                      // connections per host.
+                      tileProvider: CancellableNetworkTileProvider(),
+                    ),
                   if (tracks.isNotEmpty) PolylineLayer(polylines: tracks),
                   if (stationMarkers.isNotEmpty)
                     MarkerLayer(markers: stationMarkers),

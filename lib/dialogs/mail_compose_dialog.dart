@@ -157,7 +157,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
   }
 
   String _resolveFromCallsign() {
-    var fromCallsign = _broker.getValue<String>(0, 'Callsign', '') ?? '';
+    var fromCallsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
     final useStationId =
         (_broker.getValue<int>(0, 'WinlinkUseStationId', 0) ?? 0) == 1;
     if (useStationId) {
@@ -202,87 +202,146 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
     if (discard && mounted) Navigator.of(context).pop();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return HTDialog(
-      title: widget.isEdit ? 'Edit Message' : 'New Message',
-      maxWidth: 600,
-      maxHeight: 620,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: _toController,
-            onEditingComplete: () {
-              _toController.text = _cleanString(_toController.text);
-            },
-            decoration: InputDecoration(
-              labelText: 'To',
-              border: const OutlineInputBorder(),
-              isDense: true,
-              filled: !_toValid,
-              fillColor: _invalidColor,
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _ccController,
-            onEditingComplete: () {
-              _ccController.text = _cleanString(_ccController.text);
-            },
-            decoration: InputDecoration(
-              labelText: 'Cc',
-              border: const OutlineInputBorder(),
-              isDense: true,
-              filled: !_ccValid,
-              fillColor: _invalidColor,
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _subjectController,
-            decoration: const InputDecoration(
-              labelText: 'Subject',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: TextField(
-              controller: _bodyController,
-              expands: true,
-              maxLines: null,
-              minLines: null,
-              textAlignVertical: TextAlignVertical.top,
-              keyboardType: TextInputType.multiline,
-              decoration: const InputDecoration(
-                labelText: 'Message',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-            ),
-          ),
-        ],
+  // Helper for consistent input decoration (matches settings_dialog).
+  InputDecoration _inputDecoration({Color? fillColor}) {
+    return InputDecoration(
+      filled: true,
+      fillColor: fillColor ?? Colors.grey.shade100,
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
       ),
-      actions: [
-        TextButton(
-          onPressed: _onCancel,
-          style: DialogStyles.secondaryButtonStyle(context),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => _submit(isDraft: true),
-          style: DialogStyles.secondaryButtonStyle(context),
-          child: const Text('Save Draft'),
-        ),
-        ElevatedButton(
-          onPressed: _canSend ? () => _submit(isDraft: false) : null,
-          style: DialogStyles.primaryButtonStyle(context),
-          child: const Text('Send'),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.blue, width: 2),
+      ),
+    );
+  }
+
+  // Helper for section card styling (matches settings_dialog).
+  BoxDecoration _sectionDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
         ),
       ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: const Color(0xFFF5F5F5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 620),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Title
+              Text(
+                widget.isEdit ? 'Edit Message' : 'New Message',
+                style: DialogStyles.titleStyle,
+              ),
+              const SizedBox(height: 16),
+              // Fields section card
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: _sectionDecoration(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('To', style: DialogStyles.labelStyle),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: _toController,
+                        onEditingComplete: () {
+                          _toController.text = _cleanString(_toController.text);
+                        },
+                        decoration: _inputDecoration(
+                          fillColor: _toValid ? null : _invalidColor,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('Cc', style: DialogStyles.labelStyle),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: _ccController,
+                        onEditingComplete: () {
+                          _ccController.text = _cleanString(_ccController.text);
+                        },
+                        decoration: _inputDecoration(
+                          fillColor: _ccValid ? null : _invalidColor,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('Subject', style: DialogStyles.labelStyle),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: _subjectController,
+                        decoration: _inputDecoration(),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('Message', style: DialogStyles.labelStyle),
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: TextField(
+                          controller: _bodyController,
+                          expands: true,
+                          maxLines: null,
+                          minLines: null,
+                          textAlignVertical: TextAlignVertical.top,
+                          keyboardType: TextInputType.multiline,
+                          decoration: _inputDecoration(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _onCancel,
+                    style: DialogStyles.secondaryButtonStyle(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () => _submit(isDraft: true),
+                    style: DialogStyles.secondaryButtonStyle(context),
+                    child: const Text('Save Draft'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _canSend ? () => _submit(isDraft: false) : null,
+                    style: DialogStyles.primaryButtonStyle(context),
+                    child: const Text('Send'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
