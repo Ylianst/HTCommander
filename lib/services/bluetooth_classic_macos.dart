@@ -37,7 +37,6 @@ class BluetoothClassicMacOS {
   }
 
   final DataBrokerClient _broker = DataBrokerClient();
-  int _controlDataLogCount = 0;
   int _audioDataLogCount = 0;
 
   // Stream controllers for connection events and data
@@ -89,117 +88,116 @@ class BluetoothClassicMacOS {
   }
 
   void _setupEventChannel() {
-    _eventChannel.receiveBroadcastStream().listen((event) {
-      if (event is Map) {
-        final eventType = event['event'] as String?;
-        final rawAddress = event['address'] as String?;
+    _eventChannel.receiveBroadcastStream().listen(
+      (event) {
+        if (event is Map) {
+          final eventType = event['event'] as String?;
+          final rawAddress = event['address'] as String?;
 
-        if (eventType == null || rawAddress == null) return;
+          if (eventType == null || rawAddress == null) return;
 
-        // Normalize address to uppercase with colons
-        final address = _normalizeAddress(rawAddress);
+          // Normalize address to uppercase with colons
+          final address = _normalizeAddress(rawAddress);
 
-        switch (eventType) {
-          case 'connected':
-            _logInfo('Control event connected for $address');
-            _connectionController.add(
-              BluetoothClassicEvent(
-                type: BluetoothClassicEventType.connected,
-                address: address,
-              ),
-            );
-            break;
-          case 'disconnected':
-            _logInfo('Control event disconnected for $address');
-            _connectionController.add(
-              BluetoothClassicEvent(
-                type: BluetoothClassicEventType.disconnected,
-                address: address,
-              ),
-            );
-            // Clean up data controller
-            _dataControllers[address]?.close();
-            _dataControllers.remove(address);
-            break;
-          case 'data':
-            final bytes = _coerceBytes(event['data']);
-            if (bytes != null) {
-              if (_controlDataLogCount < 60) {
-                _controlDataLogCount++;
-                _logInfo(
-                  'Control event data[$_controlDataLogCount] ${bytes.length} byte(s) '
-                  'for $address: ${_previewBytes(bytes)}',
+          switch (eventType) {
+            case 'connected':
+              _logInfo('Control event connected for $address');
+              _connectionController.add(
+                BluetoothClassicEvent(
+                  type: BluetoothClassicEventType.connected,
+                  address: address,
+                ),
+              );
+              break;
+            case 'disconnected':
+              _logInfo('Control event disconnected for $address');
+              _connectionController.add(
+                BluetoothClassicEvent(
+                  type: BluetoothClassicEventType.disconnected,
+                  address: address,
+                ),
+              );
+              // Clean up data controller
+              _dataControllers[address]?.close();
+              _dataControllers.remove(address);
+              break;
+            case 'data':
+              final bytes = _coerceBytes(event['data']);
+              if (bytes != null) {
+                _getOrCreateDataController(address).add(bytes);
+              } else {
+                _logError(
+                  'Control event data for $address had unexpected type '
+                  '${event['data']?.runtimeType}',
                 );
               }
-              _getOrCreateDataController(address).add(bytes);
-            } else {
-              _logError(
-                'Control event data for $address had unexpected type '
-                '${event['data']?.runtimeType}',
-              );
-            }
-            break;
+              break;
+          }
         }
-      }
-    }, onError: (error) {
-      _logError('Control EventChannel error: $error');
-    });
+      },
+      onError: (error) {
+        _logError('Control EventChannel error: $error');
+      },
+    );
   }
 
   void _setupAudioEventChannel() {
-    _audioEventChannel.receiveBroadcastStream().listen((event) {
-      if (event is Map) {
-        final eventType = event['event'] as String?;
-        final rawAddress = event['address'] as String?;
+    _audioEventChannel.receiveBroadcastStream().listen(
+      (event) {
+        if (event is Map) {
+          final eventType = event['event'] as String?;
+          final rawAddress = event['address'] as String?;
 
-        if (eventType == null || rawAddress == null) return;
+          if (eventType == null || rawAddress == null) return;
 
-        final address = _normalizeAddress(rawAddress);
+          final address = _normalizeAddress(rawAddress);
 
-        switch (eventType) {
-          case 'connected':
-            _logInfo('Audio event connected for $address');
-            _audioConnectionController.add(
-              BluetoothClassicEvent(
-                type: BluetoothClassicEventType.connected,
-                address: address,
-              ),
-            );
-            break;
-          case 'disconnected':
-            _logInfo('Audio event disconnected for $address');
-            _audioConnectionController.add(
-              BluetoothClassicEvent(
-                type: BluetoothClassicEventType.disconnected,
-                address: address,
-              ),
-            );
-            _audioDataControllers[address]?.close();
-            _audioDataControllers.remove(address);
-            break;
-          case 'data':
-            final bytes = _coerceBytes(event['data']);
-            if (bytes != null) {
-              if (_audioDataLogCount < 60) {
-                _audioDataLogCount++;
-                _logInfo(
-                  'Audio event data[$_audioDataLogCount] ${bytes.length} byte(s) '
-                  'for $address: ${_previewBytes(bytes)}',
+          switch (eventType) {
+            case 'connected':
+              _logInfo('Audio event connected for $address');
+              _audioConnectionController.add(
+                BluetoothClassicEvent(
+                  type: BluetoothClassicEventType.connected,
+                  address: address,
+                ),
+              );
+              break;
+            case 'disconnected':
+              _logInfo('Audio event disconnected for $address');
+              _audioConnectionController.add(
+                BluetoothClassicEvent(
+                  type: BluetoothClassicEventType.disconnected,
+                  address: address,
+                ),
+              );
+              _audioDataControllers[address]?.close();
+              _audioDataControllers.remove(address);
+              break;
+            case 'data':
+              final bytes = _coerceBytes(event['data']);
+              if (bytes != null) {
+                if (_audioDataLogCount < 60) {
+                  _audioDataLogCount++;
+                  _logInfo(
+                    'Audio event data[$_audioDataLogCount] ${bytes.length} byte(s) '
+                    'for $address: ${_previewBytes(bytes)}',
+                  );
+                }
+                _getOrCreateAudioDataController(address).add(bytes);
+              } else {
+                _logError(
+                  'Audio event data for $address had unexpected type '
+                  '${event['data']?.runtimeType}',
                 );
               }
-              _getOrCreateAudioDataController(address).add(bytes);
-            } else {
-              _logError(
-                'Audio event data for $address had unexpected type '
-                '${event['data']?.runtimeType}',
-              );
-            }
-            break;
+              break;
+          }
         }
-      }
-    }, onError: (error) {
-      _logError('Audio EventChannel error: $error');
-    });
+      },
+      onError: (error) {
+        _logError('Audio EventChannel error: $error');
+      },
+    );
   }
 
   /// Normalize address to uppercase with colons
@@ -284,7 +282,9 @@ class BluetoothClassicMacOS {
           isConnected: map['isConnected'] as bool? ?? false,
         );
       }).toList();
-      _logInfo('Native compatible-device query returned ${devices.length} device(s)');
+      _logInfo(
+        'Native compatible-device query returned ${devices.length} device(s)',
+      );
       return devices;
     } catch (e) {
       _logError('findCompatibleDevices threw: $e');
@@ -309,7 +309,9 @@ class BluetoothClassicMacOS {
       final result = await _channel.invokeMethod<bool>('connect', {
         'address': address,
       });
-      _logInfo('Native Classic connect result for $address: ${result ?? false}');
+      _logInfo(
+        'Native Classic connect result for $address: ${result ?? false}',
+      );
       return result ?? false;
     } catch (e) {
       _logError('connect threw for $address: $e');
@@ -330,15 +332,10 @@ class BluetoothClassicMacOS {
   /// Send data to a connected device
   Future<bool> send(String address, Uint8List data) async {
     try {
-      _logInfo(
-        'Invoking native Classic send for $address (${data.length} byte(s)): '
-        '${_previewBytes(data)}',
-      );
       final result = await _channel.invokeMethod<bool>('send', {
         'address': address,
         'data': data,
       });
-      _logInfo('Native Classic send result for $address: ${result ?? false}');
       return result ?? false;
     } catch (e) {
       _logError('send threw for $address: $e');
