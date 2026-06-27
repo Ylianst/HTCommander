@@ -11,6 +11,10 @@ class MailViewerAttachment {
 }
 
 /// Shows the read-only mail viewer dialog (ports `MailViewerForm`).
+///
+/// The optional [onReply], [onReplyAll], [onForward] and [onDelete] callbacks
+/// enable the matching toolbar actions. When provided, the corresponding icon
+/// is shown; pressing it closes the viewer and then invokes the callback.
 Future<void> showMailViewerDialog(
   BuildContext context, {
   required String from,
@@ -20,6 +24,10 @@ Future<void> showMailViewerDialog(
   required String subject,
   required String body,
   List<MailViewerAttachment> attachments = const [],
+  VoidCallback? onReply,
+  VoidCallback? onReplyAll,
+  VoidCallback? onForward,
+  VoidCallback? onDelete,
 }) {
   return showDialog<void>(
     context: context,
@@ -31,6 +39,10 @@ Future<void> showMailViewerDialog(
       subject: subject,
       body: body,
       attachments: attachments,
+      onReply: onReply,
+      onReplyAll: onReplyAll,
+      onForward: onForward,
+      onDelete: onDelete,
     ),
   );
 }
@@ -44,6 +56,10 @@ class _MailViewerDialog extends StatelessWidget {
     required this.subject,
     required this.body,
     required this.attachments,
+    this.onReply,
+    this.onReplyAll,
+    this.onForward,
+    this.onDelete,
   });
 
   final String from;
@@ -53,6 +69,10 @@ class _MailViewerDialog extends StatelessWidget {
   final String subject;
   final String body;
   final List<MailViewerAttachment> attachments;
+  final VoidCallback? onReply;
+  final VoidCallback? onReplyAll;
+  final VoidCallback? onForward;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -80,45 +100,59 @@ class _MailViewerDialog extends StatelessWidget {
               ),
               Flexible(
                 child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: _sectionDecoration(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (from.isNotEmpty) _headerLine('From: ', from),
-                            if (to.isNotEmpty) _headerLine('To: ', to),
-                            if (cc.isNotEmpty) _headerLine('Cc: ', cc),
-                            _headerLine('Time: ', time.toLocal().toString()),
-                            if (subject.isNotEmpty)
-                              _headerLine('Subject: ', subject),
-                            if (attachments.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              _buildAttachments(),
-                            ],
+                  child: SelectionArea(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: _sectionDecoration(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (from.isNotEmpty) _headerLine('From: ', from),
+                          if (to.isNotEmpty) _headerLine('To: ', to),
+                          if (cc.isNotEmpty) _headerLine('Cc: ', cc),
+                          _headerLine('Time: ', _formatTime(time)),
+                          if (subject.isNotEmpty)
+                            _headerLine('Subject: ', subject),
+                          if (attachments.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            _buildAttachments(),
                           ],
-                        ),
+                          const Divider(height: 24),
+                          Text(body, style: DialogStyles.bodyStyle),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: _sectionDecoration(),
-                        child: SelectableText(
-                          body,
-                          style: DialogStyles.bodyStyle,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (onReply != null)
+                    IconButton(
+                      icon: const Icon(Icons.reply, size: 20),
+                      onPressed: () => _runAction(context, onReply!),
+                      tooltip: 'Reply',
+                    ),
+                  if (onReplyAll != null)
+                    IconButton(
+                      icon: const Icon(Icons.reply_all, size: 20),
+                      onPressed: () => _runAction(context, onReplyAll!),
+                      tooltip: 'Reply All',
+                    ),
+                  if (onForward != null)
+                    IconButton(
+                      icon: const Icon(Icons.forward, size: 20),
+                      onPressed: () => _runAction(context, onForward!),
+                      tooltip: 'Forward',
+                    ),
+                  if (onDelete != null)
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _runAction(context, onDelete!),
+                      tooltip: 'Delete',
+                    ),
+                  const Spacer(),
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.primaryButtonStyle(context),
@@ -147,11 +181,27 @@ class _MailViewerDialog extends StatelessWidget {
     );
   }
 
+  /// Closes the viewer dialog and then runs [action]. Used by the toolbar
+  /// buttons so a follow-up compose/confirm dialog opens cleanly.
+  void _runAction(BuildContext context, VoidCallback action) {
+    Navigator.of(context).pop();
+    action();
+  }
+
+  /// Formats a received time for display as "YYYY-MM-DD HH:MM" (no seconds or
+  /// milliseconds), in local time.
+  static String _formatTime(DateTime time) {
+    final t = time.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${t.year}-${two(t.month)}-${two(t.day)} '
+        '${two(t.hour)}:${two(t.minute)}';
+  }
+
   Widget _headerLine(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
-      child: RichText(
-        text: TextSpan(
+      child: Text.rich(
+        TextSpan(
           style: DialogStyles.bodyStyle.copyWith(color: Colors.black),
           children: [
             TextSpan(
