@@ -361,6 +361,9 @@ class _MainFormState extends State<MainForm>
       false; // Audio path state of the currently displayed radio
   bool _gpsEnabled =
       false; // GPS enabled state of the currently displayed radio
+  int _regionCount =
+      0; // Number of regions offered by the currently displayed radio
+  int _currRegion = 0; // Current region index of the currently displayed radio
 
   // DataBroker client for subscriptions
   final DataBrokerClient _broker = DataBrokerClient();
@@ -514,6 +517,20 @@ class _MainFormState extends State<MainForm>
       deviceId: DataBroker.allDevices,
       name: 'GpsEnabled',
       callback: _onGpsEnabledChanged,
+    );
+
+    // Subscribe to Info changes from all radio devices (region count)
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Info',
+      callback: _onRadioInfoChanged,
+    );
+
+    // Subscribe to HtStatus changes from all radio devices (current region)
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'HtStatus',
+      callback: _onHtStatusChanged,
     );
 
     // Initialize tabs with saved index
@@ -682,6 +699,38 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  /// Handle Info changes from any radio device (region count).
+  void _onRadioInfoChanged(int deviceId, String name, Object? data) {
+    if (deviceId == _currentRadioDeviceId && data is Map) {
+      setState(() {
+        _regionCount = data['regionCount'] as int? ?? 0;
+      });
+    }
+  }
+
+  /// Handle HtStatus changes from any radio device (current region).
+  void _onHtStatusChanged(int deviceId, String name, Object? data) {
+    if (deviceId == _currentRadioDeviceId && data is Map) {
+      setState(() {
+        _currRegion = data['currRegion'] as int? ?? 0;
+      });
+    }
+  }
+
+  /// Select a region on the currently selected radio (mirrors the C#
+  /// regionToolStripMenuItem region item click). Dispatches a Region event
+  /// which the radio handles by switching to the requested region.
+  void _onSelectRegion(int regionIndex) {
+    final deviceId = _currentRadioDeviceId;
+    if (deviceId <= 0) return;
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'Region',
+      data: regionIndex,
+      store: false,
+    );
+  }
+
   /// Toggle GPS on the currently selected radio (mirrors the C#
   /// gPSEnabledToolStripMenuItem_Click). Dispatches a SetGPS event which the
   /// radio handles by enabling/disabling GPS notifications.
@@ -747,6 +796,19 @@ class _MainFormState extends State<MainForm>
               ) ??
               false)
         : false;
+    if (_currentRadioDeviceId > 0) {
+      final info = DataBroker.getValueDynamic(_currentRadioDeviceId, 'Info');
+      _regionCount = (info is Map ? info['regionCount'] as int? : null) ?? 0;
+      final htStatus = DataBroker.getValueDynamic(
+        _currentRadioDeviceId,
+        'HtStatus',
+      );
+      _currRegion =
+          (htStatus is Map ? htStatus['currRegion'] as int? : null) ?? 0;
+    } else {
+      _regionCount = 0;
+      _currRegion = 0;
+    }
     if (_currentRadioDeviceId > 0) {
       final settings = DataBroker.getValue<Map<String, dynamic>>(
         _currentRadioDeviceId,
@@ -1056,6 +1118,23 @@ class _MainFormState extends State<MainForm>
     return 'Radio $deviceId';
   }
 
+  /// Builds the items for the Radio > Regions submenu (mirrors the C#
+  /// regionToolStripMenuItem_DropDownOpening logic). One checkable item per
+  /// region the radio reports; the currently active region shows a checkmark.
+  List<AppMenuItem> _buildRegionMenuItems() {
+    if (!_hasConnectedRadio || _regionCount <= 0) {
+      return const [AppMenuAction(label: 'No Regions', onPressed: null)];
+    }
+    return List<AppMenuItem>.generate(
+      _regionCount,
+      (i) => AppMenuAction(
+        label: 'Region ${i + 1}',
+        checked: i == _currRegion,
+        onPressed: () => _onSelectRegion(i),
+      ),
+    );
+  }
+
   List<AppSubmenu> _buildMenuDefinition() {
     return [
       // Radio menu (Connect/Disconnect on top, radio settings below)
@@ -1087,14 +1166,11 @@ class _MainFormState extends State<MainForm>
             checked: _scanEnabled,
           ),
           AppMenuAction(
-            label: 'Regions',
-            onPressed: _hasConnectedRadio ? () {} : null,
-          ),
-          AppMenuAction(
-            label: 'GPS Enabled',
+            label: 'GPS',
             onPressed: _hasConnectedRadio ? _onToggleGps : null,
             checked: _gpsEnabled,
           ),
+          AppSubmenu(label: 'Regions', children: _buildRegionMenuItems()),
           const AppMenuDivider(),
           AppMenuAction(
             label: 'Export Channels...',

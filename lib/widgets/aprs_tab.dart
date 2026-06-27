@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pasteboard/pasteboard.dart';
 import 'chat_widget.dart';
 import '../dialogs/aprs_configuration_dialog.dart';
 import '../dialogs/aprs_details_dialog.dart';
 import '../dialogs/aprs_sms_dialog.dart';
 import '../dialogs/aprs_weather_dialog.dart';
 import '../dialogs/dialog_utils.dart';
+import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_beacon_settings_dialog.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
@@ -695,20 +700,17 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     );
   }
 
-  void _onMessageTap(ChatMessage message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Message from ${message.senderCallsign}'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
-  }
-
   /// Shows the APRS packet details dialog for a double-tapped message.
   void _onMessageDoubleTap(ChatMessage message) {
     final tag = message.tag;
     if (tag is! _AprsEntry) return;
-    AprsDetailsDialog.show(context, items: _buildDetailItems(tag));
+    AprsDetailsDialog.show(
+      context,
+      items: _buildDetailItems(tag),
+      latitude: message.latitude,
+      longitude: message.longitude,
+      locationTitle: message.senderCallsign,
+    );
   }
 
   /// Builds the name/value detail rows for an APRS entry, mirroring the C#
@@ -802,54 +804,94 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     return buffer.toString();
   }
 
-  void _onMessageLongPress(ChatMessage message) {
-    showModalBottomSheet(
+  void _onMessageContextMenu(ChatMessage message, Offset globalPosition) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final hasLocation =
+        message.latitude != null &&
+        message.longitude != null &&
+        (message.latitude != 0 || message.longitude != 0);
+
+    final selected = await showMenu<String>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.copy),
-              title: const Text('Copy message'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Message copied')));
-              },
-            ),
-            if (message.hasLocation)
-              ListTile(
-                leading: const Icon(Icons.map),
-                title: const Text('Show on map'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Location: ${message.latitude}, ${message.longitude}',
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ListTile(
-              leading: const Icon(Icons.reply),
-              title: const Text('Reply'),
-              onTap: () {
-                Navigator.pop(context);
-                setState(() {
-                  _selectedDestination = message.senderCallsign;
-                  _destinationController.text = message.senderCallsign;
-                });
-                _messageFocusNode.requestFocus();
-              },
-            ),
-          ],
-        ),
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(1, 1),
+        Offset.zero & overlay.size,
       ),
+      items: [
+        const PopupMenuItem<String>(
+          value: 'details',
+          child: Text('Details...'),
+        ),
+        if (hasLocation)
+          const PopupMenuItem<String>(
+            value: 'location',
+            child: Text('Show Location...'),
+          ),
+        if (!message.isSender)
+          const PopupMenuItem<String>(
+            value: 'setReceiver',
+            child: Text('Set as receiver'),
+          ),
+        const PopupMenuItem<String>(
+          value: 'copyMessage',
+          child: Text('Copy Message'),
+        ),
+        const PopupMenuItem<String>(
+          value: 'copyCallsign',
+          child: Text('Copy Callsign'),
+        ),
+      ],
     );
+
+    if (selected == null || !mounted) return;
+    switch (selected) {
+      case 'details':
+        _onMessageDoubleTap(message);
+        break;
+      case 'location':
+        showAprsLocationDialog(
+          context,
+          latitude: message.latitude!,
+          longitude: message.longitude!,
+          title: message.senderCallsign,
+        );
+        break;
+      case 'copyMessage':
+        _copyMessage(message);
+        break;
+      case 'setReceiver':
+        _setReceiver(message.senderCallsign);
+        break;
+      case 'copyCallsign':
+        Clipboard.setData(ClipboardData(text: message.senderCallsign));
+        break;
+    }
+  }
+
+  /// Sets the APRS receiver (destination) to [callsign], updating the input
+  /// field and persisting the choice via the data broker.
+  void _setReceiver(String callsign) {
+    final dest = callsign.toUpperCase();
+    setState(() {
+      _selectedDestination = dest;
+      _destinationController.text = dest;
+    });
+    _broker.dispatch(deviceId: 0, name: 'AprsDestination', data: dest);
+  }
+
+  /// Copies the message body to the clipboard. When the message carries an
+  /// inline image, the image bytes are placed on the clipboard instead.
+  Future<void> _copyMessage(ChatMessage message) async {
+    final imagePath = message.imagePath;
+    if (imagePath != null) {
+      final file = File(imagePath);
+      if (await file.exists()) {
+        final bytes = await file.readAsBytes();
+        await Pasteboard.writeImage(bytes);
+        return;
+      }
+    }
+    await Clipboard.setData(ClipboardData(text: message.message));
   }
 
   void _toggleShowAll() {
@@ -1008,9 +1050,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         Expanded(
           child: ChatWidget(
             messages: _messages,
-            onMessageTap: _onMessageTap,
             onMessageDoubleTap: _onMessageDoubleTap,
-            onMessageLongPress: _onMessageLongPress,
+            onMessageContextMenu: _onMessageContextMenu,
           ),
         ),
         if (_allowTransmit) _buildInputPanel(),

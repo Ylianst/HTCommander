@@ -7,10 +7,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pasteboard/pasteboard.dart';
 import 'package:path_provider/path_provider.dart';
 import 'chat_widget.dart';
 import '../dialogs/edit_ident_settings_dialog.dart';
 import '../dialogs/image_view_dialog.dart';
+import '../dialogs/message_details_dialog.dart';
 import '../dialogs/recording_playback_dialog.dart';
 import '../dialogs/sstv_send_dialog.dart';
 import '../sstv/encoder.dart';
@@ -677,6 +679,20 @@ class _CommsTabState extends State<CommsTab>
       icon: _iconForEncoding(encoding),
       filename: filename,
       imagePath: imagePath,
+      tag: CommsMessageDetails(
+        encoding: encoding,
+        time: time,
+        channel: channel,
+        isReceived: isReceived,
+        source: source,
+        destination: destination,
+        duration: duration,
+        latitude: hasLocation ? latitude : null,
+        longitude: hasLocation ? longitude : null,
+        text: text,
+        filename: filename,
+        imagePath: imagePath,
+      ),
     );
     setState(() {
       _messages.removeWhere((m) => m.id == _partialMessageId);
@@ -766,6 +782,20 @@ class _CommsTabState extends State<CommsTab>
       icon: _iconForEncoding(encoding),
       filename: filename,
       imagePath: imagePath,
+      tag: CommsMessageDetails(
+        encoding: encoding,
+        time: time,
+        channel: channel,
+        isReceived: isReceived,
+        source: source,
+        destination: destination,
+        duration: duration,
+        latitude: hasLocation ? latitude : null,
+        longitude: hasLocation ? longitude : null,
+        text: text,
+        filename: filename,
+        imagePath: imagePath,
+      ),
     );
   }
 
@@ -1233,28 +1263,28 @@ class _CommsTabState extends State<CommsTab>
     }
     // An SSTV picture was tapped: open it larger in a dialog.
     if (message.imagePath != null) {
-      showDialog<void>(
-        context: context,
-        builder: (context) => ImageViewDialog(
-          filePath: message.imagePath!,
-          title: message.message.isNotEmpty ? message.message : null,
-        ),
-      );
+      _showImage(message);
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Message from ${message.senderCallsign}'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    // Any other message does nothing on a single click.
   }
 
   void _onMessageDoubleTap(ChatMessage message) {
-    // Double-clicking a recording opens the playback dialog and starts playing.
-    if (message.icon == Icons.play_circle && message.filename != null) {
-      _openRecordingPlayback(message.filename!, autoPlay: true);
-    }
+    // Double-clicking any message shows its details.
+    _showMessageDetails(message);
+  }
+
+  /// Opens an SSTV picture larger in a dialog.
+  void _showImage(ChatMessage message) {
+    final imagePath = message.imagePath;
+    if (imagePath == null) return;
+    showDialog<void>(
+      context: context,
+      builder: (context) => ImageViewDialog(
+        filePath: imagePath,
+        title: message.message.isNotEmpty ? message.message : null,
+      ),
+    );
   }
 
   /// Resolves the full path of a recording (in the application-support
@@ -1284,53 +1314,179 @@ class _CommsTabState extends State<CommsTab>
     );
   }
 
-  void _onMessageLongPress(ChatMessage message) {
-    showModalBottomSheet(
+  void _onMessageContextMenu(ChatMessage message, Offset globalPosition) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final hasLocation =
+        message.latitude != null &&
+        message.longitude != null &&
+        (message.latitude != 0 || message.longitude != 0);
+    final isImage = message.imagePath != null;
+    final isRecording =
+        message.icon == Icons.play_circle && message.filename != null;
+
+    final selected = await showMenu<String>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.copy),
-              title: const Text('Copy message'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Message copied')));
-              },
-            ),
-            if (message.hasLocation)
-              ListTile(
-                leading: const Icon(Icons.map),
-                title: const Text('Show on map'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Location: ${message.latitude}, ${message.longitude}',
-                      ),
-                    ),
-                  );
-                },
-              ),
-            if (message.icon == Icons.play_circle)
-              ListTile(
-                leading: const Icon(Icons.play_arrow),
-                title: const Text('Play recording'),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (message.filename != null) {
-                    _openRecordingPlayback(message.filename!);
-                  }
-                },
-              ),
-          ],
-        ),
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(1, 1),
+        Offset.zero & overlay.size,
       ),
+      items: [
+        if (isImage)
+          const PopupMenuItem<String>(
+            value: 'showImage',
+            child: Text('Show Image...'),
+          ),
+        if (isRecording)
+          const PopupMenuItem<String>(
+            value: 'playRecording',
+            child: Text('Play Recording...'),
+          ),
+        if ((isImage || isRecording) && !kIsWeb)
+          const PopupMenuItem<String>(
+            value: 'saveAs',
+            child: Text('Save as...'),
+          ),
+        const PopupMenuItem<String>(
+          value: 'details',
+          child: Text('Details...'),
+        ),
+        if (hasLocation)
+          const PopupMenuItem<String>(
+            value: 'location',
+            child: Text('Show Location'),
+          ),
+        const PopupMenuItem<String>(
+          value: 'copyMessage',
+          child: Text('Copy Message'),
+        ),
+        const PopupMenuItem<String>(
+          value: 'copyCallsign',
+          child: Text('Copy Callsign'),
+        ),
+      ],
     );
+
+    if (selected == null || !mounted) return;
+    switch (selected) {
+      case 'showImage':
+        _showImage(message);
+        break;
+      case 'playRecording':
+        if (message.filename != null) {
+          _openRecordingPlayback(message.filename!);
+        }
+        break;
+      case 'saveAs':
+        _saveAs(message);
+        break;
+      case 'details':
+        _showMessageDetails(message);
+        break;
+      case 'location':
+        // Showing the location on the map is not implemented yet.
+        break;
+      case 'copyMessage':
+        _copyMessage(message);
+        break;
+      case 'copyCallsign':
+        Clipboard.setData(ClipboardData(text: message.senderCallsign));
+        break;
+    }
+  }
+
+  /// Shows the message details dialog for a Comms message.
+  void _showMessageDetails(ChatMessage message) {
+    final details = message.tag;
+    if (details is! CommsMessageDetails) return;
+    MessageDetailsDialog.show(context, details: details);
+  }
+
+  /// Prompts the user for a destination and saves the message's image or
+  /// recording file to disk.
+  Future<void> _saveAs(ChatMessage message) async {
+    if (kIsWeb) return;
+
+    // Resolve the source file: an inline image or a stored recording.
+    String? sourcePath;
+    if (message.imagePath != null) {
+      sourcePath = message.imagePath;
+    } else if (message.icon == Icons.play_circle && message.filename != null) {
+      final base = await getApplicationSupportDirectory();
+      sourcePath =
+          '${base.path}${Platform.pathSeparator}recordings'
+          '${Platform.pathSeparator}${message.filename}';
+    }
+    if (sourcePath == null) return;
+
+    final sourceFile = File(sourcePath);
+    if (!await sourceFile.exists()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('The file no longer exists.')),
+        );
+      }
+      return;
+    }
+
+    // Derive a default file name and extension from the source path.
+    final baseName = sourcePath.split(Platform.pathSeparator).last;
+    final dotIndex = baseName.lastIndexOf('.');
+    final extension = dotIndex > 0 ? baseName.substring(dotIndex + 1) : '';
+
+    String? outputPath;
+    try {
+      outputPath = await FilePicker.saveFile(
+        dialogTitle: 'Save As',
+        fileName: baseName,
+        type: extension.isNotEmpty ? FileType.custom : FileType.any,
+        allowedExtensions: extension.isNotEmpty ? [extension] : null,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening file dialog: $e')),
+        );
+      }
+      return;
+    }
+
+    if (outputPath == null) return;
+
+    // Ensure the chosen path keeps the original extension.
+    if (extension.isNotEmpty &&
+        !outputPath.toLowerCase().endsWith('.${extension.toLowerCase()}')) {
+      outputPath = '$outputPath.$extension';
+    }
+
+    try {
+      await sourceFile.copy(outputPath);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Saved to $outputPath')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving file: $e')));
+      }
+    }
+  }
+
+  /// Copies the message body to the clipboard. When the message carries an
+  /// inline image, the image bytes are placed on the clipboard instead.
+  Future<void> _copyMessage(ChatMessage message) async {
+    final imagePath = message.imagePath;
+    if (imagePath != null) {
+      final file = File(imagePath);
+      if (await file.exists()) {
+        final bytes = await file.readAsBytes();
+        await Pasteboard.writeImage(bytes);
+        return;
+      }
+    }
+    await Clipboard.setData(ClipboardData(text: message.message));
   }
 
   /// Shows a small context menu (anchored at [globalPosition]) that lets the
@@ -1686,7 +1842,7 @@ class _CommsTabState extends State<CommsTab>
                   messages: _messages,
                   onMessageTap: _onMessageTap,
                   onMessageDoubleTap: _onMessageDoubleTap,
-                  onMessageLongPress: _onMessageLongPress,
+                  onMessageContextMenu: _onMessageContextMenu,
                 ),
               ),
             ),
