@@ -309,14 +309,14 @@ class _SettingsDialogState extends State<SettingsDialog>
   static const List<int> _baudRates = [4800, 9600, 19200, 38400, 57600, 115200];
 
   /// Settings tabs in display order. On the web the radio is used over the BLE
-  /// control channel only, so the audio-centric "Voice" tab and the
+  /// control channel only, so the audio-centric "Comms" tab and the
   /// internet-service "Servers" / "Map" tabs are hidden. On Android/iOS the
   /// "Servers" tab is hidden. All tabs remain visible on desktop platforms.
   List<String> get _visibleTabs {
-    const all = ['License', 'APRS', 'Voice', 'Winlink', 'Servers', 'Map'];
+    const all = ['License', 'APRS', 'Comms', 'Winlink', 'Servers', 'Map'];
     if (kIsWeb) {
       return all
-          .where((t) => t != 'Voice' && t != 'Servers' && t != 'Map')
+          .where((t) => t != 'Comms' && t != 'Servers' && t != 'Map')
           .toList();
     }
     if (defaultTargetPlatform == TargetPlatform.android ||
@@ -333,8 +333,8 @@ class _SettingsDialogState extends State<SettingsDialog>
         return _buildLicenseTab();
       case 'APRS':
         return _buildAprsTab();
-      case 'Voice':
-        return _buildVoiceTab();
+      case 'Comms':
+        return _buildCommsTab();
       case 'Winlink':
         return _buildWinlinkTab();
       case 'Servers':
@@ -1113,7 +1113,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     }
   }
 
-  Widget _buildVoiceTab() {
+  Widget _buildCommsTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1143,7 +1143,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Used when sending text in "Speech" mode from the Voice tab.',
+                  'Used when sending text in "Speech" mode from the Comms tab.',
                   style: DialogStyles.bodyStyle,
                 ),
                 const SizedBox(height: 16),

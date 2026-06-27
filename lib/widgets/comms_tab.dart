@@ -23,14 +23,14 @@ import '../services/microphone_capture.dart';
 enum VoiceTransmitMode { chat, speak, morse, dtmf, ptt }
 
 /// Voice tab - audio communication controls
-class VoiceTab extends StatefulWidget {
-  const VoiceTab({super.key});
+class CommsTab extends StatefulWidget {
+  const CommsTab({super.key});
 
   @override
-  State<VoiceTab> createState() => _VoiceTabState();
+  State<CommsTab> createState() => _CommsTabState();
 }
 
-class _VoiceTabState extends State<VoiceTab>
+class _CommsTabState extends State<CommsTab>
     with AutomaticKeepAliveClientMixin {
   final List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
@@ -1536,7 +1536,7 @@ class _VoiceTabState extends State<VoiceTab>
           _confirmClearHistory();
           break;
         case 'detach':
-          windowService.createWindow('voice');
+          windowService.createWindow('comms');
           break;
       }
     });
@@ -1624,7 +1624,7 @@ class _VoiceTabState extends State<VoiceTab>
           return Row(
             children: [
               const Text(
-                'Voice',
+                'Communications',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               // Processing indicator

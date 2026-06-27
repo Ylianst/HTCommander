@@ -334,7 +334,6 @@ class RadioAudio {
       _audioConnSub = BluetoothClassicMacOS.instance.audioConnectionEvents
           .listen(_onAudioConnectionEvent);
 
-      _debug('Connecting to audio RFCOMM channel...');
       final ok = await BluetoothClassicMacOS.instance.connectAudio(macAddress);
       if (!ok) {
         _debug('Failed to open audio RFCOMM channel.');
@@ -360,7 +359,6 @@ class RadioAudio {
       _running = true;
       _connecting = false;
       _dispatchAudioStateChanged(true);
-      _debug('Ready to receive audio.');
     } catch (e) {
       _debug('Audio start error: $e');
       _running = false;

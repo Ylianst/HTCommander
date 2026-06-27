@@ -37,7 +37,6 @@ class BluetoothClassicMacOS {
   }
 
   final DataBrokerClient _broker = DataBrokerClient();
-  int _audioDataLogCount = 0;
 
   // Stream controllers for connection events and data
   final _connectionController =
@@ -69,16 +68,6 @@ class BluetoothClassicMacOS {
     _broker.logError('[BT-ClassicBridge] $msg');
   }
 
-  String _previewBytes(Uint8List data, {int max = 24}) {
-    if (data.isEmpty) return '';
-    final take = data.length < max ? data.length : max;
-    final parts = <String>[];
-    for (int i = 0; i < take; i++) {
-      parts.add(data[i].toRadixString(16).padLeft(2, '0').toUpperCase());
-    }
-    return data.length > max ? '${parts.join(' ')} ...' : parts.join(' ');
-  }
-
   Uint8List? _coerceBytes(dynamic data) {
     if (data is Uint8List) return data;
     if (data is List) {
@@ -101,7 +90,6 @@ class BluetoothClassicMacOS {
 
           switch (eventType) {
             case 'connected':
-              _logInfo('Control event connected for $address');
               _connectionController.add(
                 BluetoothClassicEvent(
                   type: BluetoothClassicEventType.connected,
@@ -154,7 +142,6 @@ class BluetoothClassicMacOS {
 
           switch (eventType) {
             case 'connected':
-              _logInfo('Audio event connected for $address');
               _audioConnectionController.add(
                 BluetoothClassicEvent(
                   type: BluetoothClassicEventType.connected,
@@ -176,13 +163,6 @@ class BluetoothClassicMacOS {
             case 'data':
               final bytes = _coerceBytes(event['data']);
               if (bytes != null) {
-                if (_audioDataLogCount < 60) {
-                  _audioDataLogCount++;
-                  _logInfo(
-                    'Audio event data[$_audioDataLogCount] ${bytes.length} byte(s) '
-                    'for $address: ${_previewBytes(bytes)}',
-                  );
-                }
                 _getOrCreateAudioDataController(address).add(bytes);
               } else {
                 _logError(
@@ -236,9 +216,7 @@ class BluetoothClassicMacOS {
   /// Check if Bluetooth is available
   Future<bool> isAvailable() async {
     try {
-      _logInfo('Checking Bluetooth Classic availability');
       final result = await _channel.invokeMethod<bool>('isAvailable');
-      _logInfo('Bluetooth Classic availability result: ${result ?? false}');
       return result ?? false;
     } catch (e) {
       _logError('isAvailable threw: $e');
@@ -269,7 +247,6 @@ class BluetoothClassicMacOS {
   /// Find compatible radio devices from paired devices
   Future<List<BluetoothClassicDevice>> findCompatibleDevices() async {
     try {
-      _logInfo('Requesting compatible Bluetooth Classic devices');
       final result = await _channel.invokeMethod<List>('findCompatibleDevices');
       if (result == null) return [];
 
@@ -282,9 +259,6 @@ class BluetoothClassicMacOS {
           isConnected: map['isConnected'] as bool? ?? false,
         );
       }).toList();
-      _logInfo(
-        'Native compatible-device query returned ${devices.length} device(s)',
-      );
       return devices;
     } catch (e) {
       _logError('findCompatibleDevices threw: $e');
@@ -305,13 +279,9 @@ class BluetoothClassicMacOS {
   /// Connect to a device by address
   Future<bool> connect(String address) async {
     try {
-      _logInfo('Invoking native Classic connect for $address');
       final result = await _channel.invokeMethod<bool>('connect', {
         'address': address,
       });
-      _logInfo(
-        'Native Classic connect result for $address: ${result ?? false}',
-      );
       return result ?? false;
     } catch (e) {
       _logError('connect threw for $address: $e');

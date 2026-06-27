@@ -17,7 +17,7 @@ import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
 import 'handlers/aprs_handler.dart';
 import 'handlers/airplane_handler.dart';
-import 'handlers/voice_handler.dart';
+import 'handlers/comms_handler.dart';
 import 'handlers/bbs_handler.dart';
 import 'handlers/debug_log_handler.dart';
 import 'gps/gps_serial_handler.dart';
@@ -30,7 +30,7 @@ import 'utils/channel_export.dart';
 import 'winlink/mail_store.dart';
 import 'winlink/winlink_client.dart';
 import 'widgets/radio_panel.dart';
-import 'widgets/voice_tab.dart';
+import 'widgets/comms_tab.dart';
 import 'widgets/audio_tab.dart';
 import 'widgets/aprs_tab.dart';
 import 'widgets/map_tab.dart';
@@ -84,11 +84,11 @@ void main(List<String> args) async {
   airplaneHandler.init();
   DataBroker.addDataHandler('AirplaneHandler', airplaneHandler);
 
-  // Register the voice handler so that audio from radios can be turned into a
-  // decoded text history and the voice tab can drive speech-to-text state.
-  final voiceHandler = VoiceHandler();
-  voiceHandler.init();
-  DataBroker.addDataHandler('VoiceHandler', voiceHandler);
+  // Register the comms handler so that audio from radios can be turned into a
+  // decoded text history and the comms tab can drive speech-to-text state.
+  final commsHandler = CommsHandler();
+  commsHandler.init();
+  DataBroker.addDataHandler('CommsHandler', commsHandler);
 
   // Register the GPS serial handler so that an external GPS receiver connected
   // to a serial port is read, its NMEA sentences parsed, and a GpsData object
@@ -192,9 +192,9 @@ class _SubWindowAppState extends State<SubWindowApp> {
     final windowType = widget.argument['window'] as String? ?? '';
 
     switch (windowType) {
-      case 'voice':
-        tabTitle = 'Voice';
-        tabContent = const VoiceTab();
+      case 'comms':
+        tabTitle = 'Communications';
+        tabContent = const CommsTab();
       case 'audio':
         tabTitle = 'Audio';
         tabContent = const AudioTab();
@@ -342,6 +342,9 @@ class _MainFormState extends State<MainForm>
   late List<_TabInfo> _currentTabs;
   bool _radioVisible = true;
   bool _showTabNames = true;
+  // Whether the vertical tab list on the right is shown. Only togglable while
+  // in compact mode; always shown when not in compact mode.
+  bool _tabsVisible = true;
   bool _showAllChannels = false;
   bool _isCompactMode = false;
   String _statusText = '';
@@ -393,7 +396,7 @@ class _MainFormState extends State<MainForm>
 
   // Tab definitions matching C# MainForm
   static const List<_TabInfo> _baseTabs = [
-    _TabInfo('Voice', 'assets/images/tabs/voice.png', Icons.mic),
+    _TabInfo('Comms', 'assets/images/tabs/voice.png', Icons.mic),
     _TabInfo('Audio', 'assets/images/tabs/audio.png', Icons.volume_up),
     _TabInfo('APRS', 'assets/images/tabs/aprs.png', Icons.people),
     _TabInfo('Map', 'assets/images/tabs/map.png', Icons.public),
@@ -431,7 +434,7 @@ class _MainFormState extends State<MainForm>
     // The web build talks to the radio over the BLE control channel only; there
     // is no audio channel. The Audio tab is still shown (restricted to the
     // Radio volume/squelch controls), but the "BBS" and "Torrent" tabs are
-    // hidden on the web. The "Voice" tab is kept but restricted to "Chat" mode
+    // hidden on the web. The "Comms" tab is kept but restricted to "Chat" mode
     // (control-channel data only).
     const hiddenOnWeb = {'BBS', 'Torrent'};
     final base = _baseTabs.where((t) {
@@ -933,9 +936,14 @@ class _MainFormState extends State<MainForm>
     super.dispose();
   }
 
+  void _toggleTabsVisible() {
+    setState(() {
+      _tabsVisible = !_tabsVisible;
+    });
+  }
+
   void _updateCompactMode(bool isCompact) {
     if (_isCompactMode == isCompact) return;
-
     final oldIndex = _tabController.index;
     final newTabs = _getTabsForMode(
       isCompact,
@@ -1134,6 +1142,13 @@ class _MainFormState extends State<MainForm>
                 });
               },
               checked: _radioVisible,
+            ),
+          // Only show Tabs toggle when in compact mode
+          if (_isCompactMode)
+            AppMenuAction(
+              label: 'Tabs',
+              onPressed: _toggleTabsVisible,
+              checked: _tabsVisible,
             ),
           AppMenuAction(
             label: 'Tab Names',
@@ -1421,25 +1436,48 @@ class _MainFormState extends State<MainForm>
     return Container(
       width: double.infinity,
       color: Theme.of(context).colorScheme.surface,
-      child: Row(
+      child: Stack(
         children: [
-          Expanded(
-            child: MenuBar(
-              style: menuStyle,
-              children: menuDef.map((submenu) {
-                return SubmenuButton(
-                  style: submenuStyle,
-                  menuStyle: menuStyle,
-                  menuChildren: _buildBuiltInMenuItems(
-                    submenu.children,
-                    menuItemStyle,
-                    menuStyle,
-                  ),
-                  child: Text(submenu.label),
-                );
-              }).toList(),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: MenuBar(
+                  style: menuStyle,
+                  children: menuDef.map((submenu) {
+                    return SubmenuButton(
+                      style: submenuStyle,
+                      menuStyle: menuStyle,
+                      menuChildren: _buildBuiltInMenuItems(
+                        submenu.children,
+                        menuItemStyle,
+                        menuStyle,
+                      ),
+                      child: Text(submenu.label),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
           ),
+          // Toggle the right-side tab list (only meaningful in compact mode).
+          // Overlaid on top of the menu bar so the menu keeps its normal layout.
+          if (_isCompactMode)
+            Positioned(
+              top: 0,
+              bottom: 0,
+              right: 4,
+              child: Center(
+                child: IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: _tabsVisible ? 'Hide tabs' : 'Show tabs',
+                  icon: Icon(
+                    _tabsVisible ? Icons.tab : Icons.tab_unselected,
+                    size: 20,
+                  ),
+                  onPressed: _toggleTabsVisible,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1457,7 +1495,9 @@ class _MainFormState extends State<MainForm>
         return MenuItemButton(
           style: menuItemStyle,
           onPressed: item.onPressed,
-          shortcut: item.shortcut,
+          // Android devices typically have no physical keyboard, so suppress
+          // the shortcut hint (e.g. for Connect/Settings) shown in menus.
+          shortcut: (!kIsWeb && Platform.isAndroid) ? null : item.shortcut,
           leadingIcon: item.checked
               ? const Icon(Icons.check, size: 16)
               : (items.any((i) => i is AppMenuAction && i.checked)
@@ -1516,7 +1556,8 @@ class _MainFormState extends State<MainForm>
                       .toList(),
                 ),
               ),
-              _buildVerticalTabList(),
+              // Hide the tab list only in compact mode when the user toggles it off
+              if (!_isCompactMode || _tabsVisible) _buildVerticalTabList(),
             ],
           ),
         ),
@@ -1634,8 +1675,8 @@ class _MainFormState extends State<MainForm>
           deviceId: _currentRadioDeviceId,
           onConnectPressed: _onRadioConnect,
         );
-      case 'Voice':
-        return const VoiceTab();
+      case 'Comms':
+        return const CommsTab();
       case 'Audio':
         return const AudioTab();
       case 'APRS':

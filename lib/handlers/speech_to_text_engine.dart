@@ -3,7 +3,7 @@ Copyright 2026 Ylian Saint-Hilaire
 Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
-Speech-to-text engine abstraction for the VoiceHandler.
+Speech-to-text engine abstraction for the CommsHandler.
 
 The C# application transcribed received radio audio with the Whisper library by
 feeding it raw PCM audio chunks. The Flutter port keeps the same streaming
@@ -19,7 +19,7 @@ engine so each platform can use the most native capability available:
     (`SpeechRecognizer` and the Web Speech API are microphone-only), so an
     unsupported no-op engine is used. These platforms can later be backed by an
     offline engine such as Vosk, which accepts PCM, without changing this
-    interface or the VoiceHandler wiring.
+    interface or the CommsHandler wiring.
 */
 
 import 'dart:async';
@@ -224,7 +224,7 @@ class AppleSpeechToTextEngine implements SpeechToTextEngine {
 
   void _emitError(String message) {
     // Errors surface as a final empty result so callers can end the segment;
-    // detailed diagnostics are logged by the VoiceHandler.
+    // detailed diagnostics are logged by the CommsHandler.
     if (!_processing.isClosed) _processing.add(false);
   }
 

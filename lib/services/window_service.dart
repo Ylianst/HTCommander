@@ -29,7 +29,7 @@ class WindowService {
   List<WindowController> get childWindows => List.unmodifiable(_childWindows);
 
   /// Create a new detached window for a tab
-  /// [windowType] is the identifier for the tab (e.g., 'aprs', 'voice', 'terminal')
+  /// [windowType] is the identifier for the tab (e.g., 'aprs', 'comms', 'terminal')
   Future<WindowController?> createWindow(String windowType) async {
     if (!isDesktop) return null;
 

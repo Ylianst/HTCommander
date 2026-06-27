@@ -48,7 +48,6 @@ class BluetoothClassicTransport implements RadioTransport {
   }
 
   BluetoothClassicTransport() {
-    _logInfo('Transport created; listening for native Classic connection events');
     // Listen for connection events from native layer
     _connectionSubscription = BluetoothClassicMacOS.instance.connectionEvents
         .listen((event) {
@@ -57,14 +56,11 @@ class BluetoothClassicTransport implements RadioTransport {
               .toUpperCase()
               .replaceAll('-', ':');
 
-          _logInfo(
-            'Native event ${event.type.name} for $eventAddress '
-            '(transport device: ${connectedAddress ?? 'none'})',
-          );
-
           if (connectedAddress == eventAddress) {
             if (event.type == BluetoothClassicEventType.disconnected) {
-              _logInfo('Native disconnect matched active transport $eventAddress');
+              _logInfo(
+                'Native disconnect matched active transport $eventAddress',
+              );
               _updateState(TransportState.disconnected);
               _connectedDevice = null;
               _dataSubscription?.cancel();
@@ -111,28 +107,26 @@ class BluetoothClassicTransport implements RadioTransport {
       return false;
     }
 
-    _logInfo(
-      'Connecting to ${device.name} (${device.id}) over Bluetooth Classic',
-    );
     _updateState(TransportState.connecting);
 
     try {
       final success = await BluetoothClassicMacOS.instance.connect(device.id);
-      _logInfo('Native connect returned $success for ${device.id}');
 
       if (success) {
         _connectedDevice = device;
         _updateState(TransportState.connected);
-        _logInfo('Connected transport for ${device.id}; subscribing to RFCOMM RX stream');
 
         // Start listening for data
         _dataSubscription = BluetoothClassicMacOS.instance
             .getDataStream(device.id)
-            .listen((data) {
-              _dataController.add(data);
-            }, onError: (error) {
-              _logError('RX stream error for ${device.id}: $error');
-            });
+            .listen(
+              (data) {
+                _dataController.add(data);
+              },
+              onError: (error) {
+                _logError('RX stream error for ${device.id}: $error');
+              },
+            );
 
         return true;
       } else {
@@ -198,7 +192,6 @@ class BluetoothClassicTransport implements RadioTransport {
 
   void _updateState(TransportState newState) {
     if (_state != newState) {
-      _logInfo('Transport state ${_state.name} -> ${newState.name}');
       _state = newState;
       _stateController.add(newState);
     }

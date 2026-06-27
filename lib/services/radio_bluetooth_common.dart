@@ -179,10 +179,6 @@ Future<int?> _connectToRadioClassicImpl(
 
   try {
     final deviceId = service._getNextDeviceId();
-    service._broker.logInfo(
-      '[BT-Classic] Starting Classic connect for $friendlyName '
-      '($macAddress) as deviceId $deviceId',
-    );
 
     service._broker.dispatch(
       deviceId: deviceId,
@@ -208,15 +204,7 @@ Future<int?> _connectToRadioClassicImpl(
       type: BluetoothType.classic,
     );
 
-    service._broker.logInfo(
-      '[BT-Classic] Invoking transport.connect for ${device.name} (${device.id})',
-    );
-
     final success = await transport.connect(device);
-
-    service._broker.logInfo(
-      '[BT-Classic] transport.connect result for $macAddress: $success',
-    );
 
     if (!success) {
       service._classicConnections.remove(deviceId);
@@ -236,13 +224,7 @@ Future<int?> _connectToRadioClassicImpl(
     final radio = Radio(deviceId: deviceId, macAddress: macAddress);
     radio.updateFriendlyName(friendlyName);
     service._radioInstances[deviceId] = radio;
-    service._broker.logInfo(
-      '[BT-Classic] Creating Radio instance and binding transport for deviceId $deviceId',
-    );
     await radio.connect(transport);
-    service._broker.logInfo(
-      '[BT-Classic] Radio.connect completed for deviceId $deviceId',
-    );
 
     final radioAudio = RadioAudio(
       radio: radio,
@@ -279,9 +261,6 @@ Future<int?> _connectToRadioClassicImpl(
       name: 'State',
       data: 'Connected',
       store: true,
-    );
-    service._broker.logInfo(
-      '[BT-Classic] Broker state set to Connected for deviceId $deviceId',
     );
     service._publishConnectedRadios();
     return deviceId;

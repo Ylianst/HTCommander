@@ -26,10 +26,10 @@ The DataBroker is the central pub/sub messaging system for HTCommander. It enabl
 ┌────────┴───────┐                   ┌────────────────┐
 │   Producers    │                   │   Subscribers  │
 ├────────────────┤                   ├────────────────┤
-│ Radio Service  │                   │ VoiceTab       │
+│ Radio Service  │                   │ CommsTab       │
 │ APRS Handler   │                   │ AprsTab        │
 │ BBS Handler    │                   │ RadioPanel     │
-│ Voice Handler  │                   │ ChatWidget     │
+│ Comms Handler  │                   │ ChatWidget     │
 │ Settings       │                   │ SettingsDialog │
 └────────────────┘                   └────────────────┘
 ```

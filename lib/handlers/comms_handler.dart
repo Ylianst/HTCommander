@@ -198,9 +198,9 @@ class DecodedTextEntry {
   }
 }
 
-/// Voice Handler - listens to audio data from radios and maintains a history of
+/// Comms Handler - listens to audio data from radios and maintains a history of
 /// decoded/transmitted voice text. Registered as a Data Broker handler.
-class VoiceHandler {
+class CommsHandler {
   static const String _voiceTextFileName = 'voicetext.json';
   static const int _maxHistorySize = 1000;
 
@@ -290,13 +290,13 @@ class VoiceHandler {
     // Commands directed at the handler (device 1 / global).
     _broker.subscribe(
       deviceId: 1,
-      name: 'VoiceHandlerEnable',
-      callback: _onVoiceHandlerEnable,
+      name: 'CommsHandlerEnable',
+      callback: _onCommsHandlerEnable,
     );
     _broker.subscribe(
       deviceId: 1,
-      name: 'VoiceHandlerDisable',
-      callback: _onVoiceHandlerDisable,
+      name: 'CommsHandlerDisable',
+      callback: _onCommsHandlerDisable,
     );
     _broker.subscribe(
       deviceId: 1,
@@ -409,23 +409,23 @@ class VoiceHandler {
     }
 
     // Dispatch initial handler state.
-    _dispatchVoiceHandlerState();
+    _dispatchCommsHandlerState();
 
     // Load the persisted text history asynchronously.
     unawaited(_loadVoiceTextHistory());
 
-    _broker.logInfo('[VoiceHandler] Initialized');
+    _broker.logInfo('[CommsHandler] Initialized');
   }
 
   // ---------------------------------------------------------------------------
   // Enable / Disable
   // ---------------------------------------------------------------------------
 
-  /// Handles the VoiceHandlerEnable command.
+  /// Handles the CommsHandlerEnable command.
   /// Expected data: { deviceId/DeviceId, language/Language, model/Model }.
-  void _onVoiceHandlerEnable(int deviceId, String name, Object? data) {
+  void _onCommsHandlerEnable(int deviceId, String name, Object? data) {
     if (data is! Map) {
-      _broker.logError('[VoiceHandler] Invalid VoiceHandlerEnable data format');
+      _broker.logError('[CommsHandler] Invalid CommsHandlerEnable data format');
       return;
     }
     final map = data;
@@ -433,14 +433,14 @@ class VoiceHandler {
     final language = (map['language'] ?? map['Language']) as String? ?? 'auto';
     final model = (map['model'] ?? map['Model']) as String?;
     if (targetDevice == null) {
-      _broker.logError('[VoiceHandler] VoiceHandlerEnable missing deviceId');
+      _broker.logError('[CommsHandler] CommsHandlerEnable missing deviceId');
       return;
     }
     enable(targetDevice, language, model);
   }
 
-  /// Handles the VoiceHandlerDisable command.
-  void _onVoiceHandlerDisable(int deviceId, String name, Object? data) {
+  /// Handles the CommsHandlerDisable command.
+  void _onCommsHandlerDisable(int deviceId, String name, Object? data) {
     disable();
   }
 
@@ -457,7 +457,7 @@ class VoiceHandler {
     final radioState = _broker.getValue<String>(deviceId, 'State');
     if (radioState != 'Connected') {
       _broker.logError(
-        '[VoiceHandler] Cannot enable for device $deviceId: radio not connected (state: ${radioState ?? 'unknown'})',
+        '[CommsHandler] Cannot enable for device $deviceId: radio not connected (state: ${radioState ?? 'unknown'})',
       );
       return;
     }
@@ -467,7 +467,7 @@ class VoiceHandler {
         _broker.getValue<bool>(deviceId, 'AudioState', false) ?? false;
     if (!audioEnabled) {
       _broker.logInfo(
-        '[VoiceHandler] Audio not enabled for device $deviceId, enabling audio streaming',
+        '[CommsHandler] Audio not enabled for device $deviceId, enabling audio streaming',
       );
       _broker.dispatch(
         deviceId: deviceId,
@@ -485,13 +485,13 @@ class VoiceHandler {
     _enabled = true;
 
     _broker.logInfo(
-      '[VoiceHandler] Enabled for device $deviceId, language: $language',
+      '[CommsHandler] Enabled for device $deviceId, language: $language',
     );
 
     // Speech-to-text engine initialization is deferred in this build.
     // TODO(stt): initialize the speech-to-text engine here when available.
 
-    _dispatchVoiceHandlerState();
+    _dispatchCommsHandlerState();
   }
 
   /// Disables the voice handler.
@@ -514,8 +514,8 @@ class VoiceHandler {
       );
     }
 
-    _dispatchVoiceHandlerState();
-    _broker.logInfo('[VoiceHandler] Disabled');
+    _dispatchCommsHandlerState();
+    _broker.logInfo('[CommsHandler] Disabled');
   }
 
   // ---------------------------------------------------------------------------
@@ -527,13 +527,13 @@ class VoiceHandler {
     final enabled = data is bool ? data : true;
     if (_speechToTextEnabled == enabled) return;
     _speechToTextEnabled = enabled;
-    _broker.logInfo('[VoiceHandler] SpeechToTextEnabled changed to: $enabled');
+    _broker.logInfo('[CommsHandler] SpeechToTextEnabled changed to: $enabled');
     if (enabled) {
       unawaited(_initializeSpeechEngine());
     } else {
       unawaited(_cleanupSpeechEngine());
     }
-    _dispatchVoiceHandlerState();
+    _dispatchCommsHandlerState();
   }
 
   /// Creates and initializes the platform speech-to-text engine. Safe to call
@@ -544,7 +544,7 @@ class VoiceHandler {
     _sttEngine = engine;
     if (!engine.isSupported) {
       _broker.logInfo(
-        '[VoiceHandler] Speech-to-text is not supported on this platform',
+        '[CommsHandler] Speech-to-text is not supported on this platform',
       );
       return;
     }
@@ -557,16 +557,16 @@ class VoiceHandler {
       if (_disposed || _sttEngine != engine) return;
       _sttReady = ready;
       if (ready) {
-        _broker.logInfo('[VoiceHandler] Speech-to-text engine ready');
+        _broker.logInfo('[CommsHandler] Speech-to-text engine ready');
       } else {
         _broker.logError(
-          '[VoiceHandler] Speech-to-text unavailable (not authorized or '
+          '[CommsHandler] Speech-to-text unavailable (not authorized or '
           'no recognizer)',
         );
       }
-      _dispatchVoiceHandlerState();
+      _dispatchCommsHandlerState();
     } catch (e) {
-      _broker.logError('[VoiceHandler] Failed to initialize speech engine: $e');
+      _broker.logError('[CommsHandler] Failed to initialize speech engine: $e');
       _sttReady = false;
     }
   }
@@ -588,7 +588,7 @@ class VoiceHandler {
       try {
         await engine.dispose();
       } catch (e) {
-        _broker.logError('[VoiceHandler] Error disposing speech engine: $e');
+        _broker.logError('[CommsHandler] Error disposing speech engine: $e');
       }
     }
   }
@@ -695,7 +695,7 @@ class VoiceHandler {
     if (_recordingEnabled) return;
     _recordingEnabled = true;
     _dispatchRecordingState();
-    _broker.logInfo('[VoiceHandler] Recording enabled');
+    _broker.logInfo('[CommsHandler] Recording enabled');
   }
 
   void _onRecordingDisable(int deviceId, String name, Object? data) {
@@ -704,7 +704,7 @@ class VoiceHandler {
     if (_recorder != null) _finalizeRecording();
     _recordingEnabled = false;
     _dispatchRecordingState();
-    _broker.logInfo('[VoiceHandler] Recording disabled');
+    _broker.logInfo('[CommsHandler] Recording disabled');
   }
 
   void _dispatchRecordingState() {
@@ -729,7 +729,7 @@ class VoiceHandler {
         state == 'BluetoothNotAvailable' ||
         state == 'AccessDenied') {
       _broker.logInfo(
-        '[VoiceHandler] Target radio $deviceId disconnected (state: $state), disabling voice handler',
+        '[CommsHandler] Target radio $deviceId disconnected (state: $state), disabling voice handler',
       );
       disable();
     }
@@ -740,7 +740,7 @@ class VoiceHandler {
     final audioEnabled = data is bool ? data : false;
     if (!audioEnabled) {
       _broker.logInfo(
-        '[VoiceHandler] Audio disabled on target radio $deviceId, disabling voice handler',
+        '[CommsHandler] Audio disabled on target radio $deviceId, disabling voice handler',
       );
       disable();
     }
@@ -913,7 +913,7 @@ class VoiceHandler {
       // Segment ran too long: force a final result and start a fresh segment so
       // recognition keeps flowing without unbounded memory growth.
       _broker.logInfo(
-        '[VoiceHandler] Speech segment reset due to length limit',
+        '[CommsHandler] Speech segment reset due to length limit',
       );
       unawaited(engine.completeSegment());
       _sttSegmentBytes = 0;
@@ -1008,7 +1008,7 @@ class VoiceHandler {
       _recordingsDir = dir;
       return dir;
     } catch (e) {
-      _broker.logError('[VoiceHandler] Failed to resolve recordings dir: $e');
+      _broker.logError('[CommsHandler] Failed to resolve recordings dir: $e');
       return null;
     }
   }
@@ -1057,7 +1057,7 @@ class VoiceHandler {
     final fullPath = '${dir.path}${Platform.pathSeparator}$filename';
     final recorder = _WavClipRecorder.open(fullPath, _recordingSampleRate);
     if (recorder == null) {
-      _broker.logError('[VoiceHandler] Failed to start recording: $filename');
+      _broker.logError('[CommsHandler] Failed to start recording: $filename');
       return;
     }
 
@@ -1107,7 +1107,7 @@ class VoiceHandler {
               filename = desired;
             }
           } catch (e) {
-            _broker.logError('[VoiceHandler] Failed to rename recording: $e');
+            _broker.logError('[CommsHandler] Failed to rename recording: $e');
           }
         }
       }
@@ -1134,7 +1134,7 @@ class VoiceHandler {
         durationInt,
       );
       _broker.logInfo(
-        '[VoiceHandler] Completed recording: $filename (${durationSeconds.toStringAsFixed(1)} sec)',
+        '[CommsHandler] Completed recording: $filename (${durationSeconds.toStringAsFixed(1)} sec)',
       );
     } else {
       // Discard recordings that are too short to be useful.
@@ -1143,7 +1143,7 @@ class VoiceHandler {
           File('${dir.path}${Platform.pathSeparator}$filename').deleteSync();
         } catch (_) {}
       }
-      _broker.logInfo('[VoiceHandler] Discarded short recording: $filename');
+      _broker.logInfo('[CommsHandler] Discarded short recording: $filename');
     }
   }
 
@@ -1211,7 +1211,7 @@ class VoiceHandler {
       _sstvImagesDir = dir;
       return dir;
     } catch (e) {
-      _broker.logError('[VoiceHandler] Failed to resolve SSTV dir: $e');
+      _broker.logError('[CommsHandler] Failed to resolve SSTV dir: $e');
       return null;
     }
   }
@@ -1228,7 +1228,7 @@ class VoiceHandler {
       _onSstvDecodingComplete,
     );
     _sstvMonitor = monitor;
-    _broker.logInfo('[VoiceHandler] SSTV monitor initialized');
+    _broker.logInfo('[CommsHandler] SSTV monitor initialized');
   }
 
   /// Cancels the SSTV monitor subscriptions and disposes the monitor.
@@ -1253,7 +1253,7 @@ class VoiceHandler {
   /// Called when the monitor detects the start of an SSTV image.
   void _onSstvDecodingStarted(SstvDecodingStarted e) {
     _broker.logInfo(
-      '[VoiceHandler] SSTV decoding started: ${e.modeName} (${e.width}x${e.height})',
+      '[CommsHandler] SSTV decoding started: ${e.modeName} (${e.width}x${e.height})',
     );
     _sstvDecoding = true;
     _sstvStartTime = DateTime.now();
@@ -1352,7 +1352,7 @@ class VoiceHandler {
         imageUpdated: true,
       );
     } catch (e) {
-      _broker.logError('[VoiceHandler] Error saving partial SSTV image: $e');
+      _broker.logError('[CommsHandler] Error saving partial SSTV image: $e');
     } finally {
       _sstvPartialSaveInFlight = false;
     }
@@ -1368,7 +1368,7 @@ class VoiceHandler {
   void _finalizeSstvOnAudioEnd() {
     try {
       _broker.logInfo(
-        '[VoiceHandler] Audio ended during SSTV decoding, finalizing partial reception',
+        '[CommsHandler] Audio ended during SSTV decoding, finalizing partial reception',
       );
       final monitor = _sstvMonitor;
       SstvImage? partialImage;
@@ -1381,7 +1381,7 @@ class VoiceHandler {
           .replaceAll('...', '');
       unawaited(_handleSstvComplete(modeName, partialImage));
     } catch (e) {
-      _broker.logError('[VoiceHandler] Error finalizing SSTV on audio end: $e');
+      _broker.logError('[CommsHandler] Error finalizing SSTV on audio end: $e');
       _sstvDecoding = false;
     }
   }
@@ -1389,7 +1389,7 @@ class VoiceHandler {
   /// Saves a decoded SSTV image to disk and records it in the text history.
   Future<void> _handleSstvComplete(String modeName, SstvImage? image) async {
     _broker.logInfo(
-      '[VoiceHandler] SSTV image decoded: $modeName (${image?.width ?? 0}x${image?.height ?? 0})',
+      '[CommsHandler] SSTV image decoded: $modeName (${image?.width ?? 0}x${image?.height ?? 0})',
     );
     _sstvDecoding = false;
 
@@ -1429,13 +1429,13 @@ class VoiceHandler {
       }
       final pngBytes = await _encodeSstvPng(image);
       if (pngBytes == null) {
-        _broker.logError('[VoiceHandler] Failed to encode SSTV image');
+        _broker.logError('[CommsHandler] Failed to encode SSTV image');
         _currentSstvEntry = null;
         return;
       }
       final fullPath = '${dir.path}${Platform.pathSeparator}$filename';
       await File(fullPath).writeAsBytes(pngBytes, flush: true);
-      _broker.logInfo('[VoiceHandler] SSTV image saved: $filename');
+      _broker.logInfo('[CommsHandler] SSTV image saved: $filename');
 
       // Finalize the partial entry (or create one) in the text history.
       final entry = _currentSstvEntry;
@@ -1469,7 +1469,7 @@ class VoiceHandler {
         imageUpdated: true,
       );
     } catch (e) {
-      _broker.logError('[VoiceHandler] Error saving SSTV image: $e');
+      _broker.logError('[CommsHandler] Error saving SSTV image: $e');
       _currentSstvEntry = null;
     }
   }
@@ -1522,7 +1522,7 @@ class VoiceHandler {
       final filename = (data['filename'] ?? data['Filename']) as String? ?? '';
       if (filename.isEmpty) {
         _broker.logError(
-          '[VoiceHandler] PictureTransmitted: Filename is empty',
+          '[CommsHandler] PictureTransmitted: Filename is empty',
         );
         return;
       }
@@ -1531,7 +1531,7 @@ class VoiceHandler {
       final channel = _currentChannelName;
 
       _broker.logInfo(
-        '[VoiceHandler] SSTV picture transmitted on device $deviceId: '
+        '[CommsHandler] SSTV picture transmitted on device $deviceId: '
         '$modeName, file: $filename',
       );
 
@@ -1570,7 +1570,7 @@ class VoiceHandler {
         );
       }
     } catch (e) {
-      _broker.logError('[VoiceHandler] Error in _onPictureTransmitted: $e');
+      _broker.logError('[CommsHandler] Error in _onPictureTransmitted: $e');
     }
   }
 
@@ -1710,7 +1710,7 @@ class VoiceHandler {
       data: null,
       store: false,
     );
-    _broker.logInfo('[VoiceHandler] Decoded text history cleared');
+    _broker.logInfo('[CommsHandler] Decoded text history cleared');
   }
 
   // ---------------------------------------------------------------------------
@@ -1920,7 +1920,7 @@ class VoiceHandler {
     // Validate message length (must be between 1 and 254 characters).
     if (message.isEmpty || message.length >= 255) {
       _broker.logError(
-        '[VoiceHandler] Cannot send chat: message length must be between 1 '
+        '[CommsHandler] Cannot send chat: message length must be between 1 '
         'and 254 characters (got ${message.length})',
       );
       return;
@@ -1931,7 +1931,7 @@ class VoiceHandler {
     if (deviceId == 1) {
       transmitDeviceId = _targetDeviceId;
       if (transmitDeviceId <= 0) {
-        _broker.logError('[VoiceHandler] Cannot send chat: no radio selected');
+        _broker.logError('[CommsHandler] Cannot send chat: no radio selected');
         return;
       }
     } else if (deviceId >= 100) {
@@ -1944,7 +1944,7 @@ class VoiceHandler {
     final callsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
     if (callsign.isEmpty) {
       _broker.logError(
-        '[VoiceHandler] Cannot send chat: callsign not configured',
+        '[CommsHandler] Cannot send chat: callsign not configured',
       );
       return;
     }
@@ -1953,7 +1953,7 @@ class VoiceHandler {
     final channelName = _getVfoAChannelName(transmitDeviceId);
 
     _broker.logInfo(
-      '[VoiceHandler] Sending chat on device $transmitDeviceId: '
+      '[CommsHandler] Sending chat on device $transmitDeviceId: '
       '$callsign: $message',
     );
 
@@ -2005,7 +2005,7 @@ class VoiceHandler {
       transmitDeviceId = _targetDeviceId;
       if (transmitDeviceId <= 0) {
         _broker.logError(
-          '[VoiceHandler] Cannot transmit morse: no radio is voice-enabled',
+          '[CommsHandler] Cannot transmit morse: no radio is voice-enabled',
         );
         return;
       }
@@ -2019,14 +2019,14 @@ class VoiceHandler {
       final channelName = _getVfoAChannelName(transmitDeviceId);
 
       _broker.logInfo(
-        '[VoiceHandler] Generating morse code on device $transmitDeviceId: '
+        '[CommsHandler] Generating morse code on device $transmitDeviceId: '
         '$textToMorse',
       );
 
       // Generate morse code PCM (8-bit unsigned, 32 kHz).
       final morsePcm8bit = MorseCodeEngine.generateMorsePcm(textToMorse);
       if (morsePcm8bit.isEmpty) {
-        _broker.logError('[VoiceHandler] Failed to generate morse code PCM');
+        _broker.logError('[CommsHandler] Failed to generate morse code PCM');
         return;
       }
 
@@ -2053,11 +2053,11 @@ class VoiceHandler {
         store: false,
       );
       _broker.logInfo(
-        '[VoiceHandler] Transmitted ${pcm16.length} bytes of morse PCM to '
+        '[CommsHandler] Transmitted ${pcm16.length} bytes of morse PCM to '
         'device $transmitDeviceId',
       );
     } catch (e) {
-      _broker.logError('[VoiceHandler] Error generating morse code: $e');
+      _broker.logError('[CommsHandler] Error generating morse code: $e');
     }
   }
 
@@ -2093,7 +2093,7 @@ class VoiceHandler {
       transmitDeviceId = _targetDeviceId;
       if (transmitDeviceId <= 0) {
         _broker.logError(
-          '[VoiceHandler] Cannot speak: no radio is voice-enabled',
+          '[CommsHandler] Cannot speak: no radio is voice-enabled',
         );
         return;
       }
@@ -2107,7 +2107,7 @@ class VoiceHandler {
       final channelName = _getVfoAChannelName(transmitDeviceId);
 
       _broker.logInfo(
-        '[VoiceHandler] Synthesizing speech on device $transmitDeviceId: '
+        '[CommsHandler] Synthesizing speech on device $transmitDeviceId: '
         '$textToSpeak',
       );
 
@@ -2126,7 +2126,7 @@ class VoiceHandler {
       if (_disposed) return;
       if (pcm16 == null || pcm16.isEmpty) {
         _broker.logError(
-          '[VoiceHandler] Failed to synthesize speech (no audio produced)',
+          '[CommsHandler] Failed to synthesize speech (no audio produced)',
         );
         return;
       }
@@ -2151,11 +2151,11 @@ class VoiceHandler {
         store: false,
       );
       _broker.logInfo(
-        '[VoiceHandler] Transmitted ${pcm16.length} bytes of speech PCM to '
+        '[CommsHandler] Transmitted ${pcm16.length} bytes of speech PCM to '
         'device $transmitDeviceId',
       );
     } catch (e) {
-      _broker.logError('[VoiceHandler] Error synthesizing speech: $e');
+      _broker.logError('[CommsHandler] Error synthesizing speech: $e');
     }
   }
 
@@ -2197,7 +2197,7 @@ class VoiceHandler {
       );
       return _historyFile;
     } catch (e) {
-      _broker.logError('[VoiceHandler] Failed to resolve history file: $e');
+      _broker.logError('[CommsHandler] Failed to resolve history file: $e');
       return null;
     }
   }
@@ -2223,7 +2223,7 @@ class VoiceHandler {
       }
     } catch (e) {
       // Ignore load errors - start with empty history.
-      _broker.logError('[VoiceHandler] Failed to load history: $e');
+      _broker.logError('[CommsHandler] Failed to load history: $e');
     }
 
     _voiceTextHistoryLoaded = true;
@@ -2243,7 +2243,7 @@ class VoiceHandler {
       );
     } catch (e) {
       // Ignore save errors.
-      _broker.logError('[VoiceHandler] Failed to save history: $e');
+      _broker.logError('[CommsHandler] Failed to save history: $e');
     }
   }
 
@@ -2335,10 +2335,10 @@ class VoiceHandler {
     );
   }
 
-  void _dispatchVoiceHandlerState() {
+  void _dispatchCommsHandlerState() {
     _broker.dispatch(
       deviceId: 1,
-      name: 'VoiceHandlerState',
+      name: 'CommsHandlerState',
       data: <String, Object?>{
         'enabled': _enabled,
         'targetDeviceId': _targetDeviceId,
@@ -2369,7 +2369,7 @@ class VoiceHandler {
     _cleanupSstvMonitor();
     unawaited(_cleanupSpeechEngine());
     if (_enabled) disable();
-    _broker.logInfo('[VoiceHandler] Voice Handler disposing');
+    _broker.logInfo('[CommsHandler] Voice Handler disposing');
     _broker.dispose();
   }
 }

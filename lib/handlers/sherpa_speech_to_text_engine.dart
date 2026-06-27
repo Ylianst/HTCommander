@@ -6,7 +6,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 sherpa-onnx (SenseVoice) speech-to-text engine.
 
 This implements the shared [SpeechToTextEngine] contract used by the
-VoiceHandler. SenseVoice is a non-streaming model, but the engine still
+CommsHandler. SenseVoice is a non-streaming model, but the engine still
 delivers live partial text by re-decoding the growing in-memory audio buffer
 of the active segment, then emitting a final result when the segment ends.
 
