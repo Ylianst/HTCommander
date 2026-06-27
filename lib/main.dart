@@ -3,7 +3,8 @@ import 'dart:io' show File, Platform;
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
@@ -141,10 +142,10 @@ void main(List<String> args) async {
 }
 
 bool get _serialGpsSupported =>
-  !kIsWeb &&
-  (defaultTargetPlatform == TargetPlatform.windows ||
-    defaultTargetPlatform == TargetPlatform.macOS ||
-    defaultTargetPlatform == TargetPlatform.linux);
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.linux);
 
 const double _narrowDialogBreakpoint = 700;
 
@@ -244,7 +245,8 @@ class _SubWindowAppState extends State<SubWindowApp> {
     return MaterialApp(
       title: 'Handi-Talkie Commander - $tabTitle',
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => _wrapWithResponsiveDialogTheme(context, child),
+      builder: (context, child) =>
+          _wrapWithResponsiveDialogTheme(context, child),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
@@ -265,7 +267,8 @@ class HTCommanderApp extends StatelessWidget {
     return MaterialApp(
       title: 'Handi-Talkie Commander',
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => _wrapWithResponsiveDialogTheme(context, child),
+      builder: (context, child) =>
+          _wrapWithResponsiveDialogTheme(context, child),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
@@ -426,10 +429,11 @@ class _MainFormState extends State<MainForm>
     bool winlinkPasswordSet,
   ) {
     // The web build talks to the radio over the BLE control channel only; there
-    // is no audio channel, so the audio-only "Audio" tab is removed at runtime.
-    // The "BBS" and "Torrent" tabs are also hidden on the web. The "Voice" tab
-    // is kept but restricted to "Chat" mode (control-channel data only).
-    const hiddenOnWeb = {'Audio', 'BBS', 'Torrent'};
+    // is no audio channel. The Audio tab is still shown (restricted to the
+    // Radio volume/squelch controls), but the "BBS" and "Torrent" tabs are
+    // hidden on the web. The "Voice" tab is kept but restricted to "Chat" mode
+    // (control-channel data only).
+    const hiddenOnWeb = {'BBS', 'Torrent'};
     final base = _baseTabs.where((t) {
       if (kIsWeb && hiddenOnWeb.contains(t.label)) return false;
       // Hide transmit-only tabs (Winlink/Mail, Terminal, BBS, Torrent) when
@@ -1101,8 +1105,9 @@ class _MainFormState extends State<MainForm>
           ],
         ],
       ),
-      // Audio menu (hidden on web: no audio channel over BLE control-only)
-      if (!kIsWeb)
+      // Audio menu (hidden on web and iOS: no audio channel over BLE
+      // control-only transport).
+      if (!kIsWeb && !Platform.isIOS)
         AppSubmenu(
           label: 'Audio',
           children: [

@@ -5,8 +5,9 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/data_broker.dart';
@@ -82,6 +83,13 @@ class _AudioTabState extends State<AudioTab>
 
   @override
   bool get wantKeepAlive => true;
+
+  /// Whether the radio's audio channel is available on this platform. Web and
+  /// iOS talk to the radio over the BLE control channel only (no audio
+  /// channel), so the Audio tab shows only the Radio controls (Volume and
+  /// Squelch) and hides the Enable button, the spectrograph sub-menu and the
+  /// application/microphone/computer audio sections.
+  bool get _audioChannelSupported => !kIsWeb && !Platform.isIOS;
 
   @override
   void initState() {
@@ -623,87 +631,94 @@ class _AudioTabState extends State<AudioTab>
                   onChanged: _onSquelchChanged,
                   onChangeEnd: _onSquelchCommitted,
                 ),
-                const SizedBox(height: 16),
-                _buildSectionTitle('Application'),
-                _buildSliderRow(
-                  label: 'Volume',
-                  value: _appVolume,
-                  min: 0,
-                  max: 1,
-                  valueLabel: '${(_appVolume * 100).round()}%',
-                  enabled: _currentRadioDeviceId > 0,
-                  muted: _appMuted,
-                  onMuteToggled: _currentRadioDeviceId > 0
-                      ? _onAppMuteToggled
-                      : null,
-                  onChanged: _onAppVolumeChanged,
-                ),
-                const SizedBox(height: 16),
-                _buildSectionTitle('Microphone'),
-                _buildSliderRow(
-                  label: 'Gain',
-                  value: _micGain,
-                  min: 1,
-                  max: 8,
-                  valueLabel: '${(_micGain * 100).round()}%',
-                  enabled: MicrophoneCapture.isSupported,
-                  onChanged: _onMicGainSliderChanged,
-                ),
-                if (!MicrophoneCapture.isSupported)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 4, top: 2),
-                    child: Text(
-                      'Microphone capture is not available on this platform.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
-                  ),
-                const SizedBox(height: 16),
-                _buildSectionTitle('Computer'),
-                _buildSliderRow(
-                  label: 'Master',
-                  value: _masterVolume,
-                  min: 0,
-                  max: 1,
-                  valueLabel: _masterAvailable
-                      ? '${(_masterVolume * 100).round()}%'
-                      : 'N/A',
-                  enabled: _masterAvailable,
-                  muted: _masterMuted,
-                  onMuteToggled: _masterAvailable ? _onMasterMuteToggled : null,
-                  onChangeStart: (_) => _draggingMaster = true,
-                  onChanged: _onMasterVolumeChanged,
-                  onChangeEnd: (_) => _draggingMaster = false,
-                ),
-                if (!SystemAudio.isSupported)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 4, top: 2),
-                    child: Text(
-                      'Computer volume control is only available on macOS.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
-                  ),
-                if (_showSpectrogram) ...[
+                // Web and iOS expose only the Radio controls above: there is no
+                // audio channel for application/microphone/computer audio or
+                // the spectrograph, so those sections are hidden there.
+                if (_audioChannelSupported) ...[
                   const SizedBox(height: 16),
-                  _buildSectionTitle(_spectrogramTitle()),
-                  ClipRect(
-                    child: SizedBox(
-                      height: 200,
-                      child: _spectrogram == null
-                          ? const ColoredBox(color: Colors.black)
-                          : SpectrogramView(controller: _spectrogram!),
-                    ),
+                  _buildSectionTitle('Application'),
+                  _buildSliderRow(
+                    label: 'Volume',
+                    value: _appVolume,
+                    min: 0,
+                    max: 1,
+                    valueLabel: '${(_appVolume * 100).round()}%',
+                    enabled: _currentRadioDeviceId > 0,
+                    muted: _appMuted,
+                    onMuteToggled: _currentRadioDeviceId > 0
+                        ? _onAppMuteToggled
+                        : null,
+                    onChanged: _onAppVolumeChanged,
                   ),
-                  if (_micNeeded && _micError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4, top: 4),
+                  const SizedBox(height: 16),
+                  _buildSectionTitle('Microphone'),
+                  _buildSliderRow(
+                    label: 'Gain',
+                    value: _micGain,
+                    min: 1,
+                    max: 8,
+                    valueLabel: '${(_micGain * 100).round()}%',
+                    enabled: MicrophoneCapture.isSupported,
+                    onChanged: _onMicGainSliderChanged,
+                  ),
+                  if (!MicrophoneCapture.isSupported)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4, top: 2),
                       child: Text(
-                        _micError!,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.redAccent,
-                        ),
+                        'Microphone capture is not available on this platform.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
                       ),
                     ),
+                  const SizedBox(height: 16),
+                  _buildSectionTitle('Computer'),
+                  _buildSliderRow(
+                    label: 'Master',
+                    value: _masterVolume,
+                    min: 0,
+                    max: 1,
+                    valueLabel: _masterAvailable
+                        ? '${(_masterVolume * 100).round()}%'
+                        : 'N/A',
+                    enabled: _masterAvailable,
+                    muted: _masterMuted,
+                    onMuteToggled: _masterAvailable
+                        ? _onMasterMuteToggled
+                        : null,
+                    onChangeStart: (_) => _draggingMaster = true,
+                    onChanged: _onMasterVolumeChanged,
+                    onChangeEnd: (_) => _draggingMaster = false,
+                  ),
+                  if (!SystemAudio.isSupported)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4, top: 2),
+                      child: Text(
+                        'Computer volume control is only available on macOS.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ),
+                  if (_showSpectrogram) ...[
+                    const SizedBox(height: 16),
+                    _buildSectionTitle(_spectrogramTitle()),
+                    ClipRect(
+                      child: SizedBox(
+                        height: 200,
+                        child: _spectrogram == null
+                            ? const ColoredBox(color: Colors.black)
+                            : SpectrogramView(controller: _spectrogram!),
+                      ),
+                    ),
+                    if (_micNeeded && _micError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, top: 4),
+                        child: Text(
+                          _micError!,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                      ),
+                  ],
                 ],
               ],
             ),
@@ -818,7 +833,7 @@ class _AudioTabState extends State<AudioTab>
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const Spacer(),
-              if (showButton)
+              if (showButton && _audioChannelSupported)
                 SizedBox(
                   height: 28,
                   child: ElevatedButton(
@@ -835,23 +850,27 @@ class _AudioTabState extends State<AudioTab>
                     child: Text(_audioEnabled ? 'Disable' : 'Enable'),
                   ),
                 ),
-              if (showButton) const SizedBox(width: 8),
-              Builder(
-                builder: (context) => InkWell(
-                  onTap: () => _showMenu(context),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Image.asset(
-                      'assets/images/MenuIcon.png',
-                      width: 24,
-                      height: 24,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.menu, size: 24);
-                      },
+              if (showButton && _audioChannelSupported)
+                const SizedBox(width: 8),
+              // The only sub-menu items are spectrograph sources, which are not
+              // supported on web/iOS, so the menu button is hidden there.
+              if (_audioChannelSupported)
+                Builder(
+                  builder: (context) => InkWell(
+                    onTap: () => _showMenu(context),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Image.asset(
+                        'assets/images/MenuIcon.png',
+                        width: 24,
+                        height: 24,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.menu, size: 24);
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           );
         },
