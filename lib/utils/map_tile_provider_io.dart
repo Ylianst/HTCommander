@@ -86,19 +86,17 @@ class _CachedTileImage extends ImageProvider<_CachedTileImage> {
   @override
   SynchronousFuture<_CachedTileImage> obtainKey(
     ImageConfiguration configuration,
-  ) =>
-      SynchronousFuture(this);
+  ) => SynchronousFuture(this);
 
   @override
   ImageStreamCompleter loadImage(
     _CachedTileImage key,
     ImageDecoderCallback decode,
-  ) =>
-      MultiFrameImageStreamCompleter(
-        codec: _load(key, decode),
-        scale: 1,
-        debugLabel: url,
-      );
+  ) => MultiFrameImageStreamCompleter(
+    codec: _load(key, decode),
+    scale: 1,
+    debugLabel: url,
+  );
 
   Future<Codec> _load(_CachedTileImage key, ImageDecoderCallback decode) async {
     final bytes = await _resolveBytes();
@@ -122,9 +120,15 @@ class _CachedTileImage extends ImageProvider<_CachedTileImage> {
       }
     }
 
-    // Offline mode never touches the network. Tiles that were never cached are
-    // shown transparent so the map background (and any markers) remain visible.
-    if (offline) return TileProvider.transparentImage;
+    // Offline mode never touches the network. When the exact tile was never
+    // cached, try to synthesize it by zooming into a cached lower-zoom
+    // ("parent") tile so the map stays filled (blurrier) instead of blank.
+    // If no usable ancestor is cached either, fall back to a transparent tile
+    // so the map background (and any markers) remain visible.
+    if (offline) {
+      final upscaled = await _ancestorTileBytes(dir);
+      return upscaled ?? TileProvider.transparentImage;
+    }
 
     // Online: fetch from the network and populate the cache for offline use.
     try {
@@ -137,6 +141,72 @@ class _CachedTileImage extends ImageProvider<_CachedTileImage> {
       // Network failure (e.g. connectivity lost): fall back to transparent.
     }
     return TileProvider.transparentImage;
+  }
+
+  /// Attempts to build this tile from a cached lower-zoom ancestor ("parent")
+  /// tile by cropping the quadrant that this tile covers and scaling it up to a
+  /// full tile. Returns PNG bytes, or null when no usable ancestor is cached.
+  ///
+  /// Only used in offline mode to fill gaps where the exact-zoom tile was never
+  /// cached: the result is blurry (over-zoomed) but keeps the map continuous
+  /// instead of showing blank squares. Walks up several zoom levels, preferring
+  /// the closest (sharpest) cached ancestor.
+  Future<Uint8List?> _ancestorTileBytes(Directory dir) async {
+    const maxLevels = 5;
+    for (var k = 1; k <= maxLevels; k++) {
+      final z = coordinates.z - k;
+      if (z < 0) break;
+
+      final factor = 1 << k; // tiles-per-side covered by one ancestor tile
+      final px = coordinates.x >> k;
+      final py = coordinates.y >> k;
+      final file = File('${dir.path}/${z}_${px}_$py.png');
+      if (!await file.exists()) continue;
+
+      Uint8List parentBytes;
+      try {
+        parentBytes = await file.readAsBytes();
+      } catch (_) {
+        continue;
+      }
+      if (parentBytes.isEmpty) continue;
+
+      try {
+        final codec = await instantiateImageCodec(parentBytes);
+        final frame = await codec.getNextFrame();
+        final src = frame.image;
+
+        // Sub-rectangle of the parent tile that this tile corresponds to.
+        final size = src.width.toDouble();
+        final sub = size / factor;
+        final subX = (coordinates.x - (px << k)).toDouble();
+        final subY = (coordinates.y - (py << k)).toDouble();
+        final srcRect = Rect.fromLTWH(subX * sub, subY * sub, sub, sub);
+        final dstRect = Rect.fromLTWH(0, 0, size, size);
+
+        final recorder = PictureRecorder();
+        Canvas(recorder).drawImageRect(
+          src,
+          srcRect,
+          dstRect,
+          Paint()..filterQuality = FilterQuality.medium,
+        );
+        final picture = recorder.endRecording();
+        final outImage = await picture.toImage(src.width, src.height);
+        final byteData = await outImage.toByteData(format: ImageByteFormat.png);
+
+        src.dispose();
+        codec.dispose();
+        picture.dispose();
+        outImage.dispose();
+
+        if (byteData != null) return byteData.buffer.asUint8List();
+      } catch (_) {
+        // Could not decode/scale this ancestor; try the next level up.
+        continue;
+      }
+    }
+    return null;
   }
 
   Future<void> _writeCache(File file, Uint8List bytes) async {

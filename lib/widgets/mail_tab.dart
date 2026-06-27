@@ -1,3 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:archive/archive.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../dialogs/mail_compose_dialog.dart';
 import '../dialogs/mail_viewer_dialog.dart';
@@ -611,10 +618,149 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       case 'showTraffic':
         showMailDebugDialog(context);
         break;
+      case 'backup':
+        _onBackupMail();
+        break;
+      case 'restore':
+        _onRestoreMail();
+        break;
       case 'detach':
         windowService.createWindow('mail');
         break;
     }
+  }
+
+  /// Backs up all mail to a gzip-compressed JSON file (ports
+  /// `backupMailToolStripMenuItem_Click`). The format is compatible with the
+  /// C# application's backup files.
+  Future<void> _onBackupMail() async {
+    final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+
+    final store = DataBroker.getDataHandler<MailStore>('MailStore');
+    final mails = store?.getAllMails() ?? const <WinLinkMail>[];
+
+    final Uint8List data;
+    try {
+      final json = const JsonEncoder.withIndent(
+        '  ',
+      ).convert(mails.map((m) => m.toJson()).toList());
+      final encoded = GZipEncoder().encode(utf8.encode(json));
+      data = Uint8List.fromList(encoded);
+    } catch (e) {
+      messenger?.showSnackBar(SnackBar(content: Text('Backup failed: $e')));
+      return;
+    }
+
+    // Web and mobile require the bytes up front; desktop returns a path that
+    // we write to ourselves.
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
+
+    String? outputPath;
+    try {
+      outputPath = await FilePicker.saveFile(
+        dialogTitle: 'Backup Mail',
+        fileName: 'mail-backup',
+        type: FileType.custom,
+        allowedExtensions: const ['dat'],
+        bytes: needsBytes ? data : null,
+      );
+    } catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Error opening file dialog: $e')),
+      );
+      return;
+    }
+
+    if (outputPath == null) return;
+
+    if (!needsBytes) {
+      try {
+        await File(outputPath).writeAsBytes(data);
+      } catch (e) {
+        messenger?.showSnackBar(SnackBar(content: Text('Backup failed: $e')));
+        return;
+      }
+    }
+
+    messenger?.showSnackBar(
+      const SnackBar(content: Text('Backup completed successfully.')),
+    );
+  }
+
+  /// Restores mail from a gzip-compressed JSON backup file, adding any messages
+  /// whose MID is not already present (ports `restoreMailToolStripMenuItem_Click`).
+  Future<void> _onRestoreMail() async {
+    final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.pickFiles(
+        dialogTitle: 'Restore Mail',
+        type: FileType.custom,
+        allowedExtensions: const ['dat'],
+        withData: true,
+      );
+    } catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Error opening file dialog: $e')),
+      );
+      return;
+    }
+
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.single;
+    Uint8List? bytes;
+    try {
+      if (file.bytes != null) {
+        bytes = file.bytes;
+      } else if (!kIsWeb && file.path != null) {
+        bytes = await File(file.path!).readAsBytes();
+      }
+    } catch (_) {
+      bytes = null;
+    }
+
+    if (bytes == null) {
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Unable to open backup file')),
+      );
+      return;
+    }
+
+    final List<WinLinkMail> restoredMails;
+    try {
+      final decoded = GZipDecoder().decodeBytes(bytes);
+      final json = utf8.decode(decoded);
+      final list = jsonDecode(json) as List;
+      restoredMails = list
+          .whereType<Map>()
+          .map((m) => WinLinkMail.fromJson(m.cast<String, dynamic>()))
+          .toList();
+    } catch (e) {
+      messenger?.showSnackBar(SnackBar(content: Text('Restore failed: $e')));
+      return;
+    }
+
+    // Existing MIDs are skipped; the MailStore also dedupes on MailAdd.
+    final existingMids = _rawMails.keys.toSet();
+    var added = 0;
+    for (final mail in restoredMails) {
+      final mid = mail.mid;
+      if (mid == null || mid.isEmpty || existingMids.contains(mid)) continue;
+      existingMids.add(mid);
+      _broker.dispatch(deviceId: 0, name: 'MailAdd', data: mail, store: false);
+      added++;
+    }
+
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Restore completed successfully ($added message'
+          '${added == 1 ? '' : 's'} added).',
+        ),
+      ),
+    );
   }
 
   void _sort(int columnIndex) {
