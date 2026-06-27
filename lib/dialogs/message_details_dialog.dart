@@ -3,71 +3,148 @@ Copyright 2026 Ylian Saint-Hilaire
 Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
-Ported from the C# `HTCommander.AprsDetailsForm` dialog.
+Shows the detailed contents of a Comms tab message (type, time, channel,
+source/destination, duration, location, etc.).
 */
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'aprs_location_dialog.dart';
-
-/// A single name/value row shown in the [AprsDetailsDialog].
-class AprsDetailItem {
-  final String name;
-  final String value;
-  const AprsDetailItem(this.name, this.value);
-}
-
-/// Dialog that shows the detailed contents of a parsed APRS packet.
-///
-/// Mirrors the C# `AprsDetailsForm`: a two-column (name/value) list with
-/// per-row "copy value" and a "copy all" action. Styled to match the
-/// application's settings dialog.
-class AprsDetailsDialog extends StatelessWidget {
-  final List<AprsDetailItem> items;
-
-  /// Optional sender location. When both [latitude] and [longitude] are
-  /// provided (and not both zero), a "Show Location..." button is shown on the
-  /// bottom left that opens the APRS location map dialog.
+/// All the metadata known about a single Comms tab message. Attached as the
+/// [ChatMessage.tag] so the details dialog can display the full record.
+class CommsMessageDetails {
+  final String encoding;
+  final DateTime time;
+  final String channel;
+  final bool isReceived;
+  final String? source;
+  final String? destination;
+  final int duration;
   final double? latitude;
   final double? longitude;
+  final String text;
+  final String? filename;
+  final String? imagePath;
 
-  /// Optional title shown in the location map dialog (e.g. the sender call).
-  final String? locationTitle;
-
-  const AprsDetailsDialog({
-    super.key,
-    required this.items,
+  const CommsMessageDetails({
+    required this.encoding,
+    required this.time,
+    required this.channel,
+    required this.isReceived,
+    this.source,
+    this.destination,
+    this.duration = 0,
     this.latitude,
     this.longitude,
-    this.locationTitle,
+    this.text = '',
+    this.filename,
+    this.imagePath,
   });
+}
 
-  /// Shows the dialog. [items] are the name/value pairs to display.
+/// A single name/value row shown in the [MessageDetailsDialog].
+class MessageDetailItem {
+  final String name;
+  final String value;
+  const MessageDetailItem(this.name, this.value);
+}
+
+/// Dialog that shows the detailed contents of a Comms tab message.
+///
+/// Styled to match the [AprsDetailsDialog]: a two-column (name/value) list
+/// with per-row "copy value" and a "copy all" action.
+class MessageDetailsDialog extends StatelessWidget {
+  final List<MessageDetailItem> items;
+
+  const MessageDetailsDialog({super.key, required this.items});
+
+  /// Shows the dialog for the given [details].
   static Future<void> show(
     BuildContext context, {
-    required List<AprsDetailItem> items,
-    double? latitude,
-    double? longitude,
-    String? locationTitle,
+    required CommsMessageDetails details,
   }) {
     return showDialog<void>(
       context: context,
-      builder: (context) => AprsDetailsDialog(
-        items: items,
-        latitude: latitude,
-        longitude: longitude,
-        locationTitle: locationTitle,
-      ),
+      builder: (context) => MessageDetailsDialog(items: _buildItems(details)),
     );
   }
 
-  bool get _hasLocation =>
-      latitude != null &&
-      longitude != null &&
-      (latitude != 0 || longitude != 0);
+  /// Builds the displayed name/value rows from a [CommsMessageDetails],
+  /// skipping fields that have no meaningful value.
+  static List<MessageDetailItem> _buildItems(CommsMessageDetails d) {
+    final items = <MessageDetailItem>[];
+    items.add(MessageDetailItem('Type', _typeLabel(d.encoding)));
+    items.add(
+      MessageDetailItem('Direction', d.isReceived ? 'Received' : 'Sent'),
+    );
+    items.add(MessageDetailItem('Time', _formatTime(d.time)));
+    if (d.channel.isNotEmpty) {
+      items.add(MessageDetailItem('Channel', d.channel));
+    }
+    final source = d.source;
+    if (source != null && source.isNotEmpty) {
+      items.add(MessageDetailItem('Source', source));
+    }
+    final destination = d.destination;
+    if (destination != null && destination.isNotEmpty) {
+      items.add(MessageDetailItem('Receiver', destination));
+    }
+    if (d.duration > 0) {
+      items.add(MessageDetailItem('Duration', _formatDuration(d.duration)));
+    }
+    final lat = d.latitude;
+    final lon = d.longitude;
+    if (lat != null && lon != null && (lat != 0 || lon != 0)) {
+      items.add(MessageDetailItem('Latitude', lat.toStringAsFixed(6)));
+      items.add(MessageDetailItem('Longitude', lon.toStringAsFixed(6)));
+    }
+    if (d.text.trim().isNotEmpty) {
+      items.add(MessageDetailItem('Message', d.text.trim()));
+    }
+    final filename = d.filename;
+    if (filename != null && filename.isNotEmpty) {
+      items.add(MessageDetailItem('File', filename));
+    }
+    return items;
+  }
 
-  void _copyValue(BuildContext context, AprsDetailItem item) {
+  static String _typeLabel(String encoding) {
+    switch (encoding) {
+      case 'Voice':
+        return 'Voice';
+      case 'VoiceClip':
+        return 'Voice Clip';
+      case 'Recording':
+        return 'Recording';
+      case 'Picture':
+        return 'SSTV Picture';
+      case 'Ident':
+        return 'Identification';
+      case 'BSS':
+        return 'Chat Message';
+      case 'AX25':
+        return 'AX.25 Packet';
+      case 'APRS':
+        return 'APRS';
+      default:
+        return encoding;
+    }
+  }
+
+  static String _formatTime(DateTime time) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${time.year}-${two(time.month)}-${two(time.day)} '
+        '${two(time.hour)}:${two(time.minute)}:${two(time.second)}';
+  }
+
+  static String _formatDuration(int totalSeconds) {
+    if (totalSeconds < 60) return '${totalSeconds}s';
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return seconds > 0 ? '${minutes}m ${seconds}s' : '${minutes}m';
+  }
+
+  void _copyValue(BuildContext context, MessageDetailItem item) {
     Clipboard.setData(ClipboardData(text: item.value));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -97,7 +174,7 @@ class AprsDetailsDialog extends StatelessWidget {
   Future<void> _showRowMenu(
     BuildContext context,
     Offset position,
-    AprsDetailItem item,
+    MessageDetailItem item,
   ) async {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final value = await showMenu<String>(
@@ -137,7 +214,7 @@ class AprsDetailsDialog extends StatelessWidget {
                 children: [
                   const Expanded(
                     child: Text(
-                      'APRS Packet Details',
+                      'Message Details',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -195,63 +272,26 @@ class AprsDetailsDialog extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               // Buttons.
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  // On narrow (mobile) layouts, show only the marker icon for
-                  // the location button instead of the icon plus label.
-                  final compact = constraints.maxWidth < 360;
-                  return Row(
-                    children: [
-                      if (_hasLocation)
-                        if (compact)
-                          IconButton(
-                            tooltip: 'Show Location...',
-                            onPressed: () => showAprsLocationDialog(
-                              context,
-                              latitude: latitude!,
-                              longitude: longitude!,
-                              title: locationTitle,
-                            ),
-                            icon: const Icon(
-                              Icons.location_pin,
-                              color: Colors.black87,
-                            ),
-                          )
-                        else
-                          ElevatedButton.icon(
-                            onPressed: () => showAprsLocationDialog(
-                              context,
-                              latitude: latitude!,
-                              longitude: longitude!,
-                              title: locationTitle,
-                            ),
-                            icon: const Icon(Icons.location_pin, size: 18),
-                            label: const Text('Show Location...'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black87,
-                            ),
-                          ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () => _copyAll(context),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.black87,
-                        ),
-                        child: const Text('Copy All'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Close'),
-                      ),
-                    ],
-                  );
-                },
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => _copyAll(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                    ),
+                    child: const Text('Copy All'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Close'),
+                  ),
+                ],
               ),
             ],
           ),
@@ -263,7 +303,7 @@ class AprsDetailsDialog extends StatelessWidget {
 
 /// A single name/value row. Right-click (or long-press) opens a copy menu.
 class _DetailRow extends StatelessWidget {
-  final AprsDetailItem item;
+  final MessageDetailItem item;
   final bool striped;
   final ValueChanged<Offset> onContextMenu;
 

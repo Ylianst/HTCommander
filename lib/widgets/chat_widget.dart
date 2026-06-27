@@ -52,6 +52,12 @@ class ChatWidget extends StatefulWidget {
   final ValueChanged<ChatMessage>? onMessageTap;
   final ValueChanged<ChatMessage>? onMessageDoubleTap;
   final ValueChanged<ChatMessage>? onMessageLongPress;
+
+  /// Invoked on right-click (secondary tap) or long-press, providing the
+  /// global pointer position so the caller can show a context menu anchored
+  /// to the pointer. When set, it takes precedence over [onMessageLongPress].
+  final void Function(ChatMessage message, Offset globalPosition)?
+  onMessageContextMenu;
   final Color bubbleColor;
   final Color bubbleAuthColor;
   final Color bubbleFailedColor;
@@ -66,6 +72,7 @@ class ChatWidget extends StatefulWidget {
     this.onMessageTap,
     this.onMessageDoubleTap,
     this.onMessageLongPress,
+    this.onMessageContextMenu,
     this.bubbleColor = const Color(0xFFADD8E6), // LightBlue
     this.bubbleAuthColor = const Color(0xFF90EE90), // LightGreen
     this.bubbleFailedColor = const Color(0xFFFFB6C1), // LightPink
@@ -304,6 +311,18 @@ class _ChatWidgetState extends State<ChatWidget> {
       );
     }
 
+    // Right-click / long-press context menu on the message title.
+    if (widget.onMessageContextMenu != null) {
+      header = GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onSecondaryTapDown: (details) =>
+            widget.onMessageContextMenu!(message, details.globalPosition),
+        onLongPressStart: (details) =>
+            widget.onMessageContextMenu!(message, details.globalPosition),
+        child: header,
+      );
+    }
+
     return Padding(
       padding: EdgeInsets.only(
         left: message.isSender ? 0 : 12,
@@ -322,8 +341,18 @@ class _ChatWidgetState extends State<ChatWidget> {
       onDoubleTap: widget.onMessageDoubleTap != null
           ? () => widget.onMessageDoubleTap!(message)
           : null,
-      onLongPress: widget.onMessageLongPress != null
+      onLongPress:
+          (widget.onMessageContextMenu == null &&
+              widget.onMessageLongPress != null)
           ? () => widget.onMessageLongPress!(message)
+          : null,
+      onLongPressStart: widget.onMessageContextMenu != null
+          ? (details) =>
+                widget.onMessageContextMenu!(message, details.globalPosition)
+          : null,
+      onSecondaryTapDown: widget.onMessageContextMenu != null
+          ? (details) =>
+                widget.onMessageContextMenu!(message, details.globalPosition)
           : null,
       child: Row(
         mainAxisAlignment: message.isSender

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../models/station_info.dart';
 import '../services/data_broker_client.dart';
 import 'add_station_dialog.dart';
+import 'dialog_utils.dart';
 
 /// Result of the active-station selector dialog.
 enum StationSelectorAction { selected, createNew, cancel }
@@ -131,51 +132,92 @@ class _StationSelectorDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(_title),
-      content: SizedBox(
-        width: 380,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 360),
-          child: ListView.separated(
-            shrinkWrap: true,
-            itemCount: stations.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final station = stations[index];
-              final subtitle = station.name.isNotEmpty
-                  ? station.name
-                  : station.description;
-              return ListTile(
-                dense: true,
-                leading: const Icon(Icons.cell_tower),
-                title: Text(station.callsign),
-                subtitle: subtitle.isNotEmpty ? Text(subtitle) : null,
-                onTap: () => Navigator.of(context).pop(
-                  StationSelectorResult(
-                    StationSelectorAction.selected,
-                    station,
+    return Dialog(
+      backgroundColor: const Color(0xFFF5F5F5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 520),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Title
+              Text(_title, style: DialogStyles.titleStyle),
+              const SizedBox(height: 16),
+              // Station list section card
+              Flexible(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: stations.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final station = stations[index];
+                      final subtitle = station.name.isNotEmpty
+                          ? station.name
+                          : station.description;
+                      return ListTile(
+                        dense: true,
+                        leading: Icon(
+                          Icons.cell_tower,
+                          color: Colors.blue.shade700,
+                        ),
+                        title: Text(station.callsign),
+                        subtitle: subtitle.isNotEmpty ? Text(subtitle) : null,
+                        onTap: () => Navigator.of(context).pop(
+                          StationSelectorResult(
+                            StationSelectorAction.selected,
+                            station,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              );
-            },
+              ),
+              const SizedBox(height: 16),
+              // Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(
+                      const StationSelectorResult(StationSelectorAction.cancel),
+                    ),
+                    style: DialogStyles.secondaryButtonStyle(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(
+                      const StationSelectorResult(
+                        StationSelectorAction.createNew,
+                      ),
+                    ),
+                    style: DialogStyles.primaryButtonStyle(context),
+                    child: const Text('New…'),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(
-            context,
-          ).pop(const StationSelectorResult(StationSelectorAction.cancel)),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(
-            context,
-          ).pop(const StationSelectorResult(StationSelectorAction.createNew)),
-          child: const Text('New…'),
-        ),
-      ],
     );
   }
 }
