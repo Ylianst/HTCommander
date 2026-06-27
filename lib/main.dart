@@ -1860,6 +1860,7 @@ class _MainFormState extends State<MainForm>
         CompatibleDevice(
           name: customName.isNotEmpty ? customName : device.name,
           mac: device.id,
+          bluetoothName: device.name,
         ),
       );
     }
