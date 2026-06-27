@@ -424,10 +424,12 @@ class BleRadioTransport implements RadioTransport {
     await FlutterBluePlus.stopScan();
   }
 
-  /// Logs an informational diagnostic both to the console and the Debug tab.
+  /// Logs an informational diagnostic to the console only.
+  ///
+  /// These verbose BLE connection diagnostics are intentionally kept out of
+  /// the user-facing Debug tab to avoid cluttering it (especially on web).
   void _logInfo(String msg) {
     debugPrint('BleRadioTransport: $msg');
-    _broker.logInfo('[BLE] $msg');
   }
 
   /// Logs an error diagnostic both to the console and the Debug tab.
@@ -837,13 +839,6 @@ class BleRadioTransport implements RadioTransport {
 
     try {
       final primary = _txCharacteristic!;
-      if (kIsWeb && _txTraceCount < 20) {
-        _txTraceCount++;
-        _logInfo(
-          'TX[$_txTraceCount] -> ${primary.uuid.toString().toLowerCase()} '
-          '${data.length} byte(s): ${_hexPreview(data)}',
-        );
-      }
       await primary.write(
         data.toList(),
         withoutResponse: primary.properties.writeWithoutResponse,

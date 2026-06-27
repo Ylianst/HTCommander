@@ -112,7 +112,6 @@ class Radio {
   int _initRetryCount = 0;
   static const int _maxInitRetries = 3;
   bool _receivedAnyData = false;
-  int _webInitCommandCount = 0;
   DateTime? _connectedAt;
   bool _webBleCompactMode = false;
   int _webBleCompactVariant = 0;
@@ -172,9 +171,6 @@ class Radio {
   }
 
   void _setupSubscriptions() {
-    debugPrint(
-      '[Radio $deviceId] Subscribing to ChannelChangeVfoA/B for device $deviceId',
-    );
     // Subscribe to channel change events
     _broker.subscribeMultiple(
       deviceId: deviceId,
@@ -590,7 +586,6 @@ class Radio {
     _updateState(RadioState.connected);
     _receivedAnyData = false;
     _initRetryCount = 0;
-    _webInitCommandCount = 0;
     _connectedAt = DateTime.now();
     _webBleCompactMode = false;
     _webBleCompactVariant = 0;
@@ -599,10 +594,6 @@ class Radio {
     _lastCompactStatus = -1;
     _lastCompactLogAt = DateTime.fromMillisecondsSinceEpoch(0);
     _webBleCompactUnsupported = false;
-
-    if (kIsWeb) {
-      _broker.logInfo('[Radio $deviceId] [WEB-BLE] Transport connected');
-    }
 
     // Add a small delay before sending initial commands
     // Some radios need time to initialize the RFCOMM channel
@@ -621,10 +612,6 @@ class Radio {
       'Sending initial commands (attempt ${_initRetryCount + 1}/$maxInitRetries)',
     );
     if (kIsWeb) {
-      _broker.logInfo(
-        '[Radio $deviceId] [WEB-BLE] Sending init command batch '
-        '${_initRetryCount + 1}/$maxInitRetries',
-      );
       if (_webBleCompactMode) {
         final variantName = switch (_webBleCompactVariant) {
           0 => 'cmd16-be',
@@ -1333,14 +1320,6 @@ class Radio {
       _debug('TX: ${RadioUtils.bytesToHex(gaiaFrame)}');
     }
 
-    if (kIsWeb && !_receivedAnyData && _webInitCommandCount < 20) {
-      _webInitCommandCount++;
-      _broker.logInfo(
-        '[Radio $deviceId] [WEB-BLE] TX init[$_webInitCommandCount] '
-        '${cmd.name} (${gaiaFrame.length} bytes)',
-      );
-    }
-
     _transport!.send(gaiaFrame);
   }
 
@@ -1366,7 +1345,6 @@ class Radio {
 
       _receivedAnyData = false;
       _initRetryCount = 0;
-      _webInitCommandCount = 0;
       _initRetryTimer?.cancel();
 
       Future<void>.delayed(const Duration(milliseconds: 120), () {
@@ -1476,16 +1454,6 @@ class Radio {
     if (!_receivedAnyData) {
       _receivedAnyData = true;
       _initRetryTimer?.cancel();
-      if (kIsWeb) {
-        final connectedAt = _connectedAt;
-        final elapsedMs = connectedAt == null
-            ? 0
-            : DateTime.now().difference(connectedAt).inMilliseconds;
-        _broker.logInfo(
-          '[Radio $deviceId] [WEB-BLE] First direct RX data received '
-          '(${data.length} bytes, ${elapsedMs}ms after connect)',
-        );
-      }
     }
 
     if (_packetTrace) {
