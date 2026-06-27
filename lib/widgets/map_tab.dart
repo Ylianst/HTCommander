@@ -8,7 +8,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:latlong2/latlong.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
@@ -18,6 +17,7 @@ import '../models/radio_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
+import '../utils/map_tile_provider.dart';
 
 /// Holds the latest known position, time and track points for a single
 /// station rendered on the map (APRS red/blue markers or voice/BSS orange
@@ -71,6 +71,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   bool _showTracks = true;
   bool _showAirplanes = false;
   bool _largeMarkers = true;
+
+  /// Tile provider for the map. Recreated only when [_isOfflineMode] changes so
+  /// that normal rebuilds (marker/track updates) don't reset the tile cache or
+  /// leak HTTP clients. In offline mode it serves only disk-cached tiles.
+  late TileProvider _tileProvider = mapTileProvider(offline: _isOfflineMode);
 
   /// Current aircraft to display, received from the "Airplanes" broker event.
   List<Aircraft> _airplanes = [];
@@ -516,6 +521,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     // Load settings
     _isOfflineMode =
         (DataBroker.getValue<int>(0, 'MapOfflineMode', 0) ?? 0) == 1;
+    _tileProvider = mapTileProvider(offline: _isOfflineMode);
     _showTracks = (DataBroker.getValue<int>(0, 'MapShowTracks', 1) ?? 1) == 1;
     _largeMarkers =
         (DataBroker.getValue<int>(0, 'MapLargeMarkers', 1) ?? 1) == 1;
@@ -712,6 +718,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
         case 'offline':
           setState(() {
             _isOfflineMode = !_isOfflineMode;
+            // Recreate the tile provider so it stops/starts hitting the
+            // network. The keyed TileLayer (see build) disposes the old
+            // provider's HTTP client and reloads tiles in the new mode.
+            _tileProvider = mapTileProvider(offline: _isOfflineMode);
           });
           _broker.dispatch(
             deviceId: 0,
@@ -998,20 +1008,17 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                   onPositionChanged: _onMapPositionChanged,
                 ),
                 children: [
-                  // Only fetch OpenStreetMap tiles when online. In offline mode
-                  // the tile layer is omitted entirely so nothing is loaded
-                  // from the internet.
-                  if (!_isOfflineMode)
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.htcommander.app',
-                      // Cancels tile requests that are no longer needed (e.g.
-                      // when panning/zooming quickly), which notably improves
-                      // performance on the web where browsers cap simultaneous
-                      // connections per host.
-                      tileProvider: CancellableNetworkTileProvider(),
-                    ),
+                  // Map tiles. Online: fetched from OpenStreetMap and cached to
+                  // disk. Offline: only previously-cached tiles are shown (no
+                  // network access). Keyed by offline state so toggling fully
+                  // resets the layer and disposes the old provider.
+                  TileLayer(
+                    key: ValueKey(_isOfflineMode),
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.htcommander.app',
+                    tileProvider: _tileProvider,
+                  ),
                   if (tracks.isNotEmpty) PolylineLayer(polylines: tracks),
                   if (stationMarkers.isNotEmpty)
                     MarkerLayer(markers: stationMarkers),

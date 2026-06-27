@@ -56,36 +56,92 @@ class _MailViewerDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return HTDialog(
-      title: subject.isNotEmpty ? 'Mail - $subject' : 'Mail',
-      maxWidth: 600,
-      maxHeight: 600,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (from.isNotEmpty) _headerLine('From: ', from),
-          if (to.isNotEmpty) _headerLine('To: ', to),
-          if (cc.isNotEmpty) _headerLine('Cc: ', cc),
-          _headerLine('Time: ', time.toLocal().toString()),
-          if (subject.isNotEmpty) _headerLine('Subject: ', subject),
-          if (attachments.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _buildAttachments(),
-          ],
-          const Divider(height: 24),
-          Expanded(
-            child: SingleChildScrollView(
-              child: SelectableText(body, style: DialogStyles.bodyStyle),
-            ),
+    return Dialog(
+      backgroundColor: const Color(0xFFF5F5F5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  subject.isNotEmpty ? 'Mail - $subject' : 'Mail',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: _sectionDecoration(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (from.isNotEmpty) _headerLine('From: ', from),
+                            if (to.isNotEmpty) _headerLine('To: ', to),
+                            if (cc.isNotEmpty) _headerLine('Cc: ', cc),
+                            _headerLine('Time: ', time.toLocal().toString()),
+                            if (subject.isNotEmpty)
+                              _headerLine('Subject: ', subject),
+                            if (attachments.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              _buildAttachments(),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: _sectionDecoration(),
+                        child: SelectableText(
+                          body,
+                          style: DialogStyles.bodyStyle,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: DialogStyles.primaryButtonStyle(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-      actions: [
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(),
-          style: DialogStyles.primaryButtonStyle(context),
-          child: const Text('Close'),
+    );
+  }
+
+  BoxDecoration _sectionDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
         ),
       ],
     );

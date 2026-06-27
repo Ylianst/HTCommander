@@ -1,3 +1,6 @@
+import 'dart:io' show File;
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../radio/packet_decoder.dart';
@@ -169,10 +172,56 @@ class _PacketsTabState extends State<PacketsTab>
     });
   }
 
-  void _onSaveToFile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Save to file not implemented yet')),
-    );
+  Future<void> _onSaveToFile() async {
+    if (_packets.isEmpty) return;
+
+    // Serialize every packet using the same line format the PacketStore uses
+    // for persistence: `{microsecondsSinceEpoch},{incoming?1:0},{fragment}`.
+    final buffer = StringBuffer();
+    for (final packet in _packets) {
+      final fragment = packet.fragment;
+      buffer
+        ..write(fragment.time.microsecondsSinceEpoch)
+        ..write(',')
+        ..write(fragment.incoming ? 1 : 0)
+        ..write(',')
+        ..write(fragment.toString())
+        ..write('\n');
+    }
+
+    String? outputPath;
+    try {
+      outputPath = await FilePicker.saveFile(
+        dialogTitle: 'Save Packet Capture',
+        fileName: 'packets',
+        type: FileType.custom,
+        allowedExtensions: const ['ptcap'],
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening file dialog: $e')),
+        );
+      }
+      return;
+    }
+
+    if (outputPath == null) return;
+
+    try {
+      await File(outputPath).writeAsString(buffer.toString());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Packet capture saved to $outputPath')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving file: $e')));
+      }
+    }
   }
 
   void _showMenu(BuildContext context) {
