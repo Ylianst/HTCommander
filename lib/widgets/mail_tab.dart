@@ -157,6 +157,25 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
     setState(() => _errorMessage = null);
   }
 
+  /// Removes a leading, case-insensitive "SMTP:" prefix that Winlink adds to
+  /// internet email senders, so only the bare address is displayed.
+  static String _stripSmtpPrefix(String address) {
+    if (address.length >= 5 &&
+        address.substring(0, 5).toUpperCase() == 'SMTP:') {
+      return address.substring(5);
+    }
+    return address;
+  }
+
+  /// Formats a received time for display as "YYYY-MM-DD HH:MM" (no seconds or
+  /// milliseconds), in local time.
+  static String _formatMailTime(DateTime time) {
+    final t = time.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${t.year}-${two(t.month)}-${two(t.day)} '
+        '${two(t.hour)}:${two(t.minute)}';
+  }
+
   /// Loads all mail from the global MailStore and groups it by mailbox.
   void _loadMails() {
     final store = DataBroker.getDataHandler<MailStore>('MailStore');
@@ -177,7 +196,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
           MailMessage(
             id: mid,
             time: mail.dateTime,
-            from: mail.from ?? '',
+            from: _stripSmtpPrefix(mail.from ?? ''),
             to: mail.to ?? '',
             cc: mail.cc ?? '',
             subject: mail.subject ?? '',
@@ -268,7 +287,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
     final items = <PopupMenuEntry<Object>>[
       const PopupMenuItem<Object>(
         value: '__internet__',
-        child: Text('Internet (Winlink Server)'),
+        child: Text('Internet'),
       ),
     ];
 
@@ -409,6 +428,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
         time: m.time,
         subject: m.subject,
         body: m.body,
+        onReply: _onReply,
+        onReplyAll: _onReplyAll,
+        onForward: _onForward,
+        onDelete: _onDelete,
       );
     }
   }
@@ -1288,32 +1311,34 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    mail.subject,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+              child: SelectionArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      mail.subject,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'From: ${mail.from}',
-                    style: TextStyle(color: Colors.grey.shade700),
-                  ),
-                  Text(
-                    'To: ${mail.to}',
-                    style: TextStyle(color: Colors.grey.shade700),
-                  ),
-                  Text(
-                    'Date: ${mail.time}',
-                    style: TextStyle(color: Colors.grey.shade700),
-                  ),
-                  const Divider(height: 24),
-                  Text(mail.body),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'From: ${mail.from}',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                    Text(
+                      'To: ${mail.to}',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                    Text(
+                      'Date: ${_formatMailTime(mail.time)}',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                    const Divider(height: 24),
+                    Text(mail.body),
+                  ],
+                ),
               ),
             ),
           ),
