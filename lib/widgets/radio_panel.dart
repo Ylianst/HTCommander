@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/data_broker_client.dart';
 import '../models/radio_models.dart';
 import '../dialogs/radio_channel_dialog.dart';
+import '../dialogs/gps_details_dialog.dart';
 
 /// Radio panel control widget - displays radio image, VFO frequencies, and status
 class RadioPanelControl extends StatefulWidget {
@@ -986,15 +987,23 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   Widget _buildStatusRow() {
+    final gpsText = Text(
+      _gpsStatus,
+      style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+      textAlign: TextAlign.right,
+    );
     return Row(
       children: [
         const Spacer(),
-        // GPS status
-        Text(
-          _gpsStatus,
-          style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
-          textAlign: TextAlign.right,
-        ),
+        // GPS status - tap to open the GPS details dialog when GPS is enabled.
+        if (_gpsStatus.isEmpty)
+          gpsText
+        else
+          InkWell(
+            onTap: () =>
+                showGpsDetailsDialog(context, deviceId: widget.deviceId),
+            child: gpsText,
+          ),
       ],
     );
   }

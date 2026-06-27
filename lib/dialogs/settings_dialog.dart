@@ -43,6 +43,43 @@ class AppSettings {
   int gpsBaudRate;
   String airplaneServerUrl;
 
+  /// APRS routes that always exist and cannot be edited or removed. Stored in
+  /// definition order (preserved by the map) so they always appear first.
+  static const Map<String, String> protectedRoutes = {
+    'Standard': 'APN000,WIDE1-1,WIDE2-2',
+    'None': 'APN000',
+  };
+
+  /// Whether a route with the given name is a built-in protected route.
+  static bool isProtectedRouteName(String name) =>
+      protectedRoutes.containsKey(name);
+
+  /// Returns a list that always begins with the protected routes (with their
+  /// canonical paths), followed by the user-defined routes. Any user routes
+  /// whose names collide with a protected route are dropped in favour of the
+  /// built-in definition.
+  static List<AprsRoute> _withProtectedRoutes(List<AprsRoute> routes) {
+    final result = <AprsRoute>[];
+    protectedRoutes.forEach((name, path) {
+      result.add(AprsRoute(name: name, path: path));
+    });
+    for (final r in routes) {
+      if (!protectedRoutes.containsKey(r.name)) result.add(r);
+    }
+    return result;
+  }
+
+  /// Ensure the protected APRS routes exist in the DataBroker at application
+  /// startup, persisting them if they are missing or have changed.
+  static void ensureDefaultRoutes() {
+    final routesStr = DataBroker.getValue<String>(0, 'AprsRoutes', '') ?? '';
+    final routes = _withProtectedRoutes(_parseAprsRoutes(routesStr));
+    final serialized = routes.map((r) => '${r.name}|${r.path}').join('|');
+    if (serialized != routesStr) {
+      DataBroker.dispatch(deviceId: 0, name: 'AprsRoutes', data: serialized);
+    }
+  }
+
   AppSettings({
     this.callSign = '',
     this.stationId = 0,
@@ -62,9 +99,7 @@ class AppSettings {
     this.gpsSerialPort = 'None',
     this.gpsBaudRate = 4800,
     this.airplaneServerUrl = '',
-  }) : aprsRoutes =
-           aprsRoutes ??
-           [AprsRoute(name: 'Standard', path: 'APN000,WIDE1-1,WIDE2-2')];
+  }) : aprsRoutes = _withProtectedRoutes(aprsRoutes ?? const []);
 
   AppSettings copyWith({
     String? callSign,
@@ -118,9 +153,7 @@ class AppSettings {
       stationId: DataBroker.getValue<int>(0, 'StationId', 0) ?? 0,
       allowTransmit:
           (DataBroker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1,
-      aprsRoutes: aprsRoutes.isNotEmpty
-          ? aprsRoutes
-          : [AprsRoute(name: 'Standard', path: 'APN000,WIDE1-1,WIDE2-2')],
+      aprsRoutes: aprsRoutes,
       voiceLanguage:
           DataBroker.getValue<String>(0, 'VoiceLanguage', 'auto') ?? 'auto',
       voiceModel:
@@ -783,7 +816,10 @@ class _SettingsDialogState extends State<SettingsDialog>
                       itemCount: _settings.aprsRoutes.length,
                       itemBuilder: (context, index) {
                         final route = _settings.aprsRoutes[index];
-                        final canDelete = _settings.aprsRoutes.length > 1;
+                        final isProtected = AppSettings.isProtectedRouteName(
+                          route.name,
+                        );
+                        final canDelete = !isProtected;
                         return ListTile(
                           dense: true,
                           title: Text(route.name),
@@ -793,8 +829,12 @@ class _SettingsDialogState extends State<SettingsDialog>
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.edit, size: 20),
-                                tooltip: 'Edit route',
-                                onPressed: () => _editAprsRoute(index),
+                                tooltip: isProtected
+                                    ? 'Built-in route cannot be edited'
+                                    : 'Edit route',
+                                onPressed: isProtected
+                                    ? null
+                                    : () => _editAprsRoute(index),
                               ),
                               IconButton(
                                 icon: Icon(
@@ -804,7 +844,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                                 ),
                                 tooltip: canDelete
                                     ? 'Delete route'
-                                    : 'At least one route is required',
+                                    : 'Built-in route cannot be removed',
                                 onPressed: canDelete
                                     ? () => _deleteAprsRoute(index)
                                     : null,
@@ -836,7 +876,9 @@ class _SettingsDialogState extends State<SettingsDialog>
   void _addAprsRoute() async {
     final result = await showDialog<AprsRoute>(
       context: context,
-      builder: (context) => const AprsRouteDialog(),
+      builder: (context) => AprsRouteDialog(
+        existingNames: _settings.aprsRoutes.map((r) => r.name).toList(),
+      ),
     );
     if (result != null) {
       setState(() => _settings.aprsRoutes.add(result));
@@ -846,7 +888,13 @@ class _SettingsDialogState extends State<SettingsDialog>
   void _editAprsRoute(int index) async {
     final result = await showDialog<AprsRoute>(
       context: context,
-      builder: (context) => AprsRouteDialog(route: _settings.aprsRoutes[index]),
+      builder: (context) => AprsRouteDialog(
+        route: _settings.aprsRoutes[index],
+        existingNames: [
+          for (var i = 0; i < _settings.aprsRoutes.length; i++)
+            if (i != index) _settings.aprsRoutes[i].name,
+        ],
+      ),
     );
     if (result != null) {
       setState(() => _settings.aprsRoutes[index] = result);
@@ -1666,7 +1714,12 @@ class _SettingsDialogState extends State<SettingsDialog>
 class AprsRouteDialog extends StatefulWidget {
   final AprsRoute? route;
 
-  const AprsRouteDialog({super.key, this.route});
+  /// Names of other routes that already exist. The OK button is disabled when
+  /// the entered name matches one of these (case-insensitive), preventing
+  /// duplicate route names.
+  final List<String> existingNames;
+
+  const AprsRouteDialog({super.key, this.route, this.existingNames = const []});
 
   @override
   State<AprsRouteDialog> createState() => _AprsRouteDialogState();
@@ -1681,7 +1734,11 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
     super.initState();
     _nameController = TextEditingController(text: widget.route?.name ?? '');
     _pathController = TextEditingController(text: widget.route?.path ?? '');
+    _nameController.addListener(_onChanged);
+    _pathController.addListener(_onChanged);
   }
+
+  void _onChanged() => setState(() {});
 
   @override
   void dispose() {
@@ -1690,12 +1747,25 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
     super.dispose();
   }
 
+  /// Whether the entered name duplicates an existing route name.
+  bool get _isDuplicateName {
+    final name = _nameController.text.trim().toLowerCase();
+    if (name.isEmpty) return false;
+    return widget.existingNames.any((n) => n.trim().toLowerCase() == name);
+  }
+
+  /// Whether the current input is valid and the route can be saved.
+  bool get _canSave =>
+      _nameController.text.trim().isNotEmpty &&
+      _pathController.text.trim().isNotEmpty &&
+      !_isDuplicateName;
+
   @override
   Widget build(BuildContext context) {
     return HTDialog(
       title: widget.route == null ? 'Add APRS Route' : 'Edit APRS Route',
       maxWidth: 400,
-      maxHeight: 280,
+      maxHeight: 320,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1723,6 +1793,13 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
               ),
             ),
           ),
+          if (_isDuplicateName) ...[
+            const SizedBox(height: 4),
+            Text(
+              'A route with this name already exists.',
+              style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 16),
           const Text('Path', style: DialogStyles.labelStyle),
           const SizedBox(height: 4),
@@ -1756,14 +1833,16 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: () {
-            if (_nameController.text.isEmpty || _pathController.text.isEmpty) {
-              return;
-            }
-            Navigator.of(context).pop(
-              AprsRoute(name: _nameController.text, path: _pathController.text),
-            );
-          },
+          onPressed: _canSave
+              ? () {
+                  Navigator.of(context).pop(
+                    AprsRoute(
+                      name: _nameController.text.trim(),
+                      path: _pathController.text.trim(),
+                    ),
+                  );
+                }
+              : null,
           style: DialogStyles.primaryButtonStyle(context),
           child: const Text('OK'),
         ),

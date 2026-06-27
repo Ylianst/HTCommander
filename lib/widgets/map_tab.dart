@@ -99,8 +99,33 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   /// C# `MapTabUserControl.radioMarkers` (blue markers per device).
   final Map<int, RadioPosition> _radioPositions = {};
 
-  /// "Center to GPS" is available whenever we have a serial GPS fix.
-  bool get _centerToGpsEnabled => _serialGps != null;
+  /// Index for cycling through available GPS positions when repeatedly pressing
+  /// "Center to GPS". Mirrors the C# `centerToGpsCycleIndex`.
+  int _centerToGpsCycleIndex = 0;
+
+  /// "Center to GPS" is available whenever at least one radio has a GPS lock or
+  /// a serial GPS fix is present. Mirrors the C# `UpdateCenterToGpsButtonState`
+  /// (`radioMarkers.Count > 0`, which includes the serial GPS marker).
+  bool get _centerToGpsEnabled =>
+      _radioPositions.isNotEmpty || _serialGps != null;
+
+  /// Ordered list of GPS positions "Center to GPS" cycles through: one per
+  /// connected radio with a lock (sorted by device id for a stable order),
+  /// followed by the serial GPS fix. Mirrors the C# `radioMarkers` ordering
+  /// (Bluetooth radios + serial GPS key 0).
+  List<LatLng> get _centerToGpsTargets {
+    final targets = <LatLng>[];
+    final deviceIds = _radioPositions.keys.toList()..sort();
+    for (final id in deviceIds) {
+      final pos = _radioPositions[id]!;
+      targets.add(LatLng(pos.latitude, pos.longitude));
+    }
+    final gps = _serialGps;
+    if (gps != null) {
+      targets.add(LatLng(gps.latitude, gps.longitude));
+    }
+    return targets;
+  }
 
   // Default map position (center of US)
   static const double _defaultLat = 39.8283;
@@ -199,28 +224,53 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
       name: 'Position',
       callback: _onRadioPositionChanged,
     );
-    // Load initial positions for any already connected radios that have a lock.
+    // Reload positions whenever the set of connected radios changes so a radio
+    // that locks GPS (or connects) after the map tab was first built still gets
+    // its marker, even if no further live Position event arrives.
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'ConnectedRadios',
+      callback: _onConnectedRadiosChanged,
+    );
+    // Load initial positions for any already connected radios that have a fix.
     _loadInitialRadioPositions();
   }
 
-  /// Loads the current GPS-locked position for every connected radio so the
-  /// markers are present when switching to the Map tab. Mirrors the C#
+  /// Whether a radio position should be shown on the map. Shows the marker when
+  /// the radio reports a GPS lock or carries real (non-zero) coordinates, so a
+  /// valid position is never hidden by a missing/late `locked` flag.
+  static bool _positionHasFix(RadioPosition pos) =>
+      pos.locked || pos.latitude != 0 || pos.longitude != 0;
+
+  /// Re-reads the stored position for every connected radio when the connected
+  /// radio list changes.
+  void _onConnectedRadiosChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(_loadInitialRadioPositions);
+  }
+
+  /// Loads the current position for every connected radio so the markers are
+  /// present when switching to the Map tab. Mirrors the C#
   /// `LoadInitialRadioPositions`.
   void _loadInitialRadioPositions() {
     final radios = _broker.getValueDynamic(_aprsDeviceId, 'ConnectedRadios');
     if (radios is! List) return;
+    final connectedIds = <int>{};
     for (final radio in radios) {
       if (radio is! Map) continue;
       final deviceId = radio['DeviceId'] as int? ?? radio['deviceId'] as int?;
       if (deviceId == null || deviceId <= 0) continue;
+      connectedIds.add(deviceId);
       final posData = _broker.getValueDynamic(deviceId, 'Position');
       if (posData is Map) {
         final pos = RadioPosition.fromJson(Map<String, dynamic>.from(posData));
-        if (pos.locked) {
+        if (_positionHasFix(pos)) {
           _radioPositions[deviceId] = pos;
         }
       }
     }
+    // Drop positions for radios that are no longer connected.
+    _radioPositions.removeWhere((id, _) => !connectedIds.contains(id));
   }
 
   /// Handles radio `Position` updates. Keeps a marker for every radio that has
@@ -238,7 +288,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
       pos = RadioPosition.fromJson(Map<String, dynamic>.from(data));
     }
     setState(() {
-      if (pos != null && pos.locked) {
+      if (pos != null && _positionHasFix(pos)) {
         _radioPositions[deviceId] = pos;
       } else {
         _radioPositions.remove(deviceId);
@@ -504,14 +554,19 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  /// Centers the map on the next available GPS position, cycling through every
+  /// connected radio's GPS lock and the serial GPS fix on repeated presses.
+  /// Mirrors the C# `centerToGpsButton_Click`.
   void _centerToGps() {
-    final gps = _serialGps;
-    if (gps == null) return;
+    final targets = _centerToGpsTargets;
+    if (targets.isEmpty) return;
+
+    if (_centerToGpsCycleIndex >= targets.length) _centerToGpsCycleIndex = 0;
+    final target = targets[_centerToGpsCycleIndex];
+    _centerToGpsCycleIndex = (_centerToGpsCycleIndex + 1) % targets.length;
+
     final currentZoom = _mapController.camera.zoom;
-    _mapController.move(
-      LatLng(gps.latitude, gps.longitude),
-      currentZoom < 12 ? 14 : currentZoom,
-    );
+    _mapController.move(target, currentZoom < 12 ? 14 : currentZoom);
   }
 
   void _showMenu(BuildContext context) {
@@ -871,7 +926,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                 '$friendlyName\n'
                 '${pos.latitude.toStringAsFixed(5)}\u00B0, '
                 '${pos.longitude.toStringAsFixed(5)}\u00B0',
-            child: Icon(Icons.location_pin, color: Colors.blue, size: size),
+            child: Icon(
+              Icons.location_pin,
+              color: Colors.blue.shade900,
+              size: size,
+            ),
           ),
         ),
       );

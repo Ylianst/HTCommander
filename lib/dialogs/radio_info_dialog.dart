@@ -4,10 +4,11 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
 Ported from the C# `RadioInfoForm`. Displays live radio information grouped
-into Device Status, Device Settings and Position sections. All data is read
-from the DataBroker (per-device `HtStatus`, `Settings`, `Position`) and the
-connected radio list (`ConnectedRadios` on device 1), and the dialog updates
-in real time as the broker dispatches new values.
+into Device Information, Device Status, Device Settings, BSS Settings and
+Position sections. All data is read from the DataBroker (per-device `Info`,
+`HtStatus`, `Settings`, `BssSettings`, `Position`) and the connected radio
+list (`ConnectedRadios` on device 1), and the dialog updates in real time as
+the broker dispatches new values.
 */
 
 import 'package:flutter/material.dart';
@@ -41,8 +42,10 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
 
   List<ConnectedRadioInfo> _radios = const [];
 
+  RadioDevInfo? _info;
   RadioHtStatus? _htStatus;
   RadioSettings? _settings;
+  RadioBssSettings? _bssSettings;
   RadioPosition? _position;
   String _friendlyName = '';
 
@@ -105,8 +108,10 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
         } else {
           _unsubscribeFromDevice(_deviceId);
           _deviceId = -1;
+          _info = null;
           _htStatus = null;
           _settings = null;
+          _bssSettings = null;
           _position = null;
           _friendlyName = '';
         }
@@ -121,6 +126,11 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     _deviceId = newDeviceId;
 
     // Seed current values from the broker, then subscribe for live updates.
+    _info = _broker.getJsonValue<RadioDevInfo>(
+      newDeviceId,
+      'Info',
+      (json) => RadioDevInfo.fromJson(json),
+    );
     _htStatus = _broker.getJsonValue<RadioHtStatus>(
       newDeviceId,
       'HtStatus',
@@ -130,6 +140,11 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
       newDeviceId,
       'Settings',
       (json) => RadioSettings.fromJson(json),
+    );
+    _bssSettings = _broker.getJsonValue<RadioBssSettings>(
+      newDeviceId,
+      'BssSettings',
+      (json) => RadioBssSettings.fromJson(json),
     );
     _position = _broker.getJsonValue<RadioPosition>(
       newDeviceId,
@@ -141,15 +156,24 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
 
     _broker.subscribeMultiple(
       deviceId: newDeviceId,
-      names: const ['HtStatus', 'Settings', 'Position', 'FriendlyName'],
+      names: const [
+        'Info',
+        'HtStatus',
+        'Settings',
+        'BssSettings',
+        'Position',
+        'FriendlyName',
+      ],
       callback: _onDeviceValueChanged,
     );
   }
 
   void _unsubscribeFromDevice(int deviceId) {
     if (deviceId <= 0) return;
+    _broker.unsubscribe(deviceId, 'Info');
     _broker.unsubscribe(deviceId, 'HtStatus');
     _broker.unsubscribe(deviceId, 'Settings');
+    _broker.unsubscribe(deviceId, 'BssSettings');
     _broker.unsubscribe(deviceId, 'Position');
     _broker.unsubscribe(deviceId, 'FriendlyName');
   }
@@ -159,6 +183,11 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     if (deviceId != _deviceId) return;
     setState(() {
       switch (name) {
+        case 'Info':
+          _info = data is Map<String, dynamic>
+              ? RadioDevInfo.fromJson(data)
+              : null;
+          break;
         case 'HtStatus':
           _htStatus = data is Map<String, dynamic>
               ? RadioHtStatus.fromJson(data)
@@ -167,6 +196,11 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
         case 'Settings':
           _settings = data is Map<String, dynamic>
               ? RadioSettings.fromJson(data)
+              : null;
+          break;
+        case 'BssSettings':
+          _bssSettings = data is Map<String, dynamic>
+              ? RadioBssSettings.fromJson(data)
               : null;
           break;
         case 'Position':
@@ -309,14 +343,53 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
             _buildSection('Radio', [_row('Name', _friendlyName)]),
             const SizedBox(height: 12),
           ],
+          _buildSection('Device Information', _infoRows()),
+          const SizedBox(height: 12),
           _buildSection('Device Status', _statusRows()),
           const SizedBox(height: 12),
           _buildSection('Device Settings', _settingsRows()),
+          const SizedBox(height: 12),
+          _buildSection('BSS Settings', _bssRows()),
           const SizedBox(height: 12),
           _buildSection('Position', _positionRows()),
         ],
       ),
     );
+  }
+
+  List<_InfoRow> _infoRows() {
+    final i = _info;
+    if (i == null) return const [_InfoRow('Status', 'No data')];
+
+    String vendor = '${i.vendorId}';
+    switch (i.vendorId) {
+      case 1:
+        vendor += ' - Vero';
+        break;
+      case 6:
+        vendor += ' - BTech';
+        break;
+      case 255:
+        vendor += ' - RadioOddity';
+        break;
+    }
+
+    return [
+      _row('Product ID', '${i.productId}'),
+      _row('Vendor ID', vendor),
+      _row('DMR Support', _presentStr(i.supportDmr)),
+      _row('GMRS Support', _presentStr(i.gmrs)),
+      _row('Hardware Speaker', _presentStr(i.haveHmSpeaker)),
+      _row('Hardware Version', '${i.hwVer}'),
+      _row('Software Version', i.softwareVersion),
+      _row('Region Count', '${i.regionCount}'),
+      _row('Medium Power', _supportedStr(i.supportMediumPower)),
+      _row('Channel Count', '${i.channelCount}'),
+      _row('NOAA', _supportedStr(i.supportNoaa)),
+      _row('Radio', _supportedStr(i.supportRadio)),
+      _row('VFO', _supportedStr(i.supportVfo)),
+      _row('Freq Range Count', '${i.freqRangeCount}'),
+    ];
   }
 
   List<_InfoRow> _statusRows() {
@@ -325,12 +398,12 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     return [
       _row('Power On', _boolStr(s.isPowerOn)),
       _row('In TX', _boolStr(s.isInTx)),
+      _row('is_sq', _boolStr(s.isSq)),
       _row('In RX', _boolStr(s.isInRx)),
-      _row('Squelch', _boolStr(s.isSq)),
       _row('Double Channel', s.doubleChannel.name.toUpperCase()),
       _row('Scanning', _boolStr(s.isScan)),
       _row('Radio', _boolStr(s.isRadio)),
-      _row('Current Channel', '${s.currChId + 1}'),
+      _row('Current Channel ID', '${s.currChId + 1}'),
       _row('GPS Locked', _boolStr(s.isGpsLocked)),
       _row('HFP Connected', _boolStr(s.isHfpConnected)),
       _row('AOC Connected', _boolStr(s.isAocConnected)),
@@ -342,14 +415,74 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   List<_InfoRow> _settingsRows() {
     final s = _settings;
     if (s == null) return const [_InfoRow('Settings', 'No data')];
+    final autoShareLocCh = s.autoShareLocCh == 0
+        ? 'Current'
+        : 'Channel ${s.autoShareLocCh}';
     return [
       _row('VFO A', 'Channel ${s.channelA + 1}'),
       _row('VFO B', 'Channel ${s.channelB + 1}'),
       _row('Scan', _boolStr(s.scan)),
+      _row('AGHFP Call Mode', _boolStr(s.aghfpCallMode)),
       _row('Double Channel', '${s.doubleChannel}'),
       _row('Squelch Level', '${s.squelchLevel}'),
-      _row('PTT Lock', _boolStr(s.pttLock)),
+      _row('Tail elim', _boolStr(s.tailElim)),
+      _row('Auto relay en', _boolStr(s.autoRelayEn)),
+      _row('Auto power on', _boolStr(s.autoPowerOn)),
+      _row('Keep AGHFP link', _boolStr(s.keepAghfpLink)),
+      _row('Mic gain', '${s.micGain}'),
+      _row('TX hold time', '${s.txHoldTime}'),
+      _row('TX time limit', '${s.txTimeLimit}'),
+      _row('Local Speaker', '${s.localSpeaker}'),
+      _row('BT mic gain', '${s.btMicGain}'),
+      _row('Adaptive Response', _boolStr(s.adaptiveResponse)),
+      _row('DIS Tone', _boolStr(s.disTone)),
+      _row('Power saving mode', _boolStr(s.powerSavingMode)),
+      _row('Auto power off', '${s.autoPowerOff}'),
+      _row('Auto share location ch', autoShareLocCh),
+      _row('HW speaker', '${s.hmSpeaker}'),
+      _row('Positioning system', '${s.positioningSystem}'),
+      _row('Time offset', '${s.timeOffset}'),
+      _row('Use freq range 2', _boolStr(s.useFreqRange2)),
+      _row('PTT lock', _boolStr(s.pttLock)),
+      _row('Leading sync bit en', _boolStr(s.leadingSyncBitEn)),
+      _row('Pairing at power on', _boolStr(s.pairingAtPowerOn)),
+      _row('Screen Timeout', '${s.screenTimeout}'),
+      _row('VFO x', '${s.vfoX}'),
+      _row('Imperial Units', _boolStr(s.imperialUnit)),
+      _row('Weather Mode', '${s.wxMode}'),
       _row('NOAA Channel', '${s.noaaCh}'),
+      _row('VFOl tx power', '${s.vfolTxPowerX}'),
+      _row('VFO2 tx power', '${s.vfo2TxPowerX}'),
+      _row('Dis digital mute', _boolStr(s.disDigitalMute)),
+      _row('Signaling ecc en', _boolStr(s.signalingEccEn)),
+      _row('Ch data lock', _boolStr(s.chDataLock)),
+      _row('VFO1 mod freq', '${s.vfo1ModFreqX}'),
+      _row('VFO2 mod freq', '${s.vfo2ModFreqX}'),
+    ];
+  }
+
+  List<_InfoRow> _bssRows() {
+    final b = _bssSettings;
+    if (b == null) return const [_InfoRow('Settings', 'No data')];
+    final shareInterval = b.locationShareInterval == 0
+        ? 'Off'
+        : '${b.locationShareInterval} second(s)';
+    return [
+      _row('Allow Position Check', _boolStr(b.allowPositionCheck)),
+      _row('APRS Callsign', '${b.aprsCallsign}-${b.aprsSsid}'),
+      _row('APRS Symbol', b.aprsSymbol),
+      _row('Beacon Message', b.beaconMessage),
+      _row('BSS User Id Lower', '${b.bssUserIdLower}'),
+      _row('Location Share Interval', shareInterval),
+      _row('Max Fwd Times', '${b.maxFwdTimes}'),
+      _row('Packet Format', '${b.packetFormat}'),
+      _row('PTT Release ID Info', b.pttReleaseIdInfo),
+      _row('PTT Release Send BSS User Id', _boolStr(b.pttReleaseSendBssUserId)),
+      _row('PTT Release Send Id Info', _boolStr(b.pttReleaseSendIdInfo)),
+      _row('PTT Release Send Location', _boolStr(b.pttReleaseSendLocation)),
+      _row('Send Pwr Voltage', _boolStr(b.sendPwrVoltage)),
+      _row('Should Share Location', _boolStr(b.shouldShareLocation)),
+      _row('Time To Live', '${b.timeToLive}'),
     ];
   }
 
@@ -357,24 +490,49 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     final p = _position;
     if (p == null) return const [_InfoRow('Status', 'No GPS data')];
     if (!p.locked) return const [_InfoRow('Status', 'No GPS lock')];
-    return [
+    final rows = <_InfoRow>[
       _row('Status', 'GPS locked'),
-      _row('Latitude', p.latitude.toStringAsFixed(6)),
-      _row('Longitude', p.longitude.toStringAsFixed(6)),
+      _row('Latitude', _dmsStr(p.latitude, isLatitude: true)),
+      _row('Longitude', _dmsStr(p.longitude, isLatitude: false)),
+      _row('Accuracy', '${p.accuracy.toStringAsFixed(0)} meters'),
       _row('Altitude', '${p.altitude.toStringAsFixed(0)} meters'),
-      _row('Speed', p.speed.toStringAsFixed(1)),
+      _row('Speed', p.speed.toStringAsFixed(0)),
       _row('Heading', '${p.heading.toStringAsFixed(0)} degrees'),
-      if (p.timestamp != null) _row('GPS Time', _formatTime(p.timestamp!)),
     ];
+    if (p.receivedTime != null) {
+      rows.add(_row('Received Time', _formatTime(p.receivedTime!)));
+    }
+    if (p.timestamp != null) {
+      rows.add(_row('GPS Time Local', _formatTime(p.timestamp!.toLocal())));
+      rows.add(_row('GPS Time UTC', _formatTime(p.timestamp!.toUtc())));
+    }
+    return rows;
   }
 
-  static String _boolStr(bool v) => v ? 'Yes' : 'No';
+  static String _boolStr(bool v) => v ? 'True' : 'False';
+
+  static String _presentStr(bool v) => v ? 'Present' : 'Not-Present';
+
+  static String _supportedStr(bool v) => v ? 'Supported' : 'Not-Supported';
+
+  /// Formats a decimal degree value as degrees/minutes/seconds with a
+  /// hemisphere suffix, matching the C# `ConvertLatitudeToDms` output.
+  static String _dmsStr(double value, {required bool isLatitude}) {
+    final direction = value >= 0
+        ? (isLatitude ? 'N' : 'E')
+        : (isLatitude ? 'S' : 'W');
+    final abs = value.abs();
+    final degrees = abs.floor();
+    final minutesDecimal = (abs - degrees) * 60;
+    final minutes = minutesDecimal.floor();
+    final seconds = (minutesDecimal - minutes) * 60;
+    return '$degrees\u00B0 $minutes\' ${seconds.toStringAsFixed(2)}" $direction';
+  }
 
   static String _formatTime(DateTime t) {
-    final l = t.toLocal();
     String two(int n) => n.toString().padLeft(2, '0');
-    return '${l.year}-${two(l.month)}-${two(l.day)} '
-        '${two(l.hour)}:${two(l.minute)}:${two(l.second)}';
+    return '${t.year}-${two(t.month)}-${two(t.day)} '
+        '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
   }
 
   _InfoRow _row(String label, String value) => _InfoRow(label, value);

@@ -419,20 +419,22 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 
   /// Builds the inline authentication indicator shown inside the bubble.
-  /// Returns a green closed lock for verified messages, a red broken lock for
-  /// messages that failed verification, and nothing otherwise.
+  /// Returns a green verified shield for verified messages, a red bad shield
+  /// for messages that failed verification, and nothing otherwise. A shield
+  /// (rather than a lock) is used so the indicator reads as "authenticated"
+  /// rather than implying the message is encrypted.
   List<Widget> _buildAuthIcon(ChatMessage message) {
     final IconData icon;
     final Color color;
     final String tooltip;
     switch (message.authState) {
       case ChatAuthState.success:
-        icon = Icons.lock;
+        icon = Icons.verified_user;
         color = Colors.green.shade700;
         tooltip = 'Authenticated';
         break;
       case ChatAuthState.failed:
-        icon = Icons.lock_open;
+        icon = Icons.gpp_bad;
         color = Colors.red.shade700;
         tooltip = 'Authentication failed';
         break;
@@ -442,7 +444,7 @@ class _ChatWidgetState extends State<ChatWidget> {
     }
     return [
       Padding(
-        padding: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsets.only(left: 4, bottom: 4),
         child: Tooltip(
           message: tooltip,
           child: Icon(icon, size: 14, color: color),
