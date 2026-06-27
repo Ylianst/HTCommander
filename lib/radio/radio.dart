@@ -1851,10 +1851,13 @@ class Radio {
         _frameAccumulator = fragment;
       }
     } else {
-      _frameAccumulator!.append(fragment);
+      // `append` merges this fragment's data into the passed-in fragment and
+      // returns it (it does NOT mutate the accumulator in place), so the result
+      // must be reassigned. Mirrors the C# `frameAccumulator.Append(fragment)`.
+      _frameAccumulator = _frameAccumulator!.append(fragment);
     }
 
-    if (fragment.isLast && _frameAccumulator != null) {
+    if (_frameAccumulator != null && _frameAccumulator!.isLast) {
       _frameAccumulator!.encoding = FragmentEncodingType.hardwareAfsk1200;
       _frameAccumulator!.frameType = FragmentFrameType.ax25;
       _dispatch('DataFrameRx', _frameAccumulator!.toJson(), store: false);
@@ -1883,10 +1886,13 @@ class Radio {
     if (fragment.fragmentId == 0) {
       _frameAccumulator = fragment;
     } else if (_frameAccumulator != null) {
-      _frameAccumulator!.append(fragment);
+      // `append` merges this fragment's data into the passed-in fragment and
+      // returns it (it does NOT mutate the accumulator in place), so the result
+      // must be reassigned. Mirrors the C# `frameAccumulator.Append(fragment)`.
+      _frameAccumulator = _frameAccumulator!.append(fragment);
     }
 
-    if (fragment.isLast && _frameAccumulator != null) {
+    if (_frameAccumulator != null && _frameAccumulator!.isLast) {
       _frameAccumulator!.encoding = FragmentEncodingType.hardwareAfsk1200;
       _frameAccumulator!.frameType = FragmentFrameType.ax25;
 
