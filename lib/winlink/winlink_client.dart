@@ -85,6 +85,18 @@ class WinlinkClient {
   String _remoteAddress = '';
   WinlinkConnectionState _currentState = WinlinkConnectionState.disconnected;
 
+  // TCP retry tracking. server.winlink.org is a load-balanced pool whose
+  // instances sometimes accept a connection and then drop it before sending
+  // the callsign prompt. Retry a few times in that case (matches Pat/RMS).
+  String _tcpServer = '';
+  int _tcpPort = 0;
+  bool _tcpUseTls = true;
+  bool _sessionDataReceived = false;
+  bool _userDisconnect = false;
+  int _tcpRetryCount = 0;
+  static const int _maxTcpRetries = 3;
+  static const Duration _tcpRetryDelay = Duration(seconds: 2);
+
   // Radio lock fields for X25 transport
   int _lockedRadioId = -1;
 
@@ -118,6 +130,9 @@ class WinlinkClient {
         '[WinlinkClient] Starting TCP sync to $server:$port (TLS: $useTls)',
       );
       _transportType = WinlinkTransportType.tcp;
+      // Fresh user-initiated connection: reset retry tracking.
+      _tcpRetryCount = 0;
+      _userDisconnect = false;
       unawaited(connectTcp(server, port, useTls: useTls));
     } else {
       // X25/Radio sync - check for RadioId and Station
@@ -166,7 +181,7 @@ class WinlinkClient {
       _broker.logError(
         "[WinlinkClient] Channel '${station.channel}' not found on radio $radioId",
       );
-      _stateMessage("Channel '${station.channel}' not found on radio.");
+      _errorMessage("Channel '${station.channel}' not found on radio.");
       return;
     }
 
@@ -258,7 +273,7 @@ class WinlinkClient {
     final srcAddress = AX25Address.getAddress(myCallsign, myStationId);
     if (destAddress == null || srcAddress == null) {
       _broker.logError('[WinlinkClient] Failed to build AX25 addresses');
-      _stateMessage('Invalid callsign for AX25 session.');
+      _errorMessage('Invalid callsign for AX25 session.');
       return;
     }
     final addresses = <AX25Address>[destAddress, srcAddress];
@@ -342,7 +357,7 @@ class WinlinkClient {
 
   void _onAX25SessionError(AX25Session sender, String error) {
     _broker.logError('[WinlinkClient] AX25Session error: $error');
-    _stateMessage('Session error: $error');
+    _errorMessage('Session error: $error');
   }
 
   /// Unlocks the radio that was locked for Winlink usage.
@@ -366,6 +381,9 @@ class WinlinkClient {
     _broker.logInfo(
       '[WinlinkClient] Disconnect requested, transport: ${_transportType.name}',
     );
+
+    // User-initiated disconnect: do not auto-retry.
+    _userDisconnect = true;
 
     if (_transportType == WinlinkTransportType.tcp) {
       disconnectTcp();
@@ -500,7 +518,7 @@ class WinlinkClient {
         socket.add(utf8.encode(data));
       } catch (ex) {
         _broker.logError('[WinlinkClient] TCP send error: $ex');
-        _stateMessage('TCP Send error: $ex');
+        _errorMessage('TCP Send error: $ex');
         disconnectTcp();
       }
     }
@@ -516,7 +534,7 @@ class WinlinkClient {
         socket.add(data);
       } catch (ex) {
         _broker.logError('[WinlinkClient] TCP send error: $ex');
-        _stateMessage('TCP Send error: $ex');
+        _errorMessage('TCP Send error: $ex');
         disconnectTcp();
       }
     }
@@ -529,6 +547,29 @@ class WinlinkClient {
     _broker.dispatch(
       deviceId: 1,
       name: 'WinlinkStateMessage',
+      data: msg,
+      store: false,
+    );
+  }
+
+  /// Reports an error condition. The message is recorded in the debug history
+  /// and dispatched as a transient state message, but is also dispatched as a
+  /// dedicated [WinlinkError] event so that the UI can show it persistently
+  /// (with a dismiss button) instead of having it cleared when the session
+  /// disconnects.
+  void _errorMessage(String msg) {
+    if (msg.isNotEmpty) {
+      _addToDebugHistory(_remoteAddress, false, msg, isStateMessage: true);
+    }
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'WinlinkStateMessage',
+      data: msg,
+      store: false,
+    );
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'WinlinkError',
       data: msg,
       store: false,
     );
@@ -575,7 +616,7 @@ class WinlinkClient {
       _broker.logError(
         '[WinlinkClient] ConnectTcp called with wrong transport type: ${_transportType.name}',
       );
-      _stateMessage(
+      _errorMessage(
         'Error: Cannot use TCP connection with X25 transport type.',
       );
       return false;
@@ -585,13 +626,17 @@ class WinlinkClient {
       _broker.logError(
         '[WinlinkClient] ConnectTcp called while not disconnected: ${_currentState.name}',
       );
-      _stateMessage('Error: Already connected or connecting.');
+      _errorMessage('Error: Already connected or connecting.');
       return false;
     }
 
     try {
       _setConnectionState(WinlinkConnectionState.connecting);
       _remoteAddress = '$server:$port';
+      _tcpServer = server;
+      _tcpPort = port;
+      _tcpUseTls = useTls;
+      _sessionDataReceived = false;
 
       _broker.dispatch(
         deviceId: 1,
@@ -621,12 +666,11 @@ class WinlinkClient {
         onError: (Object ex) {
           if (_tcpRunning) {
             _broker.logError('[WinlinkClient] TCP receive error: $ex');
-            _stateMessage('TCP Receive error: $ex');
           }
-          if (_tcpRunning) disconnectTcp();
+          _handleTcpClosed(error: '$ex');
         },
         onDone: () {
-          if (_tcpRunning) disconnectTcp();
+          _handleTcpClosed();
         },
         cancelOnError: true,
       );
@@ -634,11 +678,66 @@ class WinlinkClient {
       return true;
     } catch (ex) {
       _broker.logError('[WinlinkClient] TCP connection failed: $ex');
-      _stateMessage('TCP Connection failed: $ex');
       _setConnectionState(WinlinkConnectionState.disconnected);
       _cleanupTcp();
+      // A failure to even connect can also be a transient pool issue; retry.
+      if (_maybeRetryTcp()) return false;
+      _errorMessage('TCP Connection failed: $ex');
       return false;
     }
+  }
+
+  /// Handles the TCP socket closing (remote end-of-stream or receive error).
+  /// If the server dropped us before the Winlink session produced any data and
+  /// the user did not request a disconnect, this is usually a transient
+  /// load-balancer close on server.winlink.org, so we retry a few times.
+  void _handleTcpClosed({String? error}) {
+    if (!_tcpRunning) return;
+    _tcpRunning = false;
+    _cleanupTcp();
+    _setConnectionState(WinlinkConnectionState.disconnected);
+
+    if (_maybeRetryTcp()) return;
+
+    if (!_userDisconnect && !_sessionDataReceived) {
+      // Exhausted retries without ever establishing a session.
+      _errorMessage(
+        'Could not establish a Winlink session: the server kept closing '
+        'the connection. Please try again in a moment.',
+      );
+    } else if (error != null && !_userDisconnect) {
+      _errorMessage('TCP Receive error: $error');
+    }
+  }
+
+  /// Schedules a reconnect attempt if the connection dropped before a session
+  /// was established and retries remain. Returns true if a retry was scheduled.
+  bool _maybeRetryTcp() {
+    if (_disposed) return false;
+    if (_userDisconnect) return false;
+    if (_sessionDataReceived) return false;
+    if (_tcpRetryCount >= _maxTcpRetries) return false;
+
+    _tcpRetryCount++;
+    _broker.logInfo(
+      '[WinlinkClient] Server closed before session started; '
+      'retry $_tcpRetryCount/$_maxTcpRetries',
+    );
+    _stateMessage(
+      'Connection dropped, retrying ($_tcpRetryCount/$_maxTcpRetries)...',
+    );
+
+    final server = _tcpServer;
+    final port = _tcpPort;
+    final useTls = _tcpUseTls;
+    Future.delayed(_tcpRetryDelay, () {
+      if (_disposed) return;
+      if (_userDisconnect) return;
+      if (_currentState != WinlinkConnectionState.disconnected) return;
+      _transportType = WinlinkTransportType.tcp;
+      unawaited(connectTcp(server, port, useTls: useTls));
+    });
+    return true;
   }
 
   /// Disconnects the TCP connection.
@@ -731,6 +830,11 @@ class WinlinkClient {
   void _processStream(Uint8List data) {
     if (data.isEmpty) return;
 
+    // The server sent us something, so the session is alive. This suppresses
+    // the transient-drop auto-retry (which is only for connects that never
+    // produce any data).
+    _sessionDataReceived = true;
+
     // This is embedded mail sent in compressed format
     if (_sessionState.containsKey('wlMailBinary')) {
       final blocks = _sessionState['wlMailBinary'] as BytesBuilder;
@@ -769,6 +873,29 @@ class WinlinkClient {
         data: {'Address': _remoteAddress, 'Outgoing': false, 'Data': str},
         store: false,
       );
+
+      // Server-side notices/errors are prefixed with "***" (e.g. a failed
+      // secure login because of a bad Winlink password). Surface them so the
+      // user knows what went wrong before the server disconnects.
+      final trimmed = str.trimLeft();
+      if (trimmed.startsWith('***')) {
+        var serverMsg = trimmed
+            .replaceFirst(RegExp(r'^\*+\s*'), '')
+            .replaceFirst(RegExp(r'^\[\d+\]\s*'), '')
+            .trim();
+        _broker.logError('[WinlinkClient] Server notice: $str');
+        if (serverMsg.isNotEmpty) _errorMessage(serverMsg);
+        // This is a terminal error from the server. Tear the connection down
+        // immediately rather than waiting for the server (or the user) to close
+        // it. The error was dispatched via WinlinkError above, so the UI keeps
+        // showing it (with its OK button) independently of the disconnect.
+        if (_transportType == WinlinkTransportType.tcp) {
+          disconnectTcp();
+        } else if (_transportType == WinlinkTransportType.x25) {
+          _disconnectX25();
+        }
+        return;
+      }
 
       // Handle TCP callsign prompt
       if (_transportType == WinlinkTransportType.tcp &&
@@ -1017,7 +1144,7 @@ class WinlinkClient {
                 _broker.logError(
                   '[WinlinkClient] Proposal checksum failed: expected ${_checksumHex(checksum)}, got $value',
                 );
-                _stateMessage('Checksum Failed');
+                _errorMessage('Checksum Failed');
                 if (_transportType == WinlinkTransportType.tcp) {
                   disconnectTcp();
                 } else if (_transportType == WinlinkTransportType.x25) {
@@ -1075,7 +1202,7 @@ class WinlinkClient {
     final result = WinLinkMail.decodeBlocksToEmail(blockBytes);
     if (result.fail) {
       _broker.logError('[WinlinkClient] Failed to decode mail $mid');
-      _stateMessage('Failed to decode mail.');
+      _errorMessage('Failed to decode mail.');
       return true;
     }
     final mail = result.mail;

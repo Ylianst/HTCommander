@@ -14,6 +14,7 @@ import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/microphone_capture.dart';
 import '../services/system_audio.dart';
+import '../services/window_service.dart';
 import 'spectrogram/spectrogram_view.dart';
 
 /// Which audio source the spectrograph visualizes (or none to hide it).
@@ -922,6 +923,17 @@ class _AudioTabState extends State<AudioTab>
             _spectrogramSource == SpectrogramSource.microphone,
           ),
         ),
+        if (windowService.canDetach) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'detach',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Detach...')],
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (!mounted || value == null) return;
@@ -934,6 +946,9 @@ class _AudioTabState extends State<AudioTab>
           break;
         case 'sourceMicrophone':
           _setSpectrogramSource(SpectrogramSource.microphone);
+          break;
+        case 'detach':
+          windowService.createWindow('audio');
           break;
       }
     });
