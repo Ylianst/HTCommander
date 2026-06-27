@@ -45,7 +45,7 @@ class _AudioTabState extends State<AudioTab>
 
   int _currentRadioDeviceId = -1;
 
-  // Whether the radio's audio channel is enabled. Mirrors the Voice tab's
+  // Whether the radio's audio channel is enabled. Mirrors the Comms tab's
   // Enable/Disable button and the radio's 'AudioState' broker value.
   bool _audioEnabled = false;
 
@@ -77,7 +77,7 @@ class _AudioTabState extends State<AudioTab>
   String? _micError;
 
   // Microphone transmit gain (linear multiplier, 1.0 = unchanged). Persisted
-  // on DataBroker device 0 ('MicrophoneGain'). Shared with the Voice tab's
+  // on DataBroker device 0 ('MicrophoneGain'). Shared with the Comms tab's
   // push-to-talk path so boosting here also boosts transmitted audio.
   double _micGain = 1.0;
 
@@ -488,7 +488,7 @@ class _AudioTabState extends State<AudioTab>
     final clamped = value.clamp(1.0, 8.0);
     setState(() => _micGain = clamped);
     _micCapture?.gain = clamped;
-    // Persist on device 0 so the Voice tab and the next launch pick it up.
+    // Persist on device 0 so the Comms tab and the next launch pick it up.
     _broker.dispatch(
       deviceId: 0,
       name: 'MicrophoneGain',
@@ -669,33 +669,27 @@ class _AudioTabState extends State<AudioTab>
                         style: TextStyle(fontSize: 11, color: Colors.grey),
                       ),
                     ),
-                  const SizedBox(height: 16),
-                  _buildSectionTitle('Computer'),
-                  _buildSliderRow(
-                    label: 'Master',
-                    value: _masterVolume,
-                    min: 0,
-                    max: 1,
-                    valueLabel: _masterAvailable
-                        ? '${(_masterVolume * 100).round()}%'
-                        : 'N/A',
-                    enabled: _masterAvailable,
-                    muted: _masterMuted,
-                    onMuteToggled: _masterAvailable
-                        ? _onMasterMuteToggled
-                        : null,
-                    onChangeStart: (_) => _draggingMaster = true,
-                    onChanged: _onMasterVolumeChanged,
-                    onChangeEnd: (_) => _draggingMaster = false,
-                  ),
-                  if (!SystemAudio.isSupported)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4, top: 2),
-                      child: Text(
-                        'Computer volume control is only available on macOS.',
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
+                  if (SystemAudio.isSupported) ...[
+                    const SizedBox(height: 16),
+                    _buildSectionTitle('Computer'),
+                    _buildSliderRow(
+                      label: 'Master',
+                      value: _masterVolume,
+                      min: 0,
+                      max: 1,
+                      valueLabel: _masterAvailable
+                          ? '${(_masterVolume * 100).round()}%'
+                          : 'N/A',
+                      enabled: _masterAvailable,
+                      muted: _masterMuted,
+                      onMuteToggled: _masterAvailable
+                          ? _onMasterMuteToggled
+                          : null,
+                      onChangeStart: (_) => _draggingMaster = true,
+                      onChanged: _onMasterVolumeChanged,
+                      onChangeEnd: (_) => _draggingMaster = false,
                     ),
+                  ],
                   if (_showSpectrogram) ...[
                     const SizedBox(height: 16),
                     _buildSectionTitle(_spectrogramTitle()),

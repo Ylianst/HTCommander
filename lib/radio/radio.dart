@@ -556,9 +556,6 @@ class Radio {
     _transport = transport;
     _updateState(RadioState.connecting);
     _debug('Attempting to connect to radio MAC: $macAddress');
-    _broker.logInfo(
-      '[Radio $deviceId] Binding transport ${transport.runtimeType} for $macAddress',
-    );
 
     // Listen to transport events
     _transport!.stateStream.listen(_onTransportStateChanged);
@@ -603,10 +600,6 @@ class Radio {
     _lastCompactLogAt = DateTime.fromMillisecondsSinceEpoch(0);
     _webBleCompactUnsupported = false;
 
-    _broker.logInfo(
-      '[Radio $deviceId] Transport connected; scheduling initial command batch',
-    );
-
     if (kIsWeb) {
       _broker.logInfo('[Radio $deviceId] [WEB-BLE] Transport connected');
     }
@@ -626,10 +619,6 @@ class Radio {
 
     _debug(
       'Sending initial commands (attempt ${_initRetryCount + 1}/$maxInitRetries)',
-    );
-    _broker.logInfo(
-      '[Radio $deviceId] Sending initial commands '
-      '(attempt ${_initRetryCount + 1}/$maxInitRetries)',
     );
     if (kIsWeb) {
       _broker.logInfo(
@@ -1520,9 +1509,6 @@ class Radio {
       _receivedAnyData = true;
       _initRetryTimer?.cancel();
       _debug('First data received from radio');
-      _broker.logInfo(
-        '[Radio $deviceId] First RX data received from radio (${data.length} byte(s))',
-      );
       if (kIsWeb) {
         final connectedAt = _connectedAt;
         final elapsedMs = connectedAt == null

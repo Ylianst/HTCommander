@@ -98,7 +98,7 @@ PopupMenuItem(
 )
 
 // Handler creates new window
-WindowService().createWindow('Voice', const VoiceTab());
+WindowService().createWindow('comms', const CommsTab());
 ```
 
 Child windows:

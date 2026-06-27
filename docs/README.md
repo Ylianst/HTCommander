@@ -21,7 +21,7 @@ lib/
 │   └── window_service.dart # Multi-window management
 └── widgets/               # UI components
     ├── radio_panel.dart   # Radio display with VFO controls
-    ├── voice_tab.dart     # Voice communication tab
+    ├── comms_tab.dart     # Comms (voice/communications) tab
     ├── aprs_tab.dart      # APRS messaging tab
     ├── map_tab.dart       # Map display tab
     ├── mail_tab.dart      # Email tab

@@ -46,7 +46,7 @@ class ChatMessage {
 }
 
 /// Reusable chat widget for displaying message conversations
-/// Used by APRS and Voice tabs
+/// Used by APRS and Comms tabs
 class ChatWidget extends StatefulWidget {
   final List<ChatMessage> messages;
   final ValueChanged<ChatMessage>? onMessageTap;

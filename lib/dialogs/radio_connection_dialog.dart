@@ -51,11 +51,8 @@ class RadioConnectionDialog extends StatefulWidget {
     return discovered
         .where((d) => d.isCompatibleRadio)
         .map(
-          (d) => CompatibleDevice(
-            name: d.name,
-            mac: d.id,
-            bluetoothName: d.name,
-          ),
+          (d) =>
+              CompatibleDevice(name: d.name, mac: d.id, bluetoothName: d.name),
         )
         .toList();
   }
@@ -420,13 +417,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                               children: [
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
-                                  tooltip: connected
-                                      ? 'Disconnect'
-                                      : 'Connect',
+                                  tooltip: connected ? 'Disconnect' : 'Connect',
                                   icon: Icon(
-                                    connected
-                                        ? Icons.link_off
-                                        : Icons.link,
+                                    connected ? Icons.link_off : Icons.link,
                                     color: connected
                                         ? Colors.red
                                         : Colors.green,
