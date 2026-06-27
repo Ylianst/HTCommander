@@ -926,6 +926,8 @@ class _CommsTabState extends State<CommsTab>
     }
 
     _messageController.clear();
+    // Return focus to the input so the user can keep typing.
+    _messageFocusNode.requestFocus();
   }
 
   /// Shows a brief hint explaining why a message can't be sent in the current
@@ -1461,9 +1463,9 @@ class _CommsTabState extends State<CommsTab>
     try {
       await sourceFile.copy(outputPath);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved to $outputPath')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Saved to $outputPath')));
       }
     } catch (e) {
       if (mounted) {

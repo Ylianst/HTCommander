@@ -503,9 +503,12 @@ class _TerminalTabState extends State<TerminalTab>
 
     final myCallsign =
         _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
+    final myStationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
+    final myAddress =
+        myStationId > 0 ? '$myCallsign-$myStationId' : myCallsign;
     _appendString(
       outgoing: true,
-      from: myCallsign,
+      from: myAddress,
       to: station.callsign,
       text: '$text\n',
     );
@@ -830,7 +833,7 @@ class _TerminalTabState extends State<TerminalTab>
     if (line.system) {
       return [
         TerminalTextSpan(
-          line.text.endsWith('\n') ? line.text : '${line.text}\n',
+          line.text,
           color: Colors.yellow,
           bold: true,
         ),
@@ -1056,8 +1059,13 @@ class _TerminalTabState extends State<TerminalTab>
 
   Widget _buildTerminalText() {
     final spans = <TerminalTextSpan>[];
-    for (final line in _lines) {
-      spans.addAll(_spansForLine(line));
+    for (var i = 0; i < _lines.length; i++) {
+      // Separate each terminal line with a newline, mirroring the C#
+      // AppendTerminalString which prepends Environment.NewLine before every
+      // line except the first. Without this, all lines render concatenated on
+      // a single visual line.
+      if (i > 0) spans.add(const TerminalTextSpan('\n'));
+      spans.addAll(_spansForLine(_lines[i]));
     }
 
     final richText = SelectableText.rich(

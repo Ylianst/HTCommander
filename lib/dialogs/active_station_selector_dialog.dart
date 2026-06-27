@@ -161,32 +161,35 @@ class _StationSelectorDialog extends StatelessWidget {
                     ],
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: stations.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final station = stations[index];
-                      final subtitle = station.name.isNotEmpty
-                          ? station.name
-                          : station.description;
-                      return ListTile(
-                        dense: true,
-                        leading: Icon(
-                          Icons.cell_tower,
-                          color: Colors.blue.shade700,
-                        ),
-                        title: Text(station.callsign),
-                        subtitle: subtitle.isNotEmpty ? Text(subtitle) : null,
-                        onTap: () => Navigator.of(context).pop(
-                          StationSelectorResult(
-                            StationSelectorAction.selected,
-                            station,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: stations.length,
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final station = stations[index];
+                        final subtitle = station.name.isNotEmpty
+                            ? station.name
+                            : station.description;
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(
+                            Icons.cell_tower,
+                            color: Colors.blue.shade700,
                           ),
-                        ),
-                      );
-                    },
+                          title: Text(station.callsign),
+                          subtitle: subtitle.isNotEmpty ? Text(subtitle) : null,
+                          onTap: () => Navigator.of(context).pop(
+                            StationSelectorResult(
+                              StationSelectorAction.selected,
+                              station,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),

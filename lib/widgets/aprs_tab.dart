@@ -636,6 +636,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
       store: false,
     );
     _messageController.clear();
+    // Return focus to the input so the user can keep typing.
+    _messageFocusNode.requestFocus();
   }
 
   /// Opens the SMS dialog and, on confirmation, sends a specially crafted APRS

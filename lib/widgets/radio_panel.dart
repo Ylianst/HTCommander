@@ -473,6 +473,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   String get _gpsStatus {
+    if (!_isConnected) return '';
     if (!_gpsEnabled) return '';
     if (_position == null) return 'No GPS Lock';
     return _position!.locked ? 'GPS Lock' : 'No GPS Lock';
@@ -942,7 +943,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
   Widget _buildVfo2Row() {
     if (_vfo2Label.isEmpty && _vfo2Freq.isEmpty) {
-      return const SizedBox.shrink();
+      // Reserve the same vertical space VFO 2 occupies when populated (the
+      // 32px label SizedBox plus the ~14px frequency/status row) so the GPS
+      // status row below stays at a fixed location even when VFO B is empty.
+      return const SizedBox(height: 46);
     }
 
     return Column(
