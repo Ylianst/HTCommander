@@ -74,6 +74,13 @@ class _VoiceTabState extends State<VoiceTab>
   @override
   bool get wantKeepAlive => true;
 
+  /// Whether the radio's audio channel is available on this platform. Web and
+  /// iOS talk to the radio over the BLE control channel only (no audio
+  /// channel), so the Voice tab is restricted to data-only "Chat" mode: the
+  /// Enable button and the audio transmit modes (PTT/Speak/Morse/DTMF) plus the
+  /// speech-to-text, recording and SSTV/audio send features are hidden.
+  bool get _audioChannelSupported => !kIsWeb && !Platform.isIOS;
+
   @override
   void initState() {
     super.initState();
@@ -149,10 +156,10 @@ class _VoiceTabState extends State<VoiceTab>
     _currentMode = _modeFromName(
       _broker.getValue<String>(0, 'VoiceTransmitMode', null),
     );
-    // The web build has no audio channel, so only the data-only "Chat" mode
+    // Web and iOS have no audio channel, so only the data-only "Chat" mode
     // (which uses the radio's internal modem over the control channel) is
     // available. Force it regardless of any previously stored mode.
-    if (kIsWeb) _currentMode = VoiceTransmitMode.chat;
+    if (!_audioChannelSupported) _currentMode = VoiceTransmitMode.chat;
     _allowTransmit = (_broker.getValue<int>(0, 'AllowTransmit', 1) ?? 1) != 0;
     _speechToTextEnabled =
         _broker.getValue<bool>(0, 'SpeechToTextEnabled', true) ?? true;
@@ -1320,9 +1327,9 @@ class _VoiceTabState extends State<VoiceTab>
         offset.dy,
       ),
       items: [
-        // Mode selection (only the data-only Chat mode is offered on web).
+        // Mode selection (only the data-only Chat mode is offered on web/iOS).
         // Hidden entirely when transmitting is not allowed.
-        if (!kIsWeb && _allowTransmit)
+        if (_audioChannelSupported && _allowTransmit)
           PopupMenuItem<String>(
             value: 'modePtt',
             height: menuItemHeight,
@@ -1356,7 +1363,7 @@ class _VoiceTabState extends State<VoiceTab>
               ],
             ),
           ),
-        if (!kIsWeb && _allowTransmit)
+        if (_audioChannelSupported && _allowTransmit)
           PopupMenuItem<String>(
             value: 'modeSpeak',
             height: menuItemHeight,
@@ -1373,7 +1380,7 @@ class _VoiceTabState extends State<VoiceTab>
               ],
             ),
           ),
-        if (!kIsWeb && _allowTransmit)
+        if (_audioChannelSupported && _allowTransmit)
           PopupMenuItem<String>(
             value: 'modeMorse',
             height: menuItemHeight,
@@ -1390,7 +1397,7 @@ class _VoiceTabState extends State<VoiceTab>
               ],
             ),
           ),
-        if (!kIsWeb && _allowTransmit)
+        if (_audioChannelSupported && _allowTransmit)
           PopupMenuItem<String>(
             value: 'modeDtmf',
             height: menuItemHeight,
@@ -1408,8 +1415,8 @@ class _VoiceTabState extends State<VoiceTab>
             ),
           ),
         // Speech-to-text, recording and SSTV/audio send all require the audio
-        // channel, which does not exist on web.
-        if (!kIsWeb) ...[
+        // channel, which does not exist on web or iOS.
+        if (_audioChannelSupported) ...[
           // Only draw the separating divider when mode items precede it.
           if (_allowTransmit) const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
@@ -1634,7 +1641,7 @@ class _VoiceTabState extends State<VoiceTab>
                   ),
                 ),
               const Spacer(),
-              if (showButton && !kIsWeb)
+              if (showButton && _audioChannelSupported)
                 SizedBox(
                   height: 28,
                   child: ElevatedButton(
@@ -1651,7 +1658,8 @@ class _VoiceTabState extends State<VoiceTab>
                     child: Text(_audioEnabled ? 'Disable' : 'Enable'),
                   ),
                 ),
-              if (showButton && !kIsWeb) const SizedBox(width: 8),
+              if (showButton && _audioChannelSupported)
+                const SizedBox(width: 8),
               Builder(
                 builder: (context) => InkWell(
                   onTap: () => _showMenu(context),

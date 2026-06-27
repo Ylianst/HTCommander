@@ -927,6 +927,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                   initialZoom: _initialZoom,
                   minZoom: 3,
                   maxZoom: 18,
+                  // Keep the map permanently north-up: allow all touch gestures
+                  // except rotation (e.g. two-finger twist on a touch screen).
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                  ),
                   onPositionChanged: _onMapPositionChanged,
                 ),
                 children: [
