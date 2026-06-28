@@ -1,0 +1,17 @@
+name: sherpa_onnx_android_arm64
+description: Empty stub to exclude sherpa_onnx native libraries from Android.
+version: 1.13.3
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=2.8.1"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        ffiPlugin: true

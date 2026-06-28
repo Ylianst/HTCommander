@@ -413,9 +413,12 @@ class _SettingsDialogState extends State<SettingsDialog>
     _loadVoices();
 
     // Sync the speech-to-text model status shown in the Voice tab.
-    SherpaModelManager.refreshStatus(
-      SherpaModelManager.modelById(_settings.voiceModel).id,
-    );
+    // Speech-to-text is not available on Android.
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      SherpaModelManager.refreshStatus(
+        SherpaModelManager.modelById(_settings.voiceModel).id,
+      );
+    }
   }
 
   /// Loads the available text-to-speech voices for the Voice settings tab.
@@ -1172,9 +1175,11 @@ class _SettingsDialogState extends State<SettingsDialog>
             style: DialogStyles.bodyStyle,
           ),
           const SizedBox(height: 16),
-          // Speech Recognition (sherpa-onnx)
-          _buildSpeechRecognitionSection(),
-          const SizedBox(height: 16),
+          // Speech Recognition (sherpa-onnx) – not available on Android.
+          if (defaultTargetPlatform != TargetPlatform.android) ...[
+            _buildSpeechRecognitionSection(),
+            const SizedBox(height: 16),
+          ],
           // Text-to-Speech
           Container(
             padding: const EdgeInsets.all(16),

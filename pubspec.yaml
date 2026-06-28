@@ -69,6 +69,20 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.1
 
+# Override sherpa_onnx Android platform packages with empty stubs to exclude
+# the large native .so libraries from the Android APK. Speech-to-text is
+# disabled on Android at runtime; these stubs prevent ~50 MB of unused native
+# code from being bundled.
+dependency_overrides:
+  sherpa_onnx_android_arm64:
+    path: sherpa_stubs/sherpa_onnx_android_arm64
+  sherpa_onnx_android_armeabi:
+    path: sherpa_stubs/sherpa_onnx_android_armeabi
+  sherpa_onnx_android_x86:
+    path: sherpa_stubs/sherpa_onnx_android_x86
+  sherpa_onnx_android_x86_64:
+    path: sherpa_stubs/sherpa_onnx_android_x86_64
+
 flutter_launcher_icons:
   image_path: "assets/images/AppIcon.png"
   android: true
