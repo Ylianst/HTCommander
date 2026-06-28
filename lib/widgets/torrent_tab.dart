@@ -272,9 +272,7 @@ class _TorrentTabState extends State<TorrentTab>
     final success = (data['Success'] as bool?) ?? false;
     final messenger = ScaffoldMessenger.of(context);
     if (success) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('File saved.')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('File saved.')));
     } else {
       final error = (data['Error'] as String?) ?? 'Unknown error';
       messenger.showSnackBar(
@@ -721,8 +719,7 @@ class _TorrentTabState extends State<TorrentTab>
   }
 
   void _showRowMenu(_TorrentView view, Offset globalPosition) {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final position = RelativeRect.fromLTRB(
       globalPosition.dx,
       globalPosition.dy,
@@ -935,9 +932,7 @@ class _TorrentTabState extends State<TorrentTab>
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: isSelected ? Colors.blue.shade100 : null,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade300),
-            ),
+            border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
           ),
           child: Row(
             children: [
@@ -949,9 +944,7 @@ class _TorrentTabState extends State<TorrentTab>
                     vertical: 6,
                   ),
                   child: Icon(
-                    torrent.completed
-                        ? Icons.check_circle
-                        : Icons.downloading,
+                    torrent.completed ? Icons.check_circle : Icons.downloading,
                     size: 18,
                     color: torrent.completed ? Colors.green : Colors.orange,
                   ),
@@ -1116,72 +1109,72 @@ class _TorrentTabState extends State<TorrentTab>
             ),
           ),
           if (torrent.totalBlocks > 0) _buildProgressBar(torrent),
-          Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: details.length,
-              itemBuilder: (context, index) {
-                final entry = details[index];
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade200),
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 100,
-                        child: Text(
-                          entry.key,
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize: 12,
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final entry in details)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.grey.shade200),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 100,
+                            child: Text(
+                              entry.key,
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontSize: 12,
+                              ),
+                            ),
                           ),
+                          Expanded(
+                            child: SelectableText(
+                              entry.value,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (torrent.totalBlocks > 0) ...[
+                    Container(
+                      height: 24,
+                      color: Colors.grey.shade100,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Blocks',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                          color: Colors.grey.shade700,
                         ),
                       ),
-                      Expanded(
-                        child: SelectableText(
-                          entry.value,
-                          style: const TextStyle(fontSize: 12),
-                        ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: TorrentBlocksView(
+                        totalBlocks: torrent.totalBlocks,
+                        receivedBlocks: torrent.receivedBlocks,
+                        scrollable: false,
                       ),
-                    ],
-                  ),
-                );
-              },
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
-          if (torrent.totalBlocks > 0) ...[
-            Container(
-              height: 24,
-              color: Colors.grey.shade100,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Blocks',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: TorrentBlocksView(
-                  totalBlocks: torrent.totalBlocks,
-                  receivedBlocks: torrent.receivedBlocks,
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );

@@ -21,6 +21,8 @@ import 'handlers/comms_handler.dart';
 import 'handlers/bbs_handler.dart';
 import 'handlers/debug_log_handler.dart';
 import 'gps/gps_serial_handler.dart';
+import 'torrent/torrent_handler.dart';
+import 'torrent/torrent_store.dart';
 import 'radio/radio_transport.dart';
 import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
@@ -114,6 +116,15 @@ void main(List<String> args) async {
   final debugLogHandler = DebugLogHandler();
   debugLogHandler.init();
   DataBroker.addDataHandler('DebugLogHandler', debugLogHandler);
+
+  // Register the torrent handler so that the Torrent tab can share, request and
+  // transfer files over a radio locked to the "Torrent" usage. Its store is
+  // initialized first so that previously shared files are restored on launch.
+  final torrentStore = TorrentStore();
+  await torrentStore.init();
+  final torrentHandler = TorrentHandler(store: torrentStore);
+  torrentHandler.init();
+  DataBroker.addDataHandler('TorrentHandler', torrentHandler);
 
   // Register the mail store so that Winlink mail is persisted to disk and made
   // available to the mail tab and the Winlink client. Must be initialized
