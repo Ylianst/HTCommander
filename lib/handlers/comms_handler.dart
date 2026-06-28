@@ -261,6 +261,10 @@ class CommsHandler {
   StreamSubscription<SstvDecodingComplete>? _sstvCompleteSub;
   bool _sstvDecoding = false;
   bool _sstvAutoMuted = false;
+  // Whether the channel currently feeding the SSTV monitor is flagged as muted
+  // (per-channel mute). While muted the radio audio is already silenced, so the
+  // SSTV auto-mute must not engage.
+  bool _sstvChannelMuted = false;
   DateTime _sstvStartTime = DateTime.now();
   DecodedTextEntry? _currentSstvEntry;
   Directory? _sstvImagesDir;
@@ -967,6 +971,7 @@ class CommsHandler {
     if (monitor != null && deviceId > 0) {
       final usage = data['usage'] ?? data['Usage'];
       final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
+      final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
       final channelName =
           (data['channelName'] ?? data['ChannelName']) as String? ?? '';
       // Decode SSTV even on muted channels: muting silences playback but we
@@ -975,6 +980,9 @@ class CommsHandler {
         // Lock onto a single device for the duration of a decode.
         if (!_sstvDecoding) _sstvDeviceId = deviceId;
         if (deviceId == _sstvDeviceId) {
+          // Remember whether this channel is flagged as muted so the auto-mute
+          // can be skipped: a muted channel's audio is already silenced.
+          _sstvChannelMuted = muted;
           if (channelName.isNotEmpty) _currentChannelName = channelName;
           final bytes = data['data'] ?? data['Data'];
           if (bytes is Uint8List) {
@@ -1244,6 +1252,7 @@ class CommsHandler {
     _sstvMonitor = null;
     _sstvDecoding = false;
     _sstvAutoMuted = false;
+    _sstvChannelMuted = false;
     _currentSstvEntry = null;
     _sstvFilename = null;
     _sstvImageSaved = false;
@@ -1268,11 +1277,14 @@ class CommsHandler {
     _abortSttForSstv();
 
     // Auto-mute the radio so the user doesn't hear the raw SSTV tones. If the
-    // channel is already muted by the user, leave it alone and don't flag an
+    // channel is already muted — either by the user (device Mute) or because the
+    // channel itself is flagged as muted — the audio is already silenced, so the
+    // auto-mute is unnecessary. Leave the mute state untouched and don't flag an
     // auto-mute (so the UI won't show a redundant "Audio is muted." banner).
     if (_sstvDeviceId > 0) {
       final alreadyMuted =
-          _broker.getValue<bool>(_sstvDeviceId, 'Mute', false) ?? false;
+          (_broker.getValue<bool>(_sstvDeviceId, 'Mute', false) ?? false) ||
+          _sstvChannelMuted;
       if (!alreadyMuted) {
         _sstvAutoMuted = true;
         _broker.dispatch(
