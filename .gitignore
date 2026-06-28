@@ -10,6 +10,9 @@
 # Build release artifacts (do not commit large APK/AAB/binaries)
 /releases/
 
+# Local reference material (not part of the repo)
+/reference/
+
 
 # Flutter repo-specific
 /bin/cache/
