@@ -1,4 +1,4 @@
-package com.example.htcommander
+package com.meshcentral.htcommander
 
 import android.Manifest
 import android.app.Activity

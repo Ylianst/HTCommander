@@ -1,0 +1,835 @@
+﻿[ +506 ms] Unable to locate an Android SDK.
+[  +13 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[        ] executing: [C:\Code\FlutterSDK\flutter/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[  +79 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[        ] 2026-06-10 15:52:41 -0700
+[  +19 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +3 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[  +87 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[   +3 ms] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[  +24 ms] Skipping pub get: version match.
+[ +151 ms] Found plugin window_manager at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\window_manager-0.4.3\
+[  +10 ms] Found plugin screen_retriever at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever-0.2.1\
+[   +2 ms] Found plugin screen_retriever_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever_windows-0.2.1\
+[   +7 ms] Found plugin screen_retriever_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever_macos-0.2.1\
+[   +2 ms] Found plugin screen_retriever_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever_linux-0.2.1\
+[   +3 ms] Found plugin url_launcher at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[   +3 ms] Found plugin url_launcher_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +6 ms] Found plugin url_launcher_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.3\
+[   +7 ms] Found plugin url_launcher_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[   +2 ms] Found plugin url_launcher_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[   +3 ms] Found plugin url_launcher_ios at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.4.1\
+[   +4 ms] Found plugin url_launcher_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.32\
+[   +3 ms] Found plugin sherpa_onnx at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx-1.13.3\
+[   +2 ms] Found plugin sherpa_onnx_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_windows-1.13.3\
+[   +2 ms] Found plugin sherpa_onnx_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_macos-1.13.3\
+[   +2 ms] Found plugin sherpa_onnx_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_linux-1.13.3\
+[   +3 ms] Found plugin sherpa_onnx_ios at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_ios-1.13.3\
+[   +2 ms] Found plugin sherpa_onnx_android_x86_64 at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_x86_64-1.13.3\
+[   +2 ms] Found plugin sherpa_onnx_android_x86 at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_x86-1.13.3\
+[   +2 ms] Found plugin sherpa_onnx_android_armeabi at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_armeabi-1.13.3\
+[   +2 ms] Found plugin sherpa_onnx_android_arm64 at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_arm64-1.13.3\
+[   +3 ms] Found plugin shared_preferences at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences-2.5.5\
+[   +3 ms] Found plugin shared_preferences_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_windows-2.4.1\
+[   +4 ms] Found plugin path_provider_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[   +8 ms] Found plugin shared_preferences_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_web-2.4.3\
+[   +3 ms] Found plugin shared_preferences_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_linux-2.4.1\
+[   +2 ms] Found plugin path_provider_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.2\
+[   +3 ms] Found plugin shared_preferences_foundation at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_foundation-2.5.6\
+[   +2 ms] Found plugin shared_preferences_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.26\
+[   +2 ms] Found plugin record at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record-6.2.1\
+[   +1 ms] Found plugin record_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_windows-1.0.7\
+[   +4 ms] Found plugin record_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_web-1.3.0\
+[   +2 ms] Found plugin record_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_macos-1.2.2\
+[   +1 ms] Found plugin record_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_linux-1.3.1\
+[   +1 ms] Found plugin record_ios at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_ios-1.2.1\
+[   +1 ms] Found plugin record_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_android-1.5.2\
+[   +2 ms] Found plugin path_provider at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.6\
+[   +2 ms] Found plugin path_provider_foundation at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.6.0\
+[  +16 ms] Found plugin path_provider_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.3.1\
+[   +2 ms] Found plugin jni_flutter at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\jni_flutter-1.0.1\
+[   +3 ms] Found plugin jni at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\jni-1.0.0\
+[   +3 ms] Found plugin pasteboard at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\pasteboard-0.4.0\
+[  +14 ms] Found plugin flutter_tts at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_tts-4.2.5\
+[   +3 ms] Found plugin flutter_pcm_sound at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_pcm_sound-3.3.3\
+[  +22 ms] Found plugin flutter_blue_plus at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus-1.36.8\
+[   +3 ms] Found plugin flutter_blue_plus_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_web-7.0.2\
+[   +3 ms] Found plugin flutter_blue_plus_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_linux-7.0.3\
+[   +5 ms] Found plugin flutter_blue_plus_darwin at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_darwin-7.0.3\
+[   +1 ms] Found plugin flutter_blue_plus_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_android-7.0.4\
+[   +2 ms] Found plugin file_picker at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\file_picker-11.0.2\
+[   +8 ms] Found plugin flutter_plugin_android_lifecycle at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_plugin_android_lifecycle-2.0.35\
+[   +5 ms] Found plugin desktop_multi_window at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\desktop_multi_window-0.3.0\
+[   +2 ms] Found plugin desktop_drop at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\desktop_drop-0.7.1\
+[   +6 ms] Found plugin audioplayers at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers-6.8.1\
+[   +4 ms] Found plugin audioplayers_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_windows-4.4.1\
+[   +3 ms] Found plugin audioplayers_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_web-5.3.0\
+[   +1 ms] Found plugin audioplayers_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_linux-4.3.0\
+[   +2 ms] Found plugin audioplayers_darwin at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_darwin-6.5.0\
+[   +3 ms] Found plugin audioplayers_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_android-5.3.0\
+[  +97 ms] Found plugin window_manager at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\window_manager-0.4.3\
+[   +2 ms] Found plugin screen_retriever at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever-0.2.1\
+[   +1 ms] Found plugin screen_retriever_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever_windows-0.2.1\
+[   +4 ms] Found plugin screen_retriever_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever_macos-0.2.1\
+[   +1 ms] Found plugin screen_retriever_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever_linux-0.2.1\
+[   +1 ms] Found plugin url_launcher at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[   +1 ms] Found plugin url_launcher_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +3 ms] Found plugin url_launcher_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.3\
+[   +5 ms] Found plugin url_launcher_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[   +1 ms] Found plugin url_launcher_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[   +1 ms] Found plugin url_launcher_ios at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.4.1\
+[   +1 ms] Found plugin url_launcher_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.32\
+[   +1 ms] Found plugin sherpa_onnx at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx-1.13.3\
+[   +1 ms] Found plugin sherpa_onnx_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_windows-1.13.3\
+[   +1 ms] Found plugin sherpa_onnx_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_macos-1.13.3\
+[   +2 ms] Found plugin sherpa_onnx_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_linux-1.13.3\
+[   +2 ms] Found plugin sherpa_onnx_ios at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_ios-1.13.3\
+[   +1 ms] Found plugin sherpa_onnx_android_x86_64 at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_x86_64-1.13.3\
+[   +1 ms] Found plugin sherpa_onnx_android_x86 at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_x86-1.13.3\
+[   +1 ms] Found plugin sherpa_onnx_android_armeabi at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_armeabi-1.13.3\
+[   +1 ms] Found plugin sherpa_onnx_android_arm64 at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_arm64-1.13.3\
+[   +1 ms] Found plugin shared_preferences at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences-2.5.5\
+[   +1 ms] Found plugin shared_preferences_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_windows-2.4.1\
+[   +3 ms] Found plugin path_provider_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[   +5 ms] Found plugin shared_preferences_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_web-2.4.3\
+[   +1 ms] Found plugin shared_preferences_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_linux-2.4.1\
+[   +1 ms] Found plugin path_provider_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.2\
+[   +2 ms] Found plugin shared_preferences_foundation at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_foundation-2.5.6\
+[   +1 ms] Found plugin shared_preferences_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.26\
+[   +2 ms] Found plugin record at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record-6.2.1\
+[   +2 ms] Found plugin record_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_windows-1.0.7\
+[   +3 ms] Found plugin record_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_web-1.3.0\
+[   +1 ms] Found plugin record_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_macos-1.2.2\
+[   +1 ms] Found plugin record_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_linux-1.3.1\
+[   +1 ms] Found plugin record_ios at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_ios-1.2.1\
+[   +3 ms] Found plugin record_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_android-1.5.2\
+[   +2 ms] Found plugin path_provider at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.6\
+[   +3 ms] Found plugin path_provider_foundation at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.6.0\
+[  +11 ms] Found plugin path_provider_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.3.1\
+[   +1 ms] Found plugin jni_flutter at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\jni_flutter-1.0.1\
+[   +2 ms] Found plugin jni at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\jni-1.0.0\
+[   +3 ms] Found plugin pasteboard at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\pasteboard-0.4.0\
+[   +9 ms] Found plugin flutter_tts at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_tts-4.2.5\
+[   +1 ms] Found plugin flutter_pcm_sound at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_pcm_sound-3.3.3\
+[  +15 ms] Found plugin flutter_blue_plus at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus-1.36.8\
+[   +2 ms] Found plugin flutter_blue_plus_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_web-7.0.2\
+[   +3 ms] Found plugin flutter_blue_plus_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_linux-7.0.3\
+[   +4 ms] Found plugin flutter_blue_plus_darwin at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_darwin-7.0.3\
+[   +1 ms] Found plugin flutter_blue_plus_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_android-7.0.4\
+[   +1 ms] Found plugin file_picker at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\file_picker-11.0.2\
+[   +2 ms] Found plugin flutter_plugin_android_lifecycle at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_plugin_android_lifecycle-2.0.35\
+[   +5 ms] Found plugin desktop_multi_window at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\desktop_multi_window-0.3.0\
+[   +1 ms] Found plugin desktop_drop at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\desktop_drop-0.7.1\
+[   +3 ms] Found plugin audioplayers at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers-6.8.1\
+[   +2 ms] Found plugin audioplayers_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_windows-4.4.1\
+[   +2 ms] Found plugin audioplayers_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_web-5.3.0\
+[   +1 ms] Found plugin audioplayers_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_linux-4.3.0\
+[   +2 ms] Found plugin audioplayers_darwin at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_darwin-6.5.0\
+[   +1 ms] Found plugin audioplayers_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_android-5.3.0\
+[  +15 ms] Skipping generating web_plugin_registrant.dart because it is up-to-date.
+[  +55 ms] Found plugin window_manager at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\window_manager-0.4.3\
+[   +1 ms] Found plugin screen_retriever at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever-0.2.1\
+[   +1 ms] Found plugin screen_retriever_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever_windows-0.2.1\
+[   +3 ms] Found plugin screen_retriever_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever_macos-0.2.1\
+[   +1 ms] Found plugin screen_retriever_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\screen_retriever_linux-0.2.1\
+[   +2 ms] Found plugin url_launcher at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[   +1 ms] Found plugin url_launcher_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +2 ms] Found plugin url_launcher_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.3\
+[   +3 ms] Found plugin url_launcher_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[   +1 ms] Found plugin url_launcher_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[   +1 ms] Found plugin url_launcher_ios at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.4.1\
+[   +1 ms] Found plugin url_launcher_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.32\
+[   +1 ms] Found plugin sherpa_onnx at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx-1.13.3\
+[   +1 ms] Found plugin sherpa_onnx_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_windows-1.13.3\
+[   +2 ms] Found plugin sherpa_onnx_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_macos-1.13.3\
+[   +2 ms] Found plugin sherpa_onnx_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_linux-1.13.3\
+[   +1 ms] Found plugin sherpa_onnx_ios at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_ios-1.13.3\
+[   +1 ms] Found plugin sherpa_onnx_android_x86_64 at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_x86_64-1.13.3\
+[   +1 ms] Found plugin sherpa_onnx_android_x86 at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_x86-1.13.3\
+[   +4 ms] Found plugin sherpa_onnx_android_armeabi at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_armeabi-1.13.3\
+[   +1 ms] Found plugin sherpa_onnx_android_arm64 at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\sherpa_onnx_android_arm64-1.13.3\
+[   +1 ms] Found plugin shared_preferences at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences-2.5.5\
+[   +2 ms] Found plugin shared_preferences_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_windows-2.4.1\
+[   +3 ms] Found plugin path_provider_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[   +5 ms] Found plugin shared_preferences_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_web-2.4.3\
+[   +1 ms] Found plugin shared_preferences_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_linux-2.4.1\
+[   +1 ms] Found plugin path_provider_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.2\
+[   +3 ms] Found plugin shared_preferences_foundation at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_foundation-2.5.6\
+[   +2 ms] Found plugin shared_preferences_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.26\
+[   +1 ms] Found plugin record at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record-6.2.1\
+[   +1 ms] Found plugin record_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_windows-1.0.7\
+[   +2 ms] Found plugin record_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_web-1.3.0\
+[   +1 ms] Found plugin record_macos at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_macos-1.2.2\
+[   +1 ms] Found plugin record_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_linux-1.3.1\
+[   +1 ms] Found plugin record_ios at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_ios-1.2.1\
+[   +1 ms] Found plugin record_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\record_android-1.5.2\
+[   +1 ms] Found plugin path_provider at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.6\
+[   +1 ms] Found plugin path_provider_foundation at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.6.0\
+[  +11 ms] Found plugin path_provider_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.3.1\
+[   +1 ms] Found plugin jni_flutter at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\jni_flutter-1.0.1\
+[   +1 ms] Found plugin jni at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\jni-1.0.0\
+[   +2 ms] Found plugin pasteboard at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\pasteboard-0.4.0\
+[  +10 ms] Found plugin flutter_tts at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_tts-4.2.5\
+[   +1 ms] Found plugin flutter_pcm_sound at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_pcm_sound-3.3.3\
+[  +15 ms] Found plugin flutter_blue_plus at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus-1.36.8\
+[   +1 ms] Found plugin flutter_blue_plus_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_web-7.0.2\
+[   +2 ms] Found plugin flutter_blue_plus_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_linux-7.0.3\
+[   +7 ms] Found plugin flutter_blue_plus_darwin at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_darwin-7.0.3\
+[   +2 ms] Found plugin flutter_blue_plus_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_blue_plus_android-7.0.4\
+[   +1 ms] Found plugin file_picker at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\file_picker-11.0.2\
+[   +2 ms] Found plugin flutter_plugin_android_lifecycle at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_plugin_android_lifecycle-2.0.35\
+[   +3 ms] Found plugin desktop_multi_window at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\desktop_multi_window-0.3.0\
+[   +1 ms] Found plugin desktop_drop at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\desktop_drop-0.7.1\
+[   +4 ms] Found plugin audioplayers at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers-6.8.1\
+[   +2 ms] Found plugin audioplayers_windows at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_windows-4.4.1\
+[   +2 ms] Found plugin audioplayers_web at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_web-5.3.0\
+[   +1 ms] Found plugin audioplayers_linux at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_linux-4.3.0\
+[   +1 ms] Found plugin audioplayers_darwin at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_darwin-6.5.0\
+[   +1 ms] Found plugin audioplayers_android at C:\Users\Default.DESKTOP-SHJ77EM\AppData\Local\Pub\Cache\hosted\pub.dev\audioplayers_android-5.3.0\
+[  +24 ms] Generating C:\Code\HTCommanderEx\android\app\src\main\java\io\flutter\plugins\GeneratedPluginRegistrant.java
+[   +2 ms] Skipping generating GeneratedPluginRegistrant.java because it is up-to-date.
+[   +6 ms] Skipping generating generated_plugin_registrant.h because it is up-to-date.
+[   +1 ms] Skipping generating generated_plugin_registrant.cc because it is up-to-date.
+[   +2 ms] Skipping generating generated_plugins.cmake because it is up-to-date.
+[   +3 ms] Skipping generating generated_plugin_registrant.h because it is up-to-date.
+[   +1 ms] Skipping generating generated_plugin_registrant.cc because it is up-to-date.
+[   +1 ms] Skipping generating generated_plugins.cmake because it is up-to-date.
+[   +3 ms] Skipping generating GeneratedPluginRegistrant.h because it is up-to-date.
+[   +1 ms] Skipping generating GeneratedPluginRegistrant.m because it is up-to-date.
+[   +2 ms] Skipping generating GeneratedPluginRegistrant.swift because it is up-to-date.
+[  +64 ms] executing: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe -format json -products * -utf8 -latest -version 16 -requires Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project
+[  +74 ms] Exit code 0 from: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe -format json -products * -utf8 -latest -version 16 -requires Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project
+[        ] [
+             {
+               "instanceId": "fbc1010f",
+               "installDate": "2025-01-04T22:27:34Z",
+               "installationName": "VisualStudio/17.14.29+37111.16.-march.2026-",
+               "installationPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community",
+               "installationVersion": "17.14.37111.16",
+               "productId": "Microsoft.VisualStudio.Product.Community",
+               "productPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe",
+               "state": 4294967295,
+               "isComplete": true,
+               "isLaunchable": true,
+               "isPrerelease": false,
+               "isRebootRequired": false,
+               "displayName": "Visual Studio Community 2022",
+               "description": "Powerful IDE, free for students, open-source contributors, and individuals",
+               "channelId": "VisualStudio.17.Release",
+               "channelUri": "https://aka.ms/vs/17/release/channel",
+               "enginePath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\resources\\app\\ServiceHub\\Services\\Microsoft.VisualStudio.Setup.Service",
+               "installedChannelId": "VisualStudio.17.Release",
+               "installedChannelUri": "https://aka.ms/vs/17/release/channel",
+               "releaseNotes": "https://docs.microsoft.com/en-us/visualstudio/releases/2022/release-notes-v17.14#17.14.29",
+               "resolvedInstallationPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community",
+               "thirdPartyNotices": "https://go.microsoft.com/fwlink/?LinkId=661288",
+               "updateDate": "2026-03-20T06:10:35.9053545Z",
+               "catalog": {
+                 "buildBranch": "d17.14",
+                 "buildVersion": "17.14.37111.16",
+                 "id": "VisualStudio/17.14.29+37111.16.-march.2026-",
+                 "localBuild": "build-lab",
+                 "manifestName": "VisualStudio",
+                 "manifestType": "installer",
+                 "productDisplayVersion": "17.14.29 (March 2026)",
+                 "productLine": "Dev17",
+                 "productLineVersion": "2022",
+                 "productMilestone": "RTW",
+                 "productMilestoneIsPreRelease": "False",
+                 "productName": "Visual Studio",
+                 "productPatchVersion": "29",
+                 "productPreReleaseMilestoneSuffix": "1.0",
+                 "productReleaseNameSuffix": "(March 2026)",
+                 "productSemanticVersion": "17.14.29+37111.16.-march.2026-",
+                 "requiredEngineVersion": "3.14.2086.54749"
+               },
+               "properties": {
+                 "appLocalWPF": "false",
+                 "campaignId": "2030:5ad6263fec404320ae60365947569409",
+                 "canceled": "0",
+                 "channelManifestId": "VisualStudio.17.Release/17.14.29+37111.16.-march.2026-",
+                 "includeRecommended": "1",
+                 "nickname": "",
+                 "setupEngineFilePath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\setup.exe"
+               }
+             }
+           ]
+[   +3 ms] Building Windows application...
+[   +3 ms] executing: C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe -S C:\Code\HTCommanderEx\windows -B C:\Code\HTCommanderEx\build\windows\x64 -G Visual Studio 17 2022 -A x64 -DFLUTTER_TARGET_PLATFORM=windows-x64
+[  +70 ms] -- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+[ +861 ms] Feeds used:
+[        ]   C:\Users\Default.DESKTOP-SHJ77EM\.nuget\packages\
+[        ]   https://api.nuget.org/v3/index.json
+[        ]   C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\
+[  +86 ms] Package "Microsoft.Windows.ImplementationLibrary.1.0.260126.7" is already installed.
+[ +851 ms] Feeds used:
+[        ]   C:\Users\Default.DESKTOP-SHJ77EM\.nuget\packages\
+[        ]   https://api.nuget.org/v3/index.json
+[        ]   C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\
+[  +93 ms] Package "Microsoft.Windows.CppWinRT.2.0.210503.1" is already installed.
+[  +87 ms] -- Could NOT find JNI (missing: JAVA_INCLUDE_PATH JAVA_INCLUDE_PATH2 JVM) 
+[   +2 ms] -- Configuring done (2.0s)
+[+2006 ms] -- Generating done (2.0s)
+[  +37 ms] -- Build files have been written to: C:/Code/HTCommanderEx/build/windows/x64
+[  +27 ms] executing: C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe --build C:\Code\HTCommanderEx\build\windows\x64 --config Release --target INSTALL --verbose
+[ +255 ms] Change Dir: 'C:/Code/HTCommanderEx/build/windows/x64'
+[   +1 ms] Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/amd64/MSBuild.exe" INSTALL.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+[ +172 ms] MSBuild version 17.14.40+3e7442088 for .NET Framework
+[  +76 ms] Build started 6/27/2026 11:33:40 PM.
+[ +274 ms] Project "C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj" on node 1 (default targets).
+[        ] Project "C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj" (1) is building "C:\Code\HTCommanderEx\build\windows\x64\ZERO_CHECK.vcxproj" (2) on node 1 (default targets).
+[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[  +12 ms] InitializeBuildStatus:
+[        ]   Creating "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild".
+[  +22 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +45 ms] FinalizeBuildStatus:
+[        ]   Deleting file "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild".
+[   +1 ms]   Touching "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\ZERO_CHECK.lastbuildstate".
+[   +1 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\ZERO_CHECK.vcxproj" (default targets).
+[ +146 ms] Project "C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj" (1) is building "C:\Code\HTCommanderEx\build\windows\x64\ALL_BUILD.vcxproj" (3) on node 1 (default targets).
+[        ] Project "C:\Code\HTCommanderEx\build\windows\x64\ALL_BUILD.vcxproj" (3) is building "C:\Code\HTCommanderEx\build\windows\x64\plugins\audioplayers_windows\audioplayers_windows_plugin.vcxproj" (4) on node 1 (default targets).
+[        ] Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\audioplayers_windows\audioplayers_windows_plugin.vcxproj" (4) is building "C:\Code\HTCommanderEx\build\windows\x64\flutter\flutter_assemble.vcxproj" (5) on node 1 (default targets).
+[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +2 ms] InitializeBuildStatus:
+[        ]   Creating "x64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "x64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild".
+[   +7 ms] CustomBuild:
+[        ]   "The build of 'C:\Code\HTCommanderEx\build\windows\x64\CMakeFiles\34e700f495563caaba714a72bbd6e087\flutter_assemble.rule' depends on 'C:\CODE\HTCOMMANDEREX\WINDOWS\FLUTTER\EPHEMERAL\FLUTTER_WINDOWS.DLL' which is produced by the build of 'C:\Code\HTCommanderEx\build\windows\x64\CMakeFiles\86701500dfd7332f21c886677c725464\flutter_windows.dll.rule'. The items cannot be built in parallel."
+[ +137 ms]   Generating C:/Code/HTCommanderEx/windows/flutter/ephemeral/flutter_windows.dll, C:/Code/HTCommanderEx/windows/flutter/ephemeral/flutter_export.h, C:/Code/HTCommanderEx/windows/flutter/ephemeral/flutter_windows.h, C:/Code/HTCommanderEx/windows/flutter/ephemeral/flutter_messenger.h, C:/Code/HTCommanderEx/windows/flutter/ephemeral/flutter_plugin_registrar.h, C:/Code/HTCommanderEx/windows/flutter/ephemeral/flutter_texture_registrar.h, C:/Code/HTCommanderEx/windows/flutter/ephemeral/cpp_client_wrapper/core_implementations.cc, C:/Code/HTCommanderEx/windows/flutter/ephemeral/cpp_client_wrapper/standard_codec.cc, C:/Code/HTCommanderEx/windows/flutter/ephemeral/cpp_client_wrapper/plugin_registrar.cc, C:/Code/HTCommanderEx/windows/flutter/ephemeral/cpp_client_wrapper/flutter_engine.cc, C:/Code/HTCommanderEx/windows/flutter/ephemeral/cpp_client_wrapper/flutter_view_controller.cc, _phony_
+[+1886 ms]   [ +417 ms] Unable to locate an Android SDK.
+[   +1 ms]   [  +17 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[   +1 ms]   [   +1 ms] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [   +1 ms] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[   +1 ms]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[  +14 ms]   [  +14 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +3 ms]   [   +3 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[  +96 ms]   [  +97 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[   +1 ms]   [        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[   +2 ms]   [   +3 ms] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[  +20 ms]   [  +21 ms] Initializing file store
+[  +32 ms]   [  +32 ms] Done initializing file store
+[ +194 ms]   [ +194 ms] Skipping target: dart_build
+[   +2 ms]   [   +2 ms] Skipping target: gen_dart_plugin_registrant
+[+6083 ms]   [+6083 ms] Skipping target: unpack_windows
+[   +1 ms]   [   +1 ms] Skipping target: install_code_assets
+[        ]   [        ] Skipping target: gen_localizations
+[+2646 ms]   [+2645 ms] Skipping target: kernel_snapshot_program
+[ +175 ms]   [ +175 ms] Skipping target: aot_elf_release
+[ +150 ms]   [ +149 ms] Skipping target: windows_aot_bundle
+[  +34 ms]   [  +34 ms] invalidated build due to missing files: C:\Code\HTCommanderEx\DOES_NOT_EXIST_RERUN_FOR_WILDCARD911798216
+[ +362 ms]   [ +362 ms] release_bundle_windows-x64_assets: Starting due to {InvalidatedReasonKind.inputMissing: The following inputs were missing: C:\Code\HTCommanderEx\DOES_NOT_EXIST_RERUN_FOR_WILDCARD911798216}
+[ +863 ms]   [ +861 ms] Manifest contained wildcard assets. Inserting missing file into build graph to force rerun. for more information see #56466.
+[ +239 ms]   [ +238 ms] impellerc command: [C:\Code\FlutterSDK\flutter\bin\cache\artifacts\engine\windows-x64\impellerc.exe, --sksl, --runtime-stage-gles, --runtime-stage-gles3, --runtime-stage-vulkan, --iplr, --sl=C:\Code\HTCommanderEx\build\flutter_assets\shaders/ink_sparkle.frag, --spirv=C:\Code\HTCommanderEx\build\flutter_assets\shaders/ink_sparkle.frag.spirv, --input=C:\Code\FlutterSDK\flutter\packages\flutter\lib\src\material\shaders\ink_sparkle.frag, --input-type=frag, --include=C:\Code\FlutterSDK\flutter\packages\flutter\lib\src\material\shaders, --include=C:\Code\FlutterSDK\flutter\bin\cache\artifacts\engine\windows-x64\shader_lib]
+[  +11 ms]   [  +14 ms] impellerc command: [C:\Code\FlutterSDK\flutter\bin\cache\artifacts\engine\windows-x64\impellerc.exe, --sksl, --runtime-stage-gles, --runtime-stage-gles3, --runtime-stage-vulkan, --iplr, --sl=C:\Code\HTCommanderEx\build\flutter_assets\shaders/stretch_effect.frag, --spirv=C:\Code\HTCommanderEx\build\flutter_assets\shaders/stretch_effect.frag.spirv, --input=C:\Code\FlutterSDK\flutter\packages\flutter\lib\src\material\shaders\stretch_effect.frag, --input-type=frag, --include=C:\Code\FlutterSDK\flutter\packages\flutter\lib\src\material\shaders, --include=C:\Code\FlutterSDK\flutter\bin\cache\artifacts\engine\windows-x64\shader_lib]
+[+1634 ms]   [+1633 ms] release_bundle_windows-x64_assets: Complete
+[ +602 ms]   [ +602 ms] Persisting file store
+[  +38 ms]   [  +38 ms] Done persisting file store
+[  +82 ms]   [  +82 ms] build succeeded.
+[   +3 ms]   [   +3 ms] "flutter assemble" took 13,305ms.
+[ +119 ms]   [ +119 ms] Running 1 shutdown hook
+[   +4 ms]   [   +1 ms] Shutdown hooks complete
+[   +1 ms]   [   +2 ms] exiting with code 0
+[ +209 ms] FinalizeBuildStatus:
+[        ]   Deleting file "x64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild".
+[   +1 ms]   Touching "x64\Release\flutter_assemble\flutter_assemble.tlog\flutter_assemble.lastbuildstate".
+[   +2 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\flutter\flutter_assemble.vcxproj" (default targets).
+[  +84 ms] Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\audioplayers_windows\audioplayers_windows_plugin.vcxproj" (4) is building "C:\Code\HTCommanderEx\build\windows\x64\flutter\flutter_wrapper_plugin.vcxproj" (6) on node 1 (default targets).
+[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +5 ms] InitializeBuildStatus:
+[        ]   Creating "flutter_wrapper_plugin.dir\Release\flutter_.5CB373A6.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[   +2 ms]   Touching "flutter_wrapper_plugin.dir\Release\flutter_.5CB373A6.tlog\unsuccessfulbuild".
+[   +4 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[ +138 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +54 ms] Lib:
+[        ]   All outputs are up-to-date.
+[   +3 ms]   flutter_wrapper_plugin.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\flutter\Release\flutter_wrapper_plugin.lib
+[  +34 ms] FinalizeBuildStatus:
+[        ]   Deleting file "flutter_wrapper_plugin.dir\Release\flutter_.5CB373A6.tlog\unsuccessfulbuild".
+[        ]   Touching "flutter_wrapper_plugin.dir\Release\flutter_.5CB373A6.tlog\flutter_wrapper_plugin.lastbuildstate".
+[   +1 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\flutter\flutter_wrapper_plugin.vcxproj" (default targets).
+[  +14 ms] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +3 ms] InitializeBuildStatus:
+[        ]   Creating "audioplayers_windows_plugin.dir\Release\audiopla.D644A1BF.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "audioplayers_windows_plugin.dir\Release\audiopla.D644A1BF.tlog\unsuccessfulbuild".
+[   +3 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +43 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +54 ms] Link:
+[        ]   All outputs are up-to-date.
+[   +6 ms]   audioplayers_windows_plugin.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\plugins\audioplayers_windows\Release\audioplayers_windows_plugin.dll
+[  +13 ms] FinalizeBuildStatus:
+[        ]   Deleting file "audioplayers_windows_plugin.dir\Release\audiopla.D644A1BF.tlog\unsuccessfulbuild".
+[   +1 ms]   Touching "audioplayers_windows_plugin.dir\Release\audiopla.D644A1BF.tlog\audioplayers_windows_plugin.lastbuildstate".
+[        ] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\audioplayers_windows\audioplayers_windows_plugin.vcxproj" (default targets).
+[  +57 ms] Project "C:\Code\HTCommanderEx\build\windows\x64\ALL_BUILD.vcxproj" (3) is building "C:\Code\HTCommanderEx\build\windows\x64\plugins\desktop_drop\desktop_drop_plugin.vcxproj" (7) on node 1 (default targets).
+[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +3 ms] InitializeBuildStatus:
+[        ]   Creating "desktop_drop_plugin.dir\Release\desktop_.40EF1C28.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "desktop_drop_plugin.dir\Release\desktop_.40EF1C28.tlog\unsuccessfulbuild".
+[   +4 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +16 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +11 ms] Link:
+[        ]   All outputs are up-to-date.
+[   +1 ms]   desktop_drop_plugin.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\plugins\desktop_drop\Release\desktop_drop_plugin.dll
+[  +19 ms] FinalizeBuildStatus:
+[        ]   Deleting file "desktop_drop_plugin.dir\Release\desktop_.40EF1C28.tlog\unsuccessfulbuild".
+[        ]   Touching "desktop_drop_plugin.dir\Release\desktop_.40EF1C28.tlog\desktop_drop_plugin.lastbuildstate".
+[   +1 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\desktop_drop\desktop_drop_plugin.vcxproj" (default targets).
+[ +107 ms] Project "C:\Code\HTCommanderEx\build\windows\x64\ALL_BUILD.vcxproj" (3) is building "C:\Code\HTCommanderEx\build\windows\x64\plugins\desktop_multi_window\desktop_multi_window_plugin.vcxproj" (8) on node 1 (default targets).
+[        ] Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\desktop_multi_window\desktop_multi_window_plugin.vcxproj" (8) is building "C:\Code\HTCommanderEx\build\windows\x64\flutter\flutter_wrapper_app.vcxproj" (9) on node 1 (default targets).
+[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +5 ms] InitializeBuildStatus:
+[        ]   Creating "flutter_wrapper_app.dir\Release\flutter_.30A12F81.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "flutter_wrapper_app.dir\Release\flutter_.30A12F81.tlog\unsuccessfulbuild".
+[   +3 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +32 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +11 ms] Lib:
+[        ]   All outputs are up-to-date.
+[        ]   flutter_wrapper_app.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\flutter\Release\flutter_wrapper_app.lib
+[  +19 ms] FinalizeBuildStatus:
+[        ]   Deleting file "flutter_wrapper_app.dir\Release\flutter_.30A12F81.tlog\unsuccessfulbuild".
+[        ]   Touching "flutter_wrapper_app.dir\Release\flutter_.30A12F81.tlog\flutter_wrapper_app.lastbuildstate".
+[   +1 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\flutter\flutter_wrapper_app.vcxproj" (default targets).
+[  +22 ms] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +4 ms] InitializeBuildStatus:
+[        ]   Creating "desktop_multi_window_plugin.dir\Release\desktop_.3C5A95BE.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "desktop_multi_window_plugin.dir\Release\desktop_.3C5A95BE.tlog\unsuccessfulbuild".
+[   +4 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +26 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +20 ms] Link:
+[        ]   All outputs are up-to-date.
+[   +7 ms]   desktop_multi_window_plugin.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\plugins\desktop_multi_window\Release\desktop_multi_window_plugin.dll
+[  +19 ms] FinalizeBuildStatus:
+[        ]   Deleting file "desktop_multi_window_plugin.dir\Release\desktop_.3C5A95BE.tlog\unsuccessfulbuild".
+[   +1 ms]   Touching "desktop_multi_window_plugin.dir\Release\desktop_.3C5A95BE.tlog\desktop_multi_window_plugin.lastbuildstate".
+[   +1 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\desktop_multi_window\desktop_multi_window_plugin.vcxproj" (default targets).
+[  +75 ms] Project "C:\Code\HTCommanderEx\build\windows\x64\ALL_BUILD.vcxproj" (3) is building "C:\Code\HTCommanderEx\build\windows\x64\plugins\flutter_tts\flutter_tts_plugin.vcxproj" (10) on node 1 (default targets).
+[        ] GetCppWinRTProjectWinMDReferences:
+[        ]   CppWinRTStaticProjectWinMDReferences: 
+[        ]   CppWinRTDynamicProjectWinMDReferences: 
+[        ] GetResolvedWinMD:
+[        ]   GetResolvedWinMD: 
+[   +8 ms] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[ +127 ms] InitializeBuildStatus:
+[        ]   Creating "flutter_tts_plugin.dir\Release\flutter_.DAE0C07C.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "flutter_tts_plugin.dir\Release\flutter_.DAE0C07C.tlog\unsuccessfulbuild".
+[   +4 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +16 ms] GetCppWinRTPlatformWinMDReferences:
+[   +1 ms]   CppWinRTPlatformWinMDReferences: C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.Actions.ActionsContract\8.0.0.0\Windows.AI.Actions.ActionsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.Agents.AgentsContract\2.0.0.0\Windows.AI.Agents.AgentsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.MachineLearning.MachineLearningContract\5.0.0.0\Windows.AI.MachineLearning.MachineLearningContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.MachineLearning.Preview.MachineLearningPreviewContract\2.0.0.0\Windows.AI.MachineLearning.Preview.MachineLearningPreviewContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.ActivatedEventsContract\1.0.0.0\Windows.ApplicationModel.Activation.ActivatedEventsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.ActivationCameraSettingsContract\1.0.0.0\Windows.ApplicationModel.Activation.ActivationCameraSettingsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.ContactActivatedEventsContract\1.0.0.0\Windows.ApplicationModel.Activation.ContactActivatedEventsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.WebUISearchActivatedEventsContract\1.0.0.0\Windows.ApplicationModel.Activation.WebUISearchActivatedEventsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Background.BackgroundAlarmApplicationContract\1.0.0.0\Windows.ApplicationModel.Background.BackgroundAlarmApplicationContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.Background.CallsBackgroundContract\4.0.0.0\Windows.ApplicationModel.Calls.Background.CallsBackgroundContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.CallsPhoneContract\7.0.0.0\Windows.ApplicationModel.Calls.CallsPhoneContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.CallsVoipContract\5.0.0.0\Windows.ApplicationModel.Calls.CallsVoipContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.LockScreenCallContract\1.0.0.0\Windows.ApplicationModel.Calls.LockScreenCallContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.CommunicationBlocking.CommunicationBlockingContract\2.0.0.0\Windows.ApplicationModel.CommunicationBlocking.CommunicationBlockingContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.FullTrustAppContract\2.0.0.0\Windows.ApplicationModel.FullTrustAppContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Preview.InkWorkspace.PreviewInkWorkspaceContract\1.0.0.0\Windows.ApplicationModel.Preview.InkWorkspace.PreviewInkWorkspaceContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Preview.Notes.PreviewNotesContract\2.0.0.0\Windows.ApplicationModel.Preview.Notes.PreviewNotesContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Preview.StartupAppsPreviewContract\1.0.0.0\Windows.ApplicationModel.Preview.StartupAppsPreviewContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Resources.Management.ResourceIndexerContract\2.0.0.0\Windows.ApplicationModel.Resources.Management.ResourceIndexerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Search.Core.SearchCoreContract\1.0.0.0\Windows.ApplicationModel.Search.Core.SearchCoreContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Search.SearchContract\1.0.0.0\Windows.ApplicationModel.Search.SearchContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.SocialInfo.SocialInfoContract\2.0.0.0\Windows.ApplicationModel.SocialInfo.SocialInfoContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.StartupTaskContract\3.0.0.0\Windows.ApplicationModel.StartupTaskContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Wallet.WalletContract\2.0.0.0\Windows.ApplicationModel.Wallet.WalletContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Custom.CustomDeviceContract\1.0.0.0\Windows.Devices.Custom.CustomDeviceContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.DevicesLowLevelContract\3.0.0.0\Windows.Devices.DevicesLowLevelContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Portable.PortableDeviceContract\1.0.0.0\Windows.Devices.Portable.PortableDeviceContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Power.PowerGridApiContract\1.0.0.0\Windows.Devices.Power.PowerGridApiContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Printers.Extensions.ExtensionsContract\2.0.0.0\Windows.Devices.Printers.Extensions.ExtensionsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Printers.PrintersContract\1.0.0.0\Windows.Devices.Printers.PrintersContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Scanners.ScannerDeviceContract\1.0.0.0\Windows.Devices.Scanners.ScannerDeviceContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.SmartCards.SmartCardBackgroundTriggerContract\3.0.0.0\Windows.Devices.SmartCards.SmartCardBackgroundTriggerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.SmartCards.SmartCardEmulatorContract\6.0.0.0\Windows.Devices.SmartCards.SmartCardEmulatorContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Sms.LegacySmsApiContract\1.0.0.0\Windows.Devices.Sms.LegacySmsApiContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Foundation.FoundationContract\4.0.0.0\Windows.Foundation.FoundationContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Foundation.UniversalApiContract\19.0.0.0\Windows.Foundation.UniversalApiContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.Input.GamingInputPreviewContract\2.0.0.0\Windows.Gaming.Input.GamingInputPreviewContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.Preview.GamesEnumerationContract\2.0.0.0\Windows.Gaming.Preview.GamesEnumerationContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.UI.GameChatOverlayContract\1.0.0.0\Windows.Gaming.UI.GameChatOverlayContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.UI.GamingUIProviderContract\1.0.0.0\Windows.Gaming.UI.GamingUIProviderContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.XboxLive.StorageApiContract\1.0.0.0\Windows.Gaming.XboxLive.StorageApiContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Globalization.GlobalizationJapanesePhoneticAnalyzerContract\1.0.0.0\Windows.Globalization.GlobalizationJapanesePhoneticAnalyzerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Graphics.Printing3D.Printing3DContract\4.0.0.0\Windows.Graphics.Printing3D.Printing3DContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Deployment.Preview.DeploymentPreviewContract\1.0.0.0\Windows.Management.Deployment.Preview.DeploymentPreviewContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Deployment.SharedPackageContainerContract\1.0.0.0\Windows.Management.Deployment.SharedPackageContainerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Update.WindowsUpdateContract\2.1.0.0\Windows.Management.Update.WindowsUpdateContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Workplace.WorkplaceSettingsContract\1.0.0.0\Windows.Management.Workplace.WorkplaceSettingsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.AppBroadcasting.AppBroadcastingContract\1.0.0.0\Windows.Media.AppBroadcasting.AppBroadcastingContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.AppRecording.AppRecordingContract\1.0.0.0\Windows.Media.AppRecording.AppRecordingContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.AppBroadcastContract\2.0.0.0\Windows.Media.Capture.AppBroadcastContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.AppCaptureContract\4.0.0.0\Windows.Media.Capture.AppCaptureContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.AppCaptureMetadataContract\1.0.0.0\Windows.Media.Capture.AppCaptureMetadataContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.CameraCaptureUIContract\1.0.0.0\Windows.Media.Capture.CameraCaptureUIContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.GameBarContract\1.0.0.0\Windows.Media.Capture.GameBarContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Devices.CallControlContract\1.0.0.0\Windows.Media.Devices.CallControlContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.MediaControlContract\1.0.0.0\Windows.Media.MediaControlContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Playlists.PlaylistsContract\1.0.0.0\Windows.Media.Playlists.PlaylistsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Protection.ProtectionRenewalContract\1.0.0.0\Windows.Media.Protection.ProtectionRenewalContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.Connectivity.WwanContract\3.0.0.0\Windows.Networking.Connectivity.WwanContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.NetworkOperators.LegacyNetworkOperatorsContract\1.0.0.0\Windows.Networking.NetworkOperators.LegacyNetworkOperatorsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.Sockets.ControlChannelTriggerContract\3.0.0.0\Windows.Networking.Sockets.ControlChannelTriggerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.XboxLive.XboxLiveSecureSocketsContract\1.0.0.0\Windows.Networking.XboxLive.XboxLiveSecureSocketsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Perception.Automation.Core.PerceptionAutomationCoreContract\1.0.0.0\Windows.Perception.Automation.Core.PerceptionAutomationCoreContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Security.EnterpriseData.EnterpriseDataContract\5.0.0.0\Windows.Security.EnterpriseData.EnterpriseDataContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Security.ExchangeActiveSyncProvisioning.EasContract\1.0.0.0\Windows.Security.ExchangeActiveSyncProvisioning.EasContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Security.Isolation.Isolatedwindowsenvironmentcontract\5.0.0.0\Windows.Security.Isolation.Isolatedwindowsenvironmentcontract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.Maps.GuidanceContract\3.0.0.0\Windows.Services.Maps.GuidanceContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.Maps.LocalSearchContract\4.0.0.0\Windows.Services.Maps.LocalSearchContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.Store.StoreContract\4.0.0.0\Windows.Services.Store.StoreContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.TargetedContent.TargetedContentContract\1.0.0.0\Windows.Services.TargetedContent.TargetedContentContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Storage.Provider.CloudFilesContract\7.0.0.0\Windows.Storage.Provider.CloudFilesContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Power.Thermal.PowerThermalApiContract\1.0.0.0\Windows.System.Power.Thermal.PowerThermalApiContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\windows.system.profile.platformautomaticappsignincontract\1.0.0.0\windows.system.profile.platformautomaticappsignincontract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.ProfileHardwareTokenContract\1.0.0.0\Windows.System.Profile.ProfileHardwareTokenContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.ProfileRetailInfoContract\1.0.0.0\Windows.System.Profile.ProfileRetailInfoContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.ProfileSharedModeContract\2.0.0.0\Windows.System.Profile.ProfileSharedModeContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.SystemManufacturers.SystemManufacturersContract\3.0.0.0\Windows.System.Profile.SystemManufacturers.SystemManufacturersContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.SystemManagementContract\7.0.0.0\Windows.System.SystemManagementContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.UserProfile.UserProfileContract\2.0.0.0\Windows.System.UserProfile.UserProfileContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.UserProfile.UserProfileLockScreenContract\1.0.0.0\Windows.System.UserProfile.UserProfileLockScreenContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.ApplicationSettings.ApplicationsSettingsContract\1.0.0.0\Windows.UI.ApplicationSettings.ApplicationsSettingsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Core.AnimationMetrics.AnimationMetricsContract\1.0.0.0\Windows.UI.Core.AnimationMetrics.AnimationMetricsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Core.CoreWindowDialogsContract\1.0.0.0\Windows.UI.Core.CoreWindowDialogsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Input.Preview.Text.PreviewTextContract\1.0.0.0\Windows.UI.Input.Preview.Text.PreviewTextContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.CompanionWindows.CompanionWindowsContract\1.0.0.0\Windows.UI.Shell.CompanionWindows.CompanionWindowsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.SecurityAppManagerContract\1.0.0.0\Windows.UI.Shell.SecurityAppManagerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.Tasks.AppTaskContract\2.0.0.0\Windows.UI.Shell.Tasks.AppTaskContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.WindowTabManagerContract\1.0.0.0\Windows.UI.Shell.WindowTabManagerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.UIAutomation.UIAutomationContract\2.0.0.0\Windows.UI.UIAutomation.UIAutomationContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.ViewManagement.ViewManagementViewScalingContract\1.0.0.0\Windows.UI.ViewManagement.ViewManagementViewScalingContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Xaml.Core.Direct.XamlDirectContract\5.0.0.0\Windows.UI.Xaml.Core.Direct.XamlDirectContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Xaml.Hosting.HostingContract\5.0.0.0\Windows.UI.Xaml.Hosting.HostingContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Web.Http.Diagnostics.HttpDiagnosticsContract\2.0.0.0\Windows.Web.Http.Diagnostics.HttpDiagnosticsContract.winmd
+[   +1 ms] GetCppWinRTDirectWinMDReferences:
+[        ]   CppWinRTDirectWinMDReferences: 
+[   +6 ms] CppWinRTSetMidlReferences:
+[        ] Skipping target "CppWinRTSetMidlReferences" because all output files are up-to-date with respect to the input files.
+[   +4 ms] GetCppWinRTMdMergeInputs:
+[        ]   CppWinRTMdMergeInputs: 
+[   +1 ms]   CppWinRTMdMergeMetadataDirectories: C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.Actions.ActionsContract\8.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.Agents.AgentsContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.MachineLearning.MachineLearningContract\5.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.MachineLearning.Preview.MachineLearningPreviewContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.ActivatedEventsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.ActivationCameraSettingsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.ContactActivatedEventsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.WebUISearchActivatedEventsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Background.BackgroundAlarmApplicationContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.Background.CallsBackgroundContract\4.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.CallsPhoneContract\7.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.CallsVoipContract\5.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.LockScreenCallContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.CommunicationBlocking.CommunicationBlockingContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.FullTrustAppContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Preview.InkWorkspace.PreviewInkWorkspaceContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Preview.Notes.PreviewNotesContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Preview.StartupAppsPreviewContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Resources.Management.ResourceIndexerContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Search.Core.SearchCoreContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Search.SearchContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.SocialInfo.SocialInfoContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.StartupTaskContract\3.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Wallet.WalletContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Custom.CustomDeviceContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.DevicesLowLevelContract\3.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Portable.PortableDeviceContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Power.PowerGridApiContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Printers.Extensions.ExtensionsContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Printers.PrintersContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Scanners.ScannerDeviceContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.SmartCards.SmartCardBackgroundTriggerContract\3.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.SmartCards.SmartCardEmulatorContract\6.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Sms.LegacySmsApiContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Foundation.FoundationContract\4.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Foundation.UniversalApiContract\19.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.Input.GamingInputPreviewContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.Preview.GamesEnumerationContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.UI.GameChatOverlayContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.UI.GamingUIProviderContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.XboxLive.StorageApiContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Globalization.GlobalizationJapanesePhoneticAnalyzerContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Graphics.Printing3D.Printing3DContract\4.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Deployment.Preview.DeploymentPreviewContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Deployment.SharedPackageContainerContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Update.WindowsUpdateContract\2.1.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Workplace.WorkplaceSettingsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.AppBroadcasting.AppBroadcastingContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.AppRecording.AppRecordingContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.AppBroadcastContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.AppCaptureContract\4.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.AppCaptureMetadataContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.CameraCaptureUIContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.GameBarContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Devices.CallControlContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.MediaControlContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Playlists.PlaylistsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Protection.ProtectionRenewalContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.Connectivity.WwanContract\3.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.NetworkOperators.LegacyNetworkOperatorsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.Sockets.ControlChannelTriggerContract\3.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.XboxLive.XboxLiveSecureSocketsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Perception.Automation.Core.PerceptionAutomationCoreContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Security.EnterpriseData.EnterpriseDataContract\5.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Security.ExchangeActiveSyncProvisioning.EasContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Security.Isolation.Isolatedwindowsenvironmentcontract\5.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.Maps.GuidanceContract\3.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.Maps.LocalSearchContract\4.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.Store.StoreContract\4.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.TargetedContent.TargetedContentContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Storage.Provider.CloudFilesContract\7.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Power.Thermal.PowerThermalApiContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\windows.system.profile.platformautomaticappsignincontract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.ProfileHardwareTokenContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.ProfileRetailInfoContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.ProfileSharedModeContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.SystemManufacturers.SystemManufacturersContract\3.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.SystemManagementContract\7.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.UserProfile.UserProfileContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.UserProfile.UserProfileLockScreenContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.ApplicationSettings.ApplicationsSettingsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Core.AnimationMetrics.AnimationMetricsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Core.CoreWindowDialogsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Input.Preview.Text.PreviewTextContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.CompanionWindows.CompanionWindowsContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.SecurityAppManagerContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.Tasks.AppTaskContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.WindowTabManagerContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.UIAutomation.UIAutomationContract\2.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.ViewManagement.ViewManagementViewScalingContract\1.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Xaml.Core.Direct.XamlDirectContract\5.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Xaml.Hosting.HostingContract\5.0.0.0\;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Web.Http.Diagnostics.HttpDiagnosticsContract\2.0.0.0\
+[   +4 ms] CppWinRTMergeProjectWinMDInputs:
+[        ] Skipping target "CppWinRTMergeProjectWinMDInputs" because all output files are up-to-date with respect to the input files.
+[  +15 ms] GetCppWinRTPlatformWinMDInputs:
+[   +1 ms]   CppWinRTPlatformWinMDInputs: C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.Actions.ActionsContract\8.0.0.0\Windows.AI.Actions.ActionsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.Agents.AgentsContract\2.0.0.0\Windows.AI.Agents.AgentsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.MachineLearning.MachineLearningContract\5.0.0.0\Windows.AI.MachineLearning.MachineLearningContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.AI.MachineLearning.Preview.MachineLearningPreviewContract\2.0.0.0\Windows.AI.MachineLearning.Preview.MachineLearningPreviewContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.ActivatedEventsContract\1.0.0.0\Windows.ApplicationModel.Activation.ActivatedEventsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.ActivationCameraSettingsContract\1.0.0.0\Windows.ApplicationModel.Activation.ActivationCameraSettingsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.ContactActivatedEventsContract\1.0.0.0\Windows.ApplicationModel.Activation.ContactActivatedEventsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Activation.WebUISearchActivatedEventsContract\1.0.0.0\Windows.ApplicationModel.Activation.WebUISearchActivatedEventsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Background.BackgroundAlarmApplicationContract\1.0.0.0\Windows.ApplicationModel.Background.BackgroundAlarmApplicationContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.Background.CallsBackgroundContract\4.0.0.0\Windows.ApplicationModel.Calls.Background.CallsBackgroundContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.CallsPhoneContract\7.0.0.0\Windows.ApplicationModel.Calls.CallsPhoneContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.CallsVoipContract\5.0.0.0\Windows.ApplicationModel.Calls.CallsVoipContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Calls.LockScreenCallContract\1.0.0.0\Windows.ApplicationModel.Calls.LockScreenCallContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.CommunicationBlocking.CommunicationBlockingContract\2.0.0.0\Windows.ApplicationModel.CommunicationBlocking.CommunicationBlockingContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.FullTrustAppContract\2.0.0.0\Windows.ApplicationModel.FullTrustAppContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Preview.InkWorkspace.PreviewInkWorkspaceContract\1.0.0.0\Windows.ApplicationModel.Preview.InkWorkspace.PreviewInkWorkspaceContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Preview.Notes.PreviewNotesContract\2.0.0.0\Windows.ApplicationModel.Preview.Notes.PreviewNotesContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Preview.StartupAppsPreviewContract\1.0.0.0\Windows.ApplicationModel.Preview.StartupAppsPreviewContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Resources.Management.ResourceIndexerContract\2.0.0.0\Windows.ApplicationModel.Resources.Management.ResourceIndexerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Search.Core.SearchCoreContract\1.0.0.0\Windows.ApplicationModel.Search.Core.SearchCoreContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Search.SearchContract\1.0.0.0\Windows.ApplicationModel.Search.SearchContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.SocialInfo.SocialInfoContract\2.0.0.0\Windows.ApplicationModel.SocialInfo.SocialInfoContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.StartupTaskContract\3.0.0.0\Windows.ApplicationModel.StartupTaskContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.ApplicationModel.Wallet.WalletContract\2.0.0.0\Windows.ApplicationModel.Wallet.WalletContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Custom.CustomDeviceContract\1.0.0.0\Windows.Devices.Custom.CustomDeviceContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.DevicesLowLevelContract\3.0.0.0\Windows.Devices.DevicesLowLevelContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Portable.PortableDeviceContract\1.0.0.0\Windows.Devices.Portable.PortableDeviceContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Power.PowerGridApiContract\1.0.0.0\Windows.Devices.Power.PowerGridApiContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Printers.Extensions.ExtensionsContract\2.0.0.0\Windows.Devices.Printers.Extensions.ExtensionsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Printers.PrintersContract\1.0.0.0\Windows.Devices.Printers.PrintersContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Scanners.ScannerDeviceContract\1.0.0.0\Windows.Devices.Scanners.ScannerDeviceContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.SmartCards.SmartCardBackgroundTriggerContract\3.0.0.0\Windows.Devices.SmartCards.SmartCardBackgroundTriggerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.SmartCards.SmartCardEmulatorContract\6.0.0.0\Windows.Devices.SmartCards.SmartCardEmulatorContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Devices.Sms.LegacySmsApiContract\1.0.0.0\Windows.Devices.Sms.LegacySmsApiContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Foundation.FoundationContract\4.0.0.0\Windows.Foundation.FoundationContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Foundation.UniversalApiContract\19.0.0.0\Windows.Foundation.UniversalApiContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.Input.GamingInputPreviewContract\2.0.0.0\Windows.Gaming.Input.GamingInputPreviewContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.Preview.GamesEnumerationContract\2.0.0.0\Windows.Gaming.Preview.GamesEnumerationContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.UI.GameChatOverlayContract\1.0.0.0\Windows.Gaming.UI.GameChatOverlayContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.UI.GamingUIProviderContract\1.0.0.0\Windows.Gaming.UI.GamingUIProviderContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Gaming.XboxLive.StorageApiContract\1.0.0.0\Windows.Gaming.XboxLive.StorageApiContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Globalization.GlobalizationJapanesePhoneticAnalyzerContract\1.0.0.0\Windows.Globalization.GlobalizationJapanesePhoneticAnalyzerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Graphics.Printing3D.Printing3DContract\4.0.0.0\Windows.Graphics.Printing3D.Printing3DContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Deployment.Preview.DeploymentPreviewContract\1.0.0.0\Windows.Management.Deployment.Preview.DeploymentPreviewContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Deployment.SharedPackageContainerContract\1.0.0.0\Windows.Management.Deployment.SharedPackageContainerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Update.WindowsUpdateContract\2.1.0.0\Windows.Management.Update.WindowsUpdateContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Management.Workplace.WorkplaceSettingsContract\1.0.0.0\Windows.Management.Workplace.WorkplaceSettingsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.AppBroadcasting.AppBroadcastingContract\1.0.0.0\Windows.Media.AppBroadcasting.AppBroadcastingContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.AppRecording.AppRecordingContract\1.0.0.0\Windows.Media.AppRecording.AppRecordingContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.AppBroadcastContract\2.0.0.0\Windows.Media.Capture.AppBroadcastContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.AppCaptureContract\4.0.0.0\Windows.Media.Capture.AppCaptureContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.AppCaptureMetadataContract\1.0.0.0\Windows.Media.Capture.AppCaptureMetadataContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.CameraCaptureUIContract\1.0.0.0\Windows.Media.Capture.CameraCaptureUIContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Capture.GameBarContract\1.0.0.0\Windows.Media.Capture.GameBarContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Devices.CallControlContract\1.0.0.0\Windows.Media.Devices.CallControlContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.MediaControlContract\1.0.0.0\Windows.Media.MediaControlContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Playlists.PlaylistsContract\1.0.0.0\Windows.Media.Playlists.PlaylistsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Media.Protection.ProtectionRenewalContract\1.0.0.0\Windows.Media.Protection.ProtectionRenewalContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.Connectivity.WwanContract\3.0.0.0\Windows.Networking.Connectivity.WwanContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.NetworkOperators.LegacyNetworkOperatorsContract\1.0.0.0\Windows.Networking.NetworkOperators.LegacyNetworkOperatorsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.Sockets.ControlChannelTriggerContract\3.0.0.0\Windows.Networking.Sockets.ControlChannelTriggerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Networking.XboxLive.XboxLiveSecureSocketsContract\1.0.0.0\Windows.Networking.XboxLive.XboxLiveSecureSocketsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Perception.Automation.Core.PerceptionAutomationCoreContract\1.0.0.0\Windows.Perception.Automation.Core.PerceptionAutomationCoreContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Security.EnterpriseData.EnterpriseDataContract\5.0.0.0\Windows.Security.EnterpriseData.EnterpriseDataContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Security.ExchangeActiveSyncProvisioning.EasContract\1.0.0.0\Windows.Security.ExchangeActiveSyncProvisioning.EasContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Security.Isolation.Isolatedwindowsenvironmentcontract\5.0.0.0\Windows.Security.Isolation.Isolatedwindowsenvironmentcontract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.Maps.GuidanceContract\3.0.0.0\Windows.Services.Maps.GuidanceContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.Maps.LocalSearchContract\4.0.0.0\Windows.Services.Maps.LocalSearchContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.Store.StoreContract\4.0.0.0\Windows.Services.Store.StoreContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Services.TargetedContent.TargetedContentContract\1.0.0.0\Windows.Services.TargetedContent.TargetedContentContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Storage.Provider.CloudFilesContract\7.0.0.0\Windows.Storage.Provider.CloudFilesContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Power.Thermal.PowerThermalApiContract\1.0.0.0\Windows.System.Power.Thermal.PowerThermalApiContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\windows.system.profile.platformautomaticappsignincontract\1.0.0.0\windows.system.profile.platformautomaticappsignincontract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.ProfileHardwareTokenContract\1.0.0.0\Windows.System.Profile.ProfileHardwareTokenContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.ProfileRetailInfoContract\1.0.0.0\Windows.System.Profile.ProfileRetailInfoContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.ProfileSharedModeContract\2.0.0.0\Windows.System.Profile.ProfileSharedModeContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.Profile.SystemManufacturers.SystemManufacturersContract\3.0.0.0\Windows.System.Profile.SystemManufacturers.SystemManufacturersContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.SystemManagementContract\7.0.0.0\Windows.System.SystemManagementContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.UserProfile.UserProfileContract\2.0.0.0\Windows.System.UserProfile.UserProfileContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.System.UserProfile.UserProfileLockScreenContract\1.0.0.0\Windows.System.UserProfile.UserProfileLockScreenContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.ApplicationSettings.ApplicationsSettingsContract\1.0.0.0\Windows.UI.ApplicationSettings.ApplicationsSettingsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Core.AnimationMetrics.AnimationMetricsContract\1.0.0.0\Windows.UI.Core.AnimationMetrics.AnimationMetricsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Core.CoreWindowDialogsContract\1.0.0.0\Windows.UI.Core.CoreWindowDialogsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Input.Preview.Text.PreviewTextContract\1.0.0.0\Windows.UI.Input.Preview.Text.PreviewTextContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.CompanionWindows.CompanionWindowsContract\1.0.0.0\Windows.UI.Shell.CompanionWindows.CompanionWindowsContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.SecurityAppManagerContract\1.0.0.0\Windows.UI.Shell.SecurityAppManagerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.Tasks.AppTaskContract\2.0.0.0\Windows.UI.Shell.Tasks.AppTaskContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Shell.WindowTabManagerContract\1.0.0.0\Windows.UI.Shell.WindowTabManagerContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.UIAutomation.UIAutomationContract\2.0.0.0\Windows.UI.UIAutomation.UIAutomationContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.ViewManagement.ViewManagementViewScalingContract\1.0.0.0\Windows.UI.ViewManagement.ViewManagementViewScalingContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Xaml.Core.Direct.XamlDirectContract\5.0.0.0\Windows.UI.Xaml.Core.Direct.XamlDirectContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.UI.Xaml.Hosting.HostingContract\5.0.0.0\Windows.UI.Xaml.Hosting.HostingContract.winmd;C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0\Windows.Web.Http.Diagnostics.HttpDiagnosticsContract\2.0.0.0\Windows.Web.Http.Diagnostics.HttpDiagnosticsContract.winmd
+[  +23 ms] CppWinRTMakePlatformProjection:
+[        ] Skipping target "CppWinRTMakePlatformProjection" because all output files are up-to-date with respect to the input files.
+[   +4 ms] CppWinRTMakeComponentProjection:
+[        ] Skipping target "CppWinRTMakeComponentProjection" because all output files are up-to-date with respect to the input files.
+[  +57 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +27 ms] Link:
+[        ]   All outputs are up-to-date.
+[   +2 ms]   flutter_tts_plugin.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\plugins\flutter_tts\Release\flutter_tts_plugin.dll
+[  +22 ms] FinalizeBuildStatus:
+[        ]   Deleting file "flutter_tts_plugin.dir\Release\flutter_.DAE0C07C.tlog\unsuccessfulbuild".
+[   +1 ms]   Touching "flutter_tts_plugin.dir\Release\flutter_.DAE0C07C.tlog\flutter_tts_plugin.lastbuildstate".
+[   +1 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\flutter_tts\flutter_tts_plugin.vcxproj" (default targets).
+[ +157 ms] Project "C:\Code\HTCommanderEx\build\windows\x64\ALL_BUILD.vcxproj" (3) is building "C:\Code\HTCommanderEx\build\windows\x64\runner\htcommander.vcxproj" (11) on node 1 (default targets).
+[        ] Project "C:\Code\HTCommanderEx\build\windows\x64\runner\htcommander.vcxproj" (11) is building "C:\Code\HTCommanderEx\build\windows\x64\plugins\pasteboard\pasteboard_plugin.vcxproj" (12) on node 1 (default targets).
+[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +5 ms] InitializeBuildStatus:
+[        ]   Creating "pasteboard_plugin.dir\Release\pasteboa.C6A40AC8.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "pasteboard_plugin.dir\Release\pasteboa.C6A40AC8.tlog\unsuccessfulbuild".
+[   +5 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +41 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +20 ms] Link:
+[        ]   All outputs are up-to-date.
+[   +1 ms]   pasteboard_plugin.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\plugins\pasteboard\Release\pasteboard_plugin.dll
+[  +22 ms] FinalizeBuildStatus:
+[        ]   Deleting file "pasteboard_plugin.dir\Release\pasteboa.C6A40AC8.tlog\unsuccessfulbuild".
+[   +3 ms]   Touching "pasteboard_plugin.dir\Release\pasteboa.C6A40AC8.tlog\pasteboard_plugin.lastbuildstate".
+[   +2 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\pasteboard\pasteboard_plugin.vcxproj" (default targets).
+[  +86 ms] Project "C:\Code\HTCommanderEx\build\windows\x64\runner\htcommander.vcxproj" (11) is building "C:\Code\HTCommanderEx\build\windows\x64\plugins\record_windows\record_windows_plugin.vcxproj" (13) on node 1 (default targets).
+[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +4 ms] InitializeBuildStatus:
+[        ]   Creating "record_windows_plugin.dir\Release\record_w.9A1B5F08.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "record_windows_plugin.dir\Release\record_w.9A1B5F08.tlog\unsuccessfulbuild".
+[   +7 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +45 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +34 ms] Link:
+[        ]   All outputs are up-to-date.
+[   +2 ms]   record_windows_plugin.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\plugins\record_windows\Release\record_windows_plugin.dll
+[  +24 ms] FinalizeBuildStatus:
+[        ]   Deleting file "record_windows_plugin.dir\Release\record_w.9A1B5F08.tlog\unsuccessfulbuild".
+[        ]   Touching "record_windows_plugin.dir\Release\record_w.9A1B5F08.tlog\record_windows_plugin.lastbuildstate".
+[   +3 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\record_windows\record_windows_plugin.vcxproj" (default targets).
+[  +78 ms] Project "C:\Code\HTCommanderEx\build\windows\x64\runner\htcommander.vcxproj" (11) is building "C:\Code\HTCommanderEx\build\windows\x64\plugins\screen_retriever_windows\screen_retriever_windows_plugin.vcxproj" (14) on node 1 (default targets).
+[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +5 ms] InitializeBuildStatus:
+[        ]   Creating "screen_retriever_windows_plugin.dir\Release\screen_r.FA2FFE79.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "screen_retriever_windows_plugin.dir\Release\screen_r.FA2FFE79.tlog\unsuccessfulbuild".
+[   +4 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +44 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +23 ms] Link:
+[        ]   All outputs are up-to-date.
+[   +1 ms]   screen_retriever_windows_plugin.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\plugins\screen_retriever_windows\Release\screen_retriever_windows_plugin.dll
+[  +23 ms] FinalizeBuildStatus:
+[        ]   Deleting file "screen_retriever_windows_plugin.dir\Release\screen_r.FA2FFE79.tlog\unsuccessfulbuild".
+[        ]   Touching "screen_retriever_windows_plugin.dir\Release\screen_r.FA2FFE79.tlog\screen_retriever_windows_plugin.lastbuildstate".
+[   +1 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\screen_retriever_windows\screen_retriever_windows_plugin.vcxproj" (default targets).
+[  +81 ms] Project "C:\Code\HTCommanderEx\build\windows\x64\runner\htcommander.vcxproj" (11) is building "C:\Code\HTCommanderEx\build\windows\x64\plugins\url_launcher_windows\url_launcher_windows_plugin.vcxproj" (15) on node 1 (default targets).
+[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +4 ms] InitializeBuildStatus:
+[        ]   Creating "url_launcher_windows_plugin.dir\Release\url_laun.6830283D.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "url_launcher_windows_plugin.dir\Release\url_laun.6830283D.tlog\unsuccessfulbuild".
+[   +7 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +33 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +31 ms] Link:
+[        ]   All outputs are up-to-date.
+[   +1 ms]   url_launcher_windows_plugin.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\plugins\url_launcher_windows\Release\url_launcher_windows_plugin.dll
+[  +22 ms] FinalizeBuildStatus:
+[        ]   Deleting file "url_launcher_windows_plugin.dir\Release\url_laun.6830283D.tlog\unsuccessfulbuild".
+[        ]   Touching "url_launcher_windows_plugin.dir\Release\url_laun.6830283D.tlog\url_launcher_windows_plugin.lastbuildstate".
+[   +1 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\url_launcher_windows\url_launcher_windows_plugin.vcxproj" (default targets).
+[  +68 ms] Project "C:\Code\HTCommanderEx\build\windows\x64\runner\htcommander.vcxproj" (11) is building "C:\Code\HTCommanderEx\build\windows\x64\plugins\window_manager\window_manager_plugin.vcxproj" (16) on node 1 (default targets).
+[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +6 ms] InitializeBuildStatus:
+[        ]   Creating "window_manager_plugin.dir\Release\window_m.9E0B9C39.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "window_manager_plugin.dir\Release\window_m.9E0B9C39.tlog\unsuccessfulbuild".
+[   +5 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +61 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +21 ms] Link:
+[        ]   All outputs are up-to-date.
+[   +1 ms]   window_manager_plugin.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\plugins\window_manager\Release\window_manager_plugin.dll
+[  +22 ms] FinalizeBuildStatus:
+[        ]   Deleting file "window_manager_plugin.dir\Release\window_m.9E0B9C39.tlog\unsuccessfulbuild".
+[        ]   Touching "window_manager_plugin.dir\Release\window_m.9E0B9C39.tlog\window_manager_plugin.lastbuildstate".
+[   +1 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\plugins\window_manager\window_manager_plugin.vcxproj" (default targets).
+[  +36 ms] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +3 ms] InitializeBuildStatus:
+[        ]   Creating "htcommander.dir\Release\htcommander.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "htcommander.dir\Release\htcommander.tlog\unsuccessfulbuild".
+[   +5 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +84 ms] ClCompile:
+[        ]   All outputs are up-to-date.
+[  +24 ms] ResourceCompile:
+[        ]   All outputs are up-to-date.
+[  +29 ms] Link:
+[        ]   All outputs are up-to-date.
+[   +2 ms]   htcommander.vcxproj -> C:\Code\HTCommanderEx\build\windows\x64\runner\Release\htcommander.exe
+[  +33 ms] FinalizeBuildStatus:
+[        ]   Deleting file "htcommander.dir\Release\htcommander.tlog\unsuccessfulbuild".
+[   +1 ms]   Touching "htcommander.dir\Release\htcommander.tlog\htcommander.lastbuildstate".
+[   +2 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\runner\htcommander.vcxproj" (default targets).
+[  +26 ms] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +5 ms] InitializeBuildStatus:
+[        ]   Creating "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+[        ]   Touching "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild".
+[   +6 ms] CustomBuild:
+[        ]   All outputs are up-to-date.
+[  +30 ms] FinalizeBuildStatus:
+[        ]   Deleting file "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild".
+[        ]   Touching "x64\Release\ALL_BUILD\ALL_BUILD.tlog\ALL_BUILD.lastbuildstate".
+[   +1 ms] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\ALL_BUILD.vcxproj" (default targets).
+[  +15 ms] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +3 ms] InitializeBuildStatus:
+[        ]   Touching "x64\Release\INSTALL\INSTALL.tlog\unsuccessfulbuild".
+[  +90 ms] CustomBuild:
+[        ]   1>
+[  +32 ms] PostBuildEvent:
+[        ]   setlocal
+[        ]   "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -DBUILD_TYPE=Release -P cmake_install.cmake
+[        ]   if %errorlevel% neq 0 goto :cmEnd
+[        ]   :cmEnd
+[        ]   endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+[        ]   :cmErrorLevel
+[        ]   exit /b %1
+[        ]   :cmDone
+[        ]   if %errorlevel% neq 0 goto :VCEnd
+[        ]   :VCEnd
+[ +117 ms]   -- Install configuration: "Release"
+[  +16 ms]   CMake Error at cmake_install.cmake:130 (file):
+[        ]     file cannot create directory: C:/Program Files/htcommander.  Maybe need
+[        ]     administrative privileges.
+flutter : [  +21 ms] C:\Program Files\Microsoft Visual Studio\2022\Community\MS
+Build\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: The 
+command "setlocal [C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+At line:1 char:171
++ ... d c:\Code\HTCommanderEx; flutter build windows --verbose 2>&1 | Out-F ...
++                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([  +21 ms] C:\P...NSTALL.vcxproj] 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[   +2 ms] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program 
+Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Micro
+soft\CMake\CMake\bin\cmake.exe" -DBUILD_TYPE=Release -P cmake_install.cmake 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if 
+%errorlevel% neq 0 goto :cmEnd 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmEnd 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: endlocal & 
+call :cmErrorLevel %errorlevel% & goto :cmDone 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmErrorLevel 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: exit /b %1 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmDone 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if 
+%errorlevel% neq 0 goto :VCEnd 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :VCEnd" 
+exited with code 1. [C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] Done Building Project "C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj" (default targets) -- FAILED.
+[   +7 ms] Build FAILED.
+[   +3 ms] "C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj" (default target) (1) ->
+[        ] (PostBuildEvent target) -> 
+[        ]   C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Mi
+crosoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: The command 
+"setlocal [C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program 
+Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Micro
+soft\CMake\CMake\bin\cmake.exe" -DBUILD_TYPE=Release -P cmake_install.cmake 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if 
+%errorlevel% neq 0 goto :cmEnd 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmEnd 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: endlocal & 
+call :cmErrorLevel %errorlevel% & goto :cmDone 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmErrorLevel 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: exit /b %1 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmDone 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if 
+%errorlevel% neq 0 goto :VCEnd 
+[C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Micr
+osoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :VCEnd" 
+exited with code 1. [C:\Code\HTCommanderEx\build\windows\x64\INSTALL.vcxproj]
+[        ]     0 Warning(s)
+[        ]     1 Error(s)
+[        ] Time Elapsed 00:00:19.18
+[  +63 ms] Building Windows application... (completed in 23.9s)
+[   +1 ms] "flutter windows" took 25,129ms.
+[ +124 ms] Build process failed.
+[        ] 
+           #0      throwToolExit 
+(package:flutter_tools/src/base/common.dart:34:3)
+           #1      _runBuild 
+(package:flutter_tools/src/windows/build_windows.dart:262:5)
+           <asynchronous suspension>
+           #2      buildWindows 
+(package:flutter_tools/src/windows/build_windows.dart:118:5)
+           <asynchronous suspension>
+           #3      BuildWindowsCommand.runCommand 
+(package:flutter_tools/src/commands/build_windows.dart:72:5)
+           <asynchronous suspension>
+           #4      FlutterCommand.run.<anonymous closure> 
+(package:flutter_tools/src/runner/flutter_command.dart:1630:27)
+           <asynchronous suspension>
+           #5      AppContext.run.<anonymous closure> 
+(package:flutter_tools/src/base/context.dart:154:19)
+           <asynchronous suspension>
+           #6      CommandRunner.runCommand 
+(package:args/command_runner.dart:212:13)
+           <asynchronous suspension>
+           #7      FlutterCommandRunner.runCommand.<anonymous closure> 
+(package:flutter_tools/src/runner/flutter_command_runner.dart:496:9)
+           <asynchronous suspension>
+           #8      AppContext.run.<anonymous closure> 
+(package:flutter_tools/src/base/context.dart:154:19)
+           <asynchronous suspension>
+           #9      FlutterCommandRunner.runCommand 
+(package:flutter_tools/src/runner/flutter_command_runner.dart:431:5)
+           <asynchronous suspension>
+           #10     FlutterCommandRunner.run.<anonymous closure> 
+(package:flutter_tools/src/runner/flutter_command_runner.dart:307:33)
+           <asynchronous suspension>
+           #11     run.<anonymous closure>.<anonymous closure> 
+(package:flutter_tools/runner.dart:104:11)
+           <asynchronous suspension>
+           #12     AppContext.run.<anonymous closure> 
+(package:flutter_tools/src/base/context.dart:154:19)
+           <asynchronous suspension>
+           #13     main (package:flutter_tools/executable.dart:103:3)
+           <asynchronous suspension>
+
+
+[        ] Running 1 shutdown hook
+[   +3 ms] Shutdown hooks complete
+[        ] exiting with code 1
