@@ -59,6 +59,11 @@ class _CommsTabState extends State<CommsTab>
   /// is shown so the user can restore audio.
   bool _isMuted = false;
 
+  /// Whether the current mute was caused by the SSTV auto-mute (as opposed to
+  /// the user muting the channel themselves). The mute banner is only shown in
+  /// the auto-mute case; a channel the user already muted needs no banner.
+  bool _sstvAutoMuted = false;
+
   /// Live microphone capture used by the push-to-talk (PTT) mode.
   MicrophoneCapture? _micCapture;
 
@@ -119,7 +124,11 @@ class _CommsTabState extends State<CommsTab>
       name: 'Mute',
       callback: _onMuteChanged,
     );
-
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'SstvAutoMute',
+      callback: _onSstvAutoMuteChanged,
+    );
     // Global voice handler state and history events (device 1).
     _broker.subscribe(
       deviceId: 1,
@@ -181,6 +190,7 @@ class _CommsTabState extends State<CommsTab>
         .clamp(1.0, 8.0);
     _audioEnabled = _readAudioState();
     _isMuted = _readMuteState();
+    _sstvAutoMuted = _readSstvAutoMuteState();
     _loadDecodedTextHistory();
 
     // Resolve the application-support path so decoded SSTV pictures can be
@@ -507,6 +517,7 @@ class _CommsTabState extends State<CommsTab>
       _currentRadioDeviceId = _resolveCurrentRadioId();
       _audioEnabled = _readAudioState();
       _isMuted = _readMuteState();
+      _sstvAutoMuted = _readSstvAutoMuteState();
     });
     _updatePttMic();
   }
@@ -517,6 +528,7 @@ class _CommsTabState extends State<CommsTab>
       _currentRadioDeviceId = data;
       _audioEnabled = _readAudioState();
       _isMuted = _readMuteState();
+      _sstvAutoMuted = _readSstvAutoMuteState();
     });
     _updatePttMic();
   }
@@ -535,10 +547,24 @@ class _CommsTabState extends State<CommsTab>
         false;
   }
 
+  /// Reads whether the current mute is an SSTV auto-mute for the radio shown in
+  /// the Radio Panel.
+  bool _readSstvAutoMuteState() {
+    if (_currentRadioDeviceId <= 0) return false;
+    return _broker.getValue<bool>(_currentRadioDeviceId, 'SstvAutoMute', false) ??
+        false;
+  }
+
   /// Handles Mute changes for the radio shown in the Radio Panel.
   void _onMuteChanged(int deviceId, String name, Object? data) {
     if (!mounted || deviceId != _currentRadioDeviceId) return;
     if (data is bool) setState(() => _isMuted = data);
+  }
+
+  /// Handles SSTV auto-mute changes for the radio shown in the Radio Panel.
+  void _onSstvAutoMuteChanged(int deviceId, String name, Object? data) {
+    if (!mounted || deviceId != _currentRadioDeviceId) return;
+    if (data is bool) setState(() => _sstvAutoMuted = data);
   }
 
   /// Un-mutes the radio shown in the Radio Panel.
@@ -1823,7 +1849,7 @@ class _CommsTabState extends State<CommsTab>
       child: Column(
         children: [
           _buildHeader(),
-          if (_isMuted) _buildMuteBanner(),
+          if (_isMuted && _sstvAutoMuted) _buildMuteBanner(),
           Expanded(
             child: DropTarget(
               onDragEntered: (_) {
@@ -2131,7 +2157,12 @@ Uint8List _encodeSstvPcm(Map<String, Object?> args) {
   final encoder = Encoder(sampleRate);
   final samples = encoder.encode(pixels, width, height, modeName);
 
-  final pcm = Uint8List(samples.length * 2);
+  // Prepend 2 seconds of silence so the transmitter PTT is fully keyed up
+  // before the SSTV leader tone begins (32 kHz mono 16-bit => 2 bytes/sample).
+  final int silenceSamples = sampleRate * 2;
+  final int silenceBytes = silenceSamples * 2;
+
+  final pcm = Uint8List((silenceSamples + samples.length) * 2);
   final view = ByteData.view(pcm.buffer);
   for (int i = 0; i < samples.length; i++) {
     var s = samples[i];
@@ -2140,7 +2171,7 @@ Uint8List _encodeSstvPcm(Map<String, Object?> args) {
     } else if (s < -1.0) {
       s = -1.0;
     }
-    view.setInt16(i * 2, (s * 32767).round(), Endian.little);
+    view.setInt16(silenceBytes + i * 2, (s * 32767).round(), Endian.little);
   }
   return pcm;
 }
