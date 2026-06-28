@@ -969,8 +969,9 @@ class CommsHandler {
       final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
       final channelName =
           (data['channelName'] ?? data['ChannelName']) as String? ?? '';
-      final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
-      if (usage == null && !transmit && !muted && channelName != 'APRS') {
+      // Decode SSTV even on muted channels: muting silences playback but we
+      // still want to detect and decode incoming SSTV images.
+      if (usage == null && !transmit && channelName != 'APRS') {
         // Lock onto a single device for the duration of a decode.
         if (!_sstvDecoding) _sstvDeviceId = deviceId;
         if (deviceId == _sstvDeviceId) {
@@ -1266,7 +1267,9 @@ class CommsHandler {
     // tones and compete for CPU with the image decoder during reception.
     _abortSttForSstv();
 
-    // Auto-mute the radio so the user doesn't hear the raw SSTV tones.
+    // Auto-mute the radio so the user doesn't hear the raw SSTV tones. If the
+    // channel is already muted by the user, leave it alone and don't flag an
+    // auto-mute (so the UI won't show a redundant "Audio is muted." banner).
     if (_sstvDeviceId > 0) {
       final alreadyMuted =
           _broker.getValue<bool>(_sstvDeviceId, 'Mute', false) ?? false;
@@ -1281,6 +1284,12 @@ class CommsHandler {
       } else {
         _sstvAutoMuted = false;
       }
+      _broker.dispatch(
+        deviceId: _sstvDeviceId,
+        name: 'SstvAutoMute',
+        data: _sstvAutoMuted,
+        store: true,
+      );
     }
 
     final channelName = _currentChannelName;
@@ -1400,6 +1409,14 @@ class CommsHandler {
         name: 'SetMute',
         data: false,
         store: false,
+      );
+    }
+    if (_sstvDeviceId > 0) {
+      _broker.dispatch(
+        deviceId: _sstvDeviceId,
+        name: 'SstvAutoMute',
+        data: false,
+        store: true,
       );
     }
     _sstvAutoMuted = false;

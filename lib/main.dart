@@ -1609,6 +1609,11 @@ class _MainFormState extends State<MainForm>
         return SubmenuButton(
           style: menuItemStyle,
           menuStyle: menuStyle,
+          // Align the label with sibling actions when any of them shows a
+          // leading checkmark (e.g. Dual-Watch/Scan/GPS in the File menu).
+          leadingIcon: items.any((i) => i is AppMenuAction && i.checked)
+              ? const SizedBox(width: 16)
+              : null,
           menuChildren: _buildBuiltInMenuItems(
             item.children,
             menuItemStyle,
