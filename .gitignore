@@ -7,6 +7,8 @@
 .buildlog/
 .history
 
+# Build release artifacts (do not commit large APK/AAB/binaries)
+/releases/
 
 
 # Flutter repo-specific
