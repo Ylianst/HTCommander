@@ -19,6 +19,8 @@ import 'handlers/aprs_handler.dart';
 import 'handlers/airplane_handler.dart';
 import 'handlers/comms_handler.dart';
 import 'handlers/bbs_handler.dart';
+import 'handlers/agwpe_handler.dart';
+import 'handlers/web_server_handler.dart';
 import 'handlers/debug_log_handler.dart';
 import 'gps/gps_serial_handler.dart';
 import 'torrent/torrent_handler.dart';
@@ -136,6 +138,25 @@ void main(List<String> args) async {
   // the mail tab (Connect -> Internet / Radio) and runs the B2F protocol.
   final winlinkClient = WinlinkClient();
   DataBroker.addDataHandler('WinlinkClient', winlinkClient);
+
+  // Register the AGWPE server handler (desktop only) so that, when enabled in
+  // settings, an AGW Packet Engine (AGWPE) TCP server is exposed for external
+  // packet applications. It bridges monitoring, UNPROTO and connected-mode
+  // sessions to the radio. Not available on web/iOS/Android.
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    final agwpeHandler = AgwpeHandler();
+    agwpeHandler.init();
+    DataBroker.addDataHandler('AgwpeHandler', agwpeHandler);
+  }
+
+  // Register the web server handler (desktop only) so that, when enabled in
+  // settings, the bundled static web UI is served over HTTP. Not available on
+  // web/iOS/Android.
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    final webServerHandler = WebServerHandler();
+    webServerHandler.init();
+    DataBroker.addDataHandler('WebServerHandler', webServerHandler);
+  }
 
   // Check if this is a sub-window on desktop platforms
   if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
