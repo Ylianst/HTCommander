@@ -1674,22 +1674,24 @@ class _CommsTabState extends State<CommsTab>
         if (_audioChannelSupported) ...[
           // Only draw the separating divider when mode items precede it.
           if (_allowTransmit) const PopupMenuDivider(height: 8),
-          PopupMenuItem<String>(
-            value: 'speechToText',
-            height: menuItemHeight,
-            padding: menuItemPadding,
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  child: _speechToTextEnabled
-                      ? const Text('✓', style: TextStyle(fontSize: 14))
-                      : null,
-                ),
-                const Text('Speech-to-Text'),
-              ],
+          // Speech-to-text is not available on Android.
+          if (!Platform.isAndroid)
+            PopupMenuItem<String>(
+              value: 'speechToText',
+              height: menuItemHeight,
+              padding: menuItemPadding,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    child: _speechToTextEnabled
+                        ? const Text('✓', style: TextStyle(fontSize: 14))
+                        : null,
+                  ),
+                  const Text('Speech-to-Text'),
+                ],
+              ),
             ),
-          ),
           PopupMenuItem<String>(
             value: 'recordAudio',
             height: menuItemHeight,
