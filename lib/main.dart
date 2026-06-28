@@ -277,11 +277,17 @@ class _SubWindowAppState extends State<SubWindowApp> {
 class HTCommanderApp extends StatelessWidget {
   const HTCommanderApp({super.key});
 
+  /// Shared observer that clears focus whenever a route is pushed, preventing
+  /// the keyboard from re-appearing when a dialog is dismissed.
+  static final NavigatorObserver _unfocusOnPushObserver =
+      _UnfocusOnPushObserver();
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Handi-Talkie Commander',
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [_unfocusOnPushObserver],
       builder: (context, child) =>
           _wrapWithResponsiveDialogTheme(context, child),
       theme: ThemeData(
@@ -293,6 +299,24 @@ class HTCommanderApp extends StatelessWidget {
       ),
       home: const MainForm(),
     );
+  }
+}
+
+/// Clears the keyboard focus whenever a new route (such as a dialog) is pushed.
+///
+/// Flutter's default behavior restores focus to the previously focused widget
+/// when a modal route is popped. Combined with the keep-alive tabs, that caused
+/// the soft keyboard to reappear on the main form's text inputs every time a
+/// dialog was closed — even when a tab with no text input was showing. By
+/// dropping focus at push time there is no remembered node to restore, so the
+/// three message inputs only receive focus when explicitly requested. A dialog
+/// that sets `autofocus` on its own fields is unaffected, because that focus is
+/// requested after the route is pushed.
+class _UnfocusOnPushObserver extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    super.didPush(route, previousRoute);
   }
 }
 
@@ -968,6 +992,11 @@ class _MainFormState extends State<MainForm>
 
   /// Called when tab selection changes.
   void _onTabChanged() {
+    // Drop keyboard focus when moving between tabs so a text input on one tab
+    // can't keep (or regain) focus while a different tab is showing. Without
+    // this, the soft keyboard could reappear on tabs that have no text input.
+    FocusManager.instance.primaryFocus?.unfocus();
+
     if (!_tabController.indexIsChanging) {
       // Save the selected tab index to DataBroker
       _broker.dispatch(
