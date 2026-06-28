@@ -66,9 +66,16 @@ include(flutter/generated_plugins.cmake)
 set(BUILD_BUNDLE_DIR "$<TARGET_FILE_DIR:${BINARY_NAME}>")
 # Make the "install" step default, as it's required to run.
 set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD 1)
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
-endif()
+# Always force the install prefix to the bundle directory next to the
+# executable. The stock Flutter template only sets this when
+# CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT is true, but a stale CMake cache
+# (e.g. left over from an interrupted configure) can keep the default
+# "C:/Program Files/<app>" prefix, which makes the INSTALL target fail with
+# "file cannot create directory ... Maybe need administrative privileges".
+# Forcing it unconditionally keeps `flutter build windows` working without a
+# clean and ensures bundled native libraries (sherpa-onnx, onnxruntime, ...)
+# land beside the app for the speech-to-text feature.
+set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
 
 set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
 set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
