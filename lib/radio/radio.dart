@@ -218,6 +218,14 @@ class Radio {
       callback: _onTransmitDataFrameEvent,
     );
 
+    // Subscribe to raw command send events (used by the web server WebSocket
+    // bridge, which forwards the browser's raw GATT command frames).
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'SendRawCommand',
+      callback: _onSendRawCommandEvent,
+    );
+
     // Subscribe to BSS settings
     _broker.subscribe(
       deviceId: deviceId,
@@ -1323,6 +1331,19 @@ class Radio {
     _transport!.send(gaiaFrame);
   }
 
+  /// Sends a raw, un-framed GATT command frame to the radio. [data] is the
+  /// `[group_hi, group_lo, cmd_hi, cmd_lo, payload...]` frame as produced by
+  /// the browser's `SendCommand`/`writeToCharacteristic`. The frame is wrapped
+  /// in GAIA serial framing for Bluetooth Classic transports, or sent as-is for
+  /// BLE GATT transports. Used by the web server WebSocket bridge.
+  void _onSendRawCommandEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    if (_transport == null || _state != RadioState.connected) return;
+    if (data is! Uint8List || data.length < 4) return;
+    final framed = _useGattFraming ? data : GaiaProtocol.encode(data);
+    _transport!.send(framed);
+  }
+
   bool _tryHandleWebCompactResponse(Uint8List data) {
     if (!kIsWeb || data.length < 5) return false;
     if (_webBleCompactUnsupported) return true;
@@ -1520,6 +1541,12 @@ class Radio {
 
   void _handleCommand(Uint8List cmd) {
     if (cmd.length < 4) return;
+
+    // Bridge: forward the raw, un-framed GATT command frame
+    // (`[group_hi, group_lo, cmd_hi, cmd_lo, payload...]`) to any listeners.
+    // The web server WebSocket bridge relays these to browsers, which parse
+    // them with the same format via radio.js `handleNotificationsEx()`.
+    _dispatch('RawCommandRx', cmd, store: false);
 
     final parsed = GaiaProtocol.parseResponse(cmd);
     final payload = cmd.length > 4

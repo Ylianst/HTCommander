@@ -113,6 +113,11 @@ flutter:
   assets:
     - assets/images/
     - assets/images/tabs/
+    # Static web UI served by the desktop web server (ported from the C#
+    # HTCommander/web folder). Bundled so it ships on Windows/macOS/Linux.
+    - assets/web/
+    - assets/web/icons/
+    - assets/web/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
