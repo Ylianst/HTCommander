@@ -34,6 +34,7 @@ import 'utils/channel_export.dart';
 import 'winlink/mail_store.dart';
 import 'winlink/winlink_client.dart';
 import 'widgets/radio_panel.dart';
+import 'widgets/radio_status_bar.dart';
 import 'widgets/comms_tab.dart';
 import 'widgets/audio_tab.dart';
 import 'widgets/aprs_tab.dart';
@@ -407,6 +408,9 @@ class _MainFormState extends State<MainForm>
   bool _tabsVisible = true;
   bool _showAllChannels = false;
   bool _isCompactMode = false;
+  // A saved tab label that wasn't available at startup (e.g. "Radio", which
+  // only exists in compact mode). Selected once the tab set is rebuilt.
+  String? _pendingRestoreTab;
   String _statusText = '';
   int _batteryPercentage =
       -1; // Battery percentage of the currently displayed radio (-1 = unknown)
@@ -595,9 +599,25 @@ class _MainFormState extends State<MainForm>
       _allowTransmit,
       _winlinkPasswordSet,
     );
-    final savedTabIndex =
-        DataBroker.getValue<int>(0, 'SelectedTabIndex', 0) ?? 0;
-    final initialIndex = savedTabIndex.clamp(0, _currentTabs.length - 1);
+    final savedTabName =
+        DataBroker.getValue<String>(0, 'SelectedTabName', '') ?? '';
+    int initialIndex = 0;
+    if (savedTabName.isNotEmpty) {
+      final idx = _currentTabs.indexWhere((t) => t.label == savedTabName);
+      if (idx >= 0) {
+        initialIndex = idx;
+      } else {
+        // The saved tab isn't available yet (e.g. "Radio" only exists in
+        // compact mode, which isn't determined until first layout). Remember
+        // it so it can be selected once the tab set is rebuilt.
+        _pendingRestoreTab = savedTabName;
+      }
+    } else {
+      // Backward compatibility: fall back to the legacy saved index.
+      final savedTabIndex =
+          DataBroker.getValue<int>(0, 'SelectedTabIndex', 0) ?? 0;
+      initialIndex = savedTabIndex.clamp(0, _currentTabs.length - 1);
+    }
     _tabController = TabController(
       length: _currentTabs.length,
       vsync: this,
@@ -1019,11 +1039,17 @@ class _MainFormState extends State<MainForm>
     FocusManager.instance.primaryFocus?.unfocus();
 
     if (!_tabController.indexIsChanging) {
-      // Save the selected tab index to DataBroker
+      // Save the selected tab by label (not index) so the same tab is restored
+      // regardless of which tabs are present at startup (e.g. the Radio tab in
+      // compact mode or hidden transmit-only tabs shift the indices).
+      final idx = _tabController.index;
+      final label = (idx >= 0 && idx < _currentTabs.length)
+          ? _currentTabs[idx].label
+          : '';
       _broker.dispatch(
         deviceId: 0,
-        name: 'SelectedTabIndex',
-        data: _tabController.index,
+        name: 'SelectedTabName',
+        data: label,
       );
     }
   }
@@ -1048,6 +1074,8 @@ class _MainFormState extends State<MainForm>
     if (isDesktop) {
       await windowManager.ensureInitialized();
       windowManager.addListener(this);
+      // Match the macOS native minimum window size (set in MainMenu.xib).
+      await windowManager.setMinimumSize(const Size(550, 600));
       // Intercept close to clean up child windows
       await windowManager.setPreventClose(true);
     }
@@ -1058,6 +1086,17 @@ class _MainFormState extends State<MainForm>
     // Close all child windows before closing main window
     await windowService.closeAllChildren();
     await windowManager.destroy();
+  }
+
+  /// Exits the application (File -> Exit). On desktop this closes child windows
+  /// and destroys the main window; elsewhere it falls back to popping the route.
+  void _onExit() async {
+    if (isDesktop) {
+      await windowService.closeAllChildren();
+      await windowManager.destroy();
+    } else {
+      Navigator.of(context).maybePop();
+    }
   }
 
   @override
@@ -1098,6 +1137,14 @@ class _MainFormState extends State<MainForm>
       newIndex = (oldIndex > 0 ? oldIndex - 1 : 0).clamp(0, newTabs.length - 1);
     }
 
+    // If a saved tab couldn't be restored at startup (it only exists in the
+    // new mode, e.g. "Radio" in compact mode), select it now.
+    if (_pendingRestoreTab != null) {
+      final idx = newTabs.indexWhere((t) => t.label == _pendingRestoreTab);
+      if (idx >= 0) newIndex = idx;
+      _pendingRestoreTab = null;
+    }
+
     _tabController.dispose();
 
     setState(() {
@@ -1109,6 +1156,7 @@ class _MainFormState extends State<MainForm>
         initialIndex: newIndex,
       );
     });
+    _tabController.addListener(_onTabChanged);
   }
 
   /// Rebuilds the tab list and controller when the "AllowTransmit" or
@@ -1258,7 +1306,7 @@ class _MainFormState extends State<MainForm>
             const AppMenuDivider(hideOnMacOS: true),
             AppMenuAction(
               label: 'Exit',
-              onPressed: () => Navigator.of(context).maybePop(),
+              onPressed: () => _onExit(),
               hideOnMacOS: true,
             ),
           ],
@@ -1405,6 +1453,16 @@ class _MainFormState extends State<MainForm>
               children: [
                 // Menu bar (only show built-in if not using native macOS menus)
                 if (_showBuiltInMenus) _buildBuiltInMenuBar(),
+                // Compact-mode radio status bar (below menu, above tabs). Only
+                // shown when the Radio tab is not the currently selected tab.
+                if (_isCompactMode)
+                  AnimatedBuilder(
+                    animation: _tabController,
+                    builder: (context, _) {
+                      if (_isRadioTabSelected) return const SizedBox.shrink();
+                      return _buildRadioStatusBar();
+                    },
+                  ),
                 // Main content
                 Expanded(
                   child: Row(
@@ -1690,6 +1748,20 @@ class _MainFormState extends State<MainForm>
         deviceId: _currentRadioDeviceId,
         onConnectPressed: _onRadioConnect,
       ),
+    );
+  }
+
+  // True when the currently selected tab is the (compact-only) Radio tab.
+  bool get _isRadioTabSelected {
+    final index = _tabController.index;
+    if (index < 0 || index >= _currentTabs.length) return false;
+    return _currentTabs[index].label == 'Radio';
+  }
+
+  Widget _buildRadioStatusBar() {
+    return RadioStatusBar(
+      deviceId: _currentRadioDeviceId,
+      onConnectPressed: _onRadioConnect,
     );
   }
 

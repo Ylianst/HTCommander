@@ -71,6 +71,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   static const double _minPreviewRatio = 0.15;
   static const double _maxPreviewRatio = 0.75;
 
+  // When the tab is narrow the mailbox tree is hidden and mailbox selection is
+  // moved into the overflow menu instead.
+  bool _isCompact = false;
+  static const double _compactWidthThreshold = 480;
+
   // Mailboxes (populated from the real MailStore).
   late final Map<String, Mailbox> _mailboxes;
 
@@ -562,6 +567,56 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  /// Shows a mailbox-selection menu anchored to the compact-mode title. Lists
+  /// every mailbox with a check mark next to the currently viewed one.
+  void _showMailboxMenu(BuildContext context) async {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final Offset offset = button.localToGlobal(Offset.zero);
+
+    const menuItemPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
+    const menuItemHeight = 32.0;
+
+    final value = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        offset.dx,
+        offset.dy + button.size.height,
+        offset.dx + button.size.width,
+        offset.dy,
+      ),
+      items: [
+        for (final entry in _mailboxes.entries)
+          PopupMenuItem<String>(
+            value: entry.key,
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _selectedMailbox == entry.key
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                Text(
+                  entry.value.messages.isNotEmpty
+                      ? '${entry.value.name} (${entry.value.messages.length})'
+                      : entry.value.name,
+                  style: TextStyle(
+                    fontWeight: entry.value.unreadCount > 0
+                        ? FontWeight.bold
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (value == null || !mounted) return;
+    _onMailboxSelected(value);
+  }
+
   void _showMenu(BuildContext context) async {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
@@ -595,6 +650,35 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
           ),
         ),
         const PopupMenuDivider(height: 8),
+        if (_isCompact) ...[
+          for (final entry in _mailboxes.entries)
+            PopupMenuItem<String>(
+              value: 'mailbox:${entry.key}',
+              height: menuItemHeight,
+              padding: menuItemPadding,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    child: _selectedMailbox == entry.key
+                        ? const Text('✓', style: TextStyle(fontSize: 14))
+                        : null,
+                  ),
+                  Text(
+                    entry.value.messages.isNotEmpty
+                        ? '${entry.value.name} (${entry.value.messages.length})'
+                        : entry.value.name,
+                    style: TextStyle(
+                      fontWeight: entry.value.unreadCount > 0
+                          ? FontWeight.bold
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const PopupMenuDivider(height: 8),
+        ],
         PopupMenuItem<String>(
           value: 'backup',
           height: menuItemHeight,
@@ -634,6 +718,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       ],
     );
     if (value == null || !context.mounted) return;
+    if (value.startsWith('mailbox:')) {
+      _onMailboxSelected(value.substring('mailbox:'.length));
+      return;
+    }
     switch (value) {
       case 'showPreview':
         setState(() => _showPreview = !_showPreview);
@@ -837,36 +925,41 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Column(
-      children: [
-        _buildHeader(),
-        Expanded(
-          child: _showPreview
-              ? LayoutBuilder(
-                  builder: (context, constraints) {
-                    final totalHeight = constraints.maxHeight;
-                    final previewHeight = totalHeight * _previewHeightRatio;
-                    final listHeight =
-                        totalHeight - previewHeight - 8; // 8 for splitter
-                    return Column(
-                      children: [
-                        SizedBox(
-                          height: listHeight,
-                          child: _buildMailListArea(),
-                        ),
-                        _buildSplitter(totalHeight),
-                        SizedBox(
-                          height: previewHeight,
-                          child: _buildPreviewArea(),
-                        ),
-                      ],
-                    );
-                  },
-                )
-              : _buildMailListArea(),
-        ),
-        _buildStatusPanel(),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _isCompact = constraints.maxWidth < _compactWidthThreshold;
+        return Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: _showPreview
+                  ? LayoutBuilder(
+                      builder: (context, constraints) {
+                        final totalHeight = constraints.maxHeight;
+                        final previewHeight = totalHeight * _previewHeightRatio;
+                        final listHeight =
+                            totalHeight - previewHeight - 8; // 8 for splitter
+                        return Column(
+                          children: [
+                            SizedBox(
+                              height: listHeight,
+                              child: _buildMailListArea(),
+                            ),
+                            _buildSplitter(totalHeight),
+                            SizedBox(
+                              height: previewHeight,
+                              child: _buildPreviewArea(),
+                            ),
+                          ],
+                        );
+                      },
+                    )
+                  : _buildMailListArea(),
+            ),
+            _buildStatusPanel(),
+          ],
+        );
+      },
     );
   }
 
@@ -986,10 +1079,36 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
           final showButtons = constraints.maxWidth > 280;
           return Row(
             children: [
-              const Text(
-                'Mail',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
+              if (_isCompact)
+                Builder(
+                  builder: (titleContext) => InkWell(
+                    onTap: () => _showMailboxMenu(titleContext),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 2,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Mail $_selectedMailbox',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Icon(Icons.arrow_drop_down, size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                const Text(
+                  'Mail',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
               const Spacer(),
               if (showButtons) ...[
                 SizedBox(
@@ -1045,9 +1164,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   Widget _buildMailListArea() {
     return Row(
       children: [
-        // Mailbox tree
-        SizedBox(width: 150, child: _buildMailboxTree()),
-        const VerticalDivider(width: 1),
+        // Mailbox tree (hidden in compact mode; selection moves to the menu)
+        if (!_isCompact) ...[
+          SizedBox(width: 150, child: _buildMailboxTree()),
+          const VerticalDivider(width: 1),
+        ],
         // Mail list
         Expanded(child: _buildMailList()),
       ],
