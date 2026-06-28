@@ -1320,8 +1320,12 @@ class _SettingsDialogState extends State<SettingsDialog>
   }
 
   Widget _buildWinlinkTab() {
+    final winlinkLogin =
+        _settings.winlinkUseStationId && _settings.stationId > 0
+        ? '${_settings.callSign}-${_settings.stationId}'
+        : _settings.callSign;
     final winlinkAccount = _settings.callSign.isNotEmpty
-        ? '${_settings.callSign}@winlink.org'
+        ? '$winlinkLogin@winlink.org'
         : 'None';
 
     return SingleChildScrollView(
