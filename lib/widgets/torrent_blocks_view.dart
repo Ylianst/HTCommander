@@ -24,10 +24,16 @@ class TorrentBlocksView extends StatelessWidget {
     super.key,
     required this.totalBlocks,
     required this.receivedBlocks,
+    this.scrollable = true,
   });
 
   final int totalBlocks;
   final int receivedBlocks;
+
+  /// When `true` the grid scrolls internally inside the available height. When
+  /// `false` the grid is laid out at its natural height (used when embedded in
+  /// an outer scroll view, so the whole details + blocks area scrolls as one).
+  final bool scrollable;
 
   static const double _blockSize = 12;
   static const double _blockMargin = 2;
@@ -44,19 +50,19 @@ class TorrentBlocksView extends StatelessWidget {
         final blocksPerRow = math.max(1, (width / cell).floor());
         final totalRows = (totalBlocks / blocksPerRow).ceil();
         final contentHeight = totalRows * cell;
-        return SingleChildScrollView(
-          child: SizedBox(
-            width: width,
-            height: contentHeight,
-            child: CustomPaint(
-              painter: _BlocksPainter(
-                totalBlocks: totalBlocks,
-                receivedBlocks: receivedBlocks,
-                blocksPerRow: blocksPerRow,
-              ),
+        final grid = SizedBox(
+          width: width,
+          height: contentHeight,
+          child: CustomPaint(
+            painter: _BlocksPainter(
+              totalBlocks: totalBlocks,
+              receivedBlocks: receivedBlocks,
+              blocksPerRow: blocksPerRow,
             ),
           ),
         );
+        if (!scrollable) return grid;
+        return SingleChildScrollView(child: grid);
       },
     );
   }

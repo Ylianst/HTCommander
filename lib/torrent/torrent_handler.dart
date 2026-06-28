@@ -43,9 +43,9 @@ class TorrentHandler {
   final DataBrokerClient _broker = DataBrokerClient();
 
   /// Optional disk persistence (provided pre-initialized by the caller).
-  final TorrentStore? _store;
+  final TorrentStore? store;
 
-  TorrentHandler({this._store});
+  TorrentHandler({this.store});
 
   /// Files we are sharing or downloading.
   final List<TorrentFile> files = [];
@@ -63,6 +63,10 @@ class TorrentHandler {
 
   /// Last-known lock state map per radio device id.
   final Map<int, Map<String, dynamic>> _lockStates = {};
+
+  /// Guards the one-time diagnostic log emitted when a data frame arrives
+  /// without the expected `"Torrent"` usage (see [_onDataFrameReceived]).
+  bool _loggedNonTorrentFrame = false;
 
   Timer? _advertisementTimer;
 
@@ -351,7 +355,24 @@ class TorrentHandler {
 
   void _onDataFrameReceived(int deviceId, String name, Object? data) {
     if (data is! TncDataFragment) return;
-    if (data.usage != 'Torrent') return;
+    if (data.usage != 'Torrent') {
+      // One-time diagnostic: a frame reached us but was not tagged with the
+      // "Torrent" usage, so it will be ignored. This is the usual symptom of
+      // the radio not stamping the usage on received frames (the handler only
+      // ever sees frames whose usage matches the locked mode). Logging once
+      // avoids flooding the Debug tab with every non-Torrent packet.
+      if (!_loggedNonTorrentFrame) {
+        _loggedNonTorrentFrame = true;
+        final usage = data.usage;
+        _broker.logInfo(
+          '[Torrent] Ignoring data frame from radio $deviceId with usage '
+          '"${usage ?? '<none>'}" (expected "Torrent"); torrent frames will '
+          'only be processed when the radio tags received frames with their '
+          'locked usage. This message is logged once per session.',
+        );
+      }
+      return;
+    }
     final packet = AX25Packet.decode(data);
     if (packet == null) return;
     _broker.logInfo('[Torrent] Received torrent frame from radio $deviceId');
@@ -379,6 +400,11 @@ class TorrentHandler {
     int stationId = p.addresses[0].ssid;
     Uint8List? shortId;
 
+    _broker.logInfo(
+      '[Torrent] Control frame from $callsign-$stationId '
+      '(${payload.length} bytes)',
+    );
+
     while (reader.hasMore) {
       final recordType = reader.u8();
       switch (recordType) {
@@ -393,6 +419,10 @@ class TorrentHandler {
           break;
         case 3: // Advertised No Files
           final xFile = _findStationFile(callsign, stationId);
+          _broker.logInfo(
+            '[Torrent] Advertised NO files from $callsign-$stationId '
+            '(removing station: ${xFile != null})',
+          );
           if (xFile != null) stations.remove(xFile);
           break;
         case 4: // Advertised Files
@@ -418,7 +448,20 @@ class TorrentHandler {
               ..receivedLastBlock = true
               ..mode = TorrentMode.request;
             stations.add(sFile);
+            _broker.logInfo(
+              '[Torrent] Advertised files from $callsign-$stationId: '
+              'new station-file id=${_bytesToHex(sId)} '
+              'blocks=$sblockCount shortId=${_bytesToHex(sFile.shortId)} '
+              '-> will request',
+            );
             _publishStationsUpdate();
+          } else {
+            _broker.logInfo(
+              '[Torrent] Advertised files from $callsign-$stationId: '
+              'station-file already known '
+              '(${sFile.receivedBlocks}/${sFile.totalBlocks} blocks, '
+              'completed=${sFile.completed})',
+            );
           }
           break;
         case 5: // Short Id
@@ -433,11 +476,17 @@ class TorrentHandler {
             stationId,
             shortId,
           );
+          _broker.logInfo(
+            '[Torrent] Request from $callsign-$stationId for '
+            'shortId=${_bytesToHex(shortId)} block=$blockNumber '
+            'count=$blockCount (have file: ${file != null})',
+          );
           if (file != null) {
             _respondToRequest(file, blockNumber, blockCount);
           }
           break;
         case 7: // Discovery
+          _broker.logInfo('[Torrent] Discovery from $callsign-$stationId');
           _sendRequestFrame(discovery: false);
           break;
       }
@@ -484,6 +533,12 @@ class TorrentHandler {
     final blockNumber = (payload[6] << 8) + payload[7];
     final block = Uint8List.fromList(payload.sublist(8));
 
+    _broker.logInfo(
+      '[Torrent] Data block from $callsign-$stationId: '
+      'shortId=${_bytesToHex(blockShortId)} block=$blockNumber '
+      'len=${block.length} stationFile=$isStationFile last=$lastBlock',
+    );
+
     if (isStationFile) {
       _storeStationBlock(
         callsign,
@@ -526,6 +581,11 @@ class TorrentHandler {
         blocks[blockNumber] = block;
         file.receivedLastBlock = lastBlock;
         final r = file.isCompleted();
+        _broker.logInfo(
+          '[Torrent] Stored station block $blockNumber for '
+          '$callsign-$stationId (${file.receivedBlocks}/${file.totalBlocks}, '
+          'isCompleted=$r)',
+        );
         if (r == 1) {
           file.completed = true;
           file.mode = TorrentMode.sharing;
@@ -537,6 +597,11 @@ class TorrentHandler {
       }
       return;
     }
+    _broker.logInfo(
+      '[Torrent] Station block dropped: no matching station for '
+      '$callsign-$stationId shortId=${_bytesToHex(blockShortId)} '
+      '(known stations: ${stations.length})',
+    );
   }
 
   void _storeFileBlock(
@@ -612,6 +677,11 @@ class TorrentHandler {
     }
 
     final requests = _getNextRequests();
+    _broker.logInfo(
+      '[Torrent] Sending request frame (discovery=$discovery): '
+      '${requests.length} block request(s), '
+      'stations=${stations.length} files=${files.length}',
+    );
     final myCallsign =
         _broker.getValue<String>(0, 'CallSign', 'NOCALL') ?? 'NOCALL';
     final myStationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
@@ -771,6 +841,12 @@ class TorrentHandler {
     final bytes = Compression.decompressTagged(tagged);
     if (bytes.isEmpty) return;
 
+    _broker.logInfo(
+      '[Torrent] Station file complete from '
+      '${stationFile.callsign}-${stationFile.stationId}: '
+      'decoded ${bytes.length} bytes, parsing file list',
+    );
+
     final reader = _BinReader(bytes);
     final updated = <TorrentFile>[];
     String? xcallsign;
@@ -853,6 +929,11 @@ class TorrentHandler {
       }
     }
 
+    _broker.logInfo(
+      '[Torrent] Station file parsed: ${updated.length} file(s) advertised, '
+      'changed=$changed, total files now ${files.length}',
+    );
+
     if (changed) _publishFilesUpdate();
   }
 
@@ -923,14 +1004,14 @@ class TorrentHandler {
   // Persistence hooks
   // ---------------------------------------------------------------------------
 
-  List<TorrentFile> _loadPersistedFiles() => _store?.loadedFiles ?? const [];
+  List<TorrentFile> _loadPersistedFiles() => store?.loadedFiles ?? const [];
 
   void _persistFile(TorrentFile file) {
-    _store?.save(file);
+    store?.save(file);
   }
 
   void _deletePersistedFile(TorrentFile file) {
-    _store?.delete(file);
+    store?.delete(file);
   }
 
   // ---------------------------------------------------------------------------

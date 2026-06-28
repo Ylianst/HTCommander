@@ -1860,6 +1860,23 @@ class Radio {
     if (_frameAccumulator != null && _frameAccumulator!.isLast) {
       _frameAccumulator!.encoding = FragmentEncodingType.hardwareAfsk1200;
       _frameAccumulator!.frameType = FragmentFrameType.ax25;
+
+      // Populate the usage field if the radio is locked and the data was
+      // received on the locked channel. Mirrors the C# `AccumulateFragment`:
+      // handlers (Torrent / BBS / Terminal) filter incoming frames by usage, so
+      // without this they would never receive any locked-mode traffic.
+      final lock = _lockState;
+      if (lock != null &&
+          lock.isLocked &&
+          _frameAccumulator!.channelId == lock.channelId) {
+        _frameAccumulator!.usage = lock.usage;
+        if (_packetTrace) {
+          _debug(
+            "DataFrame usage set to '${lock.usage}' (channel ${lock.channelId})",
+          );
+        }
+      }
+
       _dispatch('DataFrameRx', _frameAccumulator!.toJson(), store: false);
       _emitDataFrame(_frameAccumulator!);
       _frameAccumulator = null;
