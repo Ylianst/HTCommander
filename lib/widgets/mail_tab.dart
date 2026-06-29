@@ -1119,7 +1119,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       textStyle: const TextStyle(fontSize: 12),
                     ),
-                    child: const Text('New Mail'),
+                    child: Text(_isCompact ? 'New' : 'New Mail'),
                   ),
                 ),
                 const SizedBox(width: 8),
