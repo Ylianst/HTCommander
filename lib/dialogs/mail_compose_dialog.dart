@@ -81,11 +81,16 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
 
   bool _messageChanged = false;
 
+  // The Cc line is hidden behind a toggle to save vertical space; it is shown
+  // automatically when the message is pre-filled with a Cc (reply / forward).
+  bool _showCc = false;
+
   @override
   void initState() {
     super.initState();
     _toController = TextEditingController(text: widget.initialTo);
     _ccController = TextEditingController(text: widget.initialCc);
+    _showCc = widget.initialCc.trim().isNotEmpty;
     _subjectController = TextEditingController(text: widget.initialSubject);
     _bodyController = TextEditingController(text: widget.initialBody);
 
@@ -241,9 +246,18 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets;
     return Dialog(
       backgroundColor: const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      // Add the keyboard inset so the dialog floats above the on-screen
+      // keyboard on mobile and its scrollable body stays usable.
+      insetPadding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: 24 + viewInsets.bottom,
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600, maxHeight: 620),
         child: Padding(
@@ -258,59 +272,130 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                 style: DialogStyles.titleStyle,
               ),
               const SizedBox(height: 16),
-              // Fields section card
+              // Fields section card. The contents scroll so the dialog stays
+              // usable on short displays (e.g. mobile with the keyboard up).
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.all(16),
                   decoration: _sectionDecoration(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('To', style: DialogStyles.labelStyle),
-                      const SizedBox(height: 4),
-                      TextField(
-                        controller: _toController,
-                        onEditingComplete: () {
-                          _toController.text = _cleanString(_toController.text);
-                        },
-                        decoration: _inputDecoration(
-                          fillColor: _toValid ? null : _invalidColor,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Size the message box to fill the leftover space, but
+                      // keep a sensible minimum so the whole form scrolls when
+                      // vertical space is tight.
+                      final reserved = _showCc ? 300.0 : 200.0;
+                      final messageHeight = (constraints.maxHeight - reserved)
+                          .clamp(120.0, double.infinity);
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Text(
+                                  'To',
+                                  style: DialogStyles.labelStyle,
+                                ),
+                                const Spacer(),
+                                if (!_showCc)
+                                  TextButton.icon(
+                                    onPressed: () =>
+                                        setState(() => _showCc = true),
+                                    icon: const Icon(Icons.add, size: 18),
+                                    label: const Text('Add Cc'),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            TextField(
+                              controller: _toController,
+                              onEditingComplete: () {
+                                _toController.text = _cleanString(
+                                  _toController.text,
+                                );
+                              },
+                              decoration: _inputDecoration(
+                                fillColor: _toValid ? null : _invalidColor,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (_showCc) ...[
+                              Row(
+                                children: [
+                                  const Text(
+                                    'Cc',
+                                    style: DialogStyles.labelStyle,
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _showCc = false;
+                                        _ccController.clear();
+                                      });
+                                    },
+                                    icon: const Icon(Icons.close, size: 18),
+                                    tooltip: 'Remove Cc',
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              TextField(
+                                controller: _ccController,
+                                onEditingComplete: () {
+                                  _ccController.text = _cleanString(
+                                    _ccController.text,
+                                  );
+                                },
+                                decoration: _inputDecoration(
+                                  fillColor: _ccValid ? null : _invalidColor,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            const Text(
+                              'Subject',
+                              style: DialogStyles.labelStyle,
+                            ),
+                            const SizedBox(height: 4),
+                            TextField(
+                              controller: _subjectController,
+                              decoration: _inputDecoration(),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Message',
+                              style: DialogStyles.labelStyle,
+                            ),
+                            const SizedBox(height: 4),
+                            SizedBox(
+                              height: messageHeight,
+                              child: TextField(
+                                controller: _bodyController,
+                                expands: true,
+                                maxLines: null,
+                                minLines: null,
+                                textAlignVertical: TextAlignVertical.top,
+                                keyboardType: TextInputType.multiline,
+                                decoration: _inputDecoration(),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text('Cc', style: DialogStyles.labelStyle),
-                      const SizedBox(height: 4),
-                      TextField(
-                        controller: _ccController,
-                        onEditingComplete: () {
-                          _ccController.text = _cleanString(_ccController.text);
-                        },
-                        decoration: _inputDecoration(
-                          fillColor: _ccValid ? null : _invalidColor,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text('Subject', style: DialogStyles.labelStyle),
-                      const SizedBox(height: 4),
-                      TextField(
-                        controller: _subjectController,
-                        decoration: _inputDecoration(),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text('Message', style: DialogStyles.labelStyle),
-                      const SizedBox(height: 4),
-                      Expanded(
-                        child: TextField(
-                          controller: _bodyController,
-                          expands: true,
-                          maxLines: null,
-                          minLines: null,
-                          textAlignVertical: TextAlignVertical.top,
-                          keyboardType: TextInputType.multiline,
-                          decoration: _inputDecoration(),
-                        ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
               ),

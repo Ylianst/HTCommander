@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <!-- Location permission required for BLE scanning on some devices -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Internet permission required for network access (Winlink/Dump1090) -->
+    <uses-permission android:name="android.permission.INTERNET" />
     
     <application
         android:label="HTCommander"

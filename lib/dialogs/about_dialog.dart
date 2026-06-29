@@ -21,24 +21,24 @@ class HTAboutDialog extends StatelessWidget {
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    // Hide image when width is too narrow (less than 450px)
-                    final showImage = constraints.maxWidth >= 450;
+                    // Hide image when width is too narrow (less than 520px)
+                    final showImage = constraints.maxWidth >= 520;
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Left side: About image (only when width allows)
+                        // Left side: App icon (only when width allows)
                         if (showImage) ...[
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: Image.asset(
-                              'assets/images/About.png',
+                              'assets/images/AppIcon.png',
                               width: 200,
-                              height: 280,
+                              height: 200,
                               fit: BoxFit.contain,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   width: 200,
-                                  height: 280,
+                                  height: 200,
                                   color: Colors.grey.shade400,
                                   child: const Icon(Icons.radio, size: 80),
                                 );
