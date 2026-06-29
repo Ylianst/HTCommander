@@ -27,6 +27,11 @@ class _ContactsTabState extends State<ContactsTab>
   int _sortColumnIndex = 0;
   bool _sortAscending = true;
 
+  /// Below this width the Description column is hidden, leaving only the
+  /// Callsign and Name columns.
+  static const double _compactWidthThreshold = 480;
+  bool _isCompact = false;
+
   /// The current station list, loaded from and saved to the DataBroker.
   List<StationInfo> _contacts = [];
 
@@ -580,21 +585,26 @@ class _ContactsTabState extends State<ContactsTab>
           .add(MapEntry(i, contact));
     }
 
-    return Container(
-      color: Colors.white,
-      child: ListView(
-        children: [
-          // Column headers
-          _buildColumnHeaders(),
-          // Grouped contacts
-          for (final type in StationType.values)
-            if (groupedContacts.containsKey(type)) ...[
-              _buildGroupHeader(type),
-              for (final entry in groupedContacts[type]!)
-                _buildContactRow(entry.key, entry.value),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _isCompact = constraints.maxWidth < _compactWidthThreshold;
+        return Container(
+          color: Colors.white,
+          child: ListView(
+            children: [
+              // Column headers
+              _buildColumnHeaders(),
+              // Grouped contacts
+              for (final type in StationType.values)
+                if (groupedContacts.containsKey(type)) ...[
+                  _buildGroupHeader(type),
+                  for (final entry in groupedContacts[type]!)
+                    _buildContactRow(entry.key, entry.value),
+                ],
             ],
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -609,7 +619,7 @@ class _ContactsTabState extends State<ContactsTab>
         children: [
           _buildColumnHeader('Callsign', 0, flex: 2),
           _buildColumnHeader('Name', 1, flex: 3),
-          _buildColumnHeader('Description', 2, flex: 4),
+          if (!_isCompact) _buildColumnHeader('Description', 2, flex: 4),
         ],
       ),
     );
@@ -739,16 +749,20 @@ class _ContactsTabState extends State<ContactsTab>
                 child: Text(contact.name, overflow: TextOverflow.ellipsis),
               ),
             ),
-            Expanded(
-              flex: 4,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text(
-                  contact.description,
-                  overflow: TextOverflow.ellipsis,
+            if (!_isCompact)
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  child: Text(
+                    contact.description,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

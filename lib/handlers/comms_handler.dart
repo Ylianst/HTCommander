@@ -408,8 +408,8 @@ class CommsHandler {
     _initializeSstvMonitor();
 
     // Initialize the speech-to-text engine if speech-to-text is enabled.
-    // Speech-to-text is not available on Android (reduces APK size).
-    if (_speechToTextEnabled && !Platform.isAndroid) {
+    // Speech-to-text is not available on Android (reduces APK size) or web.
+    if (_speechToTextEnabled && !kIsWeb && !Platform.isAndroid) {
       unawaited(_initializeSpeechEngine());
     }
 
@@ -533,8 +533,8 @@ class CommsHandler {
     if (_speechToTextEnabled == enabled) return;
     _speechToTextEnabled = enabled;
     _broker.logInfo('[CommsHandler] SpeechToTextEnabled changed to: $enabled');
-    // Speech-to-text is not available on Android.
-    if (Platform.isAndroid) return;
+    // Speech-to-text is not available on Android or web.
+    if (kIsWeb || Platform.isAndroid) return;
     if (enabled) {
       unawaited(_initializeSpeechEngine());
     } else {

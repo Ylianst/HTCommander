@@ -1,6 +1,6 @@
 ## HTCommander - Adaptación a Flutter (Trabajo en curso)
 
-<p align="center"><img width="100" height="100" src="assets/images/Radio2.png"></p>
+<p align="center"><img width="100" height="100" src="assets/unused/Radio2.png"></p>
 
 Esta es la nueva versión en Flutter de HTCommander. La aplicación original en C# WinForms se ha movido a la carpeta `reference/HTCommander` y se utiliza únicamente como referencia de desarrollo.
 

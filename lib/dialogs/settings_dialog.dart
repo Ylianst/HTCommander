@@ -488,6 +488,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     });
 
     String result;
+    // Holds the full exception text when the test fails so it can be shown in
+    // a pop-up dialog instead of overflowing the settings dialog.
+    String? errorDetail;
     try {
       final response = await http
           .get(Uri.parse(url))
@@ -509,7 +512,10 @@ class _SettingsDialogState extends State<SettingsDialog>
     } on FormatException {
       result = 'Failed: invalid JSON response';
     } catch (e) {
-      result = 'Failed: $e';
+      // Keep the inline status short and surface the (potentially long)
+      // exception text in a pop-up dialog instead.
+      result = 'Failed';
+      errorDetail = e.toString();
     }
 
     if (!mounted) return;
@@ -517,6 +523,28 @@ class _SettingsDialogState extends State<SettingsDialog>
       _airplaneTesting = false;
       _airplaneTestResult = result;
     });
+
+    if (errorDetail != null) {
+      _showTestErrorDialog(errorDetail);
+    }
+  }
+
+  /// Shows the full exception text from a failed connection test in a scrollable
+  /// pop-up dialog so long messages do not overflow the settings dialog.
+  void _showTestErrorDialog(String error) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Test Connection Failed'),
+        content: SingleChildScrollView(child: SelectableText(error)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onSave() {
@@ -1678,32 +1706,38 @@ class _SettingsDialogState extends State<SettingsDialog>
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed:
-                          (_airplaneUrlController.text.trim().isNotEmpty &&
-                              !_airplaneTesting)
-                          ? _testAirplaneConnection
-                          : null,
-                      child: const Text('Test Connection'),
-                    ),
-                    if (_airplaneTestResult.isNotEmpty) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _airplaneTestResult,
-                          style: TextStyle(
-                            color: _airplaneTestResult.startsWith('Success')
-                                ? Colors.green.shade700
-                                : _airplaneTestResult == 'Testing...'
-                                ? Colors.grey.shade700
-                                : Colors.red.shade700,
-                          ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final narrow = constraints.maxWidth < 360;
+                    return Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed:
+                              (_airplaneUrlController.text.trim().isNotEmpty &&
+                                  !_airplaneTesting)
+                              ? _testAirplaneConnection
+                              : null,
+                          child: Text(narrow ? 'Test' : 'Test Connection'),
                         ),
-                      ),
-                    ],
-                  ],
+                        if (_airplaneTestResult.isNotEmpty) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _airplaneTestResult,
+                              style: TextStyle(
+                                color:
+                                    _airplaneTestResult.startsWith('Success')
+                                    ? Colors.green.shade700
+                                    : _airplaneTestResult == 'Testing...'
+                                    ? Colors.grey.shade700
+                                    : Colors.red.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
