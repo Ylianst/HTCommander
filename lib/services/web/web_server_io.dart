@@ -236,7 +236,7 @@ class WebServer {
         return;
       }
 
-      final assetKey = '$_assetBase/$relativePath';
+      final assetKey = _resolveAssetKey(relativePath);
       var bytes = await _tryLoadAsset(assetKey);
       if (bytes == null) {
         response.statusCode = HttpStatus.notFound;
@@ -283,6 +283,19 @@ class WebServer {
     } catch (_) {
       return bytes;
     }
+  }
+
+  /// Maps a web URL relative path to a bundled asset key. Most paths resolve
+  /// under [_assetBase], but a few files are shared with the main Flutter app
+  /// assets so the duplicate copy doesn't need to be bundled twice.
+  static String _resolveAssetKey(String relativePath) {
+    // The web UI's `images/radio.png` is byte-identical to the app's
+    // `assets/images/Radio.png`. Serve the shared app asset instead of
+    // bundling a duplicate under `assets/web/images/`.
+    if (relativePath == 'images/radio.png') {
+      return 'assets/images/Radio.png';
+    }
+    return '$_assetBase/$relativePath';
   }
 
   /// Loads a bundled asset, returning its bytes or `null` if it does not exist.
