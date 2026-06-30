@@ -28,6 +28,7 @@ jobs:
           dotnet tool install --global wix --version 5.0.2
 
           $buildDir = "src\build\windows\x64\runner\Release"
+          $appDisplayName = "Handi-Talky Commander"
           $appName = "HTCommander"
           $exeName = "htcommander.exe"
           $iconPath = "src\assets\images\AppIcon.png"
@@ -62,7 +63,7 @@ jobs:
                 # Main exe component - include shortcut
                 $xml += "$indent<Component Id='$compId' Guid='*'>`n"
                 $xml += "$indent  <File Id='MainExe' Source='$source' KeyPath='yes' />`n"
-                $xml += "$indent  <Shortcut Id='StartMenuShortcut' Directory='ProgramMenuFolder' Name='$appName' WorkingDirectory='INSTALLFOLDER' Icon='AppIcon' IconIndex='0' Advertise='yes' />`n"
+                $xml += "$indent  <Shortcut Id='StartMenuShortcut' Directory='ProgramMenuFolder' Name='$appDisplayName' WorkingDirectory='INSTALLFOLDER' Icon='AppIcon' IconIndex='0' Advertise='yes' />`n"
                 $xml += "$indent</Component>`n"
               } else {
                 $xml += "$indent<Component Id='$compId' Guid='*'>`n"
@@ -88,16 +89,18 @@ jobs:
           $wxsContent = @"
           <?xml version='1.0' encoding='UTF-8'?>
           <Wix xmlns='http://wixtoolset.org/schemas/v4/wxs'>
-            <Package Name='$appName'
+            <Package Name='$appDisplayName'
                      Manufacturer='HTCommander'
                      Version='1.0.0.0'
-                     UpgradeCode='6B29FC40-CA47-1067-B31D-00DD010662DA'>
+                     UpgradeCode='6B29FC40-CA47-1067-B31D-00DD010662DA'
+                     Platform='x64'>
 
-              <MajorUpgrade DowngradeErrorMessage='A newer version of $appName is already installed.' />
+              <MajorUpgrade DowngradeErrorMessage='A newer version of $appDisplayName is already installed.' />
               <MediaTemplate EmbedCab='yes' />
 
               <Icon Id='AppIcon' SourceFile='$icoPath' />
               <Property Id='ARPPRODUCTICON' Value='AppIcon' />
+              <Property Id='ARPCOMMENTS' Value='Amateur Radio (HAM Radio) tool for the UV-Pro, GA-5WB, VR-N76, VR-N7500 and compatible radios.' />
 
               <StandardDirectory Id='ProgramFiles6432Folder'>
                 <Directory Id='INSTALLFOLDER' Name='$appName'>
@@ -105,7 +108,7 @@ jobs:
                 </Directory>
               </StandardDirectory>
 
-              <Feature Id='MainFeature' Title='$appName' Level='1'>
+              <Feature Id='MainFeature' Title='$appDisplayName' Level='1'>
           $componentRefs
               </Feature>
             </Package>
