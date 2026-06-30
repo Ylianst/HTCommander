@@ -21,6 +21,7 @@ import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/microphone_capture.dart';
+import '../services/sherpa_model_manager.dart';
 
 /// Voice transmit mode
 enum VoiceTransmitMode { chat, speak, morse, dtmf, ptt }
@@ -51,6 +52,7 @@ class _CommsTabState extends State<CommsTab>
   bool _isProcessing = false;
   bool _isTransmitting = false;
   bool _speechToTextEnabled = true;
+  bool _sttModelReady = false;
   bool _recordAudio = false;
   bool _allowTransmit = true;
 
@@ -164,6 +166,11 @@ class _CommsTabState extends State<CommsTab>
     );
     _broker.subscribe(
       deviceId: 0,
+      name: 'VoiceModel',
+      callback: _onVoiceModelChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
       name: 'RecordingState',
       callback: _onRecordingStateChanged,
     );
@@ -185,6 +192,7 @@ class _CommsTabState extends State<CommsTab>
     _allowTransmit = (_broker.getValue<int>(0, 'AllowTransmit', 1) ?? 1) != 0;
     _speechToTextEnabled =
         _broker.getValue<bool>(0, 'SpeechToTextEnabled', true) ?? true;
+    _initSttModelStatus();
     _recordAudio = _broker.getValue<bool>(0, 'RecordingState', false) ?? false;
     _micGain = (_broker.getValue<double>(0, 'MicrophoneGain', 1.0) ?? 1.0)
         .clamp(1.0, 8.0);
@@ -472,6 +480,7 @@ class _CommsTabState extends State<CommsTab>
 
   @override
   void dispose() {
+    _sttStatusNotifier?.removeListener(_onSttModelStatusChanged);
     _micCapture?.dispose();
     _broker.dispose();
     _messageController.dispose();
@@ -611,6 +620,31 @@ class _CommsTabState extends State<CommsTab>
   void _onSpeechToTextEnabledChanged(int deviceId, String name, Object? data) {
     if (data is bool) setState(() => _speechToTextEnabled = data);
   }
+
+  void _onVoiceModelChanged(int deviceId, String name, Object? data) {
+    _initSttModelStatus();
+  }
+
+  /// Binds (or re-binds) the STT model status listener for the currently
+  /// selected model and updates [_sttModelReady].
+  void _initSttModelStatus() {
+    // Remove previous listener if any.
+    _sttStatusNotifier?.removeListener(_onSttModelStatusChanged);
+    final modelId = SherpaModelManager.selectedModelId();
+    _sttStatusNotifier =
+        SherpaModelManager.statusOf(modelId) as ValueNotifier<SttModelStatus>;
+    _sttModelReady = _sttStatusNotifier!.value.state == SttModelState.ready;
+    _sttStatusNotifier!.addListener(_onSttModelStatusChanged);
+    // Ensure the status is computed (it may still be notInstalled on first run).
+    SherpaModelManager.refreshStatus(modelId);
+  }
+
+  void _onSttModelStatusChanged() {
+    final ready = _sttStatusNotifier?.value.state == SttModelState.ready;
+    if (ready != _sttModelReady) setState(() => _sttModelReady = ready);
+  }
+
+  ValueNotifier<SttModelStatus>? _sttStatusNotifier;
 
   void _onRecordingStateChanged(int deviceId, String name, Object? data) {
     if (data is bool) setState(() => _recordAudio = data);
@@ -1678,17 +1712,23 @@ class _CommsTabState extends State<CommsTab>
           if (!Platform.isAndroid)
             PopupMenuItem<String>(
               value: 'speechToText',
+              enabled: _sttModelReady,
               height: menuItemHeight,
               padding: menuItemPadding,
               child: Row(
                 children: [
                   SizedBox(
                     width: 20,
-                    child: _speechToTextEnabled
+                    child: _speechToTextEnabled && _sttModelReady
                         ? const Text('✓', style: TextStyle(fontSize: 14))
                         : null,
                   ),
-                  const Text('Speech-to-Text'),
+                  Text(
+                    'Speech-to-Text',
+                    style: _sttModelReady
+                        ? null
+                        : const TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
             ),

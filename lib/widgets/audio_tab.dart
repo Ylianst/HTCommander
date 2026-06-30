@@ -755,54 +755,60 @@ class _AudioTabState extends State<AudioTab>
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 90,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: enabled ? null : Colors.grey,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool showValue = constraints.maxWidth > 350;
+          return Row(
+            children: [
+              SizedBox(
+                width: 90,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: enabled ? null : Colors.grey,
+                  ),
+                ),
               ),
-            ),
-          ),
-          if (onMuteToggled != null)
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              tooltip: (muted ?? false) ? 'Unmute' : 'Mute',
-              icon: Icon(
-                (muted ?? false) ? Icons.volume_off : Icons.volume_up,
-                size: 18,
-                color: enabled ? null : Colors.grey,
+              if (onMuteToggled != null)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  tooltip: (muted ?? false) ? 'Unmute' : 'Mute',
+                  icon: Icon(
+                    (muted ?? false) ? Icons.volume_off : Icons.volume_up,
+                    size: 18,
+                    color: enabled ? null : Colors.grey,
+                  ),
+                  onPressed: enabled ? onMuteToggled : null,
+                ),
+              Expanded(
+                child: Slider(
+                  value: value.clamp(min, max),
+                  min: min,
+                  max: max,
+                  divisions: divisions,
+                  onChangeStart: enabled ? onChangeStart : null,
+                  onChanged: enabled ? onChanged : null,
+                  onChangeEnd: enabled ? onChangeEnd : null,
+                ),
               ),
-              onPressed: enabled ? onMuteToggled : null,
-            ),
-          Expanded(
-            child: Slider(
-              value: value.clamp(min, max),
-              min: min,
-              max: max,
-              divisions: divisions,
-              onChangeStart: enabled ? onChangeStart : null,
-              onChanged: enabled ? onChanged : null,
-              onChangeEnd: enabled ? onChangeEnd : null,
-            ),
-          ),
-          SizedBox(
-            width: 44,
-            child: Text(
-              valueLabel,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 12,
-                color: enabled ? null : Colors.grey,
-              ),
-            ),
-          ),
-        ],
+              if (showValue)
+                SizedBox(
+                  width: 44,
+                  child: Text(
+                    valueLabel,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: enabled ? null : Colors.grey,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

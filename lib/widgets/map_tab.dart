@@ -8,6 +8,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
@@ -70,6 +71,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   bool _isOfflineMode = false;
   bool _showTracks = true;
   bool _showAirplanes = false;
+  bool _showContactsOnly = false;
   bool _largeMarkers = true;
 
   /// Tile provider for the map. Recreated only when [_isOfflineMode] changes so
@@ -528,6 +530,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     _markerTimeFilter = DataBroker.getValue<int>(0, 'MapTimeFilter', 0) ?? 0;
     _showAirplanes =
         (DataBroker.getValue<int>(0, 'ShowAirplanesOnMap', 0) ?? 0) == 1;
+    _showContactsOnly =
+        (DataBroker.getValue<int>(0, 'MapShowContactsOnly', 0) ?? 0) == 1;
   }
 
   /// Called when the map position changes.
@@ -788,6 +792,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     ('Last 24 Hours', 1440),
   ];
 
+  /// Formats a [DateTime] for marker tooltips using OS locale (no seconds).
+  String _formatTime(DateTime dt) {
+    final local = dt.toLocal();
+    return DateFormat.yMd().add_Hm().format(local);
+  }
+
   /// Human-readable label for the active marker time filter (in minutes).
   String _markerFilterLabel(int minutes) {
     for (final (label, value) in _markerFilterOptions) {
@@ -823,13 +833,42 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
               ],
             ),
           ),
+        const PopupMenuDivider(height: 8),
+        PopupMenuItem<int>(
+          value: -1,
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: _showContactsOnly
+                    ? const Text('✓', style: TextStyle(fontSize: 14))
+                    : null,
+              ),
+              const Text('Show Contacts Only'),
+            ],
+          ),
+        ),
       ],
-    ).then((minutes) {
-      if (minutes == null || minutes == _markerTimeFilter) return;
+    ).then((value) {
+      if (value == null) return;
+      if (value == -1) {
+        setState(() {
+          _showContactsOnly = !_showContactsOnly;
+        });
+        _broker.dispatch(
+          deviceId: 0,
+          name: 'MapShowContactsOnly',
+          data: _showContactsOnly ? 1 : 0,
+        );
+        return;
+      }
+      if (value == _markerTimeFilter) return;
       setState(() {
-        _markerTimeFilter = minutes;
+        _markerTimeFilter = value;
       });
-      _broker.dispatch(deviceId: 0, name: 'MapTimeFilter', data: minutes);
+      _broker.dispatch(deviceId: 0, name: 'MapTimeFilter', data: value);
     });
   }
 
@@ -868,14 +907,41 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     );
   }
 
+  /// Returns the set of contact callsigns (upper-cased) from the Stations list.
+  Set<String> _getContactCallsigns() {
+    final raw = _broker.getValueDynamic(0, 'Stations', null);
+    final callsigns = <String>{};
+    if (raw is List) {
+      for (final item in raw) {
+        final map = item is Map<String, dynamic>
+            ? item
+            : (item is Map ? Map<String, dynamic>.from(item) : null);
+        if (map != null) {
+          final cs = map['Callsign'] as String?;
+          if (cs != null && cs.isNotEmpty) callsigns.add(cs.toUpperCase());
+        }
+      }
+    }
+    return callsigns;
+  }
+
   /// Builds the station markers (APRS red/blue + voice/BSS orange) that pass
   /// the active time filter.
   List<Marker> _buildStationMarkers() {
     final markers = <Marker>[];
     final double size = _largeMarkers ? 30 : 20;
+    final contactCallsigns =
+        _showContactsOnly ? _getContactCallsigns() : null;
 
     void addStation(_StationMarkerData s, Color color) {
       if (!_passesTimeFilter(s.time)) return;
+      // When "Show Contacts Only" is active, skip non-self stations that are
+      // not in the contact list.
+      if (contactCallsigns != null &&
+          !s.isSelf &&
+          !contactCallsigns.contains(s.callsign.toUpperCase())) {
+        return;
+      }
       markers.add(
         Marker(
           point: s.position,
@@ -883,7 +949,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           height: size,
           alignment: Alignment.topCenter,
           child: Tooltip(
-            message: '${s.callsign}\n${s.time.toLocal()}',
+            message: '${s.callsign}\n${_formatTime(s.time)}',
             child: Icon(Icons.location_pin, color: color, size: size),
           ),
         ),
@@ -951,10 +1017,17 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   /// Builds the track polylines for stations when "Show Tracks" is enabled.
   List<Polyline> _buildTracks() {
     final polylines = <Polyline>[];
+    final contactCallsigns =
+        _showContactsOnly ? _getContactCallsigns() : null;
 
     void addTrack(_StationMarkerData s, Color color) {
       if (s.track.length < 2) return;
       if (!_passesTimeFilter(s.time)) return;
+      if (contactCallsigns != null &&
+          !s.isSelf &&
+          !contactCallsigns.contains(s.callsign.toUpperCase())) {
+        return;
+      }
       polylines.add(
         Polyline(
           points: List<LatLng>.from(s.track),

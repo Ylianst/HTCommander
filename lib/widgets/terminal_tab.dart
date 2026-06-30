@@ -828,6 +828,20 @@ class _TerminalTabState extends State<TerminalTab>
     });
   }
 
+  /// Recomputes [showCallsignPrefix] for every existing line, mirroring the
+  /// append-time logic. Called when "Show Callsign" is toggled so that all
+  /// existing lines immediately reflect the new setting.
+  void _recomputeCallsignPrefixes() {
+    for (final line in _lines) {
+      if (line.system) {
+        line.showCallsignPrefix = false;
+        continue;
+      }
+      line.showCallsignPrefix =
+          _showCallsign && line.from != null && line.from!.isNotEmpty;
+    }
+  }
+
   /// Builds the colored spans for a single line, honoring "Show Callsign".
   List<TerminalTextSpan> _spansForLine(_TerminalLine line) {
     if (line.system) {
@@ -944,7 +958,10 @@ class _TerminalTabState extends State<TerminalTab>
       if (value == null) return;
       switch (value) {
         case 'showCallsign':
-          setState(() => _showCallsign = !_showCallsign);
+          setState(() {
+            _showCallsign = !_showCallsign;
+            _recomputeCallsignPrefixes();
+          });
           _broker.dispatch(
             deviceId: 0,
             name: 'TerminalShowCallsign',
