@@ -34,7 +34,7 @@ jobs:
           echo "Found app: $APP_PATH"
 
           # Create staging directory with app and Applications symlink
-          mkdir -p "$STAGING_DIR/.background"
+          mkdir -p "$STAGING_DIR"
           cp -R "$APP_PATH" "$STAGING_DIR/"
           ln -s /Applications "$STAGING_DIR/Applications"
 
@@ -44,36 +44,6 @@ jobs:
           sips -z 256 256 "$ICON_PATH" --out icon.iconset/icon_256x256.png
           sips -z 128 128 "$ICON_PATH" --out icon.iconset/icon_128x128.png
           iconutil -c icns icon.iconset -o VolumeIcon.icns
-
-          # Create a background image with install instructions
-          python3 -c "
-          from AppKit import NSImage, NSColor, NSFont, NSFontManager, NSString, NSMakeRect, NSGraphicsContext, NSBitmapImageRep, NSPNGFileType, NSCompositingOperationSourceOver
-          from Foundation import NSDictionary, NSForegroundColorAttributeName, NSFontAttributeName, NSMakeSize
-
-          width, height = 600, 400
-          img = NSImage.alloc().initWithSize_(NSMakeSize(width, height))
-          img.lockFocus()
-
-          # Background gradient
-          NSColor.colorWithCalibratedRed_green_blue_alpha_(0.95, 0.95, 0.97, 1.0).setFill()
-          NSGraphicsContext.currentContext().compositingOperation = NSCompositingOperationSourceOver
-          from AppKit import NSBezierPath
-          NSBezierPath.fillRect_(NSMakeRect(0, 0, width, height))
-
-          # Arrow text
-          attrs = NSDictionary.dictionaryWithObjects_forKeys_(
-              [NSFont.systemFontOfSize_(14), NSColor.colorWithCalibratedRed_green_blue_alpha_(0.5, 0.5, 0.5, 1.0)],
-              [NSFontAttributeName, NSForegroundColorAttributeName]
-          )
-          text = NSString.stringWithString_('Drag HTCommander to Applications to install')
-          text.drawAtPoint_withAttributes_((width/2 - 180, 30), attrs)
-
-          img.unlockFocus()
-
-          rep = NSBitmapImageRep.imageRepWithData_(img.TIFFRepresentation())
-          data = rep.representationUsingType_properties_(NSPNGFileType, None)
-          data.writeToFile_atomically_('$STAGING_DIR/.background/background.png', True)
-          "
 
           # Create initial DMG
           hdiutil create -volname "$VOLUME_NAME" -srcfolder "$STAGING_DIR" -ov -format UDRW -fs HFS+ temp.dmg
@@ -98,9 +68,7 @@ jobs:
               set theViewOptions to icon view options of container window
               set arrangement of theViewOptions to not arranged
               set icon size of theViewOptions to 96
-              try
-                set background picture of theViewOptions to file ".background:background.png"
-              end try
+              set background color of theViewOptions to {60652, 60652, 63222}
               set position of item "$APP_NAME" of container window to {150, 180}
               set position of item "Applications" of container window to {450, 180}
               close
