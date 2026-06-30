@@ -18,6 +18,7 @@ import '../models/radio_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
+import '../utils/map_tile_downloader.dart';
 import '../utils/map_tile_provider.dart';
 
 /// Holds the latest known position, time and track points for a single
@@ -73,6 +74,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   bool _showAirplanes = false;
   bool _showContactsOnly = false;
   bool _largeMarkers = true;
+
+  /// When true the user is drawing a rectangle on the map to select a cache
+  /// area. Interaction with markers/tracks is suppressed.
+  bool _isSelectingCacheArea = false;
+  LatLng? _cacheSelectionStart;
+  LatLng? _cacheSelectionEnd;
 
   /// Tile provider for the map. Recreated only when [_isOfflineMode] changes so
   /// that normal rebuilds (marker/track updates) don't reset the tile cache or
@@ -775,7 +782,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           windowService.createWindow('map');
           break;
         case 'cache':
-          // TODO: Implement cache area functionality
+          setState(() {
+            _isSelectingCacheArea = true;
+            _cacheSelectionStart = null;
+            _cacheSelectionEnd = null;
+          });
           break;
       }
     });
@@ -1047,6 +1058,115 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     return polylines;
   }
 
+  // ---------------------------------------------------------------------------
+  // Cache Area selection & download
+  // ---------------------------------------------------------------------------
+
+  /// Finishes the rectangle selection and shows a confirmation dialog before
+  /// downloading tiles for the selected region.
+  void _finishCacheAreaSelection() {
+    final start = _cacheSelectionStart;
+    final end = _cacheSelectionEnd;
+    if (start == null || end == null) {
+      setState(() => _isSelectingCacheArea = false);
+      return;
+    }
+
+    final sw = LatLng(
+      math.min(start.latitude, end.latitude),
+      math.min(start.longitude, end.longitude),
+    );
+    final ne = LatLng(
+      math.max(start.latitude, end.latitude),
+      math.max(start.longitude, end.longitude),
+    );
+
+    final currentZoom = _mapController.camera.zoom.floor();
+    final maxZoom = (currentZoom + 2).clamp(0, 18);
+    final tileCount = countTilesInBounds(sw, ne, currentZoom, maxZoom);
+
+    setState(() => _isSelectingCacheArea = false);
+
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cache Map Area'),
+        content: Text(
+          'Download $tileCount tiles for zoom levels $currentZoom\u2013$maxZoom?\n\n'
+          'This will cache the selected area for offline use.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Download'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true && mounted) {
+        _downloadCacheArea(sw, ne, currentZoom, maxZoom);
+      }
+    });
+  }
+
+  /// Shows a progress dialog while downloading tiles for the selected region.
+  void _downloadCacheArea(LatLng sw, LatLng ne, int minZoom, int maxZoom) {
+    final progressNotifier = ValueNotifier<(int, int)>((0, 0));
+    final cancelNotifier = ValueNotifier<bool>(false);
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('Downloading Tiles'),
+          content: ValueListenableBuilder<(int, int)>(
+            valueListenable: progressNotifier,
+            builder: (_, value, child) {
+              final (done, total) = value;
+              final pct = total > 0 ? done / total : 0.0;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(value: pct),
+                  const SizedBox(height: 12),
+                  Text('$done / $total tiles'),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                cancelNotifier.value = true;
+                Navigator.of(ctx).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    downloadTilesInBounds(
+      sw: sw,
+      ne: ne,
+      minZoom: minZoom,
+      maxZoom: maxZoom,
+      onProgress: (done, total) => progressNotifier.value = (done, total),
+      cancel: cancelNotifier,
+    ).then((_) {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(); // dismiss progress dialog
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
@@ -1111,6 +1231,91 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                   ],
                 ),
               ),
+              // Rectangle selection overlay for cache area
+              if (_isSelectingCacheArea) ...[
+                // Draw the selection rectangle on the map
+                if (_cacheSelectionStart != null &&
+                    _cacheSelectionEnd != null)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: _RectSelectionPainter(
+                          start: _mapController.camera
+                              .latLngToScreenPoint(_cacheSelectionStart!),
+                          end: _mapController.camera
+                              .latLngToScreenPoint(_cacheSelectionEnd!),
+                        ),
+                      ),
+                    ),
+                  ),
+                // Gesture layer to capture drag
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onPanStart: (details) {
+                      final latlng = _mapController.camera
+                          .pointToLatLng(math.Point(
+                            details.localPosition.dx,
+                            details.localPosition.dy,
+                          ));
+                      setState(() {
+                        _cacheSelectionStart = latlng;
+                        _cacheSelectionEnd = latlng;
+                      });
+                    },
+                    onPanUpdate: (details) {
+                      final latlng = _mapController.camera
+                          .pointToLatLng(math.Point(
+                            details.localPosition.dx,
+                            details.localPosition.dy,
+                          ));
+                      setState(() => _cacheSelectionEnd = latlng);
+                    },
+                    onPanEnd: (_) => _finishCacheAreaSelection(),
+                    child: Container(
+                      color: Colors.transparent,
+                    ),
+                  ),
+                ),
+                // Instruction banner
+                Positioned(
+                  top: 10,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Drag to select area to cache',
+                            style: TextStyle(color: Colors.white, fontSize: 14),
+                          ),
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: () => setState(
+                              () => _isSelectingCacheArea = false,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1196,4 +1401,38 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
       ),
     );
   }
+}
+
+/// Paints a semi-transparent blue rectangle between two screen points to
+/// visualise the cache-area selection.
+class _RectSelectionPainter extends CustomPainter {
+  _RectSelectionPainter({required this.start, required this.end});
+
+  final math.Point<double> start;
+  final math.Point<double> end;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromPoints(
+      Offset(start.x, start.y),
+      Offset(end.x, end.y),
+    );
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = Colors.blue.withValues(alpha: 0.2)
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = Colors.blue
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RectSelectionPainter oldDelegate) =>
+      start != oldDelegate.start || end != oldDelegate.end;
 }
