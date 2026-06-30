@@ -56,7 +56,7 @@ jobs:
           path: src/build/linux/x64/release/bundle/
 
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
 
@@ -79,7 +79,7 @@ jobs:
           path: src/build/macos/Build/Products/Release/*.app
 
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
 
