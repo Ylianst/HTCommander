@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/update_service.dart';
+import 'update_dialog.dart';
+
 /// Custom About dialog matching the C# AboutForm
 class HTAboutDialog extends StatelessWidget {
   const HTAboutDialog({super.key});
@@ -100,13 +103,26 @@ class HTAboutDialog extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              // Close button
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Close'),
-                ),
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (UpdateService.instance.isSupported)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        showDialog(
+                          context: context,
+                          builder: (context) => const UpdateDialog(),
+                        );
+                      },
+                      child: const Text('Check for Updates'),
+                    ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
+                  ),
+                ],
               ),
             ],
           ),
