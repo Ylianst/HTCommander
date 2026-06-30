@@ -407,6 +407,10 @@ class _MainFormState extends State<MainForm>
   // in compact mode; always shown when not in compact mode.
   bool _tabsVisible = true;
   bool _showAllChannels = false;
+  // Tabs the user has chosen to hide via the context menu.
+  Set<String> _hiddenTabs = {};
+  // When true, all tabs are shown regardless of _hiddenTabs.
+  bool _showAllTabs = false;
   bool _isCompactMode = false;
   // A saved tab label that wasn't available at startup (e.g. "Radio", which
   // only exists in compact mode). Selected once the tab set is rebuilt.
@@ -516,6 +520,20 @@ class _MainFormState extends State<MainForm>
     return isCompact ? [_radioTab, ...base] : base;
   }
 
+  /// Returns the tabs for the current mode, filtering out user-hidden tabs
+  /// unless [_showAllTabs] is enabled.
+  List<_TabInfo> _getVisibleTabs() {
+    final all = _getTabsForMode(
+      _isCompactMode,
+      _allowTransmit,
+      _winlinkPasswordSet,
+    );
+    if (_showAllTabs || _hiddenTabs.isEmpty) return all;
+    final visible = all.where((t) => !_hiddenTabs.contains(t.label)).toList();
+    // Always show at least one tab.
+    return visible.isEmpty ? all : visible;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -594,11 +612,7 @@ class _MainFormState extends State<MainForm>
     );
 
     // Initialize tabs with saved index
-    _currentTabs = _getTabsForMode(
-      _isCompactMode,
-      _allowTransmit,
-      _winlinkPasswordSet,
-    );
+    _currentTabs = _getVisibleTabs();
     final savedTabName =
         DataBroker.getValue<String>(0, 'SelectedTabName', '') ?? '';
     int initialIndex = 0;
@@ -643,6 +657,12 @@ class _MainFormState extends State<MainForm>
     _showTabNames = (DataBroker.getValue<int>(0, 'ShowTabNames', 1) ?? 1) == 1;
     _showAllChannels =
         (DataBroker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
+    _showAllTabs = (DataBroker.getValue<int>(0, 'ShowAllTabs', 0) ?? 0) == 1;
+    final hiddenTabsStr =
+        DataBroker.getValue<String>(0, 'HiddenTabs', '') ?? '';
+    _hiddenTabs = hiddenTabsStr.isEmpty
+        ? {}
+        : hiddenTabsStr.split(',').toSet();
   }
 
   /// Handle settings changes from DataBroker.
@@ -1120,11 +1140,9 @@ class _MainFormState extends State<MainForm>
   void _updateCompactMode(bool isCompact) {
     if (_isCompactMode == isCompact) return;
     final oldIndex = _tabController.index;
-    final newTabs = _getTabsForMode(
-      isCompact,
-      _allowTransmit,
-      _winlinkPasswordSet,
-    );
+    // Temporarily set _isCompactMode so _getVisibleTabs uses the new mode.
+    _isCompactMode = isCompact;
+    final newTabs = _getVisibleTabs();
 
     // Calculate new index
     int newIndex;
@@ -1165,11 +1183,7 @@ class _MainFormState extends State<MainForm>
   /// (which also requires a password). Called from within `_onSettingsChanged`'s
   /// `setState`, so it mutates state directly without its own `setState`.
   void _rebuildTabsForTransmit() {
-    final newTabs = _getTabsForMode(
-      _isCompactMode,
-      _allowTransmit,
-      _winlinkPasswordSet,
-    );
+    final newTabs = _getVisibleTabs();
     if (newTabs.length == _currentTabs.length) return;
 
     // Preserve the current selection by label where possible.
@@ -1361,6 +1375,21 @@ class _MainFormState extends State<MainForm>
               );
             },
             checked: _showTabNames,
+          ),
+          AppMenuAction(
+            label: 'Show All Tabs',
+            onPressed: () {
+              setState(() {
+                _showAllTabs = !_showAllTabs;
+                _rebuildTabList();
+              });
+              _broker.dispatch(
+                deviceId: 0,
+                name: 'ShowAllTabs',
+                data: _showAllTabs ? 1 : 0,
+              );
+            },
+            checked: _showAllTabs,
           ),
           AppMenuAction(
             label: 'All Channels',
@@ -1816,72 +1845,89 @@ class _MainFormState extends State<MainForm>
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Material(
                     color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => _tabController.animateTo(index),
-                      child: Stack(
-                        children: [
-                          // Selection marker on the leading edge, matching the
-                          // previous TabBar indicator.
-                          Positioned(
-                            top: 0,
-                            bottom: 0,
-                            left: 0,
-                            child: Center(
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 150),
-                                width: 3,
-                                height: isSelected ? 36 : 0,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primary,
-                                  borderRadius: BorderRadius.circular(2),
+                    child: GestureDetector(
+                      onSecondaryTapUp: (details) {
+                        _showTabContextMenu(
+                          context,
+                          details.globalPosition,
+                          tab,
+                        );
+                      },
+                      onLongPressStart: (details) {
+                        _showTabContextMenu(
+                          context,
+                          details.globalPosition,
+                          tab,
+                        );
+                      },
+                      child: InkWell(
+                        onTap: () => _tabController.animateTo(index),
+                        child: Stack(
+                          children: [
+                            // Selection marker on the leading edge, matching the
+                            // previous TabBar indicator.
+                            Positioned(
+                              top: 0,
+                              bottom: 0,
+                              left: 0,
+                              child: Center(
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  width: 3,
+                                  height: isSelected ? 36 : 0,
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 8,
-                              horizontal: 6,
-                            ),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Image.asset(
-                                    tab.assetPath,
-                                    width: 32,
-                                    height: 32,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Icon(
-                                        tab.fallbackIcon,
-                                        size: 32,
-                                        color: isSelected
-                                            ? colorScheme.primary
-                                            : Colors.grey,
-                                      );
-                                    },
-                                  ),
-                                  if (_showTabNames) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      tab.label,
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: isSelected
-                                            ? colorScheme.primary
-                                            : Colors.grey,
-                                      ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 6,
+                              ),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Image.asset(
+                                      tab.assetPath,
+                                      width: 32,
+                                      height: 32,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return Icon(
+                                          tab.fallbackIcon,
+                                          size: 32,
+                                          color: isSelected
+                                              ? colorScheme.primary
+                                              : Colors.grey,
+                                        );
+                                      },
                                     ),
+                                    if (_showTabNames) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        tab.label,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: isSelected
+                                              ? colorScheme.primary
+                                              : Colors.grey,
+                                        ),
+                                      ),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1892,6 +1938,89 @@ class _MainFormState extends State<MainForm>
         },
       ),
     );
+  }
+
+  /// Shows a context menu for a tab with an option to hide it.
+  void _showTabContextMenu(
+    BuildContext context,
+    Offset position,
+    _TabInfo tab,
+  ) {
+    final isHidden = _hiddenTabs.contains(tab.label);
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: [
+        CheckedPopupMenuItem<String>(
+          value: 'toggle',
+          checked: !isHidden,
+          child: const Text('Show Tab'),
+        ),
+      ],
+    ).then((value) {
+      if (value == 'toggle') {
+        _toggleTabHidden(tab.label);
+      }
+    });
+  }
+
+  /// Toggles a tab's hidden state and rebuilds the tab list.
+  void _toggleTabHidden(String label) {
+    setState(() {
+      if (_hiddenTabs.contains(label)) {
+        _hiddenTabs.remove(label);
+      } else {
+        _hiddenTabs.add(label);
+      }
+      _persistHiddenTabs();
+      _rebuildTabList();
+    });
+  }
+
+  /// Persists the hidden tabs set to DataBroker.
+  void _persistHiddenTabs() {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'HiddenTabs',
+      data: _hiddenTabs.join(','),
+    );
+  }
+
+  /// Rebuilds the tab list and controller after hidden tabs change.
+  void _rebuildTabList() {
+    final newTabs = _getVisibleTabs();
+    if (newTabs.length == _currentTabs.length &&
+        newTabs.every((t) => _currentTabs.any((c) => c.label == t.label))) {
+      return;
+    }
+
+    // Preserve the current selection by label where possible.
+    final int oldIndex = _tabController.index;
+    final String? oldLabel = (oldIndex >= 0 && oldIndex < _currentTabs.length)
+        ? _currentTabs[oldIndex].label
+        : null;
+    int newIndex = 0;
+    if (oldLabel != null) {
+      final idx = newTabs.indexWhere((t) => t.label == oldLabel);
+      if (idx >= 0) newIndex = idx;
+    }
+    newIndex = newIndex.clamp(0, newTabs.length - 1);
+
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
+
+    _currentTabs = newTabs;
+    _tabController = TabController(
+      length: _currentTabs.length,
+      vsync: this,
+      initialIndex: newIndex,
+    );
+    _tabController.addListener(_onTabChanged);
   }
 
   Widget _buildTabContent(_TabInfo tab) {

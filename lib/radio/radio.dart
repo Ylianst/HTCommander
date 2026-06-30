@@ -107,6 +107,9 @@ class Radio {
   // Clear channel timer
   Timer? _clearChannelTimer;
 
+  // Battery poll timer (every 60 seconds while connected)
+  Timer? _batteryPollTimer;
+
   // Initialization retry timer
   Timer? _initRetryTimer;
   int _initRetryCount = 0;
@@ -657,6 +660,14 @@ class Radio {
       _requestPowerStatus(RadioPowerStatus.batteryLevelAsPercentage);
     }
 
+    // Start periodic battery polling (every 60 seconds)
+    _batteryPollTimer?.cancel();
+    _batteryPollTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (_transport?.state == TransportState.connected) {
+        _requestPowerStatus(RadioPowerStatus.batteryLevelAsPercentage);
+      }
+    });
+
     // Set up retry timer - if we don't receive any data within 2 seconds, retry
     _initRetryTimer?.cancel();
     _initRetryTimer = Timer(const Duration(seconds: 2), () {
@@ -779,6 +790,8 @@ class Radio {
     _receiveBuffer.clear();
     _clearChannelTimer?.cancel();
     _clearChannelTimer = null;
+    _batteryPollTimer?.cancel();
+    _batteryPollTimer = null;
   }
 
   void _updateState(RadioState newState) {
@@ -1713,33 +1726,32 @@ class Radio {
   }
 
   void _handleReadStatus(Uint8List data) {
-    if (data.isEmpty) return;
+    // Payload layout (matching C# offsets relative to value[4]):
+    //   data[0] = response status byte (0 = success)
+    //   data[1..2] = power status type (big-endian short)
+    //   data[3] = value (or data[3..4] for voltage)
+    if (data.length < 4) return;
+    final statusValue = (data[1] << 8) | data[2];
     final statusType = RadioPowerStatus.values.firstWhere(
-      (e) => e.value == data[0],
+      (e) => e.value == statusValue,
       orElse: () => RadioPowerStatus.unknown,
     );
 
     switch (statusType) {
       case RadioPowerStatus.batteryLevel:
-        if (data.length > 1) {
-          _dispatch('BatteryLevel', data[1]);
-        }
+        _dispatch('BatteryLevel', data[3]);
         break;
       case RadioPowerStatus.batteryVoltage:
-        if (data.length > 2) {
-          final voltage = RadioUtils.getShort(data, 1) / 100.0;
+        if (data.length > 4) {
+          final voltage = RadioUtils.getShort(data, 3) / 100.0;
           _dispatch('BatteryVoltage', voltage);
         }
         break;
       case RadioPowerStatus.rcBatteryLevel:
-        if (data.length > 1) {
-          _dispatch('RcBatteryLevel', data[1]);
-        }
+        _dispatch('RcBatteryLevel', data[3]);
         break;
       case RadioPowerStatus.batteryLevelAsPercentage:
-        if (data.length > 1) {
-          _dispatch('BatteryAsPercentage', data[1]);
-        }
+        _dispatch('BatteryAsPercentage', data[3]);
         break;
       default:
         break;
@@ -1747,8 +1759,9 @@ class Radio {
   }
 
   void _handleGetVolume(Uint8List data) {
-    if (data.isNotEmpty) {
-      _dispatch('Volume', data[0]);
+    // data[0] = response status byte (skip), data[1] = volume level
+    if (data.length > 1) {
+      _dispatch('Volume', data[1]);
     }
   }
 

@@ -348,6 +348,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final sortedDevices = List<CompatibleDevice>.from(widget.devices)
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
     return HTDialog(
       title: 'Radio Connection',
       maxWidth: 500,
@@ -361,7 +364,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
               decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
               child: Material(
                 color: Colors.white,
-                child: widget.devices.isEmpty
+                child: sortedDevices.isEmpty
                     ? const Center(
                         child: Text(
                           'No compatible radios found.\nMake sure your radio is powered on and Bluetooth is enabled.',
@@ -370,9 +373,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                         ),
                       )
                     : ListView.builder(
-                        itemCount: widget.devices.length,
+                        itemCount: sortedDevices.length,
                         itemBuilder: (context, index) {
-                          final device = widget.devices[index];
+                          final device = sortedDevices[index];
                           final status = _getRadioStatus(device.mac);
                           final connectable = _isConnectable(status);
                           final connected = _isConnectedOrConnecting(status);
