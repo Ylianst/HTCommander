@@ -25,7 +25,7 @@ jobs:
         shell: pwsh
         run: |
           # Install WiX Toolset v5
-          dotnet tool install --global wix
+          dotnet tool install --global wix --version 5.0.2
 
           $buildDir = "src\build\windows\x64\runner\Release"
           $appName = "HTCommander"
