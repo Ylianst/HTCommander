@@ -48,6 +48,10 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
   static const double _minTrafficRatio = 0.15;
   static const double _maxTrafficRatio = 0.60;
 
+  /// Whether the station list is too narrow to show the "Stats" column.
+  bool _isCompact = false;
+  static const double _compactWidthThreshold = 360;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -605,95 +609,101 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
   Widget _buildStationList() {
     return Container(
       color: Colors.white,
-      child: Column(
-        children: [
-          _buildStationListHeaders(),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _stations.length,
-              itemBuilder: (context, index) {
-                final station = _stations[index];
-                final isSelected = _selectedStationIndex == index;
-                return InkWell(
-                  onTap: () => _onStationSelected(index),
-                  child: Container(
-                    clipBehavior: Clip.hardEdge,
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.blue.shade100 : null,
-                      border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade300),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        // Icon
-                        SizedBox(
-                          width: 32,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 6,
-                            ),
-                            child: Icon(
-                              Icons.person,
-                              size: 18,
-                              color: Colors.blue.shade700,
-                            ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          _isCompact = constraints.maxWidth < _compactWidthThreshold;
+          return Column(
+            children: [
+              _buildStationListHeaders(),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _stations.length,
+                  itemBuilder: (context, index) {
+                    final station = _stations[index];
+                    final isSelected = _selectedStationIndex == index;
+                    return InkWell(
+                      onTap: () => _onStationSelected(index),
+                      child: Container(
+                        clipBehavior: Clip.hardEdge,
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.blue.shade100 : null,
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey.shade300),
                           ),
                         ),
-                        // Call sign
-                        SizedBox(
-                          width: 100,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 6,
-                            ),
-                            child: Text(
-                              station.callsign,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                        child: Row(
+                          children: [
+                            // Icon
+                            SizedBox(
+                              width: 32,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 6,
+                                ),
+                                child: Icon(
+                                  Icons.person,
+                                  size: 18,
+                                  color: Colors.blue.shade700,
+                                ),
                               ),
                             ),
-                          ),
+                            // Call sign
+                            SizedBox(
+                              width: 100,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 6,
+                                ),
+                                child: Text(
+                                  station.callsign,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Last seen
+                            SizedBox(
+                              width: 80,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 6,
+                                ),
+                                child: Text(
+                                  _formatLastSeen(station.lastSeen),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ),
+                            // Stats (hidden in compact mode)
+                            if (!_isCompact)
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 6,
+                                  ),
+                                  child: Text(
+                                    station.statsString,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                        // Last seen
-                        SizedBox(
-                          width: 80,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 6,
-                            ),
-                            child: Text(
-                              _formatLastSeen(station.lastSeen),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ),
-                        // Stats
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 6,
-                            ),
-                            child: Text(
-                              station.statsString,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -710,7 +720,7 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
           const SizedBox(width: 32), // Icon column
           _buildColumnHeader('Call Sign', 0, width: 100),
           _buildColumnHeader('Last Seen', 1, width: 80),
-          _buildColumnHeader('Stats', 2, flex: 1),
+          if (!_isCompact) _buildColumnHeader('Stats', 2, flex: 1),
         ],
       ),
     );
