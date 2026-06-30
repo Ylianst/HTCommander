@@ -19,7 +19,7 @@ jobs:
 
       - name: Build Web
         working-directory: src
-        run: flutter build web --release
+        run: flutter build web --release --base-href "/HTCommanderWeb/"
 
       - name: Upload Web artifact
         uses: actions/upload-artifact@v7
