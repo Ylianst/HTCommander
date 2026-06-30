@@ -1,13 +1,42 @@
-name: Build All Platforms
+name: Release
 
 on:
-  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+env:
+  BASE_URL: https://ylianst.github.io/HTCommander
 
 jobs:
   build-windows:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build_number: ${{ steps.version.outputs.build_number }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Extract version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}" -replace '^v', ''
+          $version = $tag
+          # Use build number from pubspec.yaml
+          $pubspec = Get-Content src/pubspec.yaml -Raw
+          if ($pubspec -match 'version:\s*[\d.]+\+(\d+)') {
+            $buildNumber = $Matches[1]
+          } else {
+            $buildNumber = "1"
+          }
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "build_number=$buildNumber" >> $env:GITHUB_OUTPUT
+          echo "Version: $version, Build: $buildNumber"
 
       - uses: subosito/flutter-action@v2
         with:
@@ -60,7 +89,6 @@ jobs:
               $source = $file.FullName
 
               if ($file.Name -eq $exeName) {
-                # Main exe component - include shortcut
                 $xml += "$indent<Component Id='$compId' Guid='*'>`n"
                 $xml += "$indent  <File Id='MainExe' Source='$source' KeyPath='yes' />`n"
                 $xml += "$indent  <Shortcut Id='StartMenuShortcut' Directory='ProgramMenuFolder' Name='$appDisplayName' WorkingDirectory='INSTALLFOLDER' Icon='AppIcon' IconIndex='0' Advertise='yes' />`n"
@@ -120,16 +148,52 @@ jobs:
           # Build the MSI
           wix build installer.wxs -o $msiOutput
 
-      - name: Upload Windows artifact
+      - name: Generate update package
+        shell: pwsh
+        working-directory: src
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $buildNumber = "${{ steps.version.outputs.build_number }}"
+          dart run desktop_updater:package `
+            --input build/windows/x64/runner/Release `
+            --output dist/desktop_updater/releases/$version/windows `
+            --package-id com.htcommander.app `
+            --app-name htcommander `
+            --version $version `
+            --build-number $buildNumber `
+            --platform windows `
+            --channel stable `
+            --install-strategy wholeDirectoryReplace `
+            --artifact-url "${{ env.BASE_URL }}/releases/$version/windows/htcommander-$version-windows.zip"
+
+      - name: Upload MSI
         uses: actions/upload-artifact@v7
         with:
-          name: windows-build
+          name: windows-msi
           path: HTCommander.msi
+
+      - name: Upload update package
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-update
+          path: src/dist/desktop_updater/releases/
 
   build-linux:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build_number: ${{ steps.version.outputs.build_number }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          BUILD_NUMBER=$(grep '^version:' src/pubspec.yaml | sed 's/.*+//')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION, Build: $BUILD_NUMBER"
 
       - uses: subosito/flutter-action@v2
         with:
@@ -148,16 +212,45 @@ jobs:
         working-directory: src
         run: flutter build linux --release
 
-      - name: Upload Linux artifact
+      - name: Generate update package
+        working-directory: src
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUILD_NUMBER="${{ steps.version.outputs.build_number }}"
+          dart run desktop_updater:package \
+            --input build/linux/x64/release/bundle \
+            --output dist/desktop_updater/releases/$VERSION/linux \
+            --package-id com.htcommander.app \
+            --app-name htcommander \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --platform linux \
+            --channel stable \
+            --install-strategy wholeDirectoryReplace \
+            --artifact-url "${{ env.BASE_URL }}/releases/$VERSION/linux/htcommander-$VERSION-linux.zip"
+
+      - name: Upload update package
         uses: actions/upload-artifact@v7
         with:
-          name: linux-build
-          path: src/build/linux/x64/release/bundle/
+          name: linux-update
+          path: src/dist/desktop_updater/releases/
 
   build-macos:
     runs-on: macos-26
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build_number: ${{ steps.version.outputs.build_number }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          BUILD_NUMBER=$(grep '^version:' src/pubspec.yaml | sed 's/.*+//')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION, Build: $BUILD_NUMBER"
 
       - uses: subosito/flutter-action@v2
         with:
@@ -173,7 +266,6 @@ jobs:
 
       - name: Create DMG
         run: |
-          # Find the .app bundle (name comes from Xcode PRODUCT_NAME)
           APP_PATH=$(find src/build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
           APP_NAME=$(basename "$APP_PATH")
           DMG_NAME="HTCommander.dmg"
@@ -183,30 +275,24 @@ jobs:
 
           echo "Found app: $APP_PATH"
 
-          # Create staging directory with app and Applications symlink
           mkdir -p "$STAGING_DIR"
           cp -R "$APP_PATH" "$STAGING_DIR/"
           ln -s /Applications "$STAGING_DIR/Applications"
 
-          # Convert PNG icon to icns for the DMG volume
           mkdir -p icon.iconset
           sips -z 512 512 "$ICON_PATH" --out icon.iconset/icon_256x256@2x.png
           sips -z 256 256 "$ICON_PATH" --out icon.iconset/icon_256x256.png
           sips -z 128 128 "$ICON_PATH" --out icon.iconset/icon_128x128.png
           iconutil -c icns icon.iconset -o VolumeIcon.icns
 
-          # Create initial DMG
           hdiutil create -volname "$VOLUME_NAME" -srcfolder "$STAGING_DIR" -ov -format UDRW -fs HFS+ temp.dmg
 
-          # Mount and customize
           DEVICE=$(hdiutil attach -readwrite -noverify temp.dmg | grep '/Volumes/' | awk '{print $1}')
           MOUNT_POINT="/Volumes/$VOLUME_NAME"
 
-          # Set volume icon
           cp VolumeIcon.icns "$MOUNT_POINT/.VolumeIcon.icns"
           SetFile -a C "$MOUNT_POINT"
 
-          # Use AppleScript to set DMG window appearance
           osascript <<EOF
           tell application "Finder"
             tell disk "$VOLUME_NAME"
@@ -230,72 +316,43 @@ jobs:
           end tell
           EOF
 
-          # Unmount
           sync
           hdiutil detach "$DEVICE"
-
-          # Convert to compressed read-only DMG
           hdiutil convert temp.dmg -format UDZO -imagekey zlib-level=9 -o "$DMG_NAME"
           rm -f temp.dmg
 
-      - name: Upload macOS artifact
+      - name: Generate update package
+        working-directory: src
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUILD_NUMBER="${{ steps.version.outputs.build_number }}"
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          dart run desktop_updater:package \
+            --input "$APP_PATH" \
+            --output dist/desktop_updater/releases/$VERSION/macos \
+            --package-id com.htcommander.app \
+            --app-name "$(basename "$APP_PATH")" \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --platform macos \
+            --channel stable \
+            --install-strategy wholeBundleReplace \
+            --artifact-url "${{ env.BASE_URL }}/releases/$VERSION/macos/htcommander-$VERSION-macos.zip"
+
+      - name: Upload DMG
         uses: actions/upload-artifact@v7
         with:
-          name: macos-build
+          name: macos-dmg
           path: HTCommander.dmg
 
-  build-ios:
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Install dependencies
-        working-directory: src
-        run: flutter pub get
-
-      - name: Build iOS
-        working-directory: src
-        run: flutter build ios --release --no-codesign
-
-      - name: Upload iOS artifact
+      - name: Upload update package
         uses: actions/upload-artifact@v7
         with:
-          name: ios-build
-          path: src/build/ios/iphoneos/Runner.app
+          name: macos-update
+          path: src/dist/desktop_updater/releases/
 
-  build-android:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Install dependencies
-        working-directory: src
-        run: flutter pub get
-
-      - name: Build Android APK
-        working-directory: src
-        run: flutter build apk --release
-
-      - name: Upload Android artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: android-build
-          path: src/build/app/outputs/flutter-apk/app-release.apk
-
-  build-web:
+  release:
+    needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -308,12 +365,69 @@ jobs:
         working-directory: src
         run: flutter pub get
 
-      - name: Build Web
-        working-directory: src
-        run: flutter build web --release
-
-      - name: Upload Web artifact
-        uses: actions/upload-artifact@v7
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
         with:
-          name: web-build
-          path: src/build/web/
+          path: artifacts/
+
+      - name: Assemble update site
+        working-directory: src
+        run: |
+          VERSION="${{ needs.build-windows.outputs.version }}"
+          BUILD_NUMBER="${{ needs.build-windows.outputs.build_number }}"
+          BASE_URL="${{ env.BASE_URL }}"
+
+          # Create output directory structure
+          mkdir -p dist/desktop_updater/releases
+
+          # Copy all platform release artifacts
+          cp -r ../artifacts/windows-update/* dist/desktop_updater/releases/ || true
+          cp -r ../artifacts/linux-update/* dist/desktop_updater/releases/ || true
+          cp -r ../artifacts/macos-update/* dist/desktop_updater/releases/ || true
+
+          # Generate the combined app-archive.json with all platforms
+          dart run desktop_updater:app_archive upsert \
+            --archive dist/desktop_updater/app-archive.json \
+            --app-name "Handi-Talkie Commander" \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --platform windows \
+            --channel stable \
+            --release-url "$BASE_URL/releases/$VERSION/windows/release.json"
+
+          dart run desktop_updater:app_archive upsert \
+            --archive dist/desktop_updater/app-archive.json \
+            --app-name "Handi-Talkie Commander" \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --platform linux \
+            --channel stable \
+            --release-url "$BASE_URL/releases/$VERSION/linux/release.json"
+
+          dart run desktop_updater:app_archive upsert \
+            --archive dist/desktop_updater/app-archive.json \
+            --app-name "Handi-Talkie Commander" \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --platform macos \
+            --channel stable \
+            --release-url "$BASE_URL/releases/$VERSION/macos/release.json"
+
+          echo "=== app-archive.json ==="
+          cat dist/desktop_updater/app-archive.json
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: HTCommander ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/windows-msi/HTCommander.msi
+            artifacts/macos-dmg/HTCommander.dmg
+
+      - name: Deploy update site to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: src/dist/desktop_updater
+          keep_files: true
