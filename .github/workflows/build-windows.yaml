@@ -44,21 +44,46 @@ jobs:
           $icon.Dispose()
           $png.Dispose()
 
-          # Generate WiX source by harvesting the build output
-          # Create a WXS file that includes all files from the build directory
-          $filesXml = ""
-          $componentRefs = ""
+          # Build directory tree and file components
           $counter = 0
-          Get-ChildItem -Path $buildDir -Recurse -File | ForEach-Object {
-            $counter++
-            $id = "File$counter"
-            $compId = "Comp$counter"
-            $relativePath = $_.FullName
-            $filesXml += "        <Component Id='$compId' Guid='*'>`n"
-            $filesXml += "          <File Id='$id' Source='$relativePath' KeyPath='yes' />`n"
-            $filesXml += "        </Component>`n"
-            $componentRefs += "      <ComponentRef Id='$compId' />`n"
+          $componentRefs = ""
+
+          function Build-DirectoryXml($dirPath, $indent) {
+            $xml = ""
+            $script:counter++
+            $files = Get-ChildItem -Path $dirPath -File
+            foreach ($file in $files) {
+              $script:counter++
+              $fileId = "File$($script:counter)"
+              $compId = "Comp$($script:counter)"
+              $source = $file.FullName
+
+              if ($file.Name -eq $exeName) {
+                # Main exe component - include shortcut
+                $xml += "$indent<Component Id='$compId' Guid='*'>`n"
+                $xml += "$indent  <File Id='MainExe' Source='$source' KeyPath='yes' />`n"
+                $xml += "$indent  <Shortcut Id='StartMenuShortcut' Directory='ProgramMenuFolder' Name='$appName' WorkingDirectory='INSTALLFOLDER' Icon='AppIcon' IconIndex='0' Advertise='yes' />`n"
+                $xml += "$indent</Component>`n"
+              } else {
+                $xml += "$indent<Component Id='$compId' Guid='*'>`n"
+                $xml += "$indent  <File Id='$fileId' Source='$source' KeyPath='yes' />`n"
+                $xml += "$indent</Component>`n"
+              }
+              $script:componentRefs += "      <ComponentRef Id='$compId' />`n"
+            }
+
+            $subdirs = Get-ChildItem -Path $dirPath -Directory
+            foreach ($subdir in $subdirs) {
+              $script:counter++
+              $dirId = "Dir$($script:counter)"
+              $xml += "$indent<Directory Id='$dirId' Name='$($subdir.Name)'>`n"
+              $xml += (Build-DirectoryXml $subdir.FullName "$indent  ")
+              $xml += "$indent</Directory>`n"
+            }
+            return $xml
           }
+
+          $directoryContent = Build-DirectoryXml $buildDir "          "
 
           $wxsContent = @"
           <?xml version='1.0' encoding='UTF-8'?>
@@ -76,7 +101,7 @@ jobs:
 
               <StandardDirectory Id='ProgramFiles6432Folder'>
                 <Directory Id='INSTALLFOLDER' Name='$appName'>
-          $filesXml
+          $directoryContent
                 </Directory>
               </StandardDirectory>
 
