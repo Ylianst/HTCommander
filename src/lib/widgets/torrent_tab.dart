@@ -4,11 +4,14 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../dialogs/add_torrent_file_dialog.dart';
@@ -172,6 +175,10 @@ class _TorrentTabState extends State<TorrentTab>
   final List<int> _connectedRadios = [];
   final Map<int, RadioLockState> _lockStates = {};
 
+  // Pending request for reassembled file bytes (used on web/mobile where the
+  // file picker needs the bytes up front to save the file itself).
+  Completer<Uint8List?>? _pendingFileDataCompleter;
+
   bool _showDetails = true;
   bool _dragging = false;
   int _sortColumnIndex = 0;
@@ -202,6 +209,11 @@ class _TorrentTabState extends State<TorrentTab>
       deviceId: 0,
       name: 'TorrentSaveFileResult',
       callback: _onSaveFileResult,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'TorrentFileDataResult',
+      callback: _onFileDataResult,
     );
     _broker.subscribe(
       deviceId: 1,
@@ -278,6 +290,25 @@ class _TorrentTabState extends State<TorrentTab>
       messenger.showSnackBar(
         SnackBar(content: Text('Error saving file: $error')),
       );
+    }
+  }
+
+  /// Receives the reassembled file bytes requested by [_requestFileData].
+  void _onFileDataResult(int deviceId, String name, Object? data) {
+    final completer = _pendingFileDataCompleter;
+    if (completer == null || completer.isCompleted) return;
+    _pendingFileDataCompleter = null;
+    if (data is Map && ((data['Success'] as bool?) ?? false)) {
+      final bytes = data['Bytes'];
+      if (bytes is Uint8List) {
+        completer.complete(bytes);
+      } else if (bytes is List<int>) {
+        completer.complete(Uint8List.fromList(bytes));
+      } else {
+        completer.complete(null);
+      }
+    } else {
+      completer.complete(null);
     }
   }
 
@@ -422,6 +453,48 @@ class _TorrentTabState extends State<TorrentTab>
 
   Future<void> _onSaveAs(_TorrentView view) async {
     if (!view.completed) return;
+
+    // On web and mobile the OS file picker writes the file itself and needs the
+    // bytes up front, so ask the handler (which owns the blocks) to reassemble
+    // them first. On desktop the picker only returns a path and the handler
+    // performs the write.
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
+    if (needsBytes) {
+      final bytes = await _requestFileData(view);
+      if (bytes == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error saving file: file data not available'),
+            ),
+          );
+        }
+        return;
+      }
+      String? result;
+      try {
+        result = await FilePicker.saveFile(
+          dialogTitle: 'Save Torrent File',
+          fileName: view.fileName,
+          bytes: bytes,
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error saving file: $e')));
+        }
+        return;
+      }
+      if (result == null) return; // Cancelled.
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('File saved.')));
+      }
+      return;
+    }
+
     final path = await FilePicker.saveFile(
       dialogTitle: 'Save Torrent File',
       fileName: view.fileName,
@@ -433,6 +506,21 @@ class _TorrentTabState extends State<TorrentTab>
       data: {'FileId': view.id, 'Path': path},
       store: false,
     );
+  }
+
+  /// Asks the handler for the reassembled bytes of [view]'s file. Resolves to
+  /// `null` if the data is unavailable.
+  Future<Uint8List?> _requestFileData(_TorrentView view) {
+    _pendingFileDataCompleter?.complete(null);
+    final completer = Completer<Uint8List?>();
+    _pendingFileDataCompleter = completer;
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'TorrentGetFileData',
+      data: {'FileId': view.id},
+      store: false,
+    );
+    return completer.future;
   }
 
   Future<void> _onDelete(_TorrentView view) async {

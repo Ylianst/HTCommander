@@ -114,6 +114,11 @@ class TorrentHandler {
       name: 'TorrentSaveFile',
       callback: _onSaveFile,
     );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'TorrentGetFileData',
+      callback: _onGetFileData,
+    );
 
     files.addAll(_loadPersistedFiles());
 
@@ -218,6 +223,46 @@ class TorrentHandler {
       _broker.logError('[Torrent] Failed to save ${file.fileName}: $e');
       publishResult(success: false, error: e.toString());
     }
+  }
+
+  /// Returns the reassembled bytes of a completed file to the UI. Used on
+  /// web/mobile where the platform file picker writes the file itself and needs
+  /// the bytes up front (it cannot hand back a writable filesystem path).
+  ///
+  /// [data] is a `Map` with `FileId` (id bytes / base64). The result is
+  /// published on `TorrentFileDataResult` as a `Map` with `FileId`, `Bytes`,
+  /// `Success` and an optional `Error`.
+  void _onGetFileData(int deviceId, String name, Object? data) {
+    if (data is! Map) return;
+    final id = _extractId(data, 'FileId');
+
+    void publishResult({Uint8List? bytes, String? error}) {
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'TorrentFileDataResult',
+        data: {
+          'FileId': data['FileId'],
+          'Bytes': bytes,
+          'Success': bytes != null,
+          'Error': ?error,
+        },
+        store: false,
+      );
+    }
+
+    final file = id == null
+        ? null
+        : (_findById(files, id) ?? _findById(stations, id));
+    if (file == null) {
+      publishResult(error: 'File not found');
+      return;
+    }
+    final bytes = file.getFileData();
+    if (bytes == null) {
+      publishResult(error: 'File data not available');
+      return;
+    }
+    publishResult(bytes: bytes);
   }
 
   // ---------------------------------------------------------------------------

@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'dialogs/about_dialog.dart';
+import 'dialogs/import_channels_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/radio_info_dialog.dart';
 import 'dialogs/settings_dialog.dart';
@@ -31,6 +32,8 @@ import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
 import 'services/window_service.dart';
 import 'utils/channel_export.dart';
+import 'utils/channel_import.dart';
+import 'radio/radio_models.dart' show RadioChannelInfo;
 import 'winlink/mail_store.dart';
 import 'winlink/winlink_client.dart';
 import 'widgets/radio_panel.dart';
@@ -1013,30 +1016,29 @@ class _MainFormState extends State<MainForm>
         ? 'channels.csv'
         : 'channels_chirp.csv';
 
+    // Web and mobile require the bytes up front (the picker writes the file
+    // itself); desktop returns a path that we write to ourselves.
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
+
     // Show the save dialog and write the file.
     try {
-      if (kIsWeb) {
-        // On the web the file is delivered as a download via the bytes payload.
-        await FilePicker.saveFile(
-          dialogTitle: 'Export Channels',
-          fileName: defaultFileName,
-          bytes: utf8.encode(content),
-        );
-        return;
-      }
-
       final outputPath = await FilePicker.saveFile(
         dialogTitle: 'Export Channels',
         fileName: defaultFileName,
-        type: FileType.custom,
-        allowedExtensions: const ['csv'],
+        type: needsBytes ? FileType.any : FileType.custom,
+        allowedExtensions: needsBytes ? null : const ['csv'],
+        bytes: needsBytes ? Uint8List.fromList(utf8.encode(content)) : null,
       );
       if (outputPath == null) return; // Cancelled.
 
-      await File(outputPath).writeAsString(content);
+      // On desktop the picker only returns a path, so we still write the file.
+      // On web/mobile the bytes were already written by the picker.
+      if (!needsBytes) {
+        await File(outputPath).writeAsString(content);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Channels exported to $outputPath')),
+        SnackBar(content: Text('Channels exported to $defaultFileName')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -1044,6 +1046,82 @@ class _MainFormState extends State<MainForm>
         context,
       ).showSnackBar(SnackBar(content: Text('Error exporting channels: $e')));
     }
+  }
+
+  /// Import channels from a CSV file (CHIRP, native HTCommander, or Repeater
+  /// Book format) and open the import dialog so the user can assign them to the
+  /// radio's channel slots.
+  ///
+  /// Mirrors `importChannelsToolStripMenuItem_Click` in the C# MainForm.
+  Future<void> _onImportChannels() async {
+    final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+
+    // Read the radio's existing channels (the right column of the dialog).
+    final raw = _broker.getValueDynamic(_currentRadioDeviceId, 'Channels');
+    final radioChannels = (raw is List)
+        ? raw
+              .whereType<Map>()
+              .map((m) => RadioChannelInfo.fromJson(m.cast<String, dynamic>()))
+              .toList()
+        : <RadioChannelInfo>[];
+
+    // Pick a CSV file. Request the bytes directly so it works on web and
+    // mobile, where a filesystem path may not be available.
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.pickFiles(
+        dialogTitle: 'Import Channels',
+        type: FileType.any,
+        withData: true,
+      );
+    } catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Error opening file dialog: $e')),
+      );
+      return;
+    }
+
+    if (result == null || result.files.isEmpty) return; // Cancelled.
+
+    final file = result.files.single;
+    String? content;
+    try {
+      if (file.bytes != null) {
+        content = utf8.decode(file.bytes!, allowMalformed: true);
+      } else if (!kIsWeb && file.path != null) {
+        content = await File(file.path!).readAsString();
+      }
+    } catch (_) {
+      content = null;
+    }
+
+    if (content == null) {
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Could not read the selected file')),
+      );
+      return;
+    }
+
+    final importedChannels = ChannelImport.parseChannelsFromCsv(content);
+    if (importedChannels.isEmpty) {
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('No channels found in the selected file'),
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final radioName =
+        _broker.getValue<String>(_currentRadioDeviceId, 'FriendlyName', '');
+    await showImportChannelsDialog(
+      context,
+      deviceId: _currentRadioDeviceId,
+      radioName: radioName,
+      importedChannels: importedChannels,
+      radioChannels: radioChannels,
+    );
   }
 
   /// Called when the connect button is pressed in RadioPanelControl.
@@ -1301,7 +1379,7 @@ class _MainFormState extends State<MainForm>
           ),
           AppMenuAction(
             label: 'Import Channels...',
-            onPressed: _hasConnectedRadio ? () {} : null,
+            onPressed: _hasConnectedRadio ? _onImportChannels : null,
           ),
           const AppMenuDivider(hideOnMacOS: true),
           AppMenuAction(
