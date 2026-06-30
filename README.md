@@ -45,6 +45,10 @@ The following are for desktop platforms only: Windows, Linux, macOS.
 - [Speech-to-Text](https://github.com/Ylianst/HTCommander/blob/main/docs/Voice.md). Converts speech-to-text and text-to-speech.
 - [AGWPE Protocol](https://github.com/Ylianst/HTCommander/blob/main/docs/Agwpe.md). Supports routing other application's traffic over the radio using the AGWPE protocol.
 
+### Web Version
+
+[HTCommander Web](https://ylianst.github.io/HTCommanderWeb/) will run on Chrome and Edge browsers. No audio support, but you can program channels, chat, send/receive APRS, Winlink and more.
+
 ### Installation
 
 I am working on this as I release HTCommander on various platforms.
