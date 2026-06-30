@@ -145,11 +145,15 @@ jobs:
 
       - name: Create DMG
         run: |
-          APP_PATH="src/build/macos/Build/Products/Release/htcommander.app"
+          # Find the .app bundle (name comes from Xcode PRODUCT_NAME)
+          APP_PATH=$(find src/build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          APP_NAME=$(basename "$APP_PATH")
           DMG_NAME="HTCommander.dmg"
           VOLUME_NAME="HTCommander"
           ICON_PATH="src/assets/images/AppIcon.png"
           STAGING_DIR="dmg_staging"
+
+          echo "Found app: $APP_PATH"
 
           # Create staging directory with app and Applications symlink
           mkdir -p "$STAGING_DIR/.background"
@@ -219,7 +223,7 @@ jobs:
               try
                 set background picture of theViewOptions to file ".background:background.png"
               end try
-              set position of item "htcommander.app" of container window to {150, 180}
+              set position of item "$APP_NAME" of container window to {150, 180}
               set position of item "Applications" of container window to {450, 180}
               close
               open
