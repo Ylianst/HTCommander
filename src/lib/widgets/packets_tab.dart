@@ -1,6 +1,8 @@
-import 'dart:io' show File;
+import 'dart:convert';
+import 'dart:io' show File, Platform;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -228,12 +230,17 @@ class _PacketsTabState extends State<PacketsTab>
     }
 
     String? outputPath;
+    final content = buffer.toString();
+    // Web and mobile require the bytes up front (the picker writes the file
+    // itself); desktop returns a path that we write to ourselves.
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
     try {
       outputPath = await FilePicker.saveFile(
         dialogTitle: 'Save Packet Capture',
-        fileName: 'packets',
-        type: FileType.custom,
-        allowedExtensions: const ['ptcap'],
+        fileName: needsBytes ? 'packets.ptcap' : 'packets',
+        type: needsBytes ? FileType.any : FileType.custom,
+        allowedExtensions: needsBytes ? null : const ['ptcap'],
+        bytes: needsBytes ? Uint8List.fromList(utf8.encode(content)) : null,
       );
     } catch (e) {
       if (mounted) {
@@ -246,8 +253,18 @@ class _PacketsTabState extends State<PacketsTab>
 
     if (outputPath == null) return;
 
+    // On web/mobile the bytes were already written by the picker.
+    if (needsBytes) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Packet capture saved')),
+        );
+      }
+      return;
+    }
+
     try {
-      await File(outputPath).writeAsString(buffer.toString());
+      await File(outputPath).writeAsString(content);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Packet capture saved to $outputPath')),
