@@ -120,8 +120,7 @@ jobs:
             <Package Name='$appDisplayName'
                      Manufacturer='HTCommander'
                      Version='1.0.0.0'
-                     UpgradeCode='6B29FC40-CA47-1067-B31D-00DD010662DA'
-                     Platform='x64'>
+                     UpgradeCode='6B29FC40-CA47-1067-B31D-00DD010662DA'>
 
               <MajorUpgrade DowngradeErrorMessage='A newer version of $appDisplayName is already installed.' />
               <MediaTemplate EmbedCab='yes' />
@@ -146,7 +145,7 @@ jobs:
           $wxsContent | Out-File -FilePath "installer.wxs" -Encoding UTF8
 
           # Build the MSI
-          wix build installer.wxs -o $msiOutput
+          wix build installer.wxs -arch x64 -o $msiOutput
 
       - name: Generate update package
         shell: pwsh
