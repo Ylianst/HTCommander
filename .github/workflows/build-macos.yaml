@@ -93,3 +93,13 @@ jobs:
         with:
           name: macos-build
           path: HTCommander.dmg
+
+      - name: Generate update manifest
+        working-directory: src
+        run: dart run desktop_updater:release publish --platform macos --no-upload
+
+      - name: Upload update manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-update-manifest
+          path: src/dist/desktop_updater/

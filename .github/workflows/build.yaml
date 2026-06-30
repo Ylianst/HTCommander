@@ -126,6 +126,17 @@ jobs:
           name: windows-build
           path: HTCommander.msi
 
+      - name: Generate update manifest
+        working-directory: src
+        shell: pwsh
+        run: dart run desktop_updater:release publish --platform windows --no-upload
+
+      - name: Upload update manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-update-manifest
+          path: src/dist/desktop_updater/
+
   build-linux:
     runs-on: ubuntu-latest
     steps:
@@ -153,6 +164,16 @@ jobs:
         with:
           name: linux-build
           path: src/build/linux/x64/release/bundle/
+
+      - name: Generate update manifest
+        working-directory: src
+        run: dart run desktop_updater:release publish --platform linux --no-upload
+
+      - name: Upload update manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-update-manifest
+          path: src/dist/desktop_updater/
 
   build-macos:
     runs-on: macos-26
@@ -243,6 +264,16 @@ jobs:
         with:
           name: macos-build
           path: HTCommander.dmg
+
+      - name: Generate update manifest
+        working-directory: src
+        run: dart run desktop_updater:release publish --platform macos --no-upload
+
+      - name: Upload update manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-update-manifest
+          path: src/dist/desktop_updater/
 
   build-ios:
     runs-on: macos-26
