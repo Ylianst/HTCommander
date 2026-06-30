@@ -34,6 +34,7 @@ import 'services/window_service.dart';
 import 'utils/channel_export.dart';
 import 'utils/channel_import.dart';
 import 'radio/radio_models.dart' show RadioChannelInfo;
+import 'services/update_service.dart';
 import 'winlink/mail_store.dart';
 import 'winlink/winlink_client.dart';
 import 'widgets/radio_panel.dart';
@@ -48,6 +49,7 @@ import 'widgets/contacts_tab.dart';
 import 'widgets/bbs_tab.dart';
 import 'widgets/torrent_tab.dart';
 import 'widgets/packets_tab.dart';
+import 'dialogs/update_dialog.dart';
 import 'widgets/debug_tab.dart';
 
 void main(List<String> args) async {
@@ -161,6 +163,10 @@ void main(List<String> args) async {
     webServerHandler.init();
     DataBroker.addDataHandler('WebServerHandler', webServerHandler);
   }
+
+  // Initialize the desktop self-update service (desktop only) so that users
+  // can check for and install application updates from the Help menu.
+  UpdateService.instance.init();
 
   // Check if this is a sub-window on desktop platforms
   if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
@@ -1525,6 +1531,11 @@ class _MainFormState extends State<MainForm>
           if (_hasGpsConfigured)
             AppMenuAction(label: 'GPS Information...', onPressed: () {}),
           const AppMenuDivider(),
+          if (UpdateService.instance.isSupported)
+            AppMenuAction(
+              label: 'Check for Updates...',
+              onPressed: _onCheckForUpdates,
+            ),
           AppMenuAction(
             label: 'About...',
             onPressed: _onAbout,
@@ -2453,6 +2464,12 @@ class _MainFormState extends State<MainForm>
       _loadSettingsFromBroker();
       setState(() {});
     }
+  }
+
+  void _onCheckForUpdates() {
+    _broker.logInfo('Opening Check for Updates dialog');
+    showDialog(
+        context: context, builder: (context) => const UpdateDialog());
   }
 
   void _onAbout() {
