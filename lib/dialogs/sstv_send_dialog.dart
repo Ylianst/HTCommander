@@ -162,9 +162,11 @@ class _SstvSendDialogState extends State<SstvSendDialog> {
     final maxPreviewHeight = (media.size.height * 0.5).clamp(180.0, 480.0);
 
     return Dialog(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxPreviewWidth + 40),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -274,6 +276,7 @@ class _SstvSendDialogState extends State<SstvSendDialog> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

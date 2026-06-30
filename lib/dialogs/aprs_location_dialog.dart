@@ -145,7 +145,7 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
                       TileLayer(
                         urlTemplate:
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.htcommander.app',
+                        userAgentPackageName: 'HTCommander/1.0 (amateur-radio-app; github.com/Ylianst/HTCommander)',
                         tileProvider: _tileProvider,
                       ),
                       MarkerLayer(

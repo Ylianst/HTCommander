@@ -69,29 +69,27 @@ class HTAboutDialog extends StatelessWidget {
                                   'Open Source, Apache 2.0 License',
                                   style: TextStyle(fontSize: 13),
                                 ),
-                                const SizedBox(height: 4),
-                                _buildLink('github.com/Ylianst/HTCommander'),
                                 const SizedBox(height: 12),
-                                // BenLink credit
-                                const Text(
+                                _buildAttribution(
+                                  'Handi-Talkie Commander',
+                                  'https://github.com/Ylianst/HTCommander',
+                                ),
+                                _buildAttribution(
                                   'Based on BenLink by Kyle Husmann, KC3SLD',
-                                  style: TextStyle(fontSize: 13),
+                                  'https://github.com/khusmann/benlink',
                                 ),
-                                _buildLink('github.com/khusmann/benlink'),
-                                const SizedBox(height: 12),
-                                // Direwolf credit
-                                const Text(
+                                _buildAttribution(
                                   'Uses ported code from WB2OSZ',
-                                  style: TextStyle(fontSize: 13),
+                                  'https://github.com/wb2osz/direwolf',
                                 ),
-                                _buildLink('github.com/wb2osz/direwolf'),
-                                const SizedBox(height: 12),
-                                // APRS-Parser credit
-                                const Text(
+                                _buildAttribution(
                                   'Uses APRS-Parser by Lee, K0QED',
-                                  style: TextStyle(fontSize: 13),
+                                  'https://github.com/k0qed/aprs-parser',
                                 ),
-                                _buildLink('github.com/k0qed/aprs-parser'),
+                                _buildAttribution(
+                                  'Map data provided by OpenStreetMap, the project\nthat creates and distributes free geographic\ndata for the world.',
+                                  'https://openstreetmap.org',
+                                ),
                               ],
                             ),
                           ),
@@ -117,16 +115,26 @@ class HTAboutDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildLink(String url) {
-    return InkWell(
-      onTap: () => _launchUrl('https://$url'),
-      child: Text(
-        url,
-        style: const TextStyle(
-          fontSize: 13,
-          color: Colors.blue,
-          decoration: TextDecoration.underline,
-        ),
+  Widget _buildAttribution(String label, String url) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => _launchUrl(url),
+            child: const Padding(
+              padding: EdgeInsets.only(right: 6, top: 1),
+              child: Icon(Icons.link, size: 16, color: Colors.blue),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }
