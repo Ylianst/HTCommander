@@ -212,6 +212,124 @@ jobs:
         working-directory: src
         run: flutter build linux --release
 
+      - name: Package tar.gz
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd src/build/linux/x64/release/bundle
+          tar -czf "$GITHUB_WORKSPACE/htcommander-linux-x64.tar.gz" .
+
+      - name: Package .deb
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG_DIR="htcommander-deb"
+          mkdir -p "$PKG_DIR/DEBIAN"
+          mkdir -p "$PKG_DIR/usr/lib/htcommander"
+          mkdir -p "$PKG_DIR/usr/bin"
+          mkdir -p "$PKG_DIR/usr/share/applications"
+          mkdir -p "$PKG_DIR/usr/share/icons/hicolor/256x256/apps"
+
+          cp -r src/build/linux/x64/release/bundle/* "$PKG_DIR/usr/lib/htcommander/"
+          ln -sf /usr/lib/htcommander/htcommander "$PKG_DIR/usr/bin/htcommander"
+
+          cat > "$PKG_DIR/usr/share/applications/htcommander.desktop" <<EOF
+          [Desktop Entry]
+          Name=HTCommander
+          Comment=Amateur Radio tool for UV-Pro, GA-5WB, VR-N76, VR-N7500 and compatible radios
+          Exec=/usr/bin/htcommander
+          Icon=htcommander
+          Type=Application
+          Categories=Utility;HamRadio;
+          Terminal=false
+          EOF
+          sed -i 's/^          //' "$PKG_DIR/usr/share/applications/htcommander.desktop"
+
+          cp src/assets/images/AppIcon.png "$PKG_DIR/usr/share/icons/hicolor/256x256/apps/htcommander.png"
+
+          cat > "$PKG_DIR/DEBIAN/control" <<EOF
+          Package: htcommander
+          Version: ${VERSION}
+          Section: hamradio
+          Priority: optional
+          Architecture: amd64
+          Depends: libgtk-3-0, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, libbluetooth3, libserialport0
+          Maintainer: HTCommander <htcommander@users.noreply.github.com>
+          Description: Handi-Talky Commander
+           Amateur Radio (HAM Radio) tool for the UV-Pro, GA-5WB, VR-N76,
+           VR-N7500 and compatible radios.
+          EOF
+          sed -i 's/^          //' "$PKG_DIR/DEBIAN/control"
+
+          dpkg-deb --build "$PKG_DIR" "htcommander-linux-x64.deb"
+
+      - name: Package .rpm
+        run: |
+          sudo apt-get install -y rpm
+          VERSION="${{ steps.version.outputs.version }}"
+
+          mkdir -p rpmbuild/{SPECS,BUILDROOT}
+          BUILDROOT="$GITHUB_WORKSPACE/rpmbuild/BUILDROOT"
+
+          mkdir -p "$BUILDROOT/usr/lib/htcommander"
+          mkdir -p "$BUILDROOT/usr/bin"
+          mkdir -p "$BUILDROOT/usr/share/applications"
+          mkdir -p "$BUILDROOT/usr/share/icons/hicolor/256x256/apps"
+
+          cp -r src/build/linux/x64/release/bundle/* "$BUILDROOT/usr/lib/htcommander/"
+          ln -sf /usr/lib/htcommander/htcommander "$BUILDROOT/usr/bin/htcommander"
+          cp src/assets/images/AppIcon.png "$BUILDROOT/usr/share/icons/hicolor/256x256/apps/htcommander.png"
+
+          cat > "$BUILDROOT/usr/share/applications/htcommander.desktop" <<EOF
+          [Desktop Entry]
+          Name=HTCommander
+          Comment=Amateur Radio tool for UV-Pro, GA-5WB, VR-N76, VR-N7500 and compatible radios
+          Exec=/usr/bin/htcommander
+          Icon=htcommander
+          Type=Application
+          Categories=Utility;HamRadio;
+          Terminal=false
+          EOF
+          sed -i 's/^          //' "$BUILDROOT/usr/share/applications/htcommander.desktop"
+
+          cat > rpmbuild/SPECS/htcommander.spec <<EOF
+          Name: htcommander
+          Version: ${VERSION}
+          Release: 1
+          Summary: Handi-Talky Commander
+          License: MIT
+          URL: https://github.com/ylianst/HTCommander
+          AutoReqProv: no
+          Requires: gtk3, gstreamer1, gstreamer1-plugins-base, bluez-libs
+
+          %description
+          Amateur Radio (HAM Radio) tool for the UV-Pro, GA-5WB, VR-N76,
+          VR-N7500 and compatible radios.
+
+          %install
+          cp -r %{_topdir}/BUILDROOT/* %{buildroot}/
+
+          %files
+          /usr/lib/htcommander/
+          /usr/bin/htcommander
+          /usr/share/applications/htcommander.desktop
+          /usr/share/icons/hicolor/256x256/apps/htcommander.png
+          EOF
+          sed -i 's/^          //' rpmbuild/SPECS/htcommander.spec
+
+          rpmbuild -bb rpmbuild/SPECS/htcommander.spec \
+            --define "_topdir $GITHUB_WORKSPACE/rpmbuild" \
+            --buildroot "$BUILDROOT"
+
+          cp rpmbuild/RPMS/x86_64/*.rpm htcommander-linux-x64.rpm
+
+      - name: Upload Linux packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-packages
+          path: |
+            htcommander-linux-x64.tar.gz
+            htcommander-linux-x64.deb
+            htcommander-linux-x64.rpm
+
       - name: Generate update package
         working-directory: src
         run: |
@@ -427,6 +545,9 @@ jobs:
           files: |
             artifacts/windows-msi/HTCommander.msi
             artifacts/macos-dmg/HTCommander.dmg
+            artifacts/linux-packages/htcommander-linux-x64.tar.gz
+            artifacts/linux-packages/htcommander-linux-x64.deb
+            artifacts/linux-packages/htcommander-linux-x64.rpm
 
       - name: Deploy update site to docs folder
         run: |
