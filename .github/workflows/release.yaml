@@ -75,19 +75,8 @@ jobs:
           $appDisplayName = "Handi-Talky Commander"
           $appName = "HTCommander"
           $exeName = "htcommander.exe"
-          $iconPath = "src\assets\images\AppIcon.png"
+          $icoPath = "$PWD\src\htcommander.ico"
           $msiOutput = "HTCommander.msi"
-
-          # Convert PNG to ICO using PowerShell
-          Add-Type -AssemblyName System.Drawing
-          $png = [System.Drawing.Image]::FromFile("$PWD\$iconPath")
-          $icon = [System.Drawing.Icon]::FromHandle($png.GetHicon())
-          $icoPath = "$PWD\app.ico"
-          $fs = [System.IO.File]::Create($icoPath)
-          $icon.Save($fs)
-          $fs.Close()
-          $icon.Dispose()
-          $png.Dispose()
 
           # Build directory tree and file components
           $counter = 0
