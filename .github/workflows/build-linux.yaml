@@ -86,19 +86,19 @@ jobs:
           sudo apt-get install -y rpm
           VERSION="0.1.0"
 
-          mkdir -p rpmbuild/{SPECS,BUILDROOT}
-          BUILDROOT="$GITHUB_WORKSPACE/rpmbuild/BUILDROOT"
+          mkdir -p rpmbuild/{SPECS,STAGING}
+          STAGING="$GITHUB_WORKSPACE/rpmbuild/STAGING"
 
-          mkdir -p "$BUILDROOT/usr/lib/htcommander"
-          mkdir -p "$BUILDROOT/usr/bin"
-          mkdir -p "$BUILDROOT/usr/share/applications"
-          mkdir -p "$BUILDROOT/usr/share/icons/hicolor/256x256/apps"
+          mkdir -p "$STAGING/usr/lib/htcommander"
+          mkdir -p "$STAGING/usr/bin"
+          mkdir -p "$STAGING/usr/share/applications"
+          mkdir -p "$STAGING/usr/share/icons/hicolor/256x256/apps"
 
-          cp -r src/build/linux/x64/release/bundle/* "$BUILDROOT/usr/lib/htcommander/"
-          ln -sf /usr/lib/htcommander/htcommander "$BUILDROOT/usr/bin/htcommander"
-          cp src/assets/images/AppIcon.png "$BUILDROOT/usr/share/icons/hicolor/256x256/apps/htcommander.png"
+          cp -r src/build/linux/x64/release/bundle/* "$STAGING/usr/lib/htcommander/"
+          ln -sf /usr/lib/htcommander/htcommander "$STAGING/usr/bin/htcommander"
+          cp src/assets/images/AppIcon.png "$STAGING/usr/share/icons/hicolor/256x256/apps/htcommander.png"
 
-          cat > "$BUILDROOT/usr/share/applications/htcommander.desktop" <<EOF
+          cat > "$STAGING/usr/share/applications/htcommander.desktop" <<EOF
           [Desktop Entry]
           Name=HTCommander
           Comment=Amateur Radio tool for UV-Pro, GA-5WB, VR-N76, VR-N7500 and compatible radios
@@ -108,7 +108,7 @@ jobs:
           Categories=Utility;HamRadio;
           Terminal=false
           EOF
-          sed -i 's/^          //' "$BUILDROOT/usr/share/applications/htcommander.desktop"
+          sed -i 's/^          //' "$STAGING/usr/share/applications/htcommander.desktop"
 
           cat > rpmbuild/SPECS/htcommander.spec <<EOF
           Name: htcommander
@@ -125,7 +125,7 @@ jobs:
           VR-N7500 and compatible radios.
 
           %install
-          cp -r %{_topdir}/BUILDROOT/* %{buildroot}/
+          cp -r %{_topdir}/STAGING/* %{buildroot}/
 
           %files
           /usr/lib/htcommander/
@@ -136,8 +136,7 @@ jobs:
           sed -i 's/^          //' rpmbuild/SPECS/htcommander.spec
 
           rpmbuild -bb rpmbuild/SPECS/htcommander.spec \
-            --define "_topdir $GITHUB_WORKSPACE/rpmbuild" \
-            --buildroot "$BUILDROOT"
+            --define "_topdir $GITHUB_WORKSPACE/rpmbuild"
 
           cp rpmbuild/RPMS/x86_64/*.rpm htcommander-linux-x64.rpm
 
