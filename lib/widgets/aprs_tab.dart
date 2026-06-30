@@ -112,6 +112,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   bool _hasAprsChannel = false;
   bool _showMissingChannel = false;
 
+  // Beacon banner state.
+  int _beaconInterval = 0; // seconds; 0 = off
+  bool _beaconOnCurrentChannel = false;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -186,7 +190,20 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
       callback: _onChannelStateChanged,
     );
 
+    // Subscribe to beacon-related settings changes.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'BssSettings',
+      callback: _onBeaconStateChanged,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Settings',
+      callback: _onBeaconStateChanged,
+    );
+
     _recomputeChannelState();
+    _recomputeBeaconState();
 
     // Request the historical APRS packet list.
     _broker.dispatch(
@@ -275,6 +292,43 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
 
   void _onChannelStateChanged(int deviceId, String name, Object? data) {
     _recomputeChannelState();
+  }
+
+  void _onBeaconStateChanged(int deviceId, String name, Object? data) {
+    _recomputeBeaconState();
+  }
+
+  void _recomputeBeaconState() {
+    int interval = 0;
+    bool onCurrent = false;
+    for (final id in _connectedRadioDeviceIds()) {
+      final bss = _broker.getJsonValue<RadioBssSettings>(
+        id,
+        'BssSettings',
+        (json) => RadioBssSettings.fromJson(json),
+      );
+      final settings = _broker.getJsonValue<RadioSettings>(
+        id,
+        'Settings',
+        (json) => RadioSettings.fromJson(json),
+      );
+      if (bss != null && bss.locationShareInterval > 0) {
+        interval = bss.locationShareInterval;
+        onCurrent = (settings?.autoShareLocCh ?? 0) == 0;
+        break;
+      }
+    }
+    if (interval != _beaconInterval || onCurrent != _beaconOnCurrentChannel) {
+      if (!mounted) {
+        _beaconInterval = interval;
+        _beaconOnCurrentChannel = onCurrent;
+        return;
+      }
+      setState(() {
+        _beaconInterval = interval;
+        _beaconOnCurrentChannel = onCurrent;
+      });
+    }
   }
 
   List<int> _connectedRadioDeviceIds() {
@@ -1048,6 +1102,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     return Column(
       children: [
         _buildHeader(),
+        if (_beaconInterval > 0) _buildBeaconBanner(),
         if (_showMissingChannel) _buildMissingChannelBanner(),
         Expanded(
           child: ChatWidget(
@@ -1059,6 +1114,53 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         if (_allowTransmit) _buildInputPanel(),
       ],
     );
+  }
+
+  Widget _buildBeaconBanner() {
+    final bool isWarning = _beaconOnCurrentChannel;
+    final Color bgColor =
+        isWarning ? const Color(0xFFF8D7DA) : const Color(0xFFD4EDDA);
+    final Color fgColor =
+        isWarning ? const Color(0xFF721C24) : const Color(0xFF155724);
+    final IconData icon =
+        isWarning ? Icons.warning_amber : Icons.info_outline;
+    final String message = isWarning
+        ? 'Beaconing is enabled on the current channel which is not recommended.'
+        : 'Radio beacon is active, interval: ${_formatBeaconInterval(_beaconInterval)}.';
+
+    return Container(
+      width: double.infinity,
+      color: bgColor,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: fgColor, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: fgColor, fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () => showEditBeaconSettingsDialog(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: fgColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            child: const Text('Beacon Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatBeaconInterval(int seconds) {
+    if (seconds < 60) return '$seconds seconds';
+    final minutes = seconds ~/ 60;
+    return minutes == 1 ? '1 minute' : '$minutes minutes';
   }
 
   Widget _buildMissingChannelBanner() {
