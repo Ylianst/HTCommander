@@ -86,8 +86,8 @@ jobs:
           sudo apt-get install -y rpm
           VERSION="0.1.0"
 
-          mkdir -p rpmbuild/{SPECS,STAGING}
-          STAGING="$GITHUB_WORKSPACE/rpmbuild/STAGING"
+          mkdir -p rpmbuild/SPECS
+          STAGING="$GITHUB_WORKSPACE/rpm-staging"
 
           mkdir -p "$STAGING/usr/lib/htcommander"
           mkdir -p "$STAGING/usr/bin"
@@ -125,7 +125,7 @@ jobs:
           VR-N7500 and compatible radios.
 
           %install
-          cp -r %{_topdir}/STAGING/* %{buildroot}/
+          cp -r %{_staging}/* %{buildroot}/
 
           %files
           /usr/lib/htcommander/
@@ -136,7 +136,8 @@ jobs:
           sed -i 's/^          //' rpmbuild/SPECS/htcommander.spec
 
           rpmbuild -bb rpmbuild/SPECS/htcommander.spec \
-            --define "_topdir $GITHUB_WORKSPACE/rpmbuild"
+            --define "_topdir $GITHUB_WORKSPACE/rpmbuild" \
+            --define "_staging $GITHUB_WORKSPACE/rpm-staging"
 
           cp rpmbuild/RPMS/x86_64/*.rpm htcommander-linux-x64.rpm
 
