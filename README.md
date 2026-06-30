@@ -1,3 +1,6 @@
+> [!NOTE]
+> This is the new multi-platform version of HTCommander. I am working to make it available on all platforms in the coming days. The old version is at [HTCommander](https://github.com/Ylianst/HTCommanderLegacy)
+
 # Handi-Talky Commander
 
 This is a Amateur Radio (HAM Radio) multiplatform tool for the UV-Pro, UV-50Pro, GA-5WB, VR-N75, VR-N76, VR-N7500, VR-N7600 radios that works on Windows, macOS, Linux, iOS, Android and web as long as you have Bluetooth support. It allows for easy control over the radio with range of feature including channel programming, APRS, WinLink, terminal, torrent file transfer, BBS and more. On some platforms you also have audio support along with speech-to-text and text-to-speech.
@@ -17,6 +20,7 @@ The following radios should work with this application:
 ### Installation
 
 - [Web Version](https://ylianst.github.io/HTCommanderWeb/) will run on browsers with Bluetooth support (Chrome & Edge). Limited features and no audio, but you can program channels, chat, send/receive APRS, Winlink and more.
+- I am working on releasing to other platforms now.
 
 ### Features
 
