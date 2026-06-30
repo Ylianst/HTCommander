@@ -125,14 +125,3 @@ jobs:
         with:
           name: windows-build
           path: HTCommander.msi
-
-      - name: Generate update manifest
-        working-directory: src
-        shell: pwsh
-        run: dart run desktop_updater:release publish --platform windows --no-upload
-
-      - name: Upload update manifest
-        uses: actions/upload-artifact@v7
-        with:
-          name: windows-update-manifest
-          path: src/dist/desktop_updater/
