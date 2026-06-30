@@ -9,19 +9,18 @@ An Amateur radio license is required to transmit using this software. You can ge
 
 The following radios should work with this application:
 
-- BTech UV-Pro
-- BTech UV-50Pro (untested)
-- Radioddity GA-5WB (untested)
-- Radioddity DB50-B Mini
-- Radtel RT-660 (Contact Developers)
-- Vero VR-N75
-- Vero VR-N76 (untested)
-- Vero VR-N7500 (untested)
-- Vero VR-N7600
+- BTech UV-Pro, UV-50Pro
+- Radioddity GA-5WB, DB50-B Mini
+- Vero VR-N75, VR-N76, VR-N7500, VR-N7600
+- Radtel RT-660
+
+### Installation
+
+- [Web Version](https://ylianst.github.io/HTCommanderWeb/) will run on browsers with Bluetooth support (Chrome & Edge). Limited features and no audio, but you can program channels, chat, send/receive APRS, Winlink and more.
 
 ### Features
 
-Handi-Talky Commander has a lot of features. There are the features available on all platforms.
+Handi-Talky Commander has a lot of features. There are the features available on all platforms:
 
 - [Channel Programming](https://github.com/Ylianst/HTCommander/blob/main/docs/Channels.md). Configure, import, export and drag & drop channels to create the perfect configuration for your usages.
 - [APRS support](https://github.com/Ylianst/HTCommander/blob/main/docs/APRS.md). You can receive and sent APRS messages, set APRS routes, send [SMS message](https://github.com/Ylianst/HTCommander/blob/main/docs/APRS-SMS.md) to normal phones, request [weather reports](https://github.com/Ylianst/HTCommander/blob/main/docs/APRS-Weather.md), send [authenticated messages](https://github.com/Ylianst/HTCommander/blob/main/docs/APRS-Auth.md), get details on each APRS message.
@@ -44,14 +43,6 @@ The following are for desktop platforms only: Windows, Linux, macOS.
 
 - [Speech-to-Text](https://github.com/Ylianst/HTCommander/blob/main/docs/Voice.md). Converts speech-to-text and text-to-speech.
 - [AGWPE Protocol](https://github.com/Ylianst/HTCommander/blob/main/docs/Agwpe.md). Supports routing other application's traffic over the radio using the AGWPE protocol.
-
-### Web Version
-
-[HTCommander Web](https://ylianst.github.io/HTCommanderWeb/) will run on Chrome and Edge browsers. No audio support, but you can program channels, chat, send/receive APRS, Winlink and more.
-
-### Installation
-
-I am working on this as I release HTCommander on various platforms.
 
 ### Demonstration Video
 
