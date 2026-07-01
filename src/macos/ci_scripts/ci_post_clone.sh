@@ -29,6 +29,11 @@ flutter precache --macos
 # flutter pub get generates macos/Flutter/ephemeral/ including FlutterGeneratedPluginSwiftPackage.
 flutter pub get
 
+# Generate the xcfilelist files needed by the Flutter Assemble build phase.
+# These are normally created by 'flutter build' but are required before Xcode runs.
+touch macos/Flutter/ephemeral/FlutterInputs.xcfilelist
+touch macos/Flutter/ephemeral/FlutterOutputs.xcfilelist
+
 # Install CocoaPods dependencies (window_manager, desktop_multi_window, etc.)
 # This must run after flutter pub get which generates Flutter-Generated.xcconfig.
 echo "Running pod install..."
