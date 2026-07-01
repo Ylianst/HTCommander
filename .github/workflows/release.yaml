@@ -404,7 +404,11 @@ jobs:
         run: |
           # CI can't use Xcode automatic signing (no "Mac Development" cert),
           # so build unsigned here and sign with Developer ID + notarize below.
-          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' macos/Runner.xcodeproj/project.pbxproj
+          sed -i '' \
+            -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' \
+            -e 's/DEVELOPMENT_TEAM = CQ575Z873Y;/DEVELOPMENT_TEAM = "";/g' \
+            -e 's/"CODE_SIGN_IDENTITY\[sdk=macosx\*\]" = "Apple Development";/"CODE_SIGN_IDENTITY[sdk=macosx*]" = "";/g' \
+            macos/Runner.xcodeproj/project.pbxproj
           {
             echo 'CODE_SIGN_IDENTITY='
             echo 'CODE_SIGNING_REQUIRED=NO'
