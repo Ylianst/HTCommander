@@ -72,5 +72,7 @@
 	<string>HTCommander needs Bluetooth to connect to your radio.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>HTCommander uses speech recognition to transcribe received radio audio into text.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HTCommander needs access to your photo library so you can select and send images.</string>
 </dict>
 </plist>
