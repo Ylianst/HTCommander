@@ -19,8 +19,11 @@ The following radios should work with this application:
 
 ### Installation
 
+- [Windows Installer (.msi)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.msi)
+- [macOS Installer (.dmg)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.dmg)
+- [Linux (.tar.gz)](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.tar.gz) | [.deb](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.deb) | [.rpm](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.rpm)
+- [Android (.apk)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.apk)
 - [Web Version](https://ylianst.github.io/HTCommanderWeb/) will run on browsers with Bluetooth support (Chrome & Edge). Limited features and no audio, but you can program channels, chat, send/receive APRS, Winlink and more.
-- I am working on releasing to other platforms now.
 
 ### Features
 
