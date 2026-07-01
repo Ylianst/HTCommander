@@ -1,5 +1,5 @@
 > [!NOTE]
-> This is the new multi-platform version of HTCommander. I am working to make it available on all platforms in the coming days. The old version is at [HTCommanderLegacy](https://github.com/Ylianst/HTCommanderLegacy)
+> This is the new multi-platform version of HTCommander. Testing is needed, [please open issues](https://github.com/Ylianst/HTCommander/issues). The old version is at [HTCommanderLegacy](https://github.com/Ylianst/HTCommanderLegacy)
 
 # Handi-Talky Commander
 
@@ -19,11 +19,11 @@ The following radios should work with this application:
 
 ### Installation
 
-- [Windows Installer (.msi)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.msi)
-- [macOS Installer (.dmg)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.dmg)
+- [Windows Installer (.msi)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.msi). Only runs on 64bit Windows 10 and 11.
+- [macOS Installer (.dmg)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.dmg). Unsigned for now, runs ARM and x86. 
 - [Linux (.tar.gz)](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.tar.gz) | [.deb](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.deb) | [.rpm](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.rpm)
-- [Android (.apk)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.apk)
-- [Web Version](https://ylianst.github.io/HTCommanderWeb/) will run on browsers with Bluetooth support (Chrome & Edge). Limited features and no audio, but you can program channels, chat, send/receive APRS, Winlink and more.
+- [Android (.apk)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.apk). Android 5.0 or higher.
+- [Web Version](https://ylianst.github.io/HTCommanderWeb/). Browsers with Bluetooth support (Chrome & Edge).
 
 ### Features
 
