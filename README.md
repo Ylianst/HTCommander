@@ -1,5 +1,5 @@
 > [!NOTE]
-> This is the new multi-platform version of HTCommander. I am working to make it available on all platforms in the coming days. The old version is at [HTCommanderLegacy](https://github.com/Ylianst/HTCommanderLegacy)
+> This is the new multi-platform version of HTCommander. Testing is needed, [please open issues](https://github.com/Ylianst/HTCommander/issues). The old version is at [HTCommanderLegacy](https://github.com/Ylianst/HTCommanderLegacy)
 
 # Handi-Talky Commander
 
