@@ -19,3 +19,7 @@ flutter pub get
 # Build the macOS app to ensure all generated files are created.
 # This generates Flutter/ephemeral/ contents including FlutterGeneratedPluginSwiftPackage.
 flutter build macos --config-only
+
+# Install CocoaPods dependencies (flutter_pcm_sound, flutter_tts, etc.)
+cd $CI_PRIMARY_REPOSITORY_PATH/src/macos
+pod install
