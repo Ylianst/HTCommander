@@ -75,8 +75,12 @@ jobs:
           $appDisplayName = "Handi-Talky Commander"
           $appName = "HTCommander"
           $exeName = "htcommander.exe"
-          $icoPath = "$PWD\src\htcommander.ico"
+          $icoPath = (Resolve-Path "src\htcommander.ico").Path
           $msiOutput = "HTCommander.msi"
+
+          # Verify icon file exists
+          if (-not (Test-Path $icoPath)) { Write-Error "Icon not found: $icoPath"; exit 1 }
+          Write-Output "Using icon: $icoPath"
 
           # Build directory tree and file components
           $counter = 0
@@ -95,7 +99,7 @@ jobs:
               if ($file.Name -eq $exeName) {
                 $xml += "$indent<Component Id='$compId' Guid='*'>`n"
                 $xml += "$indent  <File Id='MainExe' Source='$source' KeyPath='yes' />`n"
-                $xml += "$indent  <Shortcut Id='StartMenuShortcut' Directory='ProgramMenuFolder' Name='$appDisplayName' WorkingDirectory='INSTALLFOLDER' Icon='AppIcon' IconIndex='0' Advertise='yes' />`n"
+                $xml += "$indent  <Shortcut Id='StartMenuShortcut' Directory='ProgramMenuFolder' Name='$appDisplayName' WorkingDirectory='INSTALLFOLDER' Icon='AppIcon' IconIndex='0' />`n"
                 $xml += "$indent</Component>`n"
               } else {
                 $xml += "$indent<Component Id='$compId' Guid='*'>`n"
