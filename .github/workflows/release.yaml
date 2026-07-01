@@ -463,11 +463,19 @@ jobs:
           NOTARY_KEY="$RUNNER_TEMP/notary_key.p8"
           echo -n "$MACOS_NOTARY_KEY_BASE64" | base64 --decode -o "$NOTARY_KEY"
           ditto -c -k --keepParent "$APP_PATH" "$RUNNER_TEMP/notarize.zip"
-          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
-            --key "$NOTARY_KEY" \
-            --key-id "$MACOS_NOTARY_KEY_ID" \
-            --issuer "$MACOS_NOTARY_ISSUER_ID" \
-            --wait
+          # Retry to survive transient Apple notary service timeouts (-1001)
+          for attempt in 1 2 3 4 5; do
+            if xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+              --key "$NOTARY_KEY" \
+              --key-id "$MACOS_NOTARY_KEY_ID" \
+              --issuer "$MACOS_NOTARY_ISSUER_ID" \
+              --wait; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then echo "Notarization failed after 5 attempts"; exit 1; fi
+            echo "notarytool attempt $attempt failed; retrying in 30s..."
+            sleep 30
+          done
           xcrun stapler staple "$APP_PATH"
 
       - name: Create DMG
@@ -532,11 +540,18 @@ jobs:
           MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
           MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
         run: |
-          xcrun notarytool submit HTCommander.dmg \
-            --key "$RUNNER_TEMP/notary_key.p8" \
-            --key-id "$MACOS_NOTARY_KEY_ID" \
-            --issuer "$MACOS_NOTARY_ISSUER_ID" \
-            --wait
+          for attempt in 1 2 3 4 5; do
+            if xcrun notarytool submit HTCommander.dmg \
+              --key "$RUNNER_TEMP/notary_key.p8" \
+              --key-id "$MACOS_NOTARY_KEY_ID" \
+              --issuer "$MACOS_NOTARY_ISSUER_ID" \
+              --wait; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then echo "DMG notarization failed after 5 attempts"; exit 1; fi
+            echo "notarytool attempt $attempt failed; retrying in 30s..."
+            sleep 30
+          done
           xcrun stapler staple HTCommander.dmg
 
       - name: Generate update package
