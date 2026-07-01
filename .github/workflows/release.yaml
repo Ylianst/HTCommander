@@ -546,7 +546,7 @@ jobs:
         working-directory: src
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/htcommander-$VERSION.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/HTCommander.apk"
           cp build/app/outputs/bundle/release/app-release.aab "$GITHUB_WORKSPACE/htcommander-$VERSION.aab"
 
       - name: Clean up signing secrets
@@ -558,7 +558,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: android-apk
-          path: htcommander-*.apk
+          path: HTCommander.apk
 
       - name: Upload Android AAB
         uses: actions/upload-artifact@v7
@@ -645,7 +645,7 @@ jobs:
             artifacts/linux-packages/htcommander-linux-x64.tar.gz
             artifacts/linux-packages/htcommander-linux-x64.deb
             artifacts/linux-packages/htcommander-linux-x64.rpm
-            artifacts/android-apk/htcommander-*.apk
+            artifacts/android-apk/HTCommander.apk
             artifacts/android-aab/htcommander-*.aab
 
       - name: Deploy update site to docs folder
