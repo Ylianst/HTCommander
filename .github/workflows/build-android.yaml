@@ -18,16 +18,45 @@ jobs:
         with:
           channel: stable
 
+      - name: Decode Android keystore
+        working-directory: src/android/app
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > upload-keystore.jks
+
+      - name: Create key.properties
+        working-directory: src/android
+        run: |
+          cat > key.properties <<EOF
+          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=upload-keystore.jks
+          EOF
+
       - name: Install dependencies
         working-directory: src
         run: flutter pub get
 
-      - name: Build Android APK
+      - name: Build signed Android APK
         working-directory: src
         run: flutter build apk --release
 
-      - name: Upload Android artifact
+      - name: Build signed Android App Bundle
+        working-directory: src
+        run: flutter build appbundle --release
+
+      - name: Clean up signing secrets
+        if: always()
+        working-directory: src/android
+        run: rm -f key.properties app/upload-keystore.jks
+
+      - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: android-build
+          name: android-apk
           path: src/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload Android AAB
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-aab
+          path: src/build/app/outputs/bundle/release/app-release.aab
