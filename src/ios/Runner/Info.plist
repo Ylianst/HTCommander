@@ -74,5 +74,9 @@
 	<string>HTCommander uses speech recognition to transcribe received radio audio into text.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>HTCommander needs access to your photo library so you can select and send images.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>HTCommander needs camera access so you can capture and send photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>HTCommander uses the microphone to capture audio and display a live audio spectrogram.</string>
 </dict>
 </plist>
