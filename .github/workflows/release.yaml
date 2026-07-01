@@ -490,8 +490,84 @@ jobs:
           name: macos-update
           path: src/dist/desktop_updater/releases/
 
+  build-android:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build_number: ${{ steps.version.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          BUILD_NUMBER=$(grep '^version:' src/pubspec.yaml | sed 's/.*+//')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION, Build: $BUILD_NUMBER"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Decode Android keystore
+        working-directory: src/android/app
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > upload-keystore.jks
+
+      - name: Create key.properties
+        working-directory: src/android
+        run: |
+          cat > key.properties <<EOF
+          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=upload-keystore.jks
+          EOF
+
+      - name: Install dependencies
+        working-directory: src
+        run: flutter pub get
+
+      - name: Build signed Android APK
+        working-directory: src
+        run: flutter build apk --release
+
+      - name: Build signed Android App Bundle
+        working-directory: src
+        run: flutter build appbundle --release
+
+      - name: Rename artifacts
+        working-directory: src
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/htcommander-$VERSION.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "$GITHUB_WORKSPACE/htcommander-$VERSION.aab"
+
+      - name: Clean up signing secrets
+        if: always()
+        working-directory: src/android
+        run: rm -f key.properties app/upload-keystore.jks
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: htcommander-*.apk
+
+      - name: Upload Android AAB
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-aab
+          path: htcommander-*.aab
+
   release:
-    needs: [build-windows, build-linux, build-macos]
+    needs: [build-windows, build-linux, build-macos, build-android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -569,6 +645,8 @@ jobs:
             artifacts/linux-packages/htcommander-linux-x64.tar.gz
             artifacts/linux-packages/htcommander-linux-x64.deb
             artifacts/linux-packages/htcommander-linux-x64.rpm
+            artifacts/android-apk/htcommander-*.apk
+            artifacts/android-aab/htcommander-*.aab
 
       - name: Deploy update site to docs folder
         run: |
