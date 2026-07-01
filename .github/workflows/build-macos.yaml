@@ -17,9 +17,18 @@ jobs:
         working-directory: src
         run: flutter pub get
 
-      - name: Build macOS
+      - name: Build macOS (unsigned)
         working-directory: src
-        run: flutter build macos --release
+        run: |
+          # CI can't use Xcode automatic signing (no "Mac Development" cert),
+          # so build unsigned here and sign with Developer ID + notarize below.
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' macos/Runner.xcodeproj/project.pbxproj
+          {
+            echo 'CODE_SIGN_IDENTITY='
+            echo 'CODE_SIGNING_REQUIRED=NO'
+            echo 'CODE_SIGNING_ALLOWED=NO'
+          } >> macos/Runner/Configs/Release.xcconfig
+          flutter build macos --release
 
       - name: Import Developer ID certificate
         env:
