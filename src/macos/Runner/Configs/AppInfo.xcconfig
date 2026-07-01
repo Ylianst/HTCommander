@@ -8,7 +8,7 @@
 PRODUCT_NAME = Handi-Talky Commander
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.htcommander
+PRODUCT_BUNDLE_IDENTIFIER = com.meshcentral.htcommander
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
