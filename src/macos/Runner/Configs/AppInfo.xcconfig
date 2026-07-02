@@ -11,4 +11,4 @@ PRODUCT_NAME = Handi-Talky Commander
 PRODUCT_BUNDLE_IDENTIFIER = com.meshcentral.htcommander
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Open Source, Apache 2.0 License
