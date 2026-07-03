@@ -71,7 +71,7 @@ jobs:
                 # Main exe component - include shortcut
                 $xml += "$indent<Component Id='$compId' Guid='*'>`n"
                 $xml += "$indent  <File Id='MainExe' Source='$source' KeyPath='yes' />`n"
-                $xml += "$indent  <Shortcut Id='StartMenuShortcut' Directory='ProgramMenuFolder' Name='$appDisplayName' WorkingDirectory='INSTALLFOLDER' Icon='AppIcon' IconIndex='0' />`n"
+                  $xml += "$indent  <Shortcut Id='StartMenuShortcut' Directory='ProgramMenuFolder' Name='$appDisplayName' Target='[#MainExe]' WorkingDirectory='INSTALLFOLDER' Icon='AppIcon' IconIndex='0' />`n"
                 $xml += "$indent</Component>`n"
               } else {
                 $xml += "$indent<Component Id='$compId' Guid='*'>`n"
