@@ -71,6 +71,9 @@ jobs:
           # Install WiX Toolset v5
           dotnet tool install --global wix --version 5.0.2
 
+          # Register the WiX UI extension so 'wix build -ext' can resolve it
+          wix extension add -g WixToolset.UI.wixext/5.0.2
+
           $buildDir = "src\build\windows\x64\runner\Release"
           $appDisplayName = "Handi-Talky Commander"
           $appName = "HTCommander"
