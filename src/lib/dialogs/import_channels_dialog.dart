@@ -98,6 +98,23 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
     _assign(widget.importedChannels[idx], slotId);
   }
 
+  bool get _canCopyAllOneToOne =>
+      widget.importedChannels.isNotEmpty &&
+      widget.importedChannels.length <= _slots.length;
+
+  void _copyAllOneToOne() {
+    if (!_canCopyAllOneToOne) return;
+
+    setState(() {
+      _staged.clear();
+      for (int i = 0; i < widget.importedChannels.length; i++) {
+        _staged[_slots[i].channelId] = widget.importedChannels[i];
+      }
+      _selectedImportedIndex = null;
+      _selectedSlotId = null;
+    });
+  }
+
   void _clearStaged(int slotId) {
     setState(() {
       _staged.remove(slotId);
@@ -263,6 +280,24 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
                   : null,
             ),
           ),
+          if (_canCopyAllOneToOne)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: OutlinedButton(
+                tooltip: 'Copy all imported channels to radio slots 1:1',
+                onPressed: _copyAllOneToOne,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  minimumSize: const Size(0, 28),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('1:1'),
+              ),
+            ),
         ],
       ),
     );
