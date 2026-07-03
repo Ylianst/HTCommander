@@ -124,7 +124,8 @@ jobs:
 
           $wxsContent = @"
           <?xml version='1.0' encoding='UTF-8'?>
-          <Wix xmlns='http://wixtoolset.org/schemas/v4/wxs'>
+          <Wix xmlns='http://wixtoolset.org/schemas/v4/wxs'
+               xmlns:ui='http://wixtoolset.org/schemas/v4/wxs/ui'>
             <Package Name='$appDisplayName'
                      Manufacturer='HTCommander'
                      Version='1.0.0.0'
@@ -132,6 +133,7 @@ jobs:
 
               <MajorUpgrade DowngradeErrorMessage='A newer version of $appDisplayName is already installed.' />
               <MediaTemplate EmbedCab='yes' />
+              <ui:WixUI Id='WixUI_InstallDir' InstallDirectory='INSTALLFOLDER' />
 
               <Icon Id='AppIcon' SourceFile='$icoPath' />
               <Property Id='ARPPRODUCTICON' Value='AppIcon' />
@@ -153,7 +155,7 @@ jobs:
           $wxsContent | Out-File -FilePath "installer.wxs" -Encoding UTF8
 
           # Build the MSI
-          wix build installer.wxs -arch x64 -o $msiOutput
+          wix build installer.wxs -ext WixToolset.UI.wixext -arch x64 -o $msiOutput
 
       - name: Sign MSI installer
         uses: azure/trusted-signing-action@v0.4.0
