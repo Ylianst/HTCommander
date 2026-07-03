@@ -50,6 +50,7 @@ jobs:
           $appName = "HTCommander"
           $exeName = "htcommander.exe"
           $icoPath = (Resolve-Path "src\htcommander.ico").Path
+          $licenseRtf = (Resolve-Path "src\windows\LICENSE.rtf").Path
           $msiOutput = "HTCommander.msi"
 
           # Verify icon file exists
@@ -109,6 +110,7 @@ jobs:
               <MajorUpgrade DowngradeErrorMessage='A newer version of $appDisplayName is already installed.' />
               <MediaTemplate EmbedCab='yes' />
               <ui:WixUI Id='WixUI_InstallDir' InstallDirectory='INSTALLFOLDER' />
+              <WixVariable Id='WixUILicenseRtf' Value='$licenseRtf' />
 
               <Icon Id='AppIcon' SourceFile='$icoPath' />
               <Property Id='ARPPRODUCTICON' Value='AppIcon' />
