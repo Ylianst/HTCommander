@@ -19,12 +19,15 @@ typedef PcmFeedCallback = void Function(int remainingFrames);
 /// Cross-platform 16-bit PCM playback sink.
 ///
 /// flutter_pcm_sound only ships Android / iOS / macOS implementations, so on
-/// Windows we use a native waveOut player (see windows/runner/pcm_player_plugin)
-/// exposing the same small surface. Unsupported platforms (Linux / web) are
+/// Windows and Linux we use a native player (see windows/runner/pcm_player_plugin
+/// and linux/runner/pcm_player_plugin) exposing the same small surface over the
+/// `com.htcommander/pcm_player` channels. Unsupported platforms (web) are
 /// no-ops so callers degrade gracefully instead of crashing.
 abstract class PcmPlayer {
   factory PcmPlayer() {
-    if (!kIsWeb && Platform.isWindows) return _WindowsPcmPlayer();
+    if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
+      return _NativeChannelPcmPlayer();
+    }
     if (!kIsWeb &&
         (Platform.isAndroid || Platform.isIOS || Platform.isMacOS)) {
       return _FlutterPcmSoundPlayer();
@@ -100,8 +103,9 @@ class _FlutterPcmSoundPlayer implements PcmPlayer {
   Future<void> release() => FlutterPcmSound.release();
 }
 
-/// Windows implementation backed by the native waveOut plugin.
-class _WindowsPcmPlayer implements PcmPlayer {
+/// Windows / Linux implementation backed by a native plugin exposing the
+/// `com.htcommander/pcm_player` method channel and `..._feed` event channel.
+class _NativeChannelPcmPlayer implements PcmPlayer {
   static const MethodChannel _method =
       MethodChannel('com.htcommander/pcm_player');
   static const EventChannel _feedEvents =

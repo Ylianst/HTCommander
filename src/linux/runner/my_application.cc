@@ -7,6 +7,9 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+#include "bluetooth_classic_plugin.h"
+#include "pcm_player_plugin.h"
+
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
@@ -74,6 +77,18 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+
+  // Register the native Bluetooth Classic (RFCOMM) plugin.
+  g_autoptr(FlPluginRegistrar) bt_registrar =
+      fl_plugin_registry_get_registrar_for_plugin(FL_PLUGIN_REGISTRY(view),
+                                                  "BluetoothClassicPlugin");
+  bluetooth_classic_plugin_register_with_registrar(bt_registrar);
+
+  // Register the native PCM playback plugin.
+  g_autoptr(FlPluginRegistrar) pcm_registrar =
+      fl_plugin_registry_get_registrar_for_plugin(FL_PLUGIN_REGISTRY(view),
+                                                  "PcmPlayerPlugin");
+  pcm_player_plugin_register_with_registrar(pcm_registrar);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

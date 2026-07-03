@@ -58,7 +58,11 @@ class BluetoothClassicMacOS {
 
   /// Check if this platform supports Bluetooth Classic via native code
   static bool get isSupported =>
-      !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isAndroid);
+      !kIsWeb &&
+      (Platform.isMacOS ||
+          Platform.isWindows ||
+          Platform.isAndroid ||
+          Platform.isLinux);
 
   void _logInfo(String msg) {
     _broker.logInfo('[BT-ClassicBridge] $msg');
