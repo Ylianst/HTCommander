@@ -1,23 +1,18 @@
 part of 'bluetooth_service.dart';
 
 Future<bool> _checkBluetoothLinux() async {
-  return _checkBluetoothBleAdapter();
+  return BluetoothClassicMacOS.instance.isAvailable();
 }
 
 Future<bool> _isBluetoothOnLinux() async {
-  return _isBluetoothOnBleAdapter();
+  return BluetoothClassicMacOS.instance.isAvailable();
 }
 
 Future<List<DiscoveredDevice>> _findCompatibleDevicesLinux(
   BluetoothService service, {
   required Duration timeout,
 }) async {
-  return _findCompatibleDevicesBle(
-    service,
-    timeout: timeout,
-    useWebKeywordFilter: false,
-    returnEarlyOnFirstMatch: false,
-  );
+  return _findCompatibleDevicesClassic(service);
 }
 
 Future<int?> _connectToRadioLinux(
@@ -25,10 +20,5 @@ Future<int?> _connectToRadioLinux(
   String macAddress,
   String friendlyName,
 ) async {
-  return _connectToRadioBleImpl(
-    service,
-    macAddress,
-    friendlyName,
-    webFastMode: false,
-  );
+  return _connectToRadioClassicImpl(service, macAddress, friendlyName);
 }
