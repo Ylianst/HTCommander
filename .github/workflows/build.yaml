@@ -42,6 +42,9 @@ jobs:
           # Install WiX Toolset v5
           dotnet tool install --global wix --version 5.0.2
 
+          # Register the WiX UI extension so 'wix build -ext' can resolve it
+          wix extension add -g WixToolset.UI.wixext/5.0.2
+
           $buildDir = "src\build\windows\x64\runner\Release"
           $appDisplayName = "Handi-Talky Commander"
           $appName = "HTCommander"
@@ -191,9 +194,83 @@ jobs:
         working-directory: src
         run: flutter pub get
 
-      - name: Build macOS
+      - name: Build macOS (unsigned)
         working-directory: src
-        run: flutter build macos --release
+        run: |
+          # CI can't use Xcode automatic signing (no "Mac Development" cert),
+          # so build unsigned here and sign with Developer ID + notarize below.
+          sed -i '' \
+            -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' \
+            -e 's/DEVELOPMENT_TEAM = CQ575Z873Y;/DEVELOPMENT_TEAM = "";/g' \
+            -e 's/"CODE_SIGN_IDENTITY\[sdk=macosx\*\]" = "Apple Development";/"CODE_SIGN_IDENTITY[sdk=macosx*]" = "";/g' \
+            macos/Runner.xcodeproj/project.pbxproj
+          {
+            echo 'CODE_SIGN_IDENTITY='
+            echo 'CODE_SIGNING_REQUIRED=NO'
+            echo 'CODE_SIGNING_ALLOWED=NO'
+          } >> macos/Runner/Configs/Release.xcconfig
+          flutter build macos --release
+
+      - name: Import Developer ID certificate
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+
+          # Decode the Developer ID Application certificate (.p12)
+          echo -n "$MACOS_CERTIFICATE_BASE64" | base64 --decode -o "$CERT_PATH"
+
+          # Create a temporary keychain and import the certificate
+          security create-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
+
+      - name: Sign and notarize app
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          MACOS_NOTARY_KEY_BASE64: ${{ secrets.MACOS_NOTARY_KEY_BASE64 }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+        run: |
+          APP_PATH=$(find src/build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          echo "Signing $APP_PATH"
+
+          # Sign nested code first (inside-out), then the app bundle itself
+          find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \) -exec \
+            codesign --force --timestamp --options runtime --sign "$MACOS_SIGNING_IDENTITY" {} +
+          find "$APP_PATH/Contents/Frameworks" -type d -name "*.framework" -exec \
+            codesign --force --timestamp --options runtime --sign "$MACOS_SIGNING_IDENTITY" {} +
+
+          # Sign the app bundle last with hardened runtime + entitlements
+          codesign --force --timestamp --options runtime \
+            --entitlements src/macos/Runner/Release.entitlements \
+            --sign "$MACOS_SIGNING_IDENTITY" "$APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+          # Notarize the app, then staple the ticket to the bundle
+          NOTARY_KEY="$RUNNER_TEMP/notary_key.p8"
+          echo -n "$MACOS_NOTARY_KEY_BASE64" | base64 --decode -o "$NOTARY_KEY"
+          ditto -c -k --keepParent "$APP_PATH" "$RUNNER_TEMP/notarize.zip"
+          # Retry to survive transient Apple notary service timeouts (-1001)
+          for attempt in 1 2 3 4 5; do
+            if xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+              --key "$NOTARY_KEY" \
+              --key-id "$MACOS_NOTARY_KEY_ID" \
+              --issuer "$MACOS_NOTARY_ISSUER_ID" \
+              --wait; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then echo "Notarization failed after 5 attempts"; exit 1; fi
+            echo "notarytool attempt $attempt failed; retrying in 30s..."
+            sleep 30
+          done
+          xcrun stapler staple "$APP_PATH"
 
       - name: Create DMG
         run: |
@@ -261,6 +338,25 @@ jobs:
           # Convert to compressed read-only DMG
           hdiutil convert temp.dmg -format UDZO -imagekey zlib-level=9 -o "$DMG_NAME"
           rm -f temp.dmg
+
+      - name: Notarize and staple DMG
+        env:
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if xcrun notarytool submit HTCommander.dmg \
+              --key "$RUNNER_TEMP/notary_key.p8" \
+              --key-id "$MACOS_NOTARY_KEY_ID" \
+              --issuer "$MACOS_NOTARY_ISSUER_ID" \
+              --wait; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then echo "DMG notarization failed after 5 attempts"; exit 1; fi
+            echo "notarytool attempt $attempt failed; retrying in 30s..."
+            sleep 30
+          done
+          xcrun stapler staple HTCommander.dmg
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v7
