@@ -283,19 +283,21 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
           if (_canCopyAllOneToOne)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: OutlinedButton(
-                tooltip: 'Copy all imported channels to radio slots 1:1',
-                onPressed: _copyAllOneToOne,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+              child: Tooltip(
+                message: 'Copy all imported channels to radio slots 1:1',
+                child: OutlinedButton(
+                  onPressed: _copyAllOneToOne,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    minimumSize: const Size(0, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
                   ),
-                  minimumSize: const Size(0, 28),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
+                  child: const Text('1:1'),
                 ),
-                child: const Text('1:1'),
               ),
             ),
         ],
