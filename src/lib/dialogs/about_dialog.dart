@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/update_service.dart';
@@ -8,10 +9,18 @@ import 'update_dialog.dart';
 class HTAboutDialog extends StatelessWidget {
   const HTAboutDialog({super.key});
 
-  static const String version = '0.1';
-
   @override
   Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        final version = snapshot.data?.version ?? '';
+        return _buildDialog(context, version);
+      },
+    );
+  }
+
+  Widget _buildDialog(BuildContext context, String version) {
     return Dialog(
       backgroundColor: const Color(0xFFD3D3D3), // Light gray like C# app
       child: ConstrainedBox(
@@ -66,7 +75,7 @@ class HTAboutDialog extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 8),
                                 // Version and author info
-                                const Text(
+                                Text(
                                   'Version $version\n'
                                   'Ylian Saint-Hilaire, KK7VZT\n'
                                   'Open Source, Apache 2.0 License',
