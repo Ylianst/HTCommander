@@ -247,6 +247,13 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
   @override
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.of(context).viewInsets;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final keyboardOpen = viewInsets.bottom > 100;
+    // Available height for the dialog after accounting for keyboard and padding.
+    final availableHeight = screenHeight - viewInsets.bottom - 48;
+    // On tall screens without keyboard, cap at 620; otherwise use available.
+    final dialogMaxHeight = availableHeight.clamp(200.0, 620.0);
+
     return Dialog(
       backgroundColor: const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -255,13 +262,13 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
       insetPadding: EdgeInsets.only(
         left: 24,
         right: 24,
-        top: 24,
+        top: keyboardOpen ? 8 : 24,
         bottom: 24 + viewInsets.bottom,
       ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 620),
+        constraints: BoxConstraints(maxWidth: 600, maxHeight: dialogMaxHeight),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(keyboardOpen ? 12 : 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -271,7 +278,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                 widget.isEdit ? 'Edit Message' : 'New Message',
                 style: DialogStyles.titleStyle,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: keyboardOpen ? 8 : 16),
               // Fields section card. The contents scroll so the dialog stays
               // usable on short displays (e.g. mobile with the keyboard up).
               Expanded(
@@ -286,7 +293,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                       final messageHeight = (constraints.maxHeight - reserved)
                           .clamp(120.0, double.infinity);
                       return SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(keyboardOpen ? 12 : 16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -399,7 +406,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: keyboardOpen ? 8 : 16),
               // Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
