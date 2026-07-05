@@ -181,8 +181,8 @@ class _ChatWidgetState extends State<ChatWidget> {
     if (index == 0) return true;
     final current = widget.messages[index];
     final previous = widget.messages[index - 1];
-    // Show timestamp if more than 30 minutes between messages
-    return current.time.difference(previous.time).inMinutes > 30;
+    // Show timestamp if more than 5 minutes between messages
+    return current.time.difference(previous.time).inMinutes > 5;
   }
 
   bool _shouldShowRoute(int index) {
