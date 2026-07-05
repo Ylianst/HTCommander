@@ -7,8 +7,8 @@ Captures application log messages from application startup so the Debug tab does
 not need to be opened first for messages to be recorded.
 */
 
-import '../dialogs/about_dialog.dart';
 import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:package_info_plus/package_info_plus.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 
@@ -66,9 +66,11 @@ class DebugLogHandler {
 
     // Emit the startup banner only on a fresh start.
     if (_entries.isEmpty) {
-      _broker.logInfo(
-        'HTCommander ${HTAboutDialog.version} started on $_platformLabel',
-      );
+      PackageInfo.fromPlatform().then((info) {
+        _broker.logInfo(
+          'HTCommander ${info.version} started on $_platformLabel',
+        );
+      });
     }
   }
 
