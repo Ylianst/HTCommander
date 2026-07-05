@@ -461,6 +461,7 @@ class _MainFormState extends State<MainForm>
 
   // Width threshold for compact mode (Radio becomes a tab instead of side panel)
   static const double compactWidthThreshold = 600;
+  static const double hideStatusBarHeightThreshold = 400;
 
   // Set to true to force built-in menus even on macOS (for debugging)
   bool _forceBuiltInMenus = false;
@@ -1592,8 +1593,10 @@ class _MainFormState extends State<MainForm>
                     ],
                   ),
                 ),
-                // Status bar
-                _buildStatusBar(),
+                // Status bar (hidden when height is too small or keyboard is shown)
+                if (constraints.maxHeight >= hideStatusBarHeightThreshold &&
+                    MediaQuery.of(context).viewInsets.bottom == 0)
+                  _buildStatusBar(),
               ],
             ),
           ),
