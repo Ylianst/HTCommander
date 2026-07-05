@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
+import '../services/history_limiter.dart';
 import '../services/tts_service.dart';
 import '../services/sherpa_model_manager.dart';
 
@@ -42,6 +43,12 @@ class AppSettings {
   String gpsSerialPort;
   int gpsBaudRate;
   String airplaneServerUrl;
+
+  // Limits tab (0 = unlimited)
+  int maxAprsMessages;
+  int maxPackets;
+  int maxSstvImages;
+  int maxCommEvents;
 
   /// APRS routes that always exist and cannot be edited or removed. Stored in
   /// definition order (preserved by the map) so they always appear first.
@@ -99,6 +106,10 @@ class AppSettings {
     this.gpsSerialPort = 'None',
     this.gpsBaudRate = 4800,
     this.airplaneServerUrl = '',
+    this.maxAprsMessages = 0,
+    this.maxPackets = 0,
+    this.maxSstvImages = 0,
+    this.maxCommEvents = 0,
   }) : aprsRoutes = _withProtectedRoutes(aprsRoutes ?? const []);
 
   AppSettings copyWith({
@@ -120,6 +131,10 @@ class AppSettings {
     String? gpsSerialPort,
     int? gpsBaudRate,
     String? airplaneServerUrl,
+    int? maxAprsMessages,
+    int? maxPackets,
+    int? maxSstvImages,
+    int? maxCommEvents,
   }) {
     return AppSettings(
       callSign: callSign ?? this.callSign,
@@ -140,6 +155,10 @@ class AppSettings {
       gpsSerialPort: gpsSerialPort ?? this.gpsSerialPort,
       gpsBaudRate: gpsBaudRate ?? this.gpsBaudRate,
       airplaneServerUrl: airplaneServerUrl ?? this.airplaneServerUrl,
+      maxAprsMessages: maxAprsMessages ?? this.maxAprsMessages,
+      maxPackets: maxPackets ?? this.maxPackets,
+      maxSstvImages: maxSstvImages ?? this.maxSstvImages,
+      maxCommEvents: maxCommEvents ?? this.maxCommEvents,
     );
   }
 
@@ -179,6 +198,11 @@ class AppSettings {
       gpsBaudRate: DataBroker.getValue<int>(0, 'GpsBaudRate', 4800) ?? 4800,
       airplaneServerUrl:
           DataBroker.getValue<String>(0, 'AirplaneServer', '') ?? '',
+      maxAprsMessages:
+          DataBroker.getValue<int>(0, 'MaxAprsMessages', 0) ?? 0,
+      maxPackets: DataBroker.getValue<int>(0, 'MaxPackets', 0) ?? 0,
+      maxSstvImages: DataBroker.getValue<int>(0, 'MaxSstvImages', 0) ?? 0,
+      maxCommEvents: DataBroker.getValue<int>(0, 'MaxCommEvents', 0) ?? 0,
     );
   }
 
@@ -249,6 +273,22 @@ class AppSettings {
       deviceId: 0,
       name: 'AirplaneServer',
       data: airplaneServerUrl,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'MaxAprsMessages',
+      data: maxAprsMessages,
+    );
+    DataBroker.dispatch(deviceId: 0, name: 'MaxPackets', data: maxPackets);
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'MaxSstvImages',
+      data: maxSstvImages,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'MaxCommEvents',
+      data: maxCommEvents,
     );
   }
 
@@ -346,7 +386,7 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// internet-service "Servers" / "Map" tabs are hidden. On Android/iOS the
   /// "Servers" tab is hidden. All tabs remain visible on desktop platforms.
   List<String> get _visibleTabs {
-    const all = ['License', 'APRS', 'Comms', 'Winlink', 'Servers', 'Map'];
+    const all = ['License', 'APRS', 'Comms', 'Winlink', 'Servers', 'Map', 'Limits'];
     if (kIsWeb) {
       return all
           .where((t) => t != 'Comms' && t != 'Servers' && t != 'Map')
@@ -374,6 +414,8 @@ class _SettingsDialogState extends State<SettingsDialog>
         return _buildServersTab();
       case 'Map':
         return _buildMapTab();
+      case 'Limits':
+        return _buildLimitsTab();
     }
     return const SizedBox.shrink();
   }
@@ -556,6 +598,9 @@ class _SettingsDialogState extends State<SettingsDialog>
 
     // Save all settings to DataBroker (persisted to SharedPreferences)
     _settings.saveToDataBroker();
+
+    // Apply history limits asynchronously (trims persisted files).
+    HistoryLimiter.apply();
 
     Navigator.of(
       context,
@@ -1738,6 +1783,109 @@ class _SettingsDialogState extends State<SettingsDialog>
                       ],
                     );
                   },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Formats a limit value for display: 0 means "Unlimited".
+  String _limitLabel(int value) {
+    return value == 0 ? 'Unlimited' : value.toString();
+  }
+
+  /// Builds a single limit slider row.
+  Widget _buildLimitSlider({
+    required String label,
+    required int value,
+    required ValueChanged<int> onChanged,
+  }) {
+    // Slider positions: 0=Unlimited, then log-ish steps.
+    const List<int> steps = [0, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
+    final int idx = steps.indexOf(value);
+    final int sliderIndex = idx >= 0 ? idx : 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(label, style: DialogStyles.labelStyle),
+            const Spacer(),
+            Text(
+              _limitLabel(value),
+              style: DialogStyles.bodyStyle,
+            ),
+          ],
+        ),
+        Slider(
+          value: sliderIndex.toDouble(),
+          min: 0,
+          max: (steps.length - 1).toDouble(),
+          divisions: steps.length - 1,
+          label: _limitLabel(steps[sliderIndex.clamp(0, steps.length - 1)]),
+          onChanged: (v) {
+            onChanged(steps[v.round().clamp(0, steps.length - 1)]);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLimitsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Limit how many historical items are kept across app restarts. '
+            'Set to "Unlimited" to keep everything.',
+            style: DialogStyles.bodyStyle,
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: _sectionDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'History Limits',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildLimitSlider(
+                  label: 'APRS Messages',
+                  value: _settings.maxAprsMessages,
+                  onChanged: (v) =>
+                      setState(() => _settings.maxAprsMessages = v),
+                ),
+                const SizedBox(height: 8),
+                _buildLimitSlider(
+                  label: 'Packets',
+                  value: _settings.maxPackets,
+                  onChanged: (v) => setState(() => _settings.maxPackets = v),
+                ),
+                const SizedBox(height: 8),
+                _buildLimitSlider(
+                  label: 'SSTV Images',
+                  value: _settings.maxSstvImages,
+                  onChanged: (v) =>
+                      setState(() => _settings.maxSstvImages = v),
+                ),
+                const SizedBox(height: 8),
+                _buildLimitSlider(
+                  label: 'Communication Events',
+                  value: _settings.maxCommEvents,
+                  onChanged: (v) =>
+                      setState(() => _settings.maxCommEvents = v),
                 ),
               ],
             ),
