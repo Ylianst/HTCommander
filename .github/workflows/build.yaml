@@ -51,6 +51,8 @@ jobs:
           $exeName = "htcommander.exe"
           $icoPath = (Resolve-Path "src\htcommander.ico").Path
           $licenseRtf = (Resolve-Path "src\windows\LICENSE.rtf").Path
+          $dialogBmp = (Resolve-Path "src\windows\background.bmp").Path
+          $bannerBmp = (Resolve-Path "src\windows\banner.bmp").Path
           $msiOutput = "HTCommander.msi"
 
           # Verify icon file exists
@@ -111,6 +113,8 @@ jobs:
               <MediaTemplate EmbedCab='yes' />
               <ui:WixUI Id='WixUI_InstallDir' InstallDirectory='INSTALLFOLDER' />
               <WixVariable Id='WixUILicenseRtf' Value='$licenseRtf' />
+              <WixVariable Id='WixUIDialogBmp' Value='$dialogBmp' />
+              <WixVariable Id='WixUIBannerBmp' Value='$bannerBmp' />
 
               <Icon Id='AppIcon' SourceFile='$icoPath' />
               <Property Id='ARPPRODUCTICON' Value='AppIcon' />
