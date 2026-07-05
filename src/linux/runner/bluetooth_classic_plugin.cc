@@ -25,13 +25,13 @@
 #define BT_DATA_CHANNEL "com.htcommander/bluetooth_classic_data"
 #define BT_AUDIO_CHANNEL "com.htcommander/bluetooth_classic_audio"
 
-// Known compatible radio name patterns (same list as the other platforms).
-static const char* kCompatibleNames[] = {
-    "UV-PRO",   "UV-50PRO", "GA-5WB",     "VR-N75",  "VR-N76",
-    "VR-N7500", "VR-N7600", "DB50-B",     "WP-C1",   "HT-CH1",
-    "QUANSHENG", "VR-N",    "SA-888S",    "HG-UV98", "UV-98",
-    "HAM-AIO",  "VR-6600PRO", "TH-UV88",  "3B01B",   "E1WPR",
-    "PNI-HP98WP", NULL};
+// Vendor "BS AOC" SDP service UUID that uniquely identifies a compatible
+// radio. BlueZ exposes a device's cached SDP service UUIDs via the "UUIDs"
+// property of org.bluez.Device1; a device is treated as a radio when this
+// service is present. Matching by UUID is stable across rebrands / name
+// changes, unlike the previous name-substring matching. Generic services
+// (SPP 0x1101, Generic Audio 0x1203) are intentionally not used here.
+static const char* kRadioServiceUuid = "39144315-32fa-40db-85ed-fbfeba2d86e6";
 
 // ---------------------------------------------------------------------------
 // Plugin + connection state
@@ -93,18 +93,22 @@ static gchar* bt_normalize_addr(const char* s) {
   return up;  // caller frees
 }
 
-static gboolean bt_is_compatible(const char* name) {
-  if (!name || !*name) return FALSE;
-  gchar* up = g_ascii_strup(name, -1);
-  gboolean match = FALSE;
-  for (int i = 0; kCompatibleNames[i]; ++i) {
-    if (strstr(up, kCompatibleNames[i])) {
-      match = TRUE;
-      break;
+// Returns the radio service UUIDs a device exposes, matched against the known
+// vendor identifier, as a newly-allocated FlValue string list (caller owns).
+// The list is empty when the device is not a compatible radio. `uuids_variant`
+// is the "UUIDs" property of org.bluez.Device1 (type "as"), or NULL.
+static FlValue* bt_radio_service_uuids(GVariant* uuids_variant) {
+  FlValue* matched = fl_value_new_list();
+  if (!uuids_variant) return matched;
+  GVariantIter it;
+  g_variant_iter_init(&it, uuids_variant);
+  const gchar* u = NULL;
+  while (g_variant_iter_next(&it, "&s", &u)) {
+    if (u && g_ascii_strcasecmp(u, kRadioServiceUuid) == 0) {
+      fl_value_append_take(matched, fl_value_new_string(kRadioServiceUuid));
     }
   }
-  g_free(up);
-  return match;
+  return matched;
 }
 
 static gboolean bt_write_all(int fd, const guint8* data, gsize len) {
@@ -272,16 +276,30 @@ static FlValue* bt_enumerate_devices(gboolean compatible_only) {
       g_variant_unref(v);
     }
 
+    // Identify radios by their unique vendor SDP service UUID rather than by
+    // name. BlueZ caches the paired device's service UUIDs in this property.
+    FlValue* radio_uuids = NULL;
+    if ((v = g_variant_lookup_value(dev, "UUIDs", G_VARIANT_TYPE_STRING_ARRAY))) {
+      radio_uuids = bt_radio_service_uuids(v);
+      g_variant_unref(v);
+    } else {
+      radio_uuids = fl_value_new_list();
+    }
+    gboolean is_radio = fl_value_get_length(radio_uuids) > 0;
+
     const char* disp = (name && *name) ? name : (alias ? alias : "");
-    if ((!compatible_only || bt_is_compatible(disp)) && addr && *addr && *disp) {
+    if ((!compatible_only || is_radio) && addr && *addr && *disp) {
       gchar* norm = bt_normalize_addr(addr);
       FlValue* m = fl_value_new_map();
       fl_value_set_string_take(m, "name", fl_value_new_string(disp));
       fl_value_set_string_take(m, "address", fl_value_new_string(norm));
       fl_value_set_string_take(m, "isPaired", fl_value_new_bool(paired));
       fl_value_set_string_take(m, "isConnected", fl_value_new_bool(connected));
+      fl_value_set_string_take(m, "serviceUuids", radio_uuids);
       fl_value_append_take(list, m);
       g_free(norm);
+    } else {
+      fl_value_unref(radio_uuids);
     }
 
     g_free(addr);

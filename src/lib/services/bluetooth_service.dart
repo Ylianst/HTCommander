@@ -10,6 +10,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../radio/bluetooth_classic_transport.dart';
 import '../radio/radio.dart';
@@ -43,6 +44,17 @@ final List<Guid> kRadioBleOptionalServices = [
   Guid('00001100-d102-11e1-9b23-00025b00a5a5'), // Radio control service
   Guid('6e400001-b5a3-f393-e0a9-e50e24dcca9e'), // Nordic UART Service
   Guid('00001101-0000-1000-8000-00805f9b34fb'), // SPP-like service
+];
+
+/// BLE GATT service UUIDs that uniquely identify a compatible radio.
+///
+/// Used as the scan filter (`withServices`) and, on the web, as the
+/// `requestDevice` service filter so the browser chooser only lists radios
+/// regardless of their (rebrandable) advertised name. Only the vendor-specific
+/// control service is included here; generic services are intentionally
+/// excluded because they would match unrelated devices.
+final List<Guid> kRadioBleControlServices = [
+  Guid('00001100-d102-11e1-9b23-00025b00a5a5'), // Radio control service
 ];
 
 /// Service for managing Bluetooth radio connections
@@ -399,7 +411,7 @@ class BleRadioTransport implements RadioTransport {
     try {
       await FlutterBluePlus.startScan(
         timeout: timeout,
-        withKeywords: kIsWeb ? const ['UV-PRO'] : const [],
+        withServices: kIsWeb ? kRadioBleControlServices : const [],
         webOptionalServices: kRadioBleOptionalServices,
       );
 
@@ -416,6 +428,9 @@ class BleRadioTransport implements RadioTransport {
             name: name,
             type: BluetoothType.ble,
             rssi: result.rssi,
+            serviceUuids: result.advertisementData.serviceUuids
+                .map((g) => g.str)
+                .toList(),
           );
 
           _scanController.add(device);

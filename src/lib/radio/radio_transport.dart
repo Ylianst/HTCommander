@@ -21,42 +21,52 @@ class DiscoveredDevice {
   final int rssi;
   final DateTime discoveredAt;
 
+  /// Service UUIDs advertised (BLE) or exposed via SDP (Classic) by the device.
+  /// Stored as lowercase 128-bit UUID strings. Used to identify compatible
+  /// radios by a stable vendor identifier rather than by (rebrandable) name.
+  final List<String> serviceUuids;
+
   DiscoveredDevice({
     required this.id,
     required this.name,
     required this.type,
     this.rssi = 0,
+    List<String>? serviceUuids,
     DateTime? discoveredAt,
-  }) : discoveredAt = discoveredAt ?? DateTime.now();
+  }) : serviceUuids = serviceUuids == null
+           ? const <String>[]
+           : List<String>.unmodifiable(
+               serviceUuids.map((u) => u.toLowerCase()),
+             ),
+       discoveredAt = discoveredAt ?? DateTime.now();
 
-  /// Check if this is a compatible radio device
+  /// Check if this is a compatible radio device.
+  ///
+  /// Identification is done strictly by service UUID: a device is a compatible
+  /// radio only if it exposes one of [targetServiceUuids]. Device names are no
+  /// longer used for matching because they change across rebrands and can be
+  /// truncated by the OS Bluetooth stack (e.g. "UV-P" instead of "UV-PRO").
   bool get isCompatibleRadio {
-    return targetDeviceNames.any(
-      (target) => name.toLowerCase().contains(target.toLowerCase()),
-    );
+    if (serviceUuids.isEmpty) return false;
+    return serviceUuids.any(targetServiceUuids.contains);
   }
 
-  /// List of known compatible radio device name patterns
-  static const List<String> targetDeviceNames = [
-    'UV-PRO',
-    'WP-C1',
-    'HT-CH1',
-    'QUANSHENG',
-    'VR-N7500',
-    'VR-N',
-    'SA-888S',
-    'HG-UV98',
-    'UV-98',
-    'HAM-AIO',
-    'VR-6600PRO',
-    'TH-UV88',
-    '3B01B', // Generic firmware device
-    'E1WPR',
-    'PNI-HP98WP',
+  /// Stable vendor service UUIDs that uniquely identify a compatible radio.
+  ///
+  /// These are brand-independent and must match the identifiers used by the
+  /// native Bluetooth Classic plugins (Android/macOS/Windows/Linux) and the
+  /// web client. Generic services (SPP 0x1101, Generic Audio 0x1203, Nordic
+  /// UART) are intentionally excluded because they are not unique to radios.
+  static const List<String> targetServiceUuids = [
+    // BLE radio control service (iOS + web).
+    '00001100-d102-11e1-9b23-00025b00a5a5',
+    // Classic vendor "BS AOC" service that carries the SBC audio stream.
+    '39144315-32fa-40db-85ed-fbfeba2d86e6',
   ];
 
   @override
-  String toString() => 'DiscoveredDevice($name, $id, $type)';
+  String toString() =>
+      'DiscoveredDevice($name, $id, $type, uuids=$serviceUuids)';
 }
 
 /// Abstract transport interface for radio communication

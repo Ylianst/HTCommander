@@ -42,6 +42,7 @@ dependencies:
   file_picker: ^11.0.2
   shared_preferences: ^2.2.3
   flutter_blue_plus: ^1.35.2
+  permission_handler: ^11.3.1
   path_provider: ^2.1.4
   crypto: ^3.0.0
   es_compression: ^2.0.13
