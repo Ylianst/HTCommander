@@ -3,6 +3,7 @@ package com.meshcentral.htcommander
 import android.Manifest
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
 import android.content.Context
@@ -50,13 +51,13 @@ class BluetoothClassicPlugin(
         // Vendor "BS AOC" service that carries the SBC audio stream.
         private val AUDIO_UUID: UUID = UUID.fromString("39144315-32FA-40DB-85ED-FBFEBA2D86E6")
 
-        // Known compatible radio device name patterns (matches the Dart list).
-        private val TARGET_NAMES = listOf(
-            "UV-PRO", "UV-50PRO", "GA-5WB", "VR-N75", "VR-N76", "VR-N7500",
-            "VR-N7600", "DB50-B", "WP-C1", "HT-CH1", "QUANSHENG", "VR-N",
-            "SA-888S", "HG-UV98", "UV-98", "HAM-AIO", "VR-6600PRO", "TH-UV88",
-            "3B01B", "E1WPR", "PNI-HP98WP",
-        )
+        // Stable vendor SDP service UUIDs that uniquely identify a compatible
+        // radio. Devices are matched by these identifiers instead of by name,
+        // because names change across rebrands and can be truncated by the OS
+        // Bluetooth stack (e.g. "UV-P" instead of "UV-PRO"). Only the vendor
+        // "BS AOC" service is unique to these radios; generic services (SPP
+        // 0x1101, Generic Audio 0x1203) are intentionally excluded.
+        private val RADIO_SERVICE_UUIDS: Set<UUID> = setOf(AUDIO_UUID)
 
         // Remembers the RFCOMM channel that last connected for a given radio
         // address so reconnects can skip the channel scan. The radio's SDP
@@ -173,7 +174,8 @@ class BluetoothClassicPlugin(
                 val name = device.name ?: continue
                 val address = normalizeAddress(device.address ?: continue)
                 if (seen.contains(address)) continue
-                if (filterCompatible && !isCompatible(name)) continue
+                val radioUuids = radioServiceUuids(device)
+                if (filterCompatible && radioUuids.isEmpty()) continue
                 seen.add(address)
                 devices.add(
                     mapOf(
@@ -181,6 +183,7 @@ class BluetoothClassicPlugin(
                         "address" to address,
                         "isPaired" to true,
                         "isConnected" to controlConnections.containsKey(address),
+                        "serviceUuids" to radioUuids,
                     ),
                 )
             }
@@ -194,9 +197,25 @@ class BluetoothClassicPlugin(
         return listDevices(filterCompatible = false).mapNotNull { it["name"] as? String }
     }
 
-    private fun isCompatible(name: String): Boolean {
-        val upper = name.uppercase()
-        return TARGET_NAMES.any { upper.contains(it.uppercase()) }
+    /**
+     * Returns the lowercase 128-bit UUID strings from the device's cached SDP
+     * record that identify it as a compatible radio (i.e. the intersection of
+     * the device's advertised services with [RADIO_SERVICE_UUIDS]). Reading
+     * [BluetoothDevice.getUuids] uses the pairing-time SDP cache and does not
+     * trigger a new SDP query. Returns an empty list when none match.
+     */
+    private fun radioServiceUuids(device: BluetoothDevice): List<String> {
+        val uuids = try {
+            device.uuids
+        } catch (e: SecurityException) {
+            requestConnectPermission()
+            null
+        } ?: return emptyList()
+        return uuids
+            .map { it.uuid }
+            .filter { it in RADIO_SERVICE_UUIDS }
+            .map { it.toString().lowercase() }
+            .distinct()
     }
 
     private fun connectAudio(address: String?, result: MethodChannel.Result) {

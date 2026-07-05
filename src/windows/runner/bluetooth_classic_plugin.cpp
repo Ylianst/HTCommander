@@ -81,24 +81,6 @@ const winrt::guid kGenericAudioUuid{
     0x00001203, 0x0000, 0x1000,
     {0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB}};
 
-// Known radio name patterns (same list as macOS / Dart side).
-const wchar_t* kCompatibleNames[] = {
-    L"UV-PRO", L"UV-50PRO", L"GA-5WB", L"VR-N75", L"VR-N76",
-    L"VR-N7500", L"VR-N7600", L"DB50-B", L"WP-C1", L"HT-CH1",
-    L"QUANSHENG", L"VR-N", L"SA-888S", L"HG-UV98", L"UV-98",
-    L"HAM-AIO", L"VR-6600PRO", L"TH-UV88", L"3B01B", L"E1WPR",
-    L"PNI-HP98WP",
-};
-
-bool IsCompatibleDevice(std::wstring_view name) {
-  std::wstring upper(name);
-  std::transform(upper.begin(), upper.end(), upper.begin(), ::towupper);
-  for (auto* pattern : kCompatibleNames) {
-    if (upper.find(pattern) != std::wstring::npos) return true;
-  }
-  return false;
-}
-
 // Convert "AA:BB:CC:DD:EE:FF" (or with '-') to uint64_t.
 uint64_t ParseMac(const std::string& addr) {
   std::string s;
@@ -591,8 +573,22 @@ BluetoothClassicPlugin::Impl::GetPairedDeviceList(bool compatible_only) {
         auto btDev = bt::BluetoothDevice::FromIdAsync(di.Id()).get();
         if (!btDev) continue;
 
-        std::wstring wname{btDev.Name()};
-        if (compatible_only && !IsCompatibleDevice(wname)) continue;
+        // Identify radios by their unique vendor SDP service UUID ("BS AOC")
+        // rather than by name, which changes across rebrands / OS stacks.
+        flutter::EncodableList service_uuids;
+        try {
+          auto res = btDev.GetRfcommServicesForIdAsync(
+                              rfcomm::RfcommServiceId::FromUuid(kBsAocUuid),
+                              bt::BluetoothCacheMode::Cached)
+                         .get();
+          if (res.Error() == bt::BluetoothError::Success &&
+              res.Services().Size() > 0) {
+            service_uuids.push_back(flutter::EncodableValue(
+                std::string("39144315-32fa-40db-85ed-fbfeba2d86e6")));
+          }
+        } catch (...) {}
+
+        if (compatible_only && service_uuids.empty()) continue;
 
         std::string name    = HstrToStr(btDev.Name());
         std::string address = FormatMac(btDev.BluetoothAddress());
@@ -602,6 +598,8 @@ BluetoothClassicPlugin::Impl::GetPairedDeviceList(bool compatible_only) {
         dev[flutter::EncodableValue("address")]     = flutter::EncodableValue(address);
         dev[flutter::EncodableValue("isPaired")]    = flutter::EncodableValue(true);
         dev[flutter::EncodableValue("isConnected")] = flutter::EncodableValue(false);
+        dev[flutter::EncodableValue("serviceUuids")] =
+            flutter::EncodableValue(std::move(service_uuids));
         list.push_back(flutter::EncodableValue(std::move(dev)));
       } catch (...) {}
     }

@@ -73,6 +73,7 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesClassic(
           name: device.name,
           type: BluetoothType.classic,
           rssi: 0,
+          serviceUuids: device.serviceUuids,
         ),
       );
     }
@@ -96,7 +97,7 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesBle(
     await FlutterBluePlus.startScan(
       timeout: timeout,
       androidUsesFineLocation: true,
-      withKeywords: useWebKeywordFilter ? const ['UV-PRO'] : const [],
+      withServices: useWebKeywordFilter ? kRadioBleControlServices : const [],
       webOptionalServices: kRadioBleOptionalServices,
     );
 
@@ -119,6 +120,9 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesBle(
           name: name,
           type: BluetoothType.ble,
           rssi: result.rssi,
+          serviceUuids: result.advertisementData.serviceUuids
+              .map((g) => g.str)
+              .toList(),
         );
 
         if (device.isCompatibleRadio) {

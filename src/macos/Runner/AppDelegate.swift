@@ -65,13 +65,10 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
         0x85, 0xED, 0xFB, 0xFE, 0xBA, 0x2D, 0x86, 0xE6
     ]))
 
-    // Known compatible radio device name patterns
-    private static let targetDeviceNames = [
-        "UV-PRO", "UV-50PRO", "GA-5WB", "VR-N75", "VR-N76", "VR-N7500", "VR-N7600", "DB50-B",
-        "WP-C1", "HT-CH1", "QUANSHENG", "VR-N", "SA-888S", "HG-UV98", "UV-98",
-        "HAM-AIO", "VR-6600PRO", "TH-UV88", "3B01B", "E1WPR", "PNI-HP98WP"
-    ]
-    
+    // Canonical lowercase 128-bit string form of `audioVendorUUID`, shared with
+    // the Dart side and the other platforms as the radio's unique identifier.
+    fileprivate static let radioServiceUuidString = "39144315-32fa-40db-85ed-fbfeba2d86e6"
+
     static func register(with registrar: FlutterPluginRegistrar) {
         let instance = BluetoothClassicHandler()
         
@@ -209,11 +206,22 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
                 "name": name,
                 "address": normalizedAddress,
                 "isPaired": true,
-                "isConnected": device.isConnected()
+                "isConnected": device.isConnected(),
+                "serviceUuids": radioServiceUuids(for: device)
             ])
         }
         
         return devices
+    }
+    
+    /// Returns the radio's unique service UUID(s) if the device exposes the
+    /// vendor "BS AOC" SDP service, otherwise an empty array. Devices are
+    /// identified by this stable UUID rather than by their (rebrandable) name.
+    private func radioServiceUuids(for device: IOBluetoothDevice) -> [String] {
+        if device.getServiceRecord(for: Self.audioVendorUUID) != nil {
+            return [Self.radioServiceUuidString]
+        }
+        return []
     }
     
     private func findCompatibleDevices() -> [[String: Any]] {
@@ -236,18 +244,18 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
                 continue
             }
             
-            // Check if this device matches any known radio name pattern
-            let isCompatible = Self.targetDeviceNames.contains { pattern in
-                name.localizedCaseInsensitiveContains(pattern)
-            }
+            // Identify the radio by its unique vendor SDP service UUID rather
+            // than by name, which can change across rebrands / OS stacks.
+            let radioUuids = radioServiceUuids(for: device)
             
-            if isCompatible {
+            if !radioUuids.isEmpty {
                 seenAddresses.insert(normalizedAddress)
                 compatibleDevices.append([
                     "name": name,
                     "address": normalizedAddress,
                     "isPaired": true,
-                    "isConnected": device.isConnected()
+                    "isConnected": device.isConnected(),
+                    "serviceUuids": radioUuids
                 ])
             }
         }

@@ -241,6 +241,7 @@ class BluetoothClassicMacOS {
           address: map['address'] as String? ?? '',
           isPaired: map['isPaired'] as bool? ?? false,
           isConnected: map['isConnected'] as bool? ?? false,
+          serviceUuids: (map['serviceUuids'] as List?)?.cast<String>(),
         );
       }).toList();
     } catch (e) {
@@ -261,6 +262,7 @@ class BluetoothClassicMacOS {
           address: map['address'] as String? ?? '',
           isPaired: map['isPaired'] as bool? ?? false,
           isConnected: map['isConnected'] as bool? ?? false,
+          serviceUuids: (map['serviceUuids'] as List?)?.cast<String>(),
         );
       }).toList();
       return devices;
@@ -378,16 +380,26 @@ class BluetoothClassicDevice {
   final bool isPaired;
   final bool isConnected;
 
+  /// SDP service UUIDs (lowercase 128-bit strings) exposed by the device, as
+  /// reported by the native plugin. Used to identify compatible radios by a
+  /// stable vendor identifier rather than by name.
+  final List<String> serviceUuids;
+
   BluetoothClassicDevice({
     required this.name,
     required this.address,
     this.isPaired = false,
     this.isConnected = false,
-  });
+    List<String>? serviceUuids,
+  }) : serviceUuids = serviceUuids == null
+           ? const <String>[]
+           : List<String>.unmodifiable(
+               serviceUuids.map((u) => u.toLowerCase()),
+             );
 
   @override
   String toString() =>
-      'BluetoothClassicDevice($name, $address, paired: $isPaired, connected: $isConnected)';
+      'BluetoothClassicDevice($name, $address, paired: $isPaired, connected: $isConnected, uuids: $serviceUuids)';
 }
 
 /// Bluetooth Classic connection event types
