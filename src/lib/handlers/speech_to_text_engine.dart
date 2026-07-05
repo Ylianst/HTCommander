@@ -82,6 +82,12 @@ abstract class SpeechToTextEngine {
   /// Finishes the active segment, forcing the engine to emit a final result.
   Future<void> completeSegment();
 
+  /// Decodes the active segment and emits a final result, but retains a short
+  /// tail of audio (overlap) as the start of a new segment so words at the
+  /// boundary are not lost. Use this instead of [completeSegment] +
+  /// [startSegment] when splitting long audio into chunks.
+  Future<void> splitSegment();
+
   /// Discards the active segment without emitting a final result.
   Future<void> resetSegment();
 
@@ -137,6 +143,9 @@ class UnsupportedSpeechToTextEngine implements SpeechToTextEngine {
 
   @override
   Future<void> completeSegment() async {}
+
+  @override
+  Future<void> splitSegment() async {}
 
   @override
   Future<void> resetSegment() async {}
@@ -273,6 +282,13 @@ class AppleSpeechToTextEngine implements SpeechToTextEngine {
     } on MissingPluginException {
       _ready = false;
     }
+  }
+
+  @override
+  Future<void> splitSegment() async {
+    // Apple engine has no native split; just complete and restart.
+    await completeSegment();
+    await startSegment();
   }
 
   @override

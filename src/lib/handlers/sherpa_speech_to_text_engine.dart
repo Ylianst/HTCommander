@@ -6,9 +6,10 @@ http://www.apache.org/licenses/LICENSE-2.0
 sherpa-onnx (SenseVoice) speech-to-text engine.
 
 This implements the shared [SpeechToTextEngine] contract used by the
-CommsHandler. SenseVoice is a non-streaming model, but the engine still
-delivers live partial text by re-decoding the growing in-memory audio buffer
-of the active segment, then emitting a final result when the segment ends.
+CommsHandler. SenseVoice is a non-streaming model — audio is accumulated in
+memory during the active segment and decoded once when the segment ends (or
+when the 30-second length cap forces a split). This batch approach avoids the
+high CPU cost of repeatedly re-decoding a growing buffer.
 
 All heavy recognition work runs in a dedicated background isolate so the main
 isolate (UI + Bluetooth) never blocks. Audio is resampled from the radio rate
@@ -182,6 +183,12 @@ class SherpaSpeechToTextEngine implements SpeechToTextEngine {
   }
 
   @override
+  Future<void> splitSegment() async {
+    if (!_ready || _disposed) return;
+    _workerSend?.send(const <String, Object?>{'cmd': 'split'});
+  }
+
+  @override
   Future<void> resetSegment() async {
     if (!_ready || _disposed) return;
     _resampler.reset();
@@ -285,10 +292,6 @@ void _sherpaWorkerEntry(SendPort mainSend) {
   sherpa.OfflineRecognizer? recognizer;
   // Accumulated 16 kHz mono float samples for the active segment.
   final List<double> buffer = <double>[];
-  // Samples appended since the last partial decode.
-  var sinceLastPartial = 0;
-  // ~1 s of 16 kHz audio between partial re-decodes.
-  const partialThreshold = 16000;
   const sampleRate = 16000;
 
   String decode() {
@@ -363,35 +366,17 @@ void _sherpaWorkerEntry(SendPort mainSend) {
 
       case 'start':
         buffer.clear();
-        sinceLastPartial = 0;
-        mainSend.send(<String, Object?>{'event': 'processing', 'active': true});
         break;
 
       case 'audio':
         final samples = message['samples'];
         if (samples is Float32List && samples.isNotEmpty) {
           buffer.addAll(samples);
-          sinceLastPartial += samples.length;
-          if (sinceLastPartial >= partialThreshold) {
-            sinceLastPartial = 0;
-            try {
-              final text = decode();
-              mainSend.send(<String, Object?>{
-                'event': 'result',
-                'text': text,
-                'isFinal': false,
-              });
-            } catch (e) {
-              mainSend.send(<String, Object?>{
-                'event': 'error',
-                'message': 'partial decode failed: $e',
-              });
-            }
-          }
         }
         break;
 
       case 'complete':
+        mainSend.send(<String, Object?>{'event': 'processing', 'active': true});
         try {
           final text = decode();
           // Always emit a final (even empty) so the UI clears any partial.
@@ -407,16 +392,42 @@ void _sherpaWorkerEntry(SendPort mainSend) {
           });
         }
         buffer.clear();
-        sinceLastPartial = 0;
         mainSend.send(<String, Object?>{
           'event': 'processing',
           'active': false,
         });
         break;
 
+      case 'split':
+        // Decode current buffer, emit final result, then keep a 2-second tail
+        // as overlap for the next segment to avoid losing boundary words.
+        mainSend.send(<String, Object?>{'event': 'processing', 'active': true});
+        try {
+          final text = decode();
+          mainSend.send(<String, Object?>{
+            'event': 'result',
+            'text': text,
+            'isFinal': true,
+          });
+        } catch (e) {
+          mainSend.send(<String, Object?>{
+            'event': 'error',
+            'message': 'split decode failed: $e',
+          });
+        }
+        // Retain last ~2 seconds (32000 samples at 16 kHz) as overlap.
+        const overlapSamples = sampleRate * 2;
+        if (buffer.length > overlapSamples) {
+          final tail = buffer.sublist(buffer.length - overlapSamples);
+          buffer.clear();
+          buffer.addAll(tail);
+        }
+        // Segment remains active — signal processing done.
+        mainSend.send(<String, Object?>{'event': 'processing', 'active': false});
+        break;
+
       case 'reset':
         buffer.clear();
-        sinceLastPartial = 0;
         mainSend.send(<String, Object?>{
           'event': 'processing',
           'active': false,

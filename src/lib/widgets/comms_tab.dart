@@ -1973,7 +1973,7 @@ class _CommsTabState extends State<CommsTab>
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               // Processing indicator
-              if (_audioEnabled)
+              if (_isListening || _isProcessing)
                 Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: Container(
@@ -1981,7 +1981,7 @@ class _CommsTabState extends State<CommsTab>
                     height: 12,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _getIndicatorColor(),
+                      color: _isProcessing ? Colors.red : Colors.green,
                     ),
                   ),
                 ),

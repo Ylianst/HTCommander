@@ -238,9 +238,11 @@ class CommsHandler {
   // state, mirroring the recording and SSTV features. It tracks whichever radio
   // device is currently streaming received audio.
   static const int _sttSampleRate = 32000;
-  // Force a final result if a single segment runs longer than ~30s of audio
-  // (32000 Hz * 2 bytes/sample * 30 s) to bound recognizer memory/latency.
-  static const int _sttMaxSegmentBytes = 32000 * 2 * 30;
+  // Force a split/final if a single segment accumulates more than ~27s of new
+  // audio (32000 Hz * 2 bytes/sample * 27 s). After a split the worker retains
+  // a 2-second overlap tail, so the total decode buffer is at most 29s — safely
+  // under the Whisper 30-second hard limit.
+  static const int _sttMaxSegmentBytes = 32000 * 2 * 27;
   SpeechToTextEngine? _sttEngine;
   StreamSubscription<SpeechResult>? _sttResultSub;
   StreamSubscription<bool>? _sttProcessingSub;
@@ -645,7 +647,16 @@ class CommsHandler {
   /// Handles the engine's processing (listening/recognizing) indicator.
   void _onSpeechProcessing(bool active) {
     if (_disposed) return;
-    _dispatchSttProcessing(listening: true, processing: active);
+    // When the model is actively decoding, show red (processing=true).
+    // When decoding finishes and no segment is active, hide the indicator.
+    // When decoding finishes but a segment is still active (split), show green.
+    if (active) {
+      _dispatchSttProcessing(listening: false, processing: true);
+    } else if (_sttSegmentActive) {
+      _dispatchSttProcessing(listening: true, processing: false);
+    } else {
+      _dispatchSttProcessing(listening: false, processing: false);
+    }
   }
 
   /// Dispatches a TextReady event directly to the radio device whose audio is
@@ -856,7 +867,8 @@ class CommsHandler {
     _sttSegmentActive = false;
     _sttSegmentBytes = 0;
     if (engine != null) unawaited(engine.completeSegment());
-    _dispatchSttProcessing(listening: true, processing: false);
+    // Don't dispatch here — the worker will emit processing events around
+    // the actual decode, which _onSpeechProcessing handles.
   }
 
   /// Discards any in-progress speech-to-text segment without emitting a final
@@ -917,15 +929,14 @@ class CommsHandler {
     _sttSegmentBytes += length;
 
     if (_sttSegmentBytes >= _sttMaxSegmentBytes) {
-      // Segment ran too long: force a final result and start a fresh segment so
-      // recognition keeps flowing without unbounded memory growth.
+      // Segment ran too long: decode and keep a short overlap tail so words
+      // at the boundary are not lost.
       _broker.logInfo(
-        '[CommsHandler] Speech segment reset due to length limit',
+        '[CommsHandler] Speech segment split due to length limit',
       );
-      unawaited(engine.completeSegment());
+      unawaited(engine.splitSegment());
       _sttSegmentBytes = 0;
       _sttCurrentEntry = null;
-      unawaited(engine.startSegment());
     }
   }
 
