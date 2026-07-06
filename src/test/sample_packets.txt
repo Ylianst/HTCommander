@@ -1,0 +1,2 @@
+WB2OSZ-15>APDW17,WIDE1-1:Hello, world! Testing the soft modem.
+N0CALL>APRS:=4903.50N/07201.75W-Test
