@@ -181,11 +181,66 @@ jobs:
         working-directory: src
         run: flutter build linux --release
 
+      - name: Package AppImage
+        run: |
+          APPDIR="HTCommander.AppDir"
+
+          mkdir -p "$APPDIR/usr/bin"
+          mkdir -p "$APPDIR/usr/lib"
+          mkdir -p "$APPDIR/usr/share/applications"
+          mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+
+          # Copy build output
+          cp -r src/build/linux/x64/release/bundle/* "$APPDIR/usr/bin/"
+
+          # Desktop file
+          cat > "$APPDIR/htcommander.desktop" <<EOF
+          [Desktop Entry]
+          Name=HTCommander
+          Comment=Amateur Radio tool for UV-Pro, GA-5WB, VR-N76, VR-N7500 and compatible radios
+          Exec=htcommander
+          Icon=htcommander
+          Type=Application
+          Categories=Utility;HamRadio;
+          Terminal=false
+          EOF
+          sed -i 's/^          //' "$APPDIR/htcommander.desktop"
+          cp "$APPDIR/htcommander.desktop" "$APPDIR/usr/share/applications/htcommander.desktop"
+
+          # Icon
+          cp src/assets/images/AppIcon.png "$APPDIR/htcommander.png"
+          cp src/assets/images/AppIcon.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/htcommander.png"
+
+          # AppRun script
+          cat > "$APPDIR/AppRun" <<'EOF'
+          #!/bin/bash
+          SELF=$(readlink -f "$0")
+          HERE=${SELF%/*}
+          export PATH="${HERE}/usr/bin:${PATH}"
+          export LD_LIBRARY_PATH="${HERE}/usr/bin/lib:${HERE}/usr/lib:${LD_LIBRARY_PATH}"
+          exec "${HERE}/usr/bin/htcommander" "$@"
+          EOF
+          sed -i 's/^          //' "$APPDIR/AppRun"
+          chmod +x "$APPDIR/AppRun"
+
+          # Download appimagetool
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+          chmod +x appimagetool
+
+          # Build AppImage
+          ARCH=x86_64 ./appimagetool --no-appstream "$APPDIR" "htcommander-linux-x64.AppImage"
+
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v7
         with:
           name: linux-build
           path: src/build/linux/x64/release/bundle/
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-appimage
+          path: htcommander-linux-x64.AppImage
 
   build-macos:
     runs-on: macos-26
