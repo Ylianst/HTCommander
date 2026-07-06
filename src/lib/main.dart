@@ -27,6 +27,7 @@ import 'gps/gps_serial_handler.dart';
 import 'torrent/torrent_handler.dart';
 import 'torrent/torrent_store.dart';
 import 'radio/radio_transport.dart';
+import 'radio/software_modem.dart';
 import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
@@ -98,6 +99,13 @@ void main(List<String> args) async {
   final airplaneHandler = AirplaneHandler();
   airplaneHandler.init();
   DataBroker.addDataHandler('AirplaneHandler', airplaneHandler);
+
+  // Register the software modem handler so that incoming radio audio is decoded
+  // into TNC data frames using AFSK 1200, PSK 2400/4800 or G3RUH 9600
+  // modulation via the hamlib library, and outgoing packets are encoded to PCM.
+  final softwareModem = SoftwareModem();
+  softwareModem.init();
+  DataBroker.addDataHandler('SoftwareModem', softwareModem);
 
   // Register the comms handler so that audio from radios can be turned into a
   // decoded text history and the comms tab can drive speech-to-text state.
@@ -439,6 +447,7 @@ class _MainFormState extends State<MainForm>
       false; // Audio path state of the currently displayed radio
   bool _gpsEnabled =
       false; // GPS enabled state of the currently displayed radio
+  String _softwareModemMode = 'none'; // Current software modem mode
   int _regionCount =
       0; // Number of regions offered by the currently displayed radio
   int _currRegion = 0; // Current region index of the currently displayed radio
@@ -626,6 +635,15 @@ class _MainFormState extends State<MainForm>
       callback: _onHtStatusChanged,
     );
 
+    // Subscribe to software modem mode changes
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SoftwareModemMode',
+      callback: _onSoftwareModemModeChanged,
+    );
+    // Load initial value
+    _softwareModemMode = (_broker.getValue<String>(0, 'SoftwareModemMode', 'none') ?? 'none').toLowerCase();
+
     // Initialize tabs with saved index
     _currentTabs = _getVisibleTabs();
     final savedTabName =
@@ -800,6 +818,15 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  /// Handle SoftwareModemMode changes from the DataBroker.
+  void _onSoftwareModemModeChanged(int deviceId, String name, Object? data) {
+    if (data is String) {
+      setState(() {
+        _softwareModemMode = data.toLowerCase();
+      });
+    }
+  }
+
   /// Handle GpsEnabled changes from any radio device (GPS enabled/disabled).
   void _onGpsEnabledChanged(int deviceId, String name, Object? data) {
     // Only update if this is for the currently displayed radio
@@ -885,6 +912,16 @@ class _MainFormState extends State<MainForm>
       deviceId: deviceId,
       name: 'SetAudio',
       data: !currentlyEnabled,
+      store: false,
+    );
+  }
+
+  /// Set the software modem mode via the DataBroker.
+  void _setSoftwareModemMode(String mode) {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SetSoftwareModemMode',
+      data: mode,
       store: false,
     );
   }
@@ -1426,6 +1463,37 @@ class _MainFormState extends State<MainForm>
               label: 'Audio Enabled',
               onPressed: _hasConnectedRadio ? _onToggleAudio : null,
               checked: _audioEnabled,
+            ),
+            const AppMenuDivider(),
+            AppSubmenu(
+              label: 'Software Modem',
+              children: [
+                AppMenuAction(
+                  label: 'Disabled',
+                  onPressed: () => _setSoftwareModemMode('None'),
+                  checked: _softwareModemMode == 'none',
+                ),
+                AppMenuAction(
+                  label: 'AFSK 1200',
+                  onPressed: () => _setSoftwareModemMode('AFSK1200'),
+                  checked: _softwareModemMode == 'afsk1200',
+                ),
+                AppMenuAction(
+                  label: 'PSK 2400',
+                  onPressed: () => _setSoftwareModemMode('PSK2400'),
+                  checked: _softwareModemMode == 'psk2400',
+                ),
+                AppMenuAction(
+                  label: 'PSK 4800',
+                  onPressed: () => _setSoftwareModemMode('PSK4800'),
+                  checked: _softwareModemMode == 'psk4800',
+                ),
+                AppMenuAction(
+                  label: 'G3RUH 9600',
+                  onPressed: () => _setSoftwareModemMode('G3RUH9600'),
+                  checked: _softwareModemMode == 'g3ruh9600',
+                ),
+              ],
             ),
           ],
         ),
