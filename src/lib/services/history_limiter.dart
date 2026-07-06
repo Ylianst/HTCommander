@@ -107,6 +107,71 @@ class HistoryLimiter {
     apply();
   }
 
+  /// Returns the current counts of persisted items on disk.
+  static Future<HistoryCounts> getCounts() async {
+    if (kIsWeb) return const HistoryCounts();
+
+    try {
+      final dir = await getApplicationSupportDirectory();
+
+      // Count packets (APRS vs non-APRS) from the file.
+      int aprsCount = 0;
+      int packetCount = 0;
+      final packetFile = File(
+        '${dir.path}${Platform.pathSeparator}packets.ptcap',
+      );
+      if (await packetFile.exists()) {
+        final lines = await packetFile.readAsLines();
+        for (final line in lines) {
+          if (line.isEmpty) continue;
+          if (_isAprsPacketLine(line)) {
+            aprsCount++;
+          } else {
+            packetCount++;
+          }
+        }
+      }
+
+      // Count SSTV images.
+      int sstvCount = 0;
+      final sstvDir = Directory(
+        '${dir.path}${Platform.pathSeparator}SSTV',
+      );
+      if (await sstvDir.exists()) {
+        await for (final entity in sstvDir.list()) {
+          if (entity is File && entity.path.toLowerCase().endsWith('.png')) {
+            sstvCount++;
+          }
+        }
+      }
+
+      // Count communication events.
+      int commCount = 0;
+      final historyFile = File(
+        '${dir.path}${Platform.pathSeparator}voicetext.json',
+      );
+      if (await historyFile.exists()) {
+        final content = await historyFile.readAsString();
+        if (content.trim().isNotEmpty) {
+          final decoded = jsonDecode(content);
+          if (decoded is List) {
+            commCount = decoded.length;
+          }
+        }
+      }
+
+      return HistoryCounts(
+        aprsMessages: aprsCount,
+        packets: packetCount,
+        sstvImages: sstvCount,
+        commEvents: commCount,
+      );
+    } catch (e) {
+      debugPrint('HistoryLimiter: failed to get counts: $e');
+      return const HistoryCounts();
+    }
+  }
+
   /// Reads the current limit settings from DataBroker and prunes any persisted
   /// stores that exceed their configured maximum. A limit of 0 means unlimited.
   static Future<void> apply() async {
@@ -325,4 +390,19 @@ class _PacketLineType {
   final String line;
   final bool isAprs;
   const _PacketLineType({required this.line, required this.isAprs});
+}
+
+/// Current counts of persisted history items.
+class HistoryCounts {
+  final int aprsMessages;
+  final int packets;
+  final int sstvImages;
+  final int commEvents;
+
+  const HistoryCounts({
+    this.aprsMessages = 0,
+    this.packets = 0,
+    this.sstvImages = 0,
+    this.commEvents = 0,
+  });
 }
