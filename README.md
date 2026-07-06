@@ -21,7 +21,7 @@ The following radios should work with this application:
 
 - [Windows Installer (.msi)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.msi). Only runs on 64bit Windows 10 and 11.
 - [macOS Installer (.dmg)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.dmg). Universal binary.
-- [Linux (.tar.gz)](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.tar.gz) | [.deb](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.deb) | [.rpm](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.rpm). Should work, please test and report.
+- [Linux (.tar.gz)](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.tar.gz) | [.deb](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.deb) | [.rpm](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.rpm) | [.AppImage](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.AppImage). Should work, please test and report.
 - [Google Play](https://play.google.com/store/apps/details?id=com.meshcentral.htcommander) | [Android (.apk)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.apk). Android 5.0 or higher.
 - [Web Version](https://ylianst.github.io/HTCommanderWeb/). Browsers with Bluetooth support (Chrome & Edge).
 
