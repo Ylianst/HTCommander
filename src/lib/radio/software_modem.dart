@@ -41,11 +41,14 @@ enum SoftwareModemMode {
   g3ruh9600,
 }
 
-/// Holds a PCM payload waiting to be transmitted once the channel is clear.
+/// Holds a frame waiting to be transmitted once the channel is clear. The
+/// audio is generated at flush time so multiple queued frames can be bundled
+/// into a single transmission (one preamble/postamble for all of them).
 class _PendingTransmission {
-  final Uint8List pcmData;
+  final Uint8List frameData;
+  final FragmentFrameType frameType;
   final DateTime deadline;
-  _PendingTransmission(this.pcmData, this.deadline);
+  _PendingTransmission(this.frameData, this.frameType, this.deadline);
 }
 
 /// Per-radio modem state for handling audio processing.
@@ -709,12 +712,13 @@ class SoftwareModem {
       final bool wasClear = state.channelIsClear;
       state.channelIsClear = isClear;
 
-      // If the channel just became clear while we're waiting, start the timer
+      // If the channel just became clear while we're waiting, resume the
+      // p-persistent channel-access state machine.
       if (isClear &&
           !wasClear &&
           state.waitingForChannel &&
           state.transmitQueue.isNotEmpty) {
-        _startChannelClearTimer(state);
+        _beginChannelAccess(state);
       }
     }
   }
@@ -756,86 +760,20 @@ class SoftwareModem {
       return;
     }
 
-    const int chan = 0;
-    state.packetAudioBuffer!.clearAll();
+    // Queue the frame. The audio is generated at flush time so several queued
+    // frames can be bundled into a single transmission (one preamble).
+    state.transmitQueue.add(_PendingTransmission(
+      Uint8List.fromList(fragment.data),
+      fragment.frameType,
+      DateTime.now().add(const Duration(seconds: 30)),
+    ));
+    _debug(
+      'Queued ${fragment.frameType == FragmentFrameType.fx25 ? "FX.25" : "AX.25"} '
+      'packet (${fragment.data.length} bytes) on device $deviceId '
+      '(queue: ${state.transmitQueue.length})',
+    );
 
-    // Add pre-silence for G3RUH 9600
-    if (_currentMode == SoftwareModemMode.g3ruh9600) {
-      const int silenceSamples = 32000 ~/ 2; // 0.5 seconds
-      for (int i = 0; i < silenceSamples; i++) {
-        state.packetAudioBuffer!.put(0, 0);
-      }
-    }
-
-    // Send preamble flags
-    final int txdelayFlags = state.audioConfig!.channels[chan].txdelay;
-    state.packetHdlcSend!.sendFlags(chan, txdelayFlags, false, null);
-
-    // Send frame (FX.25 or AX.25)
-    final bool useFx25 = (fragment.frameType == FragmentFrameType.fx25);
-    if (useFx25) {
-      const int fxMode = 32;
-      state.packetFx25Send!.sendFrame(
-        chan,
-        fragment.data,
-        fragment.data.length,
-        fxMode,
-      );
-      _debug(
-        'Transmitting FX.25 packet (${fragment.data.length} bytes with FEC) on device $deviceId',
-      );
-    } else {
-      state.packetHdlcSend!.sendFrame(
-        chan,
-        fragment.data,
-        fragment.data.length,
-        false,
-      );
-      _debug(
-        'Transmitting AX.25 packet (${fragment.data.length} bytes) on device $deviceId',
-      );
-    }
-
-    // Send postamble flags
-    final int txtailFlags = state.audioConfig!.channels[chan].txtail;
-    state.packetHdlcSend!.sendFlags(chan, txtailFlags, true, (device) {});
-
-    // Add post-silence for G3RUH 9600
-    if (_currentMode == SoftwareModemMode.g3ruh9600) {
-      const int silenceSamples = 32000 ~/ 2; // 0.5 seconds
-      for (int i = 0; i < silenceSamples; i++) {
-        state.packetAudioBuffer!.put(0, 0);
-      }
-    }
-
-    // Get the generated audio samples
-    final samples = state.packetAudioBuffer!.getAndClear(0);
-    if (samples.isNotEmpty) {
-      // Convert to PCM bytes (little-endian 16-bit)
-      final Uint8List pcmData = Uint8List(samples.length * 2);
-      final ByteData bd = ByteData.view(pcmData.buffer);
-      for (int i = 0; i < samples.length; i++) {
-        bd.setInt16(i * 2, samples[i], Endian.little);
-      }
-
-      // Queue the PCM payload — it will be sent once the channel clears
-      state.transmitQueue.add(_PendingTransmission(
-        pcmData,
-        DateTime.now().add(const Duration(seconds: 30)),
-      ));
-      _debug(
-        'Queued packet: ${samples.length} samples, ${pcmData.length} bytes PCM on device $deviceId',
-      );
-
-      if (state.channelIsClear && !state.waitingForChannel) {
-        // Channel is already free — start the random back-off timer
-        _startChannelClearTimer(state);
-      } else if (!state.channelIsClear) {
-        // Channel is busy — wait for the ChannelClear broker event
-        state.waitingForChannel = true;
-        _debug('Channel busy on device $deviceId, waiting for clear channel');
-      }
-    }
+    _beginChannelAccess(state);
   }
 
   void _onChannelClear(int deviceId, String name, Object? data) {
@@ -846,64 +784,197 @@ class SoftwareModem {
     if (!state.waitingForChannel || state.transmitQueue.isEmpty) return;
 
     state.channelIsClear = true;
-    _startChannelClearTimer(state);
+    _beginChannelAccess(state);
   }
 
-  void _startChannelClearTimer(_RadioModemState state) {
-    state.channelWaitTimer?.cancel();
+  // ---------------------------------------------------------------------------
+  // Channel access - p-persistent CSMA (matches Direwolf's wait_for_clear_channel)
+  //
+  // After the channel is sensed clear (RSSI == 0 and we are not transmitting),
+  // wait one "slot time" then transmit with probability persist/256; otherwise
+  // wait another slot and try again. Re-checking the channel on every slot and
+  // only transmitting probabilistically spreads out stations that were all
+  // waiting for a busy channel to clear, which greatly reduces collisions.
+  // ---------------------------------------------------------------------------
 
-    final int delayMs = 200 + _rng.nextInt(601); // 200–800 ms random back-off
-    state.waitingForChannel = true;
-    state.channelWaitTimer = Timer(
-      Duration(milliseconds: delayMs),
-      () => _flushTransmitQueue(state.deviceId),
-    );
-    _debug(
-      'Channel clear on device ${state.deviceId}, transmitting in $delayMs ms',
-    );
-  }
+  static const int _csmaSlotTimeMs = 100; // Direwolf slottime default (10 * 10ms)
+  static const int _csmaPersist = 63; // Direwolf persist default (~25%/slot)
+  static const int _maxBundleFrames = 8; // frames bundled into a single keyup
 
-  void _flushTransmitQueue(int deviceId) {
+  /// Kick off (or resume) the channel-access state machine for [state].
+  void _beginChannelAccess(_RadioModemState state) {
     if (_disposed) return;
 
-    final state = _radioModems[deviceId];
-    if (state == null) return;
-
-    state.waitingForChannel = false;
-
-    // Drop any packets that have passed their deadline
-    while (state.transmitQueue.isNotEmpty &&
-        DateTime.now().isAfter(state.transmitQueue.first.deadline)) {
-      state.transmitQueue.removeAt(0);
-      _debug('FlushTransmitQueue: dropped expired packet on device $deviceId');
-    }
-
-    if (state.transmitQueue.isEmpty) return;
-
-    // If the channel became busy again since the timer was started, re-queue
-    if (!state.channelIsClear) {
-      state.waitingForChannel = true;
-      _debug(
-        'FlushTransmitQueue: channel busy again on device $deviceId, re-waiting',
-      );
+    _dropExpired(state);
+    if (state.transmitQueue.isEmpty) {
+      state.waitingForChannel = false;
       return;
     }
 
-    final Uint8List pcmData = state.transmitQueue.removeAt(0).pcmData;
+    state.waitingForChannel = true;
+    if (state.channelWaitTimer != null) return; // persistence already running
+    if (!state.channelIsClear) return; // busy: resume on ChannelClear/HtStatus
+    _schedulePersistenceSlot(state);
+  }
+
+  void _schedulePersistenceSlot(_RadioModemState state) {
+    state.channelWaitTimer?.cancel();
+    state.channelWaitTimer = Timer(
+      const Duration(milliseconds: _csmaSlotTimeMs),
+      () => _onPersistenceSlot(state),
+    );
+  }
+
+  void _onPersistenceSlot(_RadioModemState state) {
+    state.channelWaitTimer = null;
+    if (_disposed) return;
+
+    _dropExpired(state);
+    if (state.transmitQueue.isEmpty) {
+      state.waitingForChannel = false;
+      return;
+    }
+
+    // Someone else may have started transmitting during the slot - if so, go
+    // back to waiting for the channel to clear again.
+    if (!state.channelIsClear) {
+      state.waitingForChannel = true;
+      return;
+    }
+
+    // Transmit now with probability persist/256, otherwise try the next slot.
+    if (_rng.nextInt(256) <= _csmaPersist) {
+      _flushTransmitQueue(state);
+    } else {
+      _schedulePersistenceSlot(state);
+    }
+  }
+
+  void _dropExpired(_RadioModemState state) {
+    final now = DateTime.now();
+    while (state.transmitQueue.isNotEmpty &&
+        now.isAfter(state.transmitQueue.first.deadline)) {
+      state.transmitQueue.removeAt(0);
+      _debug('Dropped expired packet on device ${state.deviceId}');
+    }
+  }
+
+  void _flushTransmitQueue(_RadioModemState state) {
+    if (_disposed) return;
+
+    state.channelWaitTimer?.cancel();
+    state.channelWaitTimer = null;
+
+    _dropExpired(state);
+    if (state.transmitQueue.isEmpty) {
+      state.waitingForChannel = false;
+      return;
+    }
+
+    // If the channel went busy again, wait for it to clear.
+    if (!state.channelIsClear) {
+      state.waitingForChannel = true;
+      return;
+    }
+
+    // Bundle up to _maxBundleFrames queued frames into a single transmission so
+    // the TXDELAY preamble cost is paid only once for several packets.
+    final List<_PendingTransmission> bundle = [];
+    while (state.transmitQueue.isNotEmpty && bundle.length < _maxBundleFrames) {
+      bundle.add(state.transmitQueue.removeAt(0));
+    }
+
+    final Uint8List? pcmData = _buildBundledPcm(state, bundle);
     final bool moreQueued = state.transmitQueue.isNotEmpty;
 
-    // If there are further packets, arm the wait state so the next ChannelClear fires them
-    if (moreQueued) state.waitingForChannel = true;
+    // Assume the channel is now busy with our own transmission; the next
+    // HtStatus / ChannelClear will resume any remaining frames.
+    state.channelIsClear = false;
+    state.waitingForChannel = moreQueued;
+
+    if (pcmData == null || pcmData.isEmpty) {
+      if (moreQueued) _beginChannelAccess(state);
+      return;
+    }
 
     _broker.dispatch(
-      deviceId: deviceId,
+      deviceId: state.deviceId,
       name: 'TransmitVoicePCM',
       data: {'Data': pcmData, 'PlayLocally': false},
       store: false,
     );
     _debug(
-      'Transmitted queued packet: ${pcmData.length ~/ 2} samples, ${pcmData.length} bytes PCM on device $deviceId',
+      'Transmitted ${bundle.length} bundled packet(s), '
+      '${pcmData.length ~/ 2} samples on device ${state.deviceId}'
+      '${moreQueued ? " (${state.transmitQueue.length} still queued)" : ""}',
     );
+  }
+
+  /// Builds a single PCM transmission containing all [frames] bundled together:
+  /// one TXDELAY preamble, each frame back-to-back (HDLC flags delimit them),
+  /// then one TXTAIL postamble. Returns little-endian 16-bit mono PCM bytes.
+  Uint8List? _buildBundledPcm(
+    _RadioModemState state,
+    List<_PendingTransmission> frames,
+  ) {
+    if (frames.isEmpty) return null;
+    if (state.packetAudioBuffer == null ||
+        state.packetHdlcSend == null ||
+        state.audioConfig == null) {
+      return null;
+    }
+
+    const int chan = 0;
+    final buffer = state.packetAudioBuffer!;
+    buffer.clearAll();
+
+    final bool is9600 = _currentMode == SoftwareModemMode.g3ruh9600;
+    const int silenceSamples = 32000 ~/ 2; // 0.5 s at 32 kHz
+
+    // Pre-silence for G3RUH 9600.
+    if (is9600) {
+      for (int i = 0; i < silenceSamples; i++) {
+        buffer.put(0, 0);
+      }
+    }
+
+    // Single preamble for the whole transmission.
+    final int txdelayFlags = state.audioConfig!.channels[chan].txdelay;
+    state.packetHdlcSend!.sendFlags(chan, txdelayFlags, false, null);
+
+    // All frames one after another. Each frame emits its own HDLC flags so
+    // consecutive frames stay properly delimited.
+    for (final tx in frames) {
+      if (tx.frameType == FragmentFrameType.fx25) {
+        const int fxMode = 32;
+        state.packetFx25Send!
+            .sendFrame(chan, tx.frameData, tx.frameData.length, fxMode);
+      } else {
+        state.packetHdlcSend!
+            .sendFrame(chan, tx.frameData, tx.frameData.length, false);
+      }
+    }
+
+    // Single postamble.
+    final int txtailFlags = state.audioConfig!.channels[chan].txtail;
+    state.packetHdlcSend!.sendFlags(chan, txtailFlags, true, (device) {});
+
+    // Post-silence for G3RUH 9600.
+    if (is9600) {
+      for (int i = 0; i < silenceSamples; i++) {
+        buffer.put(0, 0);
+      }
+    }
+
+    final samples = buffer.getAndClear(0);
+    if (samples.isEmpty) return null;
+
+    final Uint8List pcmData = Uint8List(samples.length * 2);
+    final ByteData bd = ByteData.view(pcmData.buffer);
+    for (int i = 0; i < samples.length; i++) {
+      bd.setInt16(i * 2, samples[i], Endian.little);
+    }
+    return pcmData;
   }
 
   // ---------------------------------------------------------------------------
