@@ -4,6 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -11,15 +12,100 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'data_broker.dart';
+import 'data_broker_client.dart';
 
-/// Applies the user-configured history limits from [AppSettings] and trims
-/// persisted data (packets file, SSTV images, voice-text history) to stay
-/// within those limits.
+/// Enforces user-configured history limits on persisted data (packets file,
+/// SSTV images, voice-text history).
 ///
-/// Call [HistoryLimiter.apply] after settings are saved, or at app startup,
-/// to enforce any newly configured limits.
+/// Limits are applied:
+/// - Once at app startup
+/// - Immediately when settings change
+/// - Every 30 minutes, but only if new data has been added since the last run
+///
+/// Usage: call [HistoryLimiter.instance.init()] once at app startup.
 class HistoryLimiter {
   HistoryLimiter._();
+
+  /// Singleton instance.
+  static final HistoryLimiter instance = HistoryLimiter._();
+
+  final DataBrokerClient _broker = DataBrokerClient();
+  Timer? _periodicTimer;
+  bool _dirty = false;
+  bool _initialized = false;
+
+  /// Stops the periodic timer and unsubscribes from events.
+  void dispose() {
+    _periodicTimer?.cancel();
+    _periodicTimer = null;
+    _broker.dispose();
+    _initialized = false;
+  }
+
+  /// Initializes the limiter: applies limits immediately, subscribes to data
+  /// events, and starts the periodic 30-minute timer.
+  void init() {
+    if (_initialized) return;
+    _initialized = true;
+
+    // Apply limits at startup.
+    apply();
+
+    // Listen for new data additions to mark dirty.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'UniqueDataFrame',
+      callback: _onDataAdded,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'DecodedTextHistory',
+      callback: _onDataAdded,
+    );
+
+    // Listen for settings changes (any of the limit keys).
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MaxAprsMessages',
+      callback: _onSettingsChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MaxPackets',
+      callback: _onSettingsChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MaxSstvImages',
+      callback: _onSettingsChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MaxCommEvents',
+      callback: _onSettingsChanged,
+    );
+
+    // Start periodic timer (every 30 minutes).
+    _periodicTimer = Timer.periodic(
+      const Duration(minutes: 30),
+      _onPeriodicTick,
+    );
+  }
+
+  void _onDataAdded(int deviceId, String name, Object? data) {
+    _dirty = true;
+  }
+
+  void _onSettingsChanged(int deviceId, String name, Object? data) {
+    // Settings changed — apply immediately.
+    apply();
+  }
+
+  void _onPeriodicTick(Timer timer) {
+    if (!_dirty) return;
+    _dirty = false;
+    apply();
+  }
 
   /// Reads the current limit settings from DataBroker and prunes any persisted
   /// stores that exceed their configured maximum. A limit of 0 means unlimited.
