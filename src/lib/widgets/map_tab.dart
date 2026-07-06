@@ -4,6 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -92,6 +93,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   /// Time filter in minutes (0 = show all). Markers/tracks older than this are
   /// hidden, mirroring the C# `MapTimeFilter` behaviour.
   int _markerTimeFilter = 0;
+
+  /// Periodic timer that triggers a rebuild so markers that have aged past the
+  /// time filter threshold are removed from the display.
+  Timer? _filterRefreshTimer;
 
   /// APRS station markers keyed by callsign (red, or blue for "Self").
   final Map<String, _StationMarkerData> _aprsStations = {};
@@ -494,6 +499,22 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     return DateTime.now();
   }
 
+  /// Starts or stops the periodic refresh timer depending on whether a time
+  /// filter is active. When a filter is set, the timer fires every 60 seconds
+  /// to remove markers that have aged past the threshold.
+  void _updateFilterRefreshTimer() {
+    _filterRefreshTimer?.cancel();
+    _filterRefreshTimer = null;
+    if (_markerTimeFilter > 0) {
+      _filterRefreshTimer = Timer.periodic(
+        const Duration(seconds: 60),
+        (_) {
+          if (mounted) setState(() {});
+        },
+      );
+    }
+  }
+
   /// True when [time] is within the active time filter window (or no filter).
   bool _passesTimeFilter(DateTime time) {
     if (_markerTimeFilter == 0) return true;
@@ -503,6 +524,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
 
   @override
   void dispose() {
+    _filterRefreshTimer?.cancel();
     _broker.dispose();
     super.dispose();
   }
@@ -535,6 +557,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     _largeMarkers =
         (DataBroker.getValue<int>(0, 'MapLargeMarkers', 1) ?? 1) == 1;
     _markerTimeFilter = DataBroker.getValue<int>(0, 'MapTimeFilter', 0) ?? 0;
+    _updateFilterRefreshTimer();
     _showAirplanes =
         (DataBroker.getValue<int>(0, 'ShowAirplanesOnMap', 0) ?? 0) == 1;
     _showContactsOnly =
@@ -879,6 +902,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
       setState(() {
         _markerTimeFilter = value;
       });
+      _updateFilterRefreshTimer();
       _broker.dispatch(deviceId: 0, name: 'MapTimeFilter', data: value);
     });
   }

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
+import '../services/history_limiter.dart';
 import '../services/tts_service.dart';
 import '../services/sherpa_model_manager.dart';
 
@@ -367,6 +368,9 @@ class _SettingsDialogState extends State<SettingsDialog>
   List<Map<String, String>> _voices = const [];
   bool _voicesLoaded = false;
 
+  // Current history item counts (loaded asynchronously for the Limits tab).
+  HistoryCounts? _historyCounts;
+
   // Language options (SenseVoice-supported recognition languages).
   static const List<LanguageOption> _languages = [
     LanguageOption('auto', 'Auto-detect'),
@@ -453,6 +457,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     // Load the available TTS voices for the Voice tab.
     _loadVoices();
 
+    // Load current history counts for the Limits tab.
+    _loadHistoryCounts();
+
     // Sync the speech-to-text model status shown in the Voice tab.
     // Speech-to-text is not available on Android.
     if (defaultTargetPlatform != TargetPlatform.android) {
@@ -477,6 +484,13 @@ class _SettingsDialogState extends State<SettingsDialog>
       _voices = voices;
       _voicesLoaded = true;
     });
+  }
+
+  /// Loads current history item counts for display in the Limits tab.
+  Future<void> _loadHistoryCounts() async {
+    final counts = await HistoryLimiter.getCounts();
+    if (!mounted) return;
+    setState(() => _historyCounts = counts);
   }
 
   @override
@@ -588,16 +602,72 @@ class _SettingsDialogState extends State<SettingsDialog>
     );
   }
 
-  void _onSave() {
+  void _onSave() async {
     // Update settings from text controllers
     _settings.winlinkPassword = _winlinkPasswordController.text;
     _settings.webServerPort = int.tryParse(_webPortController.text) ?? 8080;
     _settings.agwpeServerPort = int.tryParse(_agwpePortController.text) ?? 8000;
     _settings.airplaneServerUrl = _airplaneUrlController.text;
 
+    // Check if any limit would cause items to be deleted.
+    final counts = _historyCounts;
+    if (counts != null) {
+      final deletions = <String>[];
+      if (_settings.maxAprsMessages > 0 &&
+          counts.aprsMessages > _settings.maxAprsMessages) {
+        deletions.add(
+          '${counts.aprsMessages - _settings.maxAprsMessages} APRS messages',
+        );
+      }
+      if (_settings.maxPackets > 0 &&
+          counts.packets > _settings.maxPackets) {
+        deletions.add(
+          '${counts.packets - _settings.maxPackets} packets',
+        );
+      }
+      if (_settings.maxSstvImages > 0 &&
+          counts.sstvImages > _settings.maxSstvImages) {
+        deletions.add(
+          '${counts.sstvImages - _settings.maxSstvImages} SSTV images',
+        );
+      }
+      if (_settings.maxCommEvents > 0 &&
+          counts.commEvents > _settings.maxCommEvents) {
+        deletions.add(
+          '${counts.commEvents - _settings.maxCommEvents} communication events',
+        );
+      }
+
+      if (deletions.isNotEmpty) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete History Items?'),
+            content: Text(
+              'These limits will permanently delete the oldest:\n\n'
+              '${deletions.map((d) => '\u2022 $d').join('\n')}\n\n'
+              'This cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true) return;
+      }
+    }
+
     // Save all settings to DataBroker (persisted to SharedPreferences)
     _settings.saveToDataBroker();
 
+    if (!mounted) return;
     Navigator.of(
       context,
     ).pop(true); // Return true to indicate settings were saved
@@ -1798,11 +1868,15 @@ class _SettingsDialogState extends State<SettingsDialog>
     required String label,
     required int value,
     required ValueChanged<int> onChanged,
+    int? currentCount,
   }) {
     // Slider positions: 0=Unlimited, then log-ish steps.
     const List<int> steps = [0, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
     final int idx = steps.indexOf(value);
     final int sliderIndex = idx >= 0 ? idx : 0;
+
+    final bool willDelete =
+        currentCount != null && value > 0 && currentCount > value;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1811,9 +1885,23 @@ class _SettingsDialogState extends State<SettingsDialog>
           children: [
             Text(label, style: DialogStyles.labelStyle),
             const Spacer(),
+            if (currentCount != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  'Current: $currentCount',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
             Text(
               _limitLabel(value),
-              style: DialogStyles.bodyStyle,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: willDelete ? Colors.red.shade700 : null,
+              ),
             ),
           ],
         ),
@@ -1827,11 +1915,24 @@ class _SettingsDialogState extends State<SettingsDialog>
             onChanged(steps[v.round().clamp(0, steps.length - 1)]);
           },
         ),
+        if (willDelete)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 4),
+            child: Text(
+              '${currentCount - value} items will be deleted',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.red.shade700,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
       ],
     );
   }
 
   Widget _buildLimitsTab() {
+    final counts = _historyCounts;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1860,6 +1961,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 _buildLimitSlider(
                   label: 'APRS Messages',
                   value: _settings.maxAprsMessages,
+                  currentCount: counts?.aprsMessages,
                   onChanged: (v) =>
                       setState(() => _settings.maxAprsMessages = v),
                 ),
@@ -1867,12 +1969,14 @@ class _SettingsDialogState extends State<SettingsDialog>
                 _buildLimitSlider(
                   label: 'Packets',
                   value: _settings.maxPackets,
+                  currentCount: counts?.packets,
                   onChanged: (v) => setState(() => _settings.maxPackets = v),
                 ),
                 const SizedBox(height: 8),
                 _buildLimitSlider(
                   label: 'SSTV Images',
                   value: _settings.maxSstvImages,
+                  currentCount: counts?.sstvImages,
                   onChanged: (v) =>
                       setState(() => _settings.maxSstvImages = v),
                 ),
@@ -1880,6 +1984,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 _buildLimitSlider(
                   label: 'Communication Events',
                   value: _settings.maxCommEvents,
+                  currentCount: counts?.commEvents,
                   onChanged: (v) =>
                       setState(() => _settings.maxCommEvents = v),
                 ),

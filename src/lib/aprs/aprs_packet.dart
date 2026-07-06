@@ -151,13 +151,25 @@ class AprsPacket {
       final int l = str.length;
       final int last = str.codeUnitAt(l - 1);
       if (last == 0x7A) {
-        // 'z'
+        // 'z' — DHM format (day/hour/minute) in Zulu (UTC).
         try {
           final day = int.parse(str.substring(0, 2));
           final hour = int.parse(str.substring(2, 4));
           final minute = int.parse(str.substring(4, 6));
           final now = timeStamp!;
           timeStamp = DateTime.utc(now.year, now.month, day, hour, minute, 0);
+          // If the result is in the future the day must belong to the previous
+          // month (e.g. day 30 parsed on the 5th of the next month).
+          if (timeStamp!.isAfter(now)) {
+            timeStamp = DateTime.utc(
+              now.year,
+              now.month - 1,
+              day,
+              hour,
+              minute,
+              0,
+            );
+          }
         } catch (_) {
           timeStamp = DateTime.now().toUtc();
         }
@@ -165,7 +177,7 @@ class AprsPacket {
         // '/' local time - not handled
         timeStamp = null;
       } else if (last == 0x68) {
-        // 'h'
+        // 'h' — HMS format (hour/minute/second) in UTC.
         final hour = int.parse(str.substring(0, 2));
         final minute = int.parse(str.substring(2, 4));
         final second = int.parse(str.substring(4, 6));
@@ -178,6 +190,11 @@ class AprsPacket {
           minute,
           second,
         );
+        // If the result is in the future the time must belong to yesterday
+        // (e.g. 23:00h parsed at 02:00 the next day).
+        if (timeStamp!.isAfter(now)) {
+          timeStamp = timeStamp!.subtract(const Duration(days: 1));
+        }
       } else if (l == 8) {
         final month = int.parse(str.substring(0, 2));
         final day = int.parse(str.substring(2, 4));
@@ -185,6 +202,10 @@ class AprsPacket {
         final minute = int.parse(str.substring(6, 8));
         final now = timeStamp!;
         timeStamp = DateTime.utc(now.year, month, day, hour, minute, 0);
+        // If the result is in the future it likely belongs to the previous year.
+        if (timeStamp!.isAfter(now)) {
+          timeStamp = DateTime.utc(now.year - 1, month, day, hour, minute, 0);
+        }
       } else {
         timeStamp = null;
       }
