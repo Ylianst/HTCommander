@@ -507,7 +507,10 @@ class SoftwareModem {
 
   void _initializePsk2400(_RadioModemState state) {
     state.audioConfig!.channels[0].modemType = ModemType.qpsk;
-    state.audioConfig!.channels[0].baud = 1200; // 2400 bps / 2 bits per symbol
+    // Direwolf treats achan.baud as bits-per-second for PSK; GenTone derives
+    // the 1200 symbol/s rate internally (baud * 0.5). Must match the 2400 bps
+    // passed to the demodulator below.
+    state.audioConfig!.channels[0].baud = 2400;
     state.audioConfig!.channels[0].v26Alt = V26Alternative.b;
     state.audioConfig!.channels[0].txdelay = 30;
     state.audioConfig!.channels[0].txtail = 10;
@@ -542,7 +545,9 @@ class SoftwareModem {
 
   void _initializePsk4800(_RadioModemState state) {
     state.audioConfig!.channels[0].modemType = ModemType.psk8;
-    state.audioConfig!.channels[0].baud = 1600; // 4800 bps / 3 bits per symbol
+    // Bits-per-second for PSK; GenTone derives the 1600 symbol/s rate
+    // internally (baud / 3). Must match the 4800 bps passed to the demodulator.
+    state.audioConfig!.channels[0].baud = 4800;
     state.audioConfig!.channels[0].v26Alt = V26Alternative.b;
     state.audioConfig!.channels[0].txdelay = 30;
     state.audioConfig!.channels[0].txtail = 10;
@@ -576,7 +581,10 @@ class SoftwareModem {
   }
 
   void _initializeG3ruh9600(_RadioModemState state) {
-    state.audioConfig!.channels[0].modemType = ModemType.baseband;
+    // G3RUH requires the transmit side to scramble the bit stream; the
+    // demodulator always descrambles. ModemType.baseband would send
+    // un-scrambled data that the receiver cannot decode.
+    state.audioConfig!.channels[0].modemType = ModemType.scramble;
     state.audioConfig!.channels[0].baud = 9600;
     state.audioConfig!.channels[0].txdelay = 30;
     state.audioConfig!.channels[0].txtail = 10;
