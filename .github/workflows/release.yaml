@@ -722,6 +722,45 @@ jobs:
           name: android-aab
           path: htcommander-*.aab
 
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        working-directory: src
+        run: flutter pub get
+
+      - name: Build Web
+        working-directory: src
+        run: flutter build web --release --base-href "/HTCommanderWeb/"
+
+      - name: Upload Web artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-build
+          path: src/build/web/
+
+      - name: Deploy to HTCommanderWeb
+        run: |
+          git clone https://x-access-token:${{ secrets.HTCOMMANDERWEB_TOKEN }}@github.com/Ylianst/HTCommanderWeb.git deploy
+          cd deploy
+          # Remove all files except LICENSE, README.md, and .git
+          find . -maxdepth 1 ! -name '.' ! -name '.git' ! -name 'LICENSE' ! -name 'README.md' -exec rm -rf {} +
+          # Copy new build files
+          cp -r ../src/build/web/* .
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --cached --quiet || git commit -m "Deploy web build from ${{ github.repository }}@${{ github.sha }}"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.HTCOMMANDERWEB_TOKEN }}
+
   release:
     needs: [build-windows, build-linux, build-macos, build-android]
     runs-on: ubuntu-latest
