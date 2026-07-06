@@ -39,18 +39,25 @@ limitations under the License.
 // ignore_for_file: avoid_print
 
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:htcommander/hamlib/audio_buffer.dart';
 import 'package:htcommander/hamlib/audio_config.dart';
 import 'package:htcommander/hamlib/ax25_pad.dart';
+import 'package:htcommander/hamlib/correction_info.dart';
 import 'package:htcommander/hamlib/demod_9600.dart';
 import 'package:htcommander/hamlib/demod_afsk.dart';
 import 'package:htcommander/hamlib/demod_psk.dart';
+import 'package:htcommander/hamlib/fx25.dart';
+import 'package:htcommander/hamlib/fx25_rec.dart';
+import 'package:htcommander/hamlib/fx25_send.dart';
 import 'package:htcommander/hamlib/gen_tone.dart';
 import 'package:htcommander/hamlib/hdlc_rec.dart';
 import 'package:htcommander/hamlib/hdlc_rec2.dart';
 import 'package:htcommander/hamlib/hdlc_send.dart';
+import 'package:htcommander/hamlib/ihdlc_receiver.dart';
+import 'package:htcommander/hamlib/multi_modem.dart';
 import 'package:htcommander/hamlib/wav_file.dart';
 
 /// Which demodulator family a modem profile uses.
@@ -185,6 +192,7 @@ int _runEncode({
   required String dataFile,
   required int sampleRate,
   required int amplitude,
+  required int fxMode,
 }) {
   final _ModemProfile? profile = _profileForBaud(baud);
   if (profile == null) {
@@ -206,6 +214,14 @@ int _runEncode({
   genTone.init(cfg, amplitude);
   final HdlcSend hdlcSend = HdlcSend(genTone, cfg);
 
+  final bool useFx25 = fxMode > 0;
+  Fx25Send? fx25Send;
+  if (useFx25) {
+    Fx25.init(0);
+    fx25Send = Fx25Send();
+    fx25Send.init(genTone);
+  }
+
   const int chan = 0;
   audioBuffer.clearAll();
 
@@ -226,7 +242,13 @@ int _runEncode({
     }
 
     hdlcSend.sendFlags(chan, cfg.channels[chan].txdelay, false, null);
-    hdlcSend.sendFrame(chan, packet.frameData, packet.frameLen, false);
+    if (useFx25) {
+      // FX.25 wraps the AX.25 frame in a Reed-Solomon codeblock. sendFrame
+      // appends the FCS itself, so pass the un-FCS'd frame.
+      fx25Send!.sendFrame(chan, packet.frameData, packet.frameLen, fxMode);
+    } else {
+      hdlcSend.sendFrame(chan, packet.frameData, packet.frameLen, false);
+    }
     hdlcSend.sendFlags(chan, cfg.channels[chan].txtail, true, (device) {});
 
     if (profile.demodKind == _DemodKind.g3ruh) {
@@ -253,7 +275,8 @@ int _runEncode({
   print('');
   print('Wrote $packetCount packet(s) to $outputFile');
   print('  Baud: $baud   Sample rate: $sampleRate Hz   '
-      'Modulation: ${profile.modemType.name}');
+      'Modulation: ${profile.modemType.name}'
+      '${useFx25 ? "   FEC: FX.25 ($fxMode check bytes)" : ""}');
   print('  ${samples.length} samples (${seconds.toStringAsFixed(2)} s)');
   return 0;
 }
@@ -289,23 +312,50 @@ int _runDecode({
 
   final AudioConfig cfg = _buildAudioConfig(profile, sampleRate);
 
-  final HdlcRec2 hdlcRec = HdlcRec2();
-  int decoded = 0;
+  int axCount = 0; // decoded via plain AX.25 (no FEC)
+  int fxCount = 0; // decoded via FX.25 (Reed-Solomon FEC)
 
+  // Plain AX.25/HDLC receiver.
+  final HdlcRec2 hdlcRec = HdlcRec2();
   hdlcRec.addFrameReceived((FrameReceivedEventArgs e) {
     final Packet? packet = Packet.fromFrame(e.frame, e.frameLength, ALevel());
     if (packet == null) return;
-    decoded++;
-    print('[$decoded] ${_packetToMonitor(packet)}');
+    axCount++;
+    print('[AX.25]  ${_packetToMonitor(packet)}');
   });
   hdlcRec.init(cfg);
+
+  // FX.25 receiver (Reed-Solomon FEC). Decoded frames arrive via MultiModem.
+  Fx25.init(0);
+  final MultiModem multiModem = MultiModem();
+  multiModem.init(cfg);
+  multiModem.addPacketReady((PacketReadyEventArgs e) {
+    final Packet? packet = e.packet;
+    if (packet == null || e.fecType != FecType.fx25) return;
+    fxCount++;
+    final CorrectionInfo? ci = e.correctionInfo;
+    final int corrected = ci?.rsSymbolsCorrected ?? -1;
+    final String tag = e.ctagNum >= 0
+        ? '0x${e.ctagNum.toRadixString(16).padLeft(2, '0')}'
+        : '?';
+    final String fec = corrected > 0
+        ? 'corrected $corrected RS symbol(s)'
+        : (corrected == 0 ? 'no errors' : 'FEC');
+    print('[FX.25 tag=$tag $fec]  ${_packetToMonitor(packet)}');
+  });
+  final Fx25Rec fx25Rec = Fx25Rec(multiModem);
+
+  // Bridge feeds each demodulated bit to both receivers. The FX.25 decoder
+  // needs the NRZI-decoded bit (Direwolf: fx25_rec_bit(dbit)); the HDLC
+  // receiver does its own NRZI decoding from the raw bit.
+  final _DecodeBridge bridge = _DecodeBridge(hdlcRec, fx25Rec);
 
   const int chan = 0;
   const int subchan = 0;
 
   switch (profile.demodKind) {
     case _DemodKind.afsk:
-      final DemodAfsk demod = DemodAfsk(hdlcRec);
+      final DemodAfsk demod = DemodAfsk(bridge);
       final DemodulatorState state = DemodulatorState();
       demod.init(
         sampleRate,
@@ -321,7 +371,7 @@ int _runDecode({
       break;
 
     case _DemodKind.psk:
-      final DemodPsk demod = DemodPsk(hdlcRec);
+      final DemodPsk demod = DemodPsk(bridge);
       final PskDemodulatorState state = PskDemodulatorState();
       demod.init(
         profile.modemType,
@@ -347,7 +397,7 @@ int _runDecode({
           1,
           state,
           state9600,
-          hdlcRec,
+          bridge,
         );
       }
       break;
@@ -357,9 +407,42 @@ int _runDecode({
   print('');
   print('Read ${samples.length} samples (${seconds.toStringAsFixed(2)} s) '
       'at $sampleRate Hz from $inputFile');
-  print('Decoded $decoded packet(s)   Baud: $baud   '
-      'Modulation: ${profile.modemType.name}');
-  return decoded > 0 ? 0 : 1;
+  print('Decoded ${axCount + fxCount} packet(s): $axCount AX.25, '
+      '$fxCount FX.25   Baud: $baud   Modulation: ${profile.modemType.name}');
+  return (axCount + fxCount) > 0 ? 0 : 1;
+}
+
+/// Feeds each demodulated bit to both the HDLC and FX.25 receivers. Mirrors
+/// Direwolf's hdlc_rec_bit_new which calls fx25_rec_bit() with the NRZI-decoded
+/// bit while the HDLC path works from the raw bit.
+class _DecodeBridge implements IHdlcReceiver {
+  final HdlcRec2 _hdlc;
+  final Fx25Rec _fx25;
+  int _prevRaw = 0;
+
+  _DecodeBridge(this._hdlc, this._fx25);
+
+  @override
+  void recBit(
+    int chan,
+    int subchan,
+    int slice,
+    int raw,
+    bool isScrambled,
+    int notUsedRemove,
+  ) {
+    _hdlc.recBit(chan, subchan, slice, raw, isScrambled, notUsedRemove);
+    // NRZI decode: a '1' is no change, a '0' is a transition. (For 9600 the
+    // descrambling already happened in demod_9600 before this bit arrived.)
+    final int dbit = (raw == _prevRaw) ? 1 : 0;
+    _prevRaw = raw;
+    _fx25.recBit(chan, subchan, slice, dbit);
+  }
+
+  @override
+  void dcdChange(int chan, int subchan, int slice, bool dcdOn) {
+    _hdlc.dcdChange(chan, subchan, slice, dcdOn);
+  }
 }
 
 /// Render a decoded packet in TNC2 monitor format: SRC>DEST[,digi...]:info
@@ -402,6 +485,79 @@ String _infoToString(Uint8List info) {
 }
 
 // ---------------------------------------------------------------------------
+// Corrupt (inject noise / bit errors into a WAV)
+// ---------------------------------------------------------------------------
+
+int _runCorrupt({
+  required String inputFile,
+  required String outputFile,
+  required double noiseStddev,
+  required int flipCount,
+  required int burstLen,
+  required double burstAt,
+  required int seed,
+}) {
+  final File input = File(inputFile);
+  if (!input.existsSync()) {
+    stderr.writeln('WAV file not found: $inputFile');
+    return 2;
+  }
+
+  final (Int16List samples, WavParams wavParams) = WavFile.read(inputFile);
+  final math.Random rng = math.Random(seed);
+
+  int clamp16(int v) => v < -32768 ? -32768 : (v > 32767 ? 32767 : v);
+
+  // Additive white Gaussian noise (Box-Muller). Simulates a weak/noisy signal
+  // which produces demodulator bit errors.
+  if (noiseStddev > 0) {
+    for (int i = 0; i < samples.length; i++) {
+      final double u1 = (rng.nextDouble()).clamp(1e-12, 1.0);
+      final double u2 = rng.nextDouble();
+      final double g =
+          math.sqrt(-2.0 * math.log(u1)) * math.cos(2 * math.pi * u2);
+      samples[i] = clamp16((samples[i] + g * noiseStddev).round());
+    }
+  }
+
+  // Randomize a number of individual samples (impulse / scattered errors).
+  if (flipCount > 0) {
+    for (int n = 0; n < flipCount; n++) {
+      final int idx = rng.nextInt(samples.length);
+      samples[idx] = clamp16((rng.nextInt(2) * 2 - 1) * 32767);
+    }
+  }
+
+  // Burst error: heavily corrupt a contiguous run of samples (a fade / weak
+  // spot). Strong noise is ADDED so the carrier still carries enough timing
+  // for the demodulator to stay in sync while bit decisions get flipped - this
+  // produces the localized byte errors Reed-Solomon FEC is designed to recover.
+  if (burstLen > 0) {
+    int start = (samples.length * burstAt).round();
+    if (start < 0) start = 0;
+    if (start + burstLen > samples.length) {
+      start = math.max(0, samples.length - burstLen);
+    }
+    const double burstNoise = 18000.0;
+    for (int i = start; i < start + burstLen && i < samples.length; i++) {
+      final double u1 = (rng.nextDouble()).clamp(1e-12, 1.0);
+      final double u2 = rng.nextDouble();
+      final double g =
+          math.sqrt(-2.0 * math.log(u1)) * math.cos(2 * math.pi * u2);
+      samples[i] = clamp16((samples[i] + g * burstNoise).round());
+    }
+  }
+
+  WavFile.write(outputFile, samples, wavParams);
+  print('Corrupted $inputFile -> $outputFile');
+  print('  Samples: ${samples.length}   Noise stddev: '
+      '${noiseStddev.toStringAsFixed(0)}   Scattered: $flipCount   '
+      'Burst: $burstLen samples @ ${(burstAt * 100).toStringAsFixed(0)}%   '
+      'Seed: $seed');
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
 // Argument parsing / main
 // ---------------------------------------------------------------------------
 
@@ -411,16 +567,25 @@ HTCommander software modem test tool (gen_packets / atest equivalent)
 
 Usage:
   Encode data -> WAV:
-    dart run test/soft_modem_tool.dart encode -B <baud> -o <out.wav> [-r <rate>] [-g <amp>] <data.txt>
+    dart run test/soft_modem_tool.dart encode -B <baud> -o <out.wav> [-r <rate>] [-g <amp>] [-X <n>] <data.txt>
 
-  Decode WAV -> data:
+  Decode WAV -> data (decodes both AX.25 and FX.25):
     dart run test/soft_modem_tool.dart decode -B <baud> <in.wav>
+
+  Corrupt a WAV (inject noise / bit errors) to test FEC:
+    dart run test/soft_modem_tool.dart corrupt [-N <stddev>] [--flip <n>] [-s <seed>] <in.wav> <out.wav>
 
 Options:
   -B <baud>   Modem baud/mode: 300, 1200, 2400, 4800, 9600  (default 1200)
   -o <file>   Output WAV file (encode only)
   -r <rate>   Sample rate in Hz for encoding (default 44100, Direwolf-compatible)
   -g <amp>    Output amplitude 0-100 for encoding (default 50)
+  -X <n>      Enable FX.25 FEC on transmit. n = 16, 32, or 64 check bytes.
+  -N <stddev> Gaussian noise standard deviation for corrupt (sample units)
+  --flip <n>  Randomize n individual samples for corrupt (scattered errors)
+  --burst <n> Blank a contiguous run of n samples (burst error / dropout)
+  --burst-at <p>  Position of the burst, 0.0-1.0 through the file (default 0.4)
+  -s <seed>   RNG seed for corrupt (default 1, for reproducible results)
 
 Data file uses TNC2 monitor format, one packet per line:
   WB2OSZ-15>APDW17,WIDE1-1:Hello, world!
@@ -432,6 +597,11 @@ int _parseIntOr(String? value, int fallback) {
   return int.tryParse(value) ?? fallback;
 }
 
+double _parseDoubleOr(String? value, double fallback) {
+  if (value == null) return fallback;
+  return double.tryParse(value) ?? fallback;
+}
+
 void main(List<String> args) {
   if (args.isEmpty) {
     _printUsage();
@@ -439,7 +609,7 @@ void main(List<String> args) {
   }
 
   final String command = args[0].toLowerCase();
-  if (command != 'encode' && command != 'decode') {
+  if (command != 'encode' && command != 'decode' && command != 'corrupt') {
     stderr.writeln('Unknown command: ${args[0]}');
     _printUsage();
     exit(2);
@@ -448,6 +618,12 @@ void main(List<String> args) {
   int baud = 1200;
   int sampleRate = 44100;
   int amplitude = 50;
+  int fxMode = 0;
+  double noiseStddev = 0;
+  int flipCount = 0;
+  int burstLen = 0;
+  double burstAt = 0.4;
+  int seed = 1;
   String? outputFile;
   final List<String> positional = <String>[];
 
@@ -465,6 +641,24 @@ void main(List<String> args) {
         break;
       case '-g':
         amplitude = _parseIntOr(_next(args, ++i), amplitude);
+        break;
+      case '-X':
+        fxMode = _parseIntOr(_next(args, ++i), fxMode);
+        break;
+      case '-N':
+        noiseStddev = _parseDoubleOr(_next(args, ++i), noiseStddev);
+        break;
+      case '--flip':
+        flipCount = _parseIntOr(_next(args, ++i), flipCount);
+        break;
+      case '--burst':
+        burstLen = _parseIntOr(_next(args, ++i), burstLen);
+        break;
+      case '--burst-at':
+        burstAt = _parseDoubleOr(_next(args, ++i), burstAt);
+        break;
+      case '-s':
+        seed = _parseIntOr(_next(args, ++i), seed);
         break;
       case '-h':
       case '--help':
@@ -488,6 +682,25 @@ void main(List<String> args) {
       dataFile: positional.first,
       sampleRate: sampleRate,
       amplitude: amplitude,
+      fxMode: fxMode,
+    ));
+  } else if (command == 'corrupt') {
+    if (positional.length < 2) {
+      stderr.writeln('corrupt: usage: corrupt [options] <in.wav> <out.wav>');
+      _printUsage();
+      exit(2);
+    }
+    if (noiseStddev <= 0 && flipCount <= 0 && burstLen <= 0) {
+      noiseStddev = 3000; // sensible default so the command does something
+    }
+    exit(_runCorrupt(
+      inputFile: positional[0],
+      outputFile: positional[1],
+      noiseStddev: noiseStddev,
+      flipCount: flipCount,
+      burstLen: burstLen,
+      burstAt: burstAt,
+      seed: seed,
     ));
   } else {
     if (positional.isEmpty) {

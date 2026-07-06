@@ -123,6 +123,7 @@ class _RadioModemState {
 class _HdlcFx25Bridge implements IHdlcReceiver {
   final IHdlcReceiver _hdlcReceiver;
   final Fx25Rec _fx25Receiver;
+  int _prevRaw = 0;
 
   _HdlcFx25Bridge(this._hdlcReceiver, this._fx25Receiver);
 
@@ -136,7 +137,12 @@ class _HdlcFx25Bridge implements IHdlcReceiver {
     int notUsedRemove,
   ) {
     _hdlcReceiver.recBit(chan, subchan, slice, raw, isScrambled, notUsedRemove);
-    _fx25Receiver.recBit(chan, subchan, slice, raw);
+    // The FX.25 receiver expects the NRZI-decoded data bit (Direwolf calls
+    // fx25_rec_bit() with dbit), not the raw bit. A '1' is no change, a '0' is
+    // a transition. For 9600 the descrambling already happened in demod_9600.
+    final int dbit = (raw == _prevRaw) ? 1 : 0;
+    _prevRaw = raw;
+    _fx25Receiver.recBit(chan, subchan, slice, dbit);
   }
 
   @override
