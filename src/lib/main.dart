@@ -30,6 +30,7 @@ import 'radio/radio_transport.dart';
 import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
+import 'services/history_limiter.dart';
 import 'services/window_service.dart';
 import 'utils/channel_export.dart';
 import 'utils/channel_import.dart';
@@ -163,6 +164,10 @@ void main(List<String> args) async {
     webServerHandler.init();
     DataBroker.addDataHandler('WebServerHandler', webServerHandler);
   }
+
+  // Initialize the history limiter so that persisted data is pruned at startup,
+  // when limits change, and periodically (every 30 min) if new data arrives.
+  HistoryLimiter.instance.init();
 
   // Initialize the desktop self-update service (desktop only) so that users
   // can check for and install application updates from the Help menu.

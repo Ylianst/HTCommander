@@ -8,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
-import '../services/history_limiter.dart';
 import '../services/tts_service.dart';
 import '../services/sherpa_model_manager.dart';
 
@@ -598,9 +597,6 @@ class _SettingsDialogState extends State<SettingsDialog>
 
     // Save all settings to DataBroker (persisted to SharedPreferences)
     _settings.saveToDataBroker();
-
-    // Apply history limits asynchronously (trims persisted files).
-    HistoryLimiter.apply();
 
     Navigator.of(
       context,
