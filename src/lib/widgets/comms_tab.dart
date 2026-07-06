@@ -86,6 +86,9 @@ class _CommsTabState extends State<CommsTab>
   /// True while a file is being dragged over the chat area.
   bool _dragOver = false;
 
+  /// Whether the Comms tab is the currently selected tab.
+  bool _isTabVisible = false;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -179,6 +182,11 @@ class _CommsTabState extends State<CommsTab>
       name: 'MicrophoneGain',
       callback: _onMicGainChanged,
     );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SelectedTabName',
+      callback: _onSelectedTabChanged,
+    );
 
     // Initialize from current broker values.
     _currentRadioDeviceId = _resolveCurrentRadioId();
@@ -199,6 +207,8 @@ class _CommsTabState extends State<CommsTab>
     _audioEnabled = _readAudioState();
     _isMuted = _readMuteState();
     _sstvAutoMuted = _readSstvAutoMuteState();
+    _isTabVisible =
+        (_broker.getValue<String>(0, 'SelectedTabName', '') ?? '') == 'Comms';
     _loadDecodedTextHistory();
 
     // Resolve the application-support path so decoded SSTV pictures can be
@@ -266,7 +276,7 @@ class _CommsTabState extends State<CommsTab>
   /// else is ignored.
   void _onFilesDropped(DropDoneDetails details) {
     if (_dragOver) setState(() => _dragOver = false);
-    if (!_canSendMedia) return;
+    if (!_isTabVisible || !_canSendMedia) return;
     final files = details.files;
     if (files.length != 1) return;
     final path = files.first.path;
@@ -658,6 +668,16 @@ class _CommsTabState extends State<CommsTab>
     _micGain = gain.clamp(1.0, 8.0);
     // Apply live so an in-progress PTT transmission picks up the new gain.
     _micCapture?.gain = _micGain;
+  }
+
+  void _onSelectedTabChanged(int deviceId, String name, Object? data) {
+    final visible = data is String && data == 'Comms';
+    if (visible != _isTabVisible) {
+      setState(() {
+        _isTabVisible = visible;
+        if (!_isTabVisible) _dragOver = false;
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1895,7 +1915,9 @@ class _CommsTabState extends State<CommsTab>
           Expanded(
             child: DropTarget(
               onDragEntered: (_) {
-                if (_canSendMedia) setState(() => _dragOver = true);
+                if (_isTabVisible && _canSendMedia) {
+                  setState(() => _dragOver = true);
+                }
               },
               onDragExited: (_) {
                 if (_dragOver) setState(() => _dragOver = false);
