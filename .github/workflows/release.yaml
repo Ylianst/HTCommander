@@ -205,6 +205,15 @@ jobs:
             --install-strategy wholeDirectoryReplace `
             --artifact-url "${{ env.BASE_URL }}/releases/$version/windows-${{ matrix.arch }}/htcommander-$version-windows-${{ matrix.arch }}.zip"
 
+          # desktop_updater names the archive without the arch suffix
+          # (htcommander-<version>-windows.zip), but release.json's artifact URL
+          # includes the arch (...-windows-<arch>.zip). Rename the archive so the
+          # file on disk matches the URL the self-updater downloads.
+          $outDir = "dist/desktop_updater/releases/$version/windows-${{ matrix.arch }}"
+          $srcZip = Join-Path $outDir "htcommander-$version-windows.zip"
+          $dstZip = Join-Path $outDir "htcommander-$version-windows-${{ matrix.arch }}.zip"
+          if (Test-Path $srcZip) { Move-Item -Force $srcZip $dstZip }
+
       - name: Upload MSI
         uses: actions/upload-artifact@v7
         with:
