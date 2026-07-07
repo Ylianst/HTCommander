@@ -12,9 +12,6 @@ jobs:
           - arch: x64
             runner: windows-latest
             wix_arch: x64
-          - arch: arm64
-            runner: windows-11-arm
-            wix_arch: arm64
     steps:
       - uses: actions/checkout@v7
 
@@ -182,9 +179,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: subosito/flutter-action@v2
+      # Flutter publishes prebuilt SDK archives for x64 only, so the marketplace
+      # action works for x64 but fails on arm64 ("Unable to determine Flutter
+      # version ... architecture: arm64"). On arm64 we install from git, whose
+      # bootstrap downloads the correct arm64 Dart SDK and engine on first run.
+      - name: Set up Flutter (x64)
+        if: matrix.arch == 'x64'
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
+
+      - name: Set up Flutter (arm64)
+        if: matrix.arch == 'arm64'
+        run: |
+          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable "$HOME/flutter"
+          git config --global --add safe.directory "$HOME/flutter"
+          echo "$HOME/flutter/bin" >> "$GITHUB_PATH"
+          "$HOME/flutter/bin/flutter" --version
+          "$HOME/flutter/bin/flutter" precache --linux
 
       - name: Install Linux dependencies
         run: |
