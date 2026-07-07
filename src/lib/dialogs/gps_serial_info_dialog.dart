@@ -10,6 +10,7 @@ GpsData updates, refreshing the UI in real time.
 Ported from the C# HTCommander.Dialogs.GpsDetailsForm.
 */
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../gps/gps_data.dart';
@@ -192,13 +193,29 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
     } else if (_gpsData != null) {
       portStatus = 'Open \u2014 Receiving Data';
     } else {
-      portStatus = _status;
+      portStatus = _friendlyStatus(_status);
     }
     return [
       _InfoRow('Serial Port', _port.isEmpty ? 'None' : _port),
       _InfoRow('Baud Rate', '$_baudRate baud'),
       _InfoRow('Port Status', portStatus),
     ];
+  }
+
+  /// Maps internal status codes to human-readable descriptions.
+  String _friendlyStatus(String status) {
+    switch (status) {
+      case 'PermissionDenied':
+        return defaultTargetPlatform == TargetPlatform.linux
+            ? 'Permission denied \u2014 add your user to the '
+                "'dialout' group (sudo usermod -aG dialout \$USER), "
+                'then log out and back in.'
+            : 'Permission denied \u2014 the app cannot access this port.';
+      case 'PortError':
+        return 'Port error \u2014 could not open the serial port.';
+      default:
+        return status;
+    }
   }
 
   List<_InfoRow> _fixRows() {

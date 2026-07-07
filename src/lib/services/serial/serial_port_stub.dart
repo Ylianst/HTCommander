@@ -29,6 +29,9 @@ class SerialPort {
 
   final String name;
 
+  /// Always false on the web (serial access is unavailable).
+  bool lastOpenPermissionDenied = false;
+
   /// No ports are available on the web.
   static List<String> get availablePorts => const <String>[];
 

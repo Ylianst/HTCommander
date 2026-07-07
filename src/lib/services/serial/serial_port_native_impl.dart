@@ -59,6 +59,11 @@ class SerialPort {
   /// Platform handle: HANDLE on Windows, fd on POSIX.
   int _handle = -1;
 
+  /// True when the last [openReadWrite] attempt failed because the current
+  /// user lacks permission to access the device (POSIX `EACCES`). On Linux
+  /// this typically means the user is not a member of the `dialout` group.
+  bool lastOpenPermissionDenied = false;
+
   bool get isOpen => _handle != -1 && _handle != _kInvalidHandleValue;
 
   /// Enumerates available serial ports on the current platform.
@@ -542,6 +547,23 @@ class _Posix {
   static final _close = _libc
       .lookupFunction<Int32 Function(Int32), int Function(int)>('close');
 
+  // int *__errno_location(void)  (glibc) — used to read errno after a failed
+  // syscall so permission errors can be distinguished from other failures.
+  static final _errnoLocation = _libc.lookupFunction<
+      Pointer<Int32> Function(),
+      Pointer<Int32> Function()>(
+      Platform.isMacOS ? '__error' : '__errno_location');
+
+  static int get _errno {
+    try {
+      return _errnoLocation().value;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  static const int _eacces = 13; // Permission denied (same on macOS/Linux).
+
   // ssize_t read(int fd, void *buf, size_t count)
   static final _read = _libc.lookupFunction<
       IntPtr Function(Int32, Pointer<Uint8>, IntPtr),
@@ -643,10 +665,14 @@ class _Posix {
   // Open — opens the tty non-blocking so reads return immediately.
   // -------------------------------------------------------------------------
   static bool open(SerialPort port) {
+    port.lastOpenPermissionDenied = false;
     final namePtr = port.name.toNativeUtf8();
     try {
       final fd = _open(namePtr, _oRdwr | _oNoctty | _oNonblock);
-      if (fd < 0) return false;
+      if (fd < 0) {
+        port.lastOpenPermissionDenied = _errno == _eacces;
+        return false;
+      }
       port._handle = fd;
       return true;
     } catch (_) {

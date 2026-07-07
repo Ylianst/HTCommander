@@ -148,8 +148,9 @@ class GpsSerialHandler {
       try {
         port = SerialPort(portName);
         if (!port.openReadWrite()) {
+          final permissionDenied = port.lastOpenPermissionDenied;
           port.dispose();
-          throw const _SerialOpenException();
+          throw _SerialOpenException(permissionDenied: permissionDenied);
         }
 
         final config = SerialPortConfig()
@@ -162,7 +163,7 @@ class GpsSerialHandler {
           ..rts = SerialPortRts.on;
         port.config = config;
         config.dispose();
-      } catch (_) {
+      } catch (e) {
         try {
           port?.close();
         } catch (_) {}
@@ -170,10 +171,12 @@ class GpsSerialHandler {
           port?.dispose();
         } catch (_) {}
         if (!_disposed && token == _openToken) {
+          final permissionDenied =
+              e is _SerialOpenException && e.permissionDenied;
           _broker.dispatch(
             deviceId: _gpsDeviceId,
             name: 'GpsStatus',
-            data: 'PortError',
+            data: permissionDenied ? 'PermissionDenied' : 'PortError',
             store: true,
           );
         }
@@ -480,5 +483,9 @@ class GpsSerialHandler {
 
 /// Internal marker exception used to signal a failed serial port open.
 class _SerialOpenException implements Exception {
-  const _SerialOpenException();
+  const _SerialOpenException({this.permissionDenied = false});
+
+  /// True when the open failed because the user lacks permission to access the
+  /// device (POSIX `EACCES`, e.g. not a member of the `dialout` group).
+  final bool permissionDenied;
 }
