@@ -112,6 +112,11 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   bool _hasAprsChannel = false;
   bool _showMissingChannel = false;
 
+  /// Latest lock state reported for each radio device id. While the radio the
+  /// APRS tab would transmit on is locked to another usage (BBS, Terminal,
+  /// Winlink, Torrent, ...) no APRS data may be sent.
+  final Map<int, RadioLockState> _lockStates = {};
+
   // Beacon banner state.
   int _beaconInterval = 0; // seconds; 0 = off
   bool _beaconOnCurrentChannel = false;
@@ -189,6 +194,11 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
       name: 'AllChannelsLoaded',
       callback: _onChannelStateChanged,
     );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'LockState',
+      callback: _onLockStateChanged,
+    );
 
     // Subscribe to beacon-related settings changes.
     _broker.subscribe(
@@ -204,6 +214,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
 
     _recomputeChannelState();
     _recomputeBeaconState();
+    _seedLockStates();
 
     // Request the historical APRS packet list.
     _broker.dispatch(
@@ -292,6 +303,39 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
 
   void _onChannelStateChanged(int deviceId, String name, Object? data) {
     _recomputeChannelState();
+  }
+
+  void _onLockStateChanged(int deviceId, String name, Object? data) {
+    if (data is! Map) return;
+    setState(() {
+      _lockStates[deviceId] = RadioLockState.fromJson(
+        Map<String, dynamic>.from(data),
+      );
+    });
+  }
+
+  /// Seeds the current lock state for every connected radio from the broker, so
+  /// a radio that is already locked when the tab is built disables transmit
+  /// without waiting for the next LockState broadcast.
+  void _seedLockStates() {
+    for (final id in _connectedRadioDeviceIds()) {
+      final data = _broker.getValueDynamic(id, 'LockState', null);
+      if (data is Map) {
+        _lockStates[id] = RadioLockState.fromJson(
+          Map<String, dynamic>.from(data),
+        );
+      }
+    }
+  }
+
+  /// Whether the radio the APRS tab would transmit on is locked to a usage
+  /// (BBS, Terminal, Winlink, Torrent, ...). While locked no APRS data may be
+  /// sent.
+  bool get _isRadioLocked {
+    final id = _getPreferredAprsRadioDeviceId();
+    if (id <= 0) return false;
+    final ls = _lockStates[id];
+    return ls != null && ls.isLocked;
   }
 
   void _onBeaconStateChanged(int deviceId, String name, Object? data) {
@@ -402,6 +446,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   /// `UpdateSendButtonState`).
   bool get _canSend =>
       _hasAprsChannel &&
+      !_isRadioLocked &&
       _destinationController.text.trim().isNotEmpty &&
       _messageController.text.trim().isNotEmpty;
 
@@ -1024,7 +1069,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           value: 'sendSms',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit && _hasAprsChannel,
+          enabled: _allowTransmit && _hasAprsChannel && !_isRadioLocked,
           child: const Row(
             children: [SizedBox(width: 20), Text('Send SMS Message...')],
           ),
@@ -1033,7 +1078,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           value: 'weatherReport',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit && _hasAprsChannel,
+          enabled: _allowTransmit && _hasAprsChannel && !_isRadioLocked,
           child: const Row(
             children: [SizedBox(width: 20), Text('Weather Report...')],
           ),

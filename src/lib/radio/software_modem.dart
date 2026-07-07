@@ -1004,7 +1004,7 @@ class SoftwareModem {
     _broker.dispatch(
       deviceId: state.deviceId,
       name: 'TransmitVoicePCM',
-      data: {'Data': pcmData, 'PlayLocally': false},
+      data: {'Data': pcmData, 'PlayLocally': false, 'IsDataFrame': true},
       store: false,
     );
     _debug(
@@ -1036,11 +1036,12 @@ class SoftwareModem {
     final int sampleRate = state.audioConfig!.devices[0].samplesPerSec;
     final bool is9600 = _currentMode == SoftwareModemMode.g3ruh9600;
 
-    // 1 second of leading silence so the radio's PTT is fully keyed up before
-    // any data tones start. This covers the delay between the PCM stream
-    // starting and PTT actually engaging. It is emitted once per transmission
-    // (before the first frame of the bundle), not between bundled frames.
-    _appendSilenceSamples(buffer, sampleRate);
+    // 1/10th of a second of leading silence so the radio's PTT is fully keyed
+    // up before any data tones start. This covers the delay between the PCM
+    // stream starting and PTT actually engaging. It is emitted once per
+    // transmission (before the first frame of the bundle), not between bundled
+    // frames.
+    _appendSilenceSamples(buffer, sampleRate ~/ 10);
 
     // Additional pre-silence for G3RUH 9600 to let the modem settle.
     if (is9600) {
@@ -1070,6 +1071,10 @@ class SoftwareModem {
     // Single postamble.
     final int txtailFlags = state.audioConfig!.channels[chan].txtail;
     state.packetHdlcSend!.sendFlags(chan, txtailFlags, true, (device) {});
+
+    // 1/10th of a second of trailing silence so the final data tones are fully
+    // sent before PTT is released.
+    _appendSilenceSamples(buffer, sampleRate ~/ 10);
 
     // Post-silence for G3RUH 9600.
     if (is9600) {

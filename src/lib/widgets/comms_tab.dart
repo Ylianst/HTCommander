@@ -22,6 +22,7 @@ import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/microphone_capture.dart';
 import '../services/sherpa_model_manager.dart';
+import '../models/radio_models.dart';
 
 /// Voice transmit mode
 enum VoiceTransmitMode { chat, speak, morse, dtmf, ptt }
@@ -46,6 +47,12 @@ class _CommsTabState extends State<CommsTab>
   static const String _partialMessageId = '__voice_partial__';
 
   int _currentRadioDeviceId = -1;
+
+  /// Latest lock state reported for each radio device id. When the radio shown
+  /// in the Radio Panel is locked to another usage (BBS, Terminal, Winlink,
+  /// Torrent, ...) the Comms tab must not transmit.
+  final Map<int, RadioLockState> _lockStates = {};
+
   VoiceTransmitMode _currentMode = VoiceTransmitMode.chat;
   bool _audioEnabled = false;
   bool _isListening = false;
@@ -126,6 +133,11 @@ class _CommsTabState extends State<CommsTab>
     );
     _broker.subscribe(
       deviceId: DataBroker.allDevices,
+      name: 'LockState',
+      callback: _onLockStateChanged,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
       name: 'Mute',
       callback: _onMuteChanged,
     );
@@ -190,6 +202,7 @@ class _CommsTabState extends State<CommsTab>
 
     // Initialize from current broker values.
     _currentRadioDeviceId = _resolveCurrentRadioId();
+    _seedLockStates();
     _currentMode = _modeFromName(
       _broker.getValue<String>(0, 'VoiceTransmitMode', null),
     );
@@ -261,9 +274,10 @@ class _CommsTabState extends State<CommsTab>
     'webp',
   };
 
-  /// Whether image/audio media may be sent right now (audio active and not
-  /// already transmitting).
-  bool get _canSendMedia => _audioEnabled && !_isTransmitting;
+  /// Whether image/audio media may be sent right now (audio active, not
+  /// already transmitting, and the radio is not locked to another usage).
+  bool get _canSendMedia =>
+      _audioEnabled && !_isTransmitting && !_isRadioLocked;
 
   bool _isImageFile(String path) {
     final dot = path.lastIndexOf('.');
@@ -552,6 +566,39 @@ class _CommsTabState extends State<CommsTab>
     _updatePttMic();
   }
 
+  void _onLockStateChanged(int deviceId, String name, Object? data) {
+    if (data is! Map) return;
+    setState(() {
+      _lockStates[deviceId] = RadioLockState.fromJson(
+        Map<String, dynamic>.from(data),
+      );
+    });
+  }
+
+  /// Seeds the current lock state for every connected radio from the broker, so
+  /// a radio that is already locked when the tab is built disables transmit
+  /// without waiting for the next LockState broadcast.
+  void _seedLockStates() {
+    final connected = DataBroker.getValueDynamic(1, 'ConnectedRadios');
+    for (final id in _radioIds(connected)) {
+      final data = _broker.getValueDynamic(id, 'LockState', null);
+      if (data is Map) {
+        _lockStates[id] = RadioLockState.fromJson(
+          Map<String, dynamic>.from(data),
+        );
+      }
+    }
+  }
+
+  /// Whether the radio shown in the Radio Panel is locked to a usage (BBS,
+  /// Terminal, Winlink, Torrent, ...). While locked the Comms tab cannot
+  /// transmit chat, images or audio on that radio.
+  bool get _isRadioLocked {
+    if (_currentRadioDeviceId <= 0) return false;
+    final ls = _lockStates[_currentRadioDeviceId];
+    return ls != null && ls.isLocked;
+  }
+
   /// Reads the current AudioState of the radio shown in the Radio Panel.
   bool _readAudioState() {
     if (_currentRadioDeviceId <= 0) return false;
@@ -618,7 +665,23 @@ class _CommsTabState extends State<CommsTab>
   }
 
   void _onVoiceTransmitStateChanged(int deviceId, String name, Object? data) {
-    if (data is bool) setState(() => _isTransmitting = data);
+    bool transmitting;
+    bool isDataFrame = false;
+    if (data is bool) {
+      transmitting = data;
+    } else if (data is Map) {
+      transmitting =
+          (data['transmitting'] ?? data['Transmitting']) as bool? ?? false;
+      isDataFrame =
+          (data['isDataFrame'] ?? data['IsDataFrame']) as bool? ?? false;
+    } else {
+      return;
+    }
+    // Data-frame (soft-modem packet) transmissions are not cancellable audio
+    // playback like SSTV or an audio file, so they must not trigger the
+    // transmitting UI / red Cancel button.
+    if (isDataFrame) return;
+    setState(() => _isTransmitting = transmitting);
   }
 
   void _onAllowTransmitChanged(int deviceId, String name, Object? data) {
@@ -1056,6 +1119,7 @@ class _CommsTabState extends State<CommsTab>
   /// the other modes require the audio channel to be enabled.
   bool get _canSend {
     if (_isTransmitting) return false;
+    if (_isRadioLocked) return false;
     if (_currentMode == VoiceTransmitMode.chat) {
       return _isCurrentRadioConnected;
     }
@@ -1073,6 +1137,7 @@ class _CommsTabState extends State<CommsTab>
       _audioEnabled &&
       _isCurrentRadioConnected &&
       MicrophoneCapture.isSupported &&
+      !_isRadioLocked &&
       (!_isTransmitting || _pttActive);
 
   /// Whether the microphone should be kept warm: while PTT mode is selected and
@@ -1773,7 +1838,7 @@ class _CommsTabState extends State<CommsTab>
             value: 'sendImage',
             height: menuItemHeight,
             padding: menuItemPadding,
-            enabled: _audioEnabled && !_isTransmitting,
+            enabled: _canSendMedia,
             child: const Row(
               children: [SizedBox(width: 20), Text('Send Image...')],
             ),
@@ -1782,7 +1847,7 @@ class _CommsTabState extends State<CommsTab>
             value: 'sendAudio',
             height: menuItemHeight,
             padding: menuItemPadding,
-            enabled: _audioEnabled && !_isTransmitting,
+            enabled: _canSendMedia,
             child: const Row(
               children: [SizedBox(width: 20), Text('Send Audio...')],
             ),
