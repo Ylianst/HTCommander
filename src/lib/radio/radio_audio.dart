@@ -109,6 +109,12 @@ class RadioAudio {
   bool _voiceTransmitCancel = false;
   bool _playInputBack = false;
 
+  /// True when the current transmission run carries a data frame (a packet
+  /// encoded by the software modem) rather than cancellable audio playback such
+  /// as SSTV or an audio file. Reported in `VoiceTransmitStateChanged` so the
+  /// UI can avoid showing a Cancel button for data frames.
+  bool _voiceTransmitIsDataFrame = false;
+
   /// When true, the transmission loop keeps the audio run open while waiting for
   /// more PCM, instead of ending it as soon as the queue drains. Used for live
   /// push-to-talk streaming so the whole session is a single audio run.
@@ -272,6 +278,7 @@ class RadioAudio {
     Uint8List? pcm;
     bool playLocally = false;
     bool? hold;
+    bool isDataFrame = false;
     if (data is Uint8List) {
       pcm = data;
     } else if (data is List<int>) {
@@ -287,6 +294,8 @@ class RadioAudio {
       if (p is bool) playLocally = p;
       final Object? h = data['hold'] ?? data['Hold'];
       if (h is bool) hold = h;
+      final Object? df = data['isDataFrame'] ?? data['IsDataFrame'];
+      if (df is bool) isDataFrame = df;
     }
 
     if (hold != null) _voiceTransmitHold = hold;
@@ -297,7 +306,7 @@ class RadioAudio {
       if (hold == false) _signalNewData();
       return;
     }
-    transmitVoice(pcm, 0, pcm.length, playLocally);
+    transmitVoice(pcm, 0, pcm.length, playLocally, isDataFrame: isDataFrame);
   }
 
   void _onCancelVoiceTransmit(int deviceId, String name, Object? data) {
@@ -704,7 +713,13 @@ class RadioAudio {
   /// Queue [length] bytes of 32 kHz / 16-bit / mono PCM (starting at [offset])
   /// for transmission to the radio. When [play] is true the audio is also
   /// played back locally as it is sent.
-  bool transmitVoice(Uint8List pcmInput, int offset, int length, bool play) {
+  bool transmitVoice(
+    Uint8List pcmInput,
+    int offset,
+    int length,
+    bool play, {
+    bool isDataFrame = false,
+  }) {
     if (!_running) {
       _debug('TransmitVoicePCM ignored: audio is not enabled.');
       return false;
@@ -712,6 +727,9 @@ class RadioAudio {
 
     _playInputBack = play;
     _voiceTransmitCancel = false;
+    // The data-frame flag applies to a whole transmission run; only latch it
+    // when a fresh run is about to start.
+    if (!_isTransmitting) _voiceTransmitIsDataFrame = isDataFrame;
     _pcmQueue.add(
       Uint8List.fromList(
         Uint8List.sublistView(pcmInput, offset, offset + length),
@@ -937,7 +955,10 @@ class RadioAudio {
     _broker.dispatch(
       deviceId: deviceId,
       name: 'VoiceTransmitStateChanged',
-      data: transmitting,
+      data: {
+        'transmitting': transmitting,
+        'isDataFrame': _voiceTransmitIsDataFrame,
+      },
       store: false,
     );
   }
