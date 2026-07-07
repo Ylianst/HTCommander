@@ -1052,17 +1052,30 @@ class SoftwareModem {
     final int txdelayFlags = state.audioConfig!.channels[chan].txdelay;
     state.packetHdlcSend!.sendFlags(chan, txdelayFlags, false, null);
 
-    // All frames one after another. Always use FX.25 forward error correction
+    // All frames one after another. Use FX.25 forward error correction
     // (smallest level = 16 check bytes; pickMode selects the smallest RS block
-    // that fits). If a frame is too large for any FX.25 block, fall back to
-    // plain AX.25. Each frame emits its own HDLC flags so consecutive frames
-    // stay properly delimited.
+    // that fits) for frames that meet the AX.25 minimum length, so the FX.25
+    // frame stays standards-compliant: a strict FX.25 receiver such as Direwolf
+    // rejects an unstuffed frame shorter than the AX.25 minimum. A frame that
+    // is too small - or too large for any FX.25 block - is sent as plain AX.25
+    // instead. Each frame emits its own HDLC flags so consecutive frames stay
+    // properly delimited.
+    // AX.25 minimum data: two 7-byte addresses + control (FCS added separately).
+    const int ax25MinDataLen = 14 + 1;
     for (final tx in frames) {
       const int fx25SmallestFec = 16; // 16 check bytes = smallest FX.25 FEC
-      final int sent = state.packetFx25Send!
-          .sendFrame(chan, tx.frameData, tx.frameData.length, fx25SmallestFec);
+      int sent = -1;
+      if (tx.frameData.length >= ax25MinDataLen) {
+        sent = state.packetFx25Send!.sendFrame(
+          chan,
+          tx.frameData,
+          tx.frameData.length,
+          fx25SmallestFec,
+        );
+      }
       if (sent < 0) {
-        // Frame too large for FX.25 - fall back to plain AX.25.
+        // Frame too small or too large for a standards-compliant FX.25 frame -
+        // fall back to plain AX.25.
         state.packetHdlcSend!
             .sendFrame(chan, tx.frameData, tx.frameData.length, false);
       }

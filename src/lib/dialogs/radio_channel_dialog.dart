@@ -139,6 +139,21 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
     if (rxFreq == 0) rxFreq = txFreq;
 
     _original = c;
+
+    // Switch to advanced automatically when the channel uses features the basic
+    // view cannot represent. This must be decided BEFORE populating the
+    // frequency fields: setting the controllers fires _onFreqChanged, which in
+    // basic mode forces TX to track RX and would otherwise clobber a distinct
+    // TX frequency during load.
+    if (rxFreq != txFreq ||
+        c.rxSubAudio != 0 ||
+        c.txSubAudio != 0 ||
+        c.talkAround ||
+        c.scan ||
+        c.bandwidth == RadioBandwidthType.narrow) {
+      _advancedMode = true;
+    }
+
     _nameController.text = c.name;
     _rxFreqController.text = _formatFreq(rxFreq);
     _txFreqController.text = _formatFreq(txFreq);
@@ -156,17 +171,6 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
     _deemphasis = !c.preDeEmphBypass;
     _rxToneValue = c.rxSubAudio;
     _txToneValue = c.txSubAudio;
-
-    // Switch to advanced automatically when the channel uses features the basic
-    // view cannot represent.
-    if (rxFreq != txFreq ||
-        c.rxSubAudio != 0 ||
-        c.txSubAudio != 0 ||
-        c.talkAround ||
-        c.scan ||
-        c.bandwidth == RadioBandwidthType.narrow) {
-      _advancedMode = true;
-    }
 
     if (mounted) setState(() {});
   }
