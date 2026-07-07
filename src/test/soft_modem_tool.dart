@@ -76,6 +76,19 @@ enum _DemodKind { afsk, psk, g3ruh }
 /// of upsampling the audio beforehand. Set via the --g3up CLI option.
 int _g3ruhUpsample = 1;
 
+/// Optional override for the PSK demodulator profile letter (QPSK: P/Q/R/S,
+/// 8PSK: T/U/V/W). Null keeps the profile from _ModemProfile. Set via --pskprof.
+String? _pskProfileOverride;
+
+/// Optional band-pass (Hz) applied to the audio before demod to model a
+/// narrow-band FM radio's voice audio channel. 0/0 disables. Set via --bandpass.
+double _bandpassLo = 0;
+double _bandpassHi = 0;
+
+/// Optional TXDELAY (preamble flag count) override. -1 keeps the profile
+/// default (30). More flags = longer preamble for PLL/AGC lock. Set via --txdelay.
+int _txdelayOverride = -1;
+
 /// A modem configuration for a given `-B` baud value. Mirrors the settings used
 /// by lib/radio/software_modem.dart so the tool exercises the real modem code.
 class _ModemProfile {
@@ -190,7 +203,7 @@ AudioConfig _buildAudioConfig(_ModemProfile profile, int sampleRate) {
   cfg.channels[0].spaceFreq = profile.spaceFreq;
   cfg.channels[0].baud = profile.channelBaud;
   cfg.channels[0].v26Alt = profile.v26Alt;
-  cfg.channels[0].txdelay = 30; // ~300 ms preamble
+  cfg.channels[0].txdelay = _txdelayOverride >= 0 ? _txdelayOverride : 30;
   cfg.channels[0].txtail = 10; // ~100 ms tail
   return cfg;
 }
@@ -798,7 +811,7 @@ void _runDemod(
         profile.v26Alt,
         sampleRate,
         profile.bps,
-        profile.demodProfile,
+        _pskProfileOverride ?? profile.demodProfile,
         state,
       );
       for (final int sample in samples) {
@@ -981,6 +994,44 @@ Int16List _addAwgn(Int16List samples, double stddev, math.Random rng) {
     out[i] = v < -32768 ? -32768 : (v > 32767 ? 32767 : v);
   }
   return out;
+}
+
+/// Windowed-sinc FIR band-pass filter. Models a narrow-band FM radio's audio
+/// path, which only passes roughly the voice band (~300-3000 Hz). AFSK1200 and
+/// PSK2400 fit inside this band, but 8PSK 4800 (carrier 1800 Hz, symbol rate
+/// 1600) spreads to ~200-3400 Hz and G3RUH 9600 is baseband to ~9600 Hz, so
+/// both are mangled by a voice-bandwidth channel. Returns a new buffer.
+Int16List _bandpass(Int16List x, int fs, double loHz, double hiHz) {
+  if (loHz <= 0 && hiHz >= fs / 2) return x;
+  const int taps = 201; // odd, ~zero-phase (linear phase, delay compensated)
+  final int m = taps ~/ 2;
+  final Float64List h = Float64List(taps);
+  final double fl = loHz / fs;
+  final double fh = hiHz / fs;
+  for (int i = 0; i < taps; i++) {
+    final int n = i - m;
+    double v;
+    if (n == 0) {
+      v = 2 * (fh - fl);
+    } else {
+      v = (math.sin(2 * math.pi * fh * n) - math.sin(2 * math.pi * fl * n)) /
+          (math.pi * n);
+    }
+    // Hamming window
+    v *= 0.54 - 0.46 * math.cos(2 * math.pi * i / (taps - 1));
+    h[i] = v;
+  }
+  final Int16List y = Int16List(x.length);
+  for (int i = 0; i < x.length; i++) {
+    double acc = 0;
+    // Center the linear-phase filter so the output stays time-aligned.
+    for (int k = 0; k < taps; k++) {
+      final int idx = i - k + m;
+      if (idx >= 0 && idx < x.length) acc += h[k] * x[idx];
+    }
+    y[i] = acc < -32768 ? -32768 : (acc > 32767 ? 32767 : acc.round());
+  }
+  return y;
 }
 
 /// Build a realistic BSS message packet: 0x01 + callsign field (type 0x20) +
@@ -1255,9 +1306,14 @@ int _runSbcTest({
   final Int16List sbc1Pcm = _sbcRoundTripPcm(cleanPcm, sampleRate);
 
   bool decodes(Int16List pcm) {
+    // Optionally band-limit to the radio's voice audio channel first.
+    Int16List chan = pcm;
+    if (_bandpassHi > 0) {
+      chan = _bandpass(chan, sampleRate, _bandpassLo, _bandpassHi);
+    }
     // Resample the received (32 kHz link) audio up to the demod rate if asked.
     final Int16List forDemod =
-        useUpsample ? _resamplePcm(pcm, sampleRate, demodRate) : pcm;
+        useUpsample ? _resamplePcm(chan, sampleRate, demodRate) : chan;
     final List<Uint8List> rx =
         _decodePcmRawFrames(profile, demodRate, forDemod);
     return rx.any((Uint8List r) => _bytesEqual(r, frame));
@@ -1517,6 +1573,20 @@ void main(List<String> args) {
         break;
       case '--g3up':
         _g3ruhUpsample = _parseIntOr(_next(args, ++i), _g3ruhUpsample);
+        break;
+      case '--pskprof':
+        _pskProfileOverride = _next(args, ++i);
+        break;
+      case '--bandpass':
+        final String spec = _next(args, ++i) ?? '';
+        final List<String> parts = spec.split(':');
+        if (parts.length == 2) {
+          _bandpassLo = _parseDoubleOr(parts[0], 0);
+          _bandpassHi = _parseDoubleOr(parts[1], 0);
+        }
+        break;
+      case '--txdelay':
+        _txdelayOverride = _parseIntOr(_next(args, ++i), _txdelayOverride);
         break;
       case '-h':
       case '--help':

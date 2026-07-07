@@ -261,7 +261,23 @@ class CommsHandler {
   StreamSubscription<SstvDecodingStarted>? _sstvStartedSub;
   StreamSubscription<SstvDecodingProgress>? _sstvProgressSub;
   StreamSubscription<SstvDecodingComplete>? _sstvCompleteSub;
-  bool _sstvDecoding = false;
+  bool _sstvDecodingActive = false;
+
+  /// Whether an SSTV image is currently being received/decoded. Setting this
+  /// publishes an `SstvReceiving` flag on the SSTV device so the software modem
+  /// can ignore the audio (the SSTV tones are not packet data).
+  bool get _sstvDecoding => _sstvDecodingActive;
+  set _sstvDecoding(bool value) {
+    if (_sstvDecodingActive == value) return;
+    _sstvDecodingActive = value;
+    _broker.dispatch(
+      deviceId: _sstvDeviceId,
+      name: 'SstvReceiving',
+      data: value,
+      store: true,
+    );
+  }
+
   bool _sstvAutoMuted = false;
   // Whether the channel currently feeding the SSTV monitor is flagged as muted
   // (per-channel mute). While muted the radio audio is already silenced, so the

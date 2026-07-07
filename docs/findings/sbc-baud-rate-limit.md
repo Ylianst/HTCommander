@@ -212,6 +212,39 @@ Measured at 32 kHz with internal `upsample = 4` (no external resampling):
 The internal upsampler both fixes 9600 (0% → 100%) **and** gives a wider noise
 margin than external linear upsampling.
 
+## Finding 6 — PSK/AFSK need no upsampling, and their profile is already optimal
+
+The internal upsampler is unique to the 9600 baseband demodulator, and 9600 is
+the only mode starved for samples per symbol at 32 kHz:
+
+| mode | symbol rate | samples/symbol @ 32 kHz |
+|------|------------:|------------------------:|
+| AFSK1200 | 1200 | ~27 |
+| PSK2400 (QPSK) | 1200 | ~27 |
+| PSK4800 (8PSK) | 1600 | 20 |
+| G3RUH9600 | 9600 | **3.3** ← the only starved one |
+
+PSK4800 already has 20 samples/symbol, so upsampling gains nothing (the external
+48 kHz test was neutral for 4800). Its limiter is the 8PSK constellation (3 bits
+per symbol, packed tightly), which is a fundamental SNR requirement, not a
+sample-density problem — and the PSK demodulator has no upsample knob.
+
+The PSK demodulator does expose **profiles** (prefilter on/off + PLL inertia).
+The app passes `'B'`, which falls through to the `default`: LO-mix, no prefilter
+(`V` for 8PSK, `R` for QPSK). Sweeping all four 8PSK profiles at 32 kHz:
+
+| 8PSK profile | noise margin A / B / C |
+|--------------|------------------------|
+| **V** (current default: LO, no prefilter) | **~4000 / ~2000 / ~1500** ← best |
+| W (LO + prefilter) | ~4000 / ~2000 / ~1500 (tied, mixed) |
+| U (self-correlation + prefilter) | ~2500 / ~2000 / ~750 (worse) |
+| T (self-correlation) | ~2500 / ~2000 / ~1500 (worse) |
+
+The app already uses the best-performing profile; the prefilter and
+self-correlation variants do not help (some are worse). This matches Direwolf's
+own default choice. So there is no PSK/AFSK tuning win for the 32 kHz case — the
+real lever for PSK4800 robustness is FEC (FX.25), which the app already supports.
+
 ---
 
 ## How much does SBC limit us?
@@ -232,8 +265,11 @@ margin than external linear upsampling.
    and `_processPcmData` feeds the 32 kHz samples straight through with that
    factor. This takes 9600 from 0% to 100% clean decode with the widest noise
    margin, at lower cost than an external resampler. Changing SBC would not help.
-2. **4800:** already functional on clean/strong signals. Improving robustness
-   is about SNR and demodulator margin (upsampling is roughly neutral here),
-   not about the SBC codec. Consider FX.25 FEC for weak links.
-3. **SBC itself needs no change** for packet-modem purposes; it is not the
+2. **4800:** already functional on clean/strong signals, and already using the
+   best-performing demodulator profile (Finding 6) — no upsampling or profile
+   change helps. The limit is the 8PSK SNR requirement, so use FX.25 FEC for
+   weak links.
+3. **1200 / 2400:** no action needed — ample samples per symbol and essentially
+   immune to SBC.
+4. **SBC itself needs no change** for packet-modem purposes; it is not the
    bottleneck.

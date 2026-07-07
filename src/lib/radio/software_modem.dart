@@ -439,6 +439,13 @@ class SoftwareModem {
     final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
     if (transmit) return;
 
+    // Skip processing while an SSTV image is being received on this device. The
+    // SSTV tones are not packet data; feeding them to the modem wastes CPU and
+    // can cause spurious decodes. The voice/comms handler publishes this flag.
+    if (_broker.getValue<bool>(deviceId, 'SstvReceiving', false) ?? false) {
+      return;
+    }
+
     final bytes = data['data'] ?? data['Data'];
     if (bytes is! Uint8List || bytes.isEmpty) return;
 
