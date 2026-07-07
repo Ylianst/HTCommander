@@ -283,6 +283,13 @@ class _TerminalTabState extends State<TerminalTab>
         data: SetUnlockData(usage: 'Terminal'),
         store: false,
       );
+      // Restore the user's regular software modem mode.
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'ClearSessionModem',
+        data: null,
+        store: false,
+      );
       _broker.logInfo('[TerminalTab] Disconnecting from radio $activeRadioId');
       _session?.dispose();
       _session = null;
@@ -368,6 +375,16 @@ class _TerminalTabState extends State<TerminalTab>
       store: false,
     );
 
+    // Override the software modem with the contact's configured modem for the
+    // duration of the session. Restored on disconnect. 'Hardware' maps to the
+    // radio's built-in TNC (software modem off).
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SetSessionModem',
+      data: station.modem,
+      store: false,
+    );
+
     setState(() {
       _connectedStation = station;
       _connectedRadioId = radioId;
@@ -435,6 +452,13 @@ class _TerminalTabState extends State<TerminalTab>
             deviceId: radioId,
             name: 'SetUnlock',
             data: SetUnlockData(usage: 'Terminal'),
+            store: false,
+          );
+          // Restore the user's regular software modem mode.
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'ClearSessionModem',
+            data: null,
             store: false,
           );
         }

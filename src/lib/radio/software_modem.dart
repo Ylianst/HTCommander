@@ -11,8 +11,11 @@ G3RUH 9600 modulation via the hamlib software modem library.
 // ignore_for_file: avoid_print
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../hamlib/audio_buffer.dart';
 import '../hamlib/audio_config.dart';
@@ -164,6 +167,12 @@ class SoftwareModem {
   bool _initialized = false;
   static final math.Random _rng = math.Random();
 
+  // Per-session modem override (Terminal / Winlink contacts). While a session
+  // is active the mode is switched to the contact's modem and the user's
+  // regular setting is restored when the session ends.
+  SoftwareModemMode? _sessionOverrideSavedMode;
+  bool _sessionOverrideActive = false;
+
   /// Gets the current modem mode.
   SoftwareModemMode get currentMode => _currentMode;
 
@@ -185,6 +194,18 @@ class SoftwareModem {
       deviceId: 0,
       name: 'SetSoftwareModemMode',
       callback: _onSetModeRequested,
+    );
+
+    // Subscribe to per-session modem overrides (Terminal / Winlink contacts).
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SetSessionModem',
+      callback: _onSetSessionModem,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'ClearSessionModem',
+      callback: _onClearSessionModem,
     );
 
     // Subscribe to audio data from all radios
@@ -267,8 +288,10 @@ class SoftwareModem {
     }
   }
 
-  /// Sets the software modem mode.
-  void setMode(SoftwareModemMode mode) {
+  /// Sets the software modem mode. When [persist] is false the change is
+  /// applied live but the stored user preference (device 0 'SoftwareModemMode')
+  /// is left untouched - used for temporary per-session overrides.
+  void setMode(SoftwareModemMode mode, {bool persist = true}) {
     if (_currentMode == mode) return;
 
     _debug('Changing software modem mode from ${_currentMode.name} to ${mode.name}');
@@ -281,8 +304,14 @@ class SoftwareModem {
 
     _currentMode = mode;
 
-    // Save to device 0 (settings)
-    _broker.dispatch(deviceId: 0, name: 'SoftwareModemMode', data: mode.name, store: true);
+    // Save to device 0 (settings). During a session override we do not persist
+    // so the user's regular setting is preserved.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SoftwareModemMode',
+      data: mode.name,
+      store: persist,
+    );
 
     _debug('Software modem mode changed to ${mode.name}');
   }
@@ -292,7 +321,48 @@ class SoftwareModem {
 
     final String modeStr = (data is String) ? data : (data?.toString() ?? '');
     final SoftwareModemMode newMode = _parseMode(modeStr);
+    // A manual mode change ends any active session override so a later
+    // ClearSessionModem does not revert the user's new choice.
+    _sessionOverrideActive = false;
+    _sessionOverrideSavedMode = null;
     setMode(newMode);
+  }
+
+  /// Override the modem mode for the duration of a Terminal / Winlink session.
+  /// [data] is the contact's modem value: 'Hardware' (radio TNC -> software
+  /// modem off), 'AFSK1200', 'PSK2400', 'PSK4800' or 'G3RUH9600'.
+  void _onSetSessionModem(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+
+    final String modemStr = (data is String) ? data : (data?.toString() ?? '');
+    // Software modem modes require the audio channel, which is unavailable on
+    // web and iOS - fall back to the radio's hardware TNC there.
+    final bool audioSupported = !kIsWeb && !Platform.isIOS;
+    final SoftwareModemMode target =
+        audioSupported ? _parseMode(modemStr) : SoftwareModemMode.none;
+
+    // Remember the user's regular mode the first time we override.
+    if (!_sessionOverrideActive) {
+      _sessionOverrideSavedMode = _currentMode;
+      _sessionOverrideActive = true;
+    }
+
+    _debug('Session modem override -> ${target.name} (was ${_sessionOverrideSavedMode?.name})');
+    setMode(target, persist: false);
+  }
+
+  /// Restore the user's regular modem mode after a session ends.
+  void _onClearSessionModem(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (!_sessionOverrideActive) return;
+
+    final SoftwareModemMode restore =
+        _sessionOverrideSavedMode ?? SoftwareModemMode.none;
+    _sessionOverrideActive = false;
+    _sessionOverrideSavedMode = null;
+
+    _debug('Session modem override cleared, restoring ${restore.name}');
+    setMode(restore, persist: false);
   }
 
   // ---------------------------------------------------------------------------
@@ -652,6 +722,16 @@ class SoftwareModem {
 
     if (state == null) return;
 
+    // An FX.25 transmission carries a standard HDLC-framed AX.25 frame inside
+    // its Reed-Solomon block, so the plain HDLC receiver also decodes it. If the
+    // FX.25 receiver is currently mid-block, this is that embedded frame - drop
+    // it here so the packet is reported once, via the FX.25 path, with the
+    // correct FX.25 frame type and corrected-symbol count. (Matches Direwolf's
+    // fx25_rec_busy suppression in hdlc_rec.)
+    if (state.fx25Receiver != null && state.fx25Receiver!.isBusy(e.channel)) {
+      return;
+    }
+
     final Uint8List frameData = Uint8List(e.frameLength);
     frameData.setRange(0, e.frameLength, e.frame);
 
@@ -707,7 +787,8 @@ class SoftwareModem {
       // Track whether the channel is currently clear
       final int rssi = _readInt(data['rssi'] ?? data['Rssi']) ?? 1;
       final bool isInTx =
-          (data['is_in_tx'] ?? data['IsInTx']) as bool? ?? false;
+          (data['isInTx'] ?? data['is_in_tx'] ?? data['IsInTx']) as bool? ??
+              false;
       final bool isClear = rssi == 0 && !isInTx;
       final bool wasClear = state.channelIsClear;
       state.channelIsClear = isClear;
@@ -811,6 +892,13 @@ class SoftwareModem {
       return;
     }
 
+    // Sense the actual current channel state. HtStatus is only dispatched on
+    // change, so the cached flag can be stale (e.g. still false) when the
+    // channel has been steadily free - which previously left the packet queued
+    // until the next busy->clear transition. Reading the latest status lets us
+    // proceed right away when the channel is already free.
+    _refreshChannelClear(state);
+
     state.waitingForChannel = true;
     if (state.channelWaitTimer != null) return; // persistence already running
     if (!state.channelIsClear) return; // busy: resume on ChannelClear/HtStatus
@@ -835,8 +923,10 @@ class SoftwareModem {
       return;
     }
 
-    // Someone else may have started transmitting during the slot - if so, go
-    // back to waiting for the channel to clear again.
+    // Re-sense the channel each slot from the latest HtStatus (Direwolf checks
+    // the channel on every slot). Someone else may have started transmitting
+    // during the slot - if so, go back to waiting for the channel to clear.
+    _refreshChannelClear(state);
     if (!state.channelIsClear) {
       state.waitingForChannel = true;
       return;
@@ -847,6 +937,20 @@ class SoftwareModem {
       _flushTransmitQueue(state);
     } else {
       _schedulePersistenceSlot(state);
+    }
+  }
+
+  /// Sense the current channel state from the radio's latest HtStatus and
+  /// update [state.channelIsClear]. HtStatus is only dispatched on change, so a
+  /// steadily-free channel would otherwise leave the cached flag stale.
+  void _refreshChannelClear(_RadioModemState state) {
+    final Object? ht =
+        _broker.getValue<Object>(state.deviceId, 'HtStatus', null);
+    if (ht is Map) {
+      final int rssi = _readInt(ht['rssi'] ?? ht['Rssi']) ?? 1;
+      final bool isInTx =
+          (ht['isInTx'] ?? ht['is_in_tx'] ?? ht['IsInTx']) as bool? ?? false;
+      state.channelIsClear = rssi == 0 && !isInTx;
     }
   }
 
@@ -920,6 +1024,7 @@ class SoftwareModem {
     if (frames.isEmpty) return null;
     if (state.packetAudioBuffer == null ||
         state.packetHdlcSend == null ||
+        state.packetFx25Send == null ||
         state.audioConfig == null) {
       return null;
     }
@@ -928,28 +1033,35 @@ class SoftwareModem {
     final buffer = state.packetAudioBuffer!;
     buffer.clearAll();
 
+    final int sampleRate = state.audioConfig!.devices[0].samplesPerSec;
     final bool is9600 = _currentMode == SoftwareModemMode.g3ruh9600;
-    const int silenceSamples = 32000 ~/ 2; // 0.5 s at 32 kHz
 
-    // Pre-silence for G3RUH 9600.
+    // 1 second of leading silence so the radio's PTT is fully keyed up before
+    // any data tones start. This covers the delay between the PCM stream
+    // starting and PTT actually engaging. It is emitted once per transmission
+    // (before the first frame of the bundle), not between bundled frames.
+    _appendSilenceSamples(buffer, sampleRate);
+
+    // Additional pre-silence for G3RUH 9600 to let the modem settle.
     if (is9600) {
-      for (int i = 0; i < silenceSamples; i++) {
-        buffer.put(0, 0);
-      }
+      _appendSilenceSamples(buffer, sampleRate ~/ 2);
     }
 
     // Single preamble for the whole transmission.
     final int txdelayFlags = state.audioConfig!.channels[chan].txdelay;
     state.packetHdlcSend!.sendFlags(chan, txdelayFlags, false, null);
 
-    // All frames one after another. Each frame emits its own HDLC flags so
-    // consecutive frames stay properly delimited.
+    // All frames one after another. Always use FX.25 forward error correction
+    // (smallest level = 16 check bytes; pickMode selects the smallest RS block
+    // that fits). If a frame is too large for any FX.25 block, fall back to
+    // plain AX.25. Each frame emits its own HDLC flags so consecutive frames
+    // stay properly delimited.
     for (final tx in frames) {
-      if (tx.frameType == FragmentFrameType.fx25) {
-        const int fxMode = 32;
-        state.packetFx25Send!
-            .sendFrame(chan, tx.frameData, tx.frameData.length, fxMode);
-      } else {
+      const int fx25SmallestFec = 16; // 16 check bytes = smallest FX.25 FEC
+      final int sent = state.packetFx25Send!
+          .sendFrame(chan, tx.frameData, tx.frameData.length, fx25SmallestFec);
+      if (sent < 0) {
+        // Frame too large for FX.25 - fall back to plain AX.25.
         state.packetHdlcSend!
             .sendFrame(chan, tx.frameData, tx.frameData.length, false);
       }
@@ -961,9 +1073,7 @@ class SoftwareModem {
 
     // Post-silence for G3RUH 9600.
     if (is9600) {
-      for (int i = 0; i < silenceSamples; i++) {
-        buffer.put(0, 0);
-      }
+      _appendSilenceSamples(buffer, sampleRate ~/ 2);
     }
 
     final samples = buffer.getAndClear(0);
@@ -975,6 +1085,13 @@ class SoftwareModem {
       bd.setInt16(i * 2, samples[i], Endian.little);
     }
     return pcmData;
+  }
+
+  /// Appends [numSamples] of silence (value 0) to device 0 of [buffer].
+  void _appendSilenceSamples(AudioBuffer buffer, int numSamples) {
+    for (int i = 0; i < numSamples; i++) {
+      buffer.put(0, 0);
+    }
   }
 
   // ---------------------------------------------------------------------------
