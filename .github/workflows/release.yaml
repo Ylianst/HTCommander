@@ -14,7 +14,16 @@ env:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+            wix_arch: x64
+          - arch: arm64
+            runner: windows-11-arm
+            wix_arch: arm64
     outputs:
       version: ${{ steps.version.outputs.version }}
       build_number: ${{ steps.version.outputs.build_number }}
@@ -59,7 +68,7 @@ jobs:
           endpoint: ${{ secrets.AZURE_ENDPOINT }}
           trusted-signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT_NAME }}
           certificate-profile-name: ${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
-          files-folder: src\build\windows\x64\runner\Release
+          files-folder: src\build\windows\${{ matrix.arch }}\runner\Release
           files-folder-filter: exe
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
@@ -74,7 +83,7 @@ jobs:
           # Register the WiX UI extension so 'wix build -ext' can resolve it
           wix extension add -g WixToolset.UI.wixext/5.0.2
 
-          $buildDir = "src\build\windows\x64\runner\Release"
+          $buildDir = "src\build\windows\${{ matrix.arch }}\runner\Release"
           $appDisplayName = "Handi-Talky Commander"
           $appName = "HTCommander"
           $exeName = "htcommander.exe"
@@ -82,7 +91,7 @@ jobs:
           $licenseRtf = (Resolve-Path "src\windows\LICENSE.rtf").Path
           $dialogBmp = (Resolve-Path "src\windows\background.bmp").Path
           $bannerBmp = (Resolve-Path "src\windows\banner.bmp").Path
-          $msiOutput = "HTCommander.msi"
+          $msiOutput = "HTCommander-${{ matrix.arch }}.msi"
 
           # Verify icon file exists
           if (-not (Test-Path $icoPath)) { Write-Error "Icon not found: $icoPath"; exit 1 }
@@ -164,7 +173,7 @@ jobs:
           $wxsContent | Out-File -FilePath "installer.wxs" -Encoding UTF8
 
           # Build the MSI
-          wix build installer.wxs -ext WixToolset.UI.wixext -arch x64 -o $msiOutput
+          wix build installer.wxs -ext WixToolset.UI.wixext -arch ${{ matrix.wix_arch }} -o $msiOutput
 
       - name: Sign MSI installer
         uses: azure/trusted-signing-action@v0.4.0
@@ -188,8 +197,8 @@ jobs:
           $version = "${{ steps.version.outputs.version }}"
           $buildNumber = "${{ steps.version.outputs.build_number }}"
           dart run desktop_updater:package `
-            --input build/windows/x64/runner/Release `
-            --output dist/desktop_updater/releases/$version/windows `
+            --input build/windows/${{ matrix.arch }}/runner/Release `
+            --output dist/desktop_updater/releases/$version/windows-${{ matrix.arch }} `
             --package-id com.htcommander.app `
             --app-name htcommander `
             --version $version `
@@ -197,18 +206,18 @@ jobs:
             --platform windows `
             --channel stable `
             --install-strategy wholeDirectoryReplace `
-            --artifact-url "${{ env.BASE_URL }}/releases/$version/windows/htcommander-$version-windows.zip"
+            --artifact-url "${{ env.BASE_URL }}/releases/$version/windows-${{ matrix.arch }}/htcommander-$version-windows-${{ matrix.arch }}.zip"
 
       - name: Upload MSI
         uses: actions/upload-artifact@v7
         with:
-          name: windows-msi
-          path: HTCommander.msi
+          name: windows-msi-${{ matrix.arch }}
+          path: HTCommander-${{ matrix.arch }}.msi
 
       - name: Upload update package
         uses: actions/upload-artifact@v7
         with:
-          name: windows-update
+          name: windows-update-${{ matrix.arch }}
           path: src/dist/desktop_updater/releases/
 
   build-linux:
@@ -807,7 +816,8 @@ jobs:
           mkdir -p dist/desktop_updater/releases
 
           # Copy all platform release artifacts
-          cp -r ../artifacts/windows-update/* dist/desktop_updater/releases/ || true
+          cp -r ../artifacts/windows-update-x64/* dist/desktop_updater/releases/ || true
+          cp -r ../artifacts/windows-update-arm64/* dist/desktop_updater/releases/ || true
           cp -r ../artifacts/linux-update-x64/* dist/desktop_updater/releases/ || true
           cp -r ../artifacts/linux-update-arm64/* dist/desktop_updater/releases/ || true
           cp -r ../artifacts/macos-update/* dist/desktop_updater/releases/ || true
@@ -820,7 +830,16 @@ jobs:
             --build-number "$BUILD_NUMBER" \
             --platform windows \
             --channel stable \
-            --release-url "$BASE_URL/releases/$VERSION/windows/release.json"
+            --release-url "$BASE_URL/releases/$VERSION/windows-x64/release.json"
+
+          dart run desktop_updater:app_archive upsert \
+            --archive dist/desktop_updater/app-archive.json \
+            --app-name "Handi-Talkie Commander" \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --platform windows \
+            --channel stable \
+            --release-url "$BASE_URL/releases/$VERSION/windows-arm64/release.json"
 
           dart run desktop_updater:app_archive upsert \
             --archive dist/desktop_updater/app-archive.json \
@@ -858,7 +877,8 @@ jobs:
           name: HTCommander ${{ github.ref_name }}
           generate_release_notes: true
           files: |
-            artifacts/windows-msi/HTCommander.msi
+            artifacts/windows-msi-x64/HTCommander-x64.msi
+            artifacts/windows-msi-arm64/HTCommander-arm64.msi
             artifacts/macos-dmg/HTCommander.dmg
             artifacts/linux-packages-x64/htcommander-linux-x64.tar.gz
             artifacts/linux-packages-x64/htcommander-linux-x64.deb

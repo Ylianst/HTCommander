@@ -5,7 +5,16 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+            wix_arch: x64
+          - arch: arm64
+            runner: windows-11-arm
+            wix_arch: arm64
     steps:
       - uses: actions/checkout@v7
 
@@ -30,7 +39,7 @@ jobs:
           endpoint: ${{ secrets.AZURE_ENDPOINT }}
           trusted-signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT_NAME }}
           certificate-profile-name: ${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
-          files-folder: src\build\windows\x64\runner\Release
+          files-folder: src\build\windows\${{ matrix.arch }}\runner\Release
           files-folder-filter: exe
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
@@ -45,7 +54,7 @@ jobs:
           # Register the WiX UI extension so 'wix build -ext' can resolve it
           wix extension add -g WixToolset.UI.wixext/5.0.2
 
-          $buildDir = "src\build\windows\x64\runner\Release"
+          $buildDir = "src\build\windows\${{ matrix.arch }}\runner\Release"
           $appDisplayName = "Handi-Talky Commander"
           $appName = "HTCommander"
           $exeName = "htcommander.exe"
@@ -53,7 +62,7 @@ jobs:
           $licenseRtf = (Resolve-Path "src\windows\LICENSE.rtf").Path
           $dialogBmp = (Resolve-Path "src\windows\background.bmp").Path
           $bannerBmp = (Resolve-Path "src\windows\banner.bmp").Path
-          $msiOutput = "HTCommander.msi"
+          $msiOutput = "HTCommander-${{ matrix.arch }}.msi"
 
           # Verify icon file exists
           if (-not (Test-Path $icoPath)) { Write-Error "Icon not found: $icoPath"; exit 1 }
@@ -136,7 +145,7 @@ jobs:
           $wxsContent | Out-File -FilePath "installer.wxs" -Encoding UTF8
 
           # Build the MSI
-          wix build installer.wxs -ext WixToolset.UI.wixext -arch x64 -o $msiOutput
+          wix build installer.wxs -ext WixToolset.UI.wixext -arch ${{ matrix.wix_arch }} -o $msiOutput
 
       - name: Sign MSI installer
         uses: azure/trusted-signing-action@v0.4.0
@@ -156,8 +165,8 @@ jobs:
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v7
         with:
-          name: windows-build
-          path: HTCommander.msi
+          name: windows-build-${{ matrix.arch }}
+          path: HTCommander-${{ matrix.arch }}.msi
 
   build-linux:
     runs-on: ${{ matrix.runner }}
