@@ -940,6 +940,27 @@ bool _bytesEqual(Uint8List a, Uint8List b) {
   return true;
 }
 
+/// Linear-interpolation resampler (mirrors the _LinearResampler used by
+/// lib/handlers/sherpa_speech_to_text_engine.dart). Converts a 16-bit mono PCM
+/// buffer from [fromRate] to [toRate]. Used to upsample the 32 kHz audio the
+/// radio delivers over the SBC/Bluetooth link so the demodulator gets more
+/// samples per symbol.
+Int16List _resamplePcm(Int16List input, int fromRate, int toRate) {
+  if (fromRate == toRate || input.isEmpty) return input;
+  final int outLen = (input.length * toRate / fromRate).floor();
+  final Int16List out = Int16List(outLen);
+  final double step = fromRate / toRate;
+  for (int i = 0; i < outLen; i++) {
+    final double srcPos = i * step;
+    final int idx = srcPos.floor();
+    final double frac = srcPos - idx;
+    final int s0 = input[idx];
+    final int s1 = (idx + 1 < input.length) ? input[idx + 1] : s0;
+    out[i] = (s0 + (s1 - s0) * frac).round();
+  }
+  return out;
+}
+
 /// Add additive white Gaussian noise (Box-Muller) to a PCM buffer, returning a
 /// new buffer. Simulates a weak/noisy RF signal.
 Int16List _addAwgn(Int16List samples, double stddev, math.Random rng) {
@@ -1153,8 +1174,152 @@ int _runFecDiag({
   return (awareOk && plainOk) ? 0 : 1;
 }
 
+// ---------------------------------------------------------------------------
+// SBC limit test (does the Bluetooth SBC codec cap the usable baud rate?)
+// ---------------------------------------------------------------------------
 
+/// Run the exact pipeline the user asked about and measure how much the
+/// Bluetooth SBC audio link erodes a modem's noise margin:
+///
+///   encode packet -> PCM
+///     Path A (no SBC):  PCM -> [+noise] -> demod
+///     Path B (1x SBC):  PCM -> SBC -> [+noise] -> demod
+///     Path C (2x SBC):  PCM -> SBC -> [+noise] -> SBC -> demod
+///
+/// Path C models the real over-the-air chain: the transmitting radio's
+/// app->radio Bluetooth link SBC-encodes the tones, RF/FM adds noise on air,
+/// then the receiving radio's radio->app Bluetooth link SBC-encodes again
+/// before the app demodulates. Each path is run over a sweep of AWGN levels
+/// with many trials; the reported figure is the fraction of packets that decode
+/// bit-exact. If SBC is the limiter, the SBC paths collapse at a much lower
+/// noise level than the no-SBC path.
+int _runSbcTest({
+  required int baud,
+  required int sampleRate,
+  required int amplitude,
+  required int trials,
+  required int seed,
+  required String? dataFile,
+  required int upsampleRate,
+}) {
+  final _ModemProfile? profile = _profileForBaud(baud);
+  if (profile == null) {
+    stderr.writeln('Unsupported baud rate: $baud');
+    return 2;
+  }
 
+  // The rate the demodulator runs at. When --upsample is set, the audio that
+  // came off the 32 kHz SBC/Bluetooth link is resampled to this higher rate
+  // (giving the demod more samples per symbol) before demodulation - exactly
+  // what the app would do with audio received from the radio.
+  final bool useUpsample = upsampleRate > sampleRate;
+  final int demodRate = useUpsample ? upsampleRate : sampleRate;
+
+  // Build the AX.25 frame to transmit (from a data file line or a default).
+  const String defaultLine =
+      'WB2OSZ-15>APDW17,WIDE1-1:The quick brown fox jumps over the lazy dog';
+  String line = defaultLine;
+  if (dataFile != null) {
+    final File f = File(dataFile);
+    if (!f.existsSync()) {
+      stderr.writeln('Data file not found: $dataFile');
+      return 2;
+    }
+    for (final String raw in f.readAsLinesSync()) {
+      final String t = raw.trim();
+      if (t.isNotEmpty && !t.startsWith('#')) {
+        line = t;
+        break;
+      }
+    }
+  }
+  final Packet? packet = Packet.fromText(line, false);
+  if (packet == null) {
+    stderr.writeln('Invalid TNC2 line: $line');
+    return 2;
+  }
+  final Uint8List frame =
+      Uint8List.fromList(packet.frameData.sublist(0, packet.frameLen));
+
+  // The clean modulated audio (deterministic - encoded once, reused per trial).
+  final Int16List cleanPcm =
+      _encodeRawFramePcm(profile, sampleRate, amplitude, frame);
+  // The SBC-once audio is also deterministic; the noise realization is what
+  // varies between trials.
+  final Int16List sbc1Pcm = _sbcRoundTripPcm(cleanPcm, sampleRate);
+
+  bool decodes(Int16List pcm) {
+    // Resample the received (32 kHz link) audio up to the demod rate if asked.
+    final Int16List forDemod =
+        useUpsample ? _resamplePcm(pcm, sampleRate, demodRate) : pcm;
+    final List<Uint8List> rx =
+        _decodePcmRawFrames(profile, demodRate, forDemod);
+    return rx.any((Uint8List r) => _bytesEqual(r, frame));
+  }
+
+  // Noise sweep (AWGN standard deviation in 16-bit sample units). 0 = clean.
+  const List<double> noiseLevels = <double>[
+    0, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000,
+  ];
+
+  print('SBC limit test: baud=$baud (${profile.modemType.name})  '
+      'rate=$sampleRate Hz  amp=$amplitude  trials=$trials/level  seed=$seed');
+  print('Packet (${frame.length}-byte AX.25 frame): $line');
+  print('SBC link: 32 kHz mono, 16 blocks, 8 subbands, loudness, bitpool 18 '
+      '(44-byte frames, 88 kbps) - matches lib/radio/radio_audio.dart');
+  if (useUpsample) {
+    print('Upsample: link audio resampled $sampleRate -> $demodRate Hz '
+        '(linear) before demodulation.');
+  }
+  print('');
+  print('Each cell = % of packets decoded bit-exact over $trials trials.');
+  print('  Path A = no SBC (direct audio)');
+  print('  Path B = 1x SBC (one Bluetooth link)');
+  print('  Path C = 2x SBC (TX radio link + RX radio link, noise on air '
+      'between them)');
+  print('');
+  print('  noise stddev |  A: no SBC  |  B: 1x SBC  |  C: 2x SBC');
+  print('  -------------+-------------+-------------+-----------');
+
+  int firstBreakA = -1, firstBreakB = -1, firstBreakC = -1;
+  for (final double n in noiseLevels) {
+    int passA = 0, passB = 0, passC = 0;
+    for (int t = 0; t < trials; t++) {
+      // Independent noise realization per path/trial, reproducible via seed.
+      final math.Random rngA = math.Random(seed + t * 3 + 0);
+      final math.Random rngB = math.Random(seed + t * 3 + 1);
+      final math.Random rngC = math.Random(seed + t * 3 + 2);
+
+      // Path A: clean audio + noise.
+      if (decodes(_addAwgn(cleanPcm, n, rngA))) passA++;
+
+      // Path B: SBC once, then noise.
+      if (decodes(_addAwgn(sbc1Pcm, n, rngB))) passB++;
+
+      // Path C: SBC, + noise (air), then SBC again.
+      final Int16List cNoisy = _addAwgn(sbc1Pcm, n, rngC);
+      final Int16List cTwice = _sbcRoundTripPcm(cNoisy, sampleRate);
+      if (decodes(cTwice)) passC++;
+    }
+    double pct(int p) => 100.0 * p / trials;
+    if (firstBreakA < 0 && passA < trials) firstBreakA = n.round();
+    if (firstBreakB < 0 && passB < trials) firstBreakB = n.round();
+    if (firstBreakC < 0 && passC < trials) firstBreakC = n.round();
+    String cell(int p) => '${pct(p).toStringAsFixed(0)}%'.padLeft(9);
+    print('  ${n.toStringAsFixed(0).padLeft(11)} | '
+        ' ${cell(passA)} | '
+        ' ${cell(passB)} | '
+        ' ${cell(passC)}');
+  }
+
+  print('');
+  String margin(int b) => b < 0 ? 'no failures in sweep' : 'first drop at ~$b';
+  print('Noise margin (higher = more robust):');
+  print('  A no SBC : ${margin(firstBreakA)}');
+  print('  B 1x SBC : ${margin(firstBreakB)}');
+  print('  C 2x SBC : ${margin(firstBreakC)}');
+  return 0;
+}
 
 // ---------------------------------------------------------------------------
 // Argument parsing / main
@@ -1179,6 +1344,13 @@ Usage:
 
   Loopback length sweep (find lengths that fail to decode, e.g. BSS):
     dart run test/soft_modem_tool.dart loopback -B <baud> [-r <rate>] [--bss] [--prod] [--sbc] [--min <n>] [--max <n>] [--trials <n>] [-s <seed>]
+
+  SBC limit test (does the Bluetooth SBC link cap the usable baud rate?):
+    dart run test/soft_modem_tool.dart sbctest -B <baud> [-r <rate>] [--trials <n>] [-s <seed>] [--upsample <rate>] [<data.txt>]
+      Sweeps AWGN and compares no-SBC vs 1x-SBC vs 2x-SBC (encode -> SBC ->
+      noise -> SBC -> decode) decode success. Use -r 32000 for the radio's rate.
+      --upsample <rate> resamples the 32 kHz link audio up (e.g. 48000) before
+      demodulation, giving the demod more samples per symbol.
 
 Options:
   -B <baud>   Modem baud/mode: 300, 1200, 2400, 4800, 9600  (default 1200)
@@ -1236,6 +1408,7 @@ void main(List<String> args) {
       command != 'decode' &&
       command != 'corrupt' &&
       command != 'sbc' &&
+      command != 'sbctest' &&
       command != 'loopback' &&
       command != 'fecdiag') {
     stderr.writeln('Unknown command: ${args[0]}');
@@ -1260,6 +1433,7 @@ void main(List<String> args) {
   int loopMin = 0;
   int loopMax = 40;
   int loopTrials = 5;
+  int upsampleRate = 0;
   bool loopBss = false;
   bool loopSbc = false;
   bool loopProd = false;
@@ -1331,6 +1505,9 @@ void main(List<String> args) {
         break;
       case '--trials':
         loopTrials = _parseIntOr(_next(args, ++i), loopTrials);
+        break;
+      case '--upsample':
+        upsampleRate = _parseIntOr(_next(args, ++i), upsampleRate);
         break;
       case '-h':
       case '--help':
@@ -1419,6 +1596,16 @@ void main(List<String> args) {
       sampleRate: sampleRate,
       amplitude: amplitude,
       data: data,
+    ));
+  } else if (command == 'sbctest') {
+    exit(_runSbcTest(
+      baud: baud,
+      sampleRate: sampleRate,
+      amplitude: amplitude,
+      trials: loopTrials,
+      seed: seed,
+      dataFile: positional.isEmpty ? null : positional.first,
+      upsampleRate: upsampleRate,
     ));
   } else {
     if (positional.isEmpty) {
