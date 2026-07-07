@@ -1185,6 +1185,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
       onProgress: (done, total) => progressNotifier.value = (done, total),
       cancel: cancelNotifier,
     ).then((_) {
+      progressNotifier.dispose();
+      cancelNotifier.dispose();
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop(); // dismiss progress dialog
       }

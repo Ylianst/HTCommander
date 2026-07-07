@@ -1023,6 +1023,7 @@ class _SettingsDialogState extends State<SettingsDialog>
       ),
     );
     if (result != null) {
+      if (!mounted) return;
       setState(() => _settings.aprsRoutes.add(result));
     }
   }
@@ -1039,6 +1040,7 @@ class _SettingsDialogState extends State<SettingsDialog>
       ),
     );
     if (result != null) {
+      if (!mounted) return;
       setState(() => _settings.aprsRoutes[index] = result);
     }
   }

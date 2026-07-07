@@ -2424,6 +2424,7 @@ class _MainFormState extends State<MainForm>
       _statusText = '';
     });
 
+    if (!mounted) return;
     await RadioConnectionDialog.show(context, compatibleDevices);
   }
 
@@ -2577,6 +2578,7 @@ class _MainFormState extends State<MainForm>
       // Settings were saved to DataBroker
       // Reload settings to update UI
       _loadSettingsFromBroker();
+      if (!mounted) return;
       setState(() {});
     }
   }
