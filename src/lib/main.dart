@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'dialogs/about_dialog.dart';
+import 'dialogs/gps_serial_info_dialog.dart';
 import 'dialogs/import_channels_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/radio_info_dialog.dart';
@@ -1642,7 +1643,10 @@ class _MainFormState extends State<MainForm>
                 : null,
           ),
           if (_hasGpsConfigured)
-            AppMenuAction(label: 'GPS Information...', onPressed: () {}),
+            AppMenuAction(
+              label: 'GPS Information...',
+              onPressed: () => showGpsSerialInfoDialog(context),
+            ),
           const AppMenuDivider(),
           if (UpdateService.instance.isSupported)
             AppMenuAction(

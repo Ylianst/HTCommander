@@ -139,8 +139,9 @@ class GpsSerialHandler {
 
     final token = ++_openToken;
 
-    // Open on a microtask so the UI never blocks on a slow open.
-    Future(() {
+    // Open after a short delay so the UI never blocks on a slow open, and so
+    // the previous port handle has time to be fully released by the driver.
+    Future.delayed(const Duration(milliseconds: 200), () {
       if (_disposed || token != _openToken) return;
 
       SerialPort? port;
@@ -227,12 +228,17 @@ class GpsSerialHandler {
     final port = _port;
     _port = null;
     if (port != null) {
-      try {
-        if (port.isOpen) port.close();
-      } catch (_) {}
-      try {
-        port.dispose();
-      } catch (_) {}
+      // Close the port handle asynchronously. Some USB-serial drivers block
+      // CloseHandle for a noticeable period after recent I/O, which would
+      // freeze the UI if done synchronously.
+      Future(() {
+        try {
+          if (port.isOpen) port.close();
+        } catch (_) {}
+        try {
+          port.dispose();
+        } catch (_) {}
+      });
     }
 
     _lineBuffer.clear();
