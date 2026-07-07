@@ -110,14 +110,12 @@ class Fx25Rec {
           f.coffs = Fx25.getKDataRs(f.ctagNum);
           assert(f.coffs == Fx25.fx25BlockSize - f.nRoots);
 
-          if (Fx25.getDebugLevel() >= 2) {
-            final int bitErrors = _popCount(f.accum ^ Fx25.getCtagValue(c));
-            print(
-              'FX.25[$chan.$slice]: Matched correlation tag '
-              '0x${c.toRadixString(16).padLeft(2, '0')} with $bitErrors bit errors. '
-              'Expecting ${f.kDataRadio} data & ${f.nRoots} check bytes.',
-            );
-          }
+          final int bitErrors = _popCount(f.accum ^ Fx25.getCtagValue(c));
+          print(
+            'FX.25[$chan.$slice]: Matched correlation tag '
+            '0x${c.toRadixString(16).padLeft(2, '0')} with $bitErrors bit errors. '
+            'Expecting ${f.kDataRadio} data & ${f.nRoots} check bytes.',
+          );
 
           f.iMask = 0x01;
           f.dlen = 0;
@@ -191,16 +189,11 @@ class Fx25Rec {
 
     if (derrors >= 0) {
       // Success: -1 for failure, >= 0 for success with number of bytes corrected
-      if (Fx25.getDebugLevel() >= 2) {
-        if (derrors == 0) {
-          print('FX.25[$chan.$slice]: FEC complete with no errors.');
-        } else {
-          print(
-            'FX.25[$chan.$slice]: FEC complete, fixed '
-            '${derrors.toString().padLeft(2)} errors.',
-          );
-        }
-      }
+      print(
+        'FX.25[$chan.$slice]: RS FEC OK, corrected '
+        '${derrors.toString().padLeft(2)} byte(s) '
+        '(tag 0x${f.ctagNum.toRadixString(16).padLeft(2, '0')}).',
+      );
 
       final Uint8List frameBuf = Uint8List(Fx25.fx25MaxData + 1);
       final int frameLen = _unstuff(
@@ -212,6 +205,15 @@ class Fx25Rec {
         frameBuf,
       );
 
+      if (frameLen == 0) {
+        // _unstuff already printed the specific reason (bad start flag, no
+        // terminating flag, seven ones, or not a whole number of bytes).
+        print(
+          'FX.25[$chan.$slice]: REJECT - HDLC unstuffing failed, frame dropped.',
+        );
+        return;
+      }
+
       if (frameLen >= 14 + 1 + 2) {
         // Minimum: Two addresses & control & FCS
         final int actualFcs =
@@ -219,6 +221,10 @@ class Fx25Rec {
         final int expectedFcs = FcsCalc.calculate(frameBuf, frameLen - 2);
 
         if (actualFcs == expectedFcs) {
+          print(
+            'FX.25[$chan.$slice]: ACCEPT - delivering ${frameLen - 2}-byte '
+            'frame: ${_hexInline(frameBuf, frameLen - 2)}',
+          );
           if (Fx25.getDebugLevel() >= 3) {
             print('FX.25[$chan.$slice]: Extracted AX.25 frame:');
             Fx25.hexDump(frameBuf, frameLen);
@@ -254,23 +260,41 @@ class Fx25Rec {
               f.ctagNum,
               corrInfo,
             );
+          } else {
+            print(
+              'FX.25[$chan.$slice]: REJECT - no MultiModem sink to deliver '
+              'frame to.',
+            );
           }
         } else {
           // Most likely cause is defective sender software
-          print('FX.25[$chan.$slice]: Bad FCS for AX.25 frame.');
-          Fx25.hexDump(f.block, f.dlen);
-          Fx25.hexDump(frameBuf, frameLen);
+          print(
+            'FX.25[$chan.$slice]: REJECT - Bad FCS on extracted frame '
+            '(got 0x${actualFcs.toRadixString(16).padLeft(4, '0')}, '
+            'expected 0x${expectedFcs.toRadixString(16).padLeft(4, '0')}), '
+            'frame: ${_hexInline(frameBuf, frameLen - 2)}',
+          );
+          if (Fx25.getDebugLevel() >= 3) {
+            Fx25.hexDump(f.block, f.dlen);
+            Fx25.hexDump(frameBuf, frameLen);
+          }
         }
       } else {
         // Most likely cause is defective sender software
         print(
-          'FX.25[$chan.$slice]: AX.25 frame is shorter than minimum length.',
+          'FX.25[$chan.$slice]: REJECT - extracted frame ($frameLen bytes) is '
+          'shorter than the minimum length (17), frame dropped.',
         );
-        Fx25.hexDump(f.block, f.dlen);
-        Fx25.hexDump(frameBuf, frameLen);
+        if (Fx25.getDebugLevel() >= 3) {
+          Fx25.hexDump(f.block, f.dlen);
+          Fx25.hexDump(frameBuf, frameLen);
+        }
       }
-    } else if (Fx25.getDebugLevel() >= 2) {
-      print('FX.25[$chan.$slice]: FEC failed. Too many errors.');
+    } else {
+      print(
+        'FX.25[$chan.$slice]: REJECT - RS FEC failed, too many errors '
+        '(tag 0x${f.ctagNum.toRadixString(16).padLeft(2, '0')}), block dropped.',
+      );
     }
   }
 
@@ -292,8 +316,11 @@ class Fx25Rec {
     int pinIndex = 0;
 
     if (pin[0] != 0x7e) {
-      print('FX.25[$chan.$slice] error: Data section did not start with 0x7e.');
-      Fx25.hexDump(pin, ilen);
+      print(
+        'FX.25[$chan.$slice]: REJECT - data section did not start with 0x7e '
+        'flag.',
+      );
+      if (Fx25.getDebugLevel() >= 3) Fx25.hexDump(pin, ilen);
       return 0;
     }
 
@@ -313,9 +340,10 @@ class Fx25Rec {
 
         if (patDet == 0xfe) {
           print(
-            'FX.25[$chan.$slice]: Invalid AX.25 frame - Seven \'1\' bits in a row.',
+            'FX.25[$chan.$slice]: REJECT - invalid frame, seven \'1\' bits in a '
+            'row.',
           );
-          Fx25.hexDump(pin, ilen);
+          if (Fx25.getDebugLevel() >= 3) Fx25.hexDump(pin, ilen);
           return 0;
         }
 
@@ -329,9 +357,10 @@ class Fx25Rec {
               return frameLen; // Whole number of bytes in result including CRC
             } else {
               print(
-                'FX.25[$chan.$slice]: Invalid AX.25 frame - Not a whole number of bytes.',
+                'FX.25[$chan.$slice]: REJECT - not a whole number of bytes '
+                '(olen=$olen).',
               );
-              Fx25.hexDump(pin, ilen);
+              if (Fx25.getDebugLevel() >= 3) Fx25.hexDump(pin, ilen);
               return 0;
             }
           } else if ((patDet >> 2) == 0x1f) {
@@ -350,9 +379,10 @@ class Fx25Rec {
     }
 
     print(
-      'FX.25[$chan.$slice]: Invalid AX.25 frame - Terminating flag not found.',
+      'FX.25[$chan.$slice]: REJECT - terminating flag not found before end of '
+      'block.',
     );
-    Fx25.hexDump(pin, ilen);
+    if (Fx25.getDebugLevel() >= 3) Fx25.hexDump(pin, ilen);
     return 0;
   }
 
@@ -364,5 +394,15 @@ class Fx25Rec {
       x &= x - 1; // Clear the least significant bit set
     }
     return count;
+  }
+
+  /// Compact single-line hex dump of the first [len] bytes of [b], for logging.
+  static String _hexInline(Uint8List b, int len) {
+    final StringBuffer sb = StringBuffer();
+    final int n = len < b.length ? len : b.length;
+    for (int i = 0; i < n; i++) {
+      sb.write(b[i].toRadixString(16).padLeft(2, '0'));
+    }
+    return sb.toString().toUpperCase();
   }
 }

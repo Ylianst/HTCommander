@@ -94,6 +94,15 @@ class _RadioModemState {
   bool channelIsClear = false;
   Timer? channelWaitTimer;
 
+  // A valid-FCS frame the plain HDLC receiver decoded from inside an FX.25
+  // block, held briefly while we wait to see if the FX.25 Reed-Solomon path
+  // delivers the same frame. If it does not (RS decode failed or the block did
+  // not complete), this copy is delivered as an AX.25 fallback so a good frame
+  // is never lost. See _onFrameReceived / _flushPendingFrame.
+  Uint8List? pendingFrameData;
+  int pendingFrameChannel = 0;
+  Timer? pendingFrameTimer;
+
   _RadioModemState({
     required this.deviceId,
     required this.macAddress,
@@ -103,6 +112,9 @@ class _RadioModemState {
   void dispose() {
     channelWaitTimer?.cancel();
     channelWaitTimer = null;
+    pendingFrameTimer?.cancel();
+    pendingFrameTimer = null;
+    pendingFrameData = null;
     transmitQueue.clear();
     waitingForChannel = false;
 
@@ -751,6 +763,7 @@ class SoftwareModem {
     }
 
     if (state == null) return;
+    final _RadioModemState modemState = state;
 
     // An FX.25 transmission carries a standard HDLC-framed AX.25 frame inside
     // its Reed-Solomon block, so the plain HDLC receiver also decodes it. If the
@@ -758,12 +771,36 @@ class SoftwareModem {
     // it here so the packet is reported once, via the FX.25 path, with the
     // correct FX.25 frame type and corrected-symbol count. (Matches Direwolf's
     // fx25_rec_busy suppression in hdlc_rec.)
-    if (state.fx25Receiver != null && state.fx25Receiver!.isBusy(e.channel)) {
+    if (modemState.fx25Receiver != null &&
+        modemState.fx25Receiver!.isBusy(e.channel)) {
+      // The plain HDLC receiver decoded this frame (valid FCS) from inside an
+      // FX.25 block. Rather than dropping it and relying solely on the FX.25
+      // path, buffer it briefly: if the FX.25 Reed-Solomon decode succeeds it
+      // delivers the frame (with the FX.25 type) and cancels this copy; if the
+      // RS decode fails or the block never completes, the timer delivers this
+      // buffered copy as an AX.25 fallback so a valid frame is never lost.
+      modemState.pendingFrameData = Uint8List(e.frameLength)
+        ..setRange(0, e.frameLength, e.frame);
+      modemState.pendingFrameChannel = e.channel;
+      modemState.pendingFrameTimer?.cancel();
+      modemState.pendingFrameTimer = Timer(
+        const Duration(milliseconds: 700),
+        () => _flushPendingFrame(modemState),
+      );
+      _debug(
+        'RX AX.25: buffered ${e.frameLength}-byte frame during FX.25 block '
+        '(delivered as fallback if FX.25 FEC does not).',
+      );
       return;
     }
 
     final Uint8List frameData = Uint8List(e.frameLength);
     frameData.setRange(0, e.frameLength, e.frame);
+
+    _debug(
+      'RX AX.25 (no FEC): decoded ${e.frameLength}-byte frame: '
+      '${_hex(frameData)}',
+    );
 
     final fragment = TncDataFragment(
       finalFragment: true,
@@ -795,6 +832,40 @@ class SoftwareModem {
       fragment.corrections = 0;
     }
 
+    _dispatchDecodedFrame(state.deviceId, fragment);
+  }
+
+  /// Deliver a frame that the plain HDLC receiver decoded inside an FX.25 block
+  /// when the FX.25 Reed-Solomon path did not deliver it (RS decode failed or
+  /// the block never completed). Called from the timer armed in
+  /// _onFrameReceived; the FX.25 delivery path cancels this by clearing
+  /// [state.pendingFrameData] first.
+  void _flushPendingFrame(_RadioModemState state) {
+    final Uint8List? pending = state.pendingFrameData;
+    state.pendingFrameTimer = null;
+    if (pending == null) return;
+    state.pendingFrameData = null;
+
+    _debug(
+      'RX AX.25 (fallback): FX.25 FEC did not deliver; delivering buffered '
+      '${pending.length}-byte frame: ${_hex(pending)}',
+    );
+
+    final fragment = TncDataFragment(
+      finalFragment: true,
+      fragmentId: 0,
+      data: pending,
+      channelId: state.currentChannelId,
+      regionId: state.currentRegionId,
+      channelName: state.currentChannelName,
+      incoming: true,
+      encoding: _getEncodingType(state.mode),
+      frameType: FragmentFrameType.ax25,
+      time: DateTime.now(),
+      radioMac: state.macAddress,
+      radioDeviceId: state.deviceId,
+    );
+    fragment.corrections = 0;
     _dispatchDecodedFrame(state.deviceId, fragment);
   }
 
@@ -1096,16 +1167,32 @@ class SoftwareModem {
       const int fx25SmallestFec = 16; // 16 check bytes = smallest FX.25 FEC
       int sent = -1;
       if (_fecEnabled && tx.frameData.length >= ax25MinDataLen) {
+        _debug(
+          'TX FX.25: raw ${tx.frameData.length}-byte frame before FEC: '
+          '${_hex(tx.frameData)}',
+        );
         sent = state.packetFx25Send!.sendFrame(
           chan,
           tx.frameData,
           tx.frameData.length,
           fx25SmallestFec,
         );
+        if (sent < 0) {
+          _debug(
+            'TX FX.25: sendFrame rejected the frame (too small/large for any '
+            'FX.25 block) - falling back to plain AX.25.',
+          );
+        } else {
+          _debug('TX FX.25: encoded frame into $sent bits.');
+        }
       }
       if (sent < 0) {
         // Frame too small or too large for a standards-compliant FX.25 frame -
         // fall back to plain AX.25.
+        _debug(
+          'TX AX.25 (no FEC): sending ${tx.frameData.length}-byte frame: '
+          '${_hex(tx.frameData)}',
+        );
         state.packetHdlcSend!
             .sendFrame(chan, tx.frameData, tx.frameData.length, false);
       }
@@ -1154,6 +1241,15 @@ class SoftwareModem {
     _broker.dispatch(deviceId: 1, name: 'LogInfo', data: '[SoftwareModem]: $msg', store: false);
   }
 
+  /// Compact single-line uppercase hex string for logging raw frame bytes.
+  static String _hex(Uint8List b) {
+    final StringBuffer sb = StringBuffer();
+    for (final int v in b) {
+      sb.write(v.toRadixString(16).padLeft(2, '0'));
+    }
+    return sb.toString().toUpperCase();
+  }
+
   static int? _readInt(Object? v) {
     if (v is int) return v;
     if (v is double) return v.toInt();
@@ -1178,6 +1274,18 @@ class _Fx25MultiModemWrapper extends MultiModem {
     frameData.setRange(0, e.packet!.frameLen, e.packet!.frameData);
 
     if (frameData.isEmpty) return;
+
+    // FX.25 delivered the frame - cancel the buffered plain-HDLC fallback copy
+    // so the same frame is not reported twice.
+    _state.pendingFrameTimer?.cancel();
+    _state.pendingFrameTimer = null;
+    _state.pendingFrameData = null;
+
+    _parent._debug(
+      'RX FX.25: delivered ${frameData.length}-byte frame '
+      '(${e.correctionInfo?.rsSymbolsCorrected ?? 0} byte(s) corrected): '
+      '${SoftwareModem._hex(frameData)}',
+    );
 
     final fragment = TncDataFragment(
       finalFragment: true,
