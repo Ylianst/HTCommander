@@ -76,10 +76,11 @@ class _RadioModemState {
   Demod9600State? state9600;
   DemodulatorState? demod9600State;
 
-  // Upsamples the 32 kHz link audio to 48 kHz before the 9600 demodulator (a
-  // 9600-baud symbol is only ~3.3 samples at 32 kHz, too few to demodulate;
-  // ~5 samples at 48 kHz decodes reliably). Only used for g3ruh9600.
-  _StreamingUpsampler? upsampler9600;
+  // Internal polyphase upsample factor (1-4) for the 9600 demodulator. The
+  // radio delivers 32 kHz audio over the SBC/Bluetooth link, which is only
+  // ~3.3 samples per 9600-baud symbol; the demodulator interpolates internally
+  // (reusing its low-pass FIR) to recover the symbols. See _g3ruhUpsampleFor.
+  int upsample9600 = 1;
 
   // Common modem components
   AudioConfig? audioConfig;
@@ -129,7 +130,6 @@ class _RadioModemState {
     pskDemodState = null;
     state9600 = null;
     demod9600State = null;
-    upsampler9600 = null;
     audioConfig = null;
     hdlcReceiver = null;
     fx25Receiver = null;
@@ -143,74 +143,17 @@ class _RadioModemState {
   }
 }
 
-/// Sample rate the G3RUH 9600 demodulator runs at. The radio delivers audio at
-/// 32 kHz over the SBC/Bluetooth link, which is too coarse for 9600 baud
-/// (~3.3 samples/symbol); the received audio is upsampled to this rate first.
-const int _g3ruh9600DemodRate = 48000;
-
-/// Streaming linear-interpolation upsampler. Lifts the 32 kHz PCM the radio
-/// delivers over the SBC/Bluetooth link up to [targetRate] before the G3RUH
-/// 9600 demodulator runs. State is kept between audio chunks so chunk
-/// boundaries do not introduce discontinuities (mirrors the _LinearResampler in
-/// lib/handlers/sherpa_speech_to_text_engine.dart).
-class _StreamingUpsampler {
-  _StreamingUpsampler(this.sourceRate, this.targetRate);
-
-  final int sourceRate;
-  final int targetRate;
-
-  // Position (in source samples, fractional) of the next output sample,
-  // relative to the start of the current input chunk.
-  double _nextPos = 0;
-  // Last source sample of the previous chunk (source index -1 for this chunk).
-  double _prev = 0;
-  bool _hasPrev = false;
-
-  void reset() {
-    _nextPos = 0;
-    _prev = 0;
-    _hasPrev = false;
-  }
-
-  /// Resample the 16-bit little-endian mono samples in [data] (byte [offset]
-  /// for [length] bytes) from [sourceRate] to [targetRate], returning the
-  /// interpolated 16-bit samples.
-  Int16List process(Uint8List data, int offset, int length) {
-    final int sampleCount = length ~/ 2;
-    if (sampleCount <= 0) return Int16List(0);
-
-    final ByteData view =
-        ByteData.sublistView(data, offset, offset + sampleCount * 2);
-    double srcAt(int i) {
-      // i == -1 refers to the carried-over tail of the previous chunk.
-      if (i < 0) {
-        return _hasPrev ? _prev : view.getInt16(0, Endian.little).toDouble();
-      }
-      return view.getInt16(i * 2, Endian.little).toDouble();
-    }
-
-    final double ratio = sourceRate / targetRate; // src samples per output
-    final List<int> out = <int>[];
-    double pos = _nextPos;
-    // Produce outputs while the upper interpolation neighbour exists. Linear
-    // interpolation of two in-range int16 values stays in range, so no clamp.
-    while (pos <= sampleCount - 1) {
-      final int i0 = pos.floor();
-      final double frac = pos - i0;
-      final double s0 = srcAt(i0);
-      final double s1 = srcAt(i0 + 1);
-      out.add((s0 + (s1 - s0) * frac).round());
-      pos += ratio;
-    }
-
-    // Carry state to the next chunk: shift positions back by this chunk's
-    // length so the next chunk starts at source index 0 again.
-    _nextPos = pos - sampleCount;
-    _prev = srcAt(sampleCount - 1);
-    _hasPrev = true;
-
-    return Int16List.fromList(out);
-  }
+/// Choose the G3RUH 9600 demodulator's internal polyphase upsample factor (1-4)
+/// from the audio-samples-per-symbol ratio, matching Direwolf's demod.c logic.
+/// The radio's SBC link is 32 kHz, so 32000/9600 = 3.33 -> factor 4. The
+/// demodulator interpolates internally using the low-pass FIR it already needs,
+/// which is more efficient and higher quality than resampling the audio first.
+int _g3ruhUpsampleFor(int sampleRate, int baud) {
+  final double ratio = sampleRate / baud;
+  if (ratio < 4) return 4;
+  if (ratio < 10) return 3;
+  if (ratio < 15) return 2;
+  return 1;
 }
 
 /// Bridge that feeds bits to both HDLC and FX.25 receivers.
@@ -567,19 +510,17 @@ class SoftwareModem {
       case SoftwareModemMode.g3ruh9600:
         if (state.state9600 == null ||
             state.bridge == null ||
-            state.demod9600State == null ||
-            state.upsampler9600 == null) {
+            state.demod9600State == null) {
           return;
         }
-        // Upsample the 32 kHz link audio to 48 kHz before demodulating so the
-        // 9600-baud symbols have enough samples to recover.
-        final Int16List up =
-            state.upsampler9600!.process(data, offset, length);
-        for (final int sample in up) {
+        // The demodulator upsamples internally (state.upsample9600), so feed
+        // the 32 kHz link samples straight through.
+        for (int i = offset; i < offset + length - 1; i += 2) {
+          final int sample = (data[i] | (data[i + 1] << 8)).toSigned(16);
           Demod9600.processSample(
             chan,
             sample,
-            1,
+            state.upsample9600,
             state.demod9600State!,
             state.state9600!,
             state.bridge!,
@@ -802,21 +743,22 @@ class SoftwareModem {
     // Create bridge
     state.bridge = _HdlcFx25Bridge(state.hdlcReceiver!, state.fx25Receiver!);
 
-    // Create 9600 baud demodulator. It runs at 48 kHz: the radio delivers
-    // 32 kHz audio over the SBC/Bluetooth link, which is too coarse for 9600
-    // baud (~3.3 samples/symbol), so incoming audio is upsampled to 48 kHz
-    // (~5 samples/symbol) before demodulation.
+    // Create 9600 baud demodulator. The radio delivers 32 kHz audio over the
+    // SBC/Bluetooth link, which is only ~3.3 samples per 9600-baud symbol - too
+    // coarse to demodulate directly. Rather than resampling the audio first,
+    // the demodulator upsamples internally with polyphase filters (Direwolf's
+    // approach), reusing the low-pass FIR it already needs. This is more
+    // efficient (no separate resampling buffer) and higher quality.
+    state.upsample9600 = _g3ruhUpsampleFor(32000, 9600);
     state.demod9600State = DemodulatorState();
     state.state9600 = Demod9600State();
     Demod9600.init(
-      _g3ruh9600DemodRate,
-      1,
+      32000,
+      state.upsample9600,
       9600,
       state.demod9600State!,
       state.state9600!,
     );
-    state.upsampler9600 =
-        _StreamingUpsampler(32000, _g3ruh9600DemodRate);
 
     // Initialize transmitter
     _initializeTransmitter(state);

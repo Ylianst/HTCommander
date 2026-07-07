@@ -71,6 +71,11 @@ import 'package:htcommander/sbc/sbc_frame.dart';
 /// Which demodulator family a modem profile uses.
 enum _DemodKind { afsk, psk, g3ruh }
 
+/// Internal polyphase upsample factor (1-4) for the G3RUH 9600 demodulator.
+/// Direwolf/Demod9600 can interpolate internally using its low-pass FIR instead
+/// of upsampling the audio beforehand. Set via the --g3up CLI option.
+int _g3ruhUpsample = 1;
+
 /// A modem configuration for a given `-B` baud value. Mirrors the settings used
 /// by lib/radio/software_modem.dart so the tool exercises the real modem code.
 class _ModemProfile {
@@ -804,9 +809,10 @@ void _runDemod(
     case _DemodKind.g3ruh:
       final DemodulatorState state = DemodulatorState();
       final Demod9600State state9600 = Demod9600State();
-      Demod9600.init(sampleRate, 1, profile.bps, state, state9600);
+      Demod9600.init(sampleRate, _g3ruhUpsample, profile.bps, state, state9600);
       for (final int sample in samples) {
-        Demod9600.processSample(chan, sample, 1, state, state9600, sink);
+        Demod9600.processSample(
+            chan, sample, _g3ruhUpsample, state, state9600, sink);
       }
       break;
   }
@@ -1508,6 +1514,9 @@ void main(List<String> args) {
         break;
       case '--upsample':
         upsampleRate = _parseIntOr(_next(args, ++i), upsampleRate);
+        break;
+      case '--g3up':
+        _g3ruhUpsample = _parseIntOr(_next(args, ++i), _g3ruhUpsample);
         break;
       case '-h':
       case '--help':

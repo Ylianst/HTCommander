@@ -11,8 +11,8 @@ information to make the higher speeds impossible?
 - SBC compression is essentially *lossless* for the modem's tones: every mode
   decodes 100% of clean packets through one **and** two SBC round-trips.
 - **9600 fails because of the 32 kHz sample rate** the SBC/Bluetooth link runs
-  at, not because of compression loss. **Upsampling the received 32 kHz audio to
-  48 kHz before demodulation restores 9600 to 100%** (see Finding 4).
+  at, not because of compression loss. **Enabling the demodulator's built-in
+  polyphase upsampler restores 9600 to 100%** (see Findings 4 and 5).
 - **4800 works on a clean signal**; SBC only narrows its noise margin (8PSK is
   inherently noise-sensitive), so weak real-world signals drop out sooner.
 
@@ -182,6 +182,36 @@ Upsampling all modes uniformly is therefore safe (no downside — it slightly
 closed 2400's single 92% cell and left 1200/4800 unchanged); only 9600 actually
 requires it.
 
+## Finding 5 — The decoder's built-in polyphase upsampler is the better fix
+
+The `Demod9600` code (a Direwolf port) already has an internal **`upsample`
+factor (1–4)**: it interpolates using the low-pass FIR filter the demodulator
+needs anyway (polyphase branches `lpPolyphase1..4`), and sets the PLL step for
+the upsampled rate. Production was calling it with `upsample = 1`.
+
+Using this internal upsampler instead of resampling the audio beforehand is:
+
+- **More efficient** — it reuses the existing FIR, allocates no separate
+  resampling buffer, and needs no extra streaming-resampler state.
+- **Higher quality** — proper polyphase anti-imaging, versus crude linear
+  interpolation.
+- **The Direwolf-proven path** — Direwolf's `demod.c` picks the factor from
+  `ratio = sample_rate / baud`: `< 4 → 4`, `< 10 → 3`, `< 15 → 2`, else `1`.
+  For the radio's 32000 / 9600 = 3.33, that is **factor 4**.
+
+Measured at 32 kHz with internal `upsample = 4` (no external resampling):
+
+| noise stddev | external linear 48 kHz A/B/C | internal polyphase ×4 A/B/C |
+|-------------:|:---------------------------:|:---------------------------:|
+| 0–3000       | 100/100/100 | 100/100/100 |
+| 4000         | 96/100/**80** | **100/100/100** |
+| 5000         | 84/88/36 | 100/92/88 |
+| 6000         | 56/44/4 | 68/84/48 |
+| **margin**   | A ~4000 / B ~5000 / C ~4000 | **A ~6000 / B ~5000 / C ~5000** |
+
+The internal upsampler both fixes 9600 (0% → 100%) **and** gives a wider noise
+margin than external linear upsampling.
+
 ---
 
 ## How much does SBC limit us?
@@ -195,13 +225,13 @@ requires it.
 
 ## Recommendations
 
-1. **9600:** demodulate at ≥ 44.1 kHz. **Confirmed fix:** upsampling the radio's
-   32 kHz link audio to 48 kHz before `Demod9600` takes 9600 from 0% to 100%
-   clean decode (see Finding 4). In `lib/radio/software_modem.dart` the demod is
-   currently initialised at 32000 Hz; upsample the received PCM (a linear
-   resampler like `_LinearResampler` in
-   `lib/handlers/sherpa_speech_to_text_engine.dart` is sufficient) and run the
-   demodulator at 48 kHz. Changing SBC would not help.
+1. **9600:** run the demodulator's built-in polyphase upsampler (Finding 5)
+   rather than resampling the audio first. **Implemented** in
+   `lib/radio/software_modem.dart`: `_initializeG3ruh9600` now calls
+   `Demod9600.init(32000, _g3ruhUpsampleFor(32000, 9600), 9600, ...)` (factor 4)
+   and `_processPcmData` feeds the 32 kHz samples straight through with that
+   factor. This takes 9600 from 0% to 100% clean decode with the widest noise
+   margin, at lower cost than an external resampler. Changing SBC would not help.
 2. **4800:** already functional on clean/strong signals. Improving robustness
    is about SNR and demodulator margin (upsampling is roughly neutral here),
    not about the SBC codec. Consider FX.25 FEC for weak links.
