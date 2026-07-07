@@ -27,7 +27,10 @@ import 'gps/gps_serial_handler.dart';
 import 'torrent/torrent_handler.dart';
 import 'torrent/torrent_store.dart';
 import 'radio/radio_transport.dart';
-import 'radio/software_modem.dart';
+// The soft-modem relies on an audio channel, which the web build does not have.
+// Use a no-op stub on web so the hamlib DSP code is never compiled for web.
+import 'radio/software_modem_stub.dart'
+    if (dart.library.io) 'radio/software_modem.dart';
 import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
