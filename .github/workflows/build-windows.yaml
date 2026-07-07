@@ -12,9 +12,6 @@ jobs:
           - arch: x64
             runner: windows-latest
             wix_arch: x64
-          - arch: arm64
-            runner: windows-11-arm
-            wix_arch: arm64
     steps:
       - uses: actions/checkout@v7
 
