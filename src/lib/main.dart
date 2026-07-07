@@ -451,6 +451,7 @@ class _MainFormState extends State<MainForm>
   bool _gpsEnabled =
       false; // GPS enabled state of the currently displayed radio
   String _softwareModemMode = 'none'; // Current software modem mode
+  bool _softwareModemFec = true; // FX.25 FEC on transmit (software modem)
   int _regionCount =
       0; // Number of regions offered by the currently displayed radio
   int _currRegion = 0; // Current region index of the currently displayed radio
@@ -647,6 +648,15 @@ class _MainFormState extends State<MainForm>
     // Load initial value
     _softwareModemMode = (_broker.getValue<String>(0, 'SoftwareModemMode', 'none') ?? 'none').toLowerCase();
 
+    // Subscribe to software modem FX.25 FEC changes
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SoftwareModemFec',
+      callback: _onSoftwareModemFecChanged,
+    );
+    // Load initial value
+    _softwareModemFec = _broker.getValue<bool>(0, 'SoftwareModemFec', true) ?? true;
+
     // Initialize tabs with saved index
     _currentTabs = _getVisibleTabs();
     final savedTabName =
@@ -830,6 +840,15 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  /// Handle SoftwareModemFec changes from the DataBroker.
+  void _onSoftwareModemFecChanged(int deviceId, String name, Object? data) {
+    if (data is bool) {
+      setState(() {
+        _softwareModemFec = data;
+      });
+    }
+  }
+
   /// Handle GpsEnabled changes from any radio device (GPS enabled/disabled).
   void _onGpsEnabledChanged(int deviceId, String name, Object? data) {
     // Only update if this is for the currently displayed radio
@@ -925,6 +944,17 @@ class _MainFormState extends State<MainForm>
       deviceId: 0,
       name: 'SetSoftwareModemMode',
       data: mode,
+      store: false,
+    );
+  }
+
+  /// Toggle FX.25 FEC on the software modem via the DataBroker. When disabled,
+  /// packets are sent as plain AX.25 (no FEC).
+  void _toggleSoftwareModemFec() {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SetSoftwareModemFec',
+      data: !_softwareModemFec,
       store: false,
     );
   }
@@ -1495,6 +1525,12 @@ class _MainFormState extends State<MainForm>
                   label: 'G3RUH 9600',
                   onPressed: () => _setSoftwareModemMode('G3RUH9600'),
                   checked: _softwareModemMode == 'g3ruh9600',
+                ),
+                const AppMenuDivider(),
+                AppMenuAction(
+                  label: 'FX.25 FEC',
+                  onPressed: _toggleSoftwareModemFec,
+                  checked: _softwareModemFec,
                 ),
               ],
             ),

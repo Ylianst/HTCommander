@@ -163,6 +163,10 @@ class SoftwareModem {
   final DataBrokerClient _broker = DataBrokerClient();
   final Map<int, _RadioModemState> _radioModems = {};
   SoftwareModemMode _currentMode = SoftwareModemMode.none;
+  // When true, transmitted packets that meet the AX.25 minimum length are wrapped
+  // in FX.25 forward error correction. When false, all packets are sent as plain
+  // AX.25 (no FEC). Lets the user test with and without FX.25.
+  bool _fecEnabled = true;
   bool _disposed = false;
   bool _initialized = false;
   static final math.Random _rng = math.Random();
@@ -189,11 +193,21 @@ class SoftwareModem {
         _broker.getValue<String>(0, 'SoftwareModemMode', 'None') ?? 'None';
     _currentMode = _parseMode(savedMode);
 
+    // Load saved FX.25 FEC preference (defaults to enabled).
+    _fecEnabled = _broker.getValue<bool>(0, 'SoftwareModemFec', true) ?? true;
+
     // Subscribe to mode changes on device 0
     _broker.subscribe(
       deviceId: 0,
       name: 'SetSoftwareModemMode',
       callback: _onSetModeRequested,
+    );
+
+    // Subscribe to FX.25 FEC on/off changes on device 0
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SetSoftwareModemFec',
+      callback: _onSetFecRequested,
     );
 
     // Subscribe to per-session modem overrides (Terminal / Winlink contacts).
@@ -238,6 +252,9 @@ class SoftwareModem {
 
     // Publish initial mode
     _broker.dispatch(deviceId: 0, name: 'SoftwareModemMode', data: _currentMode.name, store: true);
+
+    // Publish initial FX.25 FEC state
+    _broker.dispatch(deviceId: 0, name: 'SoftwareModemFec', data: _fecEnabled, store: true);
 
     _debug('SoftwareModem initialized with mode: ${_currentMode.name}');
   }
@@ -328,7 +345,20 @@ class SoftwareModem {
     setMode(newMode);
   }
 
-  /// Override the modem mode for the duration of a Terminal / Winlink session.
+  /// Enable/disable FX.25 forward error correction on transmit. When disabled,
+  /// all packets are sent as plain AX.25 (no FEC).
+  void _onSetFecRequested(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is! bool) return;
+    _fecEnabled = data;
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SoftwareModemFec',
+      data: _fecEnabled,
+      store: true,
+    );
+    _debug('Software modem FX.25 FEC ${_fecEnabled ? "enabled" : "disabled"}');
+  }
   /// [data] is the contact's modem value: 'Hardware' (radio TNC -> software
   /// modem off), 'AFSK1200', 'PSK2400', 'PSK4800' or 'G3RUH9600'.
   void _onSetSessionModem(int deviceId, String name, Object? data) {
@@ -1036,12 +1066,12 @@ class SoftwareModem {
     final int sampleRate = state.audioConfig!.devices[0].samplesPerSec;
     final bool is9600 = _currentMode == SoftwareModemMode.g3ruh9600;
 
-    // 1/10th of a second of leading silence so the radio's PTT is fully keyed
+    // Half a second of leading silence so the radio's PTT is fully keyed
     // up before any data tones start. This covers the delay between the PCM
     // stream starting and PTT actually engaging. It is emitted once per
     // transmission (before the first frame of the bundle), not between bundled
     // frames.
-    _appendSilenceSamples(buffer, sampleRate ~/ 10);
+    _appendSilenceSamples(buffer, sampleRate ~/ 2);
 
     // Additional pre-silence for G3RUH 9600 to let the modem settle.
     if (is9600) {
@@ -1065,7 +1095,7 @@ class SoftwareModem {
     for (final tx in frames) {
       const int fx25SmallestFec = 16; // 16 check bytes = smallest FX.25 FEC
       int sent = -1;
-      if (tx.frameData.length >= ax25MinDataLen) {
+      if (_fecEnabled && tx.frameData.length >= ax25MinDataLen) {
         sent = state.packetFx25Send!.sendFrame(
           chan,
           tx.frameData,
