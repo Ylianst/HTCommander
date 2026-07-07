@@ -473,6 +473,15 @@ jobs:
             --install-strategy wholeDirectoryReplace \
             --artifact-url "${{ env.BASE_URL }}/releases/$VERSION/linux-${{ matrix.arch }}/htcommander-$VERSION-linux-${{ matrix.arch }}.zip"
 
+          # desktop_updater names the archive without the arch suffix
+          # (htcommander-<version>-linux.zip), but release.json's artifact URL
+          # includes the arch (...-linux-<arch>.zip). Rename the archive so the
+          # file on disk matches the URL the self-updater downloads.
+          OUT_DIR="dist/desktop_updater/releases/$VERSION/linux-${{ matrix.arch }}"
+          SRC_ZIP="$OUT_DIR/htcommander-$VERSION-linux.zip"
+          DST_ZIP="$OUT_DIR/htcommander-$VERSION-linux-${{ matrix.arch }}.zip"
+          if [ -f "$SRC_ZIP" ]; then mv -f "$SRC_ZIP" "$DST_ZIP"; fi
+
       - name: Upload update package
         uses: actions/upload-artifact@v7
         with:
@@ -676,6 +685,15 @@ jobs:
             --channel stable \
             --install-strategy wholeBundleReplace \
             --artifact-url "${{ env.BASE_URL }}/releases/$VERSION/macos/htcommander-$VERSION-macos.zip"
+
+          # desktop_updater names the archive after the .app bundle
+          # ("Handi-Talky Commander-<version>-macos.zip"), but release.json's
+          # artifact URL uses htcommander-<version>-macos.zip. Rename the
+          # produced archive so the file on disk matches the URL.
+          OUT_DIR="dist/desktop_updater/releases/$VERSION/macos"
+          DST_ZIP="$OUT_DIR/htcommander-$VERSION-macos.zip"
+          SRC_ZIP=$(find "$OUT_DIR" -maxdepth 1 -name '*.zip' ! -name "$(basename "$DST_ZIP")" | head -1)
+          if [ -n "$SRC_ZIP" ] && [ -f "$SRC_ZIP" ]; then mv -f "$SRC_ZIP" "$DST_ZIP"; fi
 
       - name: Upload DMG
         uses: actions/upload-artifact@v7
