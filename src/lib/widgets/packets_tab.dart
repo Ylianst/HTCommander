@@ -52,6 +52,16 @@ class _PacketsTabState extends State<PacketsTab>
   final List<CapturedPacket> _packets = [];
   final DataBrokerClient _broker = DataBrokerClient();
 
+  /// Focus node for the packet list so it can receive keyboard events
+  /// (up/down arrows to move between packets).
+  final FocusNode _listFocusNode = FocusNode();
+
+  /// Scroll controller used to keep the keyboard-selected packet visible.
+  final ScrollController _listScrollController = ScrollController();
+
+  /// Fixed height of a packet row, used for scroll-to-selection math.
+  static const double _rowHeight = 29.0;
+
   int? _selectedPacketIndex;
   bool _showDecode = true;
   int _sortColumnIndex = 0;
@@ -102,6 +112,8 @@ class _PacketsTabState extends State<PacketsTab>
   @override
   void dispose() {
     _broker.dispose();
+    _listFocusNode.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -155,9 +167,62 @@ class _PacketsTabState extends State<PacketsTab>
   }
 
   void _onPacketSelected(int index) {
+    _listFocusNode.requestFocus();
     setState(() {
       _selectedPacketIndex = index;
     });
+  }
+
+  /// Moves the selection by [delta] rows (e.g. -1 for up, +1 for down),
+  /// clamping to the list bounds and keeping the selected row visible.
+  void _moveSelection(int delta) {
+    if (_packets.isEmpty) return;
+    final current = _selectedPacketIndex;
+    final int next;
+    if (current == null) {
+      next = delta > 0 ? 0 : _packets.length - 1;
+    } else {
+      next = (current + delta).clamp(0, _packets.length - 1);
+    }
+    if (next == current) return;
+    setState(() {
+      _selectedPacketIndex = next;
+    });
+    _ensureIndexVisible(next);
+  }
+
+  /// Scrolls the list so the row at [index] is within the visible viewport.
+  void _ensureIndexVisible(int index) {
+    if (!_listScrollController.hasClients) return;
+    final position = _listScrollController.position;
+    final rowTop = index * _rowHeight;
+    final rowBottom = rowTop + _rowHeight;
+    double? target;
+    if (rowTop < position.pixels) {
+      target = rowTop;
+    } else if (rowBottom > position.pixels + position.viewportDimension) {
+      target = rowBottom - position.viewportDimension;
+    }
+    if (target != null) {
+      _listScrollController.jumpTo(
+        target.clamp(position.minScrollExtent, position.maxScrollExtent),
+      );
+    }
+  }
+
+  KeyEventResult _onListKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      _moveSelection(1);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      _moveSelection(-1);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   void _showPacketContextMenu(
@@ -513,9 +578,14 @@ class _PacketsTabState extends State<PacketsTab>
                       style: TextStyle(color: Colors.grey),
                     ),
                   )
-                : ListView.builder(
-                    itemCount: _packets.length,
-                    itemBuilder: (context, index) {
+                : Focus(
+                    focusNode: _listFocusNode,
+                    onKeyEvent: _onListKeyEvent,
+                    child: ListView.builder(
+                      controller: _listScrollController,
+                      itemExtent: _rowHeight,
+                      itemCount: _packets.length,
+                      itemBuilder: (context, index) {
                       final packet = _packets[index];
                       final isSelected = _selectedPacketIndex == index;
                       return InkWell(
@@ -609,6 +679,7 @@ class _PacketsTabState extends State<PacketsTab>
                         ),
                       );
                     },
+                    ),
                   ),
           ),
         ],
