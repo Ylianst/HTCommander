@@ -5,7 +5,20 @@ on:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+            deb_arch: amd64
+            rpm_arch: x86_64
+            appimagetool_arch: x86_64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            deb_arch: arm64
+            rpm_arch: aarch64
+            appimagetool_arch: aarch64
     steps:
       - uses: actions/checkout@v7
 
@@ -28,8 +41,8 @@ jobs:
 
       - name: Package tar.gz
         run: |
-          cd src/build/linux/x64/release/bundle
-          tar -czf "$GITHUB_WORKSPACE/htcommander-linux-x64.tar.gz" .
+          cd src/build/linux/${{ matrix.arch }}/release/bundle
+          tar -czf "$GITHUB_WORKSPACE/htcommander-linux-${{ matrix.arch }}.tar.gz" .
 
       - name: Package .deb
         run: |
@@ -42,7 +55,7 @@ jobs:
           mkdir -p "$PKG_DIR/usr/share/icons/hicolor/256x256/apps"
 
           # Copy build output
-          cp -r src/build/linux/x64/release/bundle/* "$PKG_DIR/usr/lib/htcommander/"
+          cp -r src/build/linux/${{ matrix.arch }}/release/bundle/* "$PKG_DIR/usr/lib/htcommander/"
 
           # Create symlink for PATH access
           ln -sf /usr/lib/htcommander/htcommander "$PKG_DIR/usr/bin/htcommander"
@@ -70,7 +83,7 @@ jobs:
           Version: ${VERSION}
           Section: hamradio
           Priority: optional
-          Architecture: amd64
+          Architecture: ${{ matrix.deb_arch }}
           Depends: libgtk-3-0, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, libbluetooth3, libserialport0, libpulse0
           Maintainer: HTCommander <htcommander@users.noreply.github.com>
           Description: Handi-Talky Commander
@@ -79,7 +92,7 @@ jobs:
           EOF
           sed -i 's/^          //' "$PKG_DIR/DEBIAN/control"
 
-          dpkg-deb --build "$PKG_DIR" "htcommander-linux-x64.deb"
+          dpkg-deb --build "$PKG_DIR" "htcommander-linux-${{ matrix.arch }}.deb"
 
       - name: Package .rpm
         run: |
@@ -94,7 +107,7 @@ jobs:
           mkdir -p "$STAGING/usr/share/applications"
           mkdir -p "$STAGING/usr/share/icons/hicolor/256x256/apps"
 
-          cp -r src/build/linux/x64/release/bundle/* "$STAGING/usr/lib/htcommander/"
+          cp -r src/build/linux/${{ matrix.arch }}/release/bundle/* "$STAGING/usr/lib/htcommander/"
           ln -sf /usr/lib/htcommander/htcommander "$STAGING/usr/bin/htcommander"
           cp src/assets/images/AppIcon.png "$STAGING/usr/share/icons/hicolor/256x256/apps/htcommander.png"
 
@@ -139,7 +152,7 @@ jobs:
             --define "_topdir $GITHUB_WORKSPACE/rpmbuild" \
             --define "_staging $GITHUB_WORKSPACE/rpm-staging"
 
-          cp rpmbuild/RPMS/x86_64/*.rpm htcommander-linux-x64.rpm
+          cp rpmbuild/RPMS/${{ matrix.rpm_arch }}/*.rpm htcommander-linux-${{ matrix.arch }}.rpm
 
       - name: Package AppImage
         run: |
@@ -152,7 +165,7 @@ jobs:
           mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
           # Copy build output
-          cp -r src/build/linux/x64/release/bundle/* "$APPDIR/usr/bin/"
+          cp -r src/build/linux/${{ matrix.arch }}/release/bundle/* "$APPDIR/usr/bin/"
 
           # Desktop file
           cat > "$APPDIR/htcommander.desktop" <<EOF
@@ -185,32 +198,32 @@ jobs:
           chmod +x "$APPDIR/AppRun"
 
           # Download appimagetool
-          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimagetool_arch }}.AppImage" -O appimagetool
           chmod +x appimagetool
 
           # Build AppImage
-          ARCH=x86_64 ./appimagetool --no-appstream "$APPDIR" "htcommander-linux-x64.AppImage"
+          ARCH=${{ matrix.appimagetool_arch }} ./appimagetool --no-appstream "$APPDIR" "htcommander-linux-${{ matrix.arch }}.AppImage"
 
       - name: Upload tar.gz
         uses: actions/upload-artifact@v7
         with:
-          name: linux-tar-gz
-          path: htcommander-linux-x64.tar.gz
+          name: linux-tar-gz-${{ matrix.arch }}
+          path: htcommander-linux-${{ matrix.arch }}.tar.gz
 
       - name: Upload .deb
         uses: actions/upload-artifact@v7
         with:
-          name: linux-deb
-          path: htcommander-linux-x64.deb
+          name: linux-deb-${{ matrix.arch }}
+          path: htcommander-linux-${{ matrix.arch }}.deb
 
       - name: Upload .rpm
         uses: actions/upload-artifact@v7
         with:
-          name: linux-rpm
-          path: htcommander-linux-x64.rpm
+          name: linux-rpm-${{ matrix.arch }}
+          path: htcommander-linux-${{ matrix.arch }}.rpm
 
       - name: Upload AppImage
         uses: actions/upload-artifact@v7
         with:
-          name: linux-appimage
-          path: htcommander-linux-x64.AppImage
+          name: linux-appimage-${{ matrix.arch }}
+          path: htcommander-linux-${{ matrix.arch }}.AppImage
