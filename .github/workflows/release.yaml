@@ -212,7 +212,20 @@ jobs:
           path: src/dist/desktop_updater/releases/
 
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+            deb_arch: amd64
+            rpm_arch: x86_64
+            appimagetool_arch: x86_64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            deb_arch: arm64
+            rpm_arch: aarch64
+            appimagetool_arch: aarch64
     outputs:
       version: ${{ steps.version.outputs.version }}
       build_number: ${{ steps.version.outputs.build_number }}
@@ -248,8 +261,8 @@ jobs:
       - name: Package tar.gz
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          cd src/build/linux/x64/release/bundle
-          tar -czf "$GITHUB_WORKSPACE/htcommander-linux-x64.tar.gz" .
+          cd src/build/linux/${{ matrix.arch }}/release/bundle
+          tar -czf "$GITHUB_WORKSPACE/htcommander-linux-${{ matrix.arch }}.tar.gz" .
 
       - name: Package .deb
         run: |
@@ -261,7 +274,7 @@ jobs:
           mkdir -p "$PKG_DIR/usr/share/applications"
           mkdir -p "$PKG_DIR/usr/share/icons/hicolor/256x256/apps"
 
-          cp -r src/build/linux/x64/release/bundle/* "$PKG_DIR/usr/lib/htcommander/"
+          cp -r src/build/linux/${{ matrix.arch }}/release/bundle/* "$PKG_DIR/usr/lib/htcommander/"
           ln -sf /usr/lib/htcommander/htcommander "$PKG_DIR/usr/bin/htcommander"
 
           cat > "$PKG_DIR/usr/share/applications/htcommander.desktop" <<EOF
@@ -283,7 +296,7 @@ jobs:
           Version: ${VERSION}
           Section: hamradio
           Priority: optional
-          Architecture: amd64
+          Architecture: ${{ matrix.deb_arch }}
           Depends: libgtk-3-0, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, libbluetooth3, libserialport0, libpulse0
           Maintainer: HTCommander <htcommander@users.noreply.github.com>
           Description: Handi-Talky Commander
@@ -292,7 +305,7 @@ jobs:
           EOF
           sed -i 's/^          //' "$PKG_DIR/DEBIAN/control"
 
-          dpkg-deb --build "$PKG_DIR" "htcommander-linux-x64.deb"
+          dpkg-deb --build "$PKG_DIR" "htcommander-linux-${{ matrix.arch }}.deb"
 
       - name: Package .rpm
         run: |
@@ -307,7 +320,7 @@ jobs:
           mkdir -p "$STAGING/usr/share/applications"
           mkdir -p "$STAGING/usr/share/icons/hicolor/256x256/apps"
 
-          cp -r src/build/linux/x64/release/bundle/* "$STAGING/usr/lib/htcommander/"
+          cp -r src/build/linux/${{ matrix.arch }}/release/bundle/* "$STAGING/usr/lib/htcommander/"
           ln -sf /usr/lib/htcommander/htcommander "$STAGING/usr/bin/htcommander"
           cp src/assets/images/AppIcon.png "$STAGING/usr/share/icons/hicolor/256x256/apps/htcommander.png"
 
@@ -351,7 +364,7 @@ jobs:
           rpmbuild -bb rpmbuild/SPECS/htcommander.spec \
             --define "_topdir $GITHUB_WORKSPACE/rpmbuild"
 
-          cp rpmbuild/RPMS/x86_64/*.rpm htcommander-linux-x64.rpm
+          cp rpmbuild/RPMS/${{ matrix.rpm_arch }}/*.rpm htcommander-linux-${{ matrix.arch }}.rpm
 
       - name: Package AppImage
         run: |
@@ -364,7 +377,7 @@ jobs:
           mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
           # Copy build output
-          cp -r src/build/linux/x64/release/bundle/* "$APPDIR/usr/bin/"
+          cp -r src/build/linux/${{ matrix.arch }}/release/bundle/* "$APPDIR/usr/bin/"
 
           # Desktop file
           cat > "$APPDIR/htcommander.desktop" <<EOF
@@ -397,21 +410,21 @@ jobs:
           chmod +x "$APPDIR/AppRun"
 
           # Download appimagetool
-          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimagetool_arch }}.AppImage" -O appimagetool
           chmod +x appimagetool
 
           # Build AppImage
-          ARCH=x86_64 ./appimagetool --no-appstream "$APPDIR" "htcommander-linux-x64.AppImage"
+          ARCH=${{ matrix.appimagetool_arch }} ./appimagetool --no-appstream "$APPDIR" "htcommander-linux-${{ matrix.arch }}.AppImage"
 
       - name: Upload Linux packages
         uses: actions/upload-artifact@v7
         with:
-          name: linux-packages
+          name: linux-packages-${{ matrix.arch }}
           path: |
-            htcommander-linux-x64.tar.gz
-            htcommander-linux-x64.deb
-            htcommander-linux-x64.rpm
-            htcommander-linux-x64.AppImage
+            htcommander-linux-${{ matrix.arch }}.tar.gz
+            htcommander-linux-${{ matrix.arch }}.deb
+            htcommander-linux-${{ matrix.arch }}.rpm
+            htcommander-linux-${{ matrix.arch }}.AppImage
 
       - name: Generate update package
         working-directory: src
@@ -419,8 +432,8 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           BUILD_NUMBER="${{ steps.version.outputs.build_number }}"
           dart run desktop_updater:package \
-            --input build/linux/x64/release/bundle \
-            --output dist/desktop_updater/releases/$VERSION/linux \
+            --input build/linux/${{ matrix.arch }}/release/bundle \
+            --output dist/desktop_updater/releases/$VERSION/linux-${{ matrix.arch }} \
             --package-id com.htcommander.app \
             --app-name htcommander \
             --version "$VERSION" \
@@ -428,12 +441,12 @@ jobs:
             --platform linux \
             --channel stable \
             --install-strategy wholeDirectoryReplace \
-            --artifact-url "${{ env.BASE_URL }}/releases/$VERSION/linux/htcommander-$VERSION-linux.zip"
+            --artifact-url "${{ env.BASE_URL }}/releases/$VERSION/linux-${{ matrix.arch }}/htcommander-$VERSION-linux-${{ matrix.arch }}.zip"
 
       - name: Upload update package
         uses: actions/upload-artifact@v7
         with:
-          name: linux-update
+          name: linux-update-${{ matrix.arch }}
           path: src/dist/desktop_updater/releases/
 
   build-macos:
@@ -795,7 +808,8 @@ jobs:
 
           # Copy all platform release artifacts
           cp -r ../artifacts/windows-update/* dist/desktop_updater/releases/ || true
-          cp -r ../artifacts/linux-update/* dist/desktop_updater/releases/ || true
+          cp -r ../artifacts/linux-update-x64/* dist/desktop_updater/releases/ || true
+          cp -r ../artifacts/linux-update-arm64/* dist/desktop_updater/releases/ || true
           cp -r ../artifacts/macos-update/* dist/desktop_updater/releases/ || true
 
           # Generate the combined app-archive.json with all platforms
@@ -815,7 +829,16 @@ jobs:
             --build-number "$BUILD_NUMBER" \
             --platform linux \
             --channel stable \
-            --release-url "$BASE_URL/releases/$VERSION/linux/release.json"
+            --release-url "$BASE_URL/releases/$VERSION/linux-x64/release.json"
+
+          dart run desktop_updater:app_archive upsert \
+            --archive dist/desktop_updater/app-archive.json \
+            --app-name "Handi-Talkie Commander" \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --platform linux \
+            --channel stable \
+            --release-url "$BASE_URL/releases/$VERSION/linux-arm64/release.json"
 
           dart run desktop_updater:app_archive upsert \
             --archive dist/desktop_updater/app-archive.json \
@@ -837,10 +860,14 @@ jobs:
           files: |
             artifacts/windows-msi/HTCommander.msi
             artifacts/macos-dmg/HTCommander.dmg
-            artifacts/linux-packages/htcommander-linux-x64.tar.gz
-            artifacts/linux-packages/htcommander-linux-x64.deb
-            artifacts/linux-packages/htcommander-linux-x64.rpm
-            artifacts/linux-packages/htcommander-linux-x64.AppImage
+            artifacts/linux-packages-x64/htcommander-linux-x64.tar.gz
+            artifacts/linux-packages-x64/htcommander-linux-x64.deb
+            artifacts/linux-packages-x64/htcommander-linux-x64.rpm
+            artifacts/linux-packages-x64/htcommander-linux-x64.AppImage
+            artifacts/linux-packages-arm64/htcommander-linux-arm64.tar.gz
+            artifacts/linux-packages-arm64/htcommander-linux-arm64.deb
+            artifacts/linux-packages-arm64/htcommander-linux-arm64.rpm
+            artifacts/linux-packages-arm64/htcommander-linux-arm64.AppImage
             artifacts/android-apk/HTCommander.apk
             artifacts/android-aab/htcommander-*.aab
 
