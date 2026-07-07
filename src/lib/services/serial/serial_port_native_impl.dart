@@ -518,83 +518,104 @@ class _Win32 {
 }
 
 // ===========================================================================
-// POSIX implementation (macOS / Linux) — uses libserialport if available,
-// otherwise falls back to /dev/ directory listing for enumeration only.
+// POSIX implementation (macOS / Linux) — native libc / termios via dart:ffi.
+//
+// This talks directly to the C library (open/read/close/tcgetattr/tcsetattr/
+// ioctl) so no external native library (e.g. libserialport) needs to be
+// installed or bundled. Port enumeration lists matching /dev/ entries.
 // ===========================================================================
 
 class _Posix {
   _Posix._();
 
-  /// Cached reference to libserialport, or null if unavailable.
-  static DynamicLibrary? _lib;
-  static bool _libChecked = false;
+  // -------------------------------------------------------------------------
+  // libc bindings (symbols are always present in the running process).
+  // -------------------------------------------------------------------------
+  static final DynamicLibrary _libc = DynamicLibrary.process();
 
-  static DynamicLibrary? get _serialLib {
-    if (!_libChecked) {
-      _libChecked = true;
-      try {
-        _lib = DynamicLibrary.open(Platform.isMacOS
-            ? 'libserialport.dylib'
-            : 'libserialport.so');
-      } catch (_) {
-        _lib = null;
-      }
-    }
-    return _lib;
-  }
+  // int open(const char *path, int oflag, ...)
+  static final _open = _libc.lookupFunction<
+      Int32 Function(Pointer<Utf8>, Int32),
+      int Function(Pointer<Utf8>, int)>('open');
+
+  // int close(int fd)
+  static final _close = _libc
+      .lookupFunction<Int32 Function(Int32), int Function(int)>('close');
+
+  // ssize_t read(int fd, void *buf, size_t count)
+  static final _read = _libc.lookupFunction<
+      IntPtr Function(Int32, Pointer<Uint8>, IntPtr),
+      int Function(int, Pointer<Uint8>, int)>('read');
+
+  // int tcgetattr(int fd, struct termios *)
+  static final _tcgetattr = _libc.lookupFunction<
+      Int32 Function(Int32, Pointer<Uint8>),
+      int Function(int, Pointer<Uint8>)>('tcgetattr');
+
+  // int tcsetattr(int fd, int action, const struct termios *)
+  static final _tcsetattr = _libc.lookupFunction<
+      Int32 Function(Int32, Int32, Pointer<Uint8>),
+      int Function(int, int, Pointer<Uint8>)>('tcsetattr');
+
+  // void cfmakeraw(struct termios *)
+  static final _cfmakeraw = _libc.lookupFunction<
+      Void Function(Pointer<Uint8>),
+      void Function(Pointer<Uint8>)>('cfmakeraw');
+
+  // int cfsetispeed(struct termios *, speed_t) / cfsetospeed(...)
+  static final _cfsetispeed = _libc.lookupFunction<
+      Int32 Function(Pointer<Uint8>, IntPtr),
+      int Function(Pointer<Uint8>, int)>('cfsetispeed');
+  static final _cfsetospeed = _libc.lookupFunction<
+      Int32 Function(Pointer<Uint8>, IntPtr),
+      int Function(Pointer<Uint8>, int)>('cfsetospeed');
+
+  // int ioctl(int fd, unsigned long request, ...)
+  static final _ioctl = _libc.lookupFunction<
+      Int32 Function(Int32, IntPtr, Pointer<Int32>),
+      int Function(int, int, Pointer<Int32>)>('ioctl');
 
   // -------------------------------------------------------------------------
-  // Port enumeration
+  // Platform-dependent constants.
   // -------------------------------------------------------------------------
-  static List<String> enumeratePorts() {
-    // Try libserialport first.
-    final lib = _serialLib;
-    if (lib != null) {
-      try {
-        return _enumerateWithLibSerialPort(lib);
-      } catch (_) {
-        // Fall through to /dev/ enumeration.
-      }
-    }
-    return _enumerateFromDev();
-  }
+  static final bool _isMac = Platform.isMacOS;
 
-  /// Enumerates ports using libserialport's sp_list_ports / sp_get_port_name.
-  static List<String> _enumerateWithLibSerialPort(DynamicLibrary lib) {
-    // int sp_list_ports(struct sp_port ***list_ptr)
-    final spListPorts = lib.lookupFunction<
-        Int32 Function(Pointer<Pointer<Pointer<Void>>>),
-        int Function(Pointer<Pointer<Pointer<Void>>>)>('sp_list_ports');
-    // char *sp_get_port_name(const struct sp_port *port)
-    final spGetPortName = lib.lookupFunction<
-        Pointer<Utf8> Function(Pointer<Void>),
-        Pointer<Utf8> Function(Pointer<Void>)>('sp_get_port_name');
-    // void sp_free_port_list(struct sp_port **list)
-    final spFreePortList = lib.lookupFunction<
-        Void Function(Pointer<Pointer<Void>>),
-        void Function(Pointer<Pointer<Void>>)>('sp_free_port_list');
+  // open() flags.
+  static int get _oRdwr => 0x0002; // O_RDWR (same on macOS/Linux)
+  static int get _oNoctty => _isMac ? 0x20000 : 0x0100; // O_NOCTTY
+  static int get _oNonblock => _isMac ? 0x0004 : 0x0800; // O_NONBLOCK
 
-    final listPtr = calloc<Pointer<Pointer<Void>>>();
-    try {
-      final ret = spListPorts(listPtr);
-      if (ret != 0) return []; // SP_OK == 0
+  // termios buffer size (over-allocated to safely cover both layouts).
+  static const int _termiosSize = 128;
 
-      final list = listPtr.value;
-      final ports = <String>[];
-      for (var i = 0; list[i] != nullptr; i++) {
-        final namePtr = spGetPortName(list[i]);
-        if (namePtr != nullptr) {
-          ports.add(namePtr.toDartString());
-        }
-      }
-      spFreePortList(list);
-      return ports;
-    } finally {
-      calloc.free(listPtr);
-    }
-  }
+  // Offset & width of c_cflag within struct termios.
+  //  - macOS (BSD): tcflag_t = unsigned long (8 bytes); c_cflag at offset 16.
+  //  - Linux (glibc): tcflag_t = unsigned int (4 bytes); c_cflag at offset 8.
+  static int get _cflagOffset => _isMac ? 16 : 8;
+  static bool get _cflagIs64 => _isMac;
 
-  /// Fallback: list /dev/ entries that look like serial ports.
+  // Control-mode flag bits.
+  static int get _csize => _isMac ? 0x0300 : 0x0030;
+  static int get _cs8 => _isMac ? 0x0300 : 0x0030;
+  static int get _cstopb => _isMac ? 0x0400 : 0x0040;
+  static int get _cread => _isMac ? 0x0800 : 0x0080;
+  static int get _parenb => _isMac ? 0x1000 : 0x0100;
+  static int get _clocal => _isMac ? 0x8000 : 0x0800;
+  // Hardware flow control (CCTS_OFLOW|CRTS_IFLOW on macOS, CRTSCTS on Linux).
+  static int get _crtscts => _isMac ? 0x00030000 : 0x80000000;
+
+  static const int _tcsanow = 0;
+
+  // ioctl requests / modem bits for raising DTR & RTS.
+  static int get _tiocmbis => _isMac ? 0x8004746c : 0x5416;
+  static const int _tiocmDtr = 0x002;
+  static const int _tiocmRts = 0x004;
+
+  // -------------------------------------------------------------------------
+  // Port enumeration — list /dev/ entries that look like serial ports.
+  // -------------------------------------------------------------------------
+  static List<String> enumeratePorts() => _enumerateFromDev();
+
   static List<String> _enumerateFromDev() {
     final ports = <String>[];
     try {
@@ -619,144 +640,151 @@ class _Posix {
   }
 
   // -------------------------------------------------------------------------
-  // Open / Config / Read / Close — delegates to libserialport if available.
-  // If not, serial communication is unavailable (only enumeration works).
+  // Open — opens the tty non-blocking so reads return immediately.
   // -------------------------------------------------------------------------
-
   static bool open(SerialPort port) {
-    final lib = _serialLib;
-    if (lib == null) return false;
+    final namePtr = port.name.toNativeUtf8();
     try {
-      return _openWithLib(lib, port);
+      final fd = _open(namePtr, _oRdwr | _oNoctty | _oNonblock);
+      if (fd < 0) return false;
+      port._handle = fd;
+      return true;
     } catch (_) {
       return false;
-    }
-  }
-
-  static bool _openWithLib(DynamicLibrary lib, SerialPort port) {
-    final spGetPortByName = lib.lookupFunction<
-        Int32 Function(Pointer<Utf8>, Pointer<Pointer<Void>>),
-        int Function(
-            Pointer<Utf8>, Pointer<Pointer<Void>>)>('sp_get_port_by_name');
-    final spOpen = lib.lookupFunction<Int32 Function(Pointer<Void>, Int32),
-        int Function(Pointer<Void>, int)>('sp_open');
-
-    final namePtr = port.name.toNativeUtf8();
-    final portPtr = calloc<Pointer<Void>>();
-    try {
-      if (spGetPortByName(namePtr, portPtr) != 0) return false;
-      // SP_MODE_READ_WRITE = 3
-      if (spOpen(portPtr.value, 3) != 0) return false;
-      // Store the sp_port pointer as an integer handle.
-      port._handle = portPtr.value.address;
-      return true;
     } finally {
       calloc.free(namePtr);
-      calloc.free(portPtr);
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Configuration — sets baud rate, 8 data bits, no parity, 1 stop bit and the
+  // requested DTR/RTS lines. Flow control other than "none" is treated as none
+  // (GPS receivers stream data and do not require handshaking).
+  // -------------------------------------------------------------------------
   static void setConfig(SerialPort port, SerialPortConfig cfg) {
-    final lib = _serialLib;
-    if (lib == null) return;
+    final fd = port._handle;
+    if (fd < 0) return;
+
+    final tio = calloc<Uint8>(_termiosSize);
     try {
-      final spSetBaudrate = lib.lookupFunction<
-          Int32 Function(Pointer<Void>, Int32),
-          int Function(Pointer<Void>, int)>('sp_set_baudrate');
-      final spSetBits = lib.lookupFunction<
-          Int32 Function(Pointer<Void>, Int32),
-          int Function(Pointer<Void>, int)>('sp_set_bits');
-      final spSetParity = lib.lookupFunction<
-          Int32 Function(Pointer<Void>, Int32),
-          int Function(Pointer<Void>, int)>('sp_set_parity');
-      final spSetStopbits = lib.lookupFunction<
-          Int32 Function(Pointer<Void>, Int32),
-          int Function(Pointer<Void>, int)>('sp_set_stopbits');
-      final spSetFlowcontrol = lib.lookupFunction<
-          Int32 Function(Pointer<Void>, Int32),
-          int Function(Pointer<Void>, int)>('sp_set_flowcontrol');
+      if (_tcgetattr(fd, tio) != 0) return;
 
-      final spPort = Pointer<Void>.fromAddress(port._handle);
-      spSetBaudrate(spPort, cfg.baudRate);
-      spSetBits(spPort, cfg.bits);
+      // Raw mode: disable canonical processing, echo, signals, translations.
+      _cfmakeraw(tio);
 
-      int parityVal = 0; // SP_PARITY_NONE
-      switch (cfg.parity) {
-        case SerialPortParity.odd:
-          parityVal = 1;
-        case SerialPortParity.even:
-          parityVal = 2;
-        case SerialPortParity.mark:
-          parityVal = 3;
-        case SerialPortParity.space:
-          parityVal = 4;
-        default:
-          parityVal = 0;
+      // Adjust control flags for 8N1 + local line + receiver enabled.
+      final cflagPtr = Pointer<Uint8>.fromAddress(tio.address + _cflagOffset);
+      int cflag = _cflagIs64
+          ? cflagPtr.cast<Uint64>().value
+          : cflagPtr.cast<Uint32>().value;
+
+      cflag &= ~_csize; // clear data-size bits
+      cflag |= _cs8; // 8 data bits
+
+      if (cfg.parity == SerialPortParity.none) {
+        cflag &= ~_parenb;
+      } else {
+        cflag |= _parenb;
       }
-      spSetParity(spPort, parityVal);
-      spSetStopbits(spPort, cfg.stopBits);
 
-      int fcVal = 0; // SP_FLOWCONTROL_NONE
-      switch (cfg._flowControl) {
-        case SerialPortFlowControl.xonXoff:
-          fcVal = 1;
-        case SerialPortFlowControl.rtsCts:
-          fcVal = 2;
-        case SerialPortFlowControl.dtrDsr:
-          fcVal = 3;
-        default:
-          fcVal = 0;
+      if (cfg.stopBits == 2) {
+        cflag |= _cstopb;
+      } else {
+        cflag &= ~_cstopb;
       }
-      spSetFlowcontrol(spPort, fcVal);
-    } catch (_) {}
+
+      // No hardware flow control; always enable receiver and ignore modem
+      // control lines so the port opens without a carrier signal.
+      cflag &= ~_crtscts;
+      cflag |= _clocal | _cread;
+
+      if (_cflagIs64) {
+        cflagPtr.cast<Uint64>().value = cflag;
+      } else {
+        cflagPtr.cast<Uint32>().value = cflag & 0xFFFFFFFF;
+      }
+
+      // Baud rate. On macOS speed_t is the literal rate, so arbitrary values
+      // (e.g. non-standard baud) work directly. On Linux cfsetispeed maps the
+      // value to a Bxxxx constant; unsupported rates fall back to the closest.
+      final baud = _isMac ? cfg.baudRate : _linuxBaud(cfg.baudRate);
+      _cfsetispeed(tio, baud);
+      _cfsetospeed(tio, baud);
+
+      _tcsetattr(fd, _tcsanow, tio);
+    } catch (_) {
+      // Ignore configuration failures; the port stays usable at its defaults.
+    } finally {
+      calloc.free(tio);
+    }
+
+    // Raise DTR and RTS if requested (some receivers need DTR high to power).
+    if (cfg.dtr == SerialPortDtr.on || cfg.rts == SerialPortRts.on) {
+      final bits = calloc<Int32>();
+      try {
+        var v = 0;
+        if (cfg.dtr == SerialPortDtr.on) v |= _tiocmDtr;
+        if (cfg.rts == SerialPortRts.on) v |= _tiocmRts;
+        bits.value = v;
+        _ioctl(fd, _tiocmbis, bits);
+      } catch (_) {
+      } finally {
+        calloc.free(bits);
+      }
+    }
+  }
+
+  /// Maps a numeric baud rate to the Linux termios Bxxxx constant.
+  /// Falls back to B9600 for unrecognized rates.
+  static int _linuxBaud(int baud) {
+    const map = <int, int>{
+      1200: 0x0009,
+      1800: 0x000a,
+      2400: 0x000b,
+      4800: 0x000c,
+      9600: 0x000d,
+      19200: 0x000e,
+      38400: 0x000f,
+      57600: 0x1001,
+      115200: 0x1002,
+      230400: 0x1003,
+      460800: 0x1004,
+      921600: 0x1007,
+    };
+    return map[baud] ?? 0x000d; // default B9600
   }
 
   static SerialPortConfig getConfig(SerialPort port) {
-    // Return a default config; full readback is not critical.
+    // Return a default config; full readback is not required by the app.
     return SerialPortConfig();
   }
 
   static Uint8List? read(SerialPort port, int maxBytes) {
-    final lib = _serialLib;
-    if (lib == null) return null;
+    final fd = port._handle;
+    if (fd < 0) return null;
+    final buf = calloc<Uint8>(maxBytes);
     try {
-      // int sp_nonblocking_read(struct sp_port *port, void *buf, size_t count)
-      final spRead = lib.lookupFunction<
-          Int32 Function(Pointer<Void>, Pointer<Uint8>, IntPtr),
-          int Function(
-              Pointer<Void>, Pointer<Uint8>, int)>('sp_nonblocking_read');
-
-      final buf = calloc<Uint8>(maxBytes);
-      try {
-        final spPort = Pointer<Void>.fromAddress(port._handle);
-        final n = spRead(spPort, buf, maxBytes);
-        if (n <= 0) return null;
-        final data = Uint8List(n);
-        for (var i = 0; i < n; i++) {
-          data[i] = buf[i];
-        }
-        return data;
-      } finally {
-        calloc.free(buf);
+      final n = _read(fd, buf, maxBytes);
+      if (n <= 0) return null; // 0 = EOF, -1 = EAGAIN/error (no data yet)
+      final data = Uint8List(n);
+      for (var i = 0; i < n; i++) {
+        data[i] = buf[i];
       }
+      return data;
     } catch (_) {
       return null;
+    } finally {
+      calloc.free(buf);
     }
   }
 
   static void close(SerialPort port) {
-    final lib = _serialLib;
-    if (lib == null) return;
-    try {
-      final spClose = lib.lookupFunction<Int32 Function(Pointer<Void>),
-          int Function(Pointer<Void>)>('sp_close');
-      final spFreePort = lib.lookupFunction<Void Function(Pointer<Void>),
-          void Function(Pointer<Void>)>('sp_free_port');
-
-      final spPort = Pointer<Void>.fromAddress(port._handle);
-      spClose(spPort);
-      spFreePort(spPort);
-    } catch (_) {}
+    final fd = port._handle;
+    if (fd >= 0) {
+      try {
+        _close(fd);
+      } catch (_) {}
+    }
     port._handle = -1;
   }
 }
