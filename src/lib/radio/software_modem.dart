@@ -545,9 +545,9 @@ class SoftwareModem {
         _broker.getValue<Object>(deviceId, 'HtStatus', null);
     if (htStatus is Map) {
       state.currentChannelId =
-          _readInt(htStatus['curr_ch_id'] ?? htStatus['CurrChId']) ?? 0;
+          _readInt(htStatus['currChId'] ?? htStatus['curr_ch_id'] ?? htStatus['CurrChId']) ?? 0;
       state.currentRegionId =
-          _readInt(htStatus['curr_region'] ?? htStatus['CurrRegion']) ?? 0;
+          _readInt(htStatus['currRegion'] ?? htStatus['curr_region'] ?? htStatus['CurrRegion']) ?? 0;
     }
 
     // Initialize FX.25 subsystem
@@ -881,9 +881,9 @@ class SoftwareModem {
 
     if (data is Map) {
       state.currentChannelId =
-          _readInt(data['curr_ch_id'] ?? data['CurrChId']) ?? state.currentChannelId;
+          _readInt(data['currChId'] ?? data['curr_ch_id'] ?? data['CurrChId']) ?? state.currentChannelId;
       state.currentRegionId =
-          _readInt(data['curr_region'] ?? data['CurrRegion']) ?? state.currentRegionId;
+          _readInt(data['currRegion'] ?? data['curr_region'] ?? data['CurrRegion']) ?? state.currentRegionId;
 
       // Track whether the channel is currently clear
       final int rssi = _readInt(data['rssi'] ?? data['Rssi']) ?? 1;
