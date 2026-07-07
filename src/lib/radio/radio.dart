@@ -1057,6 +1057,11 @@ class Radio {
         t,
         fragmentChannelName,
       );
+    } else if (_activeSoftwareModemMode().isNotEmpty) {
+      // The audio channel is enabled and a software modem mode is selected, so
+      // encode the frame with the software modem and send it as PCM audio
+      // rather than handing it to the radio's built-in hardware TNC.
+      _transmitSoftwareModem(fragment, _activeSoftwareModemMode());
     } else if (hardwareModemEnabled) {
       _transmitHardwareModem(
         fragment,
@@ -1069,6 +1074,56 @@ class Radio {
     }
 
     return outboundData.length;
+  }
+
+  /// Returns the active software modem mode string (e.g. 'AFSK1200',
+  /// 'G3RUH9600') when the audio channel is enabled for this radio and a
+  /// software modem mode other than 'None' is selected; otherwise ''.
+  String _activeSoftwareModemMode() {
+    final bool audioOn =
+        _broker.getValue<bool>(deviceId, 'AudioState', false) ?? false;
+    if (!audioOn) return '';
+    final String mode =
+        _broker.getValue<String>(0, 'SoftwareModemMode', 'None') ?? 'None';
+    if (mode.isEmpty || mode.toLowerCase() == 'none') return '';
+    return mode;
+  }
+
+  FragmentEncodingType _softwareEncodingFor(String mode) {
+    switch (mode.toUpperCase()) {
+      case 'AFSK1200':
+        return FragmentEncodingType.softwareAfsk1200;
+      case 'PSK2400':
+        return FragmentEncodingType.softwarePsk2400;
+      case 'PSK4800':
+        return FragmentEncodingType.softwarePsk4800;
+      case 'G3RUH9600':
+        return FragmentEncodingType.softwareG3ruh9600;
+      default:
+        return FragmentEncodingType.unknown;
+    }
+  }
+
+  /// Sends [fragment] via the software modem: the frame is logged for capture
+  /// with the software encoding and handed to the SoftwareModem handler, which
+  /// encodes it to PCM and transmits it over the audio channel (using the
+  /// p-persistent CSMA channel-access logic).
+  void _transmitSoftwareModem(TncDataFragment fragment, String mode) {
+    fragment.encoding = _softwareEncodingFor(mode);
+    // The software modem always applies FX.25 forward error correction (it
+    // falls back to plain AX.25 only for frames too large for any FX.25 block).
+    fragment.frameType = FragmentFrameType.fx25;
+
+    // Log / capture the outgoing frame with the correct software encoding.
+    _dispatchDataFrame(fragment);
+
+    // Hand the frame to the software modem for PCM encoding + audio transmit.
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'SoftModemTransmitPacket',
+      data: fragment,
+      store: false,
+    );
   }
 
   String _getFragmentChannelName(int channelId, String fallback) {

@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../models/station_info.dart';
@@ -47,6 +50,21 @@ const List<_ProtocolOption> _protocolOptions = [
   _ProtocolOption(TerminalProtocol.x25Session, 'AX.25 Session'),
 ];
 
+/// A selectable modem for Terminal / Winlink sessions.
+class _ModemOption {
+  final String value;
+  final String label;
+  const _ModemOption(this.value, this.label);
+}
+
+const List<_ModemOption> _modemOptions = [
+  _ModemOption('Hardware', 'Hardware AFSK 1200 (radio modem)'),
+  _ModemOption('AFSK1200', 'Software AFSK 1200'),
+  _ModemOption('PSK2400', 'Software PSK 2400'),
+  _ModemOption('PSK4800', 'Software PSK 4800'),
+  _ModemOption('G3RUH9600', 'Software G3RUH 9600'),
+];
+
 class _StationDialog extends StatefulWidget {
   final StationInfo? existing;
   const _StationDialog({this.existing});
@@ -69,6 +87,7 @@ class _StationDialogState extends State<_StationDialog> {
   TerminalProtocol _terminalProtocol = TerminalProtocol.x25Session;
   String _aprsRoute = '';
   bool _useAuth = false;
+  String _modem = 'Hardware';
 
   List<String> _channelNames = [];
   List<String> _aprsRouteNames = [];
@@ -93,6 +112,9 @@ class _StationDialogState extends State<_StationDialog> {
       _stationType = s.stationType;
       _terminalProtocol = s.terminalProtocol;
       _aprsRoute = s.aprsRoute;
+      _modem = _modemOptions.any((o) => o.value == s.modem)
+          ? s.modem
+          : 'Hardware';
       _useAuth =
           s.stationType == StationType.aprs &&
           (s.authPassword?.isNotEmpty ?? false);
@@ -214,6 +236,7 @@ class _StationDialogState extends State<_StationDialog> {
         stationType: StationType.winlink,
         terminalProtocol: TerminalProtocol.x25Session,
         channel: _channelController.text.trim(),
+        modem: _modem,
       );
     }
     return StationInfo(
@@ -228,6 +251,7 @@ class _StationDialogState extends State<_StationDialog> {
       authPassword: (_stationType == StationType.aprs && _useAuth)
           ? _authPasswordController.text
           : null,
+      modem: _modem,
     );
   }
 
@@ -438,11 +462,41 @@ class _StationDialogState extends State<_StationDialog> {
           },
         ),
       ],
+      if (_audioChannelSupported) ...[
+        const SizedBox(height: 12),
+        _buildModemDropdown(),
+      ],
     ];
   }
 
   List<Widget> _buildWinlinkFields() {
-    return [_buildChannelField()];
+    return [
+      _buildChannelField(),
+      if (_audioChannelSupported) ...[
+        const SizedBox(height: 12),
+        _buildModemDropdown(),
+      ],
+    ];
+  }
+
+  /// True when this platform supports the software modem audio channel.
+  /// The audio channel is unavailable on web and iOS.
+  bool get _audioChannelSupported => !kIsWeb && !Platform.isIOS;
+
+  Widget _buildModemDropdown() {
+    final current =
+        _modemOptions.any((o) => o.value == _modem) ? _modem : 'Hardware';
+    return DropdownButtonFormField<String>(
+      initialValue: current,
+      decoration: _inputDecoration(labelText: 'Modem'),
+      items: [
+        for (final option in _modemOptions)
+          DropdownMenuItem(value: option.value, child: Text(option.label)),
+      ],
+      onChanged: (value) {
+        if (value != null) setState(() => _modem = value);
+      },
+    );
   }
 
   Widget _buildChannelField() {

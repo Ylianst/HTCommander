@@ -205,6 +205,16 @@ class WinlinkClient {
       store: false,
     );
 
+    // Override the software modem with the contact's configured modem for the
+    // duration of the session. Restored in _unlockRadio(). 'Hardware' maps to
+    // the radio's built-in TNC (software modem off).
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SetSessionModem',
+      data: station.modem,
+      store: false,
+    );
+
     // Set up X25 transport
     _transportType = WinlinkTransportType.x25;
 
@@ -364,6 +374,13 @@ class WinlinkClient {
         deviceId: _lockedRadioId,
         name: 'SetUnlock',
         data: unlockData,
+        store: false,
+      );
+      // Restore the user's regular software modem mode.
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'ClearSessionModem',
+        data: null,
         store: false,
       );
       _lockedRadioId = -1;

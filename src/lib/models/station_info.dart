@@ -39,6 +39,14 @@ class StationInfo {
   bool waitForConnection;
   String? authPassword;
 
+  /// Modem to use for Terminal / Winlink sessions with this contact.
+  ///
+  /// `'Hardware'` (the default) uses the radio's built-in AFSK 1200 TNC. The
+  /// other values (`'AFSK1200'`, `'PSK2400'`, `'PSK4800'`, `'G3RUH9600'`) select
+  /// one of the software modem modes, which is only available on platforms that
+  /// support the audio channel (not web or iOS).
+  String modem;
+
   StationInfo({
     this.callsign = '',
     this.name = '',
@@ -50,6 +58,7 @@ class StationInfo {
     this.ax25Destination = '',
     this.waitForConnection = false,
     this.authPassword,
+    this.modem = 'Hardware',
   });
 
   /// Callsign with a trailing `-0` SSID removed (matches C# `CallsignNoZero`).
@@ -71,6 +80,7 @@ class StationInfo {
     String? ax25Destination,
     bool? waitForConnection,
     String? authPassword,
+    String? modem,
   }) {
     return StationInfo(
       callsign: callsign ?? this.callsign,
@@ -83,6 +93,7 @@ class StationInfo {
       ax25Destination: ax25Destination ?? this.ax25Destination,
       waitForConnection: waitForConnection ?? this.waitForConnection,
       authPassword: authPassword ?? this.authPassword,
+      modem: modem ?? this.modem,
     );
   }
 
@@ -100,6 +111,7 @@ class StationInfo {
       'AX25Destination': ax25Destination,
       'WaitForConnection': waitForConnection,
       'AuthPassword': authPassword,
+      'Modem': modem,
     };
   }
 
@@ -163,7 +175,25 @@ class StationInfo {
       authPassword: (pwd != null && pwd.isNotEmpty && pwd != 'null')
           ? pwd
           : null,
+      modem: _parseModem(json['Modem'] ?? json['modem']),
     );
+  }
+
+  /// Normalizes a stored modem value, defaulting to `'Hardware'`.
+  static String _parseModem(Object? raw) {
+    final s = raw?.toString() ?? '';
+    switch (s.toUpperCase()) {
+      case 'AFSK1200':
+        return 'AFSK1200';
+      case 'PSK2400':
+        return 'PSK2400';
+      case 'PSK4800':
+        return 'PSK4800';
+      case 'G3RUH9600':
+        return 'G3RUH9600';
+      default:
+        return 'Hardware';
+    }
   }
 
   /// Serializes a list of stations to the plain-text address-book format used
@@ -181,6 +211,7 @@ class StationInfo {
       sb.writeln('Channel=${station.channel}');
       sb.writeln('AX25Destination=${station.ax25Destination}');
       sb.writeln('AuthPassword=${station.authPassword ?? ''}');
+      sb.writeln('Modem=${station.modem}');
       sb.writeln();
     }
     return sb.toString();
@@ -237,6 +268,9 @@ class StationInfo {
             break;
           case 'AuthPassword':
             current.authPassword = value.isEmpty ? null : value;
+            break;
+          case 'Modem':
+            current.modem = _parseModem(value);
             break;
         }
       }
