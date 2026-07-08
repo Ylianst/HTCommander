@@ -60,6 +60,15 @@ int GetIntArg(const EncodableMap* args, const char* key, int fallback) {
   return fallback;
 }
 
+// Reads a string value from an EncodableMap, returning empty if missing.
+std::string GetStringArg(const EncodableMap* args, const char* key) {
+  if (!args) return "";
+  auto it = args->find(EncodableValue(std::string(key)));
+  if (it == args->end()) return "";
+  if (const auto* v = std::get_if<std::string>(&it->second)) return *v;
+  return "";
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -86,7 +95,8 @@ struct PcmPlayerPlugin::Impl {
       const flutter::MethodCall<EncodableValue>& call,
       std::unique_ptr<flutter::MethodResult<EncodableValue>> result);
 
-  bool Setup(int rate, int chans);
+  bool Setup(int rate, int chans, const std::string& deviceId);
+  EncodableValue ListDevices();
   bool Feed(const std::vector<uint8_t>& data);
   void Release();
 
@@ -147,7 +157,12 @@ void PcmPlayerPlugin::Impl::HandleMethodCall(
   if (method == "setup") {
     const int rate = GetIntArg(args, "sampleRate", 32000);
     const int chans = GetIntArg(args, "channels", 1);
-    result->Success(EncodableValue(Setup(rate, chans)));
+    const std::string deviceId = GetStringArg(args, "deviceId");
+    result->Success(EncodableValue(Setup(rate, chans, deviceId)));
+    return;
+  }
+  if (method == "listDevices") {
+    result->Success(ListDevices());
     return;
   }
   if (method == "setFeedThreshold") {
@@ -177,7 +192,8 @@ void PcmPlayerPlugin::Impl::HandleMethodCall(
   result->NotImplemented();
 }
 
-bool PcmPlayerPlugin::Impl::Setup(int rate, int chans) {
+bool PcmPlayerPlugin::Impl::Setup(int rate, int chans,
+                                   const std::string& deviceId) {
   Release();
   sample_rate = rate > 0 ? rate : 32000;
   channels = chans > 0 ? chans : 1;
@@ -193,11 +209,32 @@ bool PcmPlayerPlugin::Impl::Setup(int rate, int chans) {
 
   EnsureWindow();
 
+  // Resolve the device ID: empty means WAVE_MAPPER (OS default), otherwise
+  // parse it as a numeric waveOut device index.
+  UINT devId = WAVE_MAPPER;
+  if (!deviceId.empty()) {
+    try {
+      unsigned long idx = std::stoul(deviceId);
+      if (idx < waveOutGetNumDevs()) {
+        devId = static_cast<UINT>(idx);
+      }
+    } catch (...) {
+      // Invalid id string – fall through to WAVE_MAPPER.
+    }
+  }
+
   HWAVEOUT handle = nullptr;
-  const MMRESULT r = waveOutOpen(
-      &handle, WAVE_MAPPER, &fmt,
+  MMRESULT r = waveOutOpen(
+      &handle, devId, &fmt,
       reinterpret_cast<DWORD_PTR>(&PcmPlayerPlugin::Impl::WaveOutProc),
       reinterpret_cast<DWORD_PTR>(this), CALLBACK_FUNCTION);
+  // If the selected device fails, fall back to the default.
+  if (r != MMSYSERR_NOERROR && devId != WAVE_MAPPER) {
+    r = waveOutOpen(
+        &handle, WAVE_MAPPER, &fmt,
+        reinterpret_cast<DWORD_PTR>(&PcmPlayerPlugin::Impl::WaveOutProc),
+        reinterpret_cast<DWORD_PTR>(this), CALLBACK_FUNCTION);
+  }
   if (r != MMSYSERR_NOERROR) {
     hwo = nullptr;
     return false;
@@ -205,6 +242,30 @@ bool PcmPlayerPlugin::Impl::Setup(int rate, int chans) {
   hwo = handle;
   buffered_frames = 0;
   return true;
+}
+
+EncodableValue PcmPlayerPlugin::Impl::ListDevices() {
+  const UINT count = waveOutGetNumDevs();
+  flutter::EncodableList devices;
+  for (UINT i = 0; i < count; ++i) {
+    WAVEOUTCAPSW caps = {};
+    if (waveOutGetDevCapsW(i, &caps, sizeof(caps)) == MMSYSERR_NOERROR) {
+      // Convert the wide-char device name to UTF-8.
+      int len = WideCharToMultiByte(CP_UTF8, 0, caps.szPname, -1,
+                                    nullptr, 0, nullptr, nullptr);
+      std::string name;
+      if (len > 0) {
+        name.resize(len - 1);  // exclude null terminator
+        WideCharToMultiByte(CP_UTF8, 0, caps.szPname, -1,
+                            name.data(), len, nullptr, nullptr);
+      }
+      EncodableMap entry;
+      entry[EncodableValue("id")] = EncodableValue(std::to_string(i));
+      entry[EncodableValue("label")] = EncodableValue(name);
+      devices.push_back(EncodableValue(entry));
+    }
+  }
+  return EncodableValue(devices);
 }
 
 bool PcmPlayerPlugin::Impl::Feed(const std::vector<uint8_t>& data) {

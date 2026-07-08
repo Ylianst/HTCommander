@@ -9,13 +9,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 
 /// A selectable audio output (speaker) device.
 class AudioOutputDevice {
   const AudioOutputDevice({required this.id, required this.label});
 
   /// Stable identifier passed to the native player to select the device (the
-  /// PulseAudio/PipeWire sink name on Linux). Empty string means "OS default".
+  /// PulseAudio/PipeWire sink name on Linux, or the waveOut device index as a
+  /// string on Windows). Empty string means "OS default".
   final String id;
 
   /// Human-readable name shown in the UI.
@@ -24,14 +26,17 @@ class AudioOutputDevice {
 
 /// Enumerates the audio output devices available for playback.
 ///
-/// Only implemented on Linux (via `pactl list sinks`, matching the PulseAudio
-/// simple API the native PCM player uses). Other platforms return an empty list
-/// and callers should fall back to the OS default output device.
+/// Implemented on Linux (via `pactl list sinks`) and Windows (via the native
+/// PCM player plugin's `listDevices` method). Other platforms return an empty
+/// list and callers should fall back to the OS default output device.
 class AudioOutputDevices {
+  static const MethodChannel _channel =
+      MethodChannel('com.htcommander/pcm_player');
+
   /// Whether specific output-device selection is supported on this platform.
   static bool get isSupported {
     if (kIsWeb) return false;
-    return Platform.isLinux;
+    return Platform.isLinux || Platform.isWindows;
   }
 
   /// Returns the list of output devices, or an empty list when enumeration is
@@ -39,6 +44,28 @@ class AudioOutputDevices {
   /// the native PCM player; use an empty id for the OS default device.
   static Future<List<AudioOutputDevice>> list() async {
     if (!isSupported) return const <AudioOutputDevice>[];
+    if (Platform.isWindows) return _listWindows();
+    return _listLinux();
+  }
+
+  /// Windows: queries the native PCM player plugin for waveOut devices.
+  static Future<List<AudioOutputDevice>> _listWindows() async {
+    try {
+      final result = await _channel.invokeMethod<List<dynamic>>('listDevices');
+      if (result == null) return const <AudioOutputDevice>[];
+      return result.map((entry) {
+        final map = entry as Map<Object?, Object?>;
+        final id = map['id'] as String? ?? '';
+        final label = map['label'] as String? ?? id;
+        return AudioOutputDevice(id: id, label: label);
+      }).toList();
+    } catch (_) {
+      return const <AudioOutputDevice>[];
+    }
+  }
+
+  /// Linux: shells out to `pactl list sinks` and parses the output.
+  static Future<List<AudioOutputDevice>> _listLinux() async {
     try {
       // Force LC_ALL=C so the labels we parse are stable across locales.
       final result = await Process.run(
