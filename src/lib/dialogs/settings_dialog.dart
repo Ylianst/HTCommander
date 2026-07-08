@@ -380,6 +380,11 @@ class _SettingsDialogState extends State<SettingsDialog>
   List<Map<String, String>> _voices = const [];
   bool _voicesLoaded = false;
 
+  // Whether text-to-speech synthesis is usable on this machine, and, when it is
+  // not, the platform-specific instructions telling the user how to enable it.
+  bool _ttsAvailable = true;
+  String _ttsInstructions = '';
+
   // Current history item counts (loaded asynchronously for the Limits tab).
   HistoryCounts? _historyCounts;
 
@@ -483,6 +488,9 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   /// Loads the available text-to-speech voices for the Voice settings tab.
   Future<void> _loadVoices() async {
+    final available = await TtsService.instance.isAvailable();
+    final instructions =
+        available ? '' : TtsService.instance.setupInstructions;
     final voices = List<Map<String, String>>.from(
       await TtsService.instance.getVoices(),
     );
@@ -495,6 +503,8 @@ class _SettingsDialogState extends State<SettingsDialog>
     setState(() {
       _voices = voices;
       _voicesLoaded = true;
+      _ttsAvailable = available;
+      _ttsInstructions = instructions;
     });
   }
 
@@ -1351,6 +1361,10 @@ class _SettingsDialogState extends State<SettingsDialog>
                   style: DialogStyles.bodyStyle,
                 ),
                 const SizedBox(height: 16),
+                if (_voicesLoaded && !_ttsAvailable) ...[
+                  _buildTtsUnavailableNotice(),
+                  const SizedBox(height: 16),
+                ],
                 const Text('Voice', style: DialogStyles.labelStyle),
                 const SizedBox(height: 4),
                 _buildVoiceDropdown(),
@@ -1407,6 +1421,46 @@ class _SettingsDialogState extends State<SettingsDialog>
                     ),
                   ),
                 ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A highlighted notice shown in the Text-to-Speech section when synthesis is
+  /// unavailable on this machine, including platform-specific setup steps.
+  Widget _buildTtsUnavailableNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        border: Border.all(color: Colors.amber.shade300),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Text-to-speech is unavailable',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SelectableText(
+                  _ttsInstructions,
+                  style: DialogStyles.bodyStyle,
+                ),
               ],
             ),
           ),

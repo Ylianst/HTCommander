@@ -53,6 +53,13 @@ class TtsService {
   /// On-device preview playback is not available on the web.
   bool get isPreviewSupported => false;
 
+  /// Text-to-speech synthesis is never available in the web build.
+  Future<bool> isAvailable() async => false;
+
+  /// Guidance shown when [isAvailable] is false.
+  String get setupInstructions =>
+      'Text-to-speech is not available in the web version of the app.';
+
   /// No-op preview on the web (no audio channel).
   Future<void> preview(
     String text, {

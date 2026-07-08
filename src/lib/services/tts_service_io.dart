@@ -36,12 +36,36 @@ class TtsService {
   static final bool _useNativeChannel =
       !kIsWeb && (Platform.isMacOS || Platform.isIOS);
 
+  /// Whether this is a Linux desktop build. `flutter_tts` has no Linux plugin,
+  /// so synthesis is delegated to the `espeak-ng` / `espeak` command line tool.
+  static final bool _isLinux = !kIsWeb && Platform.isLinux;
+
   final FlutterTts _tts = FlutterTts();
   bool _initialized = false;
   bool _ttsAvailable = true;
 
+  /// Resolved path to the `espeak-ng` (preferred) or `espeak` binary on Linux,
+  /// or an empty string when neither is installed.
+  String _espeakPath = '';
+
   Future<void> _ensureInit() async {
     if (_initialized) return;
+    _initialized = true;
+
+    // Linux has no flutter_tts plugin; use the espeak-ng/espeak CLI instead.
+    if (_isLinux) {
+      _espeakPath = await _resolveEspeakPath();
+      _ttsAvailable = _espeakPath.isNotEmpty;
+      if (!_ttsAvailable) {
+        debugPrint(
+          'TtsService: text-to-speech is unavailable because neither '
+          '"espeak-ng" nor "espeak" was found on PATH. Install the '
+          '"espeak-ng" package to enable it.',
+        );
+      }
+      return;
+    }
+
     // Make synthesizeToFile() resolve only once the file has been written.
     // Some platform/plugin combinations (notably Windows builds where
     // flutter_tts is present but method support is partial) do not implement
@@ -64,7 +88,23 @@ class TtsService {
       _ttsAvailable = false;
       debugPrint('TtsService: flutter_tts init failed: $e');
     }
-    _initialized = true;
+  }
+
+  /// Finds the `espeak-ng` or `espeak` executable using `which`, returning the
+  /// absolute path or an empty string when neither is installed.
+  Future<String> _resolveEspeakPath() async {
+    for (final name in const ['espeak-ng', 'espeak']) {
+      try {
+        final result = await Process.run('which', [name]);
+        if (result.exitCode == 0) {
+          final path = (result.stdout as String).trim();
+          if (path.isNotEmpty) return path;
+        }
+      } catch (_) {
+        // `which` missing or not executable; try the next candidate.
+      }
+    }
+    return '';
   }
 
   /// Returns the list of available voices. Each entry is a map containing at
@@ -95,6 +135,11 @@ class TtsService {
 
     await _ensureInit();
     if (!_ttsAvailable) return const <Map<String, String>>[];
+
+    if (_isLinux) {
+      return _getEspeakVoices();
+    }
+
     final result = <Map<String, String>>[];
     try {
       final raw = await _tts.getVoices;
@@ -109,6 +154,45 @@ class TtsService {
       }
     } catch (e) {
       debugPrint('TtsService.getVoices failed: $e');
+    }
+    return result;
+  }
+
+  /// Parses the output of `espeak-ng --voices` into voice maps. Each voice uses
+  /// its language code as the `identifier` (passed back via `-v`) and the
+  /// human-readable voice name for display.
+  Future<List<Map<String, String>>> _getEspeakVoices() async {
+    final result = <Map<String, String>>[];
+    if (_espeakPath.isEmpty) return result;
+    ProcessResult run;
+    try {
+      run = await Process.run(_espeakPath, const ['--voices']);
+    } catch (e) {
+      debugPrint('TtsService: failed to list espeak voices: $e');
+      return result;
+    }
+    if (run.exitCode != 0) return result;
+
+    final lines = (run.stdout as String).split('\n');
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      // Skip the header row ("Pty Language Age/Gender VoiceName File ...").
+      if (trimmed.startsWith('Pty')) continue;
+      final parts = trimmed.split(RegExp(r'\s+'));
+      // Columns: Pty, Language, Age/Gender, VoiceName..., File, [Other]
+      if (parts.length < 4) continue;
+      final lang = parts[1];
+      // The File column always contains a '/', e.g. "gmw/en"; the voice name is
+      // everything between the Age/Gender column and that File column.
+      final fileIdx = parts.indexWhere((p) => p.contains('/'), 3);
+      final nameEnd = fileIdx > 3 ? fileIdx : parts.length;
+      final name = parts.sublist(3, nameEnd).join(' ');
+      result.add(<String, String>{
+        'name': name.isEmpty ? lang : name,
+        'locale': lang,
+        'identifier': lang,
+      });
     }
     return result;
   }
@@ -144,6 +228,29 @@ class TtsService {
 
   /// Whether on-device preview playback is supported (Apple platforms only).
   bool get isPreviewSupported => _useNativeChannel;
+
+  /// Ensures the one-time platform probe has run (e.g. locating `espeak-ng` on
+  /// Linux) and reports whether text-to-speech synthesis is usable right now.
+  Future<bool> isAvailable() async {
+    await _ensureInit();
+    return _ttsAvailable;
+  }
+
+  /// User-facing guidance explaining how to enable text-to-speech when
+  /// [isAvailable] returns false. Returns an empty string when TTS works or no
+  /// actionable steps apply. Only meaningful after [isAvailable] has completed.
+  String get setupInstructions {
+    if (_ttsAvailable) return '';
+    if (_isLinux) {
+      return 'Text-to-speech on Linux needs the "espeak-ng" (or "espeak") '
+          'command line tool, which was not found on this machine.\n\n'
+          'Install it and reopen this dialog:\n'
+          '  • Debian / Ubuntu:  sudo apt install espeak-ng\n'
+          '  • Fedora:  sudo dnf install espeak-ng\n'
+          '  • Arch:  sudo pacman -S espeak-ng';
+    }
+    return 'Text-to-speech is not available on this platform.';
+  }
 
   /// Speaks [text] through the computer's speakers so the user can audition the
   /// selected voice / rate / pitch without transmitting. No-op where the native
@@ -207,6 +314,14 @@ class TtsService {
         pitch: pitch,
       );
     }
+    if (_isLinux) {
+      return _synthesizeViaEspeak(
+        text,
+        voiceJson: voiceJson,
+        rate: rate,
+        pitch: pitch,
+      );
+    }
     return _synthesizeViaFile(
       text,
       voiceJson: voiceJson,
@@ -261,6 +376,87 @@ class TtsService {
       return null;
     }
     return _toPcm16Mono(samples, sampleRate);
+  }
+
+  /// Linux synthesis via the `espeak-ng` / `espeak` command line tool. Writes a
+  /// 22.05 kHz WAV file, decodes it and resamples to the target format.
+  Future<Uint8List?> _synthesizeViaEspeak(
+    String text, {
+    String? voiceJson,
+    double? rate,
+    double? pitch,
+  }) async {
+    await _ensureInit();
+    if (!_ttsAvailable || _espeakPath.isEmpty) return null;
+
+    String voice = '';
+    if (voiceJson != null && voiceJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(voiceJson);
+        if (decoded is Map) {
+          voice =
+              (decoded['identifier']?.toString().isNotEmpty ?? false)
+              ? decoded['identifier'].toString()
+              : (decoded['locale']?.toString() ?? '');
+        }
+      } catch (_) {}
+    }
+
+    // Map the app's normalized ranges onto espeak's units:
+    //  rate  0.0-1.0  -> words per minute (~90-260, 0.5 ≈ default 175)
+    //  pitch 0.5-2.0  -> pitch 0-99 (1.0 ≈ default 50)
+    final int wpm = (90 + (rate ?? 0.5).clamp(0.0, 1.0) * 170).round();
+    final int pitchArg = (((pitch ?? 1.0).clamp(0.5, 2.0) - 0.5) / 0.5 * 50)
+        .round()
+        .clamp(0, 99);
+
+    final Directory tmpDir = await getTemporaryDirectory();
+    final String filePath =
+        '${tmpDir.path}/htc_tts_${DateTime.now().millisecondsSinceEpoch}.wav';
+    final File file = File(filePath);
+
+    final args = <String>[
+      '-w', filePath,
+      '-s', '$wpm',
+      '-p', '$pitchArg',
+      if (voice.isNotEmpty) ...['-v', voice],
+      text,
+    ];
+
+    try {
+      final result = await Process.run(_espeakPath, args);
+      if (result.exitCode != 0) {
+        debugPrint(
+          'TtsService: espeak exited with ${result.exitCode}: '
+          '${result.stderr}',
+        );
+        return null;
+      }
+    } catch (e) {
+      debugPrint('TtsService: espeak synthesis failed: $e');
+      return null;
+    }
+
+    if (!await file.exists()) {
+      debugPrint('TtsService: espeak produced no file at $filePath');
+      return null;
+    }
+
+    Uint8List bytes;
+    try {
+      bytes = await file.readAsBytes();
+    } finally {
+      try {
+        await file.delete();
+      } catch (_) {}
+    }
+
+    final _DecodedAudio? decoded = _decodeAudio(bytes);
+    if (decoded == null || decoded.samples.isEmpty) {
+      debugPrint('TtsService: failed to decode espeak audio');
+      return null;
+    }
+    return _toPcm16Mono(decoded.samples, decoded.sampleRate);
   }
 
   /// File-based synthesis fallback for platforms without the native plugin.
