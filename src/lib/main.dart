@@ -183,7 +183,7 @@ void main(List<String> args) async {
 
   // Initialize the desktop self-update service (desktop only) so that users
   // can check for and install application updates from the Help menu.
-  UpdateService.instance.init();
+  await UpdateService.instance.init();
 
   // Check if this is a sub-window on desktop platforms
   if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
@@ -649,7 +649,9 @@ class _MainFormState extends State<MainForm>
       callback: _onSoftwareModemModeChanged,
     );
     // Load initial value
-    _softwareModemMode = (_broker.getValue<String>(0, 'SoftwareModemMode', 'none') ?? 'none').toLowerCase();
+    _softwareModemMode =
+        (_broker.getValue<String>(0, 'SoftwareModemMode', 'none') ?? 'none')
+            .toLowerCase();
 
     // Subscribe to software modem FX.25 FEC changes
     _broker.subscribe(
@@ -658,7 +660,8 @@ class _MainFormState extends State<MainForm>
       callback: _onSoftwareModemFecChanged,
     );
     // Load initial value
-    _softwareModemFec = _broker.getValue<bool>(0, 'SoftwareModemFec', true) ?? true;
+    _softwareModemFec =
+        _broker.getValue<bool>(0, 'SoftwareModemFec', true) ?? true;
 
     // Subscribe to the independent APRS modem mode / FEC changes
     _broker.subscribe(
@@ -666,13 +669,16 @@ class _MainFormState extends State<MainForm>
       name: 'AprsSoftwareModemMode',
       callback: _onAprsModemModeChanged,
     );
-    _aprsModemMode = (_broker.getValue<String>(0, 'AprsSoftwareModemMode', 'none') ?? 'none').toLowerCase();
+    _aprsModemMode =
+        (_broker.getValue<String>(0, 'AprsSoftwareModemMode', 'none') ?? 'none')
+            .toLowerCase();
     _broker.subscribe(
       deviceId: 0,
       name: 'AprsSoftwareModemFec',
       callback: _onAprsModemFecChanged,
     );
-    _aprsModemFec = _broker.getValue<bool>(0, 'AprsSoftwareModemFec', true) ?? true;
+    _aprsModemFec =
+        _broker.getValue<bool>(0, 'AprsSoftwareModemFec', true) ?? true;
 
     // Initialize tabs with saved index
     _currentTabs = _getVisibleTabs();
@@ -723,9 +729,7 @@ class _MainFormState extends State<MainForm>
     _showAllTabs = (DataBroker.getValue<int>(0, 'ShowAllTabs', 0) ?? 0) == 1;
     final hiddenTabsStr =
         DataBroker.getValue<String>(0, 'HiddenTabs', '') ?? '';
-    _hiddenTabs = hiddenTabsStr.isEmpty
-        ? {}
-        : hiddenTabsStr.split(',').toSet();
+    _hiddenTabs = hiddenTabsStr.isEmpty ? {} : hiddenTabsStr.split(',').toSet();
   }
 
   /// Handle settings changes from DataBroker.
@@ -1244,16 +1248,17 @@ class _MainFormState extends State<MainForm>
     final importedChannels = ChannelImport.parseChannelsFromCsv(content);
     if (importedChannels.isEmpty) {
       messenger?.showSnackBar(
-        const SnackBar(
-          content: Text('No channels found in the selected file'),
-        ),
+        const SnackBar(content: Text('No channels found in the selected file')),
       );
       return;
     }
 
     if (!mounted) return;
-    final radioName =
-        _broker.getValue<String>(_currentRadioDeviceId, 'FriendlyName', '');
+    final radioName = _broker.getValue<String>(
+      _currentRadioDeviceId,
+      'FriendlyName',
+      '',
+    );
     await showImportChannelsDialog(
       context,
       deviceId: _currentRadioDeviceId,
@@ -1283,11 +1288,7 @@ class _MainFormState extends State<MainForm>
       final label = (idx >= 0 && idx < _currentTabs.length)
           ? _currentTabs[idx].label
           : '';
-      _broker.dispatch(
-        deviceId: 0,
-        name: 'SelectedTabName',
-        data: label,
-      );
+      _broker.dispatch(deviceId: 0, name: 'SelectedTabName', data: label);
     }
   }
 
@@ -2173,14 +2174,14 @@ class _MainFormState extends State<MainForm>
                                       height: 32,
                                       errorBuilder:
                                           (context, error, stackTrace) {
-                                        return Icon(
-                                          tab.fallbackIcon,
-                                          size: 32,
-                                          color: isSelected
-                                              ? colorScheme.primary
-                                              : Colors.grey,
-                                        );
-                                      },
+                                            return Icon(
+                                              tab.fallbackIcon,
+                                              size: 32,
+                                              color: isSelected
+                                                  ? colorScheme.primary
+                                                  : Colors.grey,
+                                            );
+                                          },
                                     ),
                                     if (_showTabNames) ...[
                                       const SizedBox(height: 4),
@@ -2654,8 +2655,7 @@ class _MainFormState extends State<MainForm>
 
   void _onCheckForUpdates() {
     _broker.logInfo('Opening Check for Updates dialog');
-    showDialog(
-        context: context, builder: (context) => const UpdateDialog());
+    showDialog(context: context, builder: (context) => const UpdateDialog());
   }
 
   void _onAbout() {

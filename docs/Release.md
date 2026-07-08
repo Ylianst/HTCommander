@@ -30,3 +30,9 @@ This triggers the GitHub Actions workflow which will:
 - Generate desktop update packages for self-update
 - Create a GitHub Release with the installers attached
 - Commit the update artifacts to `docs/` so the self-updater can find them
+
+## Mac App Store
+
+The macOS **App Store** build is not produced by CI. See
+[AppStore.md](AppStore.md) for how to build and upload it manually with Xcode.
+

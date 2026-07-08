@@ -109,6 +109,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
       progress = state.receivedBytes / state.totalBytes;
     }
 
+    final logPath = UpdateService.instance.logPath;
+
     return HTDialog(
       title: 'Software Update',
       maxWidth: 450,
@@ -126,15 +128,21 @@ class _UpdateDialogState extends State<UpdateDialog> {
               const SizedBox(height: 12),
               const LinearProgressIndicator(),
             ],
+            if ((isReadyToInstall || state is UpdateInstalling) &&
+                logPath != null) ...[
+              const SizedBox(height: 12),
+              SelectableText(
+                'If the update does not complete, see the diagnostics log:\n'
+                '$logPath',
+                style: DialogStyles.bodyStyle.copyWith(fontSize: 11),
+              ),
+            ],
           ],
         ),
       ),
       actions: [
         if (canDownload && !isDownloading)
-          TextButton(
-            onPressed: _downloadUpdate,
-            child: const Text('Download'),
-          ),
+          TextButton(onPressed: _downloadUpdate, child: const Text('Download')),
         if (isReadyToInstall)
           TextButton(
             onPressed: _installUpdate,
