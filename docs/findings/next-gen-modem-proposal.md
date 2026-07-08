@@ -3,6 +3,7 @@
 **Date:** 2026-07-07
 **Status:** Design proposal / discussion — no code yet
 **Builds on:** [radio-audio-passband.md](radio-audio-passband.md),
+[radio-amplitude-linearity.md](radio-amplitude-linearity.md),
 [sbc-baud-rate-limit.md](sbc-baud-rate-limit.md)
 **Question:** Given what we now *measured* about the radio, what would the best
 possible modem look like using modern techniques, and what are the trade-offs?
@@ -16,16 +17,24 @@ Build a **coherent, training-equalized, adaptive single-carrier-frequency-domain
 driven by the sweep measurement**, plus a **constant-envelope 4-CPM fallback mode**
 for radios whose audio path mangles amplitude too badly.
 
+> **Update (2026-07-07):** the amplitude-linearity measurement is now done — see
+> [radio-amplitude-linearity.md](radio-amplitude-linearity.md). On the tested
+> radio pair the audio path is **fairly linear** (ratio tracks 1:1, slope 1.03,
+> IMD3 ≤ −34 dB), so **higher-order QAM (up to ~16-QAM) is viable** and the
+> primary SC-FDMA/QAM path is confirmed. The constant-envelope mode drops from a
+> likely necessity to a **fallback** for other radios / weak links.
+
 Why this shape:
 
 1. The channel is **almost a fixed linear filter** (a ~300–3000 Hz band-pass) —
    so a short **training preamble can measure and invert it once**, and coherent
    high-order modulation becomes practical (unlike fading HF).
-2. The channel's real enemy is **amplitude distortion** (AGC, limiter,
-   companding, lossy SBC), not multipath. So we want a waveform with **low peak-to-average
-   power ratio (PAPR)**. DFT-spread OFDM gives OFDM's adaptivity with
-   single-carrier-like low PAPR; constant-envelope CPM eliminates amplitude
-   entirely for the worst radios.
+2. The channel's amplitude handling was the main open risk (AGC, limiter,
+   companding, lossy SBC). Direct measurement shows it is **only mildly
+   compressed** on the tested pair, so amplitude is usable — but we still favor a
+   **low peak-to-average power ratio (PAPR)** waveform to protect the finite AGC
+   margin. DFT-spread OFDM gives OFDM's adaptivity with single-carrier-like low
+   PAPR; constant-envelope CPM eliminates amplitude entirely for the worst radios.
 3. **LDPC** replaces Reed–Solomon (FX.25) for ~3–6 dB of coding gain — the single
    biggest, cheapest win.
 4. **Adaptive bit-loading** spends bits where the channel is strong (the flat
@@ -43,14 +52,14 @@ From the passband measurement and the SBC study:
 | Usable band | Flat within ~2 dB **300–2900 Hz**; −3 dB at 3100 Hz | Put all energy in **~400–2600 Hz**; treat band edges as unusable |
 | Low-frequency cutoff | 100/200 Hz ≈ −23 dB (AC-coupled) | **No DC / near-DC content** → rules out baseband G3RUH-style |
 | Shape stability | Band-pass shape is **static** (a fixed filter) | **One-shot training equalization** works; no fast adaptive EQ needed |
-| Amplitude handling | AGC + limiter + companding + lossy **SBC** at 32 kHz | **Amplitude is unreliable** → prefer low-PAPR or constant-envelope |
+| Amplitude handling | AGC + limiter + companding + lossy **SBC** at 32 kHz; **measured mildly linear** (slope 1.03, IMD3 ≤ −34 dB) | **Amplitude is usable** → QAM viable; still prefer low-PAPR for margin |
 | Phase/frequency handling | FM + SBC preserve frequency/phase well; clocks are ppm-accurate | **Coherent PSK/QAM is feasible**; small fixed frequency offset only |
 | Noise | FM noise + SBC quantization noise floor | Finite in-band SNR → cap on constellation order and throughput |
 | Delay spread | Negligible (audio baseband, FM capture) | **Little ISI** → equalizer only corrects the static passband tilt |
 
 **Key realization:** this is *not* an HF fading channel. It is a **short, static,
-band-limited, amplitude-nonlinear** channel. That combination points away from
-the aggressive adaptive equalizers HF modems use, and toward **train-once,
+band-limited, mildly amplitude-compressed** channel. That combination points away
+from the aggressive adaptive equalizers HF modems use, and toward **train-once,
 low-PAPR, coherent, heavily-FEC'd** designs.
 
 ### Rough capacity ceiling
@@ -200,11 +209,13 @@ measured channel** instead of fighting it.
 
 ## Honest caveats & next measurements
 
-- The `sweep-r1.wav` run was **mildly clipped** (450 samples at full scale). Before
-  committing to high-order QAM, re-run at a lower level and also measure **amplitude
-  linearity** directly (e.g. a stepped-*amplitude* single-tone test) — that tells us
-  whether high-order QAM is viable or whether we must lean on the constant-envelope
-  fallback.
+- ✅ **Amplitude linearity — DONE.** Measured directly with the two-tone
+  `amptest`; the path is fairly linear on the tested pair (slope 1.03,
+  IMD3 ≤ −34 dB) → **higher-order QAM is viable**. See
+  [radio-amplitude-linearity.md](radio-amplitude-linearity.md). (The earlier
+  `sweep-r1.wav` and `amptest-r1.wav` runs were **mildly clipped**; re-record a
+  touch quieter for a pristine confirmation, though it does not change the
+  conclusion. Re-check per radio family before fixing a constellation order.)
 - Measure **phase/group-delay flatness** across 400–2600 Hz (a two-tone or
   multitone phase test), since coherent QAM cares about phase, not just magnitude.
 - Characterize the **SBC quantization noise floor** vs. input level to pick the
@@ -212,6 +223,9 @@ measured channel** instead of fighting it.
   limiter).
 - Confirm the residual **frequency offset** between the two audio clocks to size
   the sync/pilot design.
+- Probe the **AGC time constant** (an amplitude-*step* transient test) — the
+  amplitude test above is static and does not show how fast the gain reacts at
+  the start of a burst.
 
-These four measurements would turn this proposal into concrete waveform
-parameters.
+The amplitude question is now answered; the remaining measurements would pin down
+the last waveform parameters (phase flatness, operating level, sync budget).

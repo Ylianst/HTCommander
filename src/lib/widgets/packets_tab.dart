@@ -30,6 +30,12 @@ class CapturedPacket {
   PacketDirection get direction =>
       fragment.incoming ? PacketDirection.incoming : PacketDirection.outgoing;
   String get dataHex => RadioUtils.bytesToHex(fragment.data);
+
+  /// Whether this packet was sent or received using the software modem
+  /// (as opposed to the radio's built-in hardware TNC).
+  bool get isSoftwareModem =>
+      fragment.encoding == FragmentEncodingType.softwareAfsk1200 ||
+      fragment.encoding == FragmentEncodingType.softwarePsk2400;
 }
 
 /// Packets tab - packet inspection and analysis. Subscribes to UniqueDataFrame
@@ -614,9 +620,15 @@ class _PacketsTabState extends State<PacketsTab>
                                     vertical: 6,
                                   ),
                                   child: Icon(
-                                    packet.direction == PacketDirection.incoming
-                                        ? Icons.arrow_downward
-                                        : Icons.arrow_upward,
+                                    packet.isSoftwareModem
+                                        ? (packet.direction ==
+                                                  PacketDirection.incoming
+                                              ? Icons.keyboard_double_arrow_down
+                                              : Icons.keyboard_double_arrow_up)
+                                        : (packet.direction ==
+                                                  PacketDirection.incoming
+                                              ? Icons.arrow_downward
+                                              : Icons.arrow_upward),
                                     size: 16,
                                     color:
                                         packet.direction ==
