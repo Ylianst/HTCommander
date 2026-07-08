@@ -63,6 +63,12 @@ class _CommsTabState extends State<CommsTab>
   bool _recordAudio = false;
   bool _allowTransmit = true;
 
+  /// Whether VFO A of the current radio is the channel named "APRS". While it
+  /// is, the Comms tab must not transmit anything (chat, image or audio),
+  /// because software-modem audio is always sent on VFO A and would go out on
+  /// the APRS channel. Driven by the radio's 'Settings' (channelA) + 'Channels'.
+  bool _isVfoAAprs = false;
+
   /// Whether the radio shown in the Radio Panel is muted. While an SSTV image
   /// is being received the audio is auto-muted; a banner with an Un-mute button
   /// is shown so the user can restore audio.
@@ -146,6 +152,17 @@ class _CommsTabState extends State<CommsTab>
       name: 'SstvAutoMute',
       callback: _onSstvAutoMuteChanged,
     );
+    // VFO A channel tracking (transmit is blocked while VFO A is 'APRS').
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Settings',
+      callback: _onVfoAInfoChanged,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Channels',
+      callback: _onVfoAInfoChanged,
+    );
     // Global voice handler state and history events (device 1).
     _broker.subscribe(
       deviceId: 1,
@@ -202,6 +219,7 @@ class _CommsTabState extends State<CommsTab>
 
     // Initialize from current broker values.
     _currentRadioDeviceId = _resolveCurrentRadioId();
+    _isVfoAAprs = _readVfoAIsAprs();
     _seedLockStates();
     _currentMode = _modeFromName(
       _broker.getValue<String>(0, 'VoiceTransmitMode', null),
@@ -277,7 +295,7 @@ class _CommsTabState extends State<CommsTab>
   /// Whether image/audio media may be sent right now (audio active, not
   /// already transmitting, and the radio is not locked to another usage).
   bool get _canSendMedia =>
-      _audioEnabled && !_isTransmitting && !_isRadioLocked;
+      _audioEnabled && !_isTransmitting && !_isRadioLocked && !_isVfoAAprs;
 
   bool _isImageFile(String path) {
     final dot = path.lastIndexOf('.');
@@ -351,6 +369,16 @@ class _CommsTabState extends State<CommsTab>
   /// encoded SSTV audio to the radio.
   Future<void> _transmitSstv(SstvSendResult result) async {
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    if (_isVfoAAprs) {
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Transmit is disabled while VFO A is set to the APRS channel.',
+          ),
+        ),
+      );
+      return;
+    }
     final deviceId = _currentRadioDeviceId;
     if (deviceId <= 0 || !_isCurrentRadioConnected) {
       messenger?.showSnackBar(
@@ -454,6 +482,16 @@ class _CommsTabState extends State<CommsTab>
   /// sends it to the radio for transmission.
   Future<void> _loadAndSendWav(String path) async {
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    if (_isVfoAAprs) {
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Transmit is disabled while VFO A is set to the APRS channel.',
+          ),
+        ),
+      );
+      return;
+    }
     final deviceId = _currentRadioDeviceId;
     if (deviceId <= 0 || !_isCurrentRadioConnected) {
       messenger?.showSnackBar(
@@ -551,6 +589,7 @@ class _CommsTabState extends State<CommsTab>
       _audioEnabled = _readAudioState();
       _isMuted = _readMuteState();
       _sstvAutoMuted = _readSstvAutoMuteState();
+      _isVfoAAprs = _readVfoAIsAprs();
     });
     _updatePttMic();
   }
@@ -562,6 +601,7 @@ class _CommsTabState extends State<CommsTab>
       _audioEnabled = _readAudioState();
       _isMuted = _readMuteState();
       _sstvAutoMuted = _readSstvAutoMuteState();
+      _isVfoAAprs = _readVfoAIsAprs();
     });
     _updatePttMic();
   }
@@ -597,6 +637,35 @@ class _CommsTabState extends State<CommsTab>
     if (_currentRadioDeviceId <= 0) return false;
     final ls = _lockStates[_currentRadioDeviceId];
     return ls != null && ls.isLocked;
+  }
+
+  /// Whether VFO A of the current radio is the channel named "APRS". Reads the
+  /// radio's 'Settings' (channelA = VFO A channel id) and 'Channels' list.
+  bool _readVfoAIsAprs() {
+    final deviceId = _currentRadioDeviceId;
+    if (deviceId <= 0) return false;
+    final settings = DataBroker.getValueDynamic(deviceId, 'Settings');
+    if (settings is! Map) return false;
+    final channelA = settings['channelA'];
+    if (channelA is! int) return false;
+    final channels = DataBroker.getValueDynamic(deviceId, 'Channels');
+    if (channels is! List) return false;
+    for (final channel in channels) {
+      if (channel is Map && channel['channelId'] == channelA) {
+        return channel['name'] == 'APRS';
+      }
+    }
+    return false;
+  }
+
+  /// Recompute [_isVfoAAprs] when the current radio's Settings or Channels
+  /// change (e.g. the user switches VFO A to/from the APRS channel).
+  void _onVfoAInfoChanged(int deviceId, String name, Object? data) {
+    if (deviceId != _currentRadioDeviceId) return;
+    final v = _readVfoAIsAprs();
+    if (v != _isVfoAAprs && mounted) {
+      setState(() => _isVfoAAprs = v);
+    }
   }
 
   /// Reads the current AudioState of the radio shown in the Radio Panel.
@@ -1078,7 +1147,9 @@ class _CommsTabState extends State<CommsTab>
   void _showSendDisabledHint() {
     if (!mounted) return;
     final String message;
-    if (_isTransmitting) {
+    if (_isVfoAAprs) {
+      message = 'Transmit is disabled while VFO A is set to the APRS channel.';
+    } else if (_isTransmitting) {
       message = 'Please wait for the current transmission to finish.';
     } else if (_currentMode == VoiceTransmitMode.chat) {
       message = 'Connect a radio before sending a chat message.';
@@ -1120,6 +1191,7 @@ class _CommsTabState extends State<CommsTab>
   bool get _canSend {
     if (_isTransmitting) return false;
     if (_isRadioLocked) return false;
+    if (_isVfoAAprs) return false;
     if (_currentMode == VoiceTransmitMode.chat) {
       return _isCurrentRadioConnected;
     }
@@ -1138,6 +1210,7 @@ class _CommsTabState extends State<CommsTab>
       _isCurrentRadioConnected &&
       MicrophoneCapture.isSupported &&
       !_isRadioLocked &&
+      !_isVfoAAprs &&
       (!_isTransmitting || _pttActive);
 
   /// Whether the microphone should be kept warm: while PTT mode is selected and
@@ -1261,7 +1334,9 @@ class _CommsTabState extends State<CommsTab>
   void _showPttDisabledHint() {
     if (!mounted) return;
     final String message;
-    if (!MicrophoneCapture.isSupported) {
+    if (_isVfoAAprs) {
+      message = 'Transmit is disabled while VFO A is set to the APRS channel.';
+    } else if (!MicrophoneCapture.isSupported) {
       message = 'Microphone capture is not supported on this platform.';
     } else if (!_isCurrentRadioConnected) {
       message = 'Connect a radio before using push-to-talk.';

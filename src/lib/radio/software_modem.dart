@@ -30,6 +30,7 @@ import '../hamlib/hdlc_rec2.dart';
 import '../hamlib/hdlc_send.dart';
 import '../hamlib/ihdlc_receiver.dart';
 import '../hamlib/multi_modem.dart';
+import '../models/radio_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import 'tnc_data_fragment.dart';
@@ -48,74 +49,133 @@ class _PendingTransmission {
   final Uint8List frameData;
   final FragmentFrameType frameType;
   final DateTime deadline;
-  _PendingTransmission(this.frameData, this.frameType, this.deadline);
+
+  /// Which modem instance (general or APRS) should modulate this frame. Frames
+  /// are only bundled together when they share the same target instance.
+  final _ModemInstance target;
+  _PendingTransmission(
+    this.frameData,
+    this.frameType,
+    this.deadline,
+    this.target,
+  );
 }
 
-/// Per-radio modem state for handling audio processing.
+/// Per-radio modem state. Holds up to two full modem pipelines: a general one
+/// (the user-selected mode) and a dedicated APRS one (AFSK 1200), plus the
+/// radio-global clear-channel transmit queue.
 class _RadioModemState {
   int deviceId;
   String macAddress;
   String currentChannelName = '';
   int currentChannelId = 0;
   int currentRegionId = 0;
-  SoftwareModemMode mode;
-  bool initialized = false;
 
-  // AFSK 1200 modem state
-  DemodAfsk? afskDemodulator;
-  DemodulatorState? afskDemodState;
+  /// Cached id of the channel named "APRS" on this radio (-1 if none). Used to
+  /// route received audio and transmits to the APRS modem instance.
+  int aprsChannelId = -1;
 
-  // PSK modem state (for 2400)
-  DemodPsk? pskDemodulator;
-  PskDemodulatorState? pskDemodState;
+  /// The user's general software modem (null when the general modem is off).
+  _ModemInstance? generalModem;
 
-  // Common modem components
-  AudioConfig? audioConfig;
-  HdlcRec2? hdlcReceiver;
-  Fx25Rec? fx25Receiver;
-  _HdlcFx25Bridge? bridge;
+  /// The dedicated APRS modem, always AFSK 1200 (null when the APRS modem is
+  /// off). Used only for audio on / transmits to the APRS channel.
+  _ModemInstance? aprsModem;
 
-  // Packet transmission components
-  GenTone? packetGenTone;
-  AudioBuffer? packetAudioBuffer;
-  HdlcSend? packetHdlcSend;
-  Fx25Send? packetFx25Send;
-
-  // Clear-channel transmit queue
+  // Clear-channel transmit queue (radio-global; one transmission at a time).
   final List<_PendingTransmission> transmitQueue = [];
   bool waitingForChannel = false;
   bool channelIsClear = false;
   Timer? channelWaitTimer;
 
-  // A valid-FCS frame the plain HDLC receiver decoded from inside an FX.25
-  // block, held briefly while we wait to see if the FX.25 Reed-Solomon path
-  // delivers the same frame. If it does not (RS decode failed or the block did
-  // not complete), this copy is delivered as an AX.25 fallback so a good frame
-  // is never lost. See _onFrameReceived / _flushPendingFrame.
-  Uint8List? pendingFrameData;
-  int pendingFrameChannel = 0;
-  Timer? pendingFrameTimer;
-
   _RadioModemState({
     required this.deviceId,
     required this.macAddress,
-    required this.mode,
   });
 
   void dispose() {
     channelWaitTimer?.cancel();
     channelWaitTimer = null;
+    transmitQueue.clear();
+    waitingForChannel = false;
+    generalModem?.dispose();
+    generalModem = null;
+    aprsModem?.dispose();
+    aprsModem = null;
+  }
+}
+
+/// One complete software-modem pipeline (receive + transmit) for a single
+/// modulation mode. A radio holds up to two of these: one for the user's
+/// general mode and one dedicated to the APRS channel (AFSK 1200). Each has its
+/// own FX.25 FEC setting.
+class _ModemInstance {
+  final SoftwareModemMode mode;
+  final FragmentEncodingType encoding;
+
+  /// When true, transmitted frames meeting the AX.25 minimum length are wrapped
+  /// in FX.25 forward error correction. Independent per instance.
+  bool fecEnabled;
+
+  final AudioConfig audioConfig;
+
+  // Receive chain.
+  DemodAfsk? afskDemodulator;
+  DemodulatorState? afskDemodState;
+  DemodPsk? pskDemodulator;
+  PskDemodulatorState? pskDemodState;
+  HdlcRec2? hdlcReceiver;
+  Fx25Rec? fx25Receiver;
+  _HdlcFx25Bridge? bridge;
+
+  // Transmit chain.
+  GenTone? packetGenTone;
+  AudioBuffer? packetAudioBuffer;
+  HdlcSend? packetHdlcSend;
+  Fx25Send? packetFx25Send;
+
+  // A valid-FCS frame the plain HDLC receiver decoded from inside an FX.25
+  // block, held briefly while we wait to see if the FX.25 Reed-Solomon path
+  // delivers the same frame. If it does not (RS decode failed or the block did
+  // not complete), this copy is delivered as an AX.25 fallback so a good frame
+  // is never lost. See SoftwareModem._onFrameReceived / _flushPendingFrame.
+  Uint8List? pendingFrameData;
+  int pendingFrameChannel = 0;
+  Timer? pendingFrameTimer;
+
+  _ModemInstance({
+    required this.mode,
+    required this.encoding,
+    required this.fecEnabled,
+    required this.audioConfig,
+  });
+
+  /// Feed a block of little-endian 16-bit mono PCM to this pipeline's
+  /// demodulator.
+  void processSamples(Uint8List data, int offset, int length) {
+    const int chan = 0;
+    const int subchan = 0;
+    if (afskDemodulator != null && afskDemodState != null) {
+      for (int i = offset; i < offset + length - 1; i += 2) {
+        final int sample = (data[i] | (data[i + 1] << 8)).toSigned(16);
+        afskDemodulator!.processSample(chan, subchan, sample, afskDemodState!);
+      }
+    } else if (pskDemodulator != null && pskDemodState != null) {
+      for (int i = offset; i < offset + length - 1; i += 2) {
+        final int sample = (data[i] | (data[i + 1] << 8)).toSigned(16);
+        pskDemodulator!.processSample(chan, subchan, sample, pskDemodState!);
+      }
+    }
+  }
+
+  void dispose() {
     pendingFrameTimer?.cancel();
     pendingFrameTimer = null;
     pendingFrameData = null;
-    transmitQueue.clear();
-    waitingForChannel = false;
-
     afskDemodulator = null;
     afskDemodState = null;
     pskDemodulator = null;
     pskDemodState = null;
-    audioConfig = null;
     hdlcReceiver = null;
     fx25Receiver = null;
     bridge = null;
@@ -123,8 +183,6 @@ class _RadioModemState {
     packetAudioBuffer = null;
     packetHdlcSend = null;
     packetFx25Send = null;
-
-    initialized = false;
   }
 }
 
@@ -170,6 +228,11 @@ class SoftwareModem {
   // in FX.25 forward error correction. When false, all packets are sent as plain
   // AX.25 (no FEC). Lets the user test with and without FX.25.
   bool _fecEnabled = true;
+  // The APRS modem is an independent pipeline used only for the APRS channel. It
+  // is either off or AFSK 1200 and has its own FX.25 FEC setting, separate from
+  // the general modem above.
+  SoftwareModemMode _aprsMode = SoftwareModemMode.none;
+  bool _aprsFecEnabled = true;
   bool _disposed = false;
   bool _initialized = false;
   static final math.Random _rng = math.Random();
@@ -199,6 +262,12 @@ class SoftwareModem {
     // Load saved FX.25 FEC preference (defaults to enabled).
     _fecEnabled = _broker.getValue<bool>(0, 'SoftwareModemFec', true) ?? true;
 
+    // Load the independent APRS modem settings (off or AFSK 1200, own FEC).
+    _aprsMode = _parseAprsMode(
+        _broker.getValue<String>(0, 'AprsSoftwareModemMode', 'None') ?? 'None');
+    _aprsFecEnabled =
+        _broker.getValue<bool>(0, 'AprsSoftwareModemFec', true) ?? true;
+
     // Subscribe to mode changes on device 0
     _broker.subscribe(
       deviceId: 0,
@@ -223,6 +292,18 @@ class SoftwareModem {
       deviceId: 0,
       name: 'ClearSessionModem',
       callback: _onClearSessionModem,
+    );
+
+    // Subscribe to the independent APRS modem mode / FEC changes on device 0.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SetAprsSoftwareModemMode',
+      callback: _onSetAprsModeRequested,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SetAprsSoftwareModemFec',
+      callback: _onSetAprsFecRequested,
     );
 
     // Subscribe to audio data from all radios
@@ -259,6 +340,10 @@ class SoftwareModem {
     // Publish initial FX.25 FEC state
     _broker.dispatch(deviceId: 0, name: 'SoftwareModemFec', data: _fecEnabled, store: true);
 
+    // Publish initial APRS modem mode and FEC state.
+    _broker.dispatch(deviceId: 0, name: 'AprsSoftwareModemMode', data: _aprsMode.name, store: true);
+    _broker.dispatch(deviceId: 0, name: 'AprsSoftwareModemFec', data: _aprsFecEnabled, store: true);
+
     _debug('SoftwareModem initialized with mode: ${_currentMode.name}');
   }
 
@@ -287,6 +372,14 @@ class SoftwareModem {
       default:
         return SoftwareModemMode.none;
     }
+  }
+
+  /// Parses an APRS modem setting. The APRS modem supports only AFSK 1200
+  /// (or off), so any other value maps to [SoftwareModemMode.none].
+  static SoftwareModemMode _parseAprsMode(String mode) {
+    return mode.toUpperCase() == 'AFSK1200'
+        ? SoftwareModemMode.afsk1200
+        : SoftwareModemMode.none;
   }
 
   static FragmentEncodingType _getEncodingType(SoftwareModemMode mode) {
@@ -328,6 +421,30 @@ class SoftwareModem {
     _debug('Software modem mode changed to ${mode.name}');
   }
 
+  /// Sets the independent APRS modem mode (off or AFSK 1200). Rebuilds all
+  /// per-radio pipelines so the APRS instance is (re)created or removed.
+  void setAprsMode(SoftwareModemMode mode, {bool persist = true}) {
+    // The APRS modem is only ever off or AFSK 1200.
+    final SoftwareModemMode target =
+        mode == SoftwareModemMode.afsk1200 ? mode : SoftwareModemMode.none;
+    if (_aprsMode == target) return;
+
+    _debug('Changing APRS modem from ${_aprsMode.name} to ${target.name}');
+
+    for (final state in _radioModems.values) {
+      state.dispose();
+    }
+    _radioModems.clear();
+
+    _aprsMode = target;
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'AprsSoftwareModemMode',
+      data: _aprsMode.name,
+      store: persist,
+    );
+  }
+
   void _onSetModeRequested(int deviceId, String name, Object? data) {
     if (_disposed) return;
 
@@ -346,6 +463,10 @@ class SoftwareModem {
     if (_disposed) return;
     if (data is! bool) return;
     _fecEnabled = data;
+    // Apply to any live general instances immediately.
+    for (final state in _radioModems.values) {
+      state.generalModem?.fecEnabled = _fecEnabled;
+    }
     _broker.dispatch(
       deviceId: 0,
       name: 'SoftwareModemFec',
@@ -353,6 +474,32 @@ class SoftwareModem {
       store: true,
     );
     _debug('Software modem FX.25 FEC ${_fecEnabled ? "enabled" : "disabled"}');
+  }
+
+  /// Handle a request to change the independent APRS modem mode (off/AFSK1200).
+  void _onSetAprsModeRequested(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    final String modeStr = (data is String) ? data : (data?.toString() ?? '');
+    setAprsMode(_parseAprsMode(modeStr));
+  }
+
+  /// Enable/disable FX.25 FEC for the APRS modem (independent of the general
+  /// modem's FEC setting).
+  void _onSetAprsFecRequested(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is! bool) return;
+    _aprsFecEnabled = data;
+    // Apply to any live APRS instances immediately.
+    for (final state in _radioModems.values) {
+      state.aprsModem?.fecEnabled = _aprsFecEnabled;
+    }
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'AprsSoftwareModemFec',
+      data: _aprsFecEnabled,
+      store: true,
+    );
+    _debug('APRS modem FX.25 FEC ${_aprsFecEnabled ? "enabled" : "disabled"}');
   }
   /// [data] is the contact's modem value: 'Hardware' (radio TNC -> software
   /// modem off), 'AFSK1200' or 'PSK2400'.
@@ -396,7 +543,10 @@ class SoftwareModem {
 
   void _onAudioDataAvailable(int deviceId, String name, Object? data) {
     if (_disposed || deviceId <= 0) return;
-    if (_currentMode == SoftwareModemMode.none) return;
+    if (_currentMode == SoftwareModemMode.none &&
+        _aprsMode == SoftwareModemMode.none) {
+      return;
+    }
     if (data is! Map) return;
 
     // Don't process transmitted audio
@@ -429,7 +579,10 @@ class SoftwareModem {
     int length,
     String channelName,
   ) {
-    if (_currentMode == SoftwareModemMode.none) return;
+    if (_currentMode == SoftwareModemMode.none &&
+        _aprsMode == SoftwareModemMode.none) {
+      return;
+    }
 
     // Get or create modem state for this radio
     _RadioModemState? state = _radioModems[deviceId];
@@ -444,42 +597,22 @@ class SoftwareModem {
       state.currentChannelName = channelName;
     }
 
-    // Feed samples to the demodulator
-    const int chan = 0;
-    const int subchan = 0;
+    // Route the audio to the correct pipeline: the dedicated APRS modem when the
+    // radio is currently on the APRS channel, otherwise the general modem. On
+    // the APRS channel only the AFSK 1200 APRS modem runs; elsewhere only the
+    // general modem runs.
+    final _ModemInstance? rx =
+        _isAprsChannel(state) ? state.aprsModem : state.generalModem;
+    rx?.processSamples(data, offset, length);
+  }
 
-    switch (_currentMode) {
-      case SoftwareModemMode.afsk1200:
-        if (state.afskDemodulator == null || state.afskDemodState == null) {
-          return;
-        }
-        for (int i = offset; i < offset + length - 1; i += 2) {
-          final int sample = (data[i] | (data[i + 1] << 8)).toSigned(16);
-          state.afskDemodulator!.processSample(
-            chan,
-            subchan,
-            sample,
-            state.afskDemodState!,
-          );
-        }
-        break;
-
-      case SoftwareModemMode.psk2400:
-        if (state.pskDemodulator == null || state.pskDemodState == null) return;
-        for (int i = offset; i < offset + length - 1; i += 2) {
-          final int sample = (data[i] | (data[i + 1] << 8)).toSigned(16);
-          state.pskDemodulator!.processSample(
-            chan,
-            subchan,
-            sample,
-            state.pskDemodState!,
-          );
-        }
-        break;
-
-      case SoftwareModemMode.none:
-        break;
-    }
+  /// Whether [state]'s radio is currently tuned to the APRS channel. The audio
+  /// stream's channel name (set from the radio's current channel) is the primary
+  /// signal, reinforced by the cached APRS channel id.
+  bool _isAprsChannel(_RadioModemState state) {
+    if (state.currentChannelName == 'APRS') return true;
+    return state.aprsChannelId >= 0 &&
+        state.currentChannelId == state.aprsChannelId;
   }
 
   // ---------------------------------------------------------------------------
@@ -507,7 +640,6 @@ class SoftwareModem {
     final state = _RadioModemState(
       deviceId: deviceId,
       macAddress: macAddress,
-      mode: _currentMode,
     );
 
     // Get current HtStatus for channel info
@@ -520,147 +652,138 @@ class SoftwareModem {
           _readInt(htStatus['currRegion'] ?? htStatus['curr_region'] ?? htStatus['CurrRegion']) ?? 0;
     }
 
+    // Resolve the id of this radio's APRS channel for routing.
+    state.aprsChannelId = _getAprsChannelId(deviceId);
+
     // Initialize FX.25 subsystem
     Fx25.init(0);
 
-    // Initialize modem based on current mode
-    _initializeModemState(state, _currentMode);
+    // Build the two modem pipelines that are enabled.
+    if (_currentMode != SoftwareModemMode.none) {
+      state.generalModem = _buildInstance(state, _currentMode, _fecEnabled);
+    }
+    if (_aprsMode != SoftwareModemMode.none) {
+      state.aprsModem = _buildInstance(state, _aprsMode, _aprsFecEnabled);
+    }
 
     return state;
   }
 
-  void _initializeModemState(_RadioModemState state, SoftwareModemMode mode) {
-    // Setup audio configuration for 32kHz, 16-bit, mono
-    state.audioConfig = AudioConfig();
-    state.audioConfig!.devices[0].defined = true;
-    state.audioConfig!.devices[0].samplesPerSec = 32000;
-    state.audioConfig!.devices[0].bitsPerSample = 16;
-    state.audioConfig!.devices[0].numChannels = 1;
-    state.audioConfig!.channelMedium[0] = Medium.radio;
-    state.audioConfig!.channels[0].numSubchan = 1;
+  /// Returns the channel id of the "APRS" channel for [deviceId], or -1.
+  int _getAprsChannelId(int deviceId) {
+    final channels = _broker.getJsonListValue<RadioChannelInfo>(
+      deviceId,
+      'Channels',
+      (json) => RadioChannelInfo.fromJson(json),
+    );
+    if (channels == null) return -1;
+    for (final channel in channels) {
+      if (channel.name == 'APRS') return channel.channelId;
+    }
+    return -1;
+  }
+
+  /// Builds one complete modem pipeline (receive + transmit) for [mode] with the
+  /// given FX.25 [fecEnabled] flag. Frames it decodes are attributed to this
+  /// exact instance (correct encoding / FEC) via per-instance callbacks.
+  _ModemInstance _buildInstance(
+    _RadioModemState state,
+    SoftwareModemMode mode,
+    bool fecEnabled,
+  ) {
+    // Audio configuration for 32kHz, 16-bit, mono.
+    final audioConfig = AudioConfig();
+    audioConfig.devices[0].defined = true;
+    audioConfig.devices[0].samplesPerSec = 32000;
+    audioConfig.devices[0].bitsPerSample = 16;
+    audioConfig.devices[0].numChannels = 1;
+    audioConfig.channelMedium[0] = Medium.radio;
+    audioConfig.channels[0].numSubchan = 1;
 
     switch (mode) {
       case SoftwareModemMode.afsk1200:
-        _initializeAfsk1200(state);
+        audioConfig.channels[0].modemType = ModemType.afsk;
+        audioConfig.channels[0].markFreq = 1200;
+        audioConfig.channels[0].spaceFreq = 2200;
+        audioConfig.channels[0].baud = 1200;
         break;
       case SoftwareModemMode.psk2400:
-        _initializePsk2400(state);
+        audioConfig.channels[0].modemType = ModemType.qpsk;
+        // Direwolf treats achan.baud as bits-per-second for PSK; GenTone derives
+        // the 1200 symbol/s rate internally (baud * 0.5). Must match the 2400
+        // bps passed to the demodulator below.
+        audioConfig.channels[0].baud = 2400;
+        audioConfig.channels[0].v26Alt = V26Alternative.b;
+        break;
+      case SoftwareModemMode.none:
+        break;
+    }
+    audioConfig.channels[0].txdelay = 30;
+    audioConfig.channels[0].txtail = 10;
+
+    final instance = _ModemInstance(
+      mode: mode,
+      encoding: _getEncodingType(mode),
+      fecEnabled: fecEnabled,
+      audioConfig: audioConfig,
+    );
+
+    // Receive chain: HDLC + FX.25 receivers fed through the NRZI bridge. The
+    // frame callbacks capture both the radio state and this instance so decoded
+    // frames are attributed to the right pipeline.
+    final hdlcReceiver = HdlcRec2();
+    hdlcReceiver.addFrameReceived((e) => _onFrameReceived(state, instance, e));
+    hdlcReceiver.init(audioConfig);
+    final fx25Receiver =
+        Fx25Rec(_Fx25MultiModemWrapper(state, instance, this));
+    final bridge = _HdlcFx25Bridge(hdlcReceiver, fx25Receiver);
+    instance.hdlcReceiver = hdlcReceiver;
+    instance.fx25Receiver = fx25Receiver;
+    instance.bridge = bridge;
+
+    switch (mode) {
+      case SoftwareModemMode.afsk1200:
+        final demod = DemodAfsk(bridge);
+        final demodState = DemodulatorState();
+        demod.init(32000, 1200, 1200, 2200, 'A', demodState);
+        instance.afskDemodulator = demod;
+        instance.afskDemodState = demodState;
+        break;
+      case SoftwareModemMode.psk2400:
+        final demod = DemodPsk(bridge);
+        final demodState = PskDemodulatorState();
+        demod.init(
+            ModemType.qpsk, V26Alternative.b, 32000, 2400, 'B', demodState);
+        instance.pskDemodulator = demod;
+        instance.pskDemodState = demodState;
         break;
       case SoftwareModemMode.none:
         break;
     }
 
-    state.initialized = true;
-    _debug('Initialized ${mode.name} modem for device ${state.deviceId}');
-  }
+    // Transmit chain.
+    final audioBuffer = AudioBuffer(AudioConfig.maxAudioDevices);
+    final genTone = GenTone(audioBuffer);
+    genTone.init(audioConfig, 50);
+    instance.packetAudioBuffer = audioBuffer;
+    instance.packetGenTone = genTone;
+    instance.packetHdlcSend = HdlcSend(genTone, audioConfig);
+    instance.packetFx25Send = Fx25Send()..init(genTone);
 
-  void _initializeAfsk1200(_RadioModemState state) {
-    state.audioConfig!.channels[0].modemType = ModemType.afsk;
-    state.audioConfig!.channels[0].markFreq = 1200;
-    state.audioConfig!.channels[0].spaceFreq = 2200;
-    state.audioConfig!.channels[0].baud = 1200;
-    state.audioConfig!.channels[0].txdelay = 30;
-    state.audioConfig!.channels[0].txtail = 10;
-
-    // Create HDLC receiver
-    state.hdlcReceiver = HdlcRec2();
-    state.hdlcReceiver!.addFrameReceived(_onFrameReceived);
-    state.hdlcReceiver!.init(state.audioConfig!);
-
-    // Create FX.25 receiver with MultiModem wrapper
-    final fx25MultiModem = _Fx25MultiModemWrapper(state, this);
-    state.fx25Receiver = Fx25Rec(fx25MultiModem);
-
-    // Create bridge
-    state.bridge = _HdlcFx25Bridge(state.hdlcReceiver!, state.fx25Receiver!);
-
-    // Create AFSK demodulator
-    state.afskDemodulator = DemodAfsk(state.bridge!);
-    state.afskDemodState = DemodulatorState();
-    state.afskDemodulator!.init(
-      32000,
-      1200,
-      1200,
-      2200,
-      'A',
-      state.afskDemodState!,
-    );
-
-    // Initialize transmitter
-    _initializeTransmitter(state);
-  }
-
-  void _initializePsk2400(_RadioModemState state) {
-    state.audioConfig!.channels[0].modemType = ModemType.qpsk;
-    // Direwolf treats achan.baud as bits-per-second for PSK; GenTone derives
-    // the 1200 symbol/s rate internally (baud * 0.5). Must match the 2400 bps
-    // passed to the demodulator below.
-    state.audioConfig!.channels[0].baud = 2400;
-    state.audioConfig!.channels[0].v26Alt = V26Alternative.b;
-    state.audioConfig!.channels[0].txdelay = 30;
-    state.audioConfig!.channels[0].txtail = 10;
-
-    // Create HDLC receiver
-    state.hdlcReceiver = HdlcRec2();
-    state.hdlcReceiver!.addFrameReceived(_onFrameReceived);
-    state.hdlcReceiver!.init(state.audioConfig!);
-
-    // Create FX.25 receiver
-    final fx25MultiModem = _Fx25MultiModemWrapper(state, this);
-    state.fx25Receiver = Fx25Rec(fx25MultiModem);
-
-    // Create bridge
-    state.bridge = _HdlcFx25Bridge(state.hdlcReceiver!, state.fx25Receiver!);
-
-    // Create PSK demodulator
-    state.pskDemodulator = DemodPsk(state.bridge!);
-    state.pskDemodState = PskDemodulatorState();
-    state.pskDemodulator!.init(
-      ModemType.qpsk,
-      V26Alternative.b,
-      32000,
-      2400,
-      'B',
-      state.pskDemodState!,
-    );
-
-    // Initialize transmitter
-    _initializeTransmitter(state);
-  }
-
-  void _initializeTransmitter(_RadioModemState state) {
-    // Create audio buffer
-    state.packetAudioBuffer = AudioBuffer(AudioConfig.maxAudioDevices);
-
-    // Create tone generator
-    state.packetGenTone = GenTone(state.packetAudioBuffer!);
-    state.packetGenTone!.init(state.audioConfig!, 50);
-
-    // Create HDLC sender
-    state.packetHdlcSend = HdlcSend(state.packetGenTone!, state.audioConfig!);
-
-    // Create FX.25 sender
-    state.packetFx25Send = Fx25Send();
-    state.packetFx25Send!.init(state.packetGenTone!);
+    _debug('Built ${mode.name} modem instance for device ${state.deviceId}');
+    return instance;
   }
 
   // ---------------------------------------------------------------------------
   // Frame reception
   // ---------------------------------------------------------------------------
 
-  void _onFrameReceived(FrameReceivedEventArgs e) {
-    // Find which radio state this frame belongs to
-    _RadioModemState? state;
-    for (final kvp in _radioModems.entries) {
-      if (kvp.value.hdlcReceiver != null) {
-        // Match by checking if this is the correct receiver
-        state = kvp.value;
-        break;
-      }
-    }
-
-    if (state == null) return;
-    final _RadioModemState modemState = state;
+  void _onFrameReceived(
+    _RadioModemState state,
+    _ModemInstance instance,
+    FrameReceivedEventArgs e,
+  ) {
+    if (_disposed) return;
 
     // An FX.25 transmission carries a standard HDLC-framed AX.25 frame inside
     // its Reed-Solomon block, so the plain HDLC receiver also decodes it. If the
@@ -668,21 +791,21 @@ class SoftwareModem {
     // it here so the packet is reported once, via the FX.25 path, with the
     // correct FX.25 frame type and corrected-symbol count. (Matches Direwolf's
     // fx25_rec_busy suppression in hdlc_rec.)
-    if (modemState.fx25Receiver != null &&
-        modemState.fx25Receiver!.isBusy(e.channel)) {
+    if (instance.fx25Receiver != null &&
+        instance.fx25Receiver!.isBusy(e.channel)) {
       // The plain HDLC receiver decoded this frame (valid FCS) from inside an
       // FX.25 block. Rather than dropping it and relying solely on the FX.25
       // path, buffer it briefly: if the FX.25 Reed-Solomon decode succeeds it
       // delivers the frame (with the FX.25 type) and cancels this copy; if the
       // RS decode fails or the block never completes, the timer delivers this
       // buffered copy as an AX.25 fallback so a valid frame is never lost.
-      modemState.pendingFrameData = Uint8List(e.frameLength)
+      instance.pendingFrameData = Uint8List(e.frameLength)
         ..setRange(0, e.frameLength, e.frame);
-      modemState.pendingFrameChannel = e.channel;
-      modemState.pendingFrameTimer?.cancel();
-      modemState.pendingFrameTimer = Timer(
+      instance.pendingFrameChannel = e.channel;
+      instance.pendingFrameTimer?.cancel();
+      instance.pendingFrameTimer = Timer(
         const Duration(milliseconds: 700),
-        () => _flushPendingFrame(modemState),
+        () => _flushPendingFrame(state, instance),
       );
       _debug(
         'RX AX.25: buffered ${e.frameLength}-byte frame during FX.25 block '
@@ -707,7 +830,7 @@ class SoftwareModem {
       regionId: state.currentRegionId,
       channelName: state.currentChannelName,
       incoming: true,
-      encoding: _getEncodingType(state.mode),
+      encoding: instance.encoding,
       time: DateTime.now(),
       radioMac: state.macAddress,
       radioDeviceId: state.deviceId,
@@ -736,12 +859,12 @@ class SoftwareModem {
   /// when the FX.25 Reed-Solomon path did not deliver it (RS decode failed or
   /// the block never completed). Called from the timer armed in
   /// _onFrameReceived; the FX.25 delivery path cancels this by clearing
-  /// [state.pendingFrameData] first.
-  void _flushPendingFrame(_RadioModemState state) {
-    final Uint8List? pending = state.pendingFrameData;
-    state.pendingFrameTimer = null;
+  /// [instance.pendingFrameData] first.
+  void _flushPendingFrame(_RadioModemState state, _ModemInstance instance) {
+    final Uint8List? pending = instance.pendingFrameData;
+    instance.pendingFrameTimer = null;
     if (pending == null) return;
-    state.pendingFrameData = null;
+    instance.pendingFrameData = null;
 
     _debug(
       'RX AX.25 (fallback): FX.25 FEC did not deliver; delivering buffered '
@@ -756,7 +879,7 @@ class SoftwareModem {
       regionId: state.currentRegionId,
       channelName: state.currentChannelName,
       incoming: true,
-      encoding: _getEncodingType(state.mode),
+      encoding: instance.encoding,
       frameType: FragmentFrameType.ax25,
       time: DateTime.now(),
       radioMac: state.macAddress,
@@ -808,7 +931,10 @@ class SoftwareModem {
 
   void _onTransmitPacketRequested(int deviceId, String name, Object? data) {
     if (_disposed || deviceId <= 0) return;
-    if (_currentMode == SoftwareModemMode.none) return;
+    if (_currentMode == SoftwareModemMode.none &&
+        _aprsMode == SoftwareModemMode.none) {
+      return;
+    }
     if (data is! TncDataFragment) return;
 
     transmitPacket(deviceId, data);
@@ -821,7 +947,10 @@ class SoftwareModem {
       return;
     }
 
-    if (_currentMode == SoftwareModemMode.none) return;
+    if (_currentMode == SoftwareModemMode.none &&
+        _aprsMode == SoftwareModemMode.none) {
+      return;
+    }
 
     // Get or create modem state for this radio
     _RadioModemState? state = _radioModems[deviceId];
@@ -834,7 +963,20 @@ class SoftwareModem {
       _radioModems[deviceId] = state;
     }
 
-    if (state.packetAudioBuffer == null || state.packetGenTone == null) {
+    // Route to the APRS instance for APRS-channel frames, else the general one.
+    final bool isAprs = fragment.channelName == 'APRS' ||
+        (state.aprsChannelId >= 0 && fragment.channelId == state.aprsChannelId);
+    final _ModemInstance? target =
+        isAprs ? state.aprsModem : state.generalModem;
+    if (target == null) {
+      _debug(
+        'TransmitPacket: no ${isAprs ? "APRS" : "general"} modem instance for '
+        'device $deviceId - dropping frame',
+      );
+      return;
+    }
+
+    if (target.packetAudioBuffer == null || target.packetGenTone == null) {
       _debug('TransmitPacket: Transmitter not initialized');
       return;
     }
@@ -845,6 +987,7 @@ class SoftwareModem {
       Uint8List.fromList(fragment.data),
       fragment.frameType,
       DateTime.now().add(const Duration(seconds: 30)),
+      target,
     ));
     _debug(
       'Queued ${fragment.frameType == FragmentFrameType.fx25 ? "FX.25" : "AX.25"} '
@@ -980,13 +1123,19 @@ class SoftwareModem {
     }
 
     // Bundle up to _maxBundleFrames queued frames into a single transmission so
-    // the TXDELAY preamble cost is paid only once for several packets.
+    // the TXDELAY preamble cost is paid only once for several packets. Only
+    // frames destined for the same modem instance (same modulation) are bundled
+    // together; any queued frames for the other instance stay queued and are
+    // sent in a following keyup.
+    final _ModemInstance target = state.transmitQueue.first.target;
     final List<_PendingTransmission> bundle = [];
-    while (state.transmitQueue.isNotEmpty && bundle.length < _maxBundleFrames) {
+    while (state.transmitQueue.isNotEmpty &&
+        bundle.length < _maxBundleFrames &&
+        identical(state.transmitQueue.first.target, target)) {
       bundle.add(state.transmitQueue.removeAt(0));
     }
 
-    final Uint8List? pcmData = _buildBundledPcm(state, bundle);
+    final Uint8List? pcmData = _buildBundledPcm(target, bundle);
     final bool moreQueued = state.transmitQueue.isNotEmpty;
 
     // Assume the channel is now busy with our own transmission; the next
@@ -1014,24 +1163,24 @@ class SoftwareModem {
 
   /// Builds a single PCM transmission containing all [frames] bundled together:
   /// one TXDELAY preamble, each frame back-to-back (HDLC flags delimit them),
-  /// then one TXTAIL postamble. Returns little-endian 16-bit mono PCM bytes.
+  /// then one TXTAIL postamble, modulated by [instance] using its own FX.25 FEC
+  /// setting. Returns little-endian 16-bit mono PCM bytes.
   Uint8List? _buildBundledPcm(
-    _RadioModemState state,
+    _ModemInstance instance,
     List<_PendingTransmission> frames,
   ) {
     if (frames.isEmpty) return null;
-    if (state.packetAudioBuffer == null ||
-        state.packetHdlcSend == null ||
-        state.packetFx25Send == null ||
-        state.audioConfig == null) {
+    if (instance.packetAudioBuffer == null ||
+        instance.packetHdlcSend == null ||
+        instance.packetFx25Send == null) {
       return null;
     }
 
     const int chan = 0;
-    final buffer = state.packetAudioBuffer!;
+    final buffer = instance.packetAudioBuffer!;
     buffer.clearAll();
 
-    final int sampleRate = state.audioConfig!.devices[0].samplesPerSec;
+    final int sampleRate = instance.audioConfig.devices[0].samplesPerSec;
 
     // Half a second of leading silence so the radio's PTT is fully keyed
     // up before any data tones start. This covers the delay between the PCM
@@ -1041,8 +1190,8 @@ class SoftwareModem {
     _appendSilenceSamples(buffer, sampleRate ~/ 2);
 
     // Single preamble for the whole transmission.
-    final int txdelayFlags = state.audioConfig!.channels[chan].txdelay;
-    state.packetHdlcSend!.sendFlags(chan, txdelayFlags, false, null);
+    final int txdelayFlags = instance.audioConfig.channels[chan].txdelay;
+    instance.packetHdlcSend!.sendFlags(chan, txdelayFlags, false, null);
 
     // All frames one after another. Use FX.25 forward error correction
     // (smallest level = 16 check bytes; pickMode selects the smallest RS block
@@ -1057,12 +1206,12 @@ class SoftwareModem {
     for (final tx in frames) {
       const int fx25SmallestFec = 16; // 16 check bytes = smallest FX.25 FEC
       int sent = -1;
-      if (_fecEnabled && tx.frameData.length >= ax25MinDataLen) {
+      if (instance.fecEnabled && tx.frameData.length >= ax25MinDataLen) {
         _debug(
           'TX FX.25: raw ${tx.frameData.length}-byte frame before FEC: '
           '${_hex(tx.frameData)}',
         );
-        sent = state.packetFx25Send!.sendFrame(
+        sent = instance.packetFx25Send!.sendFrame(
           chan,
           tx.frameData,
           tx.frameData.length,
@@ -1084,14 +1233,14 @@ class SoftwareModem {
           'TX AX.25 (no FEC): sending ${tx.frameData.length}-byte frame: '
           '${_hex(tx.frameData)}',
         );
-        state.packetHdlcSend!
+        instance.packetHdlcSend!
             .sendFrame(chan, tx.frameData, tx.frameData.length, false);
       }
     }
 
     // Single postamble.
-    final int txtailFlags = state.audioConfig!.channels[chan].txtail;
-    state.packetHdlcSend!.sendFlags(chan, txtailFlags, true, (device) {});
+    final int txtailFlags = instance.audioConfig.channels[chan].txtail;
+    instance.packetHdlcSend!.sendFlags(chan, txtailFlags, true, (device) {});
 
     // 1/10th of a second of trailing silence so the final data tones are fully
     // sent before PTT is released.
@@ -1147,9 +1296,10 @@ class SoftwareModem {
 /// Wrapper for MultiModem to process FX.25 frames.
 class _Fx25MultiModemWrapper extends MultiModem {
   final _RadioModemState _state;
+  final _ModemInstance _instance;
   final SoftwareModem _parent;
 
-  _Fx25MultiModemWrapper(this._state, this._parent) {
+  _Fx25MultiModemWrapper(this._state, this._instance, this._parent) {
     addPacketReady(_onPacketReady);
   }
 
@@ -1163,9 +1313,9 @@ class _Fx25MultiModemWrapper extends MultiModem {
 
     // FX.25 delivered the frame - cancel the buffered plain-HDLC fallback copy
     // so the same frame is not reported twice.
-    _state.pendingFrameTimer?.cancel();
-    _state.pendingFrameTimer = null;
-    _state.pendingFrameData = null;
+    _instance.pendingFrameTimer?.cancel();
+    _instance.pendingFrameTimer = null;
+    _instance.pendingFrameData = null;
 
     _parent._debug(
       'RX FX.25: delivered ${frameData.length}-byte frame '
@@ -1181,7 +1331,7 @@ class _Fx25MultiModemWrapper extends MultiModem {
       regionId: _state.currentRegionId,
       channelName: _state.currentChannelName,
       incoming: true,
-      encoding: SoftwareModem._getEncodingType(_state.mode),
+      encoding: _instance.encoding,
       frameType: FragmentFrameType.fx25,
       time: DateTime.now(),
       radioMac: _state.macAddress,

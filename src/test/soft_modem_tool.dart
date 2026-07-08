@@ -1625,6 +1625,331 @@ int _runSweepAnalyze({
   return 0;
 }
 
+/// Convert a dBFS level to a 16-bit peak amplitude (0..32767).
+double _dbfsToAmp(double dbfs) =>
+    math.pow(10.0, dbfs / 20.0).toDouble() * 32767.0;
+
+/// Build the list of probe amplitudes (dBFS) for the amplitude test.
+List<double> _ampLevels(double aMin, double aMax, double aStep) {
+  final List<double> levels = <double>[];
+  for (double a = aMin; a <= aMax + 1e-6; a += aStep) {
+    levels.add(a);
+  }
+  return levels;
+}
+
+/// Generate a two-tone amplitude-linearity test file (32 kHz / 16-bit / mono by
+/// default). A fixed **reference** tone (fa) is present the whole time; a
+/// **probe** tone (fb) steps up in amplitude across the file.
+///
+/// Playing two tones at once and looking at their *ratio* at the receiver
+/// cancels the radio's AGC (a shared gain scales both tones equally), so what
+/// remains is the true amplitude nonlinearity - exactly what decides whether
+/// high-order QAM survives or whether we need a constant-envelope waveform.
+/// Intermodulation products (2*fa-fb, 2*fb-fa) directly measure that
+/// nonlinearity.
+int _runAmpTestGen({
+  required int sampleRate,
+  required double faHz,
+  required double fbHz,
+  required double refDbfs,
+  required double aMinDbfs,
+  required double aMaxDbfs,
+  required double aStepDb,
+  required int toneMs,
+  required int gapMs,
+  required String outputFile,
+}) {
+  if (aMaxDbfs < aMinDbfs || aStepDb <= 0 || toneMs <= 0) {
+    stderr.writeln('amptest: invalid amplitude plan '
+        '(min=$aMinDbfs max=$aMaxDbfs step=$aStepDb tone=${toneMs}ms)');
+    return 2;
+  }
+  if (faHz >= sampleRate / 2 || fbHz >= sampleRate / 2) {
+    stderr.writeln('amptest: fa/fb must be below Nyquist '
+        '(${sampleRate ~/ 2} Hz)');
+    return 2;
+  }
+  // Guard against clipping the generated file: peak instantaneous sum of the
+  // two tones must stay under full scale.
+  final double refAmp = _dbfsToAmp(refDbfs);
+  final double maxProbeAmp = _dbfsToAmp(aMaxDbfs);
+  if (refAmp + maxProbeAmp > 32767) {
+    stderr.writeln('amptest: reference (${refDbfs.toStringAsFixed(0)} dBFS) + '
+        'max probe (${aMaxDbfs.toStringAsFixed(0)} dBFS) would clip the file. '
+        'Lower --ref or --amax.');
+    return 2;
+  }
+
+  final int toneSamples = (sampleRate * toneMs / 1000).round();
+  final int gapSamples = (sampleRate * gapMs / 1000).round();
+  final int leadSamples = sampleRate; // 1 s reference-only cue
+  final int leadGap = (sampleRate * 0.3).round();
+  final int fade = math.max(1, (sampleRate * 0.005).round());
+
+  final List<double> levels = _ampLevels(aMinDbfs, aMaxDbfs, aStepDb);
+  final int total =
+      leadSamples + leadGap + levels.length * (toneSamples + gapSamples);
+  final Int16List out = Int16List(total);
+  int idx = 0;
+
+  double env(int i, int len) {
+    if (i < fade) return 0.5 - 0.5 * math.cos(math.pi * i / fade);
+    if (i > len - fade) return 0.5 - 0.5 * math.cos(math.pi * (len - i) / fade);
+    return 1.0;
+  }
+
+  // 1 s reference-only lead cue (anchors segmentation, sets record level).
+  for (int i = 0; i < leadSamples; i++) {
+    final double v = env(i, leadSamples) *
+        refAmp *
+        math.sin(2 * math.pi * faHz * i / sampleRate);
+    out[idx++] = v.round().clamp(-32768, 32767);
+  }
+  idx += leadGap;
+
+  for (final double dbfs in levels) {
+    final double probeAmp = _dbfsToAmp(dbfs);
+    for (int i = 0; i < toneSamples; i++) {
+      final double e = env(i, toneSamples);
+      final double v = e *
+          (refAmp * math.sin(2 * math.pi * faHz * i / sampleRate) +
+              probeAmp * math.sin(2 * math.pi * fbHz * i / sampleRate));
+      out[idx++] = v.round().clamp(-32768, 32767);
+    }
+    idx += gapSamples;
+  }
+
+  final WavParams p = WavParams()
+    ..sampleRate = sampleRate
+    ..bitsPerSample = 16
+    ..numChannels = 1;
+  WavFile.write(outputFile, out, p);
+
+  final double durSec = total / sampleRate;
+  print('Wrote $outputFile');
+  print('  Format     : $sampleRate Hz, 16-bit, mono');
+  print('  Reference  : ${faHz.toStringAsFixed(0)} Hz fixed at '
+      '${refDbfs.toStringAsFixed(0)} dBFS');
+  print('  Probe      : ${fbHz.toStringAsFixed(0)} Hz stepped '
+      '${aMinDbfs.toStringAsFixed(0)}..${aMaxDbfs.toStringAsFixed(0)} dBFS '
+      'in ${aStepDb.toStringAsFixed(0)} dB steps (${levels.length} steps)');
+  print('  Per step   : $toneMs ms + $gapMs ms gap');
+  print('  Duration   : ${durSec.toStringAsFixed(1)} s '
+      '(1 s reference-only lead cue first)');
+  print('');
+  print('Play this out of radio A and record it on radio B, then run:');
+  print('  dart run test/soft_modem_tool.dart amptestanalyze '
+      '--fa ${faHz.toStringAsFixed(0)} --fb ${fbHz.toStringAsFixed(0)} '
+      '--ref ${refDbfs.toStringAsFixed(0)} --amin ${aMinDbfs.toStringAsFixed(0)} '
+      '--amax ${aMaxDbfs.toStringAsFixed(0)} --astep ${aStepDb.toStringAsFixed(0)} '
+      'recording.wav');
+  return 0;
+}
+
+/// Analyze a recording of the amplitude test and report how well the radio's
+/// audio path preserves relative amplitude (the probe/reference ratio) as the
+/// probe is driven up, plus the intermodulation distortion. Concludes whether
+/// high-order QAM is viable or a constant-envelope waveform is needed.
+int _runAmpTestAnalyze({
+  required String inputFile,
+  required double faHz,
+  required double fbHz,
+  required double refDbfs,
+  required double aMinDbfs,
+  required double aMaxDbfs,
+  required double aStepDb,
+  required int toneMs,
+  required int gapMs,
+}) {
+  final (Int16List rawSamples, WavParams params) = WavFile.read(inputFile);
+  final int rate = params.sampleRate;
+  Int16List x;
+  if (params.numChannels > 1) {
+    final int n = rawSamples.length ~/ params.numChannels;
+    x = Int16List(n);
+    for (int i = 0; i < n; i++) {
+      x[i] = rawSamples[i * params.numChannels];
+    }
+  } else {
+    x = rawSamples;
+  }
+  if (x.isEmpty) {
+    stderr.writeln('amptestanalyze: recording is empty');
+    return 2;
+  }
+
+  final List<double> levels = _ampLevels(aMinDbfs, aMaxDbfs, aStepDb);
+  final int numSteps = levels.length;
+
+  // Recover step timing by anchoring on the 1 s reference lead tone. Gap-based
+  // segmentation is unreliable here because the FM receiver's AGC fills the
+  // silent gaps with broadband noise; but both ends are digital at a fixed
+  // sample rate, so once we find the lead onset every step falls on a known,
+  // drift-free grid.
+  final int win = math.max(1, (rate * 0.03).round());
+  final int hop = math.max(1, win ~/ 3);
+  final List<double> env = <double>[];
+  final List<int> pos = <int>[];
+  for (int s = 0; s + win <= x.length; s += hop) {
+    env.add(_goertzelMag(x, s, win, faHz, rate));
+    pos.add(s);
+  }
+  if (env.isEmpty) {
+    stderr.writeln('amptestanalyze: recording too short.');
+    return 2;
+  }
+  double envMax = 0;
+  for (final double e in env) {
+    if (e > envMax) envMax = e;
+  }
+  final double onThr = envMax * 0.5;
+  // The lead is ~1 s of continuous reference tone; take the start of the first
+  // sustained run above threshold (>= 0.6 s) as the timing anchor.
+  final int runNeeded = math.max(1, (0.6 * rate / hop).round());
+  int leadStart = -1;
+  int run = 0;
+  for (int k = 0; k < env.length; k++) {
+    if (env[k] >= onThr) {
+      run++;
+      if (run >= runNeeded) {
+        leadStart = pos[k - run + 1];
+        break;
+      }
+    } else {
+      run = 0;
+    }
+  }
+  if (leadStart < 0) {
+    for (int k = 0; k < env.length; k++) {
+      if (env[k] >= onThr) {
+        leadStart = pos[k];
+        break;
+      }
+    }
+  }
+  if (leadStart < 0) leadStart = 0;
+
+  final int leadSamples = rate; // 1 s lead cue (matches the generator)
+  final int leadGap = (rate * 0.3).round();
+  final int toneSamples = (rate * toneMs / 1000).round();
+  final int gapSamples = (rate * gapMs / 1000).round();
+  final int stepDur = toneSamples + gapSamples;
+  final int firstStep = leadStart + leadSamples + leadGap;
+
+  final double faImd = 2 * faHz - fbHz; // lower IMD3 product
+  final double fbImd = 2 * fbHz - faHz; // upper IMD3 product
+  final bool faImdOk = faImd > 0 && faImd < rate / 2;
+  final bool fbImdOk = fbImd > 0 && fbImd < rate / 2;
+
+  double db(double m) => m <= 0 ? -120.0 : 20 * math.log(m) / math.ln10;
+  double dbfs(double m) =>
+      m <= 0 ? -120.0 : 20 * math.log(m / 32768.0) / math.ln10;
+
+  int clipped = 0;
+  for (final int s in x) {
+    if (s >= 32760 || s <= -32760) clipped++;
+  }
+
+  print('Analyzed $inputFile');
+  print('  Format   : $rate Hz, ${params.bitsPerSample}-bit, '
+      '${params.numChannels} ch, ${(x.length / rate).toStringAsFixed(1)} s');
+  print('  Ref tone : ${faHz.toStringAsFixed(0)} Hz (fixed input '
+      '${refDbfs.toStringAsFixed(0)} dBFS)');
+  print('  Probe    : ${fbHz.toStringAsFixed(0)} Hz (stepped input)');
+  print('  IMD3     : ${faImd.toStringAsFixed(0)} Hz '
+      '${faImdOk ? "" : "(out of band)"} and ${fbImd.toStringAsFixed(0)} Hz '
+      '${fbImdOk ? "" : "(out of band)"}');
+  if (clipped > 0) {
+    print('  WARNING  : $clipped samples near full scale - recording clipped; '
+        'lower the level and re-record for accurate numbers.');
+  }
+  print('  Anchor   : lead tone at ${(leadStart / rate).toStringAsFixed(2)} s; '
+      '$numSteps steps on a ${(stepDur / rate * 1000).toStringAsFixed(0)} ms '
+      'grid');
+  print('');
+  print('  In(dB)   Out(dB)   RefOut   ProbeOut   IMD(dB)   Response');
+
+  final List<double> inRatios = <double>[];
+  final List<double> outRatios = <double>[];
+  double worstImd = -120;
+  for (int k = 0; k < numSteps; k++) {
+    final int st = firstStep + k * stepDur;
+    final int mstart = st + (toneSamples * 0.2).round();
+    final int mlen = (toneSamples * 0.6).round();
+    if (mstart + mlen > x.length) break; // recording ended early
+    final double magA = _goertzelMag(x, mstart, mlen, faHz, rate);
+    final double magB = _goertzelMag(x, mstart, mlen, fbHz, rate);
+    double magImd = 0;
+    if (faImdOk) {
+      final double m = _goertzelMag(x, mstart, mlen, faImd, rate);
+      if (m > magImd) magImd = m;
+    }
+    if (fbImdOk) {
+      final double m = _goertzelMag(x, mstart, mlen, fbImd, rate);
+      if (m > magImd) magImd = m;
+    }
+    final double inRatio = levels[k] - refDbfs;
+    final double outRatio = db(magB) - db(magA);
+    final double fund = math.max(magA, magB);
+    final double imdDb =
+        fund <= 0 ? -120 : 20 * math.log(magImd / fund) / math.ln10;
+    if (imdDb > worstImd) worstImd = imdDb;
+
+    if (inRatio >= -20) {
+      inRatios.add(inRatio);
+      outRatios.add(outRatio);
+    }
+
+    const int barW = 30;
+    final int bars = ((outRatio + 30) / 45 * barW).round().clamp(0, barW);
+    print('  ${inRatio.toStringAsFixed(0).padLeft(5)}   '
+        '${outRatio.toStringAsFixed(1).padLeft(6)}   '
+        '${dbfs(magA).toStringAsFixed(0).padLeft(5)}    '
+        '${dbfs(magB).toStringAsFixed(0).padLeft(5)}     '
+        '${imdDb.toStringAsFixed(0).padLeft(5)}    ${'#' * bars}');
+  }
+
+  double slope = double.nan;
+  if (inRatios.length >= 2) {
+    double sx = 0, sy = 0, sxx = 0, sxy = 0;
+    final int n = inRatios.length;
+    for (int i = 0; i < n; i++) {
+      sx += inRatios[i];
+      sy += outRatios[i];
+      sxx += inRatios[i] * inRatios[i];
+      sxy += inRatios[i] * outRatios[i];
+    }
+    final double denom = n * sxx - sx * sx;
+    if (denom.abs() > 1e-9) slope = (n * sxy - sx * sy) / denom;
+  }
+
+  print('');
+  print('  Amplitude-tracking slope: '
+      '${slope.isNaN ? "n/a" : slope.toStringAsFixed(2)} '
+      '(1.00 = linear; deviation either way = amplitude distortion)');
+  print('  Worst IMD3              : ${worstImd.toStringAsFixed(0)} dB '
+      'relative to the tones (more negative = cleaner)');
+  print('');
+  if (!slope.isNaN) {
+    final double linErr = (slope - 1.0).abs();
+    if (worstImd < -25 && linErr < 0.15) {
+      print('  Verdict: amplitude path is fairly LINEAR (low IMD, ratio '
+          'tracks). Higher-order QAM (up to ~16-QAM) is plausible; still '
+          'prefer low-PAPR (SC-FDMA).');
+    } else if (worstImd < -15 && linErr < 0.40) {
+      print('  Verdict: PARTIALLY distorted. Stick to QPSK/8PSK and keep PAPR '
+          'low; 16-QAM amplitude levels are risky.');
+    } else {
+      print('  Verdict: HEAVILY distorted (strong IMD and/or the amplitude '
+          'ratio is not preserved - hard limiter / companding). Amplitude '
+          'carries little reliable information -> use a CONSTANT-ENVELOPE '
+          'waveform (CPM / GMSK / FSK).');
+    }
+  }
+  return 0;
+}
+
 void _printUsage() {
   stderr.writeln('''
 HTCommander software modem test tool (gen_packets / atest equivalent)
@@ -1663,6 +1988,16 @@ Usage:
       Prints level vs frequency (dB) and the estimated -3 dB / -6 dB bandwidth.
       Use the SAME --f0/--f1/--fstep you generated the sweep with.
 
+  Generate a two-tone amplitude-linearity test (is high-order QAM viable?):
+    dart run test/soft_modem_tool.dart amptest [-r <rate>] [--fa <hz>] [--fb <hz>] [--ref <dBFS>] [--amin <dBFS>] [--amax <dBFS>] [--astep <dB>] [--tone <ms>] [--gap <ms>] [-o <out.wav>]
+      Fixed reference tone fa + probe tone fb stepped in amplitude. The output
+      probe/reference ratio cancels the radio's AGC, so it measures the true
+      amplitude nonlinearity + intermodulation of the audio path.
+
+  Analyze an amplitude-linearity recording (linear -> QAM ok; flat -> use CPM):
+    dart run test/soft_modem_tool.dart amptestanalyze [--fa <hz>] [--fb <hz>] [--ref <dBFS>] [--amin <dBFS>] [--amax <dBFS>] [--astep <dB>] <recording.wav>
+      Use the SAME --fa/--fb/--ref/--amin/--amax/--astep you generated with.
+
 Options:
   -B <baud>   Modem baud/mode: 300, 1200, 2400, 4800, 9600  (default 1200)
   -o <file>   Output WAV file (encode only)
@@ -1689,8 +2024,14 @@ Options:
   --f0 <hz>       sweep/sweepanalyze: first tone frequency (default 100)
   --f1 <hz>       sweep/sweepanalyze: last tone frequency (default 6000)
   --fstep <hz>    sweep/sweepanalyze: spacing between tones (default 100)
-  --tone <ms>     sweep: duration of each tone (default 250)
-  --gap <ms>      sweep: silence between tones (default 100)
+  --tone <ms>     sweep/amptest: duration of each tone/step (default 250)
+  --gap <ms>      sweep/amptest: silence between tones/steps (default 100)
+  --fa <hz>       amptest: fixed reference tone frequency (default 1200)
+  --fb <hz>       amptest: stepped probe tone frequency (default 1800)
+  --ref <dBFS>    amptest: reference tone level (default -20)
+  --amin <dBFS>   amptest: first probe amplitude (default -40)
+  --amax <dBFS>   amptest: last probe amplitude (default -3)
+  --astep <dB>    amptest: probe amplitude step (default 2)
 
 The sbc command defaults match the radio's 32 kHz mono link. Generate the
 clean WAV at 32 kHz so the round-trip matches on-air audio, e.g.:
@@ -1728,6 +2069,8 @@ void main(List<String> args) {
       command != 'loopback' &&
       command != 'sweep' &&
       command != 'sweepanalyze' &&
+      command != 'amptest' &&
+      command != 'amptestanalyze' &&
       command != 'fecdiag') {
     stderr.writeln('Unknown command: ${args[0]}');
     _printUsage();
@@ -1761,6 +2104,12 @@ void main(List<String> args) {
   double sweepStep = 100;
   int sweepToneMs = 250;
   int sweepGapMs = 100;
+  double ampFa = 1200;
+  double ampFb = 1800;
+  double ampRef = -20;
+  double ampMin = -40;
+  double ampMax = -3;
+  double ampStep = 2;
   String? outputFile;
   final List<String> positional = <String>[];
 
@@ -1851,6 +2200,24 @@ void main(List<String> args) {
         break;
       case '--gap':
         sweepGapMs = _parseIntOr(_next(args, ++i), sweepGapMs);
+        break;
+      case '--fa':
+        ampFa = _parseDoubleOr(_next(args, ++i), ampFa);
+        break;
+      case '--fb':
+        ampFb = _parseDoubleOr(_next(args, ++i), ampFb);
+        break;
+      case '--ref':
+        ampRef = _parseDoubleOr(_next(args, ++i), ampRef);
+        break;
+      case '--amin':
+        ampMin = _parseDoubleOr(_next(args, ++i), ampMin);
+        break;
+      case '--amax':
+        ampMax = _parseDoubleOr(_next(args, ++i), ampMax);
+        break;
+      case '--astep':
+        ampStep = _parseDoubleOr(_next(args, ++i), ampStep);
         break;
       case '--pskprof':
         _pskProfileOverride = _next(args, ++i);
@@ -1987,6 +2354,37 @@ void main(List<String> args) {
       f0: sweepF0,
       f1: sweepF1,
       fStep: sweepStep,
+    ));
+  } else if (command == 'amptest') {
+    outputFile ??= 'amptest.wav';
+    exit(_runAmpTestGen(
+      sampleRate: sampleRateSet ? sampleRate : 32000,
+      faHz: ampFa,
+      fbHz: ampFb,
+      refDbfs: ampRef,
+      aMinDbfs: ampMin,
+      aMaxDbfs: ampMax,
+      aStepDb: ampStep,
+      toneMs: sweepToneMs,
+      gapMs: sweepGapMs,
+      outputFile: outputFile,
+    ));
+  } else if (command == 'amptestanalyze') {
+    if (positional.isEmpty) {
+      stderr.writeln('amptestanalyze: missing input recording WAV file');
+      _printUsage();
+      exit(2);
+    }
+    exit(_runAmpTestAnalyze(
+      inputFile: positional.first,
+      faHz: ampFa,
+      fbHz: ampFb,
+      refDbfs: ampRef,
+      aMinDbfs: ampMin,
+      aMaxDbfs: ampMax,
+      aStepDb: ampStep,
+      toneMs: sweepToneMs,
+      gapMs: sweepGapMs,
     ));
   } else {
     if (positional.isEmpty) {

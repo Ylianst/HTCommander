@@ -1057,11 +1057,11 @@ class Radio {
         t,
         fragmentChannelName,
       );
-    } else if (_activeSoftwareModemMode().isNotEmpty) {
-      // The audio channel is enabled and a software modem mode is selected, so
-      // encode the frame with the software modem and send it as PCM audio
-      // rather than handing it to the radio's built-in hardware TNC.
-      _transmitSoftwareModem(fragment, _activeSoftwareModemMode());
+    } else if (_activeSoftwareModemModeFor(fragment).isNotEmpty) {
+      // The audio channel is enabled and a software modem mode applies to this
+      // frame's channel, so encode the frame with the software modem and send
+      // it as PCM audio rather than handing it to the radio's hardware TNC.
+      _transmitSoftwareModem(fragment, _activeSoftwareModemModeFor(fragment));
     } else if (hardwareModemEnabled) {
       _transmitHardwareModem(
         fragment,
@@ -1076,17 +1076,53 @@ class Radio {
     return outboundData.length;
   }
 
-  /// Returns the active software modem mode string (e.g. 'AFSK1200',
-  /// 'PSK2400') when the audio channel is enabled for this radio and a
-  /// software modem mode other than 'None' is selected; otherwise ''.
-  String _activeSoftwareModemMode() {
+  /// Returns the software modem mode string to use for transmitting [fragment]
+  /// ('AFSK1200' / 'PSK2400'), or '' to use the radio's hardware TNC. Frames
+  /// targeting the APRS channel are governed by the independent APRS modem
+  /// setting (off or AFSK 1200); all other frames by the general software modem
+  /// setting. The audio channel must be enabled either way.
+  ///
+  /// The software modem transmits its PCM audio on VFO A only, so it can only be
+  /// used for APRS when VFO A is itself the APRS channel. If APRS is on VFO B
+  /// (or elsewhere), transmitting via the software modem would send the data on
+  /// the wrong frequency, so we fall back to the hardware TNC, which targets the
+  /// correct channel.
+  String _activeSoftwareModemModeFor(TncDataFragment fragment) {
     final bool audioOn =
         _broker.getValue<bool>(deviceId, 'AudioState', false) ?? false;
     if (!audioOn) return '';
+
+    final int aprsId = _aprsChannelId();
+    final bool isAprs = fragment.channelName == 'APRS' ||
+        (aprsId >= 0 && fragment.channelId == aprsId);
+    if (isAprs) {
+      final String aprsMode =
+          _broker.getValue<String>(0, 'AprsSoftwareModemMode', 'None') ?? 'None';
+      if (aprsMode.isEmpty || aprsMode.toLowerCase() == 'none') return '';
+      // Only use the software AFSK 1200 modem when VFO A is the APRS channel,
+      // otherwise the audio would be transmitted on the wrong frequency. Fall
+      // back to the hardware TNC in that case.
+      final bool vfoAIsAprs =
+          aprsId >= 0 && settings != null && settings!.channelA == aprsId;
+      if (!vfoAIsAprs) return '';
+      // The APRS modem only supports AFSK 1200.
+      return 'AFSK1200';
+    }
+
     final String mode =
         _broker.getValue<String>(0, 'SoftwareModemMode', 'None') ?? 'None';
     if (mode.isEmpty || mode.toLowerCase() == 'none') return '';
     return mode;
+  }
+
+  /// The channel id of this radio's channel named 'APRS', or -1.
+  int _aprsChannelId() {
+    final list = channels;
+    if (list == null) return -1;
+    for (final ch in list) {
+      if (ch != null && ch.name == 'APRS') return ch.channelId;
+    }
+    return -1;
   }
 
   FragmentEncodingType _softwareEncodingFor(String mode) {

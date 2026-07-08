@@ -453,6 +453,8 @@ class _MainFormState extends State<MainForm>
       false; // GPS enabled state of the currently displayed radio
   String _softwareModemMode = 'none'; // Current software modem mode
   bool _softwareModemFec = true; // FX.25 FEC on transmit (software modem)
+  String _aprsModemMode = 'none'; // APRS modem mode ('none' or 'afsk1200')
+  bool _aprsModemFec = true; // FX.25 FEC on transmit (APRS modem)
   int _regionCount =
       0; // Number of regions offered by the currently displayed radio
   int _currRegion = 0; // Current region index of the currently displayed radio
@@ -658,6 +660,20 @@ class _MainFormState extends State<MainForm>
     // Load initial value
     _softwareModemFec = _broker.getValue<bool>(0, 'SoftwareModemFec', true) ?? true;
 
+    // Subscribe to the independent APRS modem mode / FEC changes
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'AprsSoftwareModemMode',
+      callback: _onAprsModemModeChanged,
+    );
+    _aprsModemMode = (_broker.getValue<String>(0, 'AprsSoftwareModemMode', 'none') ?? 'none').toLowerCase();
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'AprsSoftwareModemFec',
+      callback: _onAprsModemFecChanged,
+    );
+    _aprsModemFec = _broker.getValue<bool>(0, 'AprsSoftwareModemFec', true) ?? true;
+
     // Initialize tabs with saved index
     _currentTabs = _getVisibleTabs();
     final savedTabName =
@@ -850,6 +866,24 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  /// Handle APRS modem mode changes from the DataBroker.
+  void _onAprsModemModeChanged(int deviceId, String name, Object? data) {
+    if (data is String) {
+      setState(() {
+        _aprsModemMode = data.toLowerCase();
+      });
+    }
+  }
+
+  /// Handle APRS modem FX.25 FEC changes from the DataBroker.
+  void _onAprsModemFecChanged(int deviceId, String name, Object? data) {
+    if (data is bool) {
+      setState(() {
+        _aprsModemFec = data;
+      });
+    }
+  }
+
   /// Handle GpsEnabled changes from any radio device (GPS enabled/disabled).
   void _onGpsEnabledChanged(int deviceId, String name, Object? data) {
     // Only update if this is for the currently displayed radio
@@ -956,6 +990,28 @@ class _MainFormState extends State<MainForm>
       deviceId: 0,
       name: 'SetSoftwareModemFec',
       data: !_softwareModemFec,
+      store: false,
+    );
+  }
+
+  /// Set the independent APRS modem mode ('None' or 'AFSK1200') via the
+  /// DataBroker.
+  void _setAprsModemMode(String mode) {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SetAprsSoftwareModemMode',
+      data: mode,
+      store: false,
+    );
+  }
+
+  /// Toggle FX.25 FEC on the APRS modem via the DataBroker (independent of the
+  /// general software modem's FEC setting).
+  void _toggleAprsModemFec() {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SetAprsSoftwareModemFec',
+      data: !_aprsModemFec,
       store: false,
     );
   }
@@ -1522,6 +1578,27 @@ class _MainFormState extends State<MainForm>
                   label: 'FX.25 FEC',
                   onPressed: _toggleSoftwareModemFec,
                   checked: _softwareModemFec,
+                ),
+              ],
+            ),
+            AppSubmenu(
+              label: 'APRS Modem',
+              children: [
+                AppMenuAction(
+                  label: 'Disabled',
+                  onPressed: () => _setAprsModemMode('None'),
+                  checked: _aprsModemMode == 'none',
+                ),
+                AppMenuAction(
+                  label: 'AFSK 1200',
+                  onPressed: () => _setAprsModemMode('AFSK1200'),
+                  checked: _aprsModemMode == 'afsk1200',
+                ),
+                const AppMenuDivider(),
+                AppMenuAction(
+                  label: 'FX.25 FEC',
+                  onPressed: _toggleAprsModemFec,
+                  checked: _aprsModemFec,
                 ),
               ],
             ),
