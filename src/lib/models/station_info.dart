@@ -42,7 +42,7 @@ class StationInfo {
   /// Modem to use for Terminal / Winlink sessions with this contact.
   ///
   /// `'Hardware'` (the default) uses the radio's built-in AFSK 1200 TNC. The
-  /// other values (`'AFSK1200'`, `'PSK2400'`, `'PSK4800'`, `'G3RUH9600'`) select
+  /// other values (`'AFSK1200'`, `'PSK2400'`) select
   /// one of the software modem modes, which is only available on platforms that
   /// support the audio channel (not web or iOS).
   String modem;
@@ -187,10 +187,6 @@ class StationInfo {
         return 'AFSK1200';
       case 'PSK2400':
         return 'PSK2400';
-      case 'PSK4800':
-        return 'PSK4800';
-      case 'G3RUH9600':
-        return 'G3RUH9600';
       default:
         return 'Hardware';
     }

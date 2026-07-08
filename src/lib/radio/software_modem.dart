@@ -4,8 +4,8 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
 Dart port of the C# SoftwareModem. This Data Broker handler processes PCM audio
-from radios and decodes/encodes TNC frames using AFSK 1200, PSK 2400/4800 and
-G3RUH 9600 modulation via the hamlib software modem library.
+from radios and decodes/encodes TNC frames using AFSK 1200 and PSK 2400
+modulation via the hamlib software modem library.
 */
 
 // ignore_for_file: avoid_print
@@ -19,7 +19,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../hamlib/audio_buffer.dart';
 import '../hamlib/audio_config.dart';
-import '../hamlib/demod_9600.dart';
 import '../hamlib/demod_afsk.dart';
 import '../hamlib/demod_psk.dart';
 import '../hamlib/fx25.dart';
@@ -40,8 +39,6 @@ enum SoftwareModemMode {
   none,
   afsk1200,
   psk2400,
-  psk4800,
-  g3ruh9600,
 }
 
 /// Holds a frame waiting to be transmitted once the channel is clear. The
@@ -68,19 +65,9 @@ class _RadioModemState {
   DemodAfsk? afskDemodulator;
   DemodulatorState? afskDemodState;
 
-  // PSK modem state (for 2400 and 4800)
+  // PSK modem state (for 2400)
   DemodPsk? pskDemodulator;
   PskDemodulatorState? pskDemodState;
-
-  // G3RUH 9600 modem state
-  Demod9600State? state9600;
-  DemodulatorState? demod9600State;
-
-  // Internal polyphase upsample factor (1-4) for the 9600 demodulator. The
-  // radio delivers 32 kHz audio over the SBC/Bluetooth link, which is only
-  // ~3.3 samples per 9600-baud symbol; the demodulator interpolates internally
-  // (reusing its low-pass FIR) to recover the symbols. See _g3ruhUpsampleFor.
-  int upsample9600 = 1;
 
   // Common modem components
   AudioConfig? audioConfig;
@@ -128,8 +115,6 @@ class _RadioModemState {
     afskDemodState = null;
     pskDemodulator = null;
     pskDemodState = null;
-    state9600 = null;
-    demod9600State = null;
     audioConfig = null;
     hdlcReceiver = null;
     fx25Receiver = null;
@@ -141,19 +126,6 @@ class _RadioModemState {
 
     initialized = false;
   }
-}
-
-/// Choose the G3RUH 9600 demodulator's internal polyphase upsample factor (1-4)
-/// from the audio-samples-per-symbol ratio, matching Direwolf's demod.c logic.
-/// The radio's SBC link is 32 kHz, so 32000/9600 = 3.33 -> factor 4. The
-/// demodulator interpolates internally using the low-pass FIR it already needs,
-/// which is more efficient and higher quality than resampling the audio first.
-int _g3ruhUpsampleFor(int sampleRate, int baud) {
-  final double ratio = sampleRate / baud;
-  if (ratio < 4) return 4;
-  if (ratio < 10) return 3;
-  if (ratio < 15) return 2;
-  return 1;
 }
 
 /// Bridge that feeds bits to both HDLC and FX.25 receivers.
@@ -312,10 +284,6 @@ class SoftwareModem {
         return SoftwareModemMode.afsk1200;
       case 'PSK2400':
         return SoftwareModemMode.psk2400;
-      case 'PSK4800':
-        return SoftwareModemMode.psk4800;
-      case 'G3RUH9600':
-        return SoftwareModemMode.g3ruh9600;
       default:
         return SoftwareModemMode.none;
     }
@@ -327,10 +295,6 @@ class SoftwareModem {
         return FragmentEncodingType.softwareAfsk1200;
       case SoftwareModemMode.psk2400:
         return FragmentEncodingType.softwarePsk2400;
-      case SoftwareModemMode.psk4800:
-        return FragmentEncodingType.softwarePsk4800;
-      case SoftwareModemMode.g3ruh9600:
-        return FragmentEncodingType.softwareG3ruh9600;
       default:
         return FragmentEncodingType.unknown;
     }
@@ -391,7 +355,7 @@ class SoftwareModem {
     _debug('Software modem FX.25 FEC ${_fecEnabled ? "enabled" : "disabled"}');
   }
   /// [data] is the contact's modem value: 'Hardware' (radio TNC -> software
-  /// modem off), 'AFSK1200', 'PSK2400', 'PSK4800' or 'G3RUH9600'.
+  /// modem off), 'AFSK1200' or 'PSK2400'.
   void _onSetSessionModem(int deviceId, String name, Object? data) {
     if (_disposed) return;
 
@@ -501,7 +465,6 @@ class SoftwareModem {
         break;
 
       case SoftwareModemMode.psk2400:
-      case SoftwareModemMode.psk4800:
         if (state.pskDemodulator == null || state.pskDemodState == null) return;
         for (int i = offset; i < offset + length - 1; i += 2) {
           final int sample = (data[i] | (data[i + 1] << 8)).toSigned(16);
@@ -510,27 +473,6 @@ class SoftwareModem {
             subchan,
             sample,
             state.pskDemodState!,
-          );
-        }
-        break;
-
-      case SoftwareModemMode.g3ruh9600:
-        if (state.state9600 == null ||
-            state.bridge == null ||
-            state.demod9600State == null) {
-          return;
-        }
-        // The demodulator upsamples internally (state.upsample9600), so feed
-        // the 32 kHz link samples straight through.
-        for (int i = offset; i < offset + length - 1; i += 2) {
-          final int sample = (data[i] | (data[i + 1] << 8)).toSigned(16);
-          Demod9600.processSample(
-            chan,
-            sample,
-            state.upsample9600,
-            state.demod9600State!,
-            state.state9600!,
-            state.bridge!,
           );
         }
         break;
@@ -603,12 +545,6 @@ class SoftwareModem {
         break;
       case SoftwareModemMode.psk2400:
         _initializePsk2400(state);
-        break;
-      case SoftwareModemMode.psk4800:
-        _initializePsk4800(state);
-        break;
-      case SoftwareModemMode.g3ruh9600:
-        _initializeG3ruh9600(state);
         break;
       case SoftwareModemMode.none:
         break;
@@ -686,85 +622,6 @@ class SoftwareModem {
       2400,
       'B',
       state.pskDemodState!,
-    );
-
-    // Initialize transmitter
-    _initializeTransmitter(state);
-  }
-
-  void _initializePsk4800(_RadioModemState state) {
-    state.audioConfig!.channels[0].modemType = ModemType.psk8;
-    // Bits-per-second for PSK; GenTone derives the 1600 symbol/s rate
-    // internally (baud / 3). Must match the 4800 bps passed to the demodulator.
-    state.audioConfig!.channels[0].baud = 4800;
-    state.audioConfig!.channels[0].v26Alt = V26Alternative.b;
-    state.audioConfig!.channels[0].txdelay = 30;
-    state.audioConfig!.channels[0].txtail = 10;
-
-    // Create HDLC receiver
-    state.hdlcReceiver = HdlcRec2();
-    state.hdlcReceiver!.addFrameReceived(_onFrameReceived);
-    state.hdlcReceiver!.init(state.audioConfig!);
-
-    // Create FX.25 receiver
-    final fx25MultiModem = _Fx25MultiModemWrapper(state, this);
-    state.fx25Receiver = Fx25Rec(fx25MultiModem);
-
-    // Create bridge
-    state.bridge = _HdlcFx25Bridge(state.hdlcReceiver!, state.fx25Receiver!);
-
-    // Create PSK demodulator
-    state.pskDemodulator = DemodPsk(state.bridge!);
-    state.pskDemodState = PskDemodulatorState();
-    state.pskDemodulator!.init(
-      ModemType.psk8,
-      V26Alternative.b,
-      32000,
-      4800,
-      'B',
-      state.pskDemodState!,
-    );
-
-    // Initialize transmitter
-    _initializeTransmitter(state);
-  }
-
-  void _initializeG3ruh9600(_RadioModemState state) {
-    // G3RUH requires the transmit side to scramble the bit stream; the
-    // demodulator always descrambles. ModemType.baseband would send
-    // un-scrambled data that the receiver cannot decode.
-    state.audioConfig!.channels[0].modemType = ModemType.scramble;
-    state.audioConfig!.channels[0].baud = 9600;
-    state.audioConfig!.channels[0].txdelay = 30;
-    state.audioConfig!.channels[0].txtail = 10;
-
-    // Create HDLC receiver
-    state.hdlcReceiver = HdlcRec2();
-    state.hdlcReceiver!.addFrameReceived(_onFrameReceived);
-    state.hdlcReceiver!.init(state.audioConfig!);
-
-    // Create FX.25 receiver
-    final fx25MultiModem = _Fx25MultiModemWrapper(state, this);
-    state.fx25Receiver = Fx25Rec(fx25MultiModem);
-
-    // Create bridge
-    state.bridge = _HdlcFx25Bridge(state.hdlcReceiver!, state.fx25Receiver!);
-
-    // Create 9600 baud demodulator. The radio delivers 32 kHz audio over the
-    // SBC/Bluetooth link, which is only ~3.3 samples per 9600-baud symbol - too
-    // coarse to demodulate directly. Rather than resampling the audio first,
-    // the demodulator upsamples internally with polyphase filters (Direwolf's
-    // approach), reusing the low-pass FIR it already needs. This is more
-    // efficient (no separate resampling buffer) and higher quality.
-    state.upsample9600 = _g3ruhUpsampleFor(32000, 9600);
-    state.demod9600State = DemodulatorState();
-    state.state9600 = Demod9600State();
-    Demod9600.init(
-      32000,
-      state.upsample9600,
-      9600,
-      state.demod9600State!,
-      state.state9600!,
     );
 
     // Initialize transmitter
@@ -1175,7 +1032,6 @@ class SoftwareModem {
     buffer.clearAll();
 
     final int sampleRate = state.audioConfig!.devices[0].samplesPerSec;
-    final bool is9600 = _currentMode == SoftwareModemMode.g3ruh9600;
 
     // Half a second of leading silence so the radio's PTT is fully keyed
     // up before any data tones start. This covers the delay between the PCM
@@ -1183,11 +1039,6 @@ class SoftwareModem {
     // transmission (before the first frame of the bundle), not between bundled
     // frames.
     _appendSilenceSamples(buffer, sampleRate ~/ 2);
-
-    // Additional pre-silence for G3RUH 9600 to let the modem settle.
-    if (is9600) {
-      _appendSilenceSamples(buffer, sampleRate ~/ 2);
-    }
 
     // Single preamble for the whole transmission.
     final int txdelayFlags = state.audioConfig!.channels[chan].txdelay;
@@ -1245,11 +1096,6 @@ class SoftwareModem {
     // 1/10th of a second of trailing silence so the final data tones are fully
     // sent before PTT is released.
     _appendSilenceSamples(buffer, sampleRate ~/ 10);
-
-    // Post-silence for G3RUH 9600.
-    if (is9600) {
-      _appendSilenceSamples(buffer, sampleRate ~/ 2);
-    }
 
     final samples = buffer.getAndClear(0);
     if (samples.isEmpty) return null;

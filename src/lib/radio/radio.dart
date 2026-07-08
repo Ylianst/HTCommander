@@ -1077,7 +1077,7 @@ class Radio {
   }
 
   /// Returns the active software modem mode string (e.g. 'AFSK1200',
-  /// 'G3RUH9600') when the audio channel is enabled for this radio and a
+  /// 'PSK2400') when the audio channel is enabled for this radio and a
   /// software modem mode other than 'None' is selected; otherwise ''.
   String _activeSoftwareModemMode() {
     final bool audioOn =
@@ -1095,10 +1095,6 @@ class Radio {
         return FragmentEncodingType.softwareAfsk1200;
       case 'PSK2400':
         return FragmentEncodingType.softwarePsk2400;
-      case 'PSK4800':
-        return FragmentEncodingType.softwarePsk4800;
-      case 'G3RUH9600':
-        return FragmentEncodingType.softwareG3ruh9600;
       default:
         return FragmentEncodingType.unknown;
     }

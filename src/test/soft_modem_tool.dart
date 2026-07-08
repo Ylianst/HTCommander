@@ -1387,6 +1387,244 @@ int _runSbcTest({
 // Argument parsing / main
 // ---------------------------------------------------------------------------
 
+/// Goertzel single-frequency magnitude estimate (amplitude, in sample units)
+/// over `x[start .. start+len)` for tone `freq` at sample rate `rate`.
+double _goertzelMag(Int16List x, int start, int len, double freq, int rate) {
+  final double w = 2 * math.pi * freq / rate;
+  final double cw = math.cos(w);
+  final double sw = math.sin(w);
+  final double coeff = 2 * cw;
+  double s1 = 0;
+  double s2 = 0;
+  for (int i = 0; i < len; i++) {
+    final double s0 = x[start + i] + coeff * s1 - s2;
+    s2 = s1;
+    s1 = s0;
+  }
+  final double real = s1 - s2 * cw;
+  final double imag = s2 * sw;
+  // Scale to an amplitude estimate (peak) of a pure tone in the window.
+  return math.sqrt(real * real + imag * imag) * 2.0 / len;
+}
+
+/// Build the list of test frequencies for the sweep, f0..f1 inclusive.
+List<double> _sweepFreqs(double f0, double f1, double fStep) {
+  final List<double> freqs = <double>[];
+  for (double f = f0; f <= f1 + 1e-6; f += fStep) {
+    freqs.add(f);
+  }
+  return freqs;
+}
+
+/// Generate a stepped-tone audio-passband test file (32 kHz / 16-bit / mono by
+/// default). Play it through one radio and record it on another; then run
+/// `sweepanalyze` on the recording to see the true audio bandwidth of the link.
+///
+/// Only one tone is present at a time, so the analyzer can recover each tone's
+/// level from the recording with a sliding Goertzel peak - this survives the
+/// radio's AGC/limiter and any timing offset in the recording (no alignment
+/// needed). Frequencies that fall outside the radio's audio passband arrive
+/// heavily attenuated, which is exactly the roll-off we want to measure.
+int _runSweepGen({
+  required int sampleRate,
+  required int amplitude,
+  required double f0,
+  required double f1,
+  required double fStep,
+  required int toneMs,
+  required int gapMs,
+  required String outputFile,
+}) {
+  if (f1 < f0 || fStep <= 0 || toneMs <= 0) {
+    stderr.writeln('sweep: invalid frequency plan '
+        '(f0=$f0 f1=$f1 step=$fStep tone=${toneMs}ms)');
+    return 2;
+  }
+  if (f1 >= sampleRate / 2) {
+    stderr.writeln('sweep: f1 ($f1 Hz) must be below Nyquist '
+        '(${sampleRate ~/ 2} Hz for $sampleRate Hz)');
+    return 2;
+  }
+
+  final double amp = (amplitude.clamp(0, 100) / 100.0) * 32767.0;
+  final int toneSamples = (sampleRate * toneMs / 1000).round();
+  final int gapSamples = (sampleRate * gapMs / 1000).round();
+  final int leadSamples = sampleRate; // 1 s alignment/level cue at 1000 Hz
+  final int leadGap = (sampleRate * 0.3).round();
+  final int fade = math.max(1, (sampleRate * 0.005).round()); // 5 ms ramp
+
+  final List<double> freqs = _sweepFreqs(f0, f1, fStep);
+  final int total =
+      leadSamples + leadGap + freqs.length * (toneSamples + gapSamples);
+  final Int16List out = Int16List(total);
+  int idx = 0;
+
+  // 1 s of 1000 Hz as an audible "recording is running" / level-set cue.
+  for (int i = 0; i < leadSamples; i++) {
+    out[idx++] =
+        (amp * math.sin(2 * math.pi * 1000.0 * i / sampleRate)).round();
+  }
+  idx += leadGap; // silence (Int16List is zero-filled)
+
+  for (final double f in freqs) {
+    for (int i = 0; i < toneSamples; i++) {
+      double env = 1.0;
+      if (i < fade) {
+        env = 0.5 - 0.5 * math.cos(math.pi * i / fade);
+      } else if (i > toneSamples - fade) {
+        env = 0.5 - 0.5 * math.cos(math.pi * (toneSamples - i) / fade);
+      }
+      final int v =
+          (env * amp * math.sin(2 * math.pi * f * i / sampleRate)).round();
+      out[idx++] = v.clamp(-32768, 32767);
+    }
+    idx += gapSamples; // silence between tones for clean segmentation
+  }
+
+  final WavParams p = WavParams()
+    ..sampleRate = sampleRate
+    ..bitsPerSample = 16
+    ..numChannels = 1;
+  WavFile.write(outputFile, out, p);
+
+  final double durSec = total / sampleRate;
+  print('Wrote $outputFile');
+  print('  Format     : $sampleRate Hz, 16-bit, mono');
+  print('  Tones      : ${freqs.length} steps '
+      '${f0.toStringAsFixed(0)}..${f1.toStringAsFixed(0)} Hz '
+      'every ${fStep.toStringAsFixed(0)} Hz');
+  print('  Per tone   : $toneMs ms tone + $gapMs ms gap');
+  print('  Amplitude  : $amplitude% (${amp.round()} of 32767)');
+  print('  Duration   : ${durSec.toStringAsFixed(1)} s '
+      '(1 s 1000 Hz lead cue first)');
+  print('');
+  print('Play this out of radio A and record it on radio B, then run:');
+  print('  dart run test/soft_modem_tool.dart sweepanalyze '
+      '--f0 ${f0.toStringAsFixed(0)} --f1 ${f1.toStringAsFixed(0)} '
+      '--fstep ${fStep.toStringAsFixed(0)} recording.wav');
+  return 0;
+}
+
+/// Analyze a recording of the sweep file and print the measured audio-passband
+/// response (level vs frequency), plus the estimated -3 dB / -6 dB bandwidth.
+/// The recording may be any sample rate / channel count; it need not be aligned.
+int _runSweepAnalyze({
+  required String inputFile,
+  required double f0,
+  required double f1,
+  required double fStep,
+}) {
+  final (Int16List raw, WavParams params) = WavFile.read(inputFile);
+  final int rate = params.sampleRate;
+
+  // Down-select to a single (left) channel if needed.
+  Int16List x;
+  if (params.numChannels > 1) {
+    final int n = raw.length ~/ params.numChannels;
+    x = Int16List(n);
+    for (int i = 0; i < n; i++) {
+      x[i] = raw[i * params.numChannels];
+    }
+  } else {
+    x = raw;
+  }
+  if (x.isEmpty) {
+    stderr.writeln('sweepanalyze: recording is empty');
+    return 2;
+  }
+
+  final List<double> freqs = _sweepFreqs(f0, f1, fStep);
+  // 50 ms window: enough cycles for a clean estimate even at low frequencies,
+  // short enough to sit inside a single tone step.
+  int win = (rate * 0.05).round();
+  if (win > x.length) win = x.length;
+  final int hop = math.max(1, win ~/ 2);
+
+  // For each target tone, scan the whole recording and keep the strongest
+  // window - that window lands in the step where that tone was transmitted.
+  final List<double> mags = List<double>.filled(freqs.length, 0);
+  for (int k = 0; k < freqs.length; k++) {
+    final double f = freqs[k];
+    double best = 0;
+    for (int s = 0; s + win <= x.length; s += hop) {
+      final double m = _goertzelMag(x, s, win, f, rate);
+      if (m > best) best = m;
+    }
+    mags[k] = best;
+  }
+
+  double refMag = 0;
+  int refIdx = 0;
+  for (int k = 0; k < mags.length; k++) {
+    if (mags[k] > refMag) {
+      refMag = mags[k];
+      refIdx = k;
+    }
+  }
+  if (refMag <= 0) {
+    stderr.writeln('sweepanalyze: no tone energy found - '
+        'check the recording, --f0/--f1/--fstep must match the sweep used.');
+    return 2;
+  }
+
+  // Clipping check.
+  int clipped = 0;
+  for (final int s in x) {
+    if (s >= 32760 || s <= -32760) clipped++;
+  }
+
+  double db(double m) => m <= 0 ? -120.0 : 20 * math.log(m / refMag) / math.ln10;
+  double dbfs(double m) =>
+      m <= 0 ? -120.0 : 20 * math.log(m / 32768.0) / math.ln10;
+
+  print('Analyzed $inputFile');
+  print('  Format   : $rate Hz, ${params.bitsPerSample}-bit, '
+      '${params.numChannels} ch, '
+      '${(x.length / rate).toStringAsFixed(1)} s');
+  print('  Peak tone: ${freqs[refIdx].toStringAsFixed(0)} Hz '
+      'at ${dbfs(refMag).toStringAsFixed(1)} dBFS (0 dB reference below)');
+  if (clipped > 0) {
+    print('  WARNING  : $clipped samples near full scale - recording may be '
+        'clipped; lower the record/play level for accurate results.');
+  }
+  print('');
+  print('  Freq(Hz)   Rel(dB)   dBFS   Response');
+
+  const int barW = 40;
+  const double floorDb = -60;
+  for (int k = 0; k < freqs.length; k++) {
+    final double d = db(mags[k]);
+    final int bars =
+        ((d - floorDb) / -floorDb * barW).round().clamp(0, barW);
+    final String bar = '#' * bars;
+    print('  ${freqs[k].toStringAsFixed(0).padLeft(6)}   '
+        '${d.toStringAsFixed(1).padLeft(7)}   '
+        '${dbfs(mags[k]).toStringAsFixed(0).padLeft(4)}   $bar');
+  }
+
+  // Estimate passband edges: lowest/highest tone within -3 dB / -6 dB of peak.
+  double? lo3, hi3, lo6, hi6;
+  for (int k = 0; k < freqs.length; k++) {
+    final double d = db(mags[k]);
+    if (d >= -3) {
+      lo3 ??= freqs[k];
+      hi3 = freqs[k];
+    }
+    if (d >= -6) {
+      lo6 ??= freqs[k];
+      hi6 = freqs[k];
+    }
+  }
+  String band(double? lo, double? hi) => (lo == null || hi == null)
+      ? 'n/a'
+      : '${lo.toStringAsFixed(0)}..${hi.toStringAsFixed(0)} Hz '
+          '(${(hi - lo).toStringAsFixed(0)} Hz wide)';
+  print('');
+  print('  -3 dB passband: ${band(lo3, hi3)}');
+  print('  -6 dB passband: ${band(lo6, hi6)}');
+  return 0;
+}
+
 void _printUsage() {
   stderr.writeln('''
 HTCommander software modem test tool (gen_packets / atest equivalent)
@@ -1414,6 +1652,17 @@ Usage:
       --upsample <rate> resamples the 32 kHz link audio up (e.g. 48000) before
       demodulation, giving the demod more samples per symbol.
 
+  Generate an audio-passband test tone sweep (play thru radio A, record on B):
+    dart run test/soft_modem_tool.dart sweep [-r <rate>] [-g <amp>] [--f0 <hz>] [--f1 <hz>] [--fstep <hz>] [--tone <ms>] [--gap <ms>] [-o <out.wav>]
+      Default: 32000 Hz / 16-bit / mono, 100..6000 Hz in 100 Hz steps, one tone
+      at a time (survives radio AGC and needs no alignment). Defaults match the
+      radio's SBC voice link, so the result shows what that link can pass.
+
+  Analyze a recording of the sweep to measure the radio audio passband:
+    dart run test/soft_modem_tool.dart sweepanalyze [--f0 <hz>] [--f1 <hz>] [--fstep <hz>] <recording.wav>
+      Prints level vs frequency (dB) and the estimated -3 dB / -6 dB bandwidth.
+      Use the SAME --f0/--f1/--fstep you generated the sweep with.
+
 Options:
   -B <baud>   Modem baud/mode: 300, 1200, 2400, 4800, 9600  (default 1200)
   -o <file>   Output WAV file (encode only)
@@ -1437,6 +1686,11 @@ Options:
   --min <n>       loopback: first length to test (default 0)
   --max <n>       loopback: last length to test (default 40)
   --trials <n>    loopback: trials per length (default 5)
+  --f0 <hz>       sweep/sweepanalyze: first tone frequency (default 100)
+  --f1 <hz>       sweep/sweepanalyze: last tone frequency (default 6000)
+  --fstep <hz>    sweep/sweepanalyze: spacing between tones (default 100)
+  --tone <ms>     sweep: duration of each tone (default 250)
+  --gap <ms>      sweep: silence between tones (default 100)
 
 The sbc command defaults match the radio's 32 kHz mono link. Generate the
 clean WAV at 32 kHz so the round-trip matches on-air audio, e.g.:
@@ -1472,6 +1726,8 @@ void main(List<String> args) {
       command != 'sbc' &&
       command != 'sbctest' &&
       command != 'loopback' &&
+      command != 'sweep' &&
+      command != 'sweepanalyze' &&
       command != 'fecdiag') {
     stderr.writeln('Unknown command: ${args[0]}');
     _printUsage();
@@ -1480,6 +1736,7 @@ void main(List<String> args) {
 
   int baud = 1200;
   int sampleRate = 44100;
+  bool sampleRateSet = false;
   int amplitude = 50;
   int fxMode = 0;
   double noiseStddev = 0;
@@ -1499,6 +1756,11 @@ void main(List<String> args) {
   bool loopBss = false;
   bool loopSbc = false;
   bool loopProd = false;
+  double sweepF0 = 100;
+  double sweepF1 = 6000;
+  double sweepStep = 100;
+  int sweepToneMs = 250;
+  int sweepGapMs = 100;
   String? outputFile;
   final List<String> positional = <String>[];
 
@@ -1513,6 +1775,7 @@ void main(List<String> args) {
         break;
       case '-r':
         sampleRate = _parseIntOr(_next(args, ++i), sampleRate);
+        sampleRateSet = true;
         break;
       case '-g':
         amplitude = _parseIntOr(_next(args, ++i), amplitude);
@@ -1573,6 +1836,21 @@ void main(List<String> args) {
         break;
       case '--g3up':
         _g3ruhUpsample = _parseIntOr(_next(args, ++i), _g3ruhUpsample);
+        break;
+      case '--f0':
+        sweepF0 = _parseDoubleOr(_next(args, ++i), sweepF0);
+        break;
+      case '--f1':
+        sweepF1 = _parseDoubleOr(_next(args, ++i), sweepF1);
+        break;
+      case '--fstep':
+        sweepStep = _parseDoubleOr(_next(args, ++i), sweepStep);
+        break;
+      case '--tone':
+        sweepToneMs = _parseIntOr(_next(args, ++i), sweepToneMs);
+        break;
+      case '--gap':
+        sweepGapMs = _parseIntOr(_next(args, ++i), sweepGapMs);
         break;
       case '--pskprof':
         _pskProfileOverride = _next(args, ++i);
@@ -1685,6 +1963,30 @@ void main(List<String> args) {
       seed: seed,
       dataFile: positional.isEmpty ? null : positional.first,
       upsampleRate: upsampleRate,
+    ));
+  } else if (command == 'sweep') {
+    outputFile ??= 'sweep.wav';
+    exit(_runSweepGen(
+      sampleRate: sampleRateSet ? sampleRate : 32000,
+      amplitude: amplitude,
+      f0: sweepF0,
+      f1: sweepF1,
+      fStep: sweepStep,
+      toneMs: sweepToneMs,
+      gapMs: sweepGapMs,
+      outputFile: outputFile,
+    ));
+  } else if (command == 'sweepanalyze') {
+    if (positional.isEmpty) {
+      stderr.writeln('sweepanalyze: missing input recording WAV file');
+      _printUsage();
+      exit(2);
+    }
+    exit(_runSweepAnalyze(
+      inputFile: positional.first,
+      f0: sweepF0,
+      f1: sweepF1,
+      fStep: sweepStep,
     ));
   } else {
     if (positional.isEmpty) {

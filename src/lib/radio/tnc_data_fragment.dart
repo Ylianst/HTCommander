@@ -13,9 +13,7 @@ enum FragmentEncodingType {
   loopback,
   hardwareAfsk1200,
   softwareAfsk1200,
-  softwareG3ruh9600,
   softwarePsk2400,
-  softwarePsk4800,
 }
 
 /// Frame type for TNC data fragments

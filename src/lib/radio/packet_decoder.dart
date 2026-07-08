@@ -227,12 +227,6 @@ class PacketDecoder {
       case FragmentEncodingType.softwarePsk2400:
         encoding = 'Software PSK 2400 baud';
         break;
-      case FragmentEncodingType.softwarePsk4800:
-        encoding = 'Software PSK 4800 baud';
-        break;
-      case FragmentEncodingType.softwareG3ruh9600:
-        encoding = 'Software G3RUH 9600 baud';
-        break;
       case FragmentEncodingType.unknown:
         return '';
     }

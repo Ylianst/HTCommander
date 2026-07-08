@@ -61,8 +61,6 @@ const List<_ModemOption> _modemOptions = [
   _ModemOption('Hardware', 'Hardware AFSK 1200 (radio modem)'),
   _ModemOption('AFSK1200', 'Software AFSK 1200'),
   _ModemOption('PSK2400', 'Software PSK 2400'),
-  _ModemOption('PSK4800', 'Software PSK 4800'),
-  _ModemOption('G3RUH9600', 'Software G3RUH 9600'),
 ];
 
 class _StationDialog extends StatefulWidget {
