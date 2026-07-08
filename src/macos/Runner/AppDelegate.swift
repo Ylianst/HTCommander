@@ -1388,6 +1388,273 @@ class TextToSpeechHandler: NSObject, FlutterPlugin {
     }
 }
 
+// MARK: - PCM Player Handler
+
+/// Streaming 16-bit PCM playback plugin for macOS, backed by CoreAudio's
+/// `AudioQueue`. `flutter_pcm_sound` (used on iOS/Android) always plays on the
+/// operating-system default output device, so this native player is used on
+/// macOS instead to let the user route radio audio to a specific output device
+/// selected in the Audio tab. It mirrors the Windows/Linux native players and
+/// exposes the same channel surface consumed by lib/radio/pcm_player.dart:
+///
+///   method  com.htcommander/pcm_player
+///     setLogLevel / start                        -> null   (no-ops)
+///     setup({sampleRate, channels, deviceId})    -> Bool   (opens the device)
+///     listDevices()                              -> [[id, label]] output devices
+///     setFeedThreshold({threshold})              -> null
+///     feed({buffer})                             -> Bool   (queues PCM bytes)
+///     release()                                  -> null
+///   event   com.htcommander/pcm_player_feed
+///     emits the number of PCM frames still buffered after each buffer drains
+///
+/// A fresh `AudioQueueBuffer` is allocated per `feed` chunk and freed in the
+/// output callback (mirroring the Windows waveOut-per-chunk model), which keeps
+/// the buffering logic simple and correct for the radio's variable-size chunks.
+class PcmPlayerHandler: NSObject, FlutterPlugin, FlutterStreamHandler {
+
+    private var methodChannel: FlutterMethodChannel?
+    private var eventChannel: FlutterEventChannel?
+    private var eventSink: FlutterEventSink?
+
+    private var queue: AudioQueueRef?
+    private var sampleRate: Int = 32000
+    private var channels: Int = 1
+    private var bufferedFrames: Int64 = 0
+    private var feedThreshold: Int = 0
+
+    // Serializes access to queue/bufferedFrames between the platform thread and
+    // the AudioQueue callback thread.
+    private let lock = NSLock()
+
+    static func register(with registrar: FlutterPluginRegistrar) {
+        let instance = PcmPlayerHandler()
+        let mc = FlutterMethodChannel(
+            name: "com.htcommander/pcm_player",
+            binaryMessenger: registrar.messenger)
+        instance.methodChannel = mc
+        registrar.addMethodCallDelegate(instance, channel: mc)
+
+        let ec = FlutterEventChannel(
+            name: "com.htcommander/pcm_player_feed",
+            binaryMessenger: registrar.messenger)
+        instance.eventChannel = ec
+        ec.setStreamHandler(instance)
+    }
+
+    // MARK: FlutterStreamHandler
+
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        eventSink = events
+        return nil
+    }
+
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        eventSink = nil
+        return nil
+    }
+
+    // MARK: Method dispatch
+
+    func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        let args = call.arguments as? [String: Any]
+        switch call.method {
+        case "setLogLevel", "start":
+            // Playback starts as soon as the queue is created in setup; nothing
+            // to do here.
+            result(nil)
+        case "setup":
+            let rate = (args?["sampleRate"] as? Int) ?? 32000
+            let chans = (args?["channels"] as? Int) ?? 1
+            let deviceId = (args?["deviceId"] as? String) ?? ""
+            result(setup(rate: rate, channels: chans, deviceId: deviceId))
+        case "listDevices":
+            result(listDevices())
+        case "setFeedThreshold":
+            feedThreshold = (args?["threshold"] as? Int) ?? 0
+            result(nil)
+        case "feed":
+            if let data = (args?["buffer"] as? FlutterStandardTypedData)?.data {
+                result(feed(data))
+            } else {
+                result(false)
+            }
+        case "release":
+            release()
+            result(nil)
+        default:
+            result(FlutterMethodNotImplemented)
+        }
+    }
+
+    // MARK: Playback
+
+    // C-convention output callback: recovers the handler from inUserData and
+    // hands the drained buffer back for accounting/recycling. Must not capture.
+    private let outputCallback: AudioQueueOutputCallback = { inUserData, inAQ, inBuffer in
+        guard let inUserData = inUserData else { return }
+        let handler = Unmanaged<PcmPlayerHandler>.fromOpaque(inUserData).takeUnretainedValue()
+        handler.onBufferDone(aq: inAQ, buffer: inBuffer)
+    }
+
+    private func setup(rate: Int, channels chans: Int, deviceId: String) -> Bool {
+        release()
+        lock.lock(); defer { lock.unlock() }
+
+        sampleRate = rate > 0 ? rate : 32000
+        channels = chans > 0 ? chans : 1
+
+        var format = AudioStreamBasicDescription(
+            mSampleRate: Float64(sampleRate),
+            mFormatID: kAudioFormatLinearPCM,
+            mFormatFlags: kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked,
+            mBytesPerPacket: UInt32(channels * 2),
+            mFramesPerPacket: 1,
+            mBytesPerFrame: UInt32(channels * 2),
+            mChannelsPerFrame: UInt32(channels),
+            mBitsPerChannel: 16,
+            mReserved: 0)
+
+        var newQueue: AudioQueueRef?
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+        let status = AudioQueueNewOutput(
+            &format, outputCallback, selfPtr, nil, nil, 0, &newQueue)
+        guard status == noErr, let q = newQueue else {
+            queue = nil
+            return false
+        }
+
+        // Route to the requested output device (its CoreAudio UID). An empty id
+        // leaves the queue on the OS default device. The property value is a
+        // CFStringRef, so we pass a pointer to the string's opaque reference.
+        if !deviceId.isEmpty {
+            let cfUid = deviceId as CFString
+            var uidRef = Unmanaged.passUnretained(cfUid).toOpaque()
+            _ = withUnsafePointer(to: &uidRef) { ptr in
+                AudioQueueSetProperty(
+                    q, kAudioQueueProperty_CurrentDevice, ptr,
+                    UInt32(MemoryLayout<UnsafeMutableRawPointer>.size))
+            }
+        }
+
+        queue = q
+        bufferedFrames = 0
+        AudioQueueStart(q, nil)
+        return true
+    }
+
+    private func feed(_ data: Data) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard let q = queue, !data.isEmpty else { return false }
+
+        let byteSize = UInt32(data.count)
+        var bufferRef: AudioQueueBufferRef?
+        guard AudioQueueAllocateBuffer(q, byteSize, &bufferRef) == noErr,
+              let buffer = bufferRef else {
+            return false
+        }
+        data.withUnsafeBytes { raw in
+            if let base = raw.baseAddress {
+                memcpy(buffer.pointee.mAudioData, base, data.count)
+            }
+        }
+        buffer.pointee.mAudioDataByteSize = byteSize
+        if AudioQueueEnqueueBuffer(q, buffer, 0, nil) != noErr {
+            AudioQueueFreeBuffer(q, buffer)
+            return false
+        }
+
+        let frameBytes = max(channels * 2, 2)
+        bufferedFrames += Int64(data.count / frameBytes)
+        return true
+    }
+
+    private func onBufferDone(aq: AudioQueueRef, buffer: AudioQueueBufferRef) {
+        lock.lock()
+        let frameBytes = max(channels * 2, 2)
+        let frames = Int64(Int(buffer.pointee.mAudioDataByteSize) / frameBytes)
+        bufferedFrames -= frames
+        if bufferedFrames < 0 { bufferedFrames = 0 }
+        let remaining = bufferedFrames
+        AudioQueueFreeBuffer(aq, buffer)
+        lock.unlock()
+
+        DispatchQueue.main.async { [weak self] in
+            self?.eventSink?(Int(remaining))
+        }
+    }
+
+    private func release() {
+        lock.lock()
+        let q = queue
+        queue = nil
+        bufferedFrames = 0
+        lock.unlock()
+
+        if let q = q {
+            AudioQueueStop(q, true)   // synchronous: stops pending callbacks
+            AudioQueueDispose(q, true) // frees all remaining allocated buffers
+        }
+    }
+
+    // MARK: Device enumeration
+
+    /// Enumerates output-capable audio devices as {id: UID, label: name} maps.
+    private func listDevices() -> [[String: String]] {
+        var devices: [[String: String]] = []
+
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+
+        var dataSize: UInt32 = 0
+        let sysObj = AudioObjectID(kAudioObjectSystemObject)
+        guard AudioObjectGetPropertyDataSize(sysObj, &addr, 0, nil, &dataSize) == noErr,
+              dataSize > 0 else {
+            return devices
+        }
+        let count = Int(dataSize) / MemoryLayout<AudioObjectID>.size
+        var deviceIDs = [AudioObjectID](repeating: 0, count: count)
+        guard AudioObjectGetPropertyData(sysObj, &addr, 0, nil, &dataSize, &deviceIDs) == noErr else {
+            return devices
+        }
+
+        for dev in deviceIDs {
+            // Skip devices that have no output streams (input-only devices).
+            var streamAddr = AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyStreams,
+                mScope: kAudioDevicePropertyScopeOutput,
+                mElement: kAudioObjectPropertyElementMain)
+            var streamSize: UInt32 = 0
+            guard AudioObjectGetPropertyDataSize(dev, &streamAddr, 0, nil, &streamSize) == noErr,
+                  streamSize > 0 else {
+                continue
+            }
+            guard let uid = deviceStringProperty(dev, kAudioDevicePropertyDeviceUID) else {
+                continue
+            }
+            let name = deviceStringProperty(dev, kAudioObjectPropertyName) ?? uid
+            devices.append(["id": uid, "label": name])
+        }
+        return devices
+    }
+
+    /// Reads a CFString device property (UID, name, ...) as a Swift String.
+    private func deviceStringProperty(_ dev: AudioObjectID, _ selector: AudioObjectPropertySelector) -> String? {
+        var addr = AudioObjectPropertyAddress(
+            mSelector: selector,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        var cfStr: CFString? = nil
+        var size = UInt32(MemoryLayout<CFString?>.size)
+        let status = withUnsafeMutablePointer(to: &cfStr) { ptr -> OSStatus in
+            AudioObjectGetPropertyData(dev, &addr, 0, nil, &size, ptr)
+        }
+        if status != noErr { return nil }
+        return cfStr as String?
+    }
+}
+
 // MARK: - App Delegate
 
 @main
@@ -1416,6 +1683,10 @@ class AppDelegate: FlutterAppDelegate {
       // Register the text-to-speech handler (Apple AVSpeechSynthesizer).
       let ttsRegistrar = controller.registrar(forPlugin: "TextToSpeechHandler")
       TextToSpeechHandler.register(with: ttsRegistrar)
+
+      // Register the native PCM player (CoreAudio) for the sub-window too.
+      let pcmRegistrar = controller.registrar(forPlugin: "PcmPlayerHandler")
+      PcmPlayerHandler.register(with: pcmRegistrar)
     }
   }
 

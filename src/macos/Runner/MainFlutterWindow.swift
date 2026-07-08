@@ -26,6 +26,11 @@ class MainFlutterWindow: NSWindow {
     let ttsRegistrar = flutterViewController.registrar(forPlugin: "TextToSpeechHandler")
     TextToSpeechHandler.register(with: ttsRegistrar)
 
+    // Register the native PCM player (CoreAudio) used for radio audio playback
+    // and output-device selection.
+    let pcmRegistrar = flutterViewController.registrar(forPlugin: "PcmPlayerHandler")
+    PcmPlayerHandler.register(with: pcmRegistrar)
+
     super.awakeFromNib()
   }
 }
