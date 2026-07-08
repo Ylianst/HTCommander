@@ -901,18 +901,30 @@ class _MainFormState extends State<MainForm>
   /// Handle Info changes from any radio device (region count).
   void _onRadioInfoChanged(int deviceId, String name, Object? data) {
     if (deviceId == _currentRadioDeviceId && data is Map) {
-      setState(() {
-        _regionCount = data['regionCount'] as int? ?? 0;
-      });
+      final newRegionCount = data['regionCount'] as int? ?? 0;
+      // Only rebuild when the value the menu actually depends on changes.
+      // Info messages can arrive frequently; rebuilding on every one would
+      // recreate the (Platform)MenuBar and dismiss any open menu.
+      if (newRegionCount != _regionCount) {
+        setState(() {
+          _regionCount = newRegionCount;
+        });
+      }
     }
   }
 
   /// Handle HtStatus changes from any radio device (current region).
   void _onHtStatusChanged(int deviceId, String name, Object? data) {
     if (deviceId == _currentRadioDeviceId && data is Map) {
-      setState(() {
-        _currRegion = data['currRegion'] as int? ?? 0;
-      });
+      final newCurrRegion = data['currRegion'] as int? ?? 0;
+      // HtStatus updates arrive continuously (they carry RSSI and other live
+      // values). Only rebuild when the current region actually changes so an
+      // RSSI update doesn't recreate the menu bar and close an open menu.
+      if (newCurrRegion != _currRegion) {
+        setState(() {
+          _currRegion = newCurrRegion;
+        });
+      }
     }
   }
 
