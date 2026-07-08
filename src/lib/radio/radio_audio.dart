@@ -63,6 +63,11 @@ class RadioAudio {
   double _outputVolume = 1.0;
   bool _isMuted = false;
 
+  // Selected output (speaker) device id, or empty for the OS default. Persisted
+  // globally (DataBroker device 0, 'OutputAudioDevice') and only honored by the
+  // native Linux player; other platforms always use the default device.
+  String _outputDeviceId = '';
+
   // Audio-run state tracking (a "run" is a continuous burst of audio).
   bool _inAudioRun = false;
   bool _inAudioRunIsTransmit = false;
@@ -127,6 +132,9 @@ class RadioAudio {
     required this.deviceId,
     required this.macAddress,
   }) {
+    // Restore the persisted output-device selection (device 0 = global).
+    _outputDeviceId = _broker.getValue<String>(0, 'OutputAudioDevice', '') ?? '';
+
     // Enable/disable the audio path. Audio is disabled by default and is only
     // started when 'SetAudio' true is dispatched through the DataBroker.
     _broker.subscribe(
@@ -236,16 +244,32 @@ class RadioAudio {
   }
 
   void _onSetOutputAudioDevice(int deviceId, String name, Object? data) {
-    // flutter_pcm_sound plays on the system default output device and does not
-    // expose device selection. Echo the request so UI state stays consistent.
-    if (data is String) {
-      _broker.dispatch(
-        deviceId: deviceId,
-        name: 'OutputAudioDevice',
-        data: data,
-        store: true,
-      );
+    if (data is! String) return;
+    _outputDeviceId = data;
+    // Persist globally so the selection is restored on the next launch and
+    // shared with the Audio tab UI.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'OutputAudioDevice',
+      data: data,
+      store: true,
+    );
+    // If playback is already running, re-open the audio device so the change
+    // takes effect immediately.
+    if (_pcmSoundReady) {
+      unawaited(_reopenPcmSound());
     }
+  }
+
+  /// Releases and re-initializes the PCM player, e.g. after the output device
+  /// changed, so subsequent audio plays on the newly selected device.
+  Future<void> _reopenPcmSound() async {
+    try {
+      await _pcm.release();
+    } catch (_) {}
+    _pcmSoundReady = false;
+    _bufferedFrames = 0;
+    await _initPcmSound();
   }
 
   void _onStartRecording(int deviceId, String name, Object? data) {
@@ -440,7 +464,11 @@ class RadioAudio {
   Future<void> _initPcmSound() async {
     if (_pcmSoundReady) return;
     await _pcm.setLogLevelError();
-    await _pcm.setup(sampleRate: _sampleRate, channelCount: 1);
+    await _pcm.setup(
+      sampleRate: _sampleRate,
+      channelCount: 1,
+      deviceId: _outputDeviceId.isEmpty ? null : _outputDeviceId,
+    );
     // ~125 ms threshold; the plugin signals us when it drains below this.
     await _pcm.setFeedThreshold(_sampleRate ~/ 8);
     _pcm.setFeedCallback(_onFeed);

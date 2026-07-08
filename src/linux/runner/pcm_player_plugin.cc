@@ -148,7 +148,8 @@ static void pcm_release(PcmPlugin* p) {
   if (pa) pa_simple_free(pa);
 }
 
-static gboolean pcm_setup(PcmPlugin* p, int rate, int channels) {
+static gboolean pcm_setup(PcmPlugin* p, int rate, int channels,
+                          const char* device) {
   pcm_release(p);
   if (rate <= 0) rate = 32000;
   if (channels <= 0) channels = 1;
@@ -158,9 +159,20 @@ static gboolean pcm_setup(PcmPlugin* p, int rate, int channels) {
   ss.rate = (uint32_t)rate;
   ss.channels = (uint8_t)channels;
 
+  // An empty/NULL device name asks PulseAudio for the default output sink;
+  // otherwise it is the sink name reported by `pactl list sinks`.
+  const char* dev = (device && device[0] != '\0') ? device : NULL;
+
   int err = 0;
-  pa_simple* pa = pa_simple_new(NULL, "HTCommander", PA_STREAM_PLAYBACK, NULL,
+  pa_simple* pa = pa_simple_new(NULL, "HTCommander", PA_STREAM_PLAYBACK, dev,
                                 "Radio Audio", &ss, NULL, NULL, &err);
+  if (!pa && dev) {
+    // The requested device may have disappeared; fall back to the default.
+    g_warning("[PCM] pa_simple_new for device '%s' failed: %s; using default",
+              dev, pa_strerror(err));
+    pa = pa_simple_new(NULL, "HTCommander", PA_STREAM_PLAYBACK, NULL,
+                       "Radio Audio", &ss, NULL, NULL, &err);
+  }
   if (!pa) {
     g_warning("[PCM] pa_simple_new failed: %s", pa_strerror(err));
     return FALSE;
@@ -212,6 +224,15 @@ static int pcm_int_arg(FlValue* args, const char* key, int fallback) {
   return fallback;
 }
 
+static const char* pcm_string_arg(FlValue* args, const char* key) {
+  if (!args) return NULL;
+  FlValue* v = fl_value_lookup_string(args, key);
+  if (v && fl_value_get_type(v) == FL_VALUE_TYPE_STRING) {
+    return fl_value_get_string(v);
+  }
+  return NULL;
+}
+
 static void pcm_method_cb(FlMethodChannel* channel, FlMethodCall* call,
                           gpointer user_data) {
   PcmPlugin* p = g_pcm_plugin;
@@ -225,7 +246,8 @@ static void pcm_method_cb(FlMethodChannel* channel, FlMethodCall* call,
   } else if (strcmp(method, "setup") == 0) {
     int rate = pcm_int_arg(args, "sampleRate", 32000);
     int chans = pcm_int_arg(args, "channels", 1);
-    gboolean ok = pcm_setup(p, rate, chans);
+    const char* device = pcm_string_arg(args, "deviceId");
+    gboolean ok = pcm_setup(p, rate, chans, device);
     g_autoptr(FlValue) v = fl_value_new_bool(ok);
     fl_method_call_respond_success(call, v, NULL);
 

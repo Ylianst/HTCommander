@@ -39,7 +39,16 @@ abstract class PcmPlayer {
   Future<void> setLogLevelError();
 
   /// Configure the output format and open the audio device.
-  Future<void> setup({required int sampleRate, required int channelCount});
+  ///
+  /// [deviceId] selects a specific output device where supported (currently the
+  /// native Linux player, using a PulseAudio sink name); null or empty means the
+  /// operating-system default device. Implementations that cannot select a
+  /// device ignore it and use the default.
+  Future<void> setup({
+    required int sampleRate,
+    required int channelCount,
+    String? deviceId,
+  });
 
   /// Set the buffered-frame threshold below which [setFeedCallback] fires.
   Future<void> setFeedThreshold(int frames);
@@ -72,7 +81,9 @@ class _FlutterPcmSoundPlayer implements PcmPlayer {
   Future<void> setup({
     required int sampleRate,
     required int channelCount,
+    String? deviceId,
   }) {
+    // flutter_pcm_sound always plays on the OS default device; deviceId ignored.
     return FlutterPcmSound.setup(
       sampleRate: sampleRate,
       channelCount: channelCount,
@@ -121,10 +132,12 @@ class _NativeChannelPcmPlayer implements PcmPlayer {
   Future<void> setup({
     required int sampleRate,
     required int channelCount,
+    String? deviceId,
   }) async {
     await _method.invokeMethod<bool>('setup', {
       'sampleRate': sampleRate,
       'channels': channelCount,
+      'deviceId': deviceId ?? '',
     });
   }
 
@@ -174,6 +187,7 @@ class _NoopPcmPlayer implements PcmPlayer {
   Future<void> setup({
     required int sampleRate,
     required int channelCount,
+    String? deviceId,
   }) async {}
 
   @override

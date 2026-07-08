@@ -18,7 +18,7 @@ import 'package:record/record.dart';
 /// [stop] / [dispose] so the operating-system microphone indicator turns off
 /// when the spectrogram no longer needs it.
 class MicrophoneCapture {
-  MicrophoneCapture({this.sampleRate = 32000, this.gain = 1.0});
+  MicrophoneCapture({this.sampleRate = 32000, this.gain = 1.0, this.deviceId});
 
   /// Requested capture sample rate (Hz). Chosen to match the spectrogram so
   /// frequencies map correctly.
@@ -29,6 +29,12 @@ class MicrophoneCapture {
   /// spectrograph and push-to-talk transmit. May be changed at any time while
   /// capture is running.
   double gain;
+
+  /// Identifier of the input (microphone) device to capture from, or null to
+  /// use the operating-system default device. Matches the `id` reported by
+  /// [listInputDevices]. Changing this only takes effect on the next [start];
+  /// callers that want it applied immediately should [stop] then [start].
+  String? deviceId;
 
   final AudioRecorder _recorder = AudioRecorder();
   StreamSubscription<Uint8List>? _subscription;
@@ -42,6 +48,24 @@ class MicrophoneCapture {
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.linux;
+  }
+
+  /// Enumerates the available input (microphone) devices.
+  ///
+  /// Returns an empty list on platforms that do not support enumeration or when
+  /// it fails, in which case callers should fall back to the OS default device.
+  static Future<List<InputDevice>> listInputDevices() async {
+    if (!isSupported) return const <InputDevice>[];
+    try {
+      final recorder = AudioRecorder();
+      try {
+        return await recorder.listInputDevices();
+      } finally {
+        await recorder.dispose();
+      }
+    } catch (_) {
+      return const <InputDevice>[];
+    }
   }
 
   /// Whether capture is currently running.
@@ -60,11 +84,15 @@ class MicrophoneCapture {
       final hasPermission = await _recorder.hasPermission();
       if (!hasPermission) return false;
 
+      final String? id = deviceId;
       final stream = await _recorder.startStream(
         RecordConfig(
           encoder: AudioEncoder.pcm16bits,
           sampleRate: sampleRate,
           numChannels: 1,
+          device: (id == null || id.isEmpty)
+              ? null
+              : InputDevice(id: id, label: id),
         ),
       );
       _subscription = stream.listen(

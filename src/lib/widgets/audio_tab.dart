@@ -9,7 +9,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:record/record.dart' show InputDevice;
 
+import '../services/audio_output_devices.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/microphone_capture.dart';
@@ -81,6 +83,16 @@ class _AudioTabState extends State<AudioTab>
   // on DataBroker device 0 ('MicrophoneGain'). Shared with the Comms tab's
   // push-to-talk path so boosting here also boosts transmitted audio.
   double _micGain = 1.0;
+
+  // Audio output (speaker) devices. Selection persisted on DataBroker device 0
+  // ('OutputAudioDevice'); empty id means the OS default device.
+  List<AudioOutputDevice> _outputDevices = const <AudioOutputDevice>[];
+  String _outputDeviceId = '';
+
+  // Audio input (microphone) devices. Selection persisted on DataBroker device
+  // 0 ('InputAudioDevice'); empty id means the OS default device.
+  List<InputDevice> _inputDevices = const <InputDevice>[];
+  String _inputDeviceId = '';
 
   @override
   bool get wantKeepAlive => true;
@@ -158,6 +170,12 @@ class _AudioTabState extends State<AudioTab>
     // Restore the persisted microphone gain (device 0 = global settings).
     _micGain = (_broker.getValue<double>(0, 'MicrophoneGain', 1.0) ?? 1.0)
         .clamp(1.0, 8.0);
+
+    // Restore the persisted audio device selections (device 0 = global) and
+    // enumerate the currently available devices for the dropdowns.
+    _outputDeviceId = _broker.getValue<String>(0, 'OutputAudioDevice', '') ?? '';
+    _inputDeviceId = _broker.getValue<String>(0, 'InputAudioDevice', '') ?? '';
+    _loadAudioDevices();
 
     // Restore the persisted spectrograph source (device 0 = global settings).
     final savedSource =
@@ -566,6 +584,7 @@ class _AudioTabState extends State<AudioTab>
     }
     final capture = _micCapture ??= MicrophoneCapture(sampleRate: 32000);
     capture.gain = _micGain;
+    capture.deviceId = _inputDeviceId.isEmpty ? null : _inputDeviceId;
     if (capture.isCapturing || _micStarting) return;
     _micStarting = true;
     final ok = await capture.start(_onMicPcm);
@@ -594,8 +613,132 @@ class _AudioTabState extends State<AudioTab>
   }
 
   // ---------------------------------------------------------------------------
+  // Audio device selection
+  // ---------------------------------------------------------------------------
+
+  /// Whether output-device selection is available on this platform.
+  bool get _outputDeviceSelectable => AudioOutputDevices.isSupported;
+
+  /// Whether input-device selection is available on this platform.
+  bool get _inputDeviceSelectable => MicrophoneCapture.isSupported;
+
+  /// Enumerates the available output and input devices for the dropdowns.
+  Future<void> _loadAudioDevices() async {
+    final outputs = _outputDeviceSelectable
+        ? await AudioOutputDevices.list()
+        : const <AudioOutputDevice>[];
+    final inputs = _inputDeviceSelectable
+        ? await MicrophoneCapture.listInputDevices()
+        : const <InputDevice>[];
+    if (!mounted) return;
+    setState(() {
+      _outputDevices = outputs;
+      _inputDevices = inputs;
+    });
+  }
+
+  void _onOutputDeviceChanged(String? id) {
+    final value = id ?? '';
+    setState(() => _outputDeviceId = value);
+    // Persist globally (device 0) so the selection survives restarts and is
+    // shared with the radio audio player.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'OutputAudioDevice',
+      data: value,
+      store: true,
+    );
+    // Tell the connected radio's audio player to switch devices live.
+    if (_currentRadioDeviceId > 0) {
+      _broker.dispatch(
+        deviceId: _currentRadioDeviceId,
+        name: 'SetOutputAudioDevice',
+        data: value,
+        store: false,
+      );
+    }
+  }
+
+  void _onInputDeviceChanged(String? id) {
+    final value = id ?? '';
+    setState(() => _inputDeviceId = value);
+    // Persist globally (device 0); the Comms tab subscribes to this to switch
+    // the push-to-talk microphone.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'InputAudioDevice',
+      data: value,
+      store: true,
+    );
+    // Apply to a running spectrograph capture by restarting it on the new
+    // device.
+    final capture = _micCapture;
+    if (capture != null) {
+      capture.deviceId = value.isEmpty ? null : value;
+      if (capture.isCapturing) {
+        () async {
+          await capture.stop();
+          if (_micNeeded) await _startMic();
+        }();
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
+
+  /// Builds the "Devices" section (output/input selection) shown at the top of
+  /// the tab. Returns an empty list on platforms where neither output nor input
+  /// device selection is available (e.g. web/iOS), so nothing is rendered.
+  List<Widget> _buildDevicesSection() {
+    if (!_outputDeviceSelectable && !_inputDeviceSelectable) {
+      return const <Widget>[];
+    }
+    return [
+      Row(
+        children: [
+          _buildSectionTitle('Devices'),
+          const Spacer(),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            tooltip: 'Refresh device list',
+            icon: const Icon(Icons.refresh, size: 18),
+            onPressed: _loadAudioDevices,
+          ),
+        ],
+      ),
+      if (_outputDeviceSelectable)
+        _buildDeviceDropdown(
+          label: 'Output',
+          value: _outputDeviceId,
+          items: [
+            for (final d in _outputDevices)
+              DropdownMenuItem<String>(
+                value: d.id,
+                child: Text(d.label, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: _onOutputDeviceChanged,
+        ),
+      if (_inputDeviceSelectable)
+        _buildDeviceDropdown(
+          label: 'Input',
+          value: _inputDeviceId,
+          items: [
+            for (final d in _inputDevices)
+              DropdownMenuItem<String>(
+                value: d.id,
+                child: Text(d.label, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: _onInputDeviceChanged,
+        ),
+      const SizedBox(height: 16),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -609,6 +752,7 @@ class _AudioTabState extends State<AudioTab>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                ..._buildDevicesSection(),
                 _buildSectionTitle('Radio'),
                 _buildSliderRow(
                   label: 'Volume',
@@ -735,6 +879,43 @@ class _AudioTabState extends State<AudioTab>
       child: Text(
         title,
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  /// A labelled dropdown for selecting an audio device. A leading "Default"
+  /// entry (empty id) always represents the OS default device. If the persisted
+  /// [value] is no longer present (device unplugged), it falls back to Default.
+  Widget _buildDeviceDropdown({
+    required String label,
+    required String value,
+    required List<DropdownMenuItem<String>> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final allItems = <DropdownMenuItem<String>>[
+      const DropdownMenuItem<String>(value: '', child: Text('Default')),
+      ...items,
+    ];
+    final bool present = allItems.any((item) => item.value == value);
+    final String effectiveValue = present ? value : '';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(label, style: const TextStyle(fontSize: 13)),
+          ),
+          Expanded(
+            child: DropdownButton<String>(
+              value: effectiveValue,
+              isExpanded: true,
+              isDense: true,
+              items: allItems,
+              onChanged: onChanged,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -85,6 +86,10 @@ class _CommsTabState extends State<CommsTab>
   /// Linear microphone gain applied to transmitted PTT audio. Shared with the
   /// Audio tab via DataBroker device 0 ('MicrophoneGain').
   double _micGain = 1.0;
+
+  /// Selected input (microphone) device id, or empty for the OS default device.
+  /// Shared with the Audio tab via DataBroker device 0 ('InputAudioDevice').
+  String _inputDeviceId = '';
 
   /// True while the PTT button is held down and the microphone is streaming.
   bool _pttActive = false;
@@ -213,6 +218,11 @@ class _CommsTabState extends State<CommsTab>
     );
     _broker.subscribe(
       deviceId: 0,
+      name: 'InputAudioDevice',
+      callback: _onInputDeviceChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
       name: 'SelectedTabName',
       callback: _onSelectedTabChanged,
     );
@@ -235,6 +245,7 @@ class _CommsTabState extends State<CommsTab>
     _recordAudio = _broker.getValue<bool>(0, 'RecordingState', false) ?? false;
     _micGain = (_broker.getValue<double>(0, 'MicrophoneGain', 1.0) ?? 1.0)
         .clamp(1.0, 8.0);
+    _inputDeviceId = _broker.getValue<String>(0, 'InputAudioDevice', '') ?? '';
     _audioEnabled = _readAudioState();
     _isMuted = _readMuteState();
     _sstvAutoMuted = _readSstvAutoMuteState();
@@ -802,6 +813,21 @@ class _CommsTabState extends State<CommsTab>
     _micCapture?.gain = _micGain;
   }
 
+  void _onInputDeviceChanged(int deviceId, String name, Object? data) {
+    if (data is! String || data == _inputDeviceId) return;
+    _inputDeviceId = data;
+    final capture = _micCapture;
+    if (capture == null) return;
+    capture.deviceId = data.isEmpty ? null : data;
+    // Restart a warm/streaming microphone so it re-opens on the new device.
+    if (capture.isCapturing) {
+      unawaited(() async {
+        await capture.stop();
+        if (_shouldWarmPttMic) await _startPttMic();
+      }());
+    }
+  }
+
   void _onSelectedTabChanged(int deviceId, String name, Object? data) {
     final visible = data is String && data == 'Comms';
     if (visible != _isTabVisible) {
@@ -1240,6 +1266,7 @@ class _CommsTabState extends State<CommsTab>
     if (!MicrophoneCapture.isSupported) return;
     final capture = _micCapture ??= MicrophoneCapture(sampleRate: 32000);
     capture.gain = _micGain;
+    capture.deviceId = _inputDeviceId.isEmpty ? null : _inputDeviceId;
     if (capture.isCapturing || _pttStarting) return;
     _pttStarting = true;
     final ok = await capture.start(_onPttPcm);
