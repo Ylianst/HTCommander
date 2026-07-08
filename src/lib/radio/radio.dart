@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../services/data_broker_client.dart';
+import '../gps/gps_data.dart';
 import 'radio_models.dart';
 import 'radio_transport.dart';
 import 'tnc_data_fragment.dart';
@@ -18,6 +19,17 @@ import 'utils.dart';
 
 /// Maximum MTU for fragmenting data
 const int _maxMtu = 50;
+
+/// SmartBeaconing parameters (classic APRS algorithm) used when forwarding the
+/// serial GPS position to the radio. Speeds are in knots to match the NMEA RMC
+/// speed-over-ground reported by the serial GPS.
+const double _sbLowSpeedKnots = 5.0; // at/below this, beacon at the slow rate
+const double _sbHighSpeedKnots = 60.0; // at/above this, beacon at the fast rate
+const int _sbFastRateSecs = 60; // minimum interval between beacons (fast)
+const int _sbSlowRateSecs = 1800; // maximum interval between beacons (slow)
+const double _sbTurnMinDegrees = 28.0; // minimum turn angle for corner pegging
+const double _sbTurnSlope = 26.0; // corner-peg sensitivity vs. speed
+const int _sbTurnTimeSecs = 30; // minimum interval between corner-peg beacons
 
 /// Radio update notification types
 enum RadioUpdateNotification {
@@ -96,9 +108,9 @@ class Radio {
   RadioState _state = RadioState.disconnected;
   bool _gpsEnabled = false;
 
-  // GPS serial tracking
-  double _lastGpsLat = double.nan;
-  double _lastGpsLon = double.nan;
+  // GPS serial SmartBeaconing tracking
+  DateTime? _lastGpsSentTime;
+  double _lastGpsSentHeading = double.nan;
 
   // Transmit queue
   final List<_FragmentInQueue> _tncFragmentQueue = [];
@@ -519,39 +531,96 @@ class Radio {
 
   void _onGpsDataReceived(int devId, String name, dynamic data) {
     if (_state != RadioState.connected) return;
-    if (data is! Map) return;
 
-    final gps = data;
-    final isFixed = gps['isFixed'] as bool? ?? false;
-    if (!isFixed) return;
+    // Only forward the serial GPS position when the user has enabled sharing.
+    if (!(_broker.getValue<bool>(0, 'ShareSerialGpsLocation') ?? false)) return;
 
-    final lat = (gps['latitude'] as num?)?.toDouble() ?? 0.0;
-    final lon = (gps['longitude'] as num?)?.toDouble() ?? 0.0;
+    // The GPS serial handler dispatches a GpsData object; a persisted value may
+    // come back as a JSON map, so accept both forms.
+    GpsData? gps;
+    if (data is GpsData) {
+      gps = data;
+    } else if (data is Map) {
+      gps = GpsData.fromJson(Map<String, dynamic>.from(data));
+    }
+    if (gps == null || !gps.isFixed) return;
 
-    // Check if moved far enough
-    if (!_lastGpsLat.isNaN && !_lastGpsLon.isNaN) {
-      final dist = RadioUtils.haversineMetres(
-        _lastGpsLat,
-        _lastGpsLon,
-        lat,
-        lon,
-      );
-      if (dist < 10) return;
+    final lat = gps.latitude;
+    final lon = gps.longitude;
+    final heading = gps.heading;
+    final speedKnots = gps.speed;
+    final now = DateTime.now();
+
+    if (!_shouldBeaconPosition(heading: heading, speedKnots: speedKnots, now: now)) {
+      return;
     }
 
-    // Build and send position
+    // Build and send the position to the radio.
+    final gpsTime = gps.gpsTime;
     final pos = RadioPosition.fromCoordinates(
       lat: lat,
       lon: lon,
-      altitudeMetres: (gps['altitude'] as num?)?.toDouble() ?? 0.0,
-      speedKnots: (gps['speed'] as num?)?.toDouble() ?? 0.0,
-      headingDegrees: (gps['heading'] as num?)?.toDouble() ?? 0.0,
-      utcTime: DateTime.now().toUtc(),
+      altitudeMetres: gps.altitude,
+      speedKnots: speedKnots,
+      headingDegrees: heading,
+      utcTime: gpsTime.millisecondsSinceEpoch == 0
+          ? now.toUtc()
+          : gpsTime.toUtc(),
     );
     setPosition(pos);
+    _debug(
+      'Serial GPS position sent to radio: '
+      '${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(5)} '
+      '(${speedKnots.toStringAsFixed(1)} kn, ${heading.toStringAsFixed(0)}\u00b0)',
+    );
 
-    _lastGpsLat = lat;
-    _lastGpsLon = lon;
+    _lastGpsSentHeading = heading;
+    _lastGpsSentTime = now;
+  }
+
+  /// Decides whether a new position should be sent to the radio using the
+  /// classic APRS SmartBeaconing algorithm: beacon faster when moving quickly,
+  /// slower when stopped, and early ("corner pegging") on sharp turns.
+  bool _shouldBeaconPosition({
+    required double heading,
+    required double speedKnots,
+    required DateTime now,
+  }) {
+    // Always beacon the first fix after connecting / enabling sharing.
+    if (_lastGpsSentTime == null) return true;
+
+    final secsSinceLast = now.difference(_lastGpsSentTime!).inSeconds;
+
+    // Speed-dependent beacon rate (seconds between beacons).
+    final int beaconRateSecs;
+    if (speedKnots <= _sbLowSpeedKnots) {
+      beaconRateSecs = _sbSlowRateSecs;
+    } else if (speedKnots >= _sbHighSpeedKnots) {
+      beaconRateSecs = _sbFastRateSecs;
+    } else {
+      final rate = (_sbFastRateSecs * _sbHighSpeedKnots / speedKnots).round();
+      beaconRateSecs = rate.clamp(_sbFastRateSecs, _sbSlowRateSecs);
+    }
+
+    // Corner pegging: beacon early on a sharp heading change, but no more often
+    // than the turn-time minimum. Heading is unreliable when nearly stationary,
+    // so only apply this above the low-speed threshold.
+    if (speedKnots > _sbLowSpeedKnots && !_lastGpsSentHeading.isNaN) {
+      final turnThreshold = _sbTurnMinDegrees + _sbTurnSlope / speedKnots;
+      final headingChange = _headingDelta(_lastGpsSentHeading, heading);
+      if (headingChange > turnThreshold && secsSinceLast >= _sbTurnTimeSecs) {
+        return true;
+      }
+    }
+
+    return secsSinceLast >= beaconRateSecs;
+  }
+
+  /// Smallest absolute difference between two headings in degrees (0-180).
+  static double _headingDelta(double a, double b) {
+    var diff = (a - b).abs() % 360.0;
+    if (diff > 180.0) diff = 360.0 - diff;
+    return diff;
   }
 
   // Connection management

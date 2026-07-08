@@ -42,6 +42,7 @@ class AppSettings {
   // Map/GPS tab
   String gpsSerialPort;
   int gpsBaudRate;
+  bool shareSerialGpsLocation;
   String airplaneServerUrl;
 
   // Limits tab (0 = unlimited)
@@ -105,6 +106,7 @@ class AppSettings {
     this.agwpeServerPort = 8000,
     this.gpsSerialPort = 'None',
     this.gpsBaudRate = 4800,
+    this.shareSerialGpsLocation = false,
     this.airplaneServerUrl = '',
     this.maxAprsMessages = 0,
     this.maxPackets = 0,
@@ -130,6 +132,7 @@ class AppSettings {
     int? agwpeServerPort,
     String? gpsSerialPort,
     int? gpsBaudRate,
+    bool? shareSerialGpsLocation,
     String? airplaneServerUrl,
     int? maxAprsMessages,
     int? maxPackets,
@@ -154,6 +157,8 @@ class AppSettings {
       agwpeServerPort: agwpeServerPort ?? this.agwpeServerPort,
       gpsSerialPort: gpsSerialPort ?? this.gpsSerialPort,
       gpsBaudRate: gpsBaudRate ?? this.gpsBaudRate,
+      shareSerialGpsLocation:
+          shareSerialGpsLocation ?? this.shareSerialGpsLocation,
       airplaneServerUrl: airplaneServerUrl ?? this.airplaneServerUrl,
       maxAprsMessages: maxAprsMessages ?? this.maxAprsMessages,
       maxPackets: maxPackets ?? this.maxPackets,
@@ -196,6 +201,8 @@ class AppSettings {
       gpsSerialPort:
           DataBroker.getValue<String>(0, 'GpsSerialPort', 'None') ?? 'None',
       gpsBaudRate: DataBroker.getValue<int>(0, 'GpsBaudRate', 4800) ?? 4800,
+      shareSerialGpsLocation:
+          (DataBroker.getValue<int>(0, 'ShareSerialGpsLocation', 0) ?? 0) == 1,
       airplaneServerUrl:
           DataBroker.getValue<String>(0, 'AirplaneServer', '') ?? '',
       maxAprsMessages:
@@ -269,6 +276,11 @@ class AppSettings {
       data: gpsSerialPort,
     );
     DataBroker.dispatch(deviceId: 0, name: 'GpsBaudRate', data: gpsBaudRate);
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'ShareSerialGpsLocation',
+      data: shareSerialGpsLocation ? 1 : 0,
+    );
     DataBroker.dispatch(
       deviceId: 0,
       name: 'AirplaneServer',
@@ -1779,6 +1791,45 @@ class _SettingsDialogState extends State<SettingsDialog>
                               },
                             ),
                           ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Checkbox(
+                        value: _settings.shareSerialGpsLocation,
+                        onChanged: (value) {
+                          setState(
+                            () => _settings.shareSerialGpsLocation =
+                                value ?? false,
+                          );
+                        },
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(
+                            () => _settings.shareSerialGpsLocation =
+                                !_settings.shareSerialGpsLocation,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 12),
+                              const Text('Share serial GPS location'),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Send the serial GPS position to the connected '
+                                'radio so it beacons your current location.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
