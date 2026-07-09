@@ -112,6 +112,11 @@ class Radio {
   DateTime? _lastGpsSentTime;
   double _lastGpsSentHeading = double.nan;
 
+  // Tracks the last serial-GPS diagnostic reason we logged, so repeated
+  // identical messages (a GPS emits several sentences per second) don't flood
+  // the debug log. Only state transitions are logged.
+  String? _lastGpsDebugReason;
+
   // Transmit queue
   final List<_FragmentInQueue> _tncFragmentQueue = [];
   bool _tncFragmentInFlight = false;
@@ -530,10 +535,28 @@ class Radio {
   }
 
   void _onGpsDataReceived(int devId, String name, dynamic data) {
-    if (_state != RadioState.connected) return;
+    if (_state != RadioState.connected) {
+      _debugGpsReason(
+        'notConnected',
+        'Serial GPS: dropping fix - radio not connected (state=$_state)',
+      );
+      return;
+    }
 
     // Only forward the serial GPS position when the user has enabled sharing.
-    if (!(_broker.getValue<bool>(0, 'ShareSerialGpsLocation') ?? false)) return;
+    // The setting is persisted as an int (0/1), so read it as an int rather
+    // than a bool: getValue<bool> would fail the type check on the stored int
+    // and always return the default, silently disabling GPS sharing.
+    final shareEnabled =
+        (_broker.getValue<int>(0, 'ShareSerialGpsLocation', 0) ?? 0) == 1;
+    if (!shareEnabled) {
+      _debugGpsReason(
+        'sharingDisabled',
+        'Serial GPS: dropping fix - sharing disabled '
+        '(ShareSerialGpsLocation is off)',
+      );
+      return;
+    }
 
     // The GPS serial handler dispatches a GpsData object; a persisted value may
     // come back as a JSON map, so accept both forms.
@@ -543,7 +566,21 @@ class Radio {
     } else if (data is Map) {
       gps = GpsData.fromJson(Map<String, dynamic>.from(data));
     }
-    if (gps == null || !gps.isFixed) return;
+    if (gps == null) {
+      _debugGpsReason(
+        'badType',
+        'Serial GPS: dropping event - unrecognized data type '
+        '(${data.runtimeType})',
+      );
+      return;
+    }
+    if (!gps.isFixed) {
+      _debugGpsReason(
+        'noFix',
+        'Serial GPS: dropping fix - no valid GPS lock yet (isFixed=false)',
+      );
+      return;
+    }
 
     final lat = gps.latitude;
     final lon = gps.longitude;
@@ -551,7 +588,17 @@ class Radio {
     final speedKnots = gps.speed;
     final now = DateTime.now();
 
-    if (!_shouldBeaconPosition(heading: heading, speedKnots: speedKnots, now: now)) {
+    if (!_shouldBeaconPosition(
+      heading: heading,
+      speedKnots: speedKnots,
+      now: now,
+    )) {
+      _debugGpsReason(
+        'throttled',
+        'Serial GPS: holding fix - SmartBeaconing throttle '
+        '(${speedKnots.toStringAsFixed(1)} kn, '
+        '${heading.toStringAsFixed(0)}\u00b0, waiting for next beacon)',
+      );
       return;
     }
 
@@ -568,6 +615,9 @@ class Radio {
           : gpsTime.toUtc(),
     );
     setPosition(pos);
+    // Always log a successful send (these are already rate-limited by
+    // SmartBeaconing) and reset the throttle so the next hold is logged again.
+    _lastGpsDebugReason = 'sent';
     _debug(
       'Serial GPS position sent to radio: '
       '${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(5)} '
@@ -576,6 +626,16 @@ class Radio {
 
     _lastGpsSentHeading = heading;
     _lastGpsSentTime = now;
+  }
+
+  /// Emits a serial-GPS diagnostic message only when the [reason] differs from
+  /// the previously logged reason. A GPS emits several sentences per second, so
+  /// logging every dropped/held fix would flood the debug log; this reports
+  /// only state transitions (e.g. the first time sharing is found disabled).
+  void _debugGpsReason(String reason, String message) {
+    if (_lastGpsDebugReason == reason) return;
+    _lastGpsDebugReason = reason;
+    _debug(message);
   }
 
   /// Decides whether a new position should be sent to the radio using the
