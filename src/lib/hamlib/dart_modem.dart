@@ -602,8 +602,8 @@ class DartModem {
 
     final int payloadStart =
         headerStart + headerOfdmCount * ofdmParams.symbolLength;
-    final payloadRxSymbols = _demodulateOfdmSymbols(
-      rxSamples, payloadStart, payloadOfdmCount, refinedChannel,
+    final payloadRxSymbols = _demodulateOfdmSymbolsTracked(
+      rxSamples, payloadStart, payloadOfdmCount, refinedChannel, payloadConst,
     );
     if (payloadRxSymbols == null) return null;
 
@@ -889,6 +889,80 @@ class DartModem {
       final int offset = startSample + s * symbolLen;
       final slice = Float64List.sublistView(rxSamples, offset, offset + symbolLen);
       final symbols = ofdm.demodulateSymbol(slice, channelEst);
+      allSymbols.addAll(symbols);
+    }
+    return allSymbols;
+  }
+
+  /// Demodulate OFDM symbols with decision-directed common-phase-error (CPE)
+  /// tracking.
+  ///
+  /// The refined channel estimate captures only the *average* phase over the
+  /// header. Over a real radio/SBC link the receive and transmit sample clocks
+  /// differ slightly, so the constellation slowly rotates as the payload
+  /// progresses (a residual carrier-frequency offset). A single static channel
+  /// estimate cannot follow that drift, which shows up as a sheared/rotated
+  /// constellation and lost QPSK/8PSK/QAM frames.
+  ///
+  /// This tracker runs a first-order phase-locked loop across the OFDM symbols:
+  /// for each symbol it de-rotates by the running phase estimate, measures the
+  /// residual common phase from decisions against [constellation] (a
+  /// pilot-less, decision-directed error), removes it from the current symbol,
+  /// and carries the accumulated phase forward to predict the next symbol. This
+  /// follows a linear phase ramp (constant CFO) with a one-symbol lag and
+  /// recovers the modes that a static estimate loses.
+  List<Complex>? _demodulateOfdmSymbolsTracked(
+    Float64List rxSamples,
+    int startSample,
+    int numOfdmSymbols,
+    List<Complex> channelEst,
+    Constellation constellation,
+  ) {
+    final int symbolLen = ofdmParams.symbolLength;
+    final int needed = startSample + numOfdmSymbols * symbolLen;
+    if (rxSamples.length < needed) return null;
+
+    final allSymbols = <Complex>[];
+    // Running accumulated phase estimate (radians), tracking the drift.
+    double phaseAccum = 0.0;
+    for (int s = 0; s < numOfdmSymbols; s++) {
+      final int offset = startSample + s * symbolLen;
+      final slice =
+          Float64List.sublistView(rxSamples, offset, offset + symbolLen);
+      final symbols = ofdm.demodulateSymbol(slice, channelEst);
+
+      // Predict this symbol's phase from the running estimate and de-rotate.
+      final double cosP = math.cos(-phaseAccum);
+      final double sinP = math.sin(-phaseAccum);
+      for (int i = 0; i < symbols.length; i++) {
+        final Complex c = symbols[i];
+        symbols[i] =
+            Complex(c.i * cosP - c.q * sinP, c.i * sinP + c.q * cosP);
+      }
+
+      // Measure the residual common phase error from decisions on the
+      // predicted symbols: e = angle( Σ y · conj(x_hat) ).
+      double sumRe = 0, sumIm = 0;
+      for (final c in symbols) {
+        final Complex ref = constellation.nearestPoint(c);
+        sumRe += c.i * ref.i + c.q * ref.q; // Re(y · conj(ref))
+        sumIm += c.q * ref.i - c.i * ref.q; // Im(y · conj(ref))
+      }
+      if (sumRe != 0 || sumIm != 0) {
+        final double residual = math.atan2(sumIm, sumRe);
+        // Remove the residual from the current symbol.
+        final double cosR = math.cos(-residual);
+        final double sinR = math.sin(-residual);
+        for (int i = 0; i < symbols.length; i++) {
+          final Complex c = symbols[i];
+          symbols[i] =
+              Complex(c.i * cosR - c.q * sinR, c.i * sinR + c.q * cosR);
+        }
+        // Carry the correction forward so the next symbol is predicted at the
+        // updated absolute phase (first-order ramp tracking).
+        phaseAccum += residual;
+      }
+
       allSymbols.addAll(symbols);
     }
     return allSymbols;
