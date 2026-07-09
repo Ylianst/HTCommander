@@ -1219,11 +1219,12 @@ class Radio {
         ? FragmentFrameType.ax25
         : FragmentFrameType.fx25;
 
-    // Tag the DART level for the capture log. The live TX path currently uses a
-    // fixed mode (0). When adaptive TX is wired in, this should reflect the
-    // actual mode chosen for the frame.
+    // Tag the DART level for the capture log, from the user-selected transmit
+    // level ('0'..'5' or 'F' → mode index 0..6).
     if (fragment.encoding == FragmentEncodingType.softwareDart) {
-      fragment.dartMode = 0;
+      final String level =
+          (_broker.getValue<String>(0, 'DartTxMode', '0') ?? '0').toUpperCase();
+      fragment.dartMode = level == 'F' ? 6 : (int.tryParse(level) ?? 0);
     }
 
     // Log / capture the outgoing frame with the correct software encoding.

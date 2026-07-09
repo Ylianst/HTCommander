@@ -303,6 +303,9 @@ class SoftwareModem {
   bool _initialized = false;
   static final math.Random _rng = math.Random();
 
+  /// DART transmit level/mode (payload mode used for DART transmissions).
+  DartMode _dartTxMode = DartMode.mode0;
+
   // Per-session modem override (Terminal / Winlink contacts). While a session
   // is active the mode is switched to the contact's modem and the user's
   // regular setting is restored when the session ends.
@@ -334,6 +337,10 @@ class SoftwareModem {
     _aprsFecEnabled =
         _broker.getValue<bool>(0, 'AprsSoftwareModemFec', true) ?? true;
 
+    // Load the DART transmit level (payload mode). Defaults to level 0.
+    _dartTxMode = _parseDartLevel(
+        _broker.getValue<String>(0, 'DartTxMode', '0') ?? '0');
+
     // Subscribe to mode changes on device 0
     _broker.subscribe(
       deviceId: 0,
@@ -346,6 +353,13 @@ class SoftwareModem {
       deviceId: 0,
       name: 'SetSoftwareModemFec',
       callback: _onSetFecRequested,
+    );
+
+    // Subscribe to DART transmit-level changes on device 0
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SetDartTxMode',
+      callback: _onSetDartTxModeRequested,
     );
 
     // Subscribe to per-session modem overrides (Terminal / Winlink contacts).
@@ -545,6 +559,51 @@ class SoftwareModem {
     );
     _debug('Software modem FX.25 FEC ${_fecEnabled ? "enabled" : "disabled"}');
   }
+
+  /// Handle a request to change the DART transmit level ('0'..'5' or 'F').
+  void _onSetDartTxModeRequested(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    final String levelStr = (data is String) ? data : (data?.toString() ?? '');
+    _dartTxMode = _parseDartLevel(levelStr);
+    // Apply to any live DART instances immediately.
+    for (final state in _radioModems.values) {
+      if (state.generalModem?.dartModem != null) {
+        state.generalModem!.dartTxMode = _dartTxMode;
+      }
+    }
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'DartTxMode',
+      data: _dartLevelName(_dartTxMode),
+      store: true,
+    );
+    _debug('DART transmit level set to ${_dartLevelName(_dartTxMode)}');
+  }
+
+  /// Parse a DART level string ('0'..'5' or 'F') into a [DartMode].
+  static DartMode _parseDartLevel(String level) {
+    switch (level.trim().toUpperCase()) {
+      case '1':
+        return DartMode.mode1;
+      case '2':
+        return DartMode.mode2;
+      case '3':
+        return DartMode.mode3;
+      case '4':
+        return DartMode.mode4;
+      case '5':
+        return DartMode.mode5;
+      case 'F':
+        return DartMode.modeF;
+      case '0':
+      default:
+        return DartMode.mode0;
+    }
+  }
+
+  /// The persisted level string ('0'..'5' or 'F') for a [DartMode].
+  static String _dartLevelName(DartMode mode) =>
+      mode == DartMode.modeF ? 'F' : mode.index.toString();
 
   /// Handle a request to change the independent APRS modem mode (off/AFSK1200).
   void _onSetAprsModeRequested(int deviceId, String name, Object? data) {
@@ -806,6 +865,7 @@ class SoftwareModem {
     // return early.
     if (mode == SoftwareModemMode.dart) {
       instance.dartModem = DartModem();
+      instance.dartTxMode = _dartTxMode;
       instance.onDartFrame = (frame, result) =>
           _onDartFrameReceived(state, instance, frame, result);
       _debug('Built DART modem instance for device ${state.deviceId}');

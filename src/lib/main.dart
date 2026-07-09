@@ -453,6 +453,7 @@ class _MainFormState extends State<MainForm>
       false; // GPS enabled state of the currently displayed radio
   String _softwareModemMode = 'none'; // Current software modem mode
   bool _softwareModemFec = true; // FX.25 FEC on transmit (software modem)
+  String _dartTxLevel = '0'; // DART transmit level ('0'..'5' or 'F')
   String _aprsModemMode = 'none'; // APRS modem mode ('none' or 'afsk1200')
   bool _aprsModemFec = true; // FX.25 FEC on transmit (APRS modem)
   int _regionCount =
@@ -663,6 +664,16 @@ class _MainFormState extends State<MainForm>
     _softwareModemFec =
         _broker.getValue<bool>(0, 'SoftwareModemFec', true) ?? true;
 
+    // Subscribe to DART transmit-level changes
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'DartTxMode',
+      callback: _onDartTxModeChanged,
+    );
+    // Load initial value
+    _dartTxLevel =
+        (_broker.getValue<String>(0, 'DartTxMode', '0') ?? '0').toUpperCase();
+
     // Subscribe to the independent APRS modem mode / FEC changes
     _broker.subscribe(
       deviceId: 0,
@@ -870,6 +881,15 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  /// Handle DART transmit-level changes from the DataBroker.
+  void _onDartTxModeChanged(int deviceId, String name, Object? data) {
+    if (data is String) {
+      setState(() {
+        _dartTxLevel = data.toUpperCase();
+      });
+    }
+  }
+
   /// Handle APRS modem mode changes from the DataBroker.
   void _onAprsModemModeChanged(int deviceId, String name, Object? data) {
     if (data is String) {
@@ -1006,6 +1026,16 @@ class _MainFormState extends State<MainForm>
       deviceId: 0,
       name: 'SetSoftwareModemFec',
       data: !_softwareModemFec,
+      store: false,
+    );
+  }
+
+  /// Set the DART transmit level ('0'..'5' or 'F') via the DataBroker.
+  void _setDartTxLevel(String level) {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SetDartTxMode',
+      data: level,
       store: false,
     );
   }
@@ -1596,6 +1626,46 @@ class _MainFormState extends State<MainForm>
                   label: 'FX.25 FEC',
                   onPressed: _toggleSoftwareModemFec,
                   checked: _softwareModemFec,
+                ),
+              ],
+            ),
+            AppSubmenu(
+              label: 'DART Transmit Level',
+              children: [
+                AppMenuAction(
+                  label: 'Level 0 (BPSK, LDPC 1/2)',
+                  onPressed: () => _setDartTxLevel('0'),
+                  checked: _dartTxLevel == '0',
+                ),
+                AppMenuAction(
+                  label: 'Level 1 (QPSK, LDPC 1/2)',
+                  onPressed: () => _setDartTxLevel('1'),
+                  checked: _dartTxLevel == '1',
+                ),
+                AppMenuAction(
+                  label: 'Level 2 (QPSK, LDPC 2/3)',
+                  onPressed: () => _setDartTxLevel('2'),
+                  checked: _dartTxLevel == '2',
+                ),
+                AppMenuAction(
+                  label: 'Level 3 (8PSK, LDPC 2/3)',
+                  onPressed: () => _setDartTxLevel('3'),
+                  checked: _dartTxLevel == '3',
+                ),
+                AppMenuAction(
+                  label: 'Level 4 (16QAM, LDPC 3/4)',
+                  onPressed: () => _setDartTxLevel('4'),
+                  checked: _dartTxLevel == '4',
+                ),
+                AppMenuAction(
+                  label: 'Level 5 (16QAM, LDPC 5/6)',
+                  onPressed: () => _setDartTxLevel('5'),
+                  checked: _dartTxLevel == '5',
+                ),
+                AppMenuAction(
+                  label: 'Level F (4-FSK, LDPC 1/2)',
+                  onPressed: () => _setDartTxLevel('F'),
+                  checked: _dartTxLevel == 'F',
                 ),
               ],
             ),
