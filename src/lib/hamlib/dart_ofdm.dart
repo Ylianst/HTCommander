@@ -245,7 +245,7 @@ class DartOfdm {
 
   /// Convert a sequence of OFDM symbols (time-domain) to PCM audio samples.
   /// Scales to fit within [-amplitude, +amplitude] range for 16-bit output.
-  static Int16List toPcm(List<Float64List> symbols, {double amplitude = 0.8}) {
+  static Int16List toPcm(List<Float64List> symbols, {double amplitude = 0.5}) {
     // Concatenate all symbol samples
     int totalSamples = 0;
     for (final sym in symbols) {
