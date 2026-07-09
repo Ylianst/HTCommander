@@ -35,7 +35,8 @@ class CapturedPacket {
   /// (as opposed to the radio's built-in hardware TNC).
   bool get isSoftwareModem =>
       fragment.encoding == FragmentEncodingType.softwareAfsk1200 ||
-      fragment.encoding == FragmentEncodingType.softwarePsk2400;
+      fragment.encoding == FragmentEncodingType.softwarePsk2400 ||
+      fragment.encoding == FragmentEncodingType.softwareDart;
 }
 
 /// Packets tab - packet inspection and analysis. Subscribes to UniqueDataFrame

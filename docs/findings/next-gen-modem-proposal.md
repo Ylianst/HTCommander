@@ -149,7 +149,7 @@ that drew the passband curve can directly drive bit-loading.
 
 ## Recommended architecture (primary mode)
 
-A layered design, "**HTModem-NG**":
+A layered design, "**DART**" (Data Adaptive Rate Transport):
 
 ```
 Payload
@@ -192,6 +192,88 @@ measured channel** instead of fighting it.
 
 ---
 
+## Adaptive mode table & single-decoder architecture
+
+A single modem implementation handles all robustness levels. The waveform structure
+(symbol rate, FFT size, cyclic prefix, preamble, equalizer) stays **fixed** — only
+the constellation order and FEC code rate change per frame. This means one
+codebase, one decoder, and seamless rate adaptation without switching between
+separate modem implementations.
+
+### Frame structure
+
+```
+┌─────────────┬──────────────────┬─────────────────────────────┐
+│  Preamble   │  Header (mode 0) │  Payload (variable mode)    │
+│  (fixed)    │  (always BPSK    │  (constellation + code rate │
+│             │   rate-1/2)      │   per mode table below)     │
+└─────────────┴──────────────────┴─────────────────────────────┘
+```
+
+- **Preamble:** always identical (Zadoff-Chu / chirp) — provides sync, timing,
+  frequency offset estimation, and one-shot channel estimate. Never changes.
+- **Header:** always sent at the most robust mode (BPSK, LDPC rate-1/2). Contains:
+  frame length, mode index for the payload, source/dest addressing, CRC.
+  The receiver can *always* decode this regardless of channel conditions.
+- **Payload:** modulated/coded according to the mode index signaled in the header.
+
+### Mode table
+
+| Mode | Waveform | Constellation | LDPC rate | Net throughput (est.) | Use case |
+| --- | --- | --- | --- | --- | --- |
+| 0 | SC-FDMA | BPSK | 1/2 | ~0.8–1.0 kbps | Maximum robustness; control/ACK frames |
+| 1 | SC-FDMA | QPSK | 1/2 | ~1.5–2.0 kbps | Poor conditions; long range |
+| 2 | SC-FDMA | QPSK | 2/3 | ~2.5–3.0 kbps | Typical conditions |
+| 3 | SC-FDMA | 8PSK | 2/3 | ~3.5–4.0 kbps | Good conditions |
+| 4 | SC-FDMA | 16QAM | 3/4 | ~4.5–5.5 kbps | Excellent, linear audio path |
+| 5 | SC-FDMA | 16QAM | 5/6 | ~5.5–6.5 kbps | Best-case; clean link only |
+| F | 4-CPM | — | 1/2 | ~1.0–1.5 kbps | Amplitude-hostile fallback (different modulator) |
+
+Modes 0–5 share **identical** modulator/demodulator code — parameterized by
+`{constellation, codeRate}`. Mode F uses a separate CPM modulator/demodulator
+plugin but shares the same FEC engine, framing, CRC, and link-layer ARQ.
+
+### How the receiver decodes any mode
+
+1. Detect preamble → synchronize timing and frequency.
+2. Estimate channel (one-shot, from preamble).
+3. Equalize and demodulate the **header** (always mode 0 = BPSK rate-1/2).
+4. Read the mode index from the header.
+5. Demodulate + decode the **payload** using that mode's constellation and code
+   rate. No separate decoder needed — same soft-demapper, same LDPC decoder, just
+   different parameters.
+
+### Rate adaptation (link-layer negotiation)
+
+Two mechanisms, used together:
+
+1. **Per-frame signaling:** The header's mode field means the receiver never needs
+   prior agreement — it can decode any frame it hears, cold. This supports
+   broadcast, monitoring, and first-contact scenarios.
+2. **ARQ-driven adaptation:** During a connected session, stations negotiate rate:
+   - Start at mode 1 (safe).
+   - On N consecutive clean ACKs → shift up one mode.
+   - On a NACK or timeout → shift down one (or two) modes immediately.
+   - Periodically re-probe the channel (short preamble-only burst) to confirm the
+     estimate is still valid.
+
+This is the same algorithm used by Wi-Fi (MCS index selection), LTE (CQI → MCS
+mapping), and VARA. The channel's static nature means rate changes are infrequent
+— mostly driven by distance / antenna changes, not fast fading.
+
+### Why not separate modems?
+
+- **~95% code sharing** between modes 0–5 (same FFT, same equalizer, same LDPC,
+  same framing). Only a lookup table of `{bits_per_symbol, code_rate}` differs.
+- Even the CPM fallback (mode F) shares the FEC, CRC, interleaver, framing, and
+  ARQ layers — only the modulator/demodulator is different (~30% of the DSP path).
+- A single preamble design means the receiver locks on identically regardless of
+  what payload mode follows.
+- Testing and validation are dramatically simpler: one test harness, one SBC
+  round-trip path, one set of offline WAV encode/decode tests covers all modes.
+
+---
+
 ## How this maps onto the existing code
 
 - Reuse `wav_file.dart`, `gen_tone.dart`, `audio_buffer.dart`, and the
@@ -202,8 +284,25 @@ measured channel** instead of fighting it.
   bit-loading — extend it to emit a machine-readable per-tone SNR profile.
 - Keep the AX.25/FX.25 framing/addressing layer so the new PHY can coexist with the
   current one and negotiate up from PSK2400.
-- Cross-validate against **FreeDV/Codec2 OFDM** and **MIL-STD-188-110** references,
-  the same way the modem was cross-validated against Direwolf.
+- Cross-validate against better-matched reference designs:
+  - **ITU-T V.34** (telephone modem) — the closest channel analogue: static,
+    300–3400 Hz, mildly nonlinear; uses training sequences, trellis-coded QAM,
+    adaptive bit-rates, and pre-equalization over essentially the same bandwidth.
+  - **VARA FM** — commercial amateur modem specifically targeting the FM audio
+    channel; achieves ~3–6 kbps with adaptive OFDM-like modulation; closest
+    existing product to what we're building (closed-source but well-documented
+    behavior to benchmark against).
+  - **HomePlug AV / G.hn (power-line comms)** — static, band-limited, mildly
+    nonlinear channel + OFDM + per-tone bit-loading from channel probing + LDPC;
+    almost exactly our proposed architecture at a different frequency scale.
+  - **M17 Project** — open-source VHF/UHF FM digital protocol; uses 4FSK + Viterbi
+    FEC; targets direct FM baseband (not audio-over-Bluetooth), but its link-layer
+    and FEC choices are relevant.
+  - ~~FreeDV/Codec2 OFDM, MIL-STD-188-110~~ — these are **HF fading-channel**
+    designs (heavy pilot insertion, deep interleavers, continuous adaptive EQ for
+    multipath/Doppler); our static FM audio channel has none of those problems.
+    Useful as open-source *code* references for LDPC/OFDM implementation, but
+    their design parameters are tuned for the wrong channel.
 
 ---
 

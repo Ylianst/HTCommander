@@ -1200,6 +1200,8 @@ class Radio {
         return FragmentEncodingType.softwareAfsk1200;
       case 'PSK2400':
         return FragmentEncodingType.softwarePsk2400;
+      case 'DART':
+        return FragmentEncodingType.softwareDart;
       default:
         return FragmentEncodingType.unknown;
     }
@@ -1211,9 +1213,11 @@ class Radio {
   /// p-persistent CSMA channel-access logic).
   void _transmitSoftwareModem(TncDataFragment fragment, String mode) {
     fragment.encoding = _softwareEncodingFor(mode);
-    // The software modem always applies FX.25 forward error correction (it
-    // falls back to plain AX.25 only for frames too large for any FX.25 block).
-    fragment.frameType = FragmentFrameType.fx25;
+    // DART carries its own LDPC FEC and CRC; the AFSK/PSK modems apply FX.25
+    // (falling back to plain AX.25 for frames too large for any FX.25 block).
+    fragment.frameType = fragment.encoding == FragmentEncodingType.softwareDart
+        ? FragmentFrameType.ax25
+        : FragmentFrameType.fx25;
 
     // Log / capture the outgoing frame with the correct software encoding.
     _dispatchDataFrame(fragment);

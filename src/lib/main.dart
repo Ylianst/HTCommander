@@ -1586,6 +1586,11 @@ class _MainFormState extends State<MainForm>
                   onPressed: () => _setSoftwareModemMode('PSK2400'),
                   checked: _softwareModemMode == 'psk2400',
                 ),
+                AppMenuAction(
+                  label: 'DART',
+                  onPressed: () => _setSoftwareModemMode('DART'),
+                  checked: _softwareModemMode == 'dart',
+                ),
                 const AppMenuDivider(),
                 AppMenuAction(
                   label: 'FX.25 FEC',

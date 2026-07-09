@@ -19,6 +19,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../hamlib/audio_buffer.dart';
 import '../hamlib/audio_config.dart';
+import '../hamlib/dart_modem.dart';
 import '../hamlib/demod_afsk.dart';
 import '../hamlib/demod_psk.dart';
 import '../hamlib/fx25.dart';
@@ -40,6 +41,7 @@ enum SoftwareModemMode {
   none,
   afsk1200,
   psk2400,
+  dart,
 }
 
 /// Holds a frame waiting to be transmitted once the channel is clear. The
@@ -134,6 +136,23 @@ class _ModemInstance {
   HdlcSend? packetHdlcSend;
   Fx25Send? packetFx25Send;
 
+  // --- DART modem (frame-based; bypasses the HDLC/FX.25/GenTone chain) ---
+  /// Non-null only for [SoftwareModemMode.dart]. Encodes/decodes whole frames.
+  DartModem? dartModem;
+
+  /// Payload mode used when transmitting DART frames.
+  DartMode dartTxMode = DartMode.mode2;
+
+  /// Rolling receive buffer of 16-bit samples awaiting a DART decode.
+  final List<int> dartRxSamples = <int>[];
+
+  /// Monotonic sequence number for transmitted DART frames.
+  int dartTxSeq = 0;
+
+  /// Called with a decoded DART payload (a raw AX.25 frame) so the owner can
+  /// dispatch it. Wired up in _buildInstance for DART instances.
+  void Function(Uint8List frame, DartDecodeResult result)? onDartFrame;
+
   // A valid-FCS frame the plain HDLC receiver decoded from inside an FX.25
   // block, held briefly while we wait to see if the FX.25 Reed-Solomon path
   // delivers the same frame. If it does not (RS decode failed or the block did
@@ -155,6 +174,10 @@ class _ModemInstance {
   void processSamples(Uint8List data, int offset, int length) {
     const int chan = 0;
     const int subchan = 0;
+    if (dartModem != null) {
+      _processDartSamples(data, offset, length);
+      return;
+    }
     if (afskDemodulator != null && afskDemodState != null) {
       for (int i = offset; i < offset + length - 1; i += 2) {
         final int sample = (data[i] | (data[i + 1] << 8)).toSigned(16);
@@ -165,6 +188,46 @@ class _ModemInstance {
         final int sample = (data[i] | (data[i + 1] << 8)).toSigned(16);
         pskDemodulator!.processSample(chan, subchan, sample, pskDemodState!);
       }
+    }
+  }
+
+  /// Maximum DART receive buffer (~8 s at 32 kHz) before old audio is dropped.
+  static const int _dartMaxRxSamples = 32000 * 8;
+
+  /// Attempt a decode roughly every this-many new samples (throttle the O(N)
+  /// preamble correlation).
+  static const int _dartDecodeStride = 4000;
+
+  int _dartSamplesSinceDecode = 0;
+
+  /// Buffer incoming PCM and attempt to decode complete DART frames.
+  void _processDartSamples(Uint8List data, int offset, int length) {
+    for (int i = offset; i < offset + length - 1; i += 2) {
+      dartRxSamples.add((data[i] | (data[i + 1] << 8)).toSigned(16));
+      _dartSamplesSinceDecode++;
+    }
+
+    // Throttle decode attempts.
+    if (_dartSamplesSinceDecode < _dartDecodeStride) return;
+    _dartSamplesSinceDecode = 0;
+
+    // Try to decode from the current buffer; on success, consume the frame.
+    while (dartRxSamples.length > 2000) {
+      final Int16List buf = Int16List.fromList(dartRxSamples);
+      final result = dartModem!.decode(buf);
+      if (result == null) break;
+      if (result.crcOk) {
+        onDartFrame?.call(result.payload, result);
+      }
+      // Consume everything up to the end of this frame.
+      final int consume = result.endSample.clamp(0, dartRxSamples.length);
+      if (consume <= 0) break;
+      dartRxSamples.removeRange(0, consume);
+    }
+
+    // Bound memory: if no frame is completing, drop the oldest half.
+    if (dartRxSamples.length > _dartMaxRxSamples) {
+      dartRxSamples.removeRange(0, dartRxSamples.length ~/ 2);
     }
   }
 
@@ -183,6 +246,9 @@ class _ModemInstance {
     packetAudioBuffer = null;
     packetHdlcSend = null;
     packetFx25Send = null;
+    dartModem = null;
+    dartRxSamples.clear();
+    onDartFrame = null;
   }
 }
 
@@ -369,6 +435,8 @@ class SoftwareModem {
         return SoftwareModemMode.afsk1200;
       case 'PSK2400':
         return SoftwareModemMode.psk2400;
+      case 'DART':
+        return SoftwareModemMode.dart;
       default:
         return SoftwareModemMode.none;
     }
@@ -388,6 +456,8 @@ class SoftwareModem {
         return FragmentEncodingType.softwareAfsk1200;
       case SoftwareModemMode.psk2400:
         return FragmentEncodingType.softwarePsk2400;
+      case SoftwareModemMode.dart:
+        return FragmentEncodingType.softwareDart;
       default:
         return FragmentEncodingType.unknown;
     }
@@ -715,6 +785,9 @@ class SoftwareModem {
         audioConfig.channels[0].baud = 2400;
         audioConfig.channels[0].v26Alt = V26Alternative.b;
         break;
+      case SoftwareModemMode.dart:
+        // DART bypasses the Direwolf modem config entirely.
+        break;
       case SoftwareModemMode.none:
         break;
     }
@@ -727,6 +800,17 @@ class SoftwareModem {
       fecEnabled: fecEnabled,
       audioConfig: audioConfig,
     );
+
+    // DART is frame-based: it owns its own preamble/FEC/framing and bypasses the
+    // HDLC/FX.25/GenTone/Direwolf-demod chain. Wire up its decode callback and
+    // return early.
+    if (mode == SoftwareModemMode.dart) {
+      instance.dartModem = DartModem();
+      instance.onDartFrame = (frame, result) =>
+          _onDartFrameReceived(state, instance, frame, result);
+      _debug('Built DART modem instance for device ${state.deviceId}');
+      return instance;
+    }
 
     // Receive chain: HDLC + FX.25 receivers fed through the NRZI bridge. The
     // frame callbacks capture both the radio state and this instance so decoded
@@ -757,6 +841,8 @@ class SoftwareModem {
         instance.pskDemodulator = demod;
         instance.pskDemodState = demodState;
         break;
+      case SoftwareModemMode.dart:
+        break; // handled by the early return above
       case SoftwareModemMode.none:
         break;
     }
@@ -889,6 +975,41 @@ class SoftwareModem {
     _dispatchDecodedFrame(state.deviceId, fragment);
   }
 
+  /// Deliver a DART-decoded frame. The DART payload is the raw AX.25 frame
+  /// (DART's own CRC-32 has already validated it), so it is dispatched straight
+  /// through as an AX.25 fragment tagged with the DART encoding.
+  void _onDartFrameReceived(
+    _RadioModemState state,
+    _ModemInstance instance,
+    Uint8List frame,
+    DartDecodeResult result,
+  ) {
+    if (_disposed) return;
+    if (frame.isEmpty) return;
+
+    _debug(
+      'RX DART: mode ${result.header.modeIndex} '
+      '(${result.quality}) ${frame.length}-byte frame: ${_hex(frame)}',
+    );
+
+    final fragment = TncDataFragment(
+      finalFragment: true,
+      fragmentId: 0,
+      data: Uint8List.fromList(frame),
+      channelId: state.currentChannelId,
+      regionId: state.currentRegionId,
+      channelName: state.currentChannelName,
+      incoming: true,
+      encoding: instance.encoding,
+      frameType: FragmentFrameType.ax25,
+      time: DateTime.now(),
+      radioMac: state.macAddress,
+      radioDeviceId: state.deviceId,
+    );
+    fragment.corrections = 0;
+    _dispatchDecodedFrame(state.deviceId, fragment);
+  }
+
   // ---------------------------------------------------------------------------
   // HtStatus tracking
   // ---------------------------------------------------------------------------
@@ -976,7 +1097,8 @@ class SoftwareModem {
       return;
     }
 
-    if (target.packetAudioBuffer == null || target.packetGenTone == null) {
+    if (target.dartModem == null &&
+        (target.packetAudioBuffer == null || target.packetGenTone == null)) {
       _debug('TransmitPacket: Transmitter not initialized');
       return;
     }
@@ -1170,6 +1292,13 @@ class SoftwareModem {
     List<_PendingTransmission> frames,
   ) {
     if (frames.isEmpty) return null;
+
+    // DART is frame-based: encode each queued frame with its own preamble/FEC
+    // and concatenate, bracketed by PTT lead-in/tail silence.
+    if (instance.dartModem != null) {
+      return _buildDartPcm(instance, frames);
+    }
+
     if (instance.packetAudioBuffer == null ||
         instance.packetHdlcSend == null ||
         instance.packetFx25Send == null) {
@@ -1262,6 +1391,47 @@ class SoftwareModem {
     for (int i = 0; i < numSamples; i++) {
       buffer.put(0, 0);
     }
+  }
+
+  /// Build a DART transmission: each queued frame encoded as a full DART frame
+  /// (its own preamble/header/payload/FEC), concatenated with PTT lead-in and
+  /// tail silence. Returns little-endian 16-bit mono PCM bytes.
+  Uint8List? _buildDartPcm(
+    _ModemInstance instance,
+    List<_PendingTransmission> frames,
+  ) {
+    final modem = instance.dartModem;
+    if (modem == null) return null;
+
+    const int sampleRate = 32000;
+    final List<int> samples = [];
+
+    // Half a second of leading silence so PTT is fully keyed before data tones.
+    samples.addAll(List<int>.filled(sampleRate ~/ 2, 0));
+
+    for (final tx in frames) {
+      final Int16List framePcm = modem.encode(
+        payload: tx.frameData,
+        mode: instance.dartTxMode,
+        seqNum: instance.dartTxSeq & 0xFF,
+      );
+      instance.dartTxSeq++;
+      samples.addAll(framePcm);
+      _debug(
+        'TX DART: ${instance.dartTxMode.name} '
+        '${tx.frameData.length}-byte frame → ${framePcm.length} samples',
+      );
+    }
+
+    // Tenth of a second of trailing silence before PTT release.
+    samples.addAll(List<int>.filled(sampleRate ~/ 10, 0));
+
+    final Uint8List pcmData = Uint8List(samples.length * 2);
+    final ByteData bd = ByteData.view(pcmData.buffer);
+    for (int i = 0; i < samples.length; i++) {
+      bd.setInt16(i * 2, samples[i].clamp(-32768, 32767), Endian.little);
+    }
+    return pcmData;
   }
 
   // ---------------------------------------------------------------------------
