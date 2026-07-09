@@ -141,7 +141,7 @@ class _ModemInstance {
   DartModem? dartModem;
 
   /// Payload mode used when transmitting DART frames.
-  DartMode dartTxMode = DartMode.mode2;
+  DartMode dartTxMode = DartMode.mode0;
 
   /// Rolling receive buffer of 16-bit samples awaiting a DART decode.
   final List<int> dartRxSamples = <int>[];
