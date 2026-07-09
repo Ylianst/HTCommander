@@ -259,12 +259,19 @@ class PacketDecoder {
 
     if (fragment.frameType == FragmentFrameType.ax25) encoding += ', AX.25';
     if (fragment.frameType == FragmentFrameType.fx25) encoding += ', FX.25';
+
+    // DART reports LDPC bit-error corrections; the AFSK/PSK modems report
+    // FX.25 Reed-Solomon symbol / HDLC bit corrections.
+    final bool isDart =
+        fragment.encoding == FragmentEncodingType.softwareDart;
+    final String unit = isDart ? 'LDPC bit' : '';
+    final String noun = unit.isEmpty ? 'Correction' : '$unit Correction';
     if (fragment.corrections == 0) {
-      encoding += ', No Corrections';
+      encoding += ', No ${unit.isEmpty ? "Corrections" : "$unit Corrections"}';
     } else if (fragment.corrections == 1) {
-      encoding += ', 1 Correction';
+      encoding += ', 1 $noun';
     } else if (fragment.corrections > 1) {
-      encoding += ', ${fragment.corrections} Corrections';
+      encoding += ', ${fragment.corrections} ${noun}s';
     }
     return encoding;
   }

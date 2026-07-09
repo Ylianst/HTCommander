@@ -1049,7 +1049,8 @@ class SoftwareModem {
 
     _debug(
       'RX DART: mode ${result.header.modeIndex} '
-      '(${result.quality}) ${frame.length}-byte frame: ${_hex(frame)}',
+      '(${result.quality}) ${frame.length}-byte frame, '
+      '${result.ldpcCorrections} LDPC corrections: ${_hex(frame)}',
     );
 
     final fragment = TncDataFragment(
@@ -1067,7 +1068,7 @@ class SoftwareModem {
       radioDeviceId: state.deviceId,
       dartMode: result.header.modeIndex,
     );
-    fragment.corrections = 0;
+    fragment.corrections = result.ldpcCorrections;
     _dispatchDecodedFrame(state.deviceId, fragment);
   }
 

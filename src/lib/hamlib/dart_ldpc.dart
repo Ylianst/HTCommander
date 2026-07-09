@@ -128,7 +128,11 @@ class DartLdpc {
   /// Positive LLR → bit is likely 0, negative → bit is likely 1.
   /// Returns decoded information bits (length code.k), or null if decoding
   /// failed (max iterations reached without valid codeword).
-  static Uint8List? decode(LdpcCode code, Float64List llr) {
+  ///
+  /// If [corrOut] (a 1-element array) is provided, the number of bit errors the
+  /// decoder corrected — positions where the raw channel hard-decision differs
+  /// from the final decoded codeword — is added to `corrOut[0]`.
+  static Uint8List? decode(LdpcCode code, Float64List llr, {Int32List? corrOut}) {
     if (llr.length != code.n) {
       throw ArgumentError('Expected ${code.n} LLRs, got ${llr.length}');
     }
@@ -240,12 +244,25 @@ class DartLdpc {
 
       // --- Check if valid codeword ---
       if (_checkSyndrome(code, hardDecision)) {
+        if (corrOut != null) corrOut[0] += _countCorrections(llr, hardDecision);
         return Uint8List.fromList(hardDecision.sublist(0, code.k));
       }
     }
 
     // Failed to converge — return hard decision anyway (caller checks CRC)
+    if (corrOut != null) corrOut[0] += _countCorrections(llr, hardDecision);
     return Uint8List.fromList(hardDecision.sublist(0, code.k));
+  }
+
+  /// Count positions where the raw channel hard-decision (sign of the input
+  /// LLR) differs from the decoded codeword — i.e. the bit errors corrected.
+  static int _countCorrections(Float64List llr, Uint8List hardDecision) {
+    int count = 0;
+    for (int i = 0; i < hardDecision.length; i++) {
+      final int channelBit = llr[i] < 0 ? 1 : 0;
+      if (channelBit != hardDecision[i]) count++;
+    }
+    return count;
   }
 
   /// Check if the hard decision satisfies all parity checks (syndrome == 0).

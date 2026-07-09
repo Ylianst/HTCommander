@@ -210,6 +210,7 @@ void _cmdDecode(List<String> args) {
   print('  Seq#: ${result.header.seqNum}');
   print('  Payload (${result.payload.length} bytes): '
       '${String.fromCharCodes(result.payload)}');
+  print('  LDPC corrections: ${result.ldpcCorrections}');
   print('  CRC: ${result.crcOk ? "OK" : "FAIL"}');
 }
 
@@ -488,7 +489,7 @@ void _cmdLoopback(List<String> args) {
 
       if (ok) {
         pass++;
-        print('  PASS [${msg.length} bytes]');
+        print('  PASS [${msg.length} bytes] (${result.ldpcCorrections} LDPC corrections)');
       } else {
         fail++;
         if (result == null) {

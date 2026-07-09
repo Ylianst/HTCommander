@@ -309,6 +309,9 @@ class DartDecodeResult {
   /// Lets a streaming receiver consume the frame and keep the remaining audio.
   final int endSample;
 
+  /// Number of payload bit errors the LDPC decoder corrected.
+  final int ldpcCorrections;
+
   const DartDecodeResult({
     required this.header,
     required this.payload,
@@ -316,6 +319,7 @@ class DartDecodeResult {
     required this.quality,
     required this.durationMs,
     this.endSample = 0,
+    this.ldpcCorrections = 0,
   });
 
   /// Link-layer frame type derived from the header flags.
@@ -605,9 +609,11 @@ class DartModem {
     // Deinterleave
     final deinterleavedLlrs = _deinterleave(payloadLlrs);
 
-    // LDPC decode
+    // LDPC decode (counting the bit errors corrected)
+    final corrections = Int32List(1);
     final payloadBits = _ldpcDecodeStream(
       deinterleavedLlrs, modeParams.ldpcRate, payloadBitsNeeded,
+      corrOut: corrections,
     );
     if (payloadBits == null) return null;
 
@@ -636,6 +642,7 @@ class DartModem {
       quality: quality,
       durationMs: durationMs,
       endSample: payloadStart + payloadOfdmCount * ofdmParams.symbolLength,
+      ldpcCorrections: corrections[0],
     );
   }
 
@@ -680,8 +687,10 @@ class DartModem {
     final payloadLlrs =
         fsk.demodulateSoft(rxSamples, payloadStart, totalCodedBits);
     final deinterleavedLlrs = _deinterleave(payloadLlrs);
+    final corrections = Int32List(1);
     final payloadBits = _ldpcDecodeStream(
       deinterleavedLlrs, LdpcRate.r1_2, payloadBitsNeeded,
+      corrOut: corrections,
     );
     if (payloadBits == null) return null;
 
@@ -711,6 +720,7 @@ class DartModem {
       quality: quality,
       durationMs: durationMs,
       endSample: payloadStart + fsk.samplesForBits(totalCodedBits),
+      ldpcCorrections: corrections[0],
     );
   }
 
@@ -972,7 +982,14 @@ class DartModem {
   }
 
   /// LDPC decode a stream of LLRs, return decoded info bits.
-  Uint8List? _ldpcDecodeStream(Float64List llrs, LdpcRate rate, int infoBitsNeeded) {
+  /// If [corrOut] (a 1-element array) is provided, the total number of LDPC bit
+  /// errors corrected across all blocks is added to `corrOut[0]`.
+  Uint8List? _ldpcDecodeStream(
+    Float64List llrs,
+    LdpcRate rate,
+    int infoBitsNeeded, {
+    Int32List? corrOut,
+  }) {
     final code = DartLdpc.getCode(rate);
     final int numBlocks = (infoBitsNeeded + code.k - 1) ~/ code.k;
     final output = Uint8List(numBlocks * code.k);
@@ -984,7 +1001,7 @@ class DartModem {
       if (copyLen > 0) {
         blockLlr.setRange(0, copyLen, llrs, start);
       }
-      final decoded = DartLdpc.decode(code, blockLlr);
+      final decoded = DartLdpc.decode(code, blockLlr, corrOut: corrOut);
       if (decoded == null) return null;
       output.setRange(b * code.k, (b + 1) * code.k, decoded);
     }
