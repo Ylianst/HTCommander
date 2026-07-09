@@ -37,6 +37,10 @@ class TncDataFragment {
   int? radioDeviceId;
   String? usage;
 
+  /// DART payload mode/level (0–5 for OFDM modes, 6 for Mode F), or -1 when the
+  /// fragment was not carried by the DART modem.
+  int dartMode;
+
   TncDataFragment({
     required this.finalFragment,
     required this.fragmentId,
@@ -52,6 +56,7 @@ class TncDataFragment {
     this.radioMac,
     this.radioDeviceId,
     this.usage,
+    this.dartMode = -1,
   }) : time = time ?? DateTime.now() {
     if (channelName.isEmpty) {
       channelName = channelId == -1 ? '' : (channelId + 1).toString();

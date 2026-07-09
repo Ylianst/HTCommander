@@ -212,6 +212,29 @@ class PacketDecoder {
     }
   }
 
+  /// Human-readable DART level suffix, e.g. " Level 4 (16QAM, LDPC 3/4)".
+  /// Returns '' when the fragment carries no DART mode.
+  static String _dartLevelString(int mode) {
+    switch (mode) {
+      case 0:
+        return ' Level 0 (BPSK, LDPC 1/2)';
+      case 1:
+        return ' Level 1 (QPSK, LDPC 1/2)';
+      case 2:
+        return ' Level 2 (QPSK, LDPC 2/3)';
+      case 3:
+        return ' Level 3 (8PSK, LDPC 2/3)';
+      case 4:
+        return ' Level 4 (16QAM, LDPC 3/4)';
+      case 5:
+        return ' Level 5 (16QAM, LDPC 5/6)';
+      case 6:
+        return ' Level F (4-FSK, LDPC 1/2)';
+      default:
+        return '';
+    }
+  }
+
   static String _encodingString(TncDataFragment fragment) {
     String encoding = '';
     switch (fragment.encoding) {
@@ -228,7 +251,7 @@ class PacketDecoder {
         encoding = 'Software PSK 2400 baud';
         break;
       case FragmentEncodingType.softwareDart:
-        encoding = 'Software DART';
+        encoding = 'Software DART${_dartLevelString(fragment.dartMode)}';
         break;
       case FragmentEncodingType.unknown:
         return '';

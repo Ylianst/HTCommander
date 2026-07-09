@@ -1005,6 +1005,7 @@ class SoftwareModem {
       time: DateTime.now(),
       radioMac: state.macAddress,
       radioDeviceId: state.deviceId,
+      dartMode: result.header.modeIndex,
     );
     fragment.corrections = 0;
     _dispatchDecodedFrame(state.deviceId, fragment);

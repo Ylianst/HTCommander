@@ -1219,6 +1219,13 @@ class Radio {
         ? FragmentFrameType.ax25
         : FragmentFrameType.fx25;
 
+    // Tag the DART level for the capture log. The live TX path currently uses a
+    // fixed mode (0). When adaptive TX is wired in, this should reflect the
+    // actual mode chosen for the frame.
+    if (fragment.encoding == FragmentEncodingType.softwareDart) {
+      fragment.dartMode = 0;
+    }
+
     // Log / capture the outgoing frame with the correct software encoding.
     _dispatchDataFrame(fragment);
 
