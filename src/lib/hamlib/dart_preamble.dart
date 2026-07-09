@@ -218,35 +218,32 @@ class DartPreamble {
 
   // --- Private helpers ---
 
-  /// Default ZC length: use the largest prime ≤ FFT size.
+  /// Default sync-sequence length. A longer sequence gives a higher
+  /// time-bandwidth product and sharper autocorrelation. 256 samples at 32 kHz
+  /// is 8 ms, spanning the ~2.2 kHz usable band for a TBP of ~18.
   static int _defaultZcLength(DartOfdmParams params) {
-    // Use a prime number close to FFT size for good autocorrelation
-    int n = params.fftSize - 1;
-    while (!_isPrime(n) && n > 2) {
-      n--;
-    }
-    return n;
+    return 256;
   }
 
-  static bool _isPrime(int n) {
-    if (n < 2) return false;
-    if (n == 2 || n == 3) return true;
-    if (n % 2 == 0 || n % 3 == 0) return false;
-    for (int i = 5; i * i <= n; i += 6) {
-      if (n % i == 0 || n % (i + 2) == 0) return false;
-    }
-    return true;
-  }
-
-  /// Generate Zadoff-Chu sequence in time domain (real part only).
-  /// ZC(n) = exp(-j * π * root * n * (n+1) / zcLength)
+  /// Generate a band-limited linear chirp confined to the OFDM passband, in the
+  /// time domain (real). The classic Zadoff-Chu chirp sweeps past Nyquist and
+  /// near DC, so most of its energy falls outside the radio's ~300–2900 Hz audio
+  /// passband and the radio's filtering destroys the correlation. A chirp that
+  /// sweeps only within [freqLow, freqHigh] survives the radio audio path while
+  /// keeping the sharp autocorrelation needed for timing sync.
   Float64List _generateZcTimeDomain() {
-    final output = Float64List(zcLength);
-    for (int n = 0; n < zcLength; n++) {
-      final double phase =
-          -math.pi * root * n * (n + 1) / zcLength;
-      // Use real part for the baseband audio signal
-      output[n] = math.cos(phase);
+    final int n = zcLength;
+    final output = Float64List(n);
+    final double fs = ofdmParams.sampleRate.toDouble();
+    final double f0 = ofdmParams.freqLow;
+    final double f1 = ofdmParams.freqHigh;
+    final double dur = n / fs;
+    final double kRate = (f1 - f0) / dur; // Hz per second
+    for (int i = 0; i < n; i++) {
+      final double t = i / fs;
+      // Instantaneous frequency sweeps linearly f0 → f1.
+      final double phase = 2 * math.pi * (f0 * t + 0.5 * kRate * t * t);
+      output[i] = math.cos(phase);
     }
     return output;
   }

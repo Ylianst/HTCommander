@@ -60,6 +60,9 @@ void main(List<String> args) {
     case 'analyze':
       _cmdAnalyze(restArgs);
       break;
+    case 'ratesearch':
+      _cmdRateSearch(restArgs);
+      break;
     case 'loopback':
       _cmdLoopback(restArgs);
       break;
@@ -306,6 +309,86 @@ double _goertzel(Int16List samples, double f, int sampleRate) {
 }
 
 // ============================================================================
+// Command: ratesearch - resample a recording across factors and report the
+// best preamble correlation / decode, to detect a clock or sample-rate offset.
+// ============================================================================
+
+void _cmdRateSearch(List<String> args) {
+  if (args.isEmpty) {
+    print('Error: no input WAV file specified');
+    exit(1);
+  }
+  final input = args[0];
+  final (Int16List samples, WavParams wavParams) = WavFile.read(input);
+  print('Rate search on $input (${samples.length} samples @ ${wavParams.sampleRate} Hz)');
+  print('');
+
+  final modem = DartModem();
+
+  // A DC offset can also break correlation — measure and report it.
+  double mean = 0;
+  for (final s in samples) {
+    mean += s;
+  }
+  mean /= samples.length;
+  print('DC offset: ${mean.toStringAsFixed(1)} (${(mean / 327.67).toStringAsFixed(2)}% FS)');
+  print('');
+
+  // Search resample factors: fine grid around 1.0 for clock drift, plus a few
+  // coarse ratios for a full sample-rate mismatch.
+  final factors = <double>[];
+  for (double f = 0.90; f <= 1.10001; f += 0.01) {
+    factors.add(double.parse(f.toStringAsFixed(3)));
+  }
+  factors.addAll([0.6667, 0.7256, 1.3333, 1.5, 44100 / 32000, 32000 / 44100,
+    48000 / 32000, 32000 / 48000]);
+
+  double bestCorr = 0;
+  double bestFactor = 1.0;
+  bool anyDecode = false;
+
+  for (final factor in factors) {
+    final resampled = _resample(samples, factor);
+    final rx = DartOfdm.fromPcm(resampled);
+    final det = modem.preamble.detectDetailed(rx, threshold: 0.1);
+    final decoded = modem.decode(resampled);
+    if (det.correlation > bestCorr) {
+      bestCorr = det.correlation;
+      bestFactor = factor;
+    }
+    if (decoded != null && decoded.crcOk) {
+      anyDecode = true;
+      print('  factor ${factor.toStringAsFixed(4)}: corr ${det.correlation.toStringAsFixed(3)} '
+          '→ DECODED "${String.fromCharCodes(decoded.payload)}"');
+    } else if (det.correlation > 0.5) {
+      print('  factor ${factor.toStringAsFixed(4)}: corr ${det.correlation.toStringAsFixed(3)} '
+          '(preamble strong, decode ${decoded == null ? "no frame" : "CRC fail"})');
+    }
+  }
+
+  print('');
+  print('Best preamble correlation: ${bestCorr.toStringAsFixed(3)} at factor ${bestFactor.toStringAsFixed(4)}');
+  print(anyDecode
+      ? 'A resample factor DECODED — the radio path has a clock/rate offset.'
+      : 'No factor decoded — the problem is not a simple sample-rate offset.');
+}
+
+/// Linear-interpolation resampler: output length = input.length / factor.
+/// factor > 1 speeds up (higher pitch), factor < 1 slows down.
+Int16List _resample(Int16List input, double factor) {
+  final int outLen = (input.length / factor).floor();
+  final out = Int16List(outLen);
+  for (int i = 0; i < outLen; i++) {
+    final double srcPos = i * factor;
+    final int i0 = srcPos.floor();
+    final int i1 = math.min(i0 + 1, input.length - 1);
+    final double frac = srcPos - i0;
+    out[i] = (input[i0] * (1 - frac) + input[i1] * frac).round();
+  }
+  return out;
+}
+
+// ============================================================================
 // Command: loopback
 // ============================================================================
 
@@ -313,6 +396,7 @@ void _cmdLoopback(List<String> args) {
   bool useSbc = false;
   double noisedB = double.infinity; // no noise by default
   double clip = 0; // 0 = no clipping; else fraction of peak to hard-limit at
+  bool bandpass = false; // simulate the radio's ~300-2900 Hz audio passband
   List<int> modes = [0, 1, 2, 3, 4, 5];
 
   for (int i = 0; i < args.length; i++) {
@@ -326,6 +410,9 @@ void _cmdLoopback(List<String> args) {
       case '--clip':
         clip = double.parse(args[++i]);
         break;
+      case '--bandpass':
+        bandpass = true;
+        break;
       case '--modes':
         modes = args[++i].split(',').map(int.parse).toList();
         break;
@@ -336,6 +423,7 @@ void _cmdLoopback(List<String> args) {
   print('  SBC: ${useSbc ? "enabled" : "disabled"}');
   print('  Noise: ${noisedB.isFinite ? "${noisedB.toStringAsFixed(1)} dB SNR" : "none"}');
   print('  Clip: ${clip > 0 ? "${(clip * 100).toStringAsFixed(0)}% of peak" : "none"}');
+  print('  Bandpass (300-2900 Hz radio filter): ${bandpass ? "on" : "off"}');
   print('  Modes: $modes');
   print('');
 
@@ -379,6 +467,11 @@ void _cmdLoopback(List<String> args) {
       // limiter / amplitude-hostile radio audio path).
       if (clip > 0) {
         processedPcm = _hardClip(processedPcm, clip);
+      }
+
+      // Optionally apply the radio's audio passband filter (300-2900 Hz).
+      if (bandpass) {
+        processedPcm = _bandpassFilter(processedPcm, 300, 2900, 32000);
       }
 
       // Optionally run through SBC
@@ -765,6 +858,62 @@ double _log10(double x) => math.log(x) / math.ln10;
 // ============================================================================
 // Helpers
 // ============================================================================
+
+/// Bandpass-filter PCM with cascaded 2nd-order Butterworth high-pass + low-pass
+/// (RBJ biquads), simulating the radio's audio passband (~300-2900 Hz). Energy
+/// outside the band is rolled off, as a narrow-band FM radio does.
+Int16List _bandpassFilter(Int16List pcm, double lo, double hi, int fs) {
+  final x = Float64List(pcm.length);
+  for (int i = 0; i < pcm.length; i++) {
+    x[i] = pcm[i].toDouble();
+  }
+  final hp = _Biquad.highpass(lo, fs);
+  final lp = _Biquad.lowpass(hi, fs);
+  final y = lp.process(hp.process(x));
+  final out = Int16List(pcm.length);
+  for (int i = 0; i < pcm.length; i++) {
+    out[i] = y[i].round().clamp(-32768, 32767);
+  }
+  return out;
+}
+
+/// A single RBJ (cookbook) biquad filter.
+class _Biquad {
+  final double b0, b1, b2, a1, a2;
+  double _x1 = 0, _x2 = 0, _y1 = 0, _y2 = 0;
+  _Biquad(this.b0, this.b1, this.b2, this.a1, this.a2);
+
+  factory _Biquad.lowpass(double f0, int fs, {double q = 0.707}) {
+    final double w0 = 2 * math.pi * f0 / fs;
+    final double cw = math.cos(w0), sw = math.sin(w0);
+    final double alpha = sw / (2 * q);
+    final double a0 = 1 + alpha;
+    return _Biquad((1 - cw) / 2 / a0, (1 - cw) / a0, (1 - cw) / 2 / a0,
+        -2 * cw / a0, (1 - alpha) / a0);
+  }
+
+  factory _Biquad.highpass(double f0, int fs, {double q = 0.707}) {
+    final double w0 = 2 * math.pi * f0 / fs;
+    final double cw = math.cos(w0), sw = math.sin(w0);
+    final double alpha = sw / (2 * q);
+    final double a0 = 1 + alpha;
+    return _Biquad((1 + cw) / 2 / a0, -(1 + cw) / a0, (1 + cw) / 2 / a0,
+        -2 * cw / a0, (1 - alpha) / a0);
+  }
+
+  Float64List process(Float64List x) {
+    final y = Float64List(x.length);
+    for (int i = 0; i < x.length; i++) {
+      final double out = b0 * x[i] + b1 * _x1 + b2 * _x2 - a1 * _y1 - a2 * _y2;
+      _x2 = _x1;
+      _x1 = x[i];
+      _y2 = _y1;
+      _y1 = out;
+      y[i] = out;
+    }
+    return y;
+  }
+}
 
 /// Hard-clip PCM to a fraction of its peak, simulating an aggressive limiter or
 /// amplitude-hostile radio audio path. Destroys amplitude information while
