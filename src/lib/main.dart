@@ -1574,9 +1574,9 @@ class _MainFormState extends State<MainForm>
             hideOnMacOS: true,
           ),
           // The web build runs in the browser and cannot quit itself, and iOS
-          // apps are not expected to quit themselves, so the "Exit" item (and
-          // its divider) are omitted there.
-          if (!kIsWeb && !Platform.isIOS) ...[
+          // and Android apps are not expected to quit themselves, so the "Exit"
+          // item (and its divider) are omitted there.
+          if (!kIsWeb && !Platform.isIOS && !Platform.isAndroid) ...[
             const AppMenuDivider(hideOnMacOS: true),
             AppMenuAction(
               label: 'Exit',

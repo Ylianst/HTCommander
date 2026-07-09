@@ -40,9 +40,6 @@ class PacketStore {
   /// The on-disk file used to persist packets.
   File? _file;
 
-  /// Sink used to append new packets to [_file].
-  IOSink? _sink;
-
   bool _disposed = false;
 
   /// Whether the handler has been disposed.
@@ -55,8 +52,8 @@ class PacketStore {
   List<TncDataFragment> getPackets() => List<TncDataFragment>.from(_packets);
 
   /// Initializes the store: resolves the data file, loads existing packets,
-  /// opens the file for appending, subscribes to broker events, and announces
-  /// readiness. Must be awaited before registering the handler.
+  /// subscribes to broker events, and announces readiness. Must be awaited
+  /// before registering the handler.
   Future<void> init() async {
     // The web build has no file-system access through path_provider, so packet
     // persistence is skipped there and packets are kept in memory only.
@@ -65,11 +62,9 @@ class PacketStore {
         final dir = await getApplicationSupportDirectory();
         _file = File('${dir.path}${Platform.pathSeparator}$_packetFileName');
         await _loadPackets();
-        _sink = _file!.openWrite(mode: FileMode.append);
       } catch (e) {
         debugPrint('PacketStore: failed to open packet file: $e');
         _file = null;
-        _sink = null;
       }
     }
 
@@ -203,16 +198,22 @@ class PacketStore {
     );
   }
 
-  /// Appends a packet to the file.
+  /// Appends a packet to the file, flushing it to the OS immediately.
+  ///
+  /// The write is performed synchronously with `flush: true` so that each
+  /// packet is durably handed to the operating system as soon as it arrives.
+  /// This matters on mobile platforms (notably Android), where the process can
+  /// be killed at any time without [dispose] ever running; a buffered sink
+  /// would silently drop any packets still held in memory.
   void _writePacketToFile(TncDataFragment frame) {
-    final sink = _sink;
-    if (sink == null) return;
+    final file = _file;
+    if (file == null) return;
     try {
       final line =
           '${frame.time.microsecondsSinceEpoch},'
           '${frame.incoming ? 1 : 0},'
           '${frame.toString()}\n';
-      sink.write(line);
+      file.writeAsStringSync(line, mode: FileMode.append, flush: true);
     } catch (e) {
       debugPrint('PacketStore: failed to write packet: $e');
     }
@@ -223,10 +224,7 @@ class PacketStore {
     final file = _file;
     if (file == null) return;
     try {
-      _sink?.flush();
-      _sink?.close();
-      file.writeAsBytesSync(const []);
-      _sink = file.openWrite(mode: FileMode.append);
+      file.writeAsBytesSync(const [], flush: true);
     } catch (e) {
       debugPrint('PacketStore: failed to truncate packet file: $e');
     }
@@ -237,11 +235,6 @@ class PacketStore {
     if (_disposed) return;
     _disposed = true;
     _broker.dispose();
-    try {
-      await _sink?.flush();
-      await _sink?.close();
-    } catch (_) {}
-    _sink = null;
     _packets.clear();
   }
 }
