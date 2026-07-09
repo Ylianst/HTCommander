@@ -96,8 +96,10 @@ void _printUsage() {
   print('    Encode a text message to a WAV file.');
   print('    -m: mode 0-5 (default 2)');
   print('');
-  print('  decode <input.wav>');
+  print('  decode <input.wav> [--constellation] [--png <file.png>]');
   print('    Decode a DART frame from a WAV file.');
+  print('    --constellation: print an ASCII constellation scatter plot.');
+  print('    --png <file>: write a PNG constellation diagram.');
   print('');
   print('  loopback [--sbc] [--noise <dB>] [--modes 0,1,2,3,4,5]');
   print('    Encode → [optional SBC/noise] → decode round-trip test.');
@@ -187,13 +189,49 @@ void _cmdDecode(List<String> args) {
     exit(1);
   }
 
-  final input = args[0];
-  final (Int16List samples, WavParams wavParams) = WavFile.read(input);
+  String? input;
+  bool showConstellation = false;
+  String? pngPath;
+  bool useSbc = false;
+  double noisedB = double.infinity;
+  for (int i = 0; i < args.length; i++) {
+    switch (args[i]) {
+      case '--constellation':
+        showConstellation = true;
+        break;
+      case '--png':
+        pngPath = args[++i];
+        break;
+      case '--sbc':
+        useSbc = true;
+        break;
+      case '--noise':
+        noisedB = double.parse(args[++i]);
+        break;
+      default:
+        input ??= args[i];
+    }
+  }
+  if (input == null) {
+    print('Error: no input WAV file specified');
+    exit(1);
+  }
+
+  var (Int16List samples, WavParams wavParams) = WavFile.read(input);
   print('Read: $input (${samples.length} samples, '
       '${wavParams.sampleRate} Hz)');
+  if (noisedB.isFinite) {
+    samples = _addNoise(samples, noisedB);
+    print('  Applied ${noisedB.toStringAsFixed(1)} dB SNR noise');
+  }
+  if (useSbc) {
+    samples = _sbcRoundTrip(samples);
+    print('  Applied SBC codec round-trip');
+  }
 
   final modem = DartModem();
-  final result = modem.decode(samples);
+  final capture = showConstellation || pngPath != null;
+  final result = modem.decode(samples, captureConstellation: capture);
 
   if (result == null) {
     print('FAIL: No DART frame detected');
@@ -201,7 +239,7 @@ void _cmdDecode(List<String> args) {
   }
 
   final modeParams = DartModeParams.fromMode(
-    DartMode.values[result.header.modeIndex.clamp(0, 5)],
+    DartMode.values[result.header.modeIndex.clamp(0, DartMode.modeF.index)],
   );
   print('Detected DART frame:');
   print('  Mode: ${result.header.modeIndex} (${modeParams.description})');
@@ -211,7 +249,175 @@ void _cmdDecode(List<String> args) {
   print('  Payload (${result.payload.length} bytes): '
       '${String.fromCharCodes(result.payload)}');
   print('  LDPC corrections: ${result.ldpcCorrections}');
+  print('  Signal: ${result.quality}');
   print('  CRC: ${result.crcOk ? "OK" : "FAIL"}');
+
+  final syms = result.constellation;
+  if (capture && (syms == null || syms.isEmpty)) {
+    print('  (No constellation available — Mode F / FSK has no constellation.)');
+  } else if (syms != null && syms.isNotEmpty) {
+    if (showConstellation) {
+      print('');
+      _printAsciiConstellation(syms, modeParams.constellation);
+    }
+    if (pngPath != null) {
+      _writeConstellationPng(syms, modeParams.constellation, pngPath);
+      print('  Constellation image written: $pngPath');
+    }
+  }
+}
+
+/// Render an ASCII scatter plot of the equalized constellation in the terminal.
+void _printAsciiConstellation(List<Complex> syms, ConstellationType type) {
+  const int w = 65; // columns (odd, so there is a center)
+  const int h = 31; // rows (odd, so there is a center)
+  // Axis range: QAM points reach ~±1.0 after normalization; leave margin.
+  const double range = 1.6;
+
+  final grid = List.generate(h, (_) => List<int>.filled(w, 0));
+  for (final s in syms) {
+    final int cx = (((s.i / range) * 0.5 + 0.5) * (w - 1)).round();
+    final int cy = (((-s.q / range) * 0.5 + 0.5) * (h - 1)).round();
+    if (cx >= 0 && cx < w && cy >= 0 && cy < h) {
+      grid[cy][cx]++;
+    }
+  }
+
+  // Density ramp from sparse to dense.
+  const ramp = ' .:-=+*#%@';
+  int maxCount = 1;
+  for (final row in grid) {
+    for (final c in row) {
+      if (c > maxCount) maxCount = c;
+    }
+  }
+
+  final int midX = (w - 1) ~/ 2;
+  final int midY = (h - 1) ~/ 2;
+  print('  Constellation (${type.name}, ${syms.length} symbols):');
+  for (int y = 0; y < h; y++) {
+    final sb = StringBuffer('  ');
+    for (int x = 0; x < w; x++) {
+      final int c = grid[y][x];
+      if (c > 0) {
+        final int idx =
+            1 + ((c - 1) * (ramp.length - 2) ~/ maxCount).clamp(0, ramp.length - 2);
+        sb.write(ramp[idx]);
+      } else if (y == midY && x == midX) {
+        sb.write('+'); // origin
+      } else if (y == midY) {
+        sb.write('-'); // I axis
+      } else if (x == midX) {
+        sb.write('|'); // Q axis
+      } else {
+        sb.write(' ');
+      }
+    }
+    print(sb.toString());
+  }
+  print('  (I horizontal, Q vertical, range ±${range.toStringAsFixed(1)})');
+}
+
+/// Write a PNG constellation diagram: light grid + ideal points (blue) +
+/// received symbols (red). Uses dart:io's ZLibCodec for the PNG IDAT.
+void _writeConstellationPng(
+    List<Complex> syms, ConstellationType type, String path) {
+  const int size = 480;
+  const double range = 1.6;
+  final img = Uint8List(size * size * 3)..fillRange(0, size * size * 3, 255);
+
+  void setPx(int x, int y, int r, int g, int b) {
+    if (x < 0 || x >= size || y < 0 || y >= size) return;
+    final o = (y * size + x) * 3;
+    img[o] = r;
+    img[o + 1] = g;
+    img[o + 2] = b;
+  }
+
+  int toX(double i) => (((i / range) * 0.5 + 0.5) * (size - 1)).round();
+  int toY(double q) => (((-q / range) * 0.5 + 0.5) * (size - 1)).round();
+
+  // Light grid every 0.5.
+  for (double g = -1.5; g <= 1.5001; g += 0.5) {
+    final gx = toX(g), gy = toY(g);
+    for (int p = 0; p < size; p++) {
+      setPx(p, gy, 235, 235, 235);
+      setPx(gx, p, 235, 235, 235);
+    }
+  }
+  // Axes.
+  final int cx = toX(0), cy = toY(0);
+  for (int p = 0; p < size; p++) {
+    setPx(p, cy, 190, 190, 190);
+    setPx(cx, p, 190, 190, 190);
+  }
+  // Ideal constellation points (blue reference).
+  final ideal = Constellation.get(type);
+  for (final pt in ideal.points) {
+    final ix = toX(pt.i), iy = toY(pt.q);
+    for (int dy = -4; dy <= 4; dy++) {
+      for (int dx = -4; dx <= 4; dx++) {
+        if (dx * dx + dy * dy <= 16) setPx(ix + dx, iy + dy, 170, 195, 255);
+      }
+    }
+  }
+  // Received symbols (red dots).
+  for (final s in syms) {
+    final x = toX(s.i), y = toY(s.q);
+    setPx(x, y, 170, 0, 0);
+    setPx(x + 1, y, 210, 40, 40);
+    setPx(x - 1, y, 210, 40, 40);
+    setPx(x, y + 1, 210, 40, 40);
+    setPx(x, y - 1, 210, 40, 40);
+  }
+
+  _writePng(path, size, size, img);
+}
+
+/// Minimal PNG (8-bit RGB, single IDAT) writer.
+void _writePng(String path, int width, int height, Uint8List rgb) {
+  final raw = Uint8List(height * (1 + width * 3));
+  int o = 0;
+  for (int y = 0; y < height; y++) {
+    raw[o++] = 0; // filter type: none
+    raw.setRange(o, o + width * 3, rgb, y * width * 3);
+    o += width * 3;
+  }
+  final compressed = ZLibCodec(level: 6).encode(raw);
+
+  final out = <int>[];
+  out.addAll([137, 80, 78, 71, 13, 10, 26, 10]); // signature
+  final ihdr = <int>[
+    ..._be32(width),
+    ..._be32(height),
+    8, 2, 0, 0, 0, // bit depth 8, color type 2 (RGB)
+  ];
+  _writeChunk(out, 'IHDR', ihdr);
+  _writeChunk(out, 'IDAT', compressed);
+  _writeChunk(out, 'IEND', const []);
+  File(path).writeAsBytesSync(out);
+}
+
+void _writeChunk(List<int> out, String type, List<int> data) {
+  out.addAll(_be32(data.length));
+  final typeBytes = type.codeUnits;
+  out.addAll(typeBytes);
+  out.addAll(data);
+  out.addAll(_be32(_pngCrc32(<int>[...typeBytes, ...data])));
+}
+
+List<int> _be32(int v) =>
+    [(v >> 24) & 0xFF, (v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF];
+
+int _pngCrc32(List<int> data) {
+  int crc = 0xFFFFFFFF;
+  for (final b in data) {
+    crc ^= b;
+    for (int i = 0; i < 8; i++) {
+      crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320 : crc >> 1;
+    }
+  }
+  return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFF;
 }
 
 // ============================================================================

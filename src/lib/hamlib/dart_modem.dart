@@ -312,6 +312,12 @@ class DartDecodeResult {
   /// Number of payload bit errors the LDPC decoder corrected.
   final int ldpcCorrections;
 
+  /// Equalized payload constellation symbols (I/Q), captured only when the
+  /// decoder is asked to (`captureConstellation: true`). Null otherwise, so the
+  /// live radio path carries no extra overhead. Empty for the FSK fallback,
+  /// which has no constellation.
+  final List<Complex>? constellation;
+
   const DartDecodeResult({
     required this.header,
     required this.payload,
@@ -320,6 +326,7 @@ class DartDecodeResult {
     required this.durationMs,
     this.endSample = 0,
     this.ldpcCorrections = 0,
+    this.constellation,
   });
 
   /// Link-layer frame type derived from the header flags.
@@ -491,7 +498,9 @@ class DartModem {
   /// Decode a frame from PCM audio samples.
   /// Returns null if no valid frame found. Tries the OFDM path (modes 0–5)
   /// first, then the constant-envelope Mode F (FSK) fallback.
-  DartDecodeResult? decode(Int16List pcm) {
+  /// When [captureConstellation] is true, the result includes the equalized
+  /// payload symbols (for constellation plots / diagnostics).
+  DartDecodeResult? decode(Int16List pcm, {bool captureConstellation = false}) {
     final rxSamples = DartOfdm.fromPcm(pcm);
     final double durationMs = pcm.length * 1000.0 / ofdmParams.sampleRate;
 
@@ -500,7 +509,8 @@ class DartModem {
     if (detection.position < 0) return null;
 
     // Try OFDM first; fall back to Mode F (FSK).
-    return _decodeOfdm(rxSamples, detection, durationMs) ??
+    return _decodeOfdm(rxSamples, detection, durationMs,
+            captureConstellation: captureConstellation) ??
         _decodeFsk(rxSamples, detection, durationMs);
   }
 
@@ -509,8 +519,9 @@ class DartModem {
   DartDecodeResult? _decodeOfdm(
     Float64List rxSamples,
     PreambleDetection detection,
-    double durationMs,
-  ) {
+    double durationMs, {
+    bool captureConstellation = false,
+  }) {
     final int preambleStart = detection.position;
 
     // --- Channel estimation ---
@@ -643,6 +654,7 @@ class DartModem {
       durationMs: durationMs,
       endSample: payloadStart + payloadOfdmCount * ofdmParams.symbolLength,
       ldpcCorrections: corrections[0],
+      constellation: captureConstellation ? payloadRxSymbols : null,
     );
   }
 
