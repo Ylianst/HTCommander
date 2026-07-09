@@ -93,13 +93,37 @@ class DartPreamble {
     final ofdm = DartOfdm(ofdmParams);
     final ceSymbol = ofdm.modulateSymbol(channelEstSymbols, dftSpread: false);
 
+    // The constant-envelope ZC sequence has amplitude ~1.0, while an OFDM
+    // symbol's IFFT output is much smaller. If left unscaled, the whole frame's
+    // peak normalization is dominated by the ZC, leaving the OFDM data at only
+    // a few percent of full scale — inaudible and destroyed by channel noise.
+    // Scale the ZC halves so their RMS matches the OFDM symbol RMS, giving the
+    // whole transmission a uniform amplitude. Detection is unaffected because
+    // the correlator normalizes by energy.
+    final double zcRms = _rms(zcHalf);
+    final double ceRms = _rms(ceSymbol);
+    final double zcScale = zcRms > 1e-12 ? ceRms / zcRms : 1.0;
+
     // Assemble: [ZC half 1][ZC half 2][CE symbol]
     final output = Float64List(preambleSamples);
-    output.setRange(0, zcLen, zcHalf);
-    output.setRange(zcLen, 2 * zcLen, zcHalf);
+    for (int i = 0; i < zcLen; i++) {
+      final double v = zcHalf[i] * zcScale;
+      output[i] = v;
+      output[zcLen + i] = v;
+    }
     output.setRange(2 * zcLen, 2 * zcLen + ceSymbol.length, ceSymbol);
 
     return output;
+  }
+
+  /// Root-mean-square of a sample buffer.
+  static double _rms(Float64List x) {
+    if (x.isEmpty) return 0;
+    double s = 0;
+    for (final v in x) {
+      s += v * v;
+    }
+    return math.sqrt(s / x.length);
   }
 
   /// Detect preamble in received samples. Returns the sample index of the

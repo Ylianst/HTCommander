@@ -57,6 +57,9 @@ void main(List<String> args) {
     case 'decode':
       _cmdDecode(restArgs);
       break;
+    case 'analyze':
+      _cmdAnalyze(restArgs);
+      break;
     case 'loopback':
       _cmdLoopback(restArgs);
       break;
@@ -205,6 +208,101 @@ void _cmdDecode(List<String> args) {
   print('  Payload (${result.payload.length} bytes): '
       '${String.fromCharCodes(result.payload)}');
   print('  CRC: ${result.crcOk ? "OK" : "FAIL"}');
+}
+
+// ============================================================================
+// Command: analyze - diagnose a recorded WAV (levels, band energy, preamble)
+// ============================================================================
+
+void _cmdAnalyze(List<String> args) {
+  if (args.isEmpty) {
+    print('Error: no input WAV file specified');
+    exit(1);
+  }
+  final input = args[0];
+  final (Int16List samples, WavParams wavParams) = WavFile.read(input);
+  final double durMs = samples.length * 1000.0 / wavParams.sampleRate;
+  print('File: $input');
+  print('  ${samples.length} samples, ${wavParams.sampleRate} Hz, '
+      '${wavParams.numChannels} ch, ${wavParams.bitsPerSample}-bit, '
+      '${durMs.toStringAsFixed(0)} ms');
+
+  // Level stats.
+  int peak = 0;
+  double sumSq = 0;
+  for (final s in samples) {
+    final int a = s.abs();
+    if (a > peak) peak = a;
+    sumSq += s.toDouble() * s;
+  }
+  final double rms = math.sqrt(sumSq / math.max(1, samples.length));
+  final double papr = rms > 0 ? 20 * (math.log(peak / rms) / math.ln10) : 0;
+  print('  Peak: $peak (${(peak / 327.67).toStringAsFixed(1)}% FS), '
+      'RMS: ${rms.toStringAsFixed(0)} (${(rms / 327.67).toStringAsFixed(1)}% FS), '
+      'PAPR: ${papr.toStringAsFixed(1)} dB');
+
+  // Coarse band energy via Goertzel at a few probe frequencies.
+  final probes = [100.0, 300.0, 600.0, 1000.0, 1400.0, 1800.0, 2200.0, 2600.0, 3000.0, 3500.0];
+  print('  Band energy (relative):');
+  double maxE = 1e-9;
+  final energies = <double>[];
+  for (final f in probes) {
+    final e = _goertzel(samples, f, wavParams.sampleRate);
+    energies.add(e);
+    if (e > maxE) maxE = e;
+  }
+  for (int i = 0; i < probes.length; i++) {
+    final double db = 10 * (math.log(energies[i] / maxE) / math.ln10);
+    final int bars = ((energies[i] / maxE) * 40).round();
+    print('    ${probes[i].toStringAsFixed(0).padLeft(4)} Hz: '
+        '${db.toStringAsFixed(1).padLeft(6)} dB ${"#" * bars}');
+  }
+
+  // Level envelope in ~50 ms windows (locate the actual signal vs silence).
+  final int win = wavParams.sampleRate ~/ 20; // 50 ms
+  print('  Envelope (50 ms windows, RMS % FS):');
+  final sb = StringBuffer('    ');
+  for (int off = 0; off < samples.length; off += win) {
+    final end = math.min(off + win, samples.length);
+    double ss = 0;
+    for (int i = off; i < end; i++) {
+      ss += samples[i].toDouble() * samples[i];
+    }
+    final double r = math.sqrt(ss / math.max(1, end - off)) / 327.67;
+    final int level = (r / 3).round().clamp(0, 9);
+    sb.write(level == 0 ? '.' : level.toString());
+  }
+  print(sb.toString());
+
+  // Preamble detection at descending thresholds.
+  final modem = DartModem();
+  final rx = DartOfdm.fromPcm(samples);
+  print('  Preamble length: ${modem.preamble.preambleSamples} samples');
+  print('  Preamble detection:');
+  for (final thr in [0.6, 0.5, 0.4, 0.3, 0.2, 0.1]) {
+    final det = modem.preamble.detectDetailed(rx, threshold: thr);
+    print('    threshold ${thr.toStringAsFixed(1)}: '
+        '${det.position >= 0 ? "FOUND at ${det.position} (corr ${det.correlation.toStringAsFixed(3)})" : "not found"}');
+    if (det.position >= 0) break;
+  }
+
+  // Full decode attempt.
+  final result = modem.decode(samples);
+  print('  Decode: ${result == null ? "FAIL (no frame)" : "mode ${result.header.modeIndex}, "
+      "payload \"${String.fromCharCodes(result.payload)}\", CRC ${result.crcOk ? "OK" : "FAIL"}"}');
+}
+
+/// Goertzel energy at frequency [f] over the whole buffer.
+double _goertzel(Int16List samples, double f, int sampleRate) {
+  final double w = 2 * math.pi * f / sampleRate;
+  final double cw = 2 * math.cos(w);
+  double s0 = 0, s1 = 0, s2 = 0;
+  for (final x in samples) {
+    s0 = x + cw * s1 - s2;
+    s2 = s1;
+    s1 = s0;
+  }
+  return s1 * s1 + s2 * s2 - cw * s1 * s2;
 }
 
 // ============================================================================
