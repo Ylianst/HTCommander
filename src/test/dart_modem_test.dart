@@ -124,7 +124,6 @@ void _printUsage() {
   print('    Encode → [SBC] → [noise] → write WAV → decode → PNG.');
   print('    --bitpool <n>: SBC quality 2..124 (radio uses 18); implies --sbc.');
   print('    --sbcalloc: SBC bit-allocation method (default loudness); implies --sbc.');
-  print('    --profile <default|sb0>: OFDM band profile (sb0 = SBC-aligned, 6 carriers).');
   print('    --phasenoise <deg>: add RMS carrier phase noise (models the FM audio path).');
 }
 
@@ -209,7 +208,6 @@ void _cmdPipeline(List<String> args) {
   double noisedB = double.infinity;
   int bitpool = 18;
   SbcBitAllocationMethod sbcAlloc = SbcBitAllocationMethod.loudness;
-  bool sb0Profile = false;
   double phaseNoiseDeg = 0.0;
   double phaseRate = 0.9995;
   bool pilotsEnabled = true;
@@ -252,9 +250,6 @@ void _cmdPipeline(List<String> args) {
             : SbcBitAllocationMethod.loudness;
         useSbc = true;
         break;
-      case '--profile':
-        sb0Profile = args[++i].toLowerCase() == 'sb0';
-        break;
       case '--phasenoise':
         phaseNoiseDeg = double.parse(args[++i]);
         break;
@@ -281,13 +276,10 @@ void _cmdPipeline(List<String> args) {
   print('=== DART pipeline ===');
   print('Message : "$message"');
   print('Mode    : ${modeParams.description}');
-  print('Profile : ${sb0Profile ? "SB0-aligned (400-1900 Hz)" : "default (400-2600 Hz)"}');
   print('Source  : $source → Dest: $dest');
 
   // 1) Encode the clean waveform.
-  final modem = sb0Profile
-      ? DartModem(params: DartOfdmParams.sb0Aligned(), pilotsEnabled: pilotsEnabled)
-      : DartModem(pilotsEnabled: pilotsEnabled);
+  final modem = DartModem(pilotsEnabled: pilotsEnabled);
   print('Carriers: ${modem.ofdmParams.numDataCarriers}'
       '  Pilots: ${pilotsEnabled ? "on" : "off"}');
   final payload = Uint8List.fromList(message.codeUnits);
@@ -379,7 +371,6 @@ void _cmdDecode(List<String> args) {
   String? pngPath;
   bool useSbc = false;
   double noisedB = double.infinity;
-  bool sb0Profile = false;
   for (int i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--constellation':
@@ -393,9 +384,6 @@ void _cmdDecode(List<String> args) {
         break;
       case '--noise':
         noisedB = double.parse(args[++i]);
-        break;
-      case '--profile':
-        sb0Profile = args[++i].toLowerCase() == 'sb0';
         break;
       default:
         input ??= args[i];
@@ -418,10 +406,7 @@ void _cmdDecode(List<String> args) {
     print('  Applied SBC codec round-trip');
   }
 
-  final modem = sb0Profile
-      ? DartModem(params: DartOfdmParams.sb0Aligned())
-      : DartModem();
-  if (sb0Profile) print('  Profile: SB0-aligned (400-1900 Hz)');
+  final modem = DartModem();
   final capture = showConstellation || pngPath != null;
   final result = modem.decode(samples, captureConstellation: capture);
 
