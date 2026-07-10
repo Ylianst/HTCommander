@@ -36,6 +36,12 @@ real-world observation down to the root-cause diagnosis and fix.
    5+ dB of margin on short frames — for free, and scaling exactly with how short
    the frame is.
 
+6. **[Is 125 Microseconds Enough? A Look at Inter-Symbol Interference](dart-inter-symbol-interference.md)**
+   Building a multipath echo channel to test whether DART's deliberately-short
+   cyclic prefix is big enough. It finds the classic ISI knee at the CP boundary,
+   confirms the SBC/audio path adds no dispersion the CP misses, and shows the
+   short-CP bet was safe.
+
 ## Related
 
 - [DART Implementation Report](../DART-Implementation-Report.md) — architecture,
