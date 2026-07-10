@@ -1690,46 +1690,49 @@ class _MainFormState extends State<MainForm>
                 ),
               ],
             ),
-            AppSubmenu(
-              label: 'DART Transmit Level',
-              children: [
-                AppMenuAction(
-                  label: 'Level 0 (BPSK, LDPC 1/2)',
-                  onPressed: () => _setDartTxLevel('0'),
-                  checked: _dartTxLevel == '0',
-                ),
-                AppMenuAction(
-                  label: 'Level 1 (QPSK, LDPC 1/2)',
-                  onPressed: () => _setDartTxLevel('1'),
-                  checked: _dartTxLevel == '1',
-                ),
-                AppMenuAction(
-                  label: 'Level 2 (QPSK, LDPC 2/3)',
-                  onPressed: () => _setDartTxLevel('2'),
-                  checked: _dartTxLevel == '2',
-                ),
-                AppMenuAction(
-                  label: 'Level 3 (8PSK, LDPC 2/3)',
-                  onPressed: () => _setDartTxLevel('3'),
-                  checked: _dartTxLevel == '3',
-                ),
-                AppMenuAction(
-                  label: 'Level 4 (16QAM, LDPC 3/4)',
-                  onPressed: () => _setDartTxLevel('4'),
-                  checked: _dartTxLevel == '4',
-                ),
-                AppMenuAction(
-                  label: 'Level 5 (16QAM, LDPC 5/6)',
-                  onPressed: () => _setDartTxLevel('5'),
-                  checked: _dartTxLevel == '5',
-                ),
-                AppMenuAction(
-                  label: 'Level F (4-FSK, LDPC 1/2)',
-                  onPressed: () => _setDartTxLevel('F'),
-                  checked: _dartTxLevel == 'F',
-                ),
-              ],
-            ),
+            // Only show the DART transmit level submenu when the DART software
+            // modem is selected, to avoid cluttering the menu otherwise.
+            if (_softwareModemMode == 'dart')
+              AppSubmenu(
+                label: 'DART Transmit Level',
+                children: [
+                  AppMenuAction(
+                    label: 'Level 0 (BPSK, LDPC 1/2)',
+                    onPressed: () => _setDartTxLevel('0'),
+                    checked: _dartTxLevel == '0',
+                  ),
+                  AppMenuAction(
+                    label: 'Level 1 (QPSK, LDPC 1/2)',
+                    onPressed: () => _setDartTxLevel('1'),
+                    checked: _dartTxLevel == '1',
+                  ),
+                  AppMenuAction(
+                    label: 'Level 2 (QPSK, LDPC 2/3)',
+                    onPressed: () => _setDartTxLevel('2'),
+                    checked: _dartTxLevel == '2',
+                  ),
+                  AppMenuAction(
+                    label: 'Level 3 (8PSK, LDPC 2/3)',
+                    onPressed: () => _setDartTxLevel('3'),
+                    checked: _dartTxLevel == '3',
+                  ),
+                  AppMenuAction(
+                    label: 'Level 4 (16QAM, LDPC 3/4)',
+                    onPressed: () => _setDartTxLevel('4'),
+                    checked: _dartTxLevel == '4',
+                  ),
+                  AppMenuAction(
+                    label: 'Level 5 (16QAM, LDPC 5/6)',
+                    onPressed: () => _setDartTxLevel('5'),
+                    checked: _dartTxLevel == '5',
+                  ),
+                  AppMenuAction(
+                    label: 'Level F (4-FSK, LDPC 1/2)',
+                    onPressed: () => _setDartTxLevel('F'),
+                    checked: _dartTxLevel == 'F',
+                  ),
+                ],
+              ),
             AppSubmenu(
               label: 'APRS Modem',
               children: [
