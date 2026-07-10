@@ -454,6 +454,7 @@ class _MainFormState extends State<MainForm>
   String _softwareModemMode = 'none'; // Current software modem mode
   bool _softwareModemFec = true; // FX.25 FEC on transmit (software modem)
   String _dartTxLevel = '0'; // DART transmit level ('0'..'5' or 'F')
+  bool _dartSb0Profile = false; // Experimental SBC-aligned DART OFDM profile
   String _aprsModemMode = 'none'; // APRS modem mode ('none' or 'afsk1200')
   bool _aprsModemFec = true; // FX.25 FEC on transmit (APRS modem)
   int _regionCount =
@@ -674,6 +675,16 @@ class _MainFormState extends State<MainForm>
     _dartTxLevel =
         (_broker.getValue<String>(0, 'DartTxMode', '0') ?? '0').toUpperCase();
 
+    // Subscribe to the experimental DART SB0-profile toggle
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'DartSb0Profile',
+      callback: _onDartSb0ProfileChanged,
+    );
+    // Load initial value
+    _dartSb0Profile =
+        _broker.getValue<bool>(0, 'DartSb0Profile', false) ?? false;
+
     // Subscribe to the independent APRS modem mode / FEC changes
     _broker.subscribe(
       deviceId: 0,
@@ -890,6 +901,15 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  /// Handle experimental DART SB0-profile changes from the DataBroker.
+  void _onDartSb0ProfileChanged(int deviceId, String name, Object? data) {
+    if (data is bool) {
+      setState(() {
+        _dartSb0Profile = data;
+      });
+    }
+  }
+
   /// Handle APRS modem mode changes from the DataBroker.
   void _onAprsModemModeChanged(int deviceId, String name, Object? data) {
     if (data is String) {
@@ -1036,6 +1056,17 @@ class _MainFormState extends State<MainForm>
       deviceId: 0,
       name: 'SetDartTxMode',
       data: level,
+      store: false,
+    );
+  }
+
+  /// Toggle the experimental SBC-aligned DART OFDM profile. Both ends of a link
+  /// must use the same profile.
+  void _setDartSb0Profile(bool enabled) {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SetDartSb0Profile',
+      data: enabled,
       store: false,
     );
   }
@@ -1666,6 +1697,11 @@ class _MainFormState extends State<MainForm>
                   label: 'Level F (4-FSK, LDPC 1/2)',
                   onPressed: () => _setDartTxLevel('F'),
                   checked: _dartTxLevel == 'F',
+                ),
+                AppMenuAction(
+                  label: 'SB0-aligned profile (experimental)',
+                  onPressed: () => _setDartSb0Profile(!_dartSb0Profile),
+                  checked: _dartSb0Profile,
                 ),
               ],
             ),

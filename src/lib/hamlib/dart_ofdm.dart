@@ -80,6 +80,21 @@ class DartOfdmParams {
       }
     }
   }
+
+  /// Experimental SBC-aligned OFDM profile.
+  ///
+  /// Confines every active subcarrier to SBC subband 0 (0–2000 Hz at 32 kHz /
+  /// 8 subbands) so no subcarrier lands in a bit-starved higher subband or
+  /// straddles a subband boundary — which is where SBC quantization noise
+  /// concentrates. The FFT stays at 128 (short, phase-noise-robust symbols);
+  /// the 400–1900 Hz band yields 6 subcarriers, so throughput is lower than the
+  /// default 9-carrier profile. Intended for A/B testing whether SBC alignment
+  /// measurably helps a real radio link.
+  ///
+  /// NOTE: this is NOT wire-compatible with the default profile — both ends of
+  /// a link must use the same profile.
+  factory DartOfdmParams.sb0Aligned() =>
+      DartOfdmParams(freqLow: 400.0, freqHigh: 1900.0);
 }
 
 /// DFT-spread OFDM modulator and demodulator.

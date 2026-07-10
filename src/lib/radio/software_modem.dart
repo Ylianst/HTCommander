@@ -20,6 +20,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../hamlib/audio_buffer.dart';
 import '../hamlib/audio_config.dart';
 import '../hamlib/dart_modem.dart';
+import '../hamlib/dart_ofdm.dart';
 import '../hamlib/demod_afsk.dart';
 import '../hamlib/demod_psk.dart';
 import '../hamlib/fx25.dart';
@@ -306,6 +307,10 @@ class SoftwareModem {
   /// DART transmit level/mode (payload mode used for DART transmissions).
   DartMode _dartTxMode = DartMode.mode0;
 
+  /// Experimental: use the SBC-aligned DART OFDM profile (all subcarriers in
+  /// SBC subband 0). Both ends of a link must match. Defaults off.
+  bool _dartSb0Profile = false;
+
   // Per-session modem override (Terminal / Winlink contacts). While a session
   // is active the mode is switched to the contact's modem and the user's
   // regular setting is restored when the session ends.
@@ -341,6 +346,10 @@ class SoftwareModem {
     _dartTxMode = _parseDartLevel(
         _broker.getValue<String>(0, 'DartTxMode', '0') ?? '0');
 
+    // Load the experimental DART SB0-aligned OFDM profile flag (defaults off).
+    _dartSb0Profile =
+        _broker.getValue<bool>(0, 'DartSb0Profile', false) ?? false;
+
     // Subscribe to mode changes on device 0
     _broker.subscribe(
       deviceId: 0,
@@ -360,6 +369,13 @@ class SoftwareModem {
       deviceId: 0,
       name: 'SetDartTxMode',
       callback: _onSetDartTxModeRequested,
+    );
+
+    // Subscribe to experimental DART SB0-profile toggle on device 0
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SetDartSb0Profile',
+      callback: _onSetDartSb0ProfileRequested,
     );
 
     // Subscribe to per-session modem overrides (Terminal / Winlink contacts).
@@ -578,6 +594,38 @@ class SoftwareModem {
       store: true,
     );
     _debug('DART transmit level set to ${_dartLevelName(_dartTxMode)}');
+  }
+
+  /// Handle the experimental DART SB0-profile toggle from the DataBroker.
+  void _onSetDartSb0ProfileRequested(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    final bool enabled = (data is bool)
+        ? data
+        : (data?.toString().toLowerCase() == 'true');
+    if (enabled == _dartSb0Profile) return;
+    _dartSb0Profile = enabled;
+
+    // Rebuild any live DART modems so the new OFDM profile takes effect
+    // immediately (the profile is fixed at construction). The instance's
+    // transmit mode and receive callback live on the instance, not the modem,
+    // so they are preserved.
+    for (final state in _radioModems.values) {
+      final inst = state.generalModem;
+      if (inst?.dartModem != null) {
+        inst!.dartModem = DartModem(
+          params: _dartSb0Profile ? DartOfdmParams.sb0Aligned() : null,
+        );
+      }
+    }
+
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'DartSb0Profile',
+      data: _dartSb0Profile,
+      store: true,
+    );
+    _debug(
+        'DART SB0-aligned profile ${_dartSb0Profile ? "enabled" : "disabled"}');
   }
 
   /// Parse a DART level string ('0'..'5' or 'F') into a [DartMode].
@@ -864,11 +912,18 @@ class SoftwareModem {
     // HDLC/FX.25/GenTone/Direwolf-demod chain. Wire up its decode callback and
     // return early.
     if (mode == SoftwareModemMode.dart) {
-      instance.dartModem = DartModem();
+      // Experimental: an SBC-aligned OFDM profile (all subcarriers in SBC
+      // subband 0) can be enabled via the 'DartSb0Profile' setting for
+      // over-the-air A/B testing. Both ends of the link must match — it is not
+      // wire-compatible with the default profile. Defaults off.
+      instance.dartModem = DartModem(
+        params: _dartSb0Profile ? DartOfdmParams.sb0Aligned() : null,
+      );
       instance.dartTxMode = _dartTxMode;
       instance.onDartFrame = (frame, result) =>
           _onDartFrameReceived(state, instance, frame, result);
-      _debug('Built DART modem instance for device ${state.deviceId}');
+      _debug('Built DART modem instance for device ${state.deviceId}'
+          '${_dartSb0Profile ? " (SB0-aligned experimental profile)" : ""}');
       return instance;
     }
 

@@ -124,6 +124,7 @@ void _printUsage() {
   print('    Encode → [SBC] → [noise] → write WAV → decode → PNG.');
   print('    --bitpool <n>: SBC quality 2..124 (radio uses 18); implies --sbc.');
   print('    --sbcalloc: SBC bit-allocation method (default loudness); implies --sbc.');
+  print('    --profile <default|sb0>: OFDM band profile (sb0 = SBC-aligned, 6 carriers).');
 }
 
 // ============================================================================
@@ -207,6 +208,7 @@ void _cmdPipeline(List<String> args) {
   double noisedB = double.infinity;
   int bitpool = 18;
   SbcBitAllocationMethod sbcAlloc = SbcBitAllocationMethod.loudness;
+  bool sb0Profile = false;
   String message = '';
 
   for (int i = 0; i < args.length; i++) {
@@ -246,6 +248,9 @@ void _cmdPipeline(List<String> args) {
             : SbcBitAllocationMethod.loudness;
         useSbc = true;
         break;
+      case '--profile':
+        sb0Profile = args[++i].toLowerCase() == 'sb0';
+        break;
       default:
         message = args.sublist(i).join(' ');
         i = args.length;
@@ -263,10 +268,14 @@ void _cmdPipeline(List<String> args) {
   print('=== DART pipeline ===');
   print('Message : "$message"');
   print('Mode    : ${modeParams.description}');
+  print('Profile : ${sb0Profile ? "SB0-aligned (400-1900 Hz)" : "default (400-2600 Hz)"}');
   print('Source  : $source → Dest: $dest');
 
   // 1) Encode the clean waveform.
-  final modem = DartModem();
+  final modem = sb0Profile
+      ? DartModem(params: DartOfdmParams.sb0Aligned())
+      : DartModem();
+  print('Carriers: ${modem.ofdmParams.numDataCarriers}');
   final payload = Uint8List.fromList(message.codeUnits);
   var pcm = modem.encode(
     payload: payload,
