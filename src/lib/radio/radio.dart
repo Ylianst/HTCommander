@@ -155,6 +155,10 @@ class Radio {
   // Public state
   RadioDevInfo? info;
   List<RadioChannelInfo?>? channels;
+  // Names of the radio's regions, indexed by region id. An entry is null until
+  // its READ_REGION_NAME reply has been received. Sized to info.regionCount
+  // once device info is known.
+  List<String?> regionNames = const [];
   RadioHtStatus? htStatus;
   RadioSettings? settings;
   RadioBssSettings? bssSettings;
@@ -217,6 +221,13 @@ class Radio {
       deviceId: deviceId,
       name: 'WriteChannel',
       callback: _onWriteChannelEvent,
+    );
+
+    // Subscribe to region rename events
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'SetRegionName',
+      callback: _onSetRegionNameEvent,
     );
 
     // Subscribe to position events
@@ -374,6 +385,18 @@ class Radio {
     if (devId != deviceId) return;
     if (data is RadioChannelInfo) {
       setChannel(data);
+    }
+  }
+
+  void _onSetRegionNameEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    if (_lockState != null) return;
+    if (data is Map) {
+      final index = data['index'];
+      final regionName = data['name'];
+      if (index is int && regionName is String) {
+        setRegionName(index, regionName);
+      }
     }
   }
 
@@ -982,6 +1005,79 @@ class Radio {
       RadioBasicCommand.setRegion,
       Uint8List.fromList([region]),
     );
+  }
+
+  /// Maximum number of UTF-8 bytes stored for a region name. Confirmed against
+  /// a real radio: the READ_REGION_NAME reply carries a 10-byte null-padded
+  /// name field (offsets 6..15), matching the channel name field. The write
+  /// payload is null-padded to the same length.
+  static const int _regionNameLength = 10;
+
+  /// Requests the name of a single region (READ_REGION_NAME). The reply is
+  /// handled by [_handleReadRegionName].
+  void readRegionName(int region) {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.readRegionName,
+      Uint8List.fromList([region]),
+    );
+  }
+
+  /// Writes a new name for [region] (WRITE_REGION_NAME). The payload is the
+  /// region index followed by the UTF-8 name, null-padded to a fixed length.
+  /// The local [regionNames] cache is updated immediately (and broadcast via
+  /// the `RegionNames` event) so the UI reflects the change without waiting for
+  /// the radio to acknowledge and be re-read.
+  void setRegionName(int region, String name) {
+    if (info == null || region < 0 || region >= info!.regionCount) return;
+    final nameBytes = RadioUtils.encodeUtf8Padded(name, _regionNameLength);
+    final payload = Uint8List(1 + _regionNameLength);
+    payload[0] = region;
+    payload.setRange(1, 1 + _regionNameLength, nameBytes);
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.writeRegionName,
+      payload,
+    );
+
+    // Optimistically update the cached name and notify listeners. Store the
+    // name as the radio will (truncated to the fixed byte length) so a later
+    // READ_REGION_NAME reply produces an identical value.
+    if (region < regionNames.length) {
+      regionNames[region] = RadioUtils.decodeUtf8Trimmed(
+        nameBytes,
+        0,
+        _regionNameLength,
+      );
+      _dispatch(
+        'RegionNames',
+        List<String?>.from(regionNames),
+        store: true,
+      );
+    }
+  }
+
+  /// Requests the names of every region the radio reports. Called once device
+  /// info (and therefore the region count) is known.
+  void _updateRegionNames() {
+    if (_state != RadioState.connected || info == null) return;
+    final count = info!.regionCount;
+    if (count <= 0) return;
+    if (kIsWeb) {
+      // Web BLE polling mode exposes one latest readable value per
+      // characteristic, so pace the reads out so each reply can be observed.
+      for (int i = 0; i < count; i++) {
+        final timer = Timer(Duration(milliseconds: 25 * i), () {
+          if (_state != RadioState.connected || info == null) return;
+          readRegionName(i);
+        });
+        _pendingChannelReadTimers.add(timer);
+      }
+      return;
+    }
+    for (int i = 0; i < count; i++) {
+      readRegionName(i);
+    }
   }
 
   void _updateChannels() {
@@ -1826,6 +1922,17 @@ class Radio {
           );
         }
         break;
+      case RadioBasicCommand.readRegionName:
+        _handleReadRegionName(cmd);
+        break;
+      case RadioBasicCommand.writeRegionName:
+        // The radio does not notify of the change after a region name write,
+        // so re-read that region's name to refresh the cached value. cmd[4]
+        // is the status byte (0 = success) and cmd[5] is the region index.
+        if (cmd.length > 5 && cmd[4] == 0) {
+          readRegionName(cmd[5]);
+        }
+        break;
       case RadioBasicCommand.readBssSettings:
         _handleBssSettings(cmd);
         break;
@@ -1860,6 +1967,7 @@ class Radio {
         _friendlyName = info!.name;
       }
       channels = List<RadioChannelInfo?>.filled(info!.channelCount, null);
+      regionNames = List<String?>.filled(info!.regionCount, null);
       _dispatch('Info', info!.toJson());
       _dispatch('FriendlyName', _friendlyName);
       _dispatch('GpsEnabled', _gpsEnabled);
@@ -1897,6 +2005,7 @@ class Radio {
         null,
       );
       _updateChannels();
+      _updateRegionNames();
     }
   }
 
@@ -1937,6 +2046,24 @@ class Radio {
         );
       }
     }
+  }
+
+  /// Parses a READ_REGION_NAME reply. Layout (full command frame):
+  ///   data[0..3] = vendor + command header
+  ///   data[4]    = reply status (0 = success)
+  ///   data[5]    = region index
+  ///   data[6..]  = UTF-8 region name (null-padded)
+  void _handleReadRegionName(Uint8List data) {
+    if (data.length < 6 || data[4] != 0) return;
+    final region = data[5];
+    if (region < 0 || region >= regionNames.length) return;
+    final name = RadioUtils.decodeUtf8Trimmed(data, 6, data.length - 6);
+    regionNames[region] = name;
+    _dispatch(
+      'RegionNames',
+      List<String?>.from(regionNames),
+      store: true,
+    );
   }
 
   void _handleBssSettings(Uint8List data) {

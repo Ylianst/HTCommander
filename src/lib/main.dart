@@ -14,6 +14,7 @@ import 'dialogs/gps_serial_info_dialog.dart';
 import 'dialogs/import_channels_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/radio_info_dialog.dart';
+import 'dialogs/rename_regions_dialog.dart';
 import 'dialogs/settings_dialog.dart';
 import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
@@ -459,6 +460,9 @@ class _MainFormState extends State<MainForm>
   int _regionCount =
       0; // Number of regions offered by the currently displayed radio
   int _currRegion = 0; // Current region index of the currently displayed radio
+  // Names of the regions offered by the currently displayed radio, indexed by
+  // region id. Entries may be null until the radio reports the name.
+  List<String?> _regionNames = const [];
 
   // DataBroker client for subscriptions
   final DataBrokerClient _broker = DataBrokerClient();
@@ -641,6 +645,13 @@ class _MainFormState extends State<MainForm>
       deviceId: DataBroker.allDevices,
       name: 'HtStatus',
       callback: _onHtStatusChanged,
+    );
+
+    // Subscribe to RegionNames changes from all radio devices (region names)
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'RegionNames',
+      callback: _onRegionNamesChanged,
     );
 
     // Subscribe to software modem mode changes
@@ -948,6 +959,16 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  /// Handle RegionNames changes from any radio device. Rebuilds the menu so the
+  /// Regions submenu shows the up-to-date names.
+  void _onRegionNamesChanged(int deviceId, String name, Object? data) {
+    if (deviceId == _currentRadioDeviceId && data is List) {
+      setState(() {
+        _regionNames = data.map((e) => e is String ? e : null).toList();
+      });
+    }
+  }
+
   /// Select a region on the currently selected radio (mirrors the C#
   /// regionToolStripMenuItem region item click). Dispatches a Region event
   /// which the radio handles by switching to the requested region.
@@ -1092,6 +1113,17 @@ class _MainFormState extends State<MainForm>
     } else {
       _regionCount = 0;
       _currRegion = 0;
+    }
+    if (_currentRadioDeviceId > 0) {
+      final regionNames = DataBroker.getValueDynamic(
+        _currentRadioDeviceId,
+        'RegionNames',
+      );
+      _regionNames = regionNames is List
+          ? regionNames.map((e) => e is String ? e : null).toList()
+          : const [];
+    } else {
+      _regionNames = const [];
     }
     if (_currentRadioDeviceId > 0) {
       final settings = DataBroker.getValue<Map<String, dynamic>>(
@@ -1504,17 +1536,40 @@ class _MainFormState extends State<MainForm>
   /// Builds the items for the Radio > Regions submenu (mirrors the C#
   /// regionToolStripMenuItem_DropDownOpening logic). One checkable item per
   /// region the radio reports; the currently active region shows a checkmark.
+  /// A separator and a "Rename..." item at the bottom open the rename dialog.
   List<AppMenuItem> _buildRegionMenuItems() {
     if (!_hasConnectedRadio || _regionCount <= 0) {
       return const [AppMenuAction(label: 'No Regions', onPressed: null)];
     }
-    return List<AppMenuItem>.generate(
-      _regionCount,
-      (i) => AppMenuAction(
-        label: 'Region ${i + 1}',
-        checked: i == _currRegion,
-        onPressed: () => _onSelectRegion(i),
+    return [
+      ...List<AppMenuItem>.generate(
+        _regionCount,
+        (i) => AppMenuAction(
+          label: _regionLabel(i),
+          checked: i == _currRegion,
+          onPressed: () => _onSelectRegion(i),
+        ),
       ),
+      const AppMenuDivider(),
+      AppMenuAction(label: 'Rename...', onPressed: _onRenameRegions),
+    ];
+  }
+
+  /// Returns the display label for region [index]: the radio-reported name when
+  /// available, otherwise a generic "Region N" fallback.
+  String _regionLabel(int index) {
+    final name = index < _regionNames.length ? _regionNames[index] : null;
+    if (name != null && name.isNotEmpty) return name;
+    return 'Region ${index + 1}';
+  }
+
+  /// Opens the Rename Regions dialog for the currently selected radio.
+  void _onRenameRegions() {
+    if (_currentRadioDeviceId <= 0 || _regionCount <= 0) return;
+    showRenameRegionsDialog(
+      context,
+      deviceId: _currentRadioDeviceId,
+      regionCount: _regionCount,
     );
   }
 
@@ -1553,7 +1608,13 @@ class _MainFormState extends State<MainForm>
             onPressed: _hasConnectedRadio ? _onToggleGps : null,
             checked: _gpsEnabled,
           ),
-          AppSubmenu(label: 'Regions', children: _buildRegionMenuItems()),
+          // Show the Regions submenu only when a radio is connected and
+          // reports regions; otherwise show a disabled (grayed) entry with no
+          // sub-menu.
+          if (_hasConnectedRadio && _regionCount > 0)
+            AppSubmenu(label: 'Regions', children: _buildRegionMenuItems())
+          else
+            const AppMenuAction(label: 'Regions', onPressed: null),
           const AppMenuDivider(),
           AppMenuAction(
             label: 'Export Channels...',

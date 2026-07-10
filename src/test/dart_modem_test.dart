@@ -125,6 +125,8 @@ void _printUsage() {
   print('    --bitpool <n>: SBC quality 2..124 (radio uses 18); implies --sbc.');
   print('    --sbcalloc: SBC bit-allocation method (default loudness); implies --sbc.');
   print('    --phasenoise <deg>: add RMS carrier phase noise (models the FM audio path).');
+  print('    --echo <delaySamples> [--echoamp <a>]: add a multipath echo (ISI analysis).');
+  print('    --cp <samples>: override the OFDM cyclic-prefix length (ISI analysis).');
 }
 
 // ============================================================================
@@ -211,6 +213,9 @@ void _cmdPipeline(List<String> args) {
   double phaseNoiseDeg = 0.0;
   double phaseRate = 0.9995;
   bool pilotsEnabled = true;
+  int echoDelay = 0;
+  double echoAmp = 0.5;
+  int? cpOverride;
   String message = '';
 
   for (int i = 0; i < args.length; i++) {
@@ -259,6 +264,15 @@ void _cmdPipeline(List<String> args) {
       case '--nopilots':
         pilotsEnabled = false;
         break;
+      case '--echo':
+        echoDelay = int.parse(args[++i]);
+        break;
+      case '--echoamp':
+        echoAmp = double.parse(args[++i]);
+        break;
+      case '--cp':
+        cpOverride = int.parse(args[++i]);
+        break;
       default:
         message = args.sublist(i).join(' ');
         i = args.length;
@@ -279,9 +293,14 @@ void _cmdPipeline(List<String> args) {
   print('Source  : $source → Dest: $dest');
 
   // 1) Encode the clean waveform.
-  final modem = DartModem(pilotsEnabled: pilotsEnabled);
+  final modem = cpOverride != null
+      ? DartModem(
+          params: DartOfdmParams(cpLength: cpOverride),
+          pilotsEnabled: pilotsEnabled)
+      : DartModem(pilotsEnabled: pilotsEnabled);
   print('Carriers: ${modem.ofdmParams.numDataCarriers}'
-      '  Pilots: ${pilotsEnabled ? "on" : "off"}');
+      '  Pilots: ${pilotsEnabled ? "on" : "off"}'
+      '  CP: ${modem.ofdmParams.cpLength}');
   final payload = Uint8List.fromList(message.codeUnits);
   var pcm = modem.encode(
     payload: payload,
@@ -297,6 +316,14 @@ void _cmdPipeline(List<String> args) {
     pcm = _sbcRoundTrip(pcm, bitpool: bitpool, allocation: sbcAlloc);
     print('SBC     : applied codec round-trip '
         '(bitpool $bitpool, ${sbcAlloc.name} allocation)');
+  }
+
+  // 2b) Multipath echo (delay spread) — for inter-symbol-interference analysis.
+  if (echoDelay > 0 && echoAmp != 0) {
+    pcm = _addEcho(pcm, echoDelay, echoAmp);
+    print('Echo    : ${echoAmp.toStringAsFixed(2)} @ $echoDelay samples '
+        '(${(echoDelay * 1000.0 / modem.ofdmParams.sampleRate).toStringAsFixed(3)} ms; '
+        'CP is ${modem.ofdmParams.cpLength} samples)');
   }
 
   // 3) Channel noise — models the RF link.
@@ -1399,6 +1426,23 @@ Int16List _addPhaseNoise(Int16List pcm, double rmsDeg, {double alpha = 0.9995}) 
     theta = alpha * theta + sigma * g;
     final double v = re[i] * math.cos(theta) - im[i] * math.sin(theta);
     out[i] = v.round().clamp(-32767, 32767);
+  }
+  return out;
+}
+
+/// Add a delayed echo (two-tap multipath channel) for ISI analysis:
+/// y[n] = (x[n] + amp·x[n-delay]) / (1+|amp|). The normalization keeps the
+/// signal in range so the echo's effect (not clipping) is what's measured.
+/// When the [delay] exceeds the OFDM cyclic prefix, the echo leaks between
+/// symbols → inter-symbol interference.
+Int16List _addEcho(Int16List pcm, int delay, double amp) {
+  if (delay <= 0 || amp == 0) return pcm;
+  final double scale = 1.0 / (1.0 + amp.abs());
+  final out = Int16List(pcm.length);
+  for (int i = 0; i < pcm.length; i++) {
+    double v = pcm[i].toDouble();
+    if (i >= delay) v += amp * pcm[i - delay];
+    out[i] = (v * scale).round().clamp(-32767, 32767);
   }
   return out;
 }

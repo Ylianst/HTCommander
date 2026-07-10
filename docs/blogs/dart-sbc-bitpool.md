@@ -115,6 +115,13 @@ Two takeaways jump out:
 - **The gains saturate by bitpool ~40**, so even in the best case there's no
   reason to push it to the maximum.
 
+**On real hardware:** we tested this on the UV-Pro radios. The firmware **accepts
+transmit bitpool up to 40 but rejects the codec maximum (124)** — and 40 is
+exactly where the quality saturates anyway. So **HTCommander now sends to the
+radio at bitpool 40** (up from the default 18). The *incoming* (radio → app)
+stream is fixed at bitpool 18 by the radio's firmware and can't be changed, so
+the return path stays the lower-quality direction.
+
 This actually *sharpens* our earlier conclusion. Additive noise and SBC
 quantization — both fully reproducible in simulation — cannot break 16QAM even at
 8 dB SNR. Yet the real radio link fails it at a *better* nominal SNR. The missing
