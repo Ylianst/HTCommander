@@ -353,6 +353,7 @@ void _cmdDecode(List<String> args) {
   String? pngPath;
   bool useSbc = false;
   double noisedB = double.infinity;
+  bool sb0Profile = false;
   for (int i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--constellation':
@@ -366,6 +367,9 @@ void _cmdDecode(List<String> args) {
         break;
       case '--noise':
         noisedB = double.parse(args[++i]);
+        break;
+      case '--profile':
+        sb0Profile = args[++i].toLowerCase() == 'sb0';
         break;
       default:
         input ??= args[i];
@@ -388,7 +392,10 @@ void _cmdDecode(List<String> args) {
     print('  Applied SBC codec round-trip');
   }
 
-  final modem = DartModem();
+  final modem = sb0Profile
+      ? DartModem(params: DartOfdmParams.sb0Aligned())
+      : DartModem();
+  if (sb0Profile) print('  Profile: SB0-aligned (400-1900 Hz)');
   final capture = showConstellation || pngPath != null;
   final result = modem.decode(samples, captureConstellation: capture);
 

@@ -49,6 +49,13 @@ class PreambleDetection {
 
 /// Zadoff-Chu sequence generator and preamble utilities.
 class DartPreamble {
+  /// Upper frequency (Hz) of the sync chirp sweep. Capped below the data band's
+  /// top edge because real radio audio paths roll off / distort toward the top
+  /// of the passband; a lower cap gives a stronger over-the-air correlation
+  /// peak. The data carriers and channel-estimation symbol still use the full
+  /// band — only the sync chirp is narrowed.
+  static const double _preambleSweepHighHz = 1900.0;
+
   /// The OFDM parameters (needed for symbol generation).
   final DartOfdmParams ofdmParams;
 
@@ -229,14 +236,23 @@ class DartPreamble {
   /// time domain (real). The classic Zadoff-Chu chirp sweeps past Nyquist and
   /// near DC, so most of its energy falls outside the radio's ~300–2900 Hz audio
   /// passband and the radio's filtering destroys the correlation. A chirp that
-  /// sweeps only within [freqLow, freqHigh] survives the radio audio path while
-  /// keeping the sharp autocorrelation needed for timing sync.
+  /// sweeps only within the passband survives the radio audio path while keeping
+  /// the sharp autocorrelation needed for timing sync.
+  ///
+  /// The sweep is intentionally capped below the data band's upper edge: real
+  /// UV-Pro captures showed the radio audio path rolls off / distorts toward the
+  /// top of the band, so a chirp reaching 2600 Hz correlated at only ~0.80,
+  /// while one capped at 1900 Hz reached ~0.88 over the air. The channel-
+  /// estimation symbol and data carriers still use the full band — only the
+  /// sync chirp is narrowed, so timing robustness improves with no loss of data
+  /// frequency diversity.
   Float64List _generateZcTimeDomain() {
     final int n = zcLength;
     final output = Float64List(n);
     final double fs = ofdmParams.sampleRate.toDouble();
     final double f0 = ofdmParams.freqLow;
-    final double f1 = ofdmParams.freqHigh;
+    // Cap the sweep at the radio's clean passband ceiling (see above).
+    final double f1 = math.min(ofdmParams.freqHigh, _preambleSweepHighHz);
     final double dur = n / fs;
     final double kRate = (f1 - f0) / dur; // Hz per second
     for (int i = 0; i < n; i++) {
