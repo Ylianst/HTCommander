@@ -910,6 +910,16 @@ class RadioAudio {
   ) {
     if (pcmLength < _pcmInputSizePerFrame) return (null, 0);
 
+    // Data frames (the software modem) carry an OFDM/FSK waveform, not speech —
+    // so use SBC's SNR bit-allocation (uniform quantization SNR across
+    // subbands) instead of the psychoacoustic "loudness" curve, which wastes
+    // bits on perceptually-weighted bands that don't matter for data. Voice
+    // keeps loudness. The allocation method is signaled in each SBC frame
+    // header, so the radio's decoder adapts automatically.
+    _encoderFrame.allocationMethod = _voiceTransmitIsDataFrame
+        ? SbcBitAllocationMethod.snr
+        : SbcBitAllocationMethod.loudness;
+
     final int samplesPerChannel = _encoderFrame.blocks * _encoderFrame.subbands;
     final int bytesPerFrame = samplesPerChannel * 2;
     int totalToConsume = pcmLength;

@@ -119,9 +119,11 @@ void _printUsage() {
   print('  papr');
   print('    Compare PAPR of plain OFDM vs DFT-spread (SC-FDMA).');
   print('');
-  print('  pipeline -m <mode> [--sbc] [--noise <dB>] -o <out.wav>');
-  print('           [--png <file.png>] [--constellation] <message>');
+  print('  pipeline -m <mode> [--sbc] [--noise <dB>] [--bitpool <n>] -o <out.wav>');
+  print('           [--sbcalloc <snr|loudness>] [--png <file.png>] [--constellation] <message>');
   print('    Encode → [SBC] → [noise] → write WAV → decode → PNG.');
+  print('    --bitpool <n>: SBC quality 2..124 (radio uses 18); implies --sbc.');
+  print('    --sbcalloc: SBC bit-allocation method (default loudness); implies --sbc.');
 }
 
 // ============================================================================
@@ -203,6 +205,8 @@ void _cmdPipeline(List<String> args) {
   bool showConstellation = false;
   bool useSbc = false;
   double noisedB = double.infinity;
+  int bitpool = 18;
+  SbcBitAllocationMethod sbcAlloc = SbcBitAllocationMethod.loudness;
   String message = '';
 
   for (int i = 0; i < args.length; i++) {
@@ -230,6 +234,17 @@ void _cmdPipeline(List<String> args) {
         break;
       case '--noise':
         noisedB = double.parse(args[++i]);
+        break;
+      case '--bitpool':
+        bitpool = int.parse(args[++i]);
+        useSbc = true;
+        break;
+      case '--sbcalloc':
+        final String v = args[++i].toLowerCase();
+        sbcAlloc = v == 'snr'
+            ? SbcBitAllocationMethod.snr
+            : SbcBitAllocationMethod.loudness;
+        useSbc = true;
         break;
       default:
         message = args.sublist(i).join(' ');
@@ -264,8 +279,9 @@ void _cmdPipeline(List<String> args) {
 
   // 2) SBC (Bluetooth) codec round-trip — models the app→radio hop.
   if (useSbc) {
-    pcm = _sbcRoundTrip(pcm);
-    print('SBC     : applied codec round-trip');
+    pcm = _sbcRoundTrip(pcm, bitpool: bitpool, allocation: sbcAlloc);
+    print('SBC     : applied codec round-trip '
+        '(bitpool $bitpool, ${sbcAlloc.name} allocation)');
   }
 
   // 3) Channel noise — models the RF link.
@@ -1298,16 +1314,24 @@ Int16List _addNoise(Int16List pcm, double snrDb) {
 }
 
 /// Round-trip PCM through the SBC codec (simulates Bluetooth audio).
-Int16List _sbcRoundTrip(Int16List pcm) {
+/// [bitpool] sets the SBC quality/bitrate (the radio's Bluetooth link uses 18;
+/// the valid maximum for this 32 kHz/mono/16-block/8-subband config is 124).
+/// [allocation] selects the bit-allocation method (loudness is the codec
+/// default; SNR gives more uniform quantization SNR, better for data).
+Int16List _sbcRoundTrip(
+  Int16List pcm, {
+  int bitpool = 18,
+  SbcBitAllocationMethod allocation = SbcBitAllocationMethod.loudness,
+}) {
   // SBC config matching the radio's Bluetooth link:
-  // 32 kHz mono, 16 blocks, 8 subbands, loudness allocation, bitpool 18.
+  // 32 kHz mono, 16 blocks, 8 subbands.
   final SbcFrame frame = SbcFrame()
     ..frequency = SbcFrequency.freq32K
     ..mode = SbcMode.mono
-    ..allocationMethod = SbcBitAllocationMethod.loudness
+    ..allocationMethod = allocation
     ..blocks = 16
     ..subbands = 8
-    ..bitpool = 18;
+    ..bitpool = bitpool;
 
   final encoder = SbcEncoder();
   final decoder = SbcDecoder();
