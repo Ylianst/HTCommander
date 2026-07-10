@@ -125,6 +125,7 @@ void _printUsage() {
   print('    --bitpool <n>: SBC quality 2..124 (radio uses 18); implies --sbc.');
   print('    --sbcalloc: SBC bit-allocation method (default loudness); implies --sbc.');
   print('    --profile <default|sb0>: OFDM band profile (sb0 = SBC-aligned, 6 carriers).');
+  print('    --phasenoise <deg>: add RMS carrier phase noise (models the FM audio path).');
 }
 
 // ============================================================================
@@ -209,6 +210,9 @@ void _cmdPipeline(List<String> args) {
   int bitpool = 18;
   SbcBitAllocationMethod sbcAlloc = SbcBitAllocationMethod.loudness;
   bool sb0Profile = false;
+  double phaseNoiseDeg = 0.0;
+  double phaseRate = 0.9995;
+  bool pilotsEnabled = true;
   String message = '';
 
   for (int i = 0; i < args.length; i++) {
@@ -251,6 +255,15 @@ void _cmdPipeline(List<String> args) {
       case '--profile':
         sb0Profile = args[++i].toLowerCase() == 'sb0';
         break;
+      case '--phasenoise':
+        phaseNoiseDeg = double.parse(args[++i]);
+        break;
+      case '--phaserate':
+        phaseRate = double.parse(args[++i]);
+        break;
+      case '--nopilots':
+        pilotsEnabled = false;
+        break;
       default:
         message = args.sublist(i).join(' ');
         i = args.length;
@@ -273,9 +286,10 @@ void _cmdPipeline(List<String> args) {
 
   // 1) Encode the clean waveform.
   final modem = sb0Profile
-      ? DartModem(params: DartOfdmParams.sb0Aligned())
-      : DartModem();
-  print('Carriers: ${modem.ofdmParams.numDataCarriers}');
+      ? DartModem(params: DartOfdmParams.sb0Aligned(), pilotsEnabled: pilotsEnabled)
+      : DartModem(pilotsEnabled: pilotsEnabled);
+  print('Carriers: ${modem.ofdmParams.numDataCarriers}'
+      '  Pilots: ${pilotsEnabled ? "on" : "off"}');
   final payload = Uint8List.fromList(message.codeUnits);
   var pcm = modem.encode(
     payload: payload,
@@ -297,6 +311,15 @@ void _cmdPipeline(List<String> args) {
   if (noisedB.isFinite) {
     pcm = _addNoise(pcm, noisedB);
     print('Noise   : added at ${noisedB.toStringAsFixed(1)} dB SNR');
+  }
+
+  // 3b) Carrier phase noise — models the FM audio-path phase distortion that is
+  // the real over-the-air limiter (a static frequency response is equalized
+  // away, so only a time-varying phase impairment reproduces the ceiling).
+  if (phaseNoiseDeg > 0) {
+    pcm = _addPhaseNoise(pcm, phaseNoiseDeg, alpha: phaseRate);
+    print('Phase   : added ${phaseNoiseDeg.toStringAsFixed(1)}° RMS phase noise '
+        '(rate ${phaseRate.toStringAsFixed(5)})');
   }
 
   // 4) Write the degraded WAV.
@@ -321,6 +344,9 @@ void _cmdPipeline(List<String> args) {
       '${String.fromCharCodes(result.payload)}');
   print('  LDPC corrections: ${result.ldpcCorrections}');
   print('  Signal: ${result.quality}');
+  if (result.phaseDriftDeg != null) {
+    print('  Phase drift: ${result.phaseDriftDeg!.toStringAsFixed(1)}°/symbol');
+  }
   print('  CRC: ${result.crcOk ? "OK" : "FAIL"}');
 
   final syms = result.constellation;
@@ -416,6 +442,15 @@ void _cmdDecode(List<String> args) {
       '${String.fromCharCodes(result.payload)}');
   print('  LDPC corrections: ${result.ldpcCorrections}');
   print('  Signal: ${result.quality}');
+  if (result.phaseDriftDeg != null) {
+    final double d = result.phaseDriftDeg!;
+    final String regime = d < 3.0
+        ? 'slow / decision-limited (pilots help)'
+        : d < 8.0
+            ? 'moderate'
+            : 'fast / ICI-limited (irreducible)';
+    print('  Phase drift: ${d.toStringAsFixed(1)}°/symbol — $regime');
+  }
   print('  CRC: ${result.crcOk ? "OK" : "FAIL"}');
 
   final syms = result.constellation;
@@ -1327,6 +1362,109 @@ Int16List _addNoise(Int16List pcm, double snrDb) {
     output[i] = (pcm[i] + noise).round().clamp(-32767, 32767);
   }
   return output;
+}
+
+/// Add carrier phase noise to a real passband signal.
+///
+/// This models the FM audio-path phase distortion that is the real
+/// over-the-air limiter for DART. A *static* frequency response is removed by
+/// the per-subcarrier equalizer (which is why band shape and multipath didn't
+/// matter over the air), so only a *time-varying* phase impairment reproduces
+/// the observed EVM ceiling. We form the analytic signal (via FFT) and multiply
+/// it by e^{jθ[n]}, where θ is a bounded AR(1) random-walk phase with the given
+/// RMS deviation [rmsDeg] and correlation factor [alpha] (near 1 = slow drift).
+/// Taking the real part yields the impaired passband signal.
+Int16List _addPhaseNoise(Int16List pcm, double rmsDeg, {double alpha = 0.9995}) {
+  if (rmsDeg <= 0) return pcm;
+  final int n0 = pcm.length;
+  int n = 1;
+  while (n < n0) {
+    n <<= 1;
+  }
+  final re = Float64List(n);
+  final im = Float64List(n);
+  for (int i = 0; i < n0; i++) {
+    re[i] = pcm[i].toDouble();
+  }
+
+  // Forward FFT, then build the analytic signal (double positive frequencies,
+  // zero the negative half), then inverse FFT back to a complex time signal.
+  _fftInplace(re, im, false);
+  final int half = n ~/ 2;
+  for (int k = 1; k < half; k++) {
+    re[k] *= 2;
+    im[k] *= 2;
+  }
+  for (int k = half + 1; k < n; k++) {
+    re[k] = 0;
+    im[k] = 0;
+  }
+  _fftInplace(re, im, true);
+
+  // Apply the AR(1) phase-noise process and take the real part.
+  final rnd = math.Random(1234);
+  final double rmsRad = rmsDeg * math.pi / 180.0;
+  final double sigma = rmsRad * math.sqrt(1 - alpha * alpha);
+  double theta = 0.0;
+  final out = Int16List(n0);
+  for (int i = 0; i < n0; i++) {
+    final double u1 = rnd.nextDouble().clamp(1e-12, 1.0);
+    final double u2 = rnd.nextDouble();
+    final double g = math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2);
+    theta = alpha * theta + sigma * g;
+    final double v = re[i] * math.cos(theta) - im[i] * math.sin(theta);
+    out[i] = v.round().clamp(-32767, 32767);
+  }
+  return out;
+}
+
+/// In-place iterative radix-2 Cooley-Tukey FFT (length must be a power of two).
+void _fftInplace(Float64List re, Float64List im, bool inverse) {
+  final int n = re.length;
+  // Bit-reversal permutation.
+  for (int i = 1, j = 0; i < n; i++) {
+    int bit = n >> 1;
+    for (; (j & bit) != 0; bit >>= 1) {
+      j ^= bit;
+    }
+    j ^= bit;
+    if (i < j) {
+      double t = re[i];
+      re[i] = re[j];
+      re[j] = t;
+      t = im[i];
+      im[i] = im[j];
+      im[j] = t;
+    }
+  }
+  for (int len = 2; len <= n; len <<= 1) {
+    final double ang = 2 * math.pi / len * (inverse ? 1 : -1);
+    final double wr = math.cos(ang);
+    final double wi = math.sin(ang);
+    for (int i = 0; i < n; i += len) {
+      double cwr = 1.0;
+      double cwi = 0.0;
+      for (int k = 0; k < len ~/ 2; k++) {
+        final int a = i + k;
+        final int b = a + len ~/ 2;
+        final double vr = re[b] * cwr - im[b] * cwi;
+        final double vi = re[b] * cwi + im[b] * cwr;
+        re[b] = re[a] - vr;
+        im[b] = im[a] - vi;
+        re[a] += vr;
+        im[a] += vi;
+        final double ncwr = cwr * wr - cwi * wi;
+        cwi = cwr * wi + cwi * wr;
+        cwr = ncwr;
+      }
+    }
+  }
+  if (inverse) {
+    for (int i = 0; i < n; i++) {
+      re[i] /= n;
+      im[i] /= n;
+    }
+  }
 }
 
 /// Round-trip PCM through the SBC codec (simulates Bluetooth audio).

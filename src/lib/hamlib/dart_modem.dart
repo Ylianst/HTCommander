@@ -318,6 +318,12 @@ class DartDecodeResult {
   /// which has no constellation.
   final List<Complex>? constellation;
 
+  /// Measured carrier phase drift in degrees per OFDM symbol, derived from the
+  /// payload pilots (decision-independent). Small (<~3°) means slow/decision-
+  /// limited phase noise (pilots help); large (>~10°) means fast/ICI-limited
+  /// (irreducible). Null when pilots are disabled or unavailable.
+  final double? phaseDriftDeg;
+
   const DartDecodeResult({
     required this.header,
     required this.payload,
@@ -327,6 +333,7 @@ class DartDecodeResult {
     this.endSample = 0,
     this.ldpcCorrections = 0,
     this.constellation,
+    this.phaseDriftDeg,
   });
 
   /// Link-layer frame type derived from the header flags.
@@ -375,11 +382,43 @@ class DartModem {
   /// Bluetooth audio round-trip. ~2 SBC frames (128 samples each).
   static const int _guardSamples = 256;
 
-  DartModem({DartOfdmParams? params, DartFskParams? fskParams})
-      : ofdmParams = params ?? DartOfdmParams() {
+  /// Payload pilot spacing: one known pilot OFDM symbol is inserted before every
+  /// [_pilotInterval] data symbols (plus a trailing pilot), giving the receiver
+  /// a *decision-independent* phase reference to track carrier phase noise — the
+  /// dominant real-world impairment. Costs ~1/interval of payload throughput.
+  static const int _pilotInterval = 8;
+
+  /// When true, the payload carries interspersed pilot symbols for
+  /// decision-independent phase tracking. Off = the previous decision-directed-
+  /// only path (useful for A/B testing the pilot benefit).
+  final bool pilotsEnabled;
+
+  DartModem({
+    DartOfdmParams? params,
+    DartFskParams? fskParams,
+    this.pilotsEnabled = true,
+  }) : ofdmParams = params ?? DartOfdmParams() {
     preamble = DartPreamble(ofdmParams: ofdmParams);
     ofdm = DartOfdm(ofdmParams);
     fsk = DartFsk(fskParams ?? DartFskParams());
+  }
+
+  /// Known pilot data symbols (reuse the preamble's BPSK PN — known to both
+  /// ends), and the corresponding modulated (DFT-spread) pilot OFDM symbol.
+  late final List<Complex> _pilotSymbols = preamble.channelEstSymbols;
+  late final Float64List _pilotOfdm = ofdm.modulateSymbol(_pilotSymbols);
+
+  /// On-air payload layout for [numData] data OFDM symbols: each entry is a data
+  /// index, or -1 for a pilot slot. Shared by the encoder and decoder so both
+  /// agree on where the pilots sit.
+  static List<int> _pilotLayout(int numData, int interval) {
+    final layout = <int>[];
+    for (int i = 0; i < numData; i++) {
+      if (i % interval == 0) layout.add(-1); // pilot before each group
+      layout.add(i);
+    }
+    layout.add(-1); // trailing pilot so every data symbol is bracketed
+    return layout;
   }
 
   /// Encode a frame: payload bytes → PCM audio samples.
@@ -430,8 +469,12 @@ class DartModem {
     final interleavedBits = _interleave(payloadCodedBits);
     // Map to symbols
     final payloadSymbols = _mapToSymbols(interleavedBits, modeParams.constellation);
-    // Modulate to OFDM symbols
-    final payloadOfdmSymbols = _modulateSymbols(payloadSymbols);
+    // Modulate to OFDM symbols, then (optionally) intersperse known pilot
+    // symbols so the receiver can track carrier phase noise independently of
+    // its decisions.
+    final payloadDataOfdm = _modulateSymbols(payloadSymbols);
+    final payloadOfdmSymbols =
+        pilotsEnabled ? _insertPayloadPilots(payloadDataOfdm) : payloadDataOfdm;
 
     // --- Assemble frame ---
     // Lead-in silence lets the SBC filterbank warm up before the preamble,
@@ -602,9 +645,24 @@ class DartModem {
 
     final int payloadStart =
         headerStart + headerOfdmCount * ofdmParams.symbolLength;
-    final payloadRxSymbols = _demodulateOfdmSymbolsTracked(
-      rxSamples, payloadStart, payloadOfdmCount, refinedChannel, payloadConst,
-    );
+    // The payload may carry interspersed pilot symbols; account for them in the
+    // on-air span and use them to track carrier phase noise.
+    final int payloadOnAir = pilotsEnabled
+        ? _pilotLayout(payloadOfdmCount, _pilotInterval).length
+        : payloadOfdmCount;
+    final Float64List driftHolder = Float64List(1);
+    final payloadRxSymbols = pilotsEnabled
+        ? _demodulateOfdmSymbolsPilots(
+            rxSamples, payloadStart, payloadOfdmCount, refinedChannel,
+            payloadConst,
+            noiseVar: noiseVar,
+            driftOut: driftHolder,
+          )
+        : _demodulateOfdmSymbolsTracked(
+            rxSamples, payloadStart, payloadOfdmCount, refinedChannel,
+            payloadConst,
+            noiseVar: noiseVar,
+          );
     if (payloadRxSymbols == null) return null;
 
     // Soft-demap payload
@@ -652,9 +710,10 @@ class DartModem {
       crcOk: rxCrc == computedCrc,
       quality: quality,
       durationMs: durationMs,
-      endSample: payloadStart + payloadOfdmCount * ofdmParams.symbolLength,
+      endSample: payloadStart + payloadOnAir * ofdmParams.symbolLength,
       ldpcCorrections: corrections[0],
       constellation: captureConstellation ? payloadRxSymbols : null,
+      phaseDriftDeg: pilotsEnabled ? driftHolder[0] : null,
     );
   }
 
@@ -916,8 +975,9 @@ class DartModem {
     int startSample,
     int numOfdmSymbols,
     List<Complex> channelEst,
-    Constellation constellation,
-  ) {
+    Constellation constellation, {
+    double noiseVar = 0.0,
+  }) {
     final int symbolLen = ofdmParams.symbolLength;
     final int needed = startSample + numOfdmSymbols * symbolLen;
     if (rxSamples.length < needed) return null;
@@ -929,7 +989,7 @@ class DartModem {
       final int offset = startSample + s * symbolLen;
       final slice =
           Float64List.sublistView(rxSamples, offset, offset + symbolLen);
-      final symbols = ofdm.demodulateSymbol(slice, channelEst);
+      final symbols = ofdm.demodulateSymbol(slice, channelEst, noiseVar: noiseVar);
 
       // Predict this symbol's phase from the running estimate and de-rotate.
       final double cosP = math.cos(-phaseAccum);
@@ -966,6 +1026,129 @@ class DartModem {
       allSymbols.addAll(symbols);
     }
     return allSymbols;
+  }
+
+  /// Insert known pilot OFDM symbols into a payload data-symbol stream.
+  List<Float64List> _insertPayloadPilots(List<Float64List> dataOfdm) {
+    final layout = _pilotLayout(dataOfdm.length, _pilotInterval);
+    final out = <Float64List>[];
+    for (final slot in layout) {
+      out.add(slot < 0 ? _pilotOfdm : dataOfdm[slot]);
+    }
+    return out;
+  }
+
+  /// Demodulate a pilot-interspersed payload, tracking carrier phase noise from
+  /// the known pilot symbols (decision-independent) and interpolating the phase
+  /// correction across the data symbols between pilots. Returns the equalized,
+  /// phase-corrected data symbols (pilots consumed). This is the primary defense
+  /// against the FM audio path's carrier phase noise.
+  List<Complex>? _demodulateOfdmSymbolsPilots(
+    Float64List rxSamples,
+    int startSample,
+    int numData,
+    List<Complex> channelEst,
+    Constellation constellation, {
+    double noiseVar = 0.0,
+    Float64List? driftOut,
+  }) {
+    final int symbolLen = ofdmParams.symbolLength;
+    final layout = _pilotLayout(numData, _pilotInterval);
+    final int total = layout.length;
+    if (rxSamples.length < startSample + total * symbolLen) return null;
+
+    // Pass 1: demodulate every on-air symbol (equalized + de-spread).
+    final raw = List<List<Complex>>.filled(total, const <Complex>[]);
+    for (int p = 0; p < total; p++) {
+      final int offset = startSample + p * symbolLen;
+      final slice =
+          Float64List.sublistView(rxSamples, offset, offset + symbolLen);
+      raw[p] = ofdm.demodulateSymbol(slice, channelEst, noiseVar: noiseVar);
+    }
+
+    // Pass 2: single forward sweep. At each pilot, measure the absolute phase
+    // from the known symbols and *anchor* the running estimate to it
+    // (decision-independent — this bounds drift and bootstraps the high-order
+    // modes where decision-directed tracking alone fails). Between pilots, track
+    // per-symbol with decision direction for fine, fast correction.
+    final out = <Complex>[];
+    double phaseAccum = 0.0;
+    bool anchored = false;
+    // Collect (position, unwrapped absolute phase) at pilots to measure the
+    // carrier phase-drift rate (a decision-independent diagnostic).
+    final pilotPos = <int>[];
+    final pilotAbsPhase = <double>[];
+    for (int p = 0; p < total; p++) {
+      if (layout[p] == -1) {
+        // Pilot: measure θ = angle( Σ y · conj(pilot) ) and anchor to it.
+        double sumRe = 0, sumIm = 0;
+        for (int m = 0; m < _pilotSymbols.length && m < raw[p].length; m++) {
+          final Complex c = raw[p][m];
+          final Complex ref = _pilotSymbols[m];
+          sumRe += c.i * ref.i + c.q * ref.q;
+          sumIm += c.q * ref.i - c.i * ref.q;
+        }
+        final double theta = math.atan2(sumIm, sumRe);
+        if (!anchored) {
+          phaseAccum = theta;
+          anchored = true;
+        } else {
+          // Unwrap toward the running estimate.
+          phaseAccum +=
+              math.atan2(math.sin(theta - phaseAccum), math.cos(theta - phaseAccum));
+        }
+        pilotPos.add(p);
+        pilotAbsPhase.add(phaseAccum);
+        continue;
+      }
+
+      // Data: de-rotate by the running phase estimate, then refine per-symbol
+      // with a decision-directed residual.
+      final syms = raw[p];
+      final double cosP = math.cos(-phaseAccum);
+      final double sinP = math.sin(-phaseAccum);
+      for (int i = 0; i < syms.length; i++) {
+        final Complex c = syms[i];
+        syms[i] = Complex(c.i * cosP - c.q * sinP, c.i * sinP + c.q * cosP);
+      }
+      double sumRe = 0, sumIm = 0;
+      for (final c in syms) {
+        final Complex ref = constellation.nearestPoint(c);
+        sumRe += c.i * ref.i + c.q * ref.q;
+        sumIm += c.q * ref.i - c.i * ref.q;
+      }
+      if (sumRe != 0 || sumIm != 0) {
+        final double residual = math.atan2(sumIm, sumRe);
+        final double cosR = math.cos(-residual);
+        final double sinR = math.sin(-residual);
+        for (int i = 0; i < syms.length; i++) {
+          final Complex c = syms[i];
+          syms[i] = Complex(c.i * cosR - c.q * sinR, c.i * sinR + c.q * cosR);
+        }
+        phaseAccum += residual;
+      }
+      out.addAll(syms);
+    }
+
+    // Estimate the per-symbol carrier phase-drift rate from the pilot phases.
+    // For a random-walk phase, the drift over a g-symbol gap has std
+    // proportional to sqrt(g); normalizing each gap by sqrt(g) yields the
+    // per-symbol RMS drift, which distinguishes slow/decision-limited phase
+    // noise (small) from fast/ICI-limited (large).
+    if (driftOut != null && driftOut.isNotEmpty) {
+      double sumSq = 0;
+      int cnt = 0;
+      for (int i = 1; i < pilotPos.length; i++) {
+        final int g = pilotPos[i] - pilotPos[i - 1];
+        if (g <= 0) continue;
+        final double perSym =
+            (pilotAbsPhase[i] - pilotAbsPhase[i - 1]) / math.sqrt(g);
+        sumSq += perSym * perSym;
+        cnt++;
+      }
+      driftOut[0] = cnt > 0 ? math.sqrt(sumSq / cnt) * 180.0 / math.pi : 0.0;
+    }
+    return out;
   }
 
   /// Refine the channel estimate using the known (decoded) header symbols.

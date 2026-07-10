@@ -151,10 +151,16 @@ class DartOfdm {
   /// [channelEstimate] is H[k] for each active subcarrier (from preamble).
   /// [dftSpread] must match the value used at modulation.
   /// Returns equalized data symbols (length == params.numDataCarriers).
+  ///
+  /// [noiseVar] selects the equalizer: 0 (default) is zero-forcing (`Y/H`);
+  /// a positive value uses MMSE (`Y·conj(H)/(|H|²+noiseVar)`), which limits the
+  /// noise enhancement ZF suffers on weak subcarriers — the SC-FDMA-correct way
+  /// to down-weight bad tones before the de-spread averages them together.
   List<Complex> demodulateSymbol(
     Float64List samples,
     List<Complex> channelEstimate, {
     bool dftSpread = true,
+    double noiseVar = 0.0,
   }) {
     if (samples.length != params.symbolLength) {
       throw ArgumentError(
@@ -171,7 +177,7 @@ class DartOfdm {
     // Step 2: FFT to frequency domain
     final freqDomain = _fft(rxTime, inverse: false);
 
-    // Step 3: Extract active subcarriers and equalize (ZF)
+    // Step 3: Extract active subcarriers and equalize (ZF or MMSE)
     final equalized = List<Complex>.filled(
       params.numDataCarriers,
       const Complex(0, 0),
@@ -180,12 +186,12 @@ class DartOfdm {
       final int k = params.activeCarriers[i];
       final Complex rx = freqDomain[k];
       final Complex h = channelEstimate[i];
-      // Zero-forcing: X = Y / H
-      final double hMagSq = h.magnitudeSquared;
-      if (hMagSq > 1e-10) {
+      // ZF: X = Y·conj(H)/|H|².  MMSE: X = Y·conj(H)/(|H|²+noiseVar).
+      final double denom = h.magnitudeSquared + noiseVar;
+      if (denom > 1e-10) {
         equalized[i] = Complex(
-          (rx.i * h.i + rx.q * h.q) / hMagSq,
-          (rx.q * h.i - rx.i * h.q) / hMagSq,
+          (rx.i * h.i + rx.q * h.q) / denom,
+          (rx.q * h.i - rx.i * h.q) / denom,
         );
       }
     }
