@@ -30,6 +30,12 @@ real-world observation down to the root-cause diagnosis and fix.
    phase tracking, recovering a rung of throughput, and showing the remaining
    ceiling is raw SNR (a link-budget problem), not DSP.
 
+5. **[The Bits You Already Know: Code Shortening for Short Frames](dart-code-shortening.md)**
+   A lopsided constellation reveals that short frames are mostly known
+   zero-padding. Telling the decoder those bits are known (code shortening) buys
+   5+ dB of margin on short frames — for free, and scaling exactly with how short
+   the frame is.
+
 ## Related
 
 - [DART Implementation Report](../DART-Implementation-Report.md) — architecture,

@@ -1270,6 +1270,18 @@ class DartModem {
       if (copyLen > 0) {
         blockLlr.setRange(0, copyLen, llrs, start);
       }
+      // Code shortening: any info bits beyond the real payload are known-zero
+      // padding (the encoder zero-fills each block to K). Pin their LLRs to a
+      // strong positive value (LLR>0 = bit 0) so the belief-propagation decoder
+      // treats them as known. Known bits constrain the codeword and improve
+      // decoding — the gain is largest for short frames, where padding
+      // dominates the block.
+      final int realInBlock =
+          (infoBitsNeeded - b * code.k).clamp(0, code.k);
+      const double knownLlr = 1e6;
+      for (int i = realInBlock; i < code.k; i++) {
+        blockLlr[i] = knownLlr;
+      }
       final decoded = DartLdpc.decode(code, blockLlr, corrOut: corrOut);
       if (decoded == null) return null;
       output.setRange(b * code.k, (b + 1) * code.k, decoded);
