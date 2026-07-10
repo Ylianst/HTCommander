@@ -81,6 +81,9 @@ void main(List<String> args) {
     case 'stream':
       _cmdStreamTest(restArgs);
       break;
+    case 'pipeline':
+      _cmdPipeline(restArgs);
+      break;
     default:
       print('Unknown command: $command');
       _printUsage();
@@ -115,6 +118,10 @@ void _printUsage() {
   print('');
   print('  papr');
   print('    Compare PAPR of plain OFDM vs DFT-spread (SC-FDMA).');
+  print('');
+  print('  pipeline -m <mode> [--sbc] [--noise <dB>] -o <out.wav>');
+  print('           [--png <file.png>] [--constellation] <message>');
+  print('    Encode → [SBC] → [noise] → write WAV → decode → PNG.');
 }
 
 // ============================================================================
@@ -177,6 +184,133 @@ void _cmdEncode(List<String> args) {
 
   final double durationMs = pcm.length * 1000.0 / modem.ofdmParams.sampleRate;
   print('Written: $output (${pcm.length} samples, ${durationMs.toStringAsFixed(1)} ms)');
+}
+
+// ============================================================================
+// Command: pipeline
+// ============================================================================
+
+/// Full end-to-end channel simulation: encode a message, push it through the
+/// SBC (Bluetooth) codec, add channel noise, write the degraded WAV, then
+/// decode it and render the constellation PNG. This mirrors the real path a
+/// DART frame travels (app → SBC → radio/RF → SBC → app).
+void _cmdPipeline(List<String> args) {
+  int modeIdx = 5;
+  String output = 'dart_pipeline.wav';
+  String source = 'N0CALL';
+  String dest = 'CQ';
+  String? pngPath;
+  bool showConstellation = false;
+  bool useSbc = false;
+  double noisedB = double.infinity;
+  String message = '';
+
+  for (int i = 0; i < args.length; i++) {
+    switch (args[i]) {
+      case '-m':
+        modeIdx = int.parse(args[++i]);
+        break;
+      case '-o':
+        output = args[++i];
+        break;
+      case '-s':
+        source = args[++i];
+        break;
+      case '-d':
+        dest = args[++i];
+        break;
+      case '--png':
+        pngPath = args[++i];
+        break;
+      case '--constellation':
+        showConstellation = true;
+        break;
+      case '--sbc':
+        useSbc = true;
+        break;
+      case '--noise':
+        noisedB = double.parse(args[++i]);
+        break;
+      default:
+        message = args.sublist(i).join(' ');
+        i = args.length;
+        break;
+    }
+  }
+
+  if (message.isEmpty) {
+    print('Error: no message specified');
+    exit(1);
+  }
+
+  final mode = DartMode.values[modeIdx.clamp(0, DartMode.modeF.index)];
+  final modeParams = DartModeParams.fromMode(mode);
+  print('=== DART pipeline ===');
+  print('Message : "$message"');
+  print('Mode    : ${modeParams.description}');
+  print('Source  : $source → Dest: $dest');
+
+  // 1) Encode the clean waveform.
+  final modem = DartModem();
+  final payload = Uint8List.fromList(message.codeUnits);
+  var pcm = modem.encode(
+    payload: payload,
+    mode: mode,
+    source: source,
+    destination: dest,
+  );
+  print('Encoded : ${pcm.length} samples '
+      '(${(pcm.length * 1000.0 / modem.ofdmParams.sampleRate).toStringAsFixed(1)} ms)');
+
+  // 2) SBC (Bluetooth) codec round-trip — models the app→radio hop.
+  if (useSbc) {
+    pcm = _sbcRoundTrip(pcm);
+    print('SBC     : applied codec round-trip');
+  }
+
+  // 3) Channel noise — models the RF link.
+  if (noisedB.isFinite) {
+    pcm = _addNoise(pcm, noisedB);
+    print('Noise   : added at ${noisedB.toStringAsFixed(1)} dB SNR');
+  }
+
+  // 4) Write the degraded WAV.
+  final params = WavParams()
+    ..sampleRate = modem.ofdmParams.sampleRate
+    ..bitsPerSample = 16
+    ..numChannels = 1;
+  WavFile.write(output, pcm, params);
+  print('WAV     : $output');
+
+  // 5) Decode the degraded audio.
+  final capture = showConstellation || pngPath != null;
+  final result = modem.decode(pcm, captureConstellation: capture);
+  if (result == null) {
+    print('Decode  : FAIL — no DART frame detected');
+    exit(1);
+  }
+
+  print('--- decode result ---');
+  print('  Mode: ${result.header.modeIndex} (${modeParams.description})');
+  print('  Payload (${result.payload.length} bytes): '
+      '${String.fromCharCodes(result.payload)}');
+  print('  LDPC corrections: ${result.ldpcCorrections}');
+  print('  Signal: ${result.quality}');
+  print('  CRC: ${result.crcOk ? "OK" : "FAIL"}');
+
+  final syms = result.constellation;
+  if (capture && (syms == null || syms.isEmpty)) {
+    print('  (No constellation — Mode F / FSK has none.)');
+  } else if (syms != null && syms.isNotEmpty) {
+    if (showConstellation) {
+      print('');
+      _printAsciiConstellation(syms, modeParams.constellation);
+    }
+    if (pngPath != null) {
+      _writeConstellationPng(syms, modeParams.constellation, pngPath);
+      print('  Constellation image written: $pngPath');
+    }
+  }
 }
 
 // ============================================================================
