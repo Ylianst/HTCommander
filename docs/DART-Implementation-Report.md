@@ -1,7 +1,7 @@
 # DART Modem — Implementation Report
 
-**Date:** 2026-07-08
-**Status:** Working prototype — offline-validated end-to-end, wired into the live software-modem path
+**Date:** 2026-07-08 (updated 2026-07-10 with over-the-air results)
+**Status:** Working prototype — validated offline **and over the air** on real radios
 **Design spec:** [NextGenModem.md](NextGenModem.md)
 **Proposal / rationale:** [findings/next-gen-modem-proposal.md](findings/next-gen-modem-proposal.md)
 
@@ -304,18 +304,69 @@ subcarriers; SC-FDMA's PAPR advantage grows with the number of tones.
 
 ## Known limitations / not yet implemented
 
-- **On-air validation** — the modem is wired into the live software-modem path and
-  validated offline through the real SBC codec, but has not yet been exercised over
-  actual radios end to end.
+- **High modes are SNR-limited on real links** — over the air (see below), 8PSK and
+  16QAM need more signal-to-noise than a marginal FM path delivers; they are no
+  longer *phase*-limited (pilots handle that) but *link-budget*-limited.
 - **Fixed TX mode in the radio path** — the live integration transmits at a fixed
   DART mode (mode 2 by default). The full adaptive rate ladder and ARQ from the
   link layer are implemented but not yet driven from the software-modem handler.
 
 ---
 
+## Over-the-air validation (2026-07-10)
+
+Tested with **two UV-Pro handhelds, Bluetooth (SBC) audio on both transmit and
+receive, ~50 ft apart**, on 2 m / 70 cm FM. Multiple captures per mode were
+decoded with the test tool; results were highly repeatable.
+
+| Level | Mode | EVM | SNR | Phase drift | CRC |
+|:---:|:---|:---:|:---:|:---:|:---:|
+| 0 | BPSK R1/2 | ~45% | ~7 dB | 1.6°/sym | ✅ OK |
+| 1 | QPSK R1/2 | ~42% | ~7.5 dB | 1.3°/sym | ✅ OK |
+| 2 | QPSK R2/3 | ~44% | ~7 dB | 1.4°/sym | ✅ OK |
+| 3 | 8PSK R2/3 | ~34% | ~9.4 dB | 0.6°/sym | ❌ fail |
+| 4 | 16QAM R3/4 | ~28% | ~11 dB | 0.9°/sym | ❌ fail |
+
+**Key findings:**
+
+- **Reliable ceiling on a marginal link: Level 2 (QPSK R2/3, ~3 kbps).** This is
+  one rung above the initial ceiling and was unlocked by the receive-side
+  improvements below.
+- **Carrier phase noise is the *decision-limited* type (0.5–1.6°/symbol) and is
+  fully handled** by decision-directed + pilot-aided phase tracking. Phase is no
+  longer the limiter.
+- **8PSK/16QAM fail on raw SNR, not phase** — at ~9–11 dB SNR / ~28–34% EVM the
+  dense constellations cannot resolve (they need roughly 13 dB and 16 dB).
+  Unlocking them is a link-budget problem (antenna/range/power), not DSP.
+
+**Receive/transmit improvements that raised the ceiling (this round):**
+
+- **Band-limited preamble chirp retuned to 400–1900 Hz** — over-air preamble
+  correlation rose from ~0.80 to ~0.88 (the radio audio path rolls off above the
+  data band; a narrower sync chirp survives it). The data carriers and channel-
+  estimation symbol still span the full band.
+- **Decision-directed common-phase-error tracking** + **pilot-aided phase
+  tracking** (known pilot symbols interspersed in the payload every 8 data
+  symbols) for decision-independent phase anchoring. The decoder also reports a
+  per-symbol phase-drift diagnostic used to confirm the impairment regime.
+- **MMSE equalization** (replacing zero-forcing) to limit noise enhancement on
+  weak subcarriers.
+- **SBC SNR bit-allocation for data frames** (vs. the psychoacoustic "loudness"
+  default) — halves the codec's quantization contribution on a clean link.
+
+**SBC bitpool (measured on real UV-Pro hardware):** the transmit (app → radio)
+SBC stream is raised to **bitpool 40** (from the default 18) — the radio accepts
+40 but **rejects 124** (the codec maximum), and 40 is also where the quantization
+quality saturates. The radio's **incoming (radio → app) stream is fixed at
+bitpool 18** by its firmware and cannot be changed from the app, so the return
+path remains the lower-quality direction. Note this only affects the small clean-
+link quantization floor; it does not move the SNR-limited ceiling above.
+
+---
+
 ## Suggested next steps
 
-1. Field-test over real radios and compare measured throughput against the offline
-   predictions.
+1. Capture 8PSK/16QAM at stronger signal (closer range / better antenna) to map
+   the true top of the ladder as a function of SNR now that phase is handled.
 2. Drive the adaptive rate ladder and selective-repeat ARQ from the live
    software-modem handler (currently a fixed mode is used on air).

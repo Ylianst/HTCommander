@@ -44,6 +44,10 @@ class RadioAudio {
   final DataBrokerClient _broker = DataBrokerClient();
   final SbcDecoder _sbcDecoder = SbcDecoder();
 
+  // Last-seen SBC bitpool on the radio's *incoming* (radio → app) audio stream,
+  // logged when it changes. -1 until the first frame is decoded.
+  int _lastIncomingBitpool = -1;
+
   StreamSubscription<Uint8List>? _audioDataSub;
   StreamSubscription<BluetoothClassicEvent>? _audioConnSub;
 
@@ -89,7 +93,11 @@ class RadioAudio {
     ..mode = SbcMode.mono
     ..allocationMethod = SbcBitAllocationMethod.loudness
     ..subbands = 8
-    ..bitpool = 18;
+    // Experimental: raised from the radio's default 18 to test whether the
+    // firmware accepts a higher-quality SBC stream. Confirmed working at 40
+    // over the air; 124 (the codec max) was rejected. If transmit audio breaks
+    // up, revert to 18.
+    ..bitpool = 40;
 
   // PCM bytes consumed per encoded SBC frame: blocks * subbands * 2 (16-bit).
   static const int _pcmInputSizePerFrame = 16 * 8 * 2; // 256 bytes
@@ -653,6 +661,12 @@ class RadioAudio {
         );
         final SbcFrame? probed = _sbcDecoder.probe(header);
         if (probed == null) break;
+        // Report the radio's incoming SBC bitpool (its own encoder's choice)
+        // whenever it changes — useful for tuning the transmit-side bitpool.
+        if (probed.bitpool != _lastIncomingBitpool) {
+          _lastIncomingBitpool = probed.bitpool;
+          _debug('Radio incoming SBC bitpool: ${probed.bitpool}');
+        }
         final int frameSize = probed.getFrameSize();
         if (frameSize <= 0 || frameSize > remaining) break;
 
