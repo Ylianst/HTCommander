@@ -71,6 +71,11 @@ class WinlinkClient {
       name: 'WinlinkDebugHistoryRequest',
       callback: _onWinlinkDebugHistoryRequest,
     );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'ConnectedRadios',
+      callback: _onConnectedRadios,
+    );
   }
 
   late DataBrokerClient _broker;
@@ -362,6 +367,16 @@ class WinlinkClient {
 
   void _onAX25SessionError(AX25Session sender, String error) {
     _broker.logError('[WinlinkClient] AX25Session error: $error');
+    // Suppress error reporting while the session is being disconnected. Tearing
+    // down a session that has not fully connected (e.g. the user hit Cancel
+    // during "Connecting...") legitimately produces "Not connected" errors that
+    // should not be surfaced to the user.
+    if (_pendingDisconnect ||
+        _userDisconnect ||
+        _currentState == WinlinkConnectionState.disconnecting ||
+        _currentState == WinlinkConnectionState.disconnected) {
+      return;
+    }
     _errorMessage('Session error: $error');
   }
 
@@ -420,6 +435,45 @@ class WinlinkClient {
       session.disconnect();
     } else {
       _disposeAX25Session();
+      _setConnectionState(WinlinkConnectionState.disconnected);
+    }
+  }
+
+  /// Handles the loss of the radio that is currently locked for a Winlink X25
+  /// session. If the locked radio is no longer in the connected list, tear the
+  /// session down so the UI does not remain stuck on "Connecting...".
+  void _onConnectedRadios(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+
+    // Only relevant while a radio-based session is active.
+    if (_transportType != WinlinkTransportType.x25 || _lockedRadioId <= 0) {
+      return;
+    }
+    if (_currentState == WinlinkConnectionState.disconnected) return;
+
+    bool stillConnected = false;
+    if (data is List) {
+      for (final item in data) {
+        if (item is! Map) continue;
+        final id = item['DeviceId'] ?? item['deviceId'];
+        if (id == _lockedRadioId) {
+          stillConnected = true;
+          break;
+        }
+      }
+    }
+
+    if (!stillConnected) {
+      _broker.logInfo(
+        '[WinlinkClient] Radio $_lockedRadioId disconnected during Winlink '
+        'session, tearing down.',
+      );
+      _userDisconnect = true;
+      // The radio is gone, so we cannot cleanly disconnect the AX25 session or
+      // unlock the radio; just dispose and reset to disconnected.
+      _lockedRadioId = -1;
+      _disposeAX25Session();
+      _errorMessage('Radio disconnected, Winlink session ended.');
       _setConnectionState(WinlinkConnectionState.disconnected);
     }
   }

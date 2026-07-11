@@ -1026,12 +1026,34 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 28,
+              child: OutlinedButton(
+                onPressed: _cancelWinlink,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ),
           ],
         ),
       );
     }
 
     return const SizedBox.shrink();
+  }
+
+  /// Cancels an ongoing Winlink connection or disconnects an existing one.
+  void _cancelWinlink() {
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'WinlinkDisconnect',
+      data: true,
+      store: false,
+    );
   }
 
   Widget _buildSplitter(double totalHeight) {
