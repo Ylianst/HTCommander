@@ -40,7 +40,7 @@ Future<StationInfo?> showActiveStationSelector(
   if (stations.isEmpty) {
     final created = await showStationDialog(
       context,
-      existing: StationInfo(stationType: stationType),
+      fixedType: stationType,
     );
     if (created == null) return null;
     _appendStation(created);
@@ -67,7 +67,7 @@ Future<StationInfo?> showActiveStationSelector(
   if (!context.mounted) return null;
   final created = await showStationDialog(
     context,
-    existing: StationInfo(stationType: stationType),
+    fixedType: stationType,
   );
   if (created == null) return null;
   _appendStation(created);

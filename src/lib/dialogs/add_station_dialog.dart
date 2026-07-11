@@ -10,16 +10,21 @@ import '../services/data_broker_client.dart';
 
 /// Shows the add / edit station dialog. When [existing] is provided the dialog
 /// edits that station (callsign and type are locked, matching the C#
-/// `AddStationForm.DeserializeFromObject`). Returns the resulting [StationInfo]
-/// or `null` if cancelled.
+/// `AddStationForm.DeserializeFromObject`).
+///
+/// When [fixedType] is provided (and [existing] is null) the dialog creates a
+/// new station of that type: the type is locked, but the callsign remains
+/// editable so the user can enter a valid callsign. Returns the resulting
+/// [StationInfo] or `null` if cancelled.
 Future<StationInfo?> showStationDialog(
   BuildContext context, {
   StationInfo? existing,
+  StationType? fixedType,
 }) {
   return showDialog<StationInfo>(
     context: context,
     barrierDismissible: false,
-    builder: (context) => _StationDialog(existing: existing),
+    builder: (context) => _StationDialog(existing: existing, fixedType: fixedType),
   );
 }
 
@@ -66,7 +71,8 @@ const List<_ModemOption> _modemOptions = [
 
 class _StationDialog extends StatefulWidget {
   final StationInfo? existing;
-  const _StationDialog({this.existing});
+  final StationType? fixedType;
+  const _StationDialog({this.existing, this.fixedType});
 
   @override
   State<_StationDialog> createState() => _StationDialogState();
@@ -93,10 +99,17 @@ class _StationDialogState extends State<_StationDialog> {
 
   bool get _isEditing => widget.existing != null;
 
+  /// The station type is locked when editing an existing station or when a
+  /// [fixedType] was requested for a new station.
+  bool get _isTypeLocked => _isEditing || widget.fixedType != null;
+
   @override
   void initState() {
     super.initState();
     final s = widget.existing;
+    if (s == null && widget.fixedType != null) {
+      _stationType = widget.fixedType!;
+    }
 
     _callsignController = TextEditingController(text: s?.callsign ?? '');
     _nameController = TextEditingController(text: s?.name ?? '');
@@ -277,7 +290,7 @@ class _StationDialogState extends State<_StationDialog> {
                 decoration: _inputDecoration(labelText: 'Description'),
               ),
               const SizedBox(height: 12),
-              if (!_isEditing) _buildTypeDropdown(),
+              if (!_isTypeLocked) _buildTypeDropdown(),
               ..._buildTypeSpecificFields(),
             ],
           ),
