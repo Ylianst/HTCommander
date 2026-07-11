@@ -185,9 +185,10 @@ class RadioAudio {
       callback: _onCancelVoiceTransmit,
     );
 
-    // Initialize output volume / mute from stored values.
+    // Initialize output volume / mute from stored values. The output volume is
+    // persisted globally (device 0) by the Audio tab so it survives restarts.
     _outputVolume =
-        _broker.getValue<double>(deviceId, 'OutputVolume', 1.0) ?? 1.0;
+        _broker.getValue<double>(0, 'OutputVolume', 1.0) ?? 1.0;
     _isMuted = _broker.getValue<bool>(deviceId, 'Mute', false) ?? false;
   }
 

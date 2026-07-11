@@ -171,6 +171,11 @@ class _AudioTabState extends State<AudioTab>
     _micGain = (_broker.getValue<double>(0, 'MicrophoneGain', 1.0) ?? 1.0)
         .clamp(1.0, 8.0);
 
+    // Restore the persisted application output volume (device 0 = global
+    // settings) so it survives app restarts.
+    _appVolume = (_broker.getValue<double>(0, 'OutputVolume', 1.0) ?? 1.0)
+        .clamp(0.0, 1.0);
+
     // Restore the persisted audio device selections (device 0 = global) and
     // enumerate the currently available devices for the dropdowns.
     _outputDeviceId = _broker.getValue<String>(0, 'OutputAudioDevice', '') ?? '';
@@ -254,7 +259,7 @@ class _AudioTabState extends State<AudioTab>
       _squelchLevel = (settings['squelchLevel'] as int).clamp(0, 9);
     }
 
-    _appVolume = (_broker.getValue<double>(id, 'OutputVolume', 1.0) ?? 1.0)
+    _appVolume = (_broker.getValue<double>(0, 'OutputVolume', 1.0) ?? 1.0)
         .clamp(0.0, 1.0);
     _appMuted = _broker.getValue<bool>(id, 'Mute', false) ?? false;
 
@@ -469,13 +474,22 @@ class _AudioTabState extends State<AudioTab>
   }
 
   void _onAppVolumeChanged(double value) {
-    setState(() => _appVolume = value.clamp(0.0, 1.0));
+    final clamped = value.clamp(0.0, 1.0);
+    setState(() => _appVolume = clamped);
+    // Persist globally (device 0) so the value survives app restarts. Only
+    // device 0 values are written to disk by the DataBroker.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'OutputVolume',
+      data: clamped,
+      store: true,
+    );
     if (_currentRadioDeviceId <= 0) return;
     // SetOutputVolume accepts a 0-100 integer (percent) like the C# form.
     _broker.dispatch(
       deviceId: _currentRadioDeviceId,
       name: 'SetOutputVolume',
-      data: (value * 100).round().clamp(0, 100),
+      data: (clamped * 100).round().clamp(0, 100),
       store: false,
     );
   }
