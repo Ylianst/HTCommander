@@ -67,6 +67,14 @@ class _FragmentInQueue {
   }) : deadline = deadline ?? DateTime(9999);
 }
 
+/// A queued channel (READ_RF_CH) or region-name (READ_REGION_NAME) read that is
+/// awaiting its reply before the next read is sent. See [Radio._readQueue].
+class _PendingRead {
+  final RadioBasicCommand cmd;
+  final int index;
+  _PendingRead(this.cmd, this.index);
+}
+
 /// Data for transmitting a frame
 class TransmitDataFrameData {
   final AX25Packet? packet;
@@ -151,6 +159,20 @@ class Radio {
   DateTime _lastCompactLogAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _webBleCompactUnsupported = false;
   final List<Timer> _pendingChannelReadTimers = [];
+
+  // Serialized read queue for channel (READ_RF_CH) and region-name
+  // (READ_REGION_NAME) enumeration. The radio can drop replies when many read
+  // requests are sent back-to-back, leaving the channel/region list
+  // incomplete. To avoid flooding the Bluetooth control channel these reads are
+  // sent one at a time: the next request is only sent once the matching reply
+  // arrives, or after a short timeout that retries a couple of times before
+  // moving on.
+  final List<_PendingRead> _readQueue = [];
+  _PendingRead? _readInFlight;
+  Timer? _readTimeoutTimer;
+  int _readRetryCount = 0;
+  static const Duration _readResponseTimeout = Duration(milliseconds: 700);
+  static const int _maxReadRetries = 2;
 
   // Lock state
   RadioLockState? _lockState;
@@ -1066,13 +1088,10 @@ class Radio {
   static const int _regionNameLength = 10;
 
   /// Requests the name of a single region (READ_REGION_NAME). The reply is
-  /// handled by [_handleReadRegionName].
+  /// handled by [_handleReadRegionName]. Queued through the serialized read
+  /// queue so it waits for the reply before the next read is sent.
   void readRegionName(int region) {
-    _sendCommand(
-      RadioCommandGroup.basic,
-      RadioBasicCommand.readRegionName,
-      Uint8List.fromList([region]),
-    );
+    _enqueueRead(RadioBasicCommand.readRegionName, region);
   }
 
   /// Writes a new name for [region] (WRITE_REGION_NAME). The payload is the
@@ -1115,49 +1134,20 @@ class Radio {
     if (_state != RadioState.connected || info == null) return;
     final count = info!.regionCount;
     if (count <= 0) return;
-    if (kIsWeb) {
-      // Web BLE polling mode exposes one latest readable value per
-      // characteristic, so pace the reads out so each reply can be observed.
-      for (int i = 0; i < count; i++) {
-        final timer = Timer(Duration(milliseconds: 25 * i), () {
-          if (_state != RadioState.connected || info == null) return;
-          readRegionName(i);
-        });
-        _pendingChannelReadTimers.add(timer);
-      }
-      return;
-    }
+    // Serialize the reads (see [_readQueue]) so each reply is received before
+    // the next request is sent, rather than flooding the radio all at once.
     for (int i = 0; i < count; i++) {
-      readRegionName(i);
+      _enqueueRead(RadioBasicCommand.readRegionName, i);
     }
   }
 
   void _updateChannels() {
     if (_state != RadioState.connected || info == null) return;
     _cancelPendingChannelReads();
-    if (kIsWeb) {
-      // Web BLE polling mode often exposes only one latest readable value per
-      // characteristic. Pace channel reads so each response can be observed.
-      for (int i = 0; i < info!.channelCount; i++) {
-        final timer = Timer(Duration(milliseconds: 25 * i), () {
-          if (_state != RadioState.connected || info == null) return;
-          _sendCommand(
-            RadioCommandGroup.basic,
-            RadioBasicCommand.readRfCh,
-            Uint8List.fromList([i]),
-          );
-        });
-        _pendingChannelReadTimers.add(timer);
-      }
-      return;
-    }
-
+    // Serialize the reads (see [_readQueue]) so each reply is received before
+    // the next request is sent, rather than flooding the radio all at once.
     for (int i = 0; i < info!.channelCount; i++) {
-      _sendCommand(
-        RadioCommandGroup.basic,
-        RadioBasicCommand.readRfCh,
-        Uint8List.fromList([i]),
-      );
+      _enqueueRead(RadioBasicCommand.readRfCh, i);
     }
   }
 
@@ -1261,11 +1251,88 @@ class Radio {
   }
 
   void _cancelPendingChannelReads() {
+    _readQueue.clear();
+    _readInFlight = null;
+    _readRetryCount = 0;
+    _readTimeoutTimer?.cancel();
+    _readTimeoutTimer = null;
     if (_pendingChannelReadTimers.isEmpty) return;
     for (final timer in _pendingChannelReadTimers) {
       timer.cancel();
     }
     _pendingChannelReadTimers.clear();
+  }
+
+  /// Adds a channel/region read to the serialized queue and starts it if the
+  /// queue is idle. See [_readQueue].
+  void _enqueueRead(RadioBasicCommand cmd, int index) {
+    if (_state != RadioState.connected) return;
+    _readQueue.add(_PendingRead(cmd, index));
+    _pumpReadQueue();
+  }
+
+  /// Sends the next queued read if nothing is currently awaiting a reply.
+  void _pumpReadQueue() {
+    if (_readInFlight != null) return;
+    if (_readQueue.isEmpty) return;
+    if (_state != RadioState.connected) {
+      _readQueue.clear();
+      return;
+    }
+    _readInFlight = _readQueue.removeAt(0);
+    _readRetryCount = 0;
+    _sendQueuedRead();
+  }
+
+  /// Sends the in-flight read and (re)arms the response-timeout watchdog.
+  void _sendQueuedRead() {
+    final r = _readInFlight;
+    if (r == null) return;
+    _sendCommand(
+      RadioCommandGroup.basic,
+      r.cmd,
+      Uint8List.fromList([r.index]),
+    );
+    _readTimeoutTimer?.cancel();
+    _readTimeoutTimer = Timer(_readResponseTimeout, _onReadResponseTimeout);
+  }
+
+  /// Fires when a queued read gets no reply in time. Retries the same request a
+  /// couple of times before giving up on it and moving to the next.
+  void _onReadResponseTimeout() {
+    final r = _readInFlight;
+    if (r == null) return;
+    if (_state != RadioState.connected) {
+      _readInFlight = null;
+      _readQueue.clear();
+      return;
+    }
+    if (_readRetryCount < _maxReadRetries) {
+      _readRetryCount++;
+      _debug(
+        'Read ${r.cmd.name}[${r.index}] timed out, retry '
+        '$_readRetryCount/$_maxReadRetries',
+      );
+      _sendQueuedRead();
+    } else {
+      _debug(
+        'Read ${r.cmd.name}[${r.index}] gave up after $_maxReadRetries retries',
+      );
+      _readInFlight = null;
+      _pumpReadQueue();
+    }
+  }
+
+  /// Called from the channel/region reply handlers so the next queued read can
+  /// be sent. Only advances when the reply matches the in-flight request.
+  void _onReadReplyReceived(RadioBasicCommand cmd, int index) {
+    final r = _readInFlight;
+    if (r == null) return;
+    if (r.cmd != cmd || r.index != index) return;
+    _readTimeoutTimer?.cancel();
+    _readTimeoutTimer = null;
+    _readInFlight = null;
+    _pumpReadQueue();
   }
 
   void getVolumeLevel() {
@@ -2024,11 +2091,7 @@ class Radio {
         // the C# Radio.cs WRITE_RF_CH handling). cmd[4] is the status byte
         // (0 = success) and cmd[5] is the channel id that was written.
         if (cmd.length > 5 && cmd[4] == 0) {
-          _sendCommand(
-            RadioCommandGroup.basic,
-            RadioBasicCommand.readRfCh,
-            Uint8List.fromList([cmd[5]]),
-          );
+          _enqueueRead(RadioBasicCommand.readRfCh, cmd[5]);
         }
         break;
       case RadioBasicCommand.readRegionName:
@@ -2158,6 +2221,8 @@ class Radio {
 
   void _handleReadRfCh(Uint8List data) {
     final channel = RadioChannelInfo.fromBytes(data);
+    // Advance the serialized read queue now that this channel's reply arrived.
+    _onReadReplyReceived(RadioBasicCommand.readRfCh, channel.channelId);
     if (channels != null && channel.channelId < channels!.length) {
       channels![channel.channelId] = channel;
       _dispatch('Channel_${channel.channelId}', channel.toJson());
@@ -2179,8 +2244,12 @@ class Radio {
   ///   data[5]    = region index
   ///   data[6..]  = UTF-8 region name (null-padded)
   void _handleReadRegionName(Uint8List data) {
-    if (data.length < 6 || data[4] != 0) return;
+    if (data.length < 6) return;
     final region = data[5];
+    // Advance the serialized read queue now that this region's reply arrived,
+    // regardless of the reply status so a failed read still moves things along.
+    _onReadReplyReceived(RadioBasicCommand.readRegionName, region);
+    if (data[4] != 0) return;
     if (region < 0 || region >= regionNames.length) return;
     final name = RadioUtils.decodeUtf8Trimmed(data, 6, data.length - 6);
     regionNames[region] = name;
