@@ -42,6 +42,13 @@ real-world observation down to the root-cause diagnosis and fix.
    confirms the SBC/audio path adds no dispersion the CP misses, and shows the
    short-CP bet was safe.
 
+## Other Posts
+
+- **[How a Benshi Radio Updates Its Firmware, Step by Step](benshi-firmware-update.md)**
+  A walk through the firmware-update path — from the cloud update check and
+  patch-based download to the device-paced, two-phase GAIA transfer that streams
+  a new image into the radio over Bluetooth.
+
 ## Related
 
 - [DART Implementation Report](../DART-Implementation-Report.md) — architecture,

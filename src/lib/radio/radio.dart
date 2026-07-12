@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../services/data_broker_client.dart';
@@ -15,6 +16,7 @@ import 'tnc_data_fragment.dart';
 import 'ax25_packet.dart';
 import 'bss_packet.dart';
 import 'gaia_protocol.dart';
+import 'firmware_vm_protocol.dart';
 import 'utils.dart';
 
 /// Maximum MTU for fragmenting data
@@ -160,6 +162,16 @@ class Radio {
   // Receive buffer for GAIA decoding
   final List<int> _receiveBuffer = [];
 
+  // Firmware-update (GAIA VM protocol) event stream. Emits VMU packets and VM
+  // command replies for the FirmwareUpdater state machine. Broadcast so the
+  // updater can subscribe/unsubscribe without affecting other listeners.
+  final StreamController<RadioVmEvent> _vmEventController =
+      StreamController<RadioVmEvent>.broadcast();
+
+  /// Stream of GAIA VM firmware-update events (VMU packets and VM command
+  /// replies). Used by the firmware updater.
+  Stream<RadioVmEvent> get vmEvents => _vmEventController.stream;
+
   // Public state
   RadioDevInfo? info;
   List<RadioChannelInfo?>? channels;
@@ -178,6 +190,18 @@ class Radio {
   int get transmitQueueLength => _tncFragmentQueue.length;
   String? get lockUsage =>
       (_lockState?.isLocked ?? false) ? _lockState?.usage : null;
+
+  // Raw device-ID token returned by GET_DEV_ID, hex-encoded (the 64-byte blob
+  // after the status byte). Opaque/likely-encrypted; used experimentally as the
+  // `did` for the firmware update check. Null until the reply arrives.
+  String? _deviceIdHex;
+  String? get deviceIdHex => _deviceIdHex;
+
+  // The same device-ID token as raw bytes, exposed base64-encoded for use as
+  // the firmware-check `did`.
+  Uint8List? _deviceIdBytes;
+  String? get deviceIdBase64 =>
+      _deviceIdBytes != null ? base64Encode(_deviceIdBytes!) : null;
 
   /// Update the friendly name for this radio
   void updateFriendlyName(String name) {
@@ -819,6 +843,13 @@ class Radio {
       Uint8List.fromList([3]),
     );
     if (!kIsWeb) {
+      // Probe: request the device ID (factory serial) and log the raw reply so
+      // we can see what the radio returns for GET_DEV_ID.
+      _sendCommand(
+        RadioCommandGroup.basic,
+        RadioBasicCommand.getDevId,
+        null,
+      );
       _sendCommand(
         RadioCommandGroup.basic,
         RadioBasicCommand.readSettings,
@@ -1708,6 +1739,26 @@ class Radio {
     _transport!.send(gaiaFrame);
   }
 
+  /// Sends a GAIA extended command (command group [RadioCommandGroup.extended]).
+  ///
+  /// Used by the firmware-update (VM) protocol to send `VM_CONNECT`,
+  /// `VM_CONTROL` and `VM_DISCONNECT`. The command is wrapped in GAIA serial
+  /// framing for Bluetooth Classic transports (the only transports firmware
+  /// update supports).
+  void sendVmCommand(RadioExtendedCommand cmd, [Uint8List? body]) {
+    if (_transport == null) return;
+    final cmdData = GaiaProtocol.buildRawCommand(
+      RadioCommandGroup.extended.value,
+      cmd.value,
+      body,
+    );
+    final frame = _useGattFraming ? cmdData : GaiaProtocol.encode(cmdData);
+    if (_packetTrace) {
+      _debug('TX VM ${cmd.name}: ${RadioUtils.bytesToHex(frame)}');
+    }
+    _transport!.send(frame);
+  }
+
   /// Sends a raw, un-framed GATT command frame to the radio. [data] is the
   /// `[group_hi, group_lo, cmd_hi, cmd_lo, payload...]` frame as produced by
   /// the browser's `SendCommand`/`writeToCharacteristic`. The frame is wrapped
@@ -1938,6 +1989,13 @@ class Radio {
         ? Uint8List.fromList(cmd.sublist(4))
         : Uint8List(0);
 
+    // Extended command group carries the firmware-update (VM) protocol, whose
+    // command values fall outside RadioBasicCommand. Route it separately.
+    if (parsed.group == RadioCommandGroup.extended) {
+      _handleExtendedCommand(cmd, payload, parsed.isResponse);
+      return;
+    }
+
     if (_packetTrace) {
       _debug('RX: ${parsed.command.name} - ${RadioUtils.bytesToHex(payload)}');
     }
@@ -1947,6 +2005,9 @@ class Radio {
     switch (parsed.command) {
       case RadioBasicCommand.getDevInfo:
         _handleDevInfo(cmd);
+        break;
+      case RadioBasicCommand.getDevId:
+        _handleDevId(cmd);
         break;
       case RadioBasicCommand.readSettings:
         _handleReadSettings(cmd);
@@ -2004,6 +2065,22 @@ class Radio {
         break;
       default:
         break;
+    }
+  }
+
+  /// Handles the GET_DEV_ID reply. The payload is `[status, ...device-id
+  /// blob]`; the 64-byte blob after the status byte is an opaque (likely
+  /// encrypted) device-identity token. It is stored hex-encoded and published
+  /// as `DeviceId` for display in the Radio Information dialog.
+  void _handleDevId(Uint8List cmd) {
+    final payload = cmd.length > 4
+        ? Uint8List.fromList(cmd.sublist(4))
+        : Uint8List(0);
+    if (payload.length > 1) {
+      final blob = Uint8List.fromList(payload.sublist(1));
+      _deviceIdBytes = blob;
+      _deviceIdHex = RadioUtils.bytesToHex(blob);
+      _dispatch('DeviceId', _deviceIdHex);
     }
   }
 
@@ -2377,6 +2454,41 @@ class Radio {
     }
   }
 
+  /// Handles an incoming extended-group command. Only the firmware-update VM
+  /// protocol uses this group: `BT_EVENT_NOTIFICATION` carries VMU packets and
+  /// `VM_CONNECT`/`VM_CONTROL`/`VM_DISCONNECT` are acknowledged with a status
+  /// byte. Parsed events are forwarded to [vmEvents].
+  void _handleExtendedCommand(Uint8List cmd, Uint8List payload, bool isReply) {
+    final cmdValue = RadioUtils.getShort(cmd, 2) & 0x7FFF;
+    final extCmd = RadioExtendedCommand.fromValue(cmdValue);
+
+    if (_packetTrace) {
+      _debug(
+        'RX VM ${extCmd.name}${isReply ? ' (reply)' : ''}: '
+        '${RadioUtils.bytesToHex(payload)}',
+      );
+    }
+
+    switch (extCmd) {
+      case RadioExtendedCommand.btEventNotification:
+        final vmu = VmuPacket.fromBtEventPayload(payload);
+        if (vmu != null) {
+          _vmEventController.add(RadioVmEvent.vmuPacket(vmu));
+        }
+        break;
+      case RadioExtendedCommand.vmConnect:
+      case RadioExtendedCommand.vmDisconnect:
+      case RadioExtendedCommand.vmControl:
+        if (isReply) {
+          final status = payload.isNotEmpty ? payload[0] : 0;
+          _vmEventController.add(RadioVmEvent.replyTo(extCmd, status));
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
   void _debug(String message) {
     // If packet tracing is enabled, dispatch to DataBroker for debug tab
     if (_packetTrace) {
@@ -2386,6 +2498,7 @@ class Radio {
 
   void dispose() {
     _handleDisconnect('Disposing radio');
+    _vmEventController.close();
     _broker.dispose();
   }
 }

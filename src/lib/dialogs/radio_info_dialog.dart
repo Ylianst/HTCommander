@@ -12,6 +12,7 @@ the broker dispatches new values.
 */
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/radio_models.dart';
 import '../services/data_broker_client.dart';
@@ -48,6 +49,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   RadioBssSettings? _bssSettings;
   RadioPosition? _position;
   String _friendlyName = '';
+  String _deviceIdToken = '';
 
   @override
   void initState() {
@@ -153,6 +155,8 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     );
     _friendlyName =
         _broker.getValue<String>(newDeviceId, 'FriendlyName', '') ?? '';
+    _deviceIdToken =
+        _broker.getValue<String>(newDeviceId, 'DeviceId', '') ?? '';
 
     _broker.subscribeMultiple(
       deviceId: newDeviceId,
@@ -163,6 +167,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
         'BssSettings',
         'Position',
         'FriendlyName',
+        'DeviceId',
       ],
       callback: _onDeviceValueChanged,
     );
@@ -176,6 +181,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     _broker.unsubscribe(deviceId, 'BssSettings');
     _broker.unsubscribe(deviceId, 'Position');
     _broker.unsubscribe(deviceId, 'FriendlyName');
+    _broker.unsubscribe(deviceId, 'DeviceId');
   }
 
   void _onDeviceValueChanged(int deviceId, String name, Object? data) {
@@ -210,6 +216,9 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
           break;
         case 'FriendlyName':
           _friendlyName = data is String ? data : '';
+          break;
+        case 'DeviceId':
+          _deviceIdToken = data is String ? data : '';
           break;
       }
     });
@@ -389,6 +398,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
       _row('Radio', _supportedStr(i.supportRadio)),
       _row('VFO', _supportedStr(i.supportVfo)),
       _row('Freq Range Count', '${i.freqRangeCount}'),
+      _row('Device ID', _deviceIdToken.isEmpty ? 'Unknown' : _deviceIdToken),
     ];
   }
 
@@ -537,6 +547,32 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
 
   _InfoRow _row(String label, String value) => _InfoRow(label, value);
 
+  /// Shows a "Copy" context menu (long-press or right-click) that copies the
+  /// given [value] to the clipboard.
+  Future<void> _showRowContextMenu(Offset globalPosition, String value) async {
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
+        Offset.zero & overlay.size,
+      ),
+      items: const [
+        PopupMenuItem<String>(value: 'copy', child: Text('Copy')),
+      ],
+    );
+    if (selected != 'copy') return;
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Copied to clipboard'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
   Widget _buildSection(String title, List<_InfoRow> rows) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -554,24 +590,31 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
           const SizedBox(height: 12),
           for (var i = 0; i < rows.length; i++) ...[
             if (i > 0) Divider(height: 16, color: Colors.grey.shade200),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: Text(
-                    rows[i].label,
-                    style: TextStyle(color: Colors.grey.shade700),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onLongPressStart: (details) =>
+                  _showRowContextMenu(details.globalPosition, rows[i].value),
+              onSecondaryTapDown: (details) =>
+                  _showRowContextMenu(details.globalPosition, rows[i].value),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: Text(
+                      rows[i].label,
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
                   ),
-                ),
-                Expanded(
-                  flex: 6,
-                  child: Text(
-                    rows[i].value,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  Expanded(
+                    flex: 6,
+                    child: Text(
+                      rows[i].value,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ],

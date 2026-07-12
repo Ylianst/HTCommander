@@ -14,6 +14,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../radio/bluetooth_classic_transport.dart';
 import '../radio/radio.dart';
+import '../radio/radio_models.dart' show RadioState;
 import '../radio/radio_audio_stub.dart'
     if (dart.library.io) '../radio/radio_audio.dart';
 import '../radio/radio_transport.dart';
@@ -326,6 +327,47 @@ class BluetoothService {
   /// UI that needs the complete objects rather than the partial JSON published
   /// to the DataBroker.
   Radio? radioInstance(int deviceId) => _radioInstances[deviceId];
+
+  /// Reconnect to a radio after a firmware-update reboot.
+  ///
+  /// The GAIA firmware update reboots the radio partway through, dropping the
+  /// Bluetooth connection. This disconnects any existing connection for
+  /// [macAddress], waits [rebootDelay] for the radio to come back up, then
+  /// retries [connectToRadio] until the transport is connected or [timeout]
+  /// elapses. Returns the freshly-connected [Radio] (which has a new device id),
+  /// or `null` on failure.
+  Future<Radio?> reconnectAfterReboot(
+    String macAddress,
+    String friendlyName, {
+    Duration rebootDelay = const Duration(seconds: 18),
+    Duration timeout = const Duration(seconds: 90),
+  }) async {
+    await disconnectRadioByMac(macAddress);
+    await Future<void>.delayed(rebootDelay);
+
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      int? newId;
+      try {
+        newId = await connectToRadio(macAddress, friendlyName);
+      } catch (_) {
+        newId = null;
+      }
+      if (newId != null) {
+        final radio = _radioInstances[newId];
+        if (radio != null) {
+          final connectDeadline =
+              DateTime.now().add(const Duration(seconds: 15));
+          while (DateTime.now().isBefore(connectDeadline)) {
+            if (radio.state == RadioState.connected) return radio;
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+          }
+        }
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    return null;
+  }
 
   /// Publish the connected radios list to the DataBroker.
   ///

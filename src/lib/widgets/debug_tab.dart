@@ -3,6 +3,9 @@ import 'dart:io' show File, Platform;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../dialogs/firmware_update_dialog.dart';
+import '../models/radio_models.dart';
+import '../services/bluetooth_service.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
 
@@ -129,6 +132,38 @@ class _DebugTabState extends State<DebugTab>
       data: null,
       store: false,
     );
+  }
+
+  /// Opens the firmware update dialog for the currently connected radio.
+  /// (Experimental — lives in the Debug tab while the online update check is
+  /// still being worked out.)
+  void _onFirmwareUpdate() {
+    final bt = BluetoothService();
+    int id = _broker.getValue<int>(1, 'SelectedRadioDeviceId', -1) ?? -1;
+    if (id <= 0 || bt.radioInstance(id) == null) {
+      final radios =
+          _broker.getJsonListValue<ConnectedRadioInfo>(
+            1,
+            'ConnectedRadios',
+            (json) => ConnectedRadioInfo.fromJson(json),
+          ) ??
+          const [];
+      id = -1;
+      for (final r in radios) {
+        if (bt.radioInstance(r.deviceId) != null) {
+          id = r.deviceId;
+          break;
+        }
+      }
+    }
+    if (id <= 0 || bt.radioInstance(id) == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No radio connected.')),
+      );
+      return;
+    }
+    showFirmwareUpdateDialog(context, id);
   }
 
   Future<void> _onSaveToFile() async {
@@ -287,6 +322,21 @@ class _DebugTabState extends State<DebugTab>
           padding: menuItemPadding,
           child: const Row(children: [SizedBox(width: 20), Text('Clear')]),
         ),
+        // Firmware update is only supported over Bluetooth Classic transports.
+        if (!kIsWeb &&
+            (Platform.isWindows ||
+                Platform.isMacOS ||
+                Platform.isAndroid)) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'firmwareUpdate',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: const Row(
+              children: [SizedBox(width: 20), Text('Firmware Update...')],
+            ),
+          ),
+        ],
         // macOS-only option to show built-in menus (skip on web)
         if (!kIsWeb && Platform.isMacOS) ...[
           const PopupMenuDivider(height: 8),
@@ -339,6 +389,9 @@ class _DebugTabState extends State<DebugTab>
           break;
         case 'clear':
           _clearLogs();
+          break;
+        case 'firmwareUpdate':
+          _onFirmwareUpdate();
           break;
         case 'showBuiltInMenus':
           widget.onShowBuiltInMenusChanged?.call(!widget.showBuiltInMenus);

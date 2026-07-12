@@ -107,6 +107,33 @@ enum RadioBasicCommand {
   }
 }
 
+/// Radio extended commands (command group [RadioCommandGroup.extended]).
+///
+/// These are used by the GAIA VM firmware-update protocol. Commands are sent to
+/// the radio ([vmConnect]/[vmControl]/[vmDisconnect]); the radio replies to VM
+/// control messages asynchronously via [btEventNotification] events.
+enum RadioExtendedCommand {
+  unknown(0),
+  getBtSignal(769),
+  vmConnect(1600),
+  vmDisconnect(1601),
+  vmControl(1602),
+  devRegistration(1825),
+  registerBtNotification(16385),
+  cancelBtNotification(16386),
+  btEventNotification(16387);
+
+  final int value;
+  const RadioExtendedCommand(this.value);
+
+  static RadioExtendedCommand fromValue(int value) {
+    return RadioExtendedCommand.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => RadioExtendedCommand.unknown,
+    );
+  }
+}
+
 /// Radio notifications
 enum RadioNotification {
   unknown(0),
@@ -184,16 +211,29 @@ class GaiaProtocol {
     RadioBasicCommand cmd, [
     Uint8List? data,
   ]) {
+    return buildRawCommand(group.value, cmd.value, data);
+  }
+
+  /// Build a command packet from raw group and command values.
+  ///
+  /// Produces `[group_hi, group_lo, cmd_hi, cmd_lo, data...]` (big-endian).
+  /// Used for extended commands (e.g. the VM firmware-update protocol) whose
+  /// command values fall outside [RadioBasicCommand].
+  static Uint8List buildRawCommand(
+    int groupValue,
+    int cmdValue, [
+    Uint8List? data,
+  ]) {
     final dataLen = data?.length ?? 0;
     final cmdData = Uint8List(4 + dataLen);
 
     // Big-endian group
-    cmdData[0] = (group.value >> 8) & 0xFF;
-    cmdData[1] = group.value & 0xFF;
+    cmdData[0] = (groupValue >> 8) & 0xFF;
+    cmdData[1] = groupValue & 0xFF;
 
     // Big-endian command
-    cmdData[2] = (cmd.value >> 8) & 0xFF;
-    cmdData[3] = cmd.value & 0xFF;
+    cmdData[2] = (cmdValue >> 8) & 0xFF;
+    cmdData[3] = cmdValue & 0xFF;
 
     // Data
     if (data != null) {
