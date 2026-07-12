@@ -1892,27 +1892,35 @@ class Radio {
     }
     _receiveBuffer.addAll(data);
 
-    // Try to decode GAIA frames
-    while (_receiveBuffer.length >= 8) {
+    // Try to decode GAIA frames. Walk the buffer with a read cursor and compact
+    // it only once at the end, instead of copying the whole buffer into a new
+    // Uint8List on every decode attempt and shifting it with removeAt/removeRange
+    // (both O(n)) for every consumed frame or skipped byte.
+    int offset = 0;
+    while (_receiveBuffer.length - offset >= 8) {
       final result = GaiaProtocol.decode(
-        Uint8List.fromList(_receiveBuffer),
-        0,
-        _receiveBuffer.length,
+        _receiveBuffer,
+        offset,
+        _receiveBuffer.length - offset,
       );
 
       if (result.consumed == -1) {
         // Error, skip one byte
-        _receiveBuffer.removeAt(0);
+        offset++;
       } else if (result.consumed == 0) {
         // Need more data
         break;
       } else {
         // Got a command
-        _receiveBuffer.removeRange(0, result.consumed);
+        offset += result.consumed;
         if (result.command != null) {
           _handleCommand(result.command!);
         }
       }
+    }
+
+    if (offset > 0) {
+      _receiveBuffer.removeRange(0, offset);
     }
   }
 

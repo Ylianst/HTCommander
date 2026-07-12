@@ -144,9 +144,11 @@ enum RadioPowerStatus {
 class GaiaProtocol {
   /// Decode a GAIA frame from raw data
   /// Returns the number of bytes consumed, or 0 if incomplete, -1 on error
-  /// The decoded command is returned via the out parameter
+  /// The decoded command is returned via the out parameter.
+  /// Accepts any [List<int>] so callers can decode directly from their receive
+  /// buffer at an offset without copying it into a new [Uint8List].
   static ({int consumed, Uint8List? command}) decode(
-    Uint8List data,
+    List<int> data,
     int index,
     int len,
   ) {
@@ -161,9 +163,7 @@ class GaiaProtocol {
     if (totalLen > len) return (consumed: 0, command: null);
 
     final cmd = Uint8List(4 + payloadLen);
-    for (int i = 0; i < cmd.length; i++) {
-      cmd[i] = data[index + 4 + i];
-    }
+    cmd.setRange(0, cmd.length, data, index + 4);
     return (consumed: totalLen, command: cmd);
   }
 
@@ -174,9 +174,7 @@ class GaiaProtocol {
     bytes[1] = 0x01;
     bytes[2] = 0x00; // No checksum
     bytes[3] = cmd.length - 4;
-    for (int i = 0; i < cmd.length; i++) {
-      bytes[4 + i] = cmd[i];
-    }
+    bytes.setRange(4, 4 + cmd.length, cmd);
     return bytes;
   }
 
@@ -199,9 +197,7 @@ class GaiaProtocol {
 
     // Data
     if (data != null) {
-      for (int i = 0; i < data.length; i++) {
-        cmdData[4 + i] = data[i];
-      }
+      cmdData.setRange(4, 4 + data.length, data);
     }
 
     return cmdData;
