@@ -1989,8 +1989,17 @@ class Radio {
         );
       }
 
-      // If GPS is enabled, register for position change notifications
-      if (_gpsEnabled) {
+      // Register for position change notifications when either the radio's
+      // internal GPS is enabled (File > GPS) or the user is sharing a serial
+      // GPS position. The radio only transmits APRS position beacons while this
+      // notification is registered, even when the position is fed externally
+      // via setPosition. A radio power cycle resets this registration, so it
+      // must be re-sent on every connection whenever serial GPS sharing is on.
+      // ShareSerialGpsLocation is persisted as an int (0/1); reading it as a
+      // bool would always fail the type check and silently disable sharing.
+      final shareSerialGps =
+          (_broker.getValue<int>(0, 'ShareSerialGpsLocation', 0) ?? 0) == 1;
+      if (_gpsEnabled || shareSerialGps) {
         _sendCommand(
           RadioCommandGroup.basic,
           RadioBasicCommand.registerNotification,
