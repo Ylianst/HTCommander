@@ -64,10 +64,6 @@ class TorrentHandler {
   /// Last-known lock state map per radio device id.
   final Map<int, Map<String, dynamic>> _lockStates = {};
 
-  /// Guards the one-time diagnostic log emitted when a data frame arrives
-  /// without the expected `"Torrent"` usage (see [_onDataFrameReceived]).
-  bool _loggedNonTorrentFrame = false;
-
   Timer? _advertisementTimer;
 
   /// Initializes the handler: subscribes to broker events, restores persisted
@@ -400,24 +396,10 @@ class TorrentHandler {
 
   void _onDataFrameReceived(int deviceId, String name, Object? data) {
     if (data is! TncDataFragment) return;
-    if (data.usage != 'Torrent') {
-      // One-time diagnostic: a frame reached us but was not tagged with the
-      // "Torrent" usage, so it will be ignored. This is the usual symptom of
-      // the radio not stamping the usage on received frames (the handler only
-      // ever sees frames whose usage matches the locked mode). Logging once
-      // avoids flooding the Debug tab with every non-Torrent packet.
-      if (!_loggedNonTorrentFrame) {
-        _loggedNonTorrentFrame = true;
-        final usage = data.usage;
-        _broker.logInfo(
-          '[Torrent] Ignoring data frame from radio $deviceId with usage '
-          '"${usage ?? '<none>'}" (expected "Torrent"); torrent frames will '
-          'only be processed when the radio tags received frames with their '
-          'locked usage. This message is logged once per session.',
-        );
-      }
-      return;
-    }
+    // Only process frames the radio tagged with the "Torrent" usage. Frames
+    // for other usages are broadcast to every handler, so silently ignore any
+    // that are not ours (including untagged frames) without logging.
+    if (data.usage != 'Torrent') return;
     final packet = AX25Packet.decode(data);
     if (packet == null) return;
     _broker.logInfo('[Torrent] Received torrent frame from radio $deviceId');

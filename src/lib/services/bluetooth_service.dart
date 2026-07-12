@@ -77,6 +77,11 @@ class BluetoothService {
   // For macOS Bluetooth Classic connections
   final Map<int, String> _classicConnections = {}; // deviceId -> macAddress
 
+  // Per-device transport state listeners used to detect an unsolicited
+  // disconnect (e.g. the radio was powered off) so the stale connection can be
+  // cleaned up instead of lingering and blocking a later reconnect.
+  final Map<int, StreamSubscription<TransportState>> _transportSubs = {};
+
   // Starting device ID for radios
   static const int _startingDeviceId = 100;
 
@@ -168,6 +173,10 @@ class BluetoothService {
 
   /// Disconnect a radio by device ID
   Future<void> disconnectRadio(int deviceId) async {
+    // Stop watching for an unsolicited transport disconnect; this is an
+    // explicit, user-initiated disconnect.
+    await _transportSubs.remove(deviceId)?.cancel();
+
     // Dispose of the audio instance if it exists (macOS Classic only)
     final radioAudio = _radioAudioInstances.remove(deviceId);
     if (radioAudio != null) {
@@ -210,6 +219,66 @@ class BluetoothService {
       );
       _publishConnectedRadios();
     }
+  }
+
+  /// Start watching [transport] for an unsolicited disconnect of the radio at
+  /// [deviceId] (e.g. the radio was powered off or went out of range).
+  ///
+  /// Without this, an unexpected disconnect only updates the [Radio] instance's
+  /// state while [BluetoothService] keeps the connection in its maps. The next
+  /// connect attempt then hits the "already connected" early-return in the
+  /// connect implementations and returns the stale device id without actually
+  /// reconnecting, forcing the user to explicitly disconnect first.
+  void _watchTransportDisconnect(int deviceId, RadioTransport transport) {
+    _transportSubs[deviceId]?.cancel();
+    _transportSubs[deviceId] = transport.stateStream.listen((state) {
+      if (state == TransportState.disconnected) {
+        _handleUnexpectedDisconnect(deviceId);
+      }
+    });
+  }
+
+  /// Cleans up the connection for [deviceId] after an unsolicited transport
+  /// disconnect so the service does not hold a stale connection. Mirrors the
+  /// teardown in [disconnectRadio]. Safe to call when the device has already
+  /// been cleaned up (e.g. by an explicit [disconnectRadio]).
+  Future<void> _handleUnexpectedDisconnect(int deviceId) async {
+    // If the device is no longer tracked, cleanup already happened.
+    final isTracked =
+        _connectedRadios.containsKey(deviceId) ||
+        _classicConnections.containsKey(deviceId) ||
+        _radioInstances.containsKey(deviceId) ||
+        _radioAudioInstances.containsKey(deviceId);
+    if (!isTracked) {
+      await _transportSubs.remove(deviceId)?.cancel();
+      return;
+    }
+
+    await _transportSubs.remove(deviceId)?.cancel();
+
+    final radioAudio = _radioAudioInstances.remove(deviceId);
+    if (radioAudio != null) {
+      await radioAudio.dispose();
+    }
+
+    final radio = _radioInstances.remove(deviceId);
+    radio?.dispose();
+
+    _classicConnections.remove(deviceId);
+
+    final transport = _connectedRadios.remove(deviceId);
+    if (transport != null) {
+      await transport.disconnect();
+      await transport.dispose();
+    }
+
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'State',
+      data: 'Disconnected',
+      store: true,
+    );
+    _publishConnectedRadios();
   }
 
   /// Disconnect a radio by MAC address
@@ -317,6 +386,12 @@ class BluetoothService {
 
   /// Dispose all resources
   Future<void> dispose() async {
+    // Cancel transport disconnect watchers.
+    for (final sub in _transportSubs.values) {
+      await sub.cancel();
+    }
+    _transportSubs.clear();
+
     // Dispose Radio instances
     for (final radio in _radioInstances.values) {
       radio.dispose();

@@ -372,13 +372,51 @@ class RadioAudio {
       _audioConnSub = BluetoothClassicMacOS.instance.audioConnectionEvents
           .listen(_onAudioConnectionEvent);
 
-      final ok = await BluetoothClassicMacOS.instance.connectAudio(macAddress);
+      // Opening the audio RFCOMM channel can transiently fail right after the
+      // control channel connects, so retry a few times before giving up.
+      const maxAudioAttempts = 3;
+      bool ok = false;
+      for (var attempt = 1; attempt <= maxAudioAttempts; attempt++) {
+        ok = await BluetoothClassicMacOS.instance.connectAudio(macAddress);
+        if (ok) break;
+
+        // Audio was disabled (stop() called) while we were connecting; abort
+        // quietly without disturbing the radio connection.
+        if (!_connecting) {
+          await _audioConnSub?.cancel();
+          _audioConnSub = null;
+          return;
+        }
+
+        _debug(
+          'Failed to open audio RFCOMM channel '
+          '(attempt $attempt/$maxAudioAttempts).',
+        );
+
+        if (attempt < maxAudioAttempts) {
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+          if (!_connecting) {
+            await _audioConnSub?.cancel();
+            _audioConnSub = null;
+            return;
+          }
+        }
+      }
+
       if (!ok) {
-        _debug('Failed to open audio RFCOMM channel.');
+        // The control channel is up but audio is unusable, leaving the radio in
+        // a half-connected state. Do a proper, full disconnect so it does not
+        // linger unusable; the BluetoothService transport watcher then tears
+        // down all connection state (maps, radio and audio) cleanly.
+        _debug(
+          'Audio RFCOMM channel failed after $maxAudioAttempts attempts; '
+          'disconnecting radio to avoid a half-connected state.',
+        );
         _connecting = false;
         await _audioConnSub?.cancel();
         _audioConnSub = null;
         _dispatchAudioStateChanged(false);
+        radio.disconnect('Audio RFCOMM channel failed to open');
         return;
       }
 

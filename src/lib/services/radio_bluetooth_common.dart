@@ -230,6 +230,9 @@ Future<int?> _connectToRadioClassicImpl(
     service._radioInstances[deviceId] = radio;
     await radio.connect(transport);
 
+    // Clean up if the radio disconnects on its own (e.g. powered off).
+    service._watchTransportDisconnect(deviceId, transport);
+
     final radioAudio = RadioAudio(
       radio: radio,
       deviceId: deviceId,
@@ -349,6 +352,9 @@ Future<int?> _connectToRadioBleImpl(
     radio.updateFriendlyName(friendlyName);
     service._radioInstances[deviceId] = radio;
     await radio.connect(transport);
+
+    // Clean up if the radio disconnects on its own (e.g. powered off).
+    service._watchTransportDisconnect(deviceId, transport);
 
     // Restore the user's GPS-enabled preference (device 0). Radios without
     // GPS support silently ignore the enable command.

@@ -108,6 +108,14 @@ class Radio {
   RadioState _state = RadioState.disconnected;
   bool _gpsEnabled = false;
 
+  // Whether the radio's position-change notification is currently registered.
+  // The radio only transmits APRS position beacons while this is registered, so
+  // it must be active whenever the internal GPS (File > GPS) is on or the user
+  // is sharing a serial GPS position. Tracked so commands are only sent when
+  // the desired state actually changes. Reset on disconnect (a power cycle
+  // clears the radio-side registration).
+  bool _positionNotifyRegistered = false;
+
   // GPS serial SmartBeaconing tracking
   DateTime? _lastGpsSentTime;
   double _lastGpsSentHeading = double.nan;
@@ -306,6 +314,18 @@ class Radio {
       name: 'GpsData',
       callback: _onGpsDataReceived,
     );
+
+    // Subscribe to serial GPS sharing changes so the radio's position-change
+    // notification can be registered/cancelled live while connected.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'ShareSerialGpsLocation',
+      callback: _onShareSerialGpsChanged,
+    );
+  }
+
+  void _onShareSerialGpsChanged(int devId, String name, dynamic data) {
+    _syncPositionNotification();
   }
 
   // Event handlers
@@ -938,6 +958,7 @@ class Radio {
     _tncFragmentInFlight = false;
     _lockState = null;
     _gpsEnabled = false;
+    _positionNotifyRegistered = false;
     _cancelPendingChannelReads();
     _receiveBuffer.clear();
     _clearChannelTimer?.cancel();
@@ -1148,16 +1169,10 @@ class Radio {
 
     _dispatch('GpsEnabled', _gpsEnabled);
 
-    if (_state == RadioState.connected) {
-      final cmd = _gpsEnabled
-          ? RadioBasicCommand.registerNotification
-          : RadioBasicCommand.cancelNotification;
-      _sendCommand(
-        RadioCommandGroup.basic,
-        cmd,
-        Uint8List.fromList([0, 0, 0, RadioNotification.positionChange.value]),
-      );
-    }
+    // Turning the internal GPS off must not cancel the position notification
+    // while serial GPS sharing still needs it, so route through the helper
+    // which considers both sources.
+    _syncPositionNotification();
 
     if (!_gpsEnabled) {
       position = null;
@@ -1166,6 +1181,31 @@ class Radio {
   }
 
   bool get gpsEnabled => _gpsEnabled;
+
+  /// Registers or cancels the radio's position-change notification so it
+  /// matches the desired state. The radio only transmits APRS position beacons
+  /// while this notification is registered, so it must be active whenever the
+  /// internal GPS is enabled (File > GPS) or the user is sharing a serial GPS
+  /// position. Sends a command only when the registration state actually needs
+  /// to change, and does nothing while disconnected (registration is
+  /// (re)applied from [_handleDevInfo] on the next connection).
+  void _syncPositionNotification() {
+    if (_state != RadioState.connected) return;
+    // ShareSerialGpsLocation is persisted as an int (0/1); reading it as a bool
+    // would always fail the type check and silently disable sharing.
+    final shareSerialGps =
+        (_broker.getValue<int>(0, 'ShareSerialGpsLocation', 0) ?? 0) == 1;
+    final wantRegistered = _gpsEnabled || shareSerialGps;
+    if (wantRegistered == _positionNotifyRegistered) return;
+    _positionNotifyRegistered = wantRegistered;
+    _sendCommand(
+      RadioCommandGroup.basic,
+      wantRegistered
+          ? RadioBasicCommand.registerNotification
+          : RadioBasicCommand.cancelNotification,
+      Uint8List.fromList([0, 0, 0, RadioNotification.positionChange.value]),
+    );
+  }
 
   void getPosition() {
     _sendCommand(RadioCommandGroup.basic, RadioBasicCommand.getPosition, null);
@@ -1993,19 +2033,10 @@ class Radio {
       // internal GPS is enabled (File > GPS) or the user is sharing a serial
       // GPS position. The radio only transmits APRS position beacons while this
       // notification is registered, even when the position is fed externally
-      // via setPosition. A radio power cycle resets this registration, so it
-      // must be re-sent on every connection whenever serial GPS sharing is on.
-      // ShareSerialGpsLocation is persisted as an int (0/1); reading it as a
-      // bool would always fail the type check and silently disable sharing.
-      final shareSerialGps =
-          (_broker.getValue<int>(0, 'ShareSerialGpsLocation', 0) ?? 0) == 1;
-      if (_gpsEnabled || shareSerialGps) {
-        _sendCommand(
-          RadioCommandGroup.basic,
-          RadioBasicCommand.registerNotification,
-          Uint8List.fromList([RadioNotification.positionChange.value]),
-        );
-      }
+      // via setPosition. A radio power cycle resets this registration, so the
+      // tracked state is cleared here and (re)applied on every connection.
+      _positionNotifyRegistered = false;
+      _syncPositionNotification();
 
       // Request HT status and channels.
       _sendCommand(
