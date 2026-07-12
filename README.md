@@ -52,6 +52,10 @@ The following are for desktop platforms only: Windows, Linux, macOS.
 - [Speech-to-Text](https://github.com/Ylianst/HTCommander/blob/main/docs/Voice.md). Converts speech-to-text and text-to-speech.
 - [AGWPE Protocol](https://github.com/Ylianst/HTCommander/blob/main/docs/Agwpe.md). Supports routing other application's traffic over the radio using the AGWPE protocol.
 
+### Technology Blog
+
+Field notes and deep dives on the technology behind HTCommander — real-world findings, protocol reverse-engineering and DSP experiments. See the [HTCommander Technology Blog](https://github.com/Ylianst/HTCommander/blob/main/docs/blogs/README.md).
+
 ### Demonstration Video
 
 This is a demonstration of the older Windows-only version of HTCommander.

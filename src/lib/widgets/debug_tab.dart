@@ -55,6 +55,11 @@ class _DebugTabState extends State<DebugTab>
   @override
   void initState() {
     super.initState();
+    // Restore the persisted 'Show Bluetooth Frames' toggle. The Radio layer
+    // reads this same broker value ('BluetoothFramesDebug' on device 0) to
+    // decide whether to log every incoming/outgoing control-channel frame.
+    _showBluetoothFrames =
+        _broker.getValue<bool>(0, 'BluetoothFramesDebug') ?? false;
     // The Debug tab renders the application log captured by the DebugLogHandler
     // into the broker's 'DebugLogEntries' value. Load whatever has accumulated
     // since startup, then keep in sync with future changes.
@@ -377,6 +382,15 @@ class _DebugTabState extends State<DebugTab>
           break;
         case 'showBluetoothFrames':
           setState(() => _showBluetoothFrames = !_showBluetoothFrames);
+          // Publish the toggle so the Radio layer starts/stops logging every
+          // incoming and outgoing control-channel Bluetooth frame. Persisted
+          // so the setting survives across launches.
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'BluetoothFramesDebug',
+            data: _showBluetoothFrames,
+            store: true,
+          );
           break;
         case 'loopbackMode':
           setState(() => _loopbackMode = !_loopbackMode);
