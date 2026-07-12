@@ -59,7 +59,7 @@ diagnosis and fix.
 
 ## Firmware Updates
 
-Reverse-engineering and re-implementing the Benshi firmware-update path — from
+FIguring out the radio's firmware-update path — from
 the cloud check that finds an update to the two-phase Bluetooth flash that writes
 it into the radio.
 
