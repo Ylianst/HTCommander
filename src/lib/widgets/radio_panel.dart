@@ -483,33 +483,27 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   bool get _isTransmitting => _currentHtStatus?.isInTx ?? false;
   bool get _isReceiving => _currentHtStatus?.isInRx ?? false;
 
+  /// True when VFO B is the active receiver: the radio's current channel ID
+  /// matches VFO B's channel and there is signal (RSSI > 0).
+  bool get _isVfo2Active {
+    if (!_isConnected) return false;
+    if (_channelB == null || !_isDualChannel || _currentHtStatus == null) {
+      return false;
+    }
+    return _rssi > 0 && _currentHtStatus!.currChId == _channelB!.channelId;
+  }
+
   Color get _vfo1Color {
     if (!_isConnected) return _inactiveColor;
-
-    // If in dual channel mode and receiving/transmitting on channel B
-    if (_channelB != null && _isDualChannel && _currentHtStatus != null) {
-      if (_currentHtStatus!.doubleChannel == RadioChannelType.a) {
-        if ((_isReceiving || _isTransmitting) &&
-            _currentHtStatus!.currChId == _channelB!.channelId) {
-          return _inactiveColor; // VFO1 inactive, VFO2 active
-        }
-      }
-    }
+    // When VFO B is active, VFO A goes white (inactive).
+    if (_isVfo2Active) return _inactiveColor;
     return _activeVfoColor;
   }
 
   Color get _vfo2Color {
     if (!_isConnected || _vfo2Label.isEmpty) return _inactiveColor;
-
-    // If in dual channel mode and receiving/transmitting on channel B
-    if (_channelB != null && _isDualChannel && _currentHtStatus != null) {
-      if (_currentHtStatus!.doubleChannel == RadioChannelType.a) {
-        if ((_isReceiving || _isTransmitting) &&
-            _currentHtStatus!.currChId == _channelB!.channelId) {
-          return _activeVfoColor; // VFO2 active
-        }
-      }
-    }
+    // VFO B turns yellow only while it is the active receiver.
+    if (_isVfo2Active) return _activeVfoColor;
     return _inactiveColor;
   }
 
