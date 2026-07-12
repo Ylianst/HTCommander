@@ -67,7 +67,9 @@ class FirmwareService {
   static const String _grpcHost = 'rpc.benshikj.com';
   static const int _grpcPort = 800;
   static const String _grpcPath = '/benshikj.APP/CheckUpdate';
-  static const String _model = 'VR_N7600';
+
+  /// Default model name sent to the update server.
+  static const String defaultModel = 'VR_N7600';
 
   /// Public OSS URLs for the latest firmware known to this build (from the
   /// benlink reference: OSS v147 / firmware v0.9.3-7).
@@ -98,6 +100,8 @@ class FirmwareService {
   static Future<FirmwareUpdateInfo?> checkUpdate({
     String did = '',
     String fwVersion = 'V0.0.0',
+    String model = defaultModel,
+    void Function(String message)? log,
   }) async {
     final channel = ClientChannel(
       _grpcHost,
@@ -107,17 +111,31 @@ class FirmwareService {
     final client = _RawGrpcClient(channel);
 
     try {
-      final request = _encodeCheckRequest(did, fwVersion, _model);
+      final request = _encodeCheckRequest(did, fwVersion, model);
+      log?.call(
+        'Firmware check request -> $_grpcHost:$_grpcPort$_grpcPath '
+        'model="$model" version="$fwVersion" '
+        'did="${did.isEmpty ? '(empty)' : did}"',
+      );
+      log?.call('Firmware check request bytes: ${_hex(request)}');
       final response = await client.checkUpdate(
         request,
         options: CallOptions(timeout: const Duration(seconds: 10)),
       );
 
-      if (response.isEmpty) return null;
       final respBytes = Uint8List.fromList(response);
-      if (!_decodeHaveUpdate(respBytes)) return null;
+      log?.call(
+        'Firmware check response (${respBytes.length} bytes): '
+        '${respBytes.isEmpty ? '(empty)' : _hex(respBytes)}',
+      );
 
+      if (response.isEmpty) return null;
+
+      final have = _decodeHaveUpdate(respBytes);
       final urls = _extractUrls(respBytes);
+      log?.call('Firmware check parsed: haveUpdate=$have urls=$urls');
+
+      if (!have) return null;
       if (urls.length < 2) return null;
 
       final patchUrl = urls.firstWhere(
@@ -134,10 +152,16 @@ class FirmwareService {
       if (baseUrl.isEmpty) return null;
 
       return FirmwareUpdateInfo(patchUrl: patchUrl, baseUrl: baseUrl);
+    } catch (e) {
+      log?.call('Firmware check failed: $e');
+      rethrow;
     } finally {
       await channel.shutdown();
     }
   }
+
+  static String _hex(List<int> bytes) =>
+      bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
   /// Layer 2: download the patch + base zip and assemble the final image.
   static Future<FirmwareBundle> downloadFirmware(

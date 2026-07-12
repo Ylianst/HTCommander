@@ -14,7 +14,7 @@ import 'package:flutter/material.dart' hide Radio;
 import '../radio/firmware_updater.dart';
 import '../radio/radio.dart';
 import '../services/bluetooth_service.dart';
-import '../services/data_broker_client.dart';
+import '../services/data_broker.dart';
 import '../services/firmware_service.dart';
 import 'dialog_utils.dart';
 
@@ -51,36 +51,31 @@ class _FirmwareUpdateDialog extends StatefulWidget {
 
 class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
   final BluetoothService _bt = BluetoothService();
-  final DataBrokerClient _client = DataBrokerClient();
 
-  /// Persisted preference (device 0): whether the online check omits the
-  /// radio's identifier.
-  static const String _prefAnonymous = 'FirmwareCheckAnonymous';
+  // Editable model / version used for the online check (for testing).
+  late final TextEditingController _modelController;
+  late final TextEditingController _versionController;
 
   _Stage _stage = _Stage.idle;
   String _statusText =
       'Check online for a firmware update, or load a firmware file from disk.';
   String? _errorText;
 
-  /// When true, the online check does not send the radio's identifier.
-  /// Persisted and restored across dialog sessions.
-  late bool _anonymous;
-
   @override
   void initState() {
     super.initState();
-    _anonymous = _client.getValue<bool>(0, _prefAnonymous, false) ?? false;
+    _modelController = TextEditingController(text: FirmwareService.defaultModel);
+    final softVer = _radio?.info?.softVer;
+    _versionController = TextEditingController(
+      text: softVer != null ? 'V${_formatVersion(softVer)}' : 'V0.0.0',
+    );
   }
 
   @override
   void dispose() {
-    _client.dispose();
+    _modelController.dispose();
+    _versionController.dispose();
     super.dispose();
-  }
-
-  void _setAnonymous(bool value) {
-    setState(() => _anonymous = value);
-    _client.dispatch(deviceId: 0, name: _prefAnonymous, data: value);
   }
 
   // Progress (null value = indeterminate).
@@ -117,23 +112,19 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
       _fail('Radio is not connected.');
       return;
     }
-    final anonymous = _anonymous;
     setState(() {
       _stage = _Stage.checking;
-      _statusText = anonymous
-          ? 'Checking for a firmware update (anonymously)…'
-          : 'Checking for a firmware update…';
+      _statusText = 'Checking for a firmware update…';
       _errorText = null;
     });
 
     try {
-      // The firmware version is always sent (the server needs it to compare).
-      // The radio's identifier is sent only when the user has not opted into an
-      // anonymous check. Prefer the GET_DEV_ID token (base64); fall back to MAC.
-      final radioId = radio.deviceIdBase64 ?? radio.macAddress;
+      // The device ID is not sent (the server does not require it). Only the
+      // radio model and current firmware version are sent.
       final info = await FirmwareService.checkUpdate(
-        did: anonymous ? '' : radioId,
-        fwVersion: 'V${_formatVersion(radio.info?.softVer)}',
+        model: _modelController.text.trim(),
+        fwVersion: _versionController.text.trim(),
+        log: _log,
       );
       if (!mounted) return;
       if (info == null) {
@@ -365,6 +356,16 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
     });
   }
 
+  /// Writes a line to the application debug log (shown in the Debug tab).
+  void _log(String message) {
+    DataBroker.dispatch(
+      deviceId: 1,
+      name: 'LogInfo',
+      data: '[Firmware] $message',
+      store: false,
+    );
+  }
+
   // ── Formatting ────────────────────────────────────────────────────────────
 
   static String _formatBytes(int bytes) {
@@ -375,16 +376,94 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
+  /// Section card styling, matching the Settings / Radio Information dialogs.
+  BoxDecoration _sectionDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
+  }
+
+  /// Filled, rounded text-field decoration matching the Settings dialog.
+  InputDecoration _inputDecoration({String? labelText}) {
+    return InputDecoration(
+      filled: true,
+      fillColor: Colors.grey.shade100,
+      labelText: labelText,
+      isDense: true,
+      contentPadding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.blue, width: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !_isBusy,
-      child: HTDialog(
-        title: 'Radio Firmware Update',
-        maxWidth: 460,
-        maxHeight: 400,
-        content: SingleChildScrollView(child: _buildContent()),
-        actions: _buildActions(),
+      child: Dialog(
+        backgroundColor: const Color(0xFFF5F5F5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 540),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'Radio Firmware Update',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: _sectionDecoration(),
+                      child: _buildContent(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    for (final action in _buildActions())
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: action,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -407,31 +486,27 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
         children.add(Text(_statusText, style: DialogStyles.bodyStyle));
       }
 
-      // Inline online-check disclosure and privacy option (idle / no-update).
+      // Inline online-check disclosure (idle / no-update).
       if (_stage == _Stage.idle || _stage == _Stage.noUpdate) {
         children.addAll([
           const SizedBox(height: 10),
           Text(
-            _anonymous
-                ? 'Checking online contacts the radio vendor\'s server '
-                      '(rpc.benshikj.com) and sends your radio model and '
-                      'firmware version only. Your radio ID is not sent.'
-                : 'Checking online contacts the radio vendor\'s server '
-                      '(rpc.benshikj.com) and sends your radio model, firmware '
-                      'version, and radio ID. Nothing is sent until you press '
-                      'Check for Update.',
+            'Checking online contacts the radio vendor\'s server '
+            '(rpc.benshikj.com) and sends only your radio model and firmware '
+            'version. Nothing is sent until you press Check for Update.',
             style: DialogStyles.bodyStyle.copyWith(fontSize: 12),
           ),
-          CheckboxListTile(
-            value: _anonymous,
-            onChanged: (v) => _setAnonymous(v ?? false),
-            controlAffinity: ListTileControlAffinity.leading,
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            title: const Text(
-              'Check anonymously (don\'t send my radio ID)',
-              style: DialogStyles.bodyStyle,
-            ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _modelController,
+            style: DialogStyles.bodyStyle,
+            decoration: _inputDecoration(labelText: 'Model'),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _versionController,
+            style: DialogStyles.bodyStyle,
+            decoration: _inputDecoration(labelText: 'Version'),
           ),
         ]);
       }
