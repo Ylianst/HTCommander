@@ -11,8 +11,10 @@ so the user can watch reception quality change as they tweak radio settings.
 */
 
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:pasteboard/pasteboard.dart';
 
 /// Immutable view model for one received DART packet's reception analysis.
 ///
@@ -111,66 +113,146 @@ class DartAnalysisSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final a = analysis;
     if (a == null) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          border: Border.all(color: Colors.grey.shade400),
-        ),
-        child: const Text(
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text(
           'Waiting for a received DART packet…',
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade400),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildMetrics(a),
-          const SizedBox(height: 12),
-          Center(
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final side = math.min(constraints.maxWidth, 280.0);
-                  return SizedBox(
-                    width: side,
-                    height: side,
-                    child: a.isFsk || a.received.isEmpty
-                        ? _noConstellation(a)
-                        : CustomPaint(
-                            painter: _ConstellationPainter(
-                              received: a.received,
-                              reference: a.reference,
-                            ),
-                          ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
+    final Color background = Theme.of(context).scaffoldBackgroundColor;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxW =
+            constraints.maxWidth.isFinite ? constraints.maxWidth : 500.0;
+        // The constellation diagram is square and never larger than 500x500.
+        final double diagramSide = math.min(maxW, 500.0);
+        // If there is more than 400px to the right of the diagram, place the
+        // metrics beside it instead of stacked above.
+        final bool sideBySide = (maxW - diagramSide) > 400;
+
+        final Widget diagram = SizedBox(
+          width: diagramSide,
+          height: diagramSide,
+          child: a.isFsk || a.received.isEmpty
+              ? _noConstellation(a, background)
+              : GestureDetector(
+                  onSecondaryTapDown: (details) => _showDiagramMenu(
+                    context,
+                    details.globalPosition,
+                    a,
+                    background,
+                  ),
+                  onLongPressStart: (details) => _showDiagramMenu(
+                    context,
+                    details.globalPosition,
+                    a,
+                    background,
+                  ),
+                  child: CustomPaint(
+                    painter: _ConstellationPainter(
+                      received: a.received,
+                      reference: a.reference,
+                      background: background,
+                    ),
+                  ),
+                ),
+        );
+
+        if (sideBySide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              diagram,
+              const SizedBox(width: 16),
+              Expanded(child: _buildMetrics(a)),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildMetrics(a),
+            const SizedBox(height: 12),
+            Center(child: diagram),
+          ],
+        );
+      },
     );
   }
 
-  Widget _noConstellation(DartReceptionAnalysis a) {
+  /// Shows a right-click / long-press context menu over the constellation
+  /// diagram, offering to copy the rendered diagram to the clipboard.
+  Future<void> _showDiagramMenu(
+    BuildContext context,
+    Offset position,
+    DartReceptionAnalysis a,
+    Color background,
+  ) async {
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        overlay.size.width - position.dx,
+        overlay.size.height - position.dy,
+      ),
+      items: const [
+        PopupMenuItem<String>(
+          value: 'copy',
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.copy, size: 18),
+              SizedBox(width: 8),
+              Text('Copy image'),
+            ],
+          ),
+        ),
+      ],
+    );
+    if (selected == 'copy') {
+      await _copyDiagramImage(a, background);
+    }
+  }
+
+  /// Renders the constellation diagram to a PNG and places it on the clipboard.
+  Future<void> _copyDiagramImage(
+    DartReceptionAnalysis a,
+    Color background,
+  ) async {
+    const double px = 500;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    _ConstellationPainter(
+      received: a.received,
+      reference: a.reference,
+      background: background,
+    ).paint(canvas, const Size(px, px));
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(px.toInt(), px.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    picture.dispose();
+    if (byteData == null) return;
+    await Pasteboard.writeImage(byteData.buffer.asUint8List());
+  }
+
+  Widget _noConstellation(DartReceptionAnalysis a, Color background) {
     return Container(
-      color: const Color(0xFF0A0A1A),
+      color: background,
       alignment: Alignment.center,
       child: Text(
         a.isFsk
             ? 'Mode F (FSK) — no constellation'
             : 'No constellation captured',
-        style: const TextStyle(fontSize: 12, color: Colors.white70),
+        style: const TextStyle(fontSize: 12, color: Colors.black54),
       ),
     );
   }
@@ -245,8 +327,13 @@ class DartAnalysisSection extends StatelessWidget {
 class _ConstellationPainter extends CustomPainter {
   final List<Offset> received;
   final List<Offset> reference;
+  final Color background;
 
-  _ConstellationPainter({required this.received, required this.reference});
+  _ConstellationPainter({
+    required this.received,
+    required this.reference,
+    required this.background,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -254,7 +341,7 @@ class _ConstellationPainter extends CustomPainter {
     // and edge markers never paint beyond its bounds.
     canvas.clipRect(Offset.zero & size);
 
-    final bg = Paint()..color = const Color(0xFF0A0A1A);
+    final bg = Paint()..color = background;
     canvas.drawRect(Offset.zero & size, bg);
 
     final cx = size.width / 2;
@@ -269,7 +356,7 @@ class _ConstellationPainter extends CustomPainter {
 
     // Grid rings at |r| = 0.5, 1.0, 1.5.
     final gridPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.08)
+      ..color = Colors.black.withValues(alpha: 0.10)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
     for (final r in [0.5, 1.0, 1.5]) {
@@ -278,14 +365,14 @@ class _ConstellationPainter extends CustomPainter {
 
     // Axes.
     final axisPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.20)
+      ..color = Colors.black.withValues(alpha: 0.25)
       ..strokeWidth = 1;
     canvas.drawLine(Offset(0, cy), Offset(size.width, cy), axisPaint);
     canvas.drawLine(Offset(cx, 0), Offset(cx, size.height), axisPaint);
 
     // Received symbols (red).
     final rxPaint = Paint()
-      ..color = const Color(0xFFFF4D4D).withValues(alpha: 0.75)
+      ..color = const Color(0xFFD32F2F).withValues(alpha: 0.75)
       ..style = PaintingStyle.fill;
     for (final p in received) {
       canvas.drawCircle(toScreen(p), 1.6, rxPaint);
@@ -293,10 +380,10 @@ class _ConstellationPainter extends CustomPainter {
 
     // Ideal reference points (blue) drawn on top as hollow markers.
     final refFill = Paint()
-      ..color = const Color(0xFF5B9BFF)
+      ..color = const Color(0xFF1565C0)
       ..style = PaintingStyle.fill;
     final refRing = Paint()
-      ..color = Colors.white.withValues(alpha: 0.9)
+      ..color = Colors.black.withValues(alpha: 0.6)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
     for (final p in reference) {
@@ -308,5 +395,7 @@ class _ConstellationPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ConstellationPainter old) =>
-      old.received != received || old.reference != reference;
+      old.received != received ||
+      old.reference != reference ||
+      old.background != background;
 }
