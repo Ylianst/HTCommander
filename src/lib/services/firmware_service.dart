@@ -4,6 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -24,19 +25,54 @@ import '../utils/bspatch.dart';
 /// when the total is unknown.
 typedef FirmwareProgress = void Function(String stage, int done, int total);
 
-/// URLs returned by the cloud for an available firmware update.
+/// A single firmware descriptor returned by `CheckFirmwareUpdate`
+/// (`FirmwareInfo` in the proto).
+class FirmwareInfo {
+  final int version;
+  final String url;
+  final String md5;
+  final String releaseNotes;
+
+  /// Release date as a Unix timestamp in seconds (0 when unknown).
+  final int releaseDate;
+
+  const FirmwareInfo({
+    required this.version,
+    required this.url,
+    this.md5 = '',
+    this.releaseNotes = '',
+    this.releaseDate = 0,
+  });
+}
+
+/// Firmware returned by the cloud check: the `firmware` (patch) and `base`
+/// descriptors from `CheckFirmwareUpdateResult`.
 class FirmwareUpdateInfo {
-  final String patchUrl;
-  final String baseUrl;
+  final FirmwareInfo firmware;
+  final FirmwareInfo base;
 
-  const FirmwareUpdateInfo({required this.patchUrl, required this.baseUrl});
+  const FirmwareUpdateInfo({required this.firmware, required this.base});
 
-  /// Best-effort parse of the OSS internal version (e.g. `v147`) from the patch
-  /// URL, or `unknown`.
-  String get internalVersion {
-    final m = RegExp(r'/firmware/(v\d+)/').firstMatch(patchUrl);
-    return m != null ? m.group(1)! : 'unknown';
-  }
+  String get patchUrl => firmware.url;
+  String get baseUrl => base.url;
+
+  /// The firmware version reported by the server (e.g. `147`).
+  int get version => firmware.version;
+
+  /// The firmware version formatted as `major.minor.patch` from the packed
+  /// nibble representation (e.g. `147` -> `0.9.3`), matching how the radio
+  /// reports its own software version.
+  String get semanticVersion =>
+      '${(version >> 8) & 0xF}.${(version >> 4) & 0xF}.${version & 0xF}';
+
+  /// Human-readable version tag (e.g. `v0.9.3`), or `unknown`.
+  String get displayVersion => version > 0 ? 'v$semanticVersion' : 'unknown';
+
+  /// Release notes for the firmware, or an empty string when none were sent.
+  String get releaseNotes => firmware.releaseNotes;
+
+  /// Release date as a Unix timestamp in seconds (0 when unknown).
+  int get releaseDate => firmware.releaseDate;
 }
 
 /// An assembled, ready-to-flash firmware image.
@@ -66,41 +102,19 @@ class FirmwareBundle {
 class FirmwareService {
   static const String _grpcHost = 'rpc.benshikj.com';
   static const int _grpcPort = 800;
-  static const String _grpcPath = '/benshikj.APP/CheckUpdate';
+  static const String _grpcPath =
+      '/benshikj.DeviceManagement/CheckFirmwareUpdate';
 
-  /// Default model name sent to the update server.
-  static const String defaultModel = 'VR_N7600';
-
-  /// Public OSS URLs for the latest firmware known to this build (from the
-  /// benlink reference: OSS v147 / firmware v0.9.3-7).
+  /// Layer 1: query the Benshi gRPC endpoint for the latest firmware.
   ///
-  /// The vendor's gRPC check only reports an update when it recognizes the
-  /// radio's serial number, which HTCommander does not send. These public URLs
-  /// let the user download and assemble the latest known firmware with **no**
-  /// identifying information (no serial, no gRPC call at all). Update these when
-  /// a newer firmware release is confirmed.
-  static const String knownLatestVersion = 'v147';
-  static const String _knownPatchUrl =
-      'https://pubdatas.oss-cn-shenzhen.aliyuncs.com/firmware/v147/patch_base_to_vr_n76.bin';
-  static const String _knownBaseUrl =
-      'https://pubdatas.oss-cn-shenzhen.aliyuncs.com/upgrade_base_v1.bin.zip';
-
-  /// The latest firmware known to this build, as public OSS URLs. Downloading
-  /// this requires no identifying information and does not contact the vendor's
-  /// gRPC endpoint.
-  static FirmwareUpdateInfo knownLatest() =>
-      const FirmwareUpdateInfo(patchUrl: _knownPatchUrl, baseUrl: _knownBaseUrl);
-
-  /// Layer 1: query the Benshi gRPC endpoint for an available firmware update.
-  ///
-  /// [did] is the device serial (optional — the server returns URLs regardless
-  /// of DID). [fwVersion] is the radio's current version; pass `"V0.0.0"` to
-  /// always trigger an update response. Returns `null` when no update is
-  /// available.
+  /// [productId] is the radio's numeric product ID (from `GET_DEV_INFO` /
+  /// `RadioDevInfo.productId`). Pass [firmwareVersion] `0` (the default) to get
+  /// the latest firmware. Returns `null` when the server returns no firmware
+  /// information.
   static Future<FirmwareUpdateInfo?> checkUpdate({
-    String did = '',
-    String fwVersion = 'V0.0.0',
-    String model = defaultModel,
+    required int productId,
+    int firmwareVersion = 0,
+    bool beta = false,
     void Function(String message)? log,
   }) async {
     final channel = ClientChannel(
@@ -111,47 +125,26 @@ class FirmwareService {
     final client = _RawGrpcClient(channel);
 
     try {
-      final request = _encodeCheckRequest(did, fwVersion, model);
-      log?.call(
-        'Firmware check request -> $_grpcHost:$_grpcPort$_grpcPath '
-        'model="$model" version="$fwVersion" '
-        'did="${did.isEmpty ? '(empty)' : did}"',
-      );
-      log?.call('Firmware check request bytes: ${_hex(request)}');
+      final request = _encodeCheckRequest(productId, firmwareVersion, beta);
       final response = await client.checkUpdate(
         request,
         options: CallOptions(timeout: const Duration(seconds: 10)),
       );
 
       final respBytes = Uint8List.fromList(response);
-      log?.call(
-        'Firmware check response (${respBytes.length} bytes): '
-        '${respBytes.isEmpty ? '(empty)' : _hex(respBytes)}',
-      );
 
       if (response.isEmpty) return null;
 
-      final have = _decodeHaveUpdate(respBytes);
-      final urls = _extractUrls(respBytes);
-      log?.call('Firmware check parsed: haveUpdate=$have urls=$urls');
-
-      if (!have) return null;
-      if (urls.length < 2) return null;
-
-      final patchUrl = urls.firstWhere(
-        (u) => u.contains('patch'),
-        orElse: () => urls[0],
+      final info = _decodeResult(respBytes);
+      if (info == null) {
+        log?.call('Firmware check parsed: no firmware information');
+        return null;
+      }
+      log?.call(
+        'Firmware check parsed: version=${info.version} '
+        'patch=${info.patchUrl} base=${info.baseUrl}',
       );
-      final baseUrl = urls.firstWhere(
-        (u) => u.contains('base') && !u.contains('patch'),
-        orElse: () => urls.firstWhere(
-          (u) => u != patchUrl,
-          orElse: () => '',
-        ),
-      );
-      if (baseUrl.isEmpty) return null;
-
-      return FirmwareUpdateInfo(patchUrl: patchUrl, baseUrl: baseUrl);
+      return info;
     } catch (e) {
       log?.call('Firmware check failed: $e');
       rethrow;
@@ -159,9 +152,6 @@ class FirmwareService {
       await channel.shutdown();
     }
   }
-
-  static String _hex(List<int> bytes) =>
-      bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
   /// Layer 2: download the patch + base zip and assemble the final image.
   static Future<FirmwareBundle> downloadFirmware(
@@ -207,11 +197,14 @@ class FirmwareService {
 
   /// Layer 1 + 2 combined: check, then download and assemble if available.
   static Future<FirmwareBundle?> fetchFirmware({
-    String did = '',
-    String fwVersion = 'V0.0.0',
+    required int productId,
+    int firmwareVersion = 0,
     FirmwareProgress? progress,
   }) async {
-    final info = await checkUpdate(did: did, fwVersion: fwVersion);
+    final info = await checkUpdate(
+      productId: productId,
+      firmwareVersion: firmwareVersion,
+    );
     if (info == null) return null;
     return downloadFirmware(info, progress: progress);
   }
@@ -258,23 +251,37 @@ class FirmwareService {
     return Uint8List.fromList(out);
   }
 
-  static Uint8List _encodeStringField(int fieldNum, String s) {
-    final b = Uint8List.fromList(s.codeUnits);
+  static Uint8List _encodeLengthDelimited(int fieldNum, List<int> b) {
     final tag = (fieldNum << 3) | 2; // wire type 2 = length-delimited
     return Uint8List.fromList([tag, ..._varint(b.length), ...b]);
   }
 
-  /// Encode `CheckFirmwareUpdateRequest { did=1, firmwareVersion=2, model=3 }`.
+  static Uint8List _encodeStringField(int fieldNum, String s) =>
+      _encodeLengthDelimited(fieldNum, Uint8List.fromList(s.codeUnits));
+
+  static Uint8List _encodeVarintField(int fieldNum, int value) {
+    final tag = fieldNum << 3; // wire type 0 = varint
+    return Uint8List.fromList([..._varint(tag), ..._varint(value)]);
+  }
+
+  /// Encode `CheckFirmwareUpdateRequest { productId=1, firmwareVersion=2,
+  /// beta=3, userId=4, inviteCode=5 }`. Proto3 omits zero/false fields.
   static Uint8List _encodeCheckRequest(
-    String did,
-    String fwVersion,
-    String model,
-  ) {
-    return Uint8List.fromList([
-      ..._encodeStringField(1, did),
-      ..._encodeStringField(2, fwVersion),
-      ..._encodeStringField(3, model),
-    ]);
+    int productId,
+    int firmwareVersion,
+    bool beta, {
+    int userId = 0,
+    int inviteCode = 0,
+  }) {
+    final out = <int>[];
+    if (productId != 0) out.addAll(_encodeVarintField(1, productId));
+    if (firmwareVersion != 0) {
+      out.addAll(_encodeVarintField(2, firmwareVersion));
+    }
+    if (beta) out.addAll(_encodeVarintField(3, 1));
+    if (userId != 0) out.addAll(_encodeVarintField(4, userId));
+    if (inviteCode != 0) out.addAll(_encodeVarintField(5, inviteCode));
+    return Uint8List.fromList(out);
   }
 
   /// Decode proto3 wire fields into `(fieldNumber, wireType, rawValueBytes)`.
@@ -324,56 +331,91 @@ class FirmwareService {
     return out;
   }
 
-  /// Recursively collect all `https://` URL strings from proto fields.
-  static List<String> _extractUrls(Uint8List data) {
-    final urls = <String>[];
-    for (final (_, wireType, value) in _decodeProtoFields(data)) {
-      if (wireType == 2) {
-        String? s;
-        try {
-          s = String.fromCharCodes(value);
-        } catch (_) {
-          s = null;
-        }
-        if (s != null && s.startsWith('https://')) {
-          urls.add(s);
-          continue;
-        }
-        // Otherwise recurse — the value might be a nested message.
-        urls.addAll(_extractUrls(Uint8List.fromList(value)));
-      }
+  static int _readVarintBytes(Uint8List b) {
+    int val = 0;
+    int shift = 0;
+    for (final byte in b) {
+      val |= (byte & 0x7F) << shift;
+      shift += 7;
+      if ((byte & 0x80) == 0) break;
     }
-    return urls;
+    return val;
   }
 
-  /// Extract field 1 (bool `haveUpdate`) from the response.
-  static bool _decodeHaveUpdate(Uint8List data) {
+  /// Decode a nested `FirmwareInfo { version=1, url=2, md5=3, releaseNotes=4,
+  /// releaseDate=5 }` message.
+  static FirmwareInfo? _decodeFirmwareInfo(Uint8List data) {
+    int version = 0;
+    String url = '';
+    String md5Str = '';
+    String notes = '';
+    int date = 0;
     for (final (fieldNum, wireType, value) in _decodeProtoFields(data)) {
-      if (fieldNum == 1 && wireType == 0) {
-        return value.isNotEmpty && value[0] != 0;
+      switch (fieldNum) {
+        case 1:
+          if (wireType == 0) version = _readVarintBytes(value);
+          break;
+        case 2:
+          if (wireType == 2) url = String.fromCharCodes(value);
+          break;
+        case 3:
+          if (wireType == 2) md5Str = String.fromCharCodes(value);
+          break;
+        case 4:
+          if (wireType == 2) notes = utf8.decode(value, allowMalformed: true);
+          break;
+        case 5:
+          // Release date: a Unix timestamp encoded as a varint.
+          if (wireType == 0) date = _readVarintBytes(value);
+          break;
       }
     }
-    return false;
+    if (url.isEmpty) return null;
+    return FirmwareInfo(
+      version: version,
+      url: url,
+      md5: md5Str,
+      releaseNotes: notes,
+      releaseDate: date,
+    );
+  }
+
+  /// Decode `CheckFirmwareUpdateResult { firmware=1, base=2 }`.
+  static FirmwareUpdateInfo? _decodeResult(Uint8List data) {
+    FirmwareInfo? firmware;
+    FirmwareInfo? base;
+    for (final (fieldNum, wireType, value) in _decodeProtoFields(data)) {
+      if (wireType != 2) continue;
+      if (fieldNum == 1) {
+        firmware = _decodeFirmwareInfo(value);
+      } else if (fieldNum == 2) {
+        base = _decodeFirmwareInfo(value);
+      }
+    }
+    if (firmware == null || base == null) return null;
+    return FirmwareUpdateInfo(firmware: firmware, base: base);
   }
 
   // ── Test hooks ────────────────────────────────────────────────────────────
 
   @visibleForTesting
   static Uint8List debugEncodeCheckRequest(
-    String did,
-    String fwVersion,
-    String model,
-  ) => _encodeCheckRequest(did, fwVersion, model);
+    int productId, {
+    int firmwareVersion = 0,
+    bool beta = false,
+  }) => _encodeCheckRequest(productId, firmwareVersion, beta);
 
   @visibleForTesting
   static Uint8List debugEncodeStringField(int fieldNum, String s) =>
       _encodeStringField(fieldNum, s);
 
   @visibleForTesting
-  static List<String> debugExtractUrls(Uint8List data) => _extractUrls(data);
+  static Uint8List debugEncodeMessageField(int fieldNum, Uint8List b) =>
+      _encodeLengthDelimited(fieldNum, b);
 
   @visibleForTesting
-  static bool debugDecodeHaveUpdate(Uint8List data) => _decodeHaveUpdate(data);
+  static FirmwareUpdateInfo? debugDecodeResult(Uint8List data) =>
+      _decodeResult(data);
 }
 
 /// A gRPC client that sends and receives raw bytes, avoiding generated protobuf

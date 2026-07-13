@@ -194,41 +194,66 @@ void main() {
   });
 
   group('Proto3 encode/decode', () {
-    test('encodes CheckUpdate request as three string fields', () {
-      final bytes = FirmwareService.debugEncodeCheckRequest(
-        'serial123',
-        'V0.9.2-7',
-        'VR_N7600',
-      );
-      // Manually rebuild expected: field1=did, field2=fw, field3=model.
-      final expected = Uint8List.fromList([
-        ...FirmwareService.debugEncodeStringField(1, 'serial123'),
-        ...FirmwareService.debugEncodeStringField(2, 'V0.9.2-7'),
-        ...FirmwareService.debugEncodeStringField(3, 'VR_N7600'),
-      ]);
-      expect(bytes, expected);
+    test('encodes CheckFirmwareUpdateRequest with productId only', () {
+      final bytes = FirmwareService.debugEncodeCheckRequest(259);
+      // field 1 (varint) productId = 259 -> tag 0x08, varint 259 = 0x83 0x02.
+      expect(bytes, Uint8List.fromList([0x08, 0x83, 0x02]));
     });
 
-    test('decodes haveUpdate and extracts https URLs', () {
+    test('omits firmwareVersion when zero', () {
+      final bytes = FirmwareService.debugEncodeCheckRequest(
+        1,
+        firmwareVersion: 0,
+      );
+      expect(bytes, Uint8List.fromList([0x08, 0x01]));
+    });
+
+    test('encodes firmwareVersion and beta when set', () {
+      final bytes = FirmwareService.debugEncodeCheckRequest(
+        1,
+        firmwareVersion: 5,
+        beta: true,
+      );
+      // productId=1, firmwareVersion=5 (tag 0x10), beta=true (tag 0x18).
+      expect(bytes, Uint8List.fromList([0x08, 0x01, 0x10, 0x05, 0x18, 0x01]));
+    });
+
+    test('decodes CheckFirmwareUpdateResult with nested FirmwareInfo', () {
       const patchUrl =
           'https://pubdatas.oss-cn-shenzhen.aliyuncs.com/firmware/v147/patch_base_to_vr_n76.bin';
       const baseUrl =
           'https://pubdatas.oss-cn-shenzhen.aliyuncs.com/upgrade_base_v1.bin.zip';
 
+      final firmwareMsg = Uint8List.fromList([
+        0x08, 0x93, 0x01, // field 1 (varint) version = 147
+        ...FirmwareService.debugEncodeStringField(2, patchUrl), // url
+        ...FirmwareService.debugEncodeStringField(3, 'abc123'), // md5
+      ]);
+      final baseMsg = Uint8List.fromList([
+        0x08, 0x01, // version = 1
+        ...FirmwareService.debugEncodeStringField(2, baseUrl), // url
+      ]);
       final response = Uint8List.fromList([
-        0x08, 0x01, // field 1 (varint) haveUpdate = 1
-        ...FirmwareService.debugEncodeStringField(4, patchUrl),
-        ...FirmwareService.debugEncodeStringField(5, baseUrl),
+        ...FirmwareService.debugEncodeMessageField(1, firmwareMsg), // firmware
+        ...FirmwareService.debugEncodeMessageField(2, baseMsg), // base
       ]);
 
-      expect(FirmwareService.debugDecodeHaveUpdate(response), isTrue);
-      final urls = FirmwareService.debugExtractUrls(response);
-      expect(urls, containsAll(<String>[patchUrl, baseUrl]));
+      final info = FirmwareService.debugDecodeResult(response);
+      expect(info, isNotNull);
+      expect(info!.version, 147);
+      expect(info.semanticVersion, '0.9.3');
+      expect(info.displayVersion, 'v0.9.3');
+      expect(info.patchUrl, patchUrl);
+      expect(info.baseUrl, baseUrl);
+      expect(info.firmware.md5, 'abc123');
     });
 
-    test('reports no update when haveUpdate is 0', () {
-      final response = Uint8List.fromList([0x08, 0x00]);
-      expect(FirmwareService.debugDecodeHaveUpdate(response), isFalse);
+    test('returns null when firmware or base is missing', () {
+      final firmwareMsg = Uint8List.fromList([0x08, 0x01]);
+      final response = Uint8List.fromList([
+        ...FirmwareService.debugEncodeMessageField(1, firmwareMsg),
+      ]);
+      expect(FirmwareService.debugDecodeResult(response), isNull);
     });
   });
 }

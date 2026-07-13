@@ -30,7 +30,6 @@ Future<void> showFirmwareUpdateDialog(BuildContext context, int deviceId) {
 enum _Stage {
   idle,
   checking,
-  noUpdate,
   available,
   downloading,
   confirm,
@@ -52,9 +51,9 @@ class _FirmwareUpdateDialog extends StatefulWidget {
 class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
   final BluetoothService _bt = BluetoothService();
 
-  // Editable model / version used for the online check (for testing).
-  late final TextEditingController _modelController;
-  late final TextEditingController _versionController;
+  /// Scroll controller for the release-notes panel (shared between the
+  /// Scrollbar and its SingleChildScrollView so the bar has a position).
+  final ScrollController _notesScrollController = ScrollController();
 
   _Stage _stage = _Stage.idle;
   String _statusText =
@@ -64,17 +63,11 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
   @override
   void initState() {
     super.initState();
-    _modelController = TextEditingController(text: FirmwareService.defaultModel);
-    final softVer = _radio?.info?.softVer;
-    _versionController = TextEditingController(
-      text: softVer != null ? 'V${_formatVersion(softVer)}' : 'V0.0.0',
-    );
   }
 
   @override
   void dispose() {
-    _modelController.dispose();
-    _versionController.dispose();
+    _notesScrollController.dispose();
     super.dispose();
   }
 
@@ -112,6 +105,11 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
       _fail('Radio is not connected.');
       return;
     }
+    final productId = radio.info?.productId;
+    if (productId == null) {
+      _fail('Radio device information is not available yet.');
+      return;
+    }
     setState(() {
       _stage = _Stage.checking;
       _statusText = 'Checking for a firmware update…';
@@ -119,32 +117,24 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
     });
 
     try {
-      // The device ID is not sent (the server does not require it). Only the
-      // radio model and current firmware version are sent.
+      // Only the radio's product ID is sent; the server returns the latest
+      // firmware for that product.
       final info = await FirmwareService.checkUpdate(
-        model: _modelController.text.trim(),
-        fwVersion: _versionController.text.trim(),
+        productId: productId,
         log: _log,
       );
       if (!mounted) return;
       if (info == null) {
-        setState(() {
-          _stage = _Stage.noUpdate;
-          _statusText =
-              'The vendor server did not report an update. This does not '
-              'necessarily mean you are up to date. You can download the latest '
-              'firmware known to HTCommander '
-              '(${FirmwareService.knownLatestVersion}) and compare it against '
-              'your current version ($_currentVersion).';
-        });
-      } else {
-        setState(() {
-          _updateInfo = info;
-          _stage = _Stage.available;
-          _statusText =
-              'A firmware update is available (${info.internalVersion}).';
-        });
+        _fail('The vendor server did not return firmware information.');
+        return;
       }
+      setState(() {
+        _updateInfo = info;
+        _stage = _Stage.available;
+        _statusText =
+            'A firmware update is available (${info.displayVersion}). '
+            'Review the release notes below, then download to update.';
+      });
     } catch (e) {
       _fail('Update check failed: $e');
     }
@@ -190,7 +180,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
     final bundle = _bundle;
     if (bundle == null) return;
     try {
-      final version = _updateInfo?.internalVersion;
+      final version = _updateInfo?.displayVersion;
       final defaultName = (version != null && version != 'unknown')
           ? 'firmware_$version.bin'
           : 'firmware.bin';
@@ -208,13 +198,6 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
     } catch (e) {
       _fail('Could not save firmware file: $e');
     }
-  }
-
-  /// Download the latest firmware known to this build directly from the public
-  /// OSS URLs, with no gRPC check and no identifying information sent.
-  Future<void> _downloadKnownLatest() async {
-    _updateInfo = FirmwareService.knownLatest();
-    await _download();
   }
 
   Future<void> _download() async {
@@ -391,29 +374,6 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
     );
   }
 
-  /// Filled, rounded text-field decoration matching the Settings dialog.
-  InputDecoration _inputDecoration({String? labelText}) {
-    return InputDecoration(
-      filled: true,
-      fillColor: Colors.grey.shade100,
-      labelText: labelText,
-      isDense: true,
-      contentPadding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -486,27 +446,49 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
         children.add(Text(_statusText, style: DialogStyles.bodyStyle));
       }
 
-      // Inline online-check disclosure (idle / no-update).
-      if (_stage == _Stage.idle || _stage == _Stage.noUpdate) {
+      // Inline online-check disclosure (idle).
+      if (_stage == _Stage.idle) {
         children.addAll([
           const SizedBox(height: 10),
           Text(
             'Checking online contacts the radio vendor\'s server '
-            '(rpc.benshikj.com) and sends only your radio model and firmware '
-            'version. Nothing is sent until you press Check for Update.',
+            '(rpc.benshikj.com) and sends only your radio\'s product ID. '
+            'Nothing is sent until you press Check for Update.',
             style: DialogStyles.bodyStyle.copyWith(fontSize: 12),
           ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _modelController,
-            style: DialogStyles.bodyStyle,
-            decoration: _inputDecoration(labelText: 'Model'),
+        ]);
+      }
+
+      // Release notes for an available update.
+      final releaseNotes = _updateInfo?.releaseNotes.trim() ?? '';
+      if (_stage == _Stage.available && releaseNotes.isNotEmpty) {
+        children.addAll([
+          const SizedBox(height: 16),
+          Text(
+            'What\'s new',
+            style: DialogStyles.bodyStyle.copyWith(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _versionController,
-            style: DialogStyles.bodyStyle,
-            decoration: _inputDecoration(labelText: 'Version'),
+          const SizedBox(height: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Scrollbar(
+                controller: _notesScrollController,
+                child: SingleChildScrollView(
+                  controller: _notesScrollController,
+                  child: SelectableText(
+                    releaseNotes.replaceAll('\r\n', '\n'),
+                    style: DialogStyles.bodyStyle.copyWith(fontSize: 12),
+                  ),
+                ),
+              ),
+            ),
           ),
         ]);
       }
@@ -586,20 +568,6 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
             onPressed: _performCheck,
             style: DialogStyles.primaryButtonStyle(context),
             child: const Text('Check for Update'),
-          ),
-        ];
-      case _Stage.noUpdate:
-        return [
-          close,
-          TextButton(
-            onPressed: _loadFromFile,
-            style: DialogStyles.secondaryButtonStyle(context),
-            child: const Text('From File…'),
-          ),
-          ElevatedButton(
-            onPressed: _downloadKnownLatest,
-            style: DialogStyles.primaryButtonStyle(context),
-            child: Text('Download Latest (${FirmwareService.knownLatestVersion})'),
           ),
         ];
       case _Stage.available:

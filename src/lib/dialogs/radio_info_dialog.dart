@@ -49,7 +49,6 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   RadioBssSettings? _bssSettings;
   RadioPosition? _position;
   String _friendlyName = '';
-  String _deviceIdToken = '';
 
   @override
   void initState() {
@@ -155,8 +154,6 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     );
     _friendlyName =
         _broker.getValue<String>(newDeviceId, 'FriendlyName', '') ?? '';
-    _deviceIdToken =
-        _broker.getValue<String>(newDeviceId, 'DeviceId', '') ?? '';
 
     _broker.subscribeMultiple(
       deviceId: newDeviceId,
@@ -167,7 +164,6 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
         'BssSettings',
         'Position',
         'FriendlyName',
-        'DeviceId',
       ],
       callback: _onDeviceValueChanged,
     );
@@ -181,7 +177,6 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     _broker.unsubscribe(deviceId, 'BssSettings');
     _broker.unsubscribe(deviceId, 'Position');
     _broker.unsubscribe(deviceId, 'FriendlyName');
-    _broker.unsubscribe(deviceId, 'DeviceId');
   }
 
   void _onDeviceValueChanged(int deviceId, String name, Object? data) {
@@ -216,9 +211,6 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
           break;
         case 'FriendlyName':
           _friendlyName = data is String ? data : '';
-          break;
-        case 'DeviceId':
-          _deviceIdToken = data is String ? data : '';
           break;
       }
     });
@@ -398,7 +390,6 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
       _row('Radio', _supportedStr(i.supportRadio)),
       _row('VFO', _supportedStr(i.supportVfo)),
       _row('Freq Range Count', '${i.freqRangeCount}'),
-      _row('Device ID', _deviceIdToken.isEmpty ? 'Unknown' : _deviceIdToken),
     ];
   }
 

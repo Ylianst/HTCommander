@@ -66,10 +66,16 @@ Phase 2, so an interrupted flash leaves the old firmware intact.
 ## Layer 1 — Check (gRPC)
 
 - Host `rpc.benshikj.com:800` (TLS on port **800**), method
-  `/benshikj.APP/CheckUpdate`.
-- Request (proto3): field 1 = `did` (serial), field 2 = `fwVersion`,
-  field 3 = `model` (`VR_N7600`).
-- Response: field 1 `bool haveUpdate`; extract the two HTTPS URLs (patch + base).
+  `/benshikj.DeviceManagement/CheckFirmwareUpdate`.
+- Request (proto3) `CheckFirmwareUpdateRequest`: field 1 = `productId` (int32,
+  read from the radio via `GET_DEV_INFO` / `RadioDevInfo.productId`), field 2 =
+  `firmwareVersion` (int32; send `0` for the latest), field 3 = `beta` (bool),
+  field 4 = `userId` (int64), field 5 = `inviteCode` (int32). Proto3 omits
+  zero/false fields, so a minimal request is just `productId`.
+- Response `CheckFirmwareUpdateResult`: field 1 = `firmware` (patch), field 2 =
+  `base`, each a nested `FirmwareInfo { version(1), url(2), md5(3),
+  releaseNotes(4), releaseDate(5) }`. Extract the two HTTPS URLs (patch + base)
+  and the version.
 - Dart: add the `grpc` package and use a raw-bytes
   `ClientMethod<List<int>, List<int>>`, hand-rolling the proto3 varint/string
   encode + decode (mirrors `firmware.py`).
@@ -159,12 +165,12 @@ polls until connected (~15–30 s, with timeout), then runs
 ## Verification
 
 1. **Unit:** bspatch a known base + patch → assembled MD5 matches (offline).
-2. **Unit:** proto encode/decode — build a `CheckUpdate` request; parse a sample
-   response → URLs + `haveUpdate`.
+2. **Unit:** proto encode/decode — build a `CheckFirmwareUpdate` request; parse a
+   sample `CheckFirmwareUpdateResult` → patch/base URLs + version.
 3. **Unit:** `VM_CONTROL` / VMU packet build + parse roundtrip against the
    `vm.py` byte layouts.
-4. **Manual dry-run:** gRPC check with `fw_version="V0.0.0"` returns URLs;
-   download + assemble a real bundle; verify size/MD5.
+4. **Manual dry-run:** gRPC check with `productId` (and `firmwareVersion=0`)
+   returns URLs; download + assemble a real bundle; verify size/MD5.
 5. **Manual live flash** on a spare radio: progress → reboot → confirm → new
    version shows in radio info.
 6. `flutter analyze` clean; existing test suite passes.

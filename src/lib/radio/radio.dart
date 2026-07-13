@@ -213,18 +213,6 @@ class Radio {
   String? get lockUsage =>
       (_lockState?.isLocked ?? false) ? _lockState?.usage : null;
 
-  // Raw device-ID token returned by GET_DEV_ID, hex-encoded (the 64-byte blob
-  // after the status byte). Opaque/likely-encrypted; used experimentally as the
-  // `did` for the firmware update check. Null until the reply arrives.
-  String? _deviceIdHex;
-  String? get deviceIdHex => _deviceIdHex;
-
-  // The same device-ID token as raw bytes, exposed base64-encoded for use as
-  // the firmware-check `did`.
-  Uint8List? _deviceIdBytes;
-  String? get deviceIdBase64 =>
-      _deviceIdBytes != null ? base64Encode(_deviceIdBytes!) : null;
-
   /// Update the friendly name for this radio
   void updateFriendlyName(String name) {
     if (name.isNotEmpty) {
@@ -892,13 +880,6 @@ class Radio {
       Uint8List.fromList([3]),
     );
     if (!kIsWeb) {
-      // Probe: request the device ID (factory serial) and log the raw reply so
-      // we can see what the radio returns for GET_DEV_ID.
-      _sendCommand(
-        RadioCommandGroup.basic,
-        RadioBasicCommand.getDevId,
-        null,
-      );
       _sendCommand(
         RadioCommandGroup.basic,
         RadioBasicCommand.readSettings,
@@ -2129,9 +2110,6 @@ class Radio {
       case RadioBasicCommand.getDevInfo:
         _handleDevInfo(cmd);
         break;
-      case RadioBasicCommand.getDevId:
-        _handleDevId(cmd);
-        break;
       case RadioBasicCommand.readSettings:
         _handleReadSettings(cmd);
         break;
@@ -2187,22 +2165,6 @@ class Radio {
         break;
       default:
         break;
-    }
-  }
-
-  /// Handles the GET_DEV_ID reply. The payload is `[status, ...device-id
-  /// blob]`; the 64-byte blob after the status byte is an opaque (likely
-  /// encrypted) device-identity token. It is stored hex-encoded and published
-  /// as `DeviceId` for display in the Radio Information dialog.
-  void _handleDevId(Uint8List cmd) {
-    final payload = cmd.length > 4
-        ? Uint8List.fromList(cmd.sublist(4))
-        : Uint8List(0);
-    if (payload.length > 1) {
-      final blob = Uint8List.fromList(payload.sublist(1));
-      _deviceIdBytes = blob;
-      _deviceIdHex = RadioUtils.bytesToHex(blob);
-      _dispatch('DeviceId', _deviceIdHex);
     }
   }
 
