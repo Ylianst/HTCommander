@@ -35,6 +35,12 @@ class _RawCommandDialog extends StatefulWidget {
 }
 
 class _RawCommandDialogState extends State<_RawCommandDialog> {
+  // Broker keys used to persist the dialog's inputs across opens. Stored on
+  // device 0 so the values survive dialog close/reopen (and app restarts).
+  static const int _prefsDeviceId = 0;
+  static const String _prefCommandKey = 'RawCommandSelectedValue';
+  static const String _prefPayloadKey = 'RawCommandPayload';
+
   final DataBrokerClient _broker = DataBrokerClient();
   final TextEditingController _payloadController = TextEditingController();
   final TextEditingController _responseController = TextEditingController();
@@ -50,6 +56,20 @@ class _RawCommandDialogState extends State<_RawCommandDialog> {
   @override
   void initState() {
     super.initState();
+    // Restore the last-used command and HEX payload so reopening the dialog
+    // brings back the same values.
+    final savedCmd = _broker.getValue<int>(_prefsDeviceId, _prefCommandKey);
+    if (savedCmd != null) {
+      final cmd = RadioBasicCommand.fromValue(savedCmd);
+      if (cmd != RadioBasicCommand.unknown) _selectedCommand = cmd;
+    }
+    final savedPayload = _broker.getValue<String>(
+      _prefsDeviceId,
+      _prefPayloadKey,
+    );
+    if (savedPayload != null) _payloadController.text = savedPayload;
+    // Persist the payload as the user edits it.
+    _payloadController.addListener(_savePayload);
     // Watch every raw response frame the radio produces so the user can see the
     // reply to the command they just sent (and any async notifications).
     _broker.subscribe(
@@ -61,11 +81,30 @@ class _RawCommandDialogState extends State<_RawCommandDialog> {
 
   @override
   void dispose() {
+    _payloadController.removeListener(_savePayload);
     _broker.dispose();
     _payloadController.dispose();
     _responseController.dispose();
     _responseScroll.dispose();
     super.dispose();
+  }
+
+  void _saveCommand() {
+    _broker.dispatch(
+      deviceId: _prefsDeviceId,
+      name: _prefCommandKey,
+      data: _selectedCommand.value,
+      store: true,
+    );
+  }
+
+  void _savePayload() {
+    _broker.dispatch(
+      deviceId: _prefsDeviceId,
+      name: _prefPayloadKey,
+      data: _payloadController.text,
+      store: true,
+    );
   }
 
   String _timestamp() {
@@ -203,7 +242,10 @@ class _RawCommandDialogState extends State<_RawCommandDialog> {
                 )
                 .toList(),
             onChanged: (value) {
-              if (value != null) setState(() => _selectedCommand = value);
+              if (value != null) {
+                setState(() => _selectedCommand = value);
+                _saveCommand();
+              }
             },
           ),
           const SizedBox(height: 12),
