@@ -256,4 +256,34 @@ void main() {
       expect(FirmwareService.debugDecodeResult(response), isNull);
     });
   });
+
+  group('Download MD5 verification', () {
+    // MD5 of the ASCII bytes "abc".
+    final abcBytes = Uint8List.fromList('abc'.codeUnits);
+    const abcMd5 = '900150983cd24fb0d6963f7d28e17f72';
+
+    test('passes when the digest matches (case-insensitive)', () {
+      expect(
+        () => FirmwareService.debugVerifyMd5(abcBytes, abcMd5.toUpperCase()),
+        returnsNormally,
+      );
+    });
+
+    test('throws when the digest does not match', () {
+      expect(
+        () => FirmwareService.debugVerifyMd5(
+          abcBytes,
+          '00000000000000000000000000000000',
+        ),
+        throwsFormatException,
+      );
+    });
+
+    test('is a no-op when no digest is supplied', () {
+      expect(
+        () => FirmwareService.debugVerifyMd5(abcBytes, ''),
+        returnsNormally,
+      );
+    });
+  });
 }

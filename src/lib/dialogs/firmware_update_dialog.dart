@@ -132,7 +132,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
         _updateInfo = info;
         _stage = _Stage.available;
         _statusText =
-            'A firmware update is available (${info.displayVersion}). '
+            'A firmware update is available ${info.displayVersion}. '
             'Review the release notes below, then download to update.';
       });
     } catch (e) {
@@ -181,9 +181,12 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
     if (bundle == null) return;
     try {
       final version = _updateInfo?.displayVersion;
-      final defaultName = (version != null && version != 'unknown')
-          ? 'firmware_$version.bin'
-          : 'firmware.bin';
+      final productId = _radio?.info?.productId;
+
+      final parts = <String>['firmware'];
+      if (productId != null) parts.add('$productId');
+      if (version != null && version != 'unknown') parts.add(version);
+      final defaultName = '${parts.join('_')}.bin';
 
       final path = await FilePicker.saveFile(
         dialogTitle: 'Save Firmware File',
@@ -436,7 +439,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
 
     if (_stage == _Stage.error) {
       children.add(
-        Text(
+        SelectableText(
           _errorText ?? 'An error occurred.',
           style: DialogStyles.bodyStyle.copyWith(color: Colors.red.shade800),
         ),

@@ -73,6 +73,13 @@ class FirmwareUpdateInfo {
 
   /// Release date as a Unix timestamp in seconds (0 when unknown).
   int get releaseDate => firmware.releaseDate;
+
+  /// Server-provided MD5 of the assembled firmware image (empty when not
+  /// sent). This is the digest of the final `.bin`, not of the patch download.
+  String get firmwareMd5 => firmware.md5;
+
+  /// Server-provided MD5 associated with the base image (empty when not sent).
+  String get baseMd5 => base.md5;
 }
 
 /// An assembled, ready-to-flash firmware image.
@@ -184,6 +191,12 @@ class FirmwareService {
     progress?.call('assemble', 0, 0);
     final firmware = BsPatch.apply(baseBytes, patchBytes);
 
+    // Verify the assembled image against the server-provided MD5. This is the
+    // authoritative end-to-end check: it confirms the patch + base downloaded
+    // and reassembled into exactly the vendor's firmware image (and it is the
+    // same digest whose last 4 bytes the radio validates while flashing).
+    _verifyMd5(firmware, info.firmwareMd5, 'assembled firmware image');
+
     return FirmwareBundle(firmware, updateInfo: info);
   }
 
@@ -193,6 +206,20 @@ class FirmwareService {
       throw const FormatException('Unexpected patch format (expected BSDIFF40)');
     }
     return BsPatch.apply(baseBin, patchBin);
+  }
+
+  /// Verifies the MD5 of a downloaded file against the server-provided digest.
+  /// A no-op when [expectedMd5] is empty (the server did not supply one).
+  static void _verifyMd5(Uint8List bytes, String expectedMd5, String label) {
+    final expected = expectedMd5.trim().toLowerCase();
+    if (expected.isEmpty) return;
+    final actual = md5.convert(bytes).toString();
+    if (actual != expected) {
+      throw FormatException(
+        'Downloaded $label failed MD5 verification '
+        '(expected $expected, got $actual).',
+      );
+    }
   }
 
   /// Layer 1 + 2 combined: check, then download and assemble if available.
@@ -416,6 +443,10 @@ class FirmwareService {
   @visibleForTesting
   static FirmwareUpdateInfo? debugDecodeResult(Uint8List data) =>
       _decodeResult(data);
+
+  @visibleForTesting
+  static void debugVerifyMd5(Uint8List bytes, String expectedMd5) =>
+      _verifyMd5(bytes, expectedMd5, 'test payload');
 }
 
 /// A gRPC client that sends and receives raw bytes, avoiding generated protobuf
