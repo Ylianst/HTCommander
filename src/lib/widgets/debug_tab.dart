@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../dialogs/firmware_update_dialog.dart';
+import '../dialogs/raw_command_dialog.dart';
 import '../models/radio_models.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker_client.dart';
@@ -139,10 +140,10 @@ class _DebugTabState extends State<DebugTab>
     );
   }
 
-  /// Opens the firmware update dialog for the currently connected radio.
-  /// (Experimental — lives in the Debug tab while the online update check is
-  /// still being worked out.)
-  void _onFirmwareUpdate() {
+  /// Resolves the device id of a currently connected radio, or -1 if none.
+  /// Prefers the user's selected radio, falling back to the first connected
+  /// radio instance.
+  int _resolveConnectedRadioId() {
     final bt = BluetoothService();
     int id = _broker.getValue<int>(1, 'SelectedRadioDeviceId', -1) ?? -1;
     if (id <= 0 || bt.radioInstance(id) == null) {
@@ -161,7 +162,16 @@ class _DebugTabState extends State<DebugTab>
         }
       }
     }
-    if (id <= 0 || bt.radioInstance(id) == null) {
+    if (id <= 0 || bt.radioInstance(id) == null) return -1;
+    return id;
+  }
+
+  /// Opens the firmware update dialog for the currently connected radio.
+  /// (Experimental — lives in the Debug tab while the online update check is
+  /// still being worked out.)
+  void _onFirmwareUpdate() {
+    final id = _resolveConnectedRadioId();
+    if (id < 0) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No radio connected.')),
@@ -169,6 +179,19 @@ class _DebugTabState extends State<DebugTab>
       return;
     }
     showFirmwareUpdateDialog(context, id);
+  }
+
+  /// Opens the raw command test dialog for the currently connected radio.
+  void _onRawCommand() {
+    final id = _resolveConnectedRadioId();
+    if (id < 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No radio connected.')),
+      );
+      return;
+    }
+    showRawCommandDialog(context, id);
   }
 
   Future<void> _onSaveToFile() async {
@@ -304,6 +327,14 @@ class _DebugTabState extends State<DebugTab>
             children: [SizedBox(width: 20), Text('Query Device Names')],
           ),
         ),
+        PopupMenuItem<String>(
+          value: 'rawCommand',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: const Row(
+            children: [SizedBox(width: 20), Text('Raw Command...')],
+          ),
+        ),
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
           value: 'autoScroll',
@@ -397,6 +428,9 @@ class _DebugTabState extends State<DebugTab>
           break;
         case 'queryDeviceNames':
           _onQueryDeviceNames();
+          break;
+        case 'rawCommand':
+          _onRawCommand();
           break;
         case 'autoScroll':
           setState(() => _autoScroll = !_autoScroll);
