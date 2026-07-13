@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'dialogs/about_dialog.dart';
+import 'dialogs/configure_buttons_dialog.dart';
 import 'dialogs/gps_serial_info_dialog.dart';
 import 'dialogs/import_channels_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
@@ -1615,6 +1616,15 @@ class _MainFormState extends State<MainForm>
             AppSubmenu(label: 'Regions', children: _buildRegionMenuItems())
           else
             const AppMenuAction(label: 'Regions', onPressed: null),
+          AppMenuAction(
+            label: 'Buttons...',
+            onPressed: _hasConnectedRadio
+                ? () => showConfigureButtonsDialog(
+                    context,
+                    initialDeviceId: _currentRadioDeviceId,
+                  )
+                : null,
+          ),
           const AppMenuDivider(),
           AppMenuAction(
             label: 'Export Channels...',

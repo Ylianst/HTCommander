@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/data_broker_client.dart';
 import '../models/radio_models.dart';
+import '../radio/radio_models.dart' as radio;
 import '../dialogs/radio_channel_dialog.dart';
 import '../dialogs/gps_details_dialog.dart';
 
@@ -31,6 +32,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   RadioHtStatus? _currentHtStatus;
   RadioSettings? _currentSettings;
   List<RadioChannelInfo>? _currentChannels;
+  // Full channel objects (with tones, de-emphasis, power, etc.) keyed by
+  // channelId, used as the payload when a channel is dragged out to be shared.
+  Map<int, radio.RadioChannelInfo> _fullChannels = {};
   String _friendlyName = '';
   bool _gpsEnabled = false;
   RadioPosition? _position;
@@ -119,6 +123,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _currentHtStatus = null;
     _currentSettings = null;
     _currentChannels = null;
+    _fullChannels = {};
     _friendlyName = '';
     _gpsEnabled = false;
     _position = null;
@@ -167,6 +172,15 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       'Channels',
       (json) => RadioChannelInfo.fromJson(json),
     );
+    final fullList = _broker.getJsonListValue<radio.RadioChannelInfo>(
+      widget.deviceId,
+      'Channels',
+      (json) => radio.RadioChannelInfo.fromJson(json),
+    );
+    _fullChannels = {
+      for (final c in fullList ?? const <radio.RadioChannelInfo>[])
+        c.channelId: c,
+    };
     _friendlyName =
         _broker.getValue<String>(widget.deviceId, 'FriendlyName') ?? '';
     _gpsEnabled =
@@ -231,6 +245,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                 .whereType<Map<String, dynamic>>()
                 .map((e) => RadioChannelInfo.fromJson(e))
                 .toList();
+            _fullChannels = {
+              for (final e in data.whereType<Map<String, dynamic>>())
+                (e['channelId'] as int? ?? e['channel_id'] as int? ?? 0):
+                    radio.RadioChannelInfo.fromJson(e),
+            };
           }
           break;
         case 'FriendlyName':
@@ -1151,7 +1170,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       bgColor = const Color(0xFFBDB76B); // DarkKhaki
     }
 
-    return GestureDetector(
+    final tile = GestureDetector(
       onTap: () => _onChannelTap(channel.channelId),
       onDoubleTap: () => _showChannelDetails(channel),
       onSecondaryTapDown: (details) {
@@ -1197,6 +1216,157 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           },
         ),
       ),
+    );
+
+    // Make the channel draggable so it can be dropped into the Comms/APRS tabs
+    // to be shared with another operator. The payload is the full channel
+    // (tones, de-emphasis, power, ...) so nothing is lost when it is encoded.
+    final full = _fullChannels[channel.channelId] ?? _asFullChannel(channel);
+    final draggable = Draggable<radio.RadioChannelInfo>(
+      data: full,
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      feedback: _buildChannelDragFeedback(channel),
+      childWhenDragging: Opacity(opacity: 0.4, child: tile),
+      child: tile,
+    );
+
+    // Also accept a dropped channel (e.g. a "yellow block" shared in chat, or
+    // another slot) to program this slot on the radio.
+    return DragTarget<radio.RadioChannelInfo>(
+      onWillAcceptWithDetails: (_) => widget.deviceId > 0,
+      onAcceptWithDetails: (details) =>
+          _onChannelDroppedOnSlot(details.data, channel.channelId),
+      builder: (context, candidate, rejected) {
+        final hovering = candidate.isNotEmpty;
+        return Stack(
+          children: [
+            Positioned.fill(child: draggable),
+            if (hovering)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.blue, width: 2),
+                      color: Colors.blue.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Programs [slotId] on the radio with a dropped [channel] after asking the
+  /// operator to confirm, since this overwrites the channel on the device.
+  Future<void> _onChannelDroppedOnSlot(
+    radio.RadioChannelInfo channel,
+    int slotId,
+  ) async {
+    if (widget.deviceId <= 0) return;
+    final name = channel.name.isNotEmpty ? channel.name : 'Channel';
+    final freq =
+        channel.rxFreq > 0 ? ' (${channel.frequencyDisplay} MHz)' : '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Program channel'),
+        content: Text(
+          'Program slot ${slotId + 1} with "$name"$freq?\n\n'
+          'This overwrites the channel currently stored on the radio.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Program'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    _broker.dispatch(
+      deviceId: widget.deviceId,
+      name: 'WriteChannel',
+      data: channel.copyWith(channelId: slotId),
+      store: false,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Programming slot ${slotId + 1} with "$name"...'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Small floating tile shown under the pointer while a channel is dragged.
+  Widget _buildChannelDragFeedback(RadioChannelInfo channel) {
+    return Material(
+      color: Colors.transparent,
+      child: Opacity(
+        opacity: 0.9,
+        child: Container(
+          width: 120,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEEE8AA), // PaleGoldenrod
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: Colors.grey.shade700, width: 1),
+            boxShadow: const [
+              BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                channel.name.isNotEmpty
+                    ? channel.name
+                    : 'Ch ${channel.channelId + 1}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (channel.rxFreq > 0)
+                Text(
+                  '${channel.frequencyDisplay} MHz',
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade700),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Converts the lightweight panel channel model into the full channel model
+  /// used for sharing. Used only as a fallback when the full channel (with
+  /// tones/de-emphasis/power) isn't available in [_fullChannels].
+  radio.RadioChannelInfo _asFullChannel(RadioChannelInfo c) {
+    return radio.RadioChannelInfo(
+      channelId: c.channelId,
+      name: c.name,
+      rxFreq: c.rxFreq,
+      txFreq: c.txFreq,
+      scan: c.scan,
+      txDisable: c.txDisable,
+      mute: c.mute,
+      txMod: radio.RadioModulationType.values[c.txMod.index],
+      rxMod: radio.RadioModulationType.values[c.rxMod.index],
+      bandwidth: c.bandwidth == RadioBandwidthType.wide
+          ? radio.RadioBandwidthType.wide
+          : radio.RadioBandwidthType.narrow,
     );
   }
 }

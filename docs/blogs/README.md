@@ -75,4 +75,16 @@ it into the radio.
 
 ---
 
+## Sharing & Interop
+
+Making HTCommander features portable between operators and radios.
+
+1. **[A Channel You Can Text: The Channel-Share String](channel-share-string.md)**
+   A compact, human-readable one-line format that encodes a whole radio channel —
+   frequency, offset, tones, bandwidth, modulation, and flags — so you can drag a
+   channel into a chat, send it (even over the air), and have the recipient drop
+   it straight into their radio.
+
+---
+
 *More topics coming as the project grows.*

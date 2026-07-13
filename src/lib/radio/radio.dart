@@ -354,6 +354,19 @@ class Radio {
       callback: _onUpdateFriendlyNameEvent,
     );
 
+    // Subscribe to programmable-function button-table requests from the
+    // Configure Buttons dialog (read GET_PF, write SET_PF).
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'QueryProgFunctions',
+      callback: _onQueryProgFunctionsEvent,
+    );
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'SetProgFunctions',
+      callback: _onSetProgFunctionsEvent,
+    );
+
     // Subscribe to GPS serial data
     _broker.subscribe(
       deviceId: 1,
@@ -372,6 +385,20 @@ class Radio {
 
   void _onShareSerialGpsChanged(int devId, String name, dynamic data) {
     _syncPositionNotification();
+  }
+
+  void _onQueryProgFunctionsEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    queryProgFunctions();
+  }
+
+  void _onSetProgFunctionsEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    if (data is Uint8List) {
+      writeProgFunctions(data);
+    } else if (data is List<int>) {
+      writeProgFunctions(Uint8List.fromList(data));
+    }
   }
 
   // Event handlers
@@ -1079,6 +1106,35 @@ class Radio {
       RadioBasicCommand.setRegion,
       Uint8List.fromList([region]),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Programmable functions (PF) — discovery
+  // ---------------------------------------------------------------------------
+  //
+  // The radio exposes a "programmable function" subsystem that maps physical
+  // buttons to effects. The Configure Buttons dialog reads the current table
+  // (GET_PF) and writes changes back (SET_PF). The GET_PF reply is parsed by
+  // [_handleGetPf] and dispatched as `PfTable`.
+
+  /// Requests the current programmable-function button table (GET_PF). The
+  /// reply lists each mapped button as `button_id + action + effect`.
+  void queryProgFunctions() {
+    _sendCommand(RadioCommandGroup.basic, RadioBasicCommand.getPf, null);
+  }
+
+  /// Writes the programmable-function button table (SET_PF). [entryBytes] is one
+  /// effect byte per slot, in the slot order returned by GET_PF. After writing,
+  /// the table is re-read so the cached `PfTable` reflects the radio's state.
+  void writeProgFunctions(Uint8List entryBytes) {
+    _sendCommand(RadioCommandGroup.basic, RadioBasicCommand.setPf, entryBytes);
+    // The radio does not notify of the change after a PF write, and it commits
+    // the write asynchronously — re-reading immediately returns a transient /
+    // half-updated table. Wait before re-reading so the cached value reflects
+    // the settled state.
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (_state == RadioState.connected) queryProgFunctions();
+    });
   }
 
   /// Maximum number of UTF-8 bytes stored for a region name. Confirmed against
@@ -2111,6 +2167,9 @@ class Radio {
       case RadioBasicCommand.getPosition:
         _handleGetPosition(cmd);
         break;
+      case RadioBasicCommand.getPf:
+        _handleGetPf(payload);
+        break;
       case RadioBasicCommand.readStatus:
         _handleReadStatus(payload); // Uses payload-relative offsets
         break;
@@ -2145,6 +2204,30 @@ class Radio {
       _deviceIdHex = RadioUtils.bytesToHex(blob);
       _dispatch('DeviceId', _deviceIdHex);
     }
+  }
+
+  /// Handles the GET_PF reply: a status byte followed by two bytes per slot
+  /// (`[(button<<4)|action, effect]`). The decoded table is dispatched as
+  /// `PfTable` (a list of maps) for the Configure Buttons dialog.
+  void _handleGetPf(Uint8List payload) {
+    if (payload.isEmpty) return;
+    final entries = <Map<String, Object?>>[];
+    for (int i = 1; i + 1 < payload.length; i += 2) {
+      final rawByte0 = payload[i];
+      final rawByte1 = payload[i + 1];
+      final buttonId = (rawByte0 >> 4) & 0x0F;
+      final actionRaw = rawByte0 & 0x0F;
+      final action = PFActionType.fromValue(actionRaw);
+      final effect = PFEffectType.fromValue(rawByte1);
+      entries.add({
+        'buttonId': buttonId,
+        'action': action.name,
+        'actionValue': actionRaw,
+        'effect': effect.name,
+        'effectValue': rawByte1,
+      });
+    }
+    _dispatch('PfTable', entries, store: true);
   }
 
   void _handleDevInfo(Uint8List data) {

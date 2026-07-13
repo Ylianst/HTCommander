@@ -290,6 +290,46 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
     Navigator.of(context).pop();
   }
 
+  /// Clears this channel slot on the radio after confirmation: resets the
+  /// frequencies, name and settings to empty defaults and writes it back.
+  Future<void> _onClear() async {
+    if (widget.deviceId <= 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear channel'),
+        content: Text(
+          'Clear channel ${widget.channelId + 1}?\n\n'
+          'This removes the frequency, name and settings from this slot '
+          'on the radio.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    // An empty channel: 0 Hz frequencies, no name, default settings.
+    final cleared = RadioChannelInfo(channelId: widget.channelId);
+    _broker.dispatch(
+      deviceId: widget.deviceId,
+      name: 'WriteChannel',
+      data: cleared,
+      store: false,
+    );
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
   // --- UI --------------------------------------------------------------------
 
   String get _title {
@@ -327,6 +367,14 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
               const SizedBox(height: 16),
               Row(
                 children: [
+                  TextButton(
+                    onPressed: widget.deviceId > 0 ? _onClear : null,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red.shade700,
+                    ),
+                    child: const Text('Clear'),
+                  ),
+                  const SizedBox(width: 8),
                   if (!_advancedMode)
                     TextButton.icon(
                       onPressed: () => setState(() => _advancedMode = true),

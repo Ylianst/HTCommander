@@ -24,6 +24,8 @@ import '../services/data_broker_client.dart';
 import '../services/microphone_capture.dart';
 import '../services/sherpa_model_manager.dart';
 import '../models/radio_models.dart';
+import '../radio/radio_models.dart' as radio;
+import '../utils/channel_share.dart';
 
 /// Voice transmit mode
 enum VoiceTransmitMode { chat, speak, morse, dtmf, ptt }
@@ -1112,6 +1114,66 @@ class _CommsTabState extends State<CommsTab>
     }
   }
 
+  /// Semi-transparent overlay shown over the chat area while a radio channel is
+  /// being dragged onto the tab, hinting that dropping will share the channel.
+  Widget _buildChannelDropOverlay() {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.amber.shade700, width: 2),
+        color: Colors.amber.withValues(alpha: 0.12),
+      ),
+      alignment: Alignment.center,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade700,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Text(
+          'Drop to share this channel',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  /// Called when a radio channel is dropped onto the tab. Encodes it as a
+  /// channel-share token and inserts it into the message box so the operator
+  /// can add a note and send it (chat mode carries it to another HTCommander).
+  void _onChannelDropped(radio.RadioChannelInfo channel) {
+    if (_currentMode != VoiceTransmitMode.chat) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Switch to Chat mode to share a channel.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+    _insertIntoMessage(ChannelShare.encode(channel));
+  }
+
+  /// Inserts [snippet] into the message box at the caret, adding surrounding
+  /// spaces so it stays a self-contained token, then refocuses the input.
+  void _insertIntoMessage(String snippet) {
+    final text = _messageController.text;
+    final sel = _messageController.selection;
+    final start = sel.isValid ? sel.start : text.length;
+    final end = sel.isValid ? sel.end : text.length;
+    final before = text.substring(0, start);
+    final after = text.substring(end);
+    final spaceBefore = before.isNotEmpty && !before.endsWith(' ') ? ' ' : '';
+    final spaceAfter = after.isNotEmpty && !after.startsWith(' ') ? ' ' : '';
+    final insert = '$spaceBefore$snippet$spaceAfter';
+    final caret = before.length + insert.length;
+    _messageController.value = TextEditingValue(
+      text: before + insert + after,
+      selection: TextSelection.collapsed(offset: caret),
+    );
+    _messageFocusNode.requestFocus();
+  }
+
   void _sendMessage() {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
@@ -2080,30 +2142,50 @@ class _CommsTabState extends State<CommsTab>
           _buildHeader(),
           if (_isMuted && _sstvAutoMuted) _buildMuteBanner(),
           Expanded(
-            child: DropTarget(
-              onDragEntered: (_) {
-                if (_isTabVisible && _canSendMedia) {
-                  setState(() => _dragOver = true);
-                }
+            child: DragTarget<radio.RadioChannelInfo>(
+              onWillAcceptWithDetails: (_) => true,
+              onAcceptWithDetails: (details) => _onChannelDropped(details.data),
+              builder: (context, candidate, rejected) {
+                final channelHover = candidate.isNotEmpty;
+                return Stack(
+                  children: [
+                    Positioned.fill(
+                      child: DropTarget(
+                        onDragEntered: (_) {
+                          if (_isTabVisible && _canSendMedia) {
+                            setState(() => _dragOver = true);
+                          }
+                        },
+                        onDragExited: (_) {
+                          if (_dragOver) setState(() => _dragOver = false);
+                        },
+                        onDragDone: _onFilesDropped,
+                        child: Container(
+                          foregroundDecoration: _dragOver
+                              ? BoxDecoration(
+                                  border:
+                                      Border.all(color: Colors.blue, width: 2),
+                                  color: Colors.blue.withValues(alpha: 0.08),
+                                )
+                              : null,
+                          child: ChatWidget(
+                            messages: _messages,
+                            onMessageTap: _onMessageTap,
+                            onMessageDoubleTap: _onMessageDoubleTap,
+                            onMessageContextMenu: _onMessageContextMenu,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (channelHover)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: _buildChannelDropOverlay(),
+                        ),
+                      ),
+                  ],
+                );
               },
-              onDragExited: (_) {
-                if (_dragOver) setState(() => _dragOver = false);
-              },
-              onDragDone: _onFilesDropped,
-              child: Container(
-                foregroundDecoration: _dragOver
-                    ? BoxDecoration(
-                        border: Border.all(color: Colors.blue, width: 2),
-                        color: Colors.blue.withValues(alpha: 0.08),
-                      )
-                    : null,
-                child: ChatWidget(
-                  messages: _messages,
-                  onMessageTap: _onMessageTap,
-                  onMessageDoubleTap: _onMessageDoubleTap,
-                  onMessageContextMenu: _onMessageContextMenu,
-                ),
-              ),
             ),
           ),
           if (_allowTransmit && _currentMode == VoiceTransmitMode.ptt)

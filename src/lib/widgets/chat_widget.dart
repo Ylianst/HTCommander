@@ -2,6 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../dialogs/channel_details_dialog.dart';
+import '../radio/radio_models.dart' as radio;
+import '../utils/channel_share.dart';
+
 /// Authentication state for chat messages
 enum ChatAuthState { unknown, none, success, failed }
 
@@ -421,10 +425,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                       children: [
                         if (message.message.isNotEmpty)
                           Flexible(
-                            child: Text(
-                              message.message,
-                              style: const TextStyle(fontSize: 14),
-                            ),
+                            child: _buildMessageContent(message.message),
                           ),
                         // Authentication indicator (lock = verified, broken =
                         // failed). Surfaces AX25 auth state on the bubble itself,
@@ -446,6 +447,41 @@ class _ChatWidgetState extends State<ChatWidget> {
               child: Icon(message.icon, size: 16, color: Colors.grey),
             ),
         ],
+      ),
+    );
+  }
+
+  /// Builds the body text of a bubble, replacing any channel-share tokens
+  /// (`HTC:1:...*CK`) with draggable "yellow block" chips that can be dropped
+  /// onto a radio slot to program the channel. Surrounding text is preserved.
+  Widget _buildMessageContent(String text) {
+    final matches = ChannelShare.findAll(text);
+    if (matches.isEmpty) {
+      return Text(text, style: const TextStyle(fontSize: 14));
+    }
+
+    final spans = <InlineSpan>[];
+    int cursor = 0;
+    for (final m in matches) {
+      if (m.start > cursor) {
+        spans.add(TextSpan(text: text.substring(cursor, m.start)));
+      }
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: _ChannelChip(channel: m.channel),
+        ),
+      );
+      cursor = m.end;
+    }
+    if (cursor < text.length) {
+      spans.add(TextSpan(text: text.substring(cursor)));
+    }
+
+    return Text.rich(
+      TextSpan(
+        style: const TextStyle(fontSize: 14, color: Colors.black),
+        children: spans,
       ),
     );
   }
@@ -532,3 +568,75 @@ class _VersionedFileImage extends FileImage {
   @override
   int get hashCode => Object.hash(file.path, scale, version);
 }
+
+/// An inline "yellow block" representing a shared radio channel decoded from a
+/// message. It can be dragged onto a radio slot to program the channel, and
+/// tapped to inspect the full channel details.
+class _ChannelChip extends StatelessWidget {
+  final radio.RadioChannelInfo channel;
+
+  const _ChannelChip({required this.channel});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = channel.name.isNotEmpty ? channel.name : 'Channel';
+    final freq = channel.rxFreq > 0 ? '${channel.frequencyDisplay} MHz' : '';
+
+    final chip = Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEE8AA), // PaleGoldenrod
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade700, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.radio, size: 14, color: Colors.black87),
+          const SizedBox(width: 4),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              if (freq.isNotEmpty)
+                Text(
+                  freq,
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade800),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    return Tooltip(
+      message: 'Drag onto a radio channel to program it',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.grab,
+        child: Draggable<radio.RadioChannelInfo>(
+          data: channel,
+          dragAnchorStrategy: pointerDragAnchorStrategy,
+          feedback: Material(
+            color: Colors.transparent,
+            child: Opacity(opacity: 0.9, child: chip),
+          ),
+          childWhenDragging: Opacity(opacity: 0.4, child: chip),
+          child: GestureDetector(
+            onTap: () => showChannelDetailsDialog(context, channel: channel),
+            child: chip,
+          ),
+        ),
+      ),
+    );
+  }
+}
+

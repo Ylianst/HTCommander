@@ -22,6 +22,7 @@ import '../aprs/packet_data_type.dart';
 import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
 import '../radio/ax25_packet.dart';
+import '../utils/channel_share.dart';
 
 /// A configured APRS route (a display name plus a comma-separated path).
 class _AprsRouteDef {
@@ -707,6 +708,56 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     return _aprsRoutes[_selectedRouteIndex].toRouteArray();
   }
 
+  /// Semi-transparent overlay shown over the message list while a radio channel
+  /// is being dragged onto the tab, hinting that dropping will share it.
+  Widget _buildChannelDropOverlay() {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.amber.shade700, width: 2),
+        color: Colors.amber.withValues(alpha: 0.12),
+      ),
+      alignment: Alignment.center,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade700,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Text(
+          'Drop to share this channel',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  /// Called when a radio channel is dropped onto the tab. Encodes it as a
+  /// channel-share token and inserts it into the message box so it can be sent
+  /// as an APRS message.
+  void _onChannelDropped(radio.RadioChannelInfo channel) {
+    _insertIntoMessage(ChannelShare.encode(channel));
+  }
+
+  /// Inserts [snippet] into the message box at the caret, adding surrounding
+  /// spaces so it stays a self-contained token, then refocuses the input.
+  void _insertIntoMessage(String snippet) {
+    final text = _messageController.text;
+    final sel = _messageController.selection;
+    final start = sel.isValid ? sel.start : text.length;
+    final end = sel.isValid ? sel.end : text.length;
+    final before = text.substring(0, start);
+    final after = text.substring(end);
+    final spaceBefore = before.isNotEmpty && !before.endsWith(' ') ? ' ' : '';
+    final spaceAfter = after.isNotEmpty && !after.startsWith(' ') ? ' ' : '';
+    final insert = '$spaceBefore$snippet$spaceAfter';
+    final caret = before.length + insert.length;
+    _messageController.value = TextEditingValue(
+      text: before + insert + after,
+      selection: TextSelection.collapsed(offset: caret),
+    );
+    _messageFocusNode.requestFocus();
+  }
+
   void _sendMessage() {
     final destination = _destinationController.text.trim().toUpperCase();
     final text = _messageController.text;
@@ -1150,10 +1201,27 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         if (_beaconInterval > 0) _buildBeaconBanner(),
         if (_showMissingChannel) _buildMissingChannelBanner(),
         Expanded(
-          child: ChatWidget(
-            messages: _messages,
-            onMessageDoubleTap: _onMessageDoubleTap,
-            onMessageContextMenu: _onMessageContextMenu,
+          child: DragTarget<radio.RadioChannelInfo>(
+            onWillAcceptWithDetails: (_) => true,
+            onAcceptWithDetails: (details) => _onChannelDropped(details.data),
+            builder: (context, candidate, rejected) {
+              final channelHover = candidate.isNotEmpty;
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: ChatWidget(
+                      messages: _messages,
+                      onMessageDoubleTap: _onMessageDoubleTap,
+                      onMessageContextMenu: _onMessageContextMenu,
+                    ),
+                  ),
+                  if (channelHover)
+                    Positioned.fill(
+                      child: IgnorePointer(child: _buildChannelDropOverlay()),
+                    ),
+                ],
+              );
+            },
           ),
         ),
         if (_allowTransmit) _buildInputPanel(),

@@ -167,6 +167,76 @@ enum RadioPowerStatus {
   const RadioPowerStatus(this.value);
 }
 
+/// Programmable-function action types (how a button event is interpreted).
+///
+/// Mirrors benlink's `PFActionType`. Used to decode the GET_PF button table.
+/// The edge actions ([lowToHigh]/[highToLow]) are the likely candidates for a
+/// live press/release when triggering a function remotely via DO_PROG_FUNC.
+enum PFActionType {
+  invalid(0),
+  short(1),
+  long(2),
+  veryLong(3),
+  double(4),
+  repeat(5),
+  lowToHigh(6),
+  highToLow(7),
+  shortSingle(8),
+  longRelease(9),
+  veryLongRelease(10),
+  veryVeryLong(11),
+  veryVeryLongRelease(12),
+  triple(13);
+
+  final int value;
+  const PFActionType(this.value);
+
+  static PFActionType fromValue(int value) => PFActionType.values.firstWhere(
+    (e) => e.value == value,
+    orElse: () => PFActionType.invalid,
+  );
+}
+
+/// Programmable-function effect types (what a button does when triggered).
+///
+/// Mirrors benlink's `PFEffectType`. These are the effects a physical button
+/// can be mapped to (via SET_PF) or that may be triggered remotely (via
+/// DO_PROG_FUNC). [mainPtt] keys the main-VFO transmitter.
+enum PFEffectType {
+  disable(0),
+  alarm(1),
+  alarmAndMute(2),
+  toggleOffline(3),
+  toggleRadioTx(4),
+  toggleTxPower(5),
+  toggleFm(6),
+  prevChannel(7),
+  nextChannel(8),
+  tCall(9),
+  prevRegion(10),
+  nextRegion(11),
+  toggleChScan(12),
+  mainPtt(13),
+  subPtt(14),
+  toggleMonitor(15),
+  btPairing(16),
+  toggleDoubleCh(17),
+  toggleAbCh(18),
+  sendLocation(19),
+  oneClickLink(20),
+  volDown(21),
+  volUp(22),
+  toggleMute(23);
+
+  final int value;
+  const PFEffectType(this.value);
+
+  static PFEffectType fromValue(int value) => PFEffectType.values.firstWhere(
+    (e) => e.value == value,
+    orElse: () => PFEffectType.disable,
+  );
+}
+
 /// GAIA protocol encoder/decoder for radio communication
 class GaiaProtocol {
   /// Decode a GAIA frame from raw data
