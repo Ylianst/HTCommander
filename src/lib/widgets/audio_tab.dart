@@ -17,6 +17,7 @@ import '../services/data_broker_client.dart';
 import '../services/microphone_capture.dart';
 import '../services/system_audio.dart';
 import '../services/window_service.dart';
+import 'dart_analysis_view.dart';
 import 'spectrogram/spectrogram_view.dart';
 
 /// Which audio source the spectrograph visualizes (or none to hide it).
@@ -71,14 +72,20 @@ class _AudioTabState extends State<AudioTab>
   SpectrogramSource _spectrogramSource = SpectrogramSource.none;
   SpectrogramController? _spectrogram;
 
+  // DART reception-quality analysis. Enabling this turns on extra decode-side
+  // work in the software modem (constellation capture + per-frame diagnostics),
+  // so it is off by default and persisted on DataBroker device 0
+  // ('DartAnalysisEnabled'). The last received packet's analysis is published on
+  // device 1 as 'DartAnalysis'.
+  bool _dartAnalysisEnabled = false;
+  DartReceptionAnalysis? _dartAnalysis;
+
   /// Whether the spectrograph is currently shown (any source other than none).
   bool get _showSpectrogram => _spectrogramSource != SpectrogramSource.none;
-
   // Live microphone capture (used by the microphone source).
   MicrophoneCapture? _micCapture;
   bool _micStarting = false;
   String? _micError;
-
   // Microphone transmit gain (linear multiplier, 1.0 = unchanged). Persisted
   // on DataBroker device 0 ('MicrophoneGain'). Shared with the Comms tab's
   // push-to-talk path so boosting here also boosts transmitted audio.
@@ -162,6 +169,19 @@ class _AudioTabState extends State<AudioTab>
       callback: _onMicGainChanged,
     );
 
+    // DART reception analysis: the on/off flag (device 0) and the per-packet
+    // analysis payload (device 1).
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'DartAnalysisEnabled',
+      callback: _onDartAnalysisEnabledChanged,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'DartAnalysis',
+      callback: _onDartAnalysisChanged,
+    );
+
     _currentRadioDeviceId = _resolveCurrentRadioId();
     _audioEnabled = _readAudioState();
     _loadForCurrentRadio();
@@ -181,6 +201,13 @@ class _AudioTabState extends State<AudioTab>
     _outputDeviceId = _broker.getValue<String>(0, 'OutputAudioDevice', '') ?? '';
     _inputDeviceId = _broker.getValue<String>(0, 'InputAudioDevice', '') ?? '';
     _loadAudioDevices();
+
+    // Restore the persisted DART reception-analysis toggle and last packet.
+    _dartAnalysisEnabled =
+        _broker.getValue<bool>(0, 'DartAnalysisEnabled', false) ?? false;
+    _dartAnalysis = DartReceptionAnalysis.tryParse(
+      _broker.getValueDynamic(1, 'DartAnalysis'),
+    );
 
     // Restore the persisted spectrograph source (device 0 = global settings).
     final savedSource =
@@ -531,6 +558,35 @@ class _AudioTabState extends State<AudioTab>
   }
 
   // ---------------------------------------------------------------------------
+  // DART reception analysis
+  // ---------------------------------------------------------------------------
+
+  void _onDartAnalysisEnabledChanged(int deviceId, String name, Object? data) {
+    if (!mounted || data is! bool) return;
+    setState(() => _dartAnalysisEnabled = data);
+  }
+
+  void _onDartAnalysisChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final parsed = DartReceptionAnalysis.tryParse(data);
+    if (parsed == null) return;
+    setState(() => _dartAnalysis = parsed);
+  }
+
+  /// Toggle DART reception analysis. Requests the software modem to start/stop
+  /// the extra decode-side work; the actual state is echoed back via
+  /// 'DartAnalysisEnabled' so the UI stays in sync.
+  void _setDartAnalysisEnabled(bool enabled) {
+    setState(() => _dartAnalysisEnabled = enabled);
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SetDartAnalysisEnabled',
+      data: enabled,
+      store: false,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Spectrograph
   // ---------------------------------------------------------------------------
 
@@ -867,6 +923,11 @@ class _AudioTabState extends State<AudioTab>
                         ),
                       ),
                   ],
+                  if (_dartAnalysisEnabled) ...[
+                    const SizedBox(height: 16),
+                    _buildSectionTitle('DART Reception Quality'),
+                    DartAnalysisSection(analysis: _dartAnalysis),
+                  ],
                 ],
               ],
             ),
@@ -1124,6 +1185,15 @@ class _AudioTabState extends State<AudioTab>
             _spectrogramSource == SpectrogramSource.microphone,
           ),
         ),
+        if (_audioChannelSupported) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'dartAnalysis',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: checkRow('DART Signal Analysis', _dartAnalysisEnabled),
+          ),
+        ],
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
@@ -1147,6 +1217,9 @@ class _AudioTabState extends State<AudioTab>
           break;
         case 'sourceMicrophone':
           _setSpectrogramSource(SpectrogramSource.microphone);
+          break;
+        case 'dartAnalysis':
+          _setDartAnalysisEnabled(!_dartAnalysisEnabled);
           break;
         case 'detach':
           windowService.createWindow('audio');

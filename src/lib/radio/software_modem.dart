@@ -19,6 +19,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../hamlib/audio_buffer.dart';
 import '../hamlib/audio_config.dart';
+import '../hamlib/dart_constellation.dart';
 import '../hamlib/dart_modem.dart';
 import '../hamlib/demod_afsk.dart';
 import '../hamlib/demod_psk.dart';
@@ -153,6 +154,17 @@ class _ModemInstance {
   /// dispatch it. Wired up in _buildInstance for DART instances.
   void Function(Uint8List frame, DartDecodeResult result)? onDartFrame;
 
+  /// When true, DART decodes capture the equalized constellation and every
+  /// decode result (even CRC failures) is reported via [onDartAnalysis] for the
+  /// reception-quality view. Off by default so the live path does no extra
+  /// work unless the user opens the DART Signal Analysis panel.
+  bool dartCaptureQuality = false;
+
+  /// Called for every DART decode result while [dartCaptureQuality] is on, so
+  /// the owner can publish signal-quality/constellation diagnostics. Fires for
+  /// failed-CRC frames too (poor receptions are exactly what we want to see).
+  void Function(DartDecodeResult result)? onDartAnalysis;
+
   // A valid-FCS frame the plain HDLC receiver decoded from inside an FX.25
   // block, held briefly while we wait to see if the FX.25 Reed-Solomon path
   // delivers the same frame. If it does not (RS decode failed or the block did
@@ -214,8 +226,12 @@ class _ModemInstance {
     // Try to decode from the current buffer; on success, consume the frame.
     while (dartRxSamples.length > 2000) {
       final Int16List buf = Int16List.fromList(dartRxSamples);
-      final result = dartModem!.decode(buf);
+      final result = dartModem!.decode(buf, captureConstellation: dartCaptureQuality);
       if (result == null) break;
+      // Report quality for every detected frame (even CRC failures) so the
+      // analysis panel can show how bad receptions look. Gated so nothing is
+      // computed or dispatched unless the panel is enabled.
+      if (dartCaptureQuality) onDartAnalysis?.call(result);
       if (result.crcOk) {
         onDartFrame?.call(result.payload, result);
       }
@@ -249,6 +265,7 @@ class _ModemInstance {
     dartModem = null;
     dartRxSamples.clear();
     onDartFrame = null;
+    onDartAnalysis = null;
   }
 }
 
@@ -306,6 +323,12 @@ class SoftwareModem {
   /// DART transmit level/mode (payload mode used for DART transmissions).
   DartMode _dartTxMode = DartMode.mode0;
 
+  /// When true, received DART frames are analysed for reception quality: the
+  /// decoder captures the equalized constellation and each result is published
+  /// on device 1 as 'DartAnalysis' for the Audio tab's analysis panel. Off by
+  /// default so nothing extra is computed unless the user enables the panel.
+  bool _dartAnalysisEnabled = false;
+
   // Per-session modem override (Terminal / Winlink contacts). While a session
   // is active the mode is switched to the contact's modem and the user's
   // regular setting is restored when the session ends.
@@ -341,6 +364,10 @@ class SoftwareModem {
     _dartTxMode = _parseDartLevel(
         _broker.getValue<String>(0, 'DartTxMode', '0') ?? '0');
 
+    // Load the DART reception-analysis toggle (defaults to off).
+    _dartAnalysisEnabled =
+        _broker.getValue<bool>(0, 'DartAnalysisEnabled', false) ?? false;
+
     // Subscribe to mode changes on device 0
     _broker.subscribe(
       deviceId: 0,
@@ -360,6 +387,13 @@ class SoftwareModem {
       deviceId: 0,
       name: 'SetDartTxMode',
       callback: _onSetDartTxModeRequested,
+    );
+
+    // Subscribe to DART reception-analysis on/off changes on device 0
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SetDartAnalysisEnabled',
+      callback: _onSetDartAnalysisEnabledRequested,
     );
 
     // Subscribe to per-session modem overrides (Terminal / Winlink contacts).
@@ -580,7 +614,88 @@ class SoftwareModem {
     _debug('DART transmit level set to ${_dartLevelName(_dartTxMode)}');
   }
 
-  /// Parse a DART level string ('0'..'5' or 'F') into a [DartMode].
+  /// Enable/disable DART reception-quality analysis. When on, live DART decodes
+  /// capture the equalized constellation and publish per-frame diagnostics; when
+  /// off, the decode path does no extra work.
+  void _onSetDartAnalysisEnabledRequested(
+    int deviceId,
+    String name,
+    Object? data,
+  ) {
+    if (_disposed) return;
+    if (data is! bool) return;
+    _dartAnalysisEnabled = data;
+    // Apply to any live DART instances immediately.
+    for (final state in _radioModems.values) {
+      state.generalModem?.dartCaptureQuality = _dartAnalysisEnabled;
+    }
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'DartAnalysisEnabled',
+      data: _dartAnalysisEnabled,
+      store: true,
+    );
+    _debug(
+      'DART reception analysis ${_dartAnalysisEnabled ? "enabled" : "disabled"}',
+    );
+  }
+
+  /// Publish reception-quality diagnostics for a decoded DART frame. Only called
+  /// while analysis is enabled. Builds a JSON-safe map (primitives + double
+  /// lists) so it can cross the broker to the Audio tab (incl. detached windows)
+  /// and is retained in memory as the "last received DART packet".
+  void _onDartAnalysis(DartDecodeResult result) {
+    if (_disposed) return;
+    final mode = DartMode.values[
+        result.header.modeIndex.clamp(0, DartMode.modeF.index)];
+    final params = DartModeParams.fromMode(mode);
+    final q = result.quality;
+
+    final rxI = <double>[];
+    final rxQ = <double>[];
+    final syms = result.constellation;
+    if (syms != null) {
+      for (final s in syms) {
+        rxI.add(s.i);
+        rxQ.add(s.q);
+      }
+    }
+
+    final refI = <double>[];
+    final refQ = <double>[];
+    if (!params.isFsk) {
+      for (final p in Constellation.get(params.constellation).points) {
+        refI.add(p.i);
+        refQ.add(p.q);
+      }
+    }
+
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'DartAnalysis',
+      data: <String, dynamic>{
+        'mode': result.header.modeIndex,
+        'modeDesc': params.description,
+        'isFsk': params.isFsk,
+        'crcOk': result.crcOk,
+        'evm': q.evmPercent,
+        'snr': q.snrDb,
+        'corr': q.preambleCorrelation,
+        'gain': q.channelGainDb,
+        'phaseDrift': result.phaseDriftDeg,
+        'ldpc': result.ldpcCorrections,
+        'payloadLen': result.payload.length,
+        'durationMs': result.durationMs,
+        'rxI': rxI,
+        'rxQ': rxQ,
+        'refI': refI,
+        'refQ': refQ,
+        'time': DateTime.now().toIso8601String(),
+      },
+      store: true,
+    );
+  }
+
   static DartMode _parseDartLevel(String level) {
     switch (level.trim().toUpperCase()) {
       case '1':
@@ -866,8 +981,10 @@ class SoftwareModem {
     if (mode == SoftwareModemMode.dart) {
       instance.dartModem = DartModem();
       instance.dartTxMode = _dartTxMode;
+      instance.dartCaptureQuality = _dartAnalysisEnabled;
       instance.onDartFrame = (frame, result) =>
           _onDartFrameReceived(state, instance, frame, result);
+      instance.onDartAnalysis = (result) => _onDartAnalysis(result);
       _debug('Built DART modem instance for device ${state.deviceId}');
       return instance;
     }

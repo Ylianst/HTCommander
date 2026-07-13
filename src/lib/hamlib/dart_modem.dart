@@ -528,6 +528,25 @@ class DartModem {
 
     // Assemble: guard + preamble + FSK header + FSK payload + guard.
     final preambleSamples = preamble.generate();
+
+    // The FSK header/payload are constant-envelope (amplitude 1.0, RMS ~0.707).
+    // The preamble was scaled for the *OFDM* data path, whose per-symbol RMS is
+    // far lower (high-PAPR IFFT output). Left as-is, the preamble is much
+    // quieter than the FSK payload it precedes, so in a Mode F frame it becomes
+    // the first casualty of channel noise — detection fails at the very SNR the
+    // amplitude-immune FSK payload is designed to survive. Scale the preamble
+    // up to match the FSK payload RMS so the whole frame is uniform amplitude
+    // and the preamble is as robust as the payload (correlation detection is
+    // energy-normalized, so only the relative level matters).
+    final double fskRms = _rmsOf(headerFsk);
+    final double preRms = _rmsOf(preambleSamples);
+    if (preRms > 1e-12 && fskRms > 1e-12) {
+      final double preScale = fskRms / preRms;
+      for (int i = 0; i < preambleSamples.length; i++) {
+        preambleSamples[i] *= preScale;
+      }
+    }
+
     final parts = <Float64List>[
       Float64List(_guardSamples),
       preambleSamples,
@@ -536,6 +555,16 @@ class DartModem {
       Float64List(_guardSamples),
     ];
     return DartOfdm.toPcm(parts);
+  }
+
+  /// Root-mean-square amplitude of a real signal (0 for an empty buffer).
+  static double _rmsOf(Float64List x) {
+    if (x.isEmpty) return 0;
+    double sumSq = 0;
+    for (final v in x) {
+      sumSq += v * v;
+    }
+    return math.sqrt(sumSq / x.length);
   }
 
   /// Decode a frame from PCM audio samples.

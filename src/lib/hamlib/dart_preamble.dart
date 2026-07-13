@@ -142,6 +142,15 @@ class DartPreamble {
 
   /// Detect preamble and also report the correlation peak (detection
   /// confidence). Returns position -1 and correlation 0 when not found.
+  ///
+  /// Returns the peak of the *earliest* preamble lobe that passes the two-half
+  /// verification, not the globally strongest peak. This matters for the
+  /// streaming receiver: when several frames are buffered at once (frames
+  /// arriving faster than the decode throttle), the oldest frame must be
+  /// decoded first. Picking the global maximum could lock onto a later frame —
+  /// whose payload is not fully buffered yet — and silently drop the earlier,
+  /// already-complete frame. For a single buffered frame this is identical to
+  /// taking the global maximum, so the over-the-air path is unchanged.
   PreambleDetection detectDetailed(
     Float64List rxSamples, {
     double threshold = 0.6,
@@ -151,53 +160,82 @@ class DartPreamble {
       return const PreambleDetection(position: -1, correlation: 0);
     }
 
-    // Compute normalized cross-correlation with the ZC reference
-    // We look for two consecutive peaks (the two halves)
+    // Search range: last offset where both halves + CE symbol still fit.
     final int searchLen = rxSamples.length - preambleSamples;
 
-    double bestCorr = 0;
-    int bestIdx = -1;
-
-    // Reference energy (constant)
+    // Reference energy (constant).
     double refEnergy = 0;
     for (int i = 0; i < refLen; i++) {
       refEnergy += _corrReference[i] * _corrReference[i];
     }
 
-    for (int start = 0; start <= searchLen; start++) {
-      // Correlate with first half
+    // Normalized correlation of the reference against the half starting at
+    // [start]. Returns 0 when the window energy is negligible.
+    double halfCorr(int start) {
       double corr = 0;
       double rxEnergy = 0;
       for (int i = 0; i < refLen; i++) {
-        corr += rxSamples[start + i] * _corrReference[i];
-        rxEnergy += rxSamples[start + i] * rxSamples[start + i];
+        final double s = rxSamples[start + i];
+        corr += s * _corrReference[i];
+        rxEnergy += s * s;
       }
-
-      // Normalized correlation
       final double denom = math.sqrt(rxEnergy * refEnergy);
-      if (denom < 1e-10) continue;
-      final double normCorr = corr.abs() / denom;
-
-      if (normCorr > threshold && normCorr > bestCorr) {
-        // Verify second half is also correlated
-        double corr2 = 0;
-        double rxEnergy2 = 0;
-        for (int i = 0; i < refLen; i++) {
-          corr2 += rxSamples[start + refLen + i] * _corrReference[i];
-          rxEnergy2 += rxSamples[start + refLen + i] * rxSamples[start + refLen + i];
-        }
-        final double denom2 = math.sqrt(rxEnergy2 * refEnergy);
-        if (denom2 < 1e-10) continue;
-        final double normCorr2 = corr2.abs() / denom2;
-
-        if (normCorr2 > threshold * 0.8) {
-          bestCorr = normCorr;
-          bestIdx = start;
-        }
-      }
+      if (denom < 1e-10) return 0;
+      return corr.abs() / denom;
     }
 
-    return PreambleDetection(position: bestIdx, correlation: bestCorr);
+    int start = 0;
+    // Collect the peak of every above-threshold run whose second half also
+    // correlates (a genuine preamble lobe), in ascending position order.
+    final List<PreambleDetection> lobes = <PreambleDetection>[];
+    double bestCorr = 0;
+    while (start <= searchLen) {
+      final double normCorr = halfCorr(start);
+      if (normCorr <= threshold) {
+        start++;
+        continue;
+      }
+
+      // Rising edge of a candidate lobe: walk the contiguous above-threshold
+      // run and remember its peak (the true frame timing).
+      double peakCorr = normCorr;
+      int peakIdx = start;
+      int j = start + 1;
+      while (j <= searchLen) {
+        final double c = halfCorr(j);
+        if (c <= threshold) break;
+        if (c > peakCorr) {
+          peakCorr = c;
+          peakIdx = j;
+        }
+        j++;
+      }
+
+      // Verify the second half also correlates at the lobe peak. If it does,
+      // this is a genuine preamble lobe. Otherwise it was noise/a sidelobe.
+      final double secondHalf = halfCorr(peakIdx + refLen);
+      if (secondHalf > threshold * 0.8) {
+        lobes.add(PreambleDetection(position: peakIdx, correlation: peakCorr));
+        if (peakCorr > bestCorr) bestCorr = peakCorr;
+      }
+      start = j + 1;
+    }
+
+    if (lobes.isEmpty) {
+      return const PreambleDetection(position: -1, correlation: 0);
+    }
+
+    // Return the EARLIEST lobe that is nearly as strong as the strongest one.
+    // A genuine preamble correlates far higher than noise, so requiring the
+    // chosen lobe to be within 75% of the best rejects spurious early noise
+    // lobes (preserving the old global-maximum's robustness) while still
+    // decoding buffered frames oldest-first when several genuine frames are
+    // present at once (streaming FIFO).
+    final double cutoff = bestCorr * 0.75;
+    for (final lobe in lobes) {
+      if (lobe.correlation >= cutoff) return lobe;
+    }
+    return lobes.first;
   }
 
   /// Estimate carrier frequency offset from the two preamble halves.

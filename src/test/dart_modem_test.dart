@@ -818,6 +818,7 @@ void _cmdLoopback(List<String> args) {
   double clip = 0; // 0 = no clipping; else fraction of peak to hard-limit at
   bool bandpass = false; // simulate the radio's ~300-2900 Hz audio passband
   List<int> modes = [0, 1, 2, 3, 4, 5];
+  int? payloadSize; // when set, test a single generated payload of this length
 
   for (int i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -836,6 +837,9 @@ void _cmdLoopback(List<String> args) {
       case '--modes':
         modes = args[++i].split(',').map(int.parse).toList();
         break;
+      case '--size':
+        payloadSize = int.parse(args[++i]);
+        break;
     }
   }
 
@@ -845,16 +849,20 @@ void _cmdLoopback(List<String> args) {
   print('  Clip: ${clip > 0 ? "${(clip * 100).toStringAsFixed(0)}% of peak" : "none"}');
   print('  Bandpass (300-2900 Hz radio filter): ${bandpass ? "on" : "off"}');
   print('  Modes: $modes');
+  if (payloadSize != null) print('  Payload size: $payloadSize bytes');
   print('');
 
-  // Test messages of increasing length
-  final testMessages = [
-    'Hi',
-    'Hello, World!',
-    'The quick brown fox jumps over the lazy dog.',
-    'DART modem test: ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 !@#\$%',
-    List.generate(100, (i) => String.fromCharCode(0x41 + i % 26)).join(),
-  ];
+  // Test messages of increasing length. When --size is given, test a single
+  // generated payload of exactly that many bytes instead.
+  final testMessages = payloadSize != null
+      ? [List.generate(payloadSize, (i) => String.fromCharCode(0x41 + i % 26)).join()]
+      : [
+          'Hi',
+          'Hello, World!',
+          'The quick brown fox jumps over the lazy dog.',
+          'DART modem test: ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 !@#\$%',
+          List.generate(100, (i) => String.fromCharCode(0x41 + i % 26)).join(),
+        ];
 
   int pass = 0;
   int fail = 0;
