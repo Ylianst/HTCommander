@@ -250,6 +250,10 @@ class _ConstellationPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Clip everything to the diagram's rectangle so outlier symbols (poor SNR)
+    // and edge markers never paint beyond its bounds.
+    canvas.clipRect(Offset.zero & size);
+
     final bg = Paint()..color = const Color(0xFF0A0A1A);
     canvas.drawRect(Offset.zero & size, bg);
 
