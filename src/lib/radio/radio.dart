@@ -174,6 +174,17 @@ class Radio {
   static const Duration _readResponseTimeout = Duration(milliseconds: 700);
   static const int _maxReadRetries = 2;
 
+  // Trusted (Bluetooth paired) device enumeration. The radio returns the list
+  // one entry at a time via GET_TRUSTED_DEVICE, indexed from 0. Requesting an
+  // index past the end replies with an `invalidParameter` status, which marks
+  // the end of the list. Results are accumulated here and dispatched as the
+  // `TrustedDevices` value for the Trusted Devices dialog.
+  final List<Map<String, Object?>> _trustedDevices = [];
+  int _trustedDeviceIndex = 0;
+  bool _trustedDeviceQueryActive = false;
+  Timer? _trustedDeviceTimer;
+  static const Duration _trustedDeviceTimeout = Duration(milliseconds: 1500);
+
   // Lock state
   RadioLockState? _lockState;
   int _savedRegionId = -1;
@@ -355,6 +366,19 @@ class Radio {
       callback: _onSetProgFunctionsEvent,
     );
 
+    // Subscribe to trusted (Bluetooth paired) device list requests and delete
+    // requests from the Trusted Devices dialog.
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'QueryTrustedDevices',
+      callback: _onQueryTrustedDevicesEvent,
+    );
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'DeleteTrustedDevice',
+      callback: _onDeleteTrustedDeviceEvent,
+    );
+
     // Subscribe to GPS serial data
     _broker.subscribe(
       deviceId: 1,
@@ -386,6 +410,20 @@ class Radio {
       writeProgFunctions(data);
     } else if (data is List<int>) {
       writeProgFunctions(Uint8List.fromList(data));
+    }
+  }
+
+  void _onQueryTrustedDevicesEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    queryTrustedDevices();
+  }
+
+  void _onDeleteTrustedDeviceEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    if (data is String) {
+      deleteTrustedDevice(data);
+    } else if (data is Map && data['mac'] is String) {
+      deleteTrustedDevice(data['mac'] as String);
     }
   }
 
@@ -1026,6 +1064,10 @@ class Radio {
     _clearChannelTimer = null;
     _batteryPollTimer?.cancel();
     _batteryPollTimer = null;
+    _trustedDeviceTimer?.cancel();
+    _trustedDeviceTimer = null;
+    _trustedDeviceQueryActive = false;
+    _trustedDevices.clear();
   }
 
   void _updateState(RadioState newState) {
@@ -1116,6 +1158,136 @@ class Radio {
     Future.delayed(const Duration(milliseconds: 800), () {
       if (_state == RadioState.connected) queryProgFunctions();
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Trusted (Bluetooth paired) devices
+  // ---------------------------------------------------------------------------
+  //
+  // The radio stores a list of trusted Bluetooth devices that it will accept
+  // connections from. The list is read one entry at a time (GET_TRUSTED_DEVICE)
+  // starting at index 0; requesting an index past the last entry replies with
+  // an `invalidParameter` status, which marks the end of the list. Each
+  // successful reply carries the device index, its 6-byte MAC address and a
+  // UTF-8 name. The accumulated list is dispatched as `TrustedDevices`.
+
+  /// Starts (re)reading the radio's trusted-device list from index 0. Results
+  /// are dispatched incrementally as `TrustedDevices` (a map with `loading` and
+  /// `devices` keys) so the dialog can show progress and the final list.
+  void queryTrustedDevices() {
+    if (_state != RadioState.connected) return;
+    _trustedDeviceTimer?.cancel();
+    _trustedDevices.clear();
+    _trustedDeviceIndex = 0;
+    _trustedDeviceQueryActive = true;
+    _dispatchTrustedDevices(loading: true);
+    _sendTrustedDeviceQuery();
+  }
+
+  /// Sends the GET_TRUSTED_DEVICE request for the current index and (re)arms a
+  /// watchdog so a missing reply still ends the enumeration.
+  void _sendTrustedDeviceQuery() {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.getTrustedDevice,
+      Uint8List.fromList([_trustedDeviceIndex & 0xFF]),
+    );
+    _trustedDeviceTimer?.cancel();
+    _trustedDeviceTimer =
+        Timer(_trustedDeviceTimeout, _finishTrustedDeviceQuery);
+  }
+
+  /// Ends the trusted-device enumeration and publishes the final list.
+  void _finishTrustedDeviceQuery() {
+    _trustedDeviceTimer?.cancel();
+    _trustedDeviceTimer = null;
+    _trustedDeviceQueryActive = false;
+    _dispatchTrustedDevices(loading: false);
+  }
+
+  void _dispatchTrustedDevices({required bool loading}) {
+    _dispatch('TrustedDevices', {
+      'loading': loading,
+      'devices': _trustedDevices
+          .map((d) => Map<String, Object?>.from(d))
+          .toList(),
+    });
+  }
+
+  /// Requests the radio delete the trusted device with the given [mac]
+  /// (DEL_TRUSTED_DEVICE), then re-reads the list so the cached value reflects
+  /// the radio's new state. [mac] is a colon-separated address (e.g.
+  /// `60:B7:6E:0E:D2:61`); the radio expects the 6 raw address bytes.
+  void deleteTrustedDevice(String mac) {
+    if (_state != RadioState.connected) return;
+    final macBytes = _parseMacBytes(mac);
+    if (macBytes == null) return;
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.delTrustedDevice,
+      macBytes,
+    );
+    // The radio does not push an updated list after a delete, so re-read it
+    // after a short delay to let the change settle.
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (_state == RadioState.connected) queryTrustedDevices();
+    });
+  }
+
+  /// Parses a colon-separated MAC address into its 6 raw bytes, or returns null
+  /// if it is not a valid 6-byte address.
+  Uint8List? _parseMacBytes(String mac) {
+    final parts = mac.split(':');
+    if (parts.length != 6) return null;
+    final bytes = Uint8List(6);
+    for (int i = 0; i < 6; i++) {
+      final value = int.tryParse(parts[i], radix: 16);
+      if (value == null || value < 0 || value > 255) return null;
+      bytes[i] = value;
+    }
+    return bytes;
+  }
+
+  /// Parses a GET_TRUSTED_DEVICE reply. Full command frame layout:
+  ///   cmd[0..3]  = vendor + command header
+  ///   cmd[4]     = reply status (0 = success, 5 = invalidParameter = end)
+  ///   cmd[5]     = device index
+  ///   cmd[6]     = reserved/flags (observed as 0)
+  ///   cmd[7..12] = 6-byte Bluetooth MAC address
+  ///   cmd[13..]  = UTF-8 device name
+  void _handleGetTrustedDevice(Uint8List cmd) {
+    if (!_trustedDeviceQueryActive) return;
+    _trustedDeviceTimer?.cancel();
+    _trustedDeviceTimer = null;
+
+    final status = cmd.length > 4 ? cmd[4] : 0xFF;
+    if (status != 0) {
+      // invalidParameter (or any error) marks the end of the list.
+      _finishTrustedDeviceQuery();
+      return;
+    }
+
+    if (cmd.length >= 13) {
+      final index = cmd[5];
+      final mac = List<int>.generate(
+        6,
+        (i) => cmd[7 + i],
+      ).map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase()).join(':');
+      final name = cmd.length > 13
+          ? RadioUtils.decodeUtf8Trimmed(cmd, 13, cmd.length - 13)
+          : '';
+      _trustedDevices.add({'index': index, 'mac': mac, 'name': name});
+      _dispatchTrustedDevices(loading: true);
+    }
+
+    // Ask for the next entry (bounded so a misbehaving radio can't loop
+    // forever).
+    _trustedDeviceIndex++;
+    if (_trustedDeviceIndex > 255) {
+      _finishTrustedDeviceQuery();
+      return;
+    }
+    _sendTrustedDeviceQuery();
   }
 
   /// Maximum number of UTF-8 bytes stored for a region name. Confirmed against
@@ -2147,6 +2319,9 @@ class Radio {
         break;
       case RadioBasicCommand.getPf:
         _handleGetPf(payload);
+        break;
+      case RadioBasicCommand.getTrustedDevice:
+        _handleGetTrustedDevice(cmd);
         break;
       case RadioBasicCommand.readStatus:
         _handleReadStatus(payload); // Uses payload-relative offsets

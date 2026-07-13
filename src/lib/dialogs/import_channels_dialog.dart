@@ -99,7 +99,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
   }
 
   bool get _canCopyAllOneToOne =>
-      widget.importedChannels.isNotEmpty &&
+      widget.importedChannels.length > 1 &&
       widget.importedChannels.length <= _slots.length;
 
   void _copyAllOneToOne() {

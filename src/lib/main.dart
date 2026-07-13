@@ -17,6 +17,7 @@ import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/radio_info_dialog.dart';
 import 'dialogs/rename_regions_dialog.dart';
 import 'dialogs/settings_dialog.dart';
+import 'dialogs/trusted_devices_dialog.dart';
 import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
 import 'handlers/aprs_handler.dart';
@@ -1616,6 +1617,15 @@ class _MainFormState extends State<MainForm>
             AppSubmenu(label: 'Regions', children: _buildRegionMenuItems())
           else
             const AppMenuAction(label: 'Regions', onPressed: null),
+          AppMenuAction(
+            label: 'Trusted Devices...',
+            onPressed: _hasConnectedRadio
+                ? () => showTrustedDevicesDialog(
+                    context,
+                    deviceId: _currentRadioDeviceId,
+                  )
+                : null,
+          ),
           AppMenuAction(
             label: 'Buttons...',
             onPressed: _hasConnectedRadio
