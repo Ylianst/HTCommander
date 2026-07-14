@@ -174,6 +174,19 @@ class _AudioTabState extends State<AudioTab>
       callback: _onMicGainChanged,
     );
 
+    // Keep the audio device selection in sync across all windows so a detached
+    // Audio tab drives the main window's devices instead of holding its own.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'OutputAudioDevice',
+      callback: _onOutputAudioDeviceChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'InputAudioDevice',
+      callback: _onInputAudioDeviceChanged,
+    );
+
     // DART reception analysis: the on/off flag (device 0) and the per-packet
     // analysis payload (device 1).
     _broker.subscribe(
@@ -685,6 +698,9 @@ class _AudioTabState extends State<AudioTab>
   }
 
   Future<void> _startMic() async {
+    // Detached windows are remote controls and never own audio hardware; the
+    // microphone is captured by the main window only.
+    if (windowService.isChildWindow) return;
     if (!MicrophoneCapture.isSupported) {
       if (mounted) {
         setState(() => _micError = 'Microphone capture is not supported here.');
@@ -771,24 +787,49 @@ class _AudioTabState extends State<AudioTab>
   void _onInputDeviceChanged(String? id) {
     final value = id ?? '';
     setState(() => _inputDeviceId = value);
-    // Persist globally (device 0); the Comms tab subscribes to this to switch
-    // the push-to-talk microphone.
+    // Publish on device 0 (persisted, shared). The main window owns the
+    // microphone and applies the change via its 'InputAudioDevice'
+    // subscription, so changing this from a detached window moves the main
+    // window's device rather than opening a second capture here.
     _broker.dispatch(
       deviceId: 0,
       name: 'InputAudioDevice',
       data: value,
       store: true,
     );
-    // Apply to a running spectrograph capture by restarting it on the new
-    // device.
+  }
+
+  /// Keeps the output-device dropdown in sync when the selection changes in any
+  /// window (so a detached tab and the main window always agree).
+  void _onOutputAudioDeviceChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final value = data is String ? data : '';
+    if (value == _outputDeviceId) return;
+    setState(() => _outputDeviceId = value);
+  }
+
+  /// Applies an input-device change. All windows update the dropdown, but only
+  /// the main window (which owns the microphone hardware) restarts capture; a
+  /// detached window must never open the mic (a second capture on the same
+  /// device fails/crashes).
+  void _onInputAudioDeviceChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final value = data is String ? data : '';
+    if (value != _inputDeviceId) {
+      setState(() => _inputDeviceId = value);
+    }
+    if (windowService.isChildWindow) return;
     final capture = _micCapture;
     if (capture != null) {
-      capture.deviceId = value.isEmpty ? null : value;
-      if (capture.isCapturing) {
-        () async {
-          await capture.stop();
-          if (_micNeeded) await _startMic();
-        }();
+      final newDeviceId = value.isEmpty ? null : value;
+      if (capture.deviceId != newDeviceId) {
+        capture.deviceId = newDeviceId;
+        if (capture.isCapturing) {
+          () async {
+            await capture.stop();
+            if (_micNeeded) await _startMic();
+          }();
+        }
       }
     }
   }
