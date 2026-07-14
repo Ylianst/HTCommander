@@ -22,6 +22,7 @@
 		<string>zh</string>
 		<string>ja</string>
 		<string>hi</string>
+		<string>de</string>
 	</array>
 	<key>CFBundleName</key>
 	<string>htcommander</string>

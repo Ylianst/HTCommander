@@ -1032,6 +1032,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   Widget _buildConnectPanel() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(8),
       child: SizedBox(
@@ -1046,7 +1047,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
               borderRadius: BorderRadius.circular(4),
             ),
           ),
-          child: Text(_isConnecting ? 'Connecting...' : 'Connect'),
+          child: Text(_isConnecting ? l10n.stateConnecting : l10n.commonConnect),
         ),
       ),
     );

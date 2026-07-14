@@ -420,6 +420,7 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
   }
 
   Widget _buildDisconnectedRow() {
+    final l10n = AppLocalizations.of(context);
     final bool isConnecting = _currentState == 'Connecting';
     return Row(
       children: [
@@ -442,7 +443,7 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               visualDensity: VisualDensity.compact,
             ),
-            child: Text(isConnecting ? 'Connecting...' : 'Connect'),
+            child: Text(isConnecting ? l10n.stateConnecting : l10n.commonConnect),
           ),
         ),
       ],

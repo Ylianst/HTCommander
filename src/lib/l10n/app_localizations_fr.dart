@@ -99,6 +99,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get languageHindi => 'Hindi';
 
   @override
+  String get languageGerman => 'Allemand';
+
+  @override
   String get menuAudio => 'Audio';
 
   @override
