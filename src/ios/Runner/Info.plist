@@ -20,6 +20,7 @@
 		<string>fr</string>
 		<string>es</string>
 		<string>zh</string>
+		<string>ja</string>
 	</array>
 	<key>CFBundleName</key>
 	<string>htcommander</string>

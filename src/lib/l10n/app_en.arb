@@ -92,6 +92,10 @@
   "@languageChinese": {
     "description": "Chinese language option."
   },
+  "languageJapanese": "Japanese",
+  "@languageJapanese": {
+    "description": "Japanese language option."
+  },
 
   "menuAudio": "Audio",
   "@menuAudio": {

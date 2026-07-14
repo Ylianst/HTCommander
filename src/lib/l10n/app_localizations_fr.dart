@@ -93,6 +93,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get languageChinese => 'Chinois';
 
   @override
+  String get languageJapanese => 'Japonais';
+
+  @override
   String get menuAudio => 'Audio';
 
   @override
