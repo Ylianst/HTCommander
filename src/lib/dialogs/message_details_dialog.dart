@@ -10,6 +10,8 @@ source/destination, duration, location, etc.).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
+
 /// All the metadata known about a single Comms tab message. Attached as the
 /// [ChatMessage.tag] so the details dialog can display the full record.
 class CommsMessageDetails {
@@ -63,67 +65,75 @@ class MessageDetailsDialog extends StatelessWidget {
     BuildContext context, {
     required CommsMessageDetails details,
   }) {
+    final l10n = AppLocalizations.of(context);
     return showDialog<void>(
       context: context,
-      builder: (context) => MessageDetailsDialog(items: _buildItems(details)),
+      builder: (context) =>
+          MessageDetailsDialog(items: _buildItems(l10n, details)),
     );
   }
 
   /// Builds the displayed name/value rows from a [CommsMessageDetails],
   /// skipping fields that have no meaningful value.
-  static List<MessageDetailItem> _buildItems(CommsMessageDetails d) {
+  static List<MessageDetailItem> _buildItems(
+    AppLocalizations l10n,
+    CommsMessageDetails d,
+  ) {
     final items = <MessageDetailItem>[];
-    items.add(MessageDetailItem('Type', _typeLabel(d.encoding)));
+    items.add(MessageDetailItem(l10n.msgdFieldType, _typeLabel(l10n, d.encoding)));
     items.add(
-      MessageDetailItem('Direction', d.isReceived ? 'Received' : 'Sent'),
+      MessageDetailItem(l10n.msgdFieldDirection,
+          d.isReceived ? l10n.msgdDirReceived : l10n.msgdDirSent),
     );
-    items.add(MessageDetailItem('Time', _formatTime(d.time)));
+    items.add(MessageDetailItem(l10n.msgdFieldTime, _formatTime(d.time)));
     if (d.channel.isNotEmpty) {
-      items.add(MessageDetailItem('Channel', d.channel));
+      items.add(MessageDetailItem(l10n.packetsColChannel, d.channel));
     }
     final source = d.source;
     if (source != null && source.isNotEmpty) {
-      items.add(MessageDetailItem('Source', source));
+      items.add(MessageDetailItem(l10n.msgdFieldSource, source));
     }
     final destination = d.destination;
     if (destination != null && destination.isNotEmpty) {
-      items.add(MessageDetailItem('Receiver', destination));
+      items.add(MessageDetailItem(l10n.msgdFieldReceiver, destination));
     }
     if (d.duration > 0) {
-      items.add(MessageDetailItem('Duration', _formatDuration(d.duration)));
+      items.add(MessageDetailItem(
+          l10n.msgdFieldDuration, _formatDuration(d.duration)));
     }
     final lat = d.latitude;
     final lon = d.longitude;
     if (lat != null && lon != null && (lat != 0 || lon != 0)) {
-      items.add(MessageDetailItem('Latitude', lat.toStringAsFixed(6)));
-      items.add(MessageDetailItem('Longitude', lon.toStringAsFixed(6)));
+      items.add(MessageDetailItem(l10n.msgdFieldLatitude, lat.toStringAsFixed(6)));
+      items.add(
+          MessageDetailItem(l10n.msgdFieldLongitude, lon.toStringAsFixed(6)));
     }
     if (d.text.trim().isNotEmpty) {
-      items.add(MessageDetailItem('Message', d.text.trim()));
+      items.add(MessageDetailItem(l10n.msgdFieldMessage, d.text.trim()));
     }
     final filename = d.filename;
     if (filename != null && filename.isNotEmpty) {
-      items.add(MessageDetailItem('File', filename));
+      items.add(MessageDetailItem(l10n.msgdFieldFile, filename));
     }
     return items;
   }
 
-  static String _typeLabel(String encoding) {
+  static String _typeLabel(AppLocalizations l10n, String encoding) {
     switch (encoding) {
       case 'Voice':
-        return 'Voice';
+        return l10n.msgdTypeVoice;
       case 'VoiceClip':
-        return 'Voice Clip';
+        return l10n.msgdTypeVoiceClip;
       case 'Recording':
-        return 'Recording';
+        return l10n.msgdTypeRecording;
       case 'Picture':
-        return 'SSTV Picture';
+        return l10n.msgdTypeSstvPicture;
       case 'Ident':
-        return 'Identification';
+        return l10n.msgdTypeIdentification;
       case 'BSS':
-        return 'Chat Message';
+        return l10n.msgdTypeChatMessage;
       case 'AX25':
-        return 'AX.25 Packet';
+        return l10n.msgdTypeAx25Packet;
       case 'APRS':
         return 'APRS';
       default:
@@ -147,9 +157,9 @@ class MessageDetailsDialog extends StatelessWidget {
   void _copyValue(BuildContext context, MessageDetailItem item) {
     Clipboard.setData(ClipboardData(text: item.value));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Value copied'),
-        duration: Duration(seconds: 1),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).apdValueCopied),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -164,9 +174,9 @@ class MessageDetailsDialog extends StatelessWidget {
     }
     Clipboard.setData(ClipboardData(text: sb.toString()));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('All values copied'),
-        duration: Duration(seconds: 1),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).apdAllValuesCopied),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -177,15 +187,16 @@ class MessageDetailsDialog extends StatelessWidget {
     MessageDetailItem item,
   ) async {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final l10n = AppLocalizations.of(context);
     final value = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
         position & const Size(40, 40),
         Offset.zero & overlay.size,
       ),
-      items: const [
-        PopupMenuItem<String>(value: 'copyValue', child: Text('Copy Value')),
-        PopupMenuItem<String>(value: 'copyAll', child: Text('Copy All')),
+      items: [
+        PopupMenuItem<String>(value: 'copyValue', child: Text(l10n.apdCopyValue)),
+        PopupMenuItem<String>(value: 'copyAll', child: Text(l10n.apdCopyAll)),
       ],
     );
     if (!context.mounted) return;
@@ -198,6 +209,7 @@ class MessageDetailsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -212,17 +224,17 @@ class MessageDetailsDialog extends StatelessWidget {
               // Title row with a "copy all" action.
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Message Details',
-                      style: TextStyle(
+                      l10n.msgdTitle,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Copy All',
+                    tooltip: l10n.apdCopyAll,
                     icon: const Icon(Icons.copy_all, size: 20),
                     onPressed: () => _copyAll(context),
                   ),
@@ -245,11 +257,11 @@ class MessageDetailsDialog extends StatelessWidget {
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: items.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(24),
+                      ? Padding(
+                          padding: const EdgeInsets.all(24),
                           child: Text(
-                            'No details available.',
-                            style: TextStyle(fontSize: 13),
+                            l10n.apdNoDetails,
+                            style: const TextStyle(fontSize: 13),
                           ),
                         )
                       : ListView.separated(
@@ -280,7 +292,7 @@ class MessageDetailsDialog extends StatelessWidget {
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.black87,
                     ),
-                    child: const Text('Copy All'),
+                    child: Text(l10n.apdCopyAll),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -289,7 +301,7 @@ class MessageDetailsDialog extends StatelessWidget {
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Close'),
+                    child: Text(l10n.commonClose),
                   ),
                 ],
               ),

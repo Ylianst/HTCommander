@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 /// Playback dialog for an audio recording, ported from the C#
 /// `RecordingPlaybackForm`. Shows a play/pause button, a draggable position
 /// bar (seek), and the current/total time of the clip.
@@ -112,6 +114,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final fileName = widget.filePath.split(Platform.pathSeparator).last;
     final maxMs = _duration.inMilliseconds.toDouble();
     final currentMs = (_dragValue ?? _position.inMilliseconds.toDouble()).clamp(
@@ -147,11 +150,11 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
             ),
             const SizedBox(height: 16),
             if (_loadFailed)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'Failed to load recording.',
-                  style: TextStyle(color: Colors.red),
+                  l10n.rpbFailedToLoad,
+                  style: const TextStyle(color: Colors.red),
                 ),
               ),
             Row(
@@ -212,7 +215,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
+                child: Text(l10n.commonClose),
               ),
             ),
           ],

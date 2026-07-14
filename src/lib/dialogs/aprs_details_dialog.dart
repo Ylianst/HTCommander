@@ -9,6 +9,7 @@ Ported from the C# `HTCommander.AprsDetailsForm` dialog.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import 'aprs_location_dialog.dart';
 
 /// A single name/value row shown in the [AprsDetailsDialog].
@@ -70,9 +71,9 @@ class AprsDetailsDialog extends StatelessWidget {
   void _copyValue(BuildContext context, AprsDetailItem item) {
     Clipboard.setData(ClipboardData(text: item.value));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Value copied'),
-        duration: Duration(seconds: 1),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).apdValueCopied),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -87,9 +88,9 @@ class AprsDetailsDialog extends StatelessWidget {
     }
     Clipboard.setData(ClipboardData(text: sb.toString()));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('All values copied'),
-        duration: Duration(seconds: 1),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).apdAllValuesCopied),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -100,15 +101,16 @@ class AprsDetailsDialog extends StatelessWidget {
     AprsDetailItem item,
   ) async {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final l10n = AppLocalizations.of(context);
     final value = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
         position & const Size(40, 40),
         Offset.zero & overlay.size,
       ),
-      items: const [
-        PopupMenuItem<String>(value: 'copyValue', child: Text('Copy Value')),
-        PopupMenuItem<String>(value: 'copyAll', child: Text('Copy All')),
+      items: [
+        PopupMenuItem<String>(value: 'copyValue', child: Text(l10n.apdCopyValue)),
+        PopupMenuItem<String>(value: 'copyAll', child: Text(l10n.apdCopyAll)),
       ],
     );
     if (!context.mounted) return;
@@ -121,6 +123,7 @@ class AprsDetailsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -135,17 +138,17 @@ class AprsDetailsDialog extends StatelessWidget {
               // Title row with a "copy all" action.
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'APRS Packet Details',
-                      style: TextStyle(
+                      l10n.apdTitle,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Copy All',
+                    tooltip: l10n.apdCopyAll,
                     icon: const Icon(Icons.copy_all, size: 20),
                     onPressed: () => _copyAll(context),
                   ),
@@ -168,11 +171,11 @@ class AprsDetailsDialog extends StatelessWidget {
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: items.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(24),
+                      ? Padding(
+                          padding: const EdgeInsets.all(24),
                           child: Text(
-                            'No details available.',
-                            style: TextStyle(fontSize: 13),
+                            l10n.apdNoDetails,
+                            style: const TextStyle(fontSize: 13),
                           ),
                         )
                       : ListView.separated(
@@ -205,7 +208,7 @@ class AprsDetailsDialog extends StatelessWidget {
                       if (_hasLocation)
                         if (compact)
                           IconButton(
-                            tooltip: 'Show Location...',
+                            tooltip: l10n.apdShowLocation,
                             onPressed: () => showAprsLocationDialog(
                               context,
                               latitude: latitude!,
@@ -226,7 +229,7 @@ class AprsDetailsDialog extends StatelessWidget {
                               title: locationTitle,
                             ),
                             icon: const Icon(Icons.location_pin, size: 18),
-                            label: const Text('Show Location...'),
+                            label: Text(l10n.apdShowLocation),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               foregroundColor: Colors.black87,
@@ -238,7 +241,7 @@ class AprsDetailsDialog extends StatelessWidget {
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.black87,
                         ),
-                        child: const Text('Copy All'),
+                        child: Text(l10n.apdCopyAll),
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
@@ -247,7 +250,7 @@ class AprsDetailsDialog extends StatelessWidget {
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                         ),
-                        child: const Text('Close'),
+                        child: Text(l10n.commonClose),
                       ),
                     ],
                   );

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../radio/packet_decoder.dart';
 import '../radio/tnc_data_fragment.dart';
 import '../radio/utils.dart';
@@ -248,8 +249,11 @@ class _PacketsTabState extends State<PacketsTab>
         overlay.size.width - globalPosition.dx,
         overlay.size.height - globalPosition.dy,
       ),
-      items: const [
-        PopupMenuItem<String>(value: 'copyHex', child: Text('Copy HEX packet')),
+      items: [
+        PopupMenuItem<String>(
+          value: 'copyHex',
+          child: Text(AppLocalizations.of(context).packetsCopyHex),
+        ),
       ],
     ).then((value) {
       if (value == 'copyHex') {
@@ -264,7 +268,7 @@ class _PacketsTabState extends State<PacketsTab>
     Clipboard.setData(ClipboardData(text: hex));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('HEX packet copied to clipboard')),
+        SnackBar(content: Text(AppLocalizations.of(context).packetsHexCopied)),
       );
     }
   }
@@ -308,7 +312,7 @@ class _PacketsTabState extends State<PacketsTab>
     final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
     try {
       outputPath = await FilePicker.saveFile(
-        dialogTitle: 'Save Packet Capture',
+        dialogTitle: AppLocalizations.of(context).packetsSaveTitle,
         fileName: needsBytes ? 'packets.ptcap' : 'packets',
         type: needsBytes ? FileType.any : FileType.custom,
         allowedExtensions: needsBytes ? null : const ['ptcap'],
@@ -317,7 +321,11 @@ class _PacketsTabState extends State<PacketsTab>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error opening file dialog: $e')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context).errorOpeningFileDialog(e.toString()),
+            ),
+          ),
         );
       }
       return;
@@ -329,7 +337,7 @@ class _PacketsTabState extends State<PacketsTab>
     if (needsBytes) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Packet capture saved')),
+          SnackBar(content: Text(AppLocalizations.of(context).packetsSaved)),
         );
       }
       return;
@@ -339,19 +347,28 @@ class _PacketsTabState extends State<PacketsTab>
       await File(outputPath).writeAsString(content);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Packet capture saved to $outputPath')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context).packetsSavedTo(outputPath),
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving file: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context).errorSavingFile(e.toString()),
+            ),
+          ),
+        );
       }
     }
   }
 
   void _showMenu(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
 
@@ -379,7 +396,7 @@ class _PacketsTabState extends State<PacketsTab>
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Show Packet Decode'),
+              Text(l10n.packetsShowDecode),
             ],
           ),
         ),
@@ -389,8 +406,8 @@ class _PacketsTabState extends State<PacketsTab>
           height: menuItemHeight,
           padding: menuItemPadding,
           enabled: _packets.isNotEmpty,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Save to File...')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.tabSaveToFile)],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -398,7 +415,7 @@ class _PacketsTabState extends State<PacketsTab>
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(children: [SizedBox(width: 20), Text('Clear')]),
+          child: Row(children: [const SizedBox(width: 20), Text(l10n.tabClear)]),
         ),
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
@@ -406,8 +423,8 @@ class _PacketsTabState extends State<PacketsTab>
             value: 'detach',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Detach...')],
+            child: Row(
+              children: [const SizedBox(width: 20), Text(l10n.tabDetach)],
             ),
           ),
         ],
@@ -512,9 +529,9 @@ class _PacketsTabState extends State<PacketsTab>
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
-          const Text(
-            'Packets',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          Text(
+            AppLocalizations.of(context).tabPackets,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
           const Spacer(),
           Builder(
@@ -579,10 +596,10 @@ class _PacketsTabState extends State<PacketsTab>
           _buildPacketListHeaders(),
           Expanded(
             child: _packets.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'No packets captured',
-                      style: TextStyle(color: Colors.grey),
+                      AppLocalizations.of(context).packetsEmpty,
+                      style: const TextStyle(color: Colors.grey),
                     ),
                   )
                 : Focus(
@@ -710,9 +727,9 @@ class _PacketsTabState extends State<PacketsTab>
       child: Row(
         children: [
           const SizedBox(width: 32), // Icon column
-          _buildColumnHeader('Time', 0, width: 80),
-          _buildColumnHeader('Channel', 1, width: 80),
-          _buildColumnHeader('Data', 2, flex: 1),
+          _buildColumnHeader(AppLocalizations.of(context).packetsColTime, 0, width: 80),
+          _buildColumnHeader(AppLocalizations.of(context).packetsColChannel, 1, width: 80),
+          _buildColumnHeader(AppLocalizations.of(context).packetsColData, 2, flex: 1),
         ],
       ),
     );

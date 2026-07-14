@@ -5,7 +5,6 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../services/data_broker_client.dart';

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 
 /// Result of the APRS SMS dialog: the recipient phone number and message text.
@@ -83,8 +84,9 @@ class _AprsSmsDialogState extends State<_AprsSmsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Send SMS Message'),
+      title: Text(l10n.smsTitle),
       content: SizedBox(
         width: 420,
         child: SingleChildScrollView(
@@ -101,7 +103,7 @@ class _AprsSmsDialogState extends State<_AprsSmsDialog> {
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(12),
                 ],
-                decoration: _inputDecoration(labelText: 'Phone Number'),
+                decoration: _inputDecoration(labelText: l10n.smsPhoneNumber),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -114,7 +116,7 @@ class _AprsSmsDialogState extends State<_AprsSmsDialog> {
                   FilteringTextInputFormatter.deny(RegExp(r'[~|}]')),
                   LengthLimitingTextInputFormatter(150),
                 ],
-                decoration: _inputDecoration(labelText: 'Message'),
+                decoration: _inputDecoration(labelText: l10n.mailMessageLabel),
               ),
             ],
           ),
@@ -123,11 +125,11 @@ class _AprsSmsDialogState extends State<_AprsSmsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.commonCancel),
         ),
         ElevatedButton(
           onPressed: _isValid ? _onOk : null,
-          child: const Text('OK'),
+          child: Text(l10n.commonOk),
         ),
       ],
     );
@@ -138,11 +140,8 @@ class _AprsSmsDialogState extends State<_AprsSmsDialog> {
       TextSpan(
         style: Theme.of(context).textTheme.bodyMedium,
         children: [
-          const TextSpan(
-            text:
-                'You can send SMS messages to phones in the USA, Puerto Rico, '
-                'Canada, Australia & UK as long as the phone number has already '
-                'opted in to the service. You can opt-in at: ',
+          TextSpan(
+            text: AppLocalizations.of(context).smsIntro,
           ),
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,

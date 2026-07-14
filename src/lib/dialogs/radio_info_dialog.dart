@@ -14,6 +14,7 @@ the broker dispatches new values.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/radio_models.dart';
 import '../services/data_broker_client.dart';
 import 'dialog_utils.dart';
@@ -222,11 +223,12 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     }
     return radio.macAddress.isNotEmpty
         ? radio.macAddress
-        : 'Radio ${radio.deviceId}';
+        : AppLocalizations.of(context).riRadioFallback(radio.deviceId);
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -242,7 +244,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'Radio Information',
+                  l10n.riTitle,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -263,7 +265,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('OK'),
+                    child: Text(l10n.commonOk),
                   ),
                 ],
               ),
@@ -280,7 +282,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: _sectionDecoration(),
         child: Text(
-          'No radio connected',
+          AppLocalizations.of(context).riNoRadioConnected,
           style: TextStyle(color: Colors.grey.shade600),
         ),
       );
@@ -327,10 +329,11 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   }
 
   Widget _buildContent() {
+    final l10n = AppLocalizations.of(context);
     if (_deviceId <= 0) {
       return Center(
         child: Text(
-          'Connect a radio to view its information.',
+          l10n.riConnectPrompt,
           style: TextStyle(color: Colors.grey.shade600),
         ),
       );
@@ -341,26 +344,29 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_friendlyName.isNotEmpty) ...[
-            _buildSection('Radio', [_row('Name', _friendlyName)]),
+            _buildSection(l10n.riSectionRadio, [
+              _row(l10n.riName, _friendlyName),
+            ]),
             const SizedBox(height: 12),
           ],
-          _buildSection('Device Information', _infoRows()),
+          _buildSection(l10n.riSectionDeviceInfo, _infoRows()),
           const SizedBox(height: 12),
-          _buildSection('Device Status', _statusRows()),
+          _buildSection(l10n.riSectionDeviceStatus, _statusRows()),
           const SizedBox(height: 12),
-          _buildSection('Device Settings', _settingsRows()),
+          _buildSection(l10n.riSectionDeviceSettings, _settingsRows()),
           const SizedBox(height: 12),
-          _buildSection('BSS Settings', _bssRows()),
+          _buildSection(l10n.riSectionBss, _bssRows()),
           const SizedBox(height: 12),
-          _buildSection('Position', _positionRows()),
+          _buildSection(l10n.riSectionPosition, _positionRows()),
         ],
       ),
     );
   }
 
   List<_InfoRow> _infoRows() {
+    final l10n = AppLocalizations.of(context);
     final i = _info;
-    if (i == null) return const [_InfoRow('Status', 'No data')];
+    if (i == null) return [_InfoRow(l10n.riStatus, l10n.riNoData)];
 
     String vendor = '${i.vendorId}';
     switch (i.vendorId) {
@@ -376,52 +382,54 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     }
 
     return [
-      _row('Product ID', '${i.productId}'),
-      _row('Vendor ID', vendor),
-      _row('DMR Support', _presentStr(i.supportDmr)),
-      _row('GMRS Support', _presentStr(i.gmrs)),
-      _row('Hardware Speaker', _presentStr(i.haveHmSpeaker)),
-      _row('Hardware Version', '${i.hwVer}'),
-      _row('Software Version', i.softwareVersion),
-      _row('Region Count', '${i.regionCount}'),
-      _row('Medium Power', _supportedStr(i.supportMediumPower)),
-      _row('Channel Count', '${i.channelCount}'),
-      _row('NOAA', _supportedStr(i.supportNoaa)),
-      _row('Radio', _supportedStr(i.supportRadio)),
-      _row('VFO', _supportedStr(i.supportVfo)),
-      _row('Freq Range Count', '${i.freqRangeCount}'),
+      _row(l10n.riProductId, '${i.productId}'),
+      _row(l10n.riVendorId, vendor),
+      _row(l10n.riDmrSupport, _presentStr(i.supportDmr)),
+      _row(l10n.riGmrsSupport, _presentStr(i.gmrs)),
+      _row(l10n.riHardwareSpeaker, _presentStr(i.haveHmSpeaker)),
+      _row(l10n.riHardwareVersion, '${i.hwVer}'),
+      _row(l10n.riSoftwareVersion, i.softwareVersion),
+      _row(l10n.riRegionCount, '${i.regionCount}'),
+      _row(l10n.riMediumPower, _supportedStr(i.supportMediumPower)),
+      _row(l10n.riChannelCount, '${i.channelCount}'),
+      _row(l10n.riNoaa, _supportedStr(i.supportNoaa)),
+      _row(l10n.riRadioLabel, _supportedStr(i.supportRadio)),
+      _row(l10n.riVfo, _supportedStr(i.supportVfo)),
+      _row(l10n.riFreqRangeCount, '${i.freqRangeCount}'),
     ];
   }
 
   List<_InfoRow> _statusRows() {
+    final l10n = AppLocalizations.of(context);
     final s = _htStatus;
-    if (s == null) return const [_InfoRow('Status', 'No data')];
+    if (s == null) return [_InfoRow(l10n.riStatus, l10n.riNoData)];
     return [
-      _row('Power On', _boolStr(s.isPowerOn)),
-      _row('In TX', _boolStr(s.isInTx)),
+      _row(l10n.riPowerOn, _boolStr(s.isPowerOn)),
+      _row(l10n.riInTx, _boolStr(s.isInTx)),
       _row('is_sq', _boolStr(s.isSq)),
-      _row('In RX', _boolStr(s.isInRx)),
-      _row('Double Channel', s.doubleChannel.name.toUpperCase()),
-      _row('Scanning', _boolStr(s.isScan)),
-      _row('Radio', _boolStr(s.isRadio)),
-      _row('Current Channel ID', '${s.currChId + 1}'),
-      _row('GPS Locked', _boolStr(s.isGpsLocked)),
-      _row('HFP Connected', _boolStr(s.isHfpConnected)),
-      _row('AOC Connected', _boolStr(s.isAocConnected)),
-      _row('RSSI', '${s.rssi}'),
-      _row('Current Region', '${s.currRegion}'),
+      _row(l10n.riInRx, _boolStr(s.isInRx)),
+      _row(l10n.riDoubleChannelLabel, s.doubleChannel.name.toUpperCase()),
+      _row(l10n.riScanning, _boolStr(s.isScan)),
+      _row(l10n.riRadioLabel, _boolStr(s.isRadio)),
+      _row(l10n.riCurrentChannelId, '${s.currChId + 1}'),
+      _row(l10n.riGpsLockedLabel, _boolStr(s.isGpsLocked)),
+      _row(l10n.riHfpConnected, _boolStr(s.isHfpConnected)),
+      _row(l10n.riAocConnected, _boolStr(s.isAocConnected)),
+      _row(l10n.riRssi, '${s.rssi}'),
+      _row(l10n.riCurrentRegion, '${s.currRegion}'),
     ];
   }
 
   List<_InfoRow> _settingsRows() {
+    final l10n = AppLocalizations.of(context);
     final s = _settings;
-    if (s == null) return const [_InfoRow('Settings', 'No data')];
+    if (s == null) return [_InfoRow(l10n.riSettingsLabel, l10n.riNoData)];
     final autoShareLocCh = s.autoShareLocCh == 0
-        ? 'Current'
-        : 'Channel ${s.autoShareLocCh}';
+        ? l10n.riCurrent
+        : l10n.riChannelValue(s.autoShareLocCh);
     return [
-      _row('VFO A', 'Channel ${s.channelA + 1}'),
-      _row('VFO B', 'Channel ${s.channelB + 1}'),
+      _row('VFO A', l10n.riChannelValue(s.channelA + 1)),
+      _row('VFO B', l10n.riChannelValue(s.channelB + 1)),
       _row('Scan', _boolStr(s.scan)),
       _row('AGHFP Call Mode', _boolStr(s.aghfpCallMode)),
       _row('Double Channel', '${s.doubleChannel}'),
@@ -463,11 +471,12 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   }
 
   List<_InfoRow> _bssRows() {
+    final l10n = AppLocalizations.of(context);
     final b = _bssSettings;
-    if (b == null) return const [_InfoRow('Settings', 'No data')];
+    if (b == null) return [_InfoRow(l10n.riSettingsLabel, l10n.riNoData)];
     final shareInterval = b.locationShareInterval == 0
-        ? 'Off'
-        : '${b.locationShareInterval} second(s)';
+        ? l10n.riOff
+        : l10n.riSeconds(b.locationShareInterval);
     return [
       _row('Allow Position Check', _boolStr(b.allowPositionCheck)),
       _row('APRS Callsign', '${b.aprsCallsign}-${b.aprsSsid}'),
@@ -488,33 +497,39 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   }
 
   List<_InfoRow> _positionRows() {
+    final l10n = AppLocalizations.of(context);
     final p = _position;
-    if (p == null) return const [_InfoRow('Status', 'No GPS data')];
-    if (!p.locked) return const [_InfoRow('Status', 'No GPS lock')];
+    if (p == null) return [_InfoRow(l10n.riStatus, l10n.riNoGpsData)];
+    if (!p.locked) return [_InfoRow(l10n.riStatus, l10n.riNoGpsLock)];
     final rows = <_InfoRow>[
-      _row('Status', 'GPS locked'),
-      _row('Latitude', _dmsStr(p.latitude, isLatitude: true)),
-      _row('Longitude', _dmsStr(p.longitude, isLatitude: false)),
-      _row('Accuracy', '${p.accuracy.toStringAsFixed(0)} meters'),
-      _row('Altitude', '${p.altitude.toStringAsFixed(0)} meters'),
-      _row('Speed', p.speed.toStringAsFixed(0)),
-      _row('Heading', '${p.heading.toStringAsFixed(0)} degrees'),
+      _row(l10n.riStatus, l10n.riGpsLocked),
+      _row(l10n.gpsLatitude, _dmsStr(p.latitude, isLatitude: true)),
+      _row(l10n.gpsLongitude, _dmsStr(p.longitude, isLatitude: false)),
+      _row(l10n.riAccuracy, l10n.riMeters(p.accuracy.toStringAsFixed(0))),
+      _row(l10n.gpsAltitude, l10n.riMeters(p.altitude.toStringAsFixed(0))),
+      _row(l10n.gpsSpeed, p.speed.toStringAsFixed(0)),
+      _row(l10n.gpsHeading, l10n.riDegrees(p.heading.toStringAsFixed(0))),
     ];
     if (p.receivedTime != null) {
-      rows.add(_row('Received Time', _formatTime(p.receivedTime!)));
+      rows.add(_row(l10n.riReceivedTime, _formatTime(p.receivedTime!)));
     }
     if (p.timestamp != null) {
-      rows.add(_row('GPS Time Local', _formatTime(p.timestamp!.toLocal())));
-      rows.add(_row('GPS Time UTC', _formatTime(p.timestamp!.toUtc())));
+      rows.add(_row(l10n.riGpsTimeLocal, _formatTime(p.timestamp!.toLocal())));
+      rows.add(_row(l10n.riGpsTimeUtcLabel, _formatTime(p.timestamp!.toUtc())));
     }
     return rows;
   }
 
-  static String _boolStr(bool v) => v ? 'True' : 'False';
+  String _boolStr(bool v) =>
+      v ? AppLocalizations.of(context).riTrue : AppLocalizations.of(context).riFalse;
 
-  static String _presentStr(bool v) => v ? 'Present' : 'Not-Present';
+  String _presentStr(bool v) => v
+      ? AppLocalizations.of(context).riPresent
+      : AppLocalizations.of(context).riNotPresent;
 
-  static String _supportedStr(bool v) => v ? 'Supported' : 'Not-Supported';
+  String _supportedStr(bool v) => v
+      ? AppLocalizations.of(context).riSupported
+      : AppLocalizations.of(context).riNotSupported;
 
   /// Formats a decimal degree value as degrees/minutes/seconds with a
   /// hemisphere suffix, matching the C# `ConvertLatitudeToDms` output.

@@ -12,6 +12,7 @@ form) with a delete button to remove it from the radio.
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import 'dialog_utils.dart';
 
@@ -105,13 +106,13 @@ class _TrustedDevicesDialogState extends State<_TrustedDevicesDialog> {
   }
 
   Future<void> _onDelete(_TrustedDevice device) async {
+    final l10n = AppLocalizations.of(context);
     final displayName = device.name.isEmpty ? device.mac : device.name;
     final confirmed = await DialogHelper.showConfirmDialog(
       context,
-      title: 'Remove Trusted Device',
-      message:
-          'Remove "$displayName" from the radio\'s trusted device list?',
-      okText: 'Remove',
+      title: l10n.trustedRemoveTitle,
+      message: l10n.trustedRemoveMessage(displayName),
+      okText: l10n.commonRemove,
     );
     if (!confirmed || !mounted) return;
     _broker.dispatch(
@@ -124,8 +125,9 @@ class _TrustedDevicesDialogState extends State<_TrustedDevicesDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return HTDialog(
-      title: 'Trusted Devices',
+      title: l10n.trustedDevicesTitle,
       maxWidth: 500,
       maxHeight: 450,
       content: Column(
@@ -145,20 +147,21 @@ class _TrustedDevicesDialogState extends State<_TrustedDevicesDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(l10n.commonClose),
         ),
       ],
     );
   }
 
   Widget _buildList() {
+    final l10n = AppLocalizations.of(context);
     if (_devices.isEmpty) {
       if (_loading) {
         return const Center(child: CircularProgressIndicator());
       }
-      return const Center(
+      return Center(
         child: Text(
-          'No trusted devices found.',
+          l10n.trustedNoDevices,
           textAlign: TextAlign.center,
           style: DialogStyles.bodyStyle,
         ),
@@ -191,7 +194,7 @@ class _TrustedDevicesDialogState extends State<_TrustedDevicesDialog> {
                 ),
           trailing: IconButton(
             visualDensity: VisualDensity.compact,
-            tooltip: 'Remove',
+            tooltip: l10n.commonRemove,
             icon: const Icon(Icons.delete, color: Colors.red),
             onPressed: () => _onDelete(device),
           ),

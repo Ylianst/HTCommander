@@ -6,6 +6,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
 
 /// Opens a read-only details view for a [channel].
@@ -48,23 +49,24 @@ class ChannelDetailsDialog extends StatelessWidget {
 
   /// Sub-audio values >= 1000 are CTCSS tones stored as Hz x 100, smaller
   /// non-zero values are DCS/DTCS codes.
-  static String _subAudio(int value) {
-    if (value == 0) return 'None';
+  static String _subAudio(AppLocalizations l10n, int value) {
+    if (value == 0) return l10n.commonNone;
     if (value >= 1000) return 'CTCSS ${(value / 100).toStringAsFixed(1)} Hz';
     return 'DCS $value';
   }
 
-  static String _power(RadioChannelInfo c) {
-    if (c.txAtMaxPower) return 'High';
-    if (c.txAtMedPower) return 'Medium';
-    return 'Low';
+  static String _power(AppLocalizations l10n, RadioChannelInfo c) {
+    if (c.txAtMaxPower) return l10n.chPowerHigh;
+    if (c.txAtMedPower) return l10n.chPowerMedium;
+    return l10n.chPowerLow;
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final displayName = channel.name.isNotEmpty
         ? channel.name
-        : 'Ch ${channel.channelId + 1}';
+        : l10n.chChShort(channel.channelId + 1);
 
     return AlertDialog(
       title: Text(title ?? displayName),
@@ -73,31 +75,34 @@ class ChannelDetailsDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _row('Name', channel.name.isNotEmpty ? channel.name : '(empty)'),
-            _row('RX Frequency', _freq(channel.rxFreq)),
-            _row('TX Frequency', _freq(channel.txFreq)),
-            _row('RX Modulation', _mod(channel.rxMod)),
-            _row('TX Modulation', _mod(channel.txMod)),
+            _row(l10n.contactsColName,
+                channel.name.isNotEmpty ? channel.name : l10n.cdEmpty),
+            _row(l10n.cdRxFrequency, _freq(channel.rxFreq)),
+            _row(l10n.cdTxFrequency, _freq(channel.txFreq)),
+            _row(l10n.cdRxModulation, _mod(channel.rxMod)),
+            _row(l10n.cdTxModulation, _mod(channel.txMod)),
             _row(
-              'Bandwidth',
+              l10n.chBandwidth,
               channel.bandwidth == RadioBandwidthType.wide
-                  ? '25 kHz (Wide)'
-                  : '12.5 kHz (Narrow)',
+                  ? l10n.cdBandwidthWide
+                  : l10n.cdBandwidthNarrow,
             ),
-            _row('Power', _power(channel)),
-            _row('RX Tone', _subAudio(channel.rxSubAudio)),
-            _row('TX Tone', _subAudio(channel.txSubAudio)),
-            _row('Scan', channel.scan ? 'On' : 'Off'),
-            _row('Talk Around', channel.talkAround ? 'On' : 'Off'),
-            _row('TX Disabled', channel.txDisable ? 'Yes' : 'No'),
-            _row('Mute', channel.mute ? 'On' : 'Off'),
+            _row(l10n.chPower, _power(l10n, channel)),
+            _row(l10n.cdRxTone, _subAudio(l10n, channel.rxSubAudio)),
+            _row(l10n.cdTxTone, _subAudio(l10n, channel.txSubAudio)),
+            _row(l10n.chScan, channel.scan ? l10n.commonOn : l10n.commonOff),
+            _row(l10n.cdTalkAround,
+                channel.talkAround ? l10n.commonOn : l10n.commonOff),
+            _row(l10n.cdTxDisabled,
+                channel.txDisable ? l10n.commonYes : l10n.commonNo),
+            _row(l10n.chMute, channel.mute ? l10n.commonOn : l10n.commonOff),
           ],
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(l10n.commonClose),
         ),
       ],
     );

@@ -16,6 +16,7 @@ import '../dialogs/image_view_dialog.dart';
 import '../dialogs/message_details_dialog.dart';
 import '../dialogs/recording_playback_dialog.dart';
 import '../dialogs/sstv_send_dialog.dart';
+import '../l10n/app_localizations.dart';
 import '../sstv/encoder.dart';
 import '../radio/dtmf_engine.dart';
 import '../services/window_service.dart';
@@ -336,7 +337,7 @@ class _CommsTabState extends State<CommsTab>
   Future<void> _pickAndSendImage() async {
     if (!_canSendMedia) return;
     final result = await FilePicker.pickFiles(
-      dialogTitle: 'Select Image for SSTV',
+      dialogTitle: AppLocalizations.of(context).commsSelectImageTitle,
       type: FileType.custom,
       allowedExtensions: _imageExtensions.toList(),
     );
@@ -349,6 +350,7 @@ class _CommsTabState extends State<CommsTab>
   /// Decodes the image at [path] and presents the SSTV send dialog.
   Future<void> _loadAndSendImage(String path) async {
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    final l10n = mounted ? AppLocalizations.of(context) : null;
     ui.Image image;
     try {
       final bytes = await File(path).readAsBytes();
@@ -357,7 +359,7 @@ class _CommsTabState extends State<CommsTab>
       image = frame.image;
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(content: Text('Failed to load image: $e')),
+        SnackBar(content: Text(l10n?.commsFailedLoadImage(e.toString()) ?? '')),
       );
       return;
     }
@@ -382,12 +384,11 @@ class _CommsTabState extends State<CommsTab>
   /// encoded SSTV audio to the radio.
   Future<void> _transmitSstv(SstvSendResult result) async {
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    final l10n = mounted ? AppLocalizations.of(context) : null;
     if (_isVfoAAprs) {
       messenger?.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Transmit is disabled while VFO A is set to the APRS channel.',
-          ),
+        SnackBar(
+          content: Text(l10n?.commsTransmitDisabledAprs ?? ''),
         ),
       );
       return;
@@ -395,8 +396,8 @@ class _CommsTabState extends State<CommsTab>
     final deviceId = _currentRadioDeviceId;
     if (deviceId <= 0 || !_isCurrentRadioConnected) {
       messenger?.showSnackBar(
-        const SnackBar(
-          content: Text('No radio is connected for voice transmission.'),
+        SnackBar(
+          content: Text(l10n?.commsNoRadioVoice ?? ''),
         ),
       );
       return;
@@ -407,8 +408,8 @@ class _CommsTabState extends State<CommsTab>
     try {
       if (kIsWeb) {
         messenger?.showSnackBar(
-          const SnackBar(
-            content: Text('SSTV image save/transmit is not available on web.'),
+          SnackBar(
+            content: Text(l10n?.commsSstvWebUnavailable ?? ''),
           ),
         );
         return;
@@ -429,7 +430,7 @@ class _CommsTabState extends State<CommsTab>
       await file.writeAsBytes(result.pngBytes);
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(content: Text('Failed to save image: $e')),
+        SnackBar(content: Text(l10n?.commsFailedSaveImage(e.toString()) ?? '')),
       );
       return;
     }
@@ -457,7 +458,7 @@ class _CommsTabState extends State<CommsTab>
       });
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(content: Text('Failed to encode SSTV audio: $e')),
+        SnackBar(content: Text(l10n?.commsFailedEncodeSstv(e.toString()) ?? '')),
       );
       return;
     }
@@ -481,7 +482,7 @@ class _CommsTabState extends State<CommsTab>
   Future<void> _pickAndSendAudio() async {
     if (!_canSendMedia) return;
     final result = await FilePicker.pickFiles(
-      dialogTitle: 'Select WAV Audio',
+      dialogTitle: AppLocalizations.of(context).commsSelectWavTitle,
       type: FileType.custom,
       allowedExtensions: const ['wav'],
     );
@@ -495,12 +496,11 @@ class _CommsTabState extends State<CommsTab>
   /// sends it to the radio for transmission.
   Future<void> _loadAndSendWav(String path) async {
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    final l10n = mounted ? AppLocalizations.of(context) : null;
     if (_isVfoAAprs) {
       messenger?.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Transmit is disabled while VFO A is set to the APRS channel.',
-          ),
+        SnackBar(
+          content: Text(l10n?.commsTransmitDisabledAprs ?? ''),
         ),
       );
       return;
@@ -508,8 +508,8 @@ class _CommsTabState extends State<CommsTab>
     final deviceId = _currentRadioDeviceId;
     if (deviceId <= 0 || !_isCurrentRadioConnected) {
       messenger?.showSnackBar(
-        const SnackBar(
-          content: Text('No radio is connected for voice transmission.'),
+        SnackBar(
+          content: Text(l10n?.commsNoRadioVoice ?? ''),
         ),
       );
       return;
@@ -522,13 +522,13 @@ class _CommsTabState extends State<CommsTab>
       pcm = await compute(_decodeWavToPcm32k, bytes);
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(content: Text('Failed to load audio: $e')),
+        SnackBar(content: Text(l10n?.commsFailedLoadAudio(e.toString()) ?? '')),
       );
       return;
     }
     if (pcm.isEmpty) {
       messenger?.showSnackBar(
-        const SnackBar(content: Text('Unsupported or empty WAV file.')),
+        SnackBar(content: Text(l10n?.commsUnsupportedWav ?? '')),
       );
       return;
     }
@@ -1129,9 +1129,9 @@ class _CommsTabState extends State<CommsTab>
           color: Colors.amber.shade700,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: const Text(
-          'Drop to share this channel',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        child: Text(
+          AppLocalizations.of(context).aprsDropShare,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -1144,9 +1144,9 @@ class _CommsTabState extends State<CommsTab>
     if (_currentMode != VoiceTransmitMode.chat) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Switch to Chat mode to share a channel.'),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).commsSwitchChatShare),
+          duration: const Duration(seconds: 3),
         ),
       );
       return;
@@ -1234,15 +1234,16 @@ class _CommsTabState extends State<CommsTab>
   /// mode, so pressing Send is never silently ignored.
   void _showSendDisabledHint() {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
     final String message;
     if (_isVfoAAprs) {
-      message = 'Transmit is disabled while VFO A is set to the APRS channel.';
+      message = l10n.commsTransmitDisabledAprs;
     } else if (_isTransmitting) {
-      message = 'Please wait for the current transmission to finish.';
+      message = l10n.commsWaitTransmission;
     } else if (_currentMode == VoiceTransmitMode.chat) {
-      message = 'Connect a radio before sending a chat message.';
+      message = l10n.commsConnectRadioChat;
     } else {
-      message = 'Enable audio (the Enable button) before sending in this mode.';
+      message = l10n.commsEnableAudioMode;
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
@@ -1422,17 +1423,18 @@ class _CommsTabState extends State<CommsTab>
   /// Shows a brief hint explaining why PTT can't be used right now.
   void _showPttDisabledHint() {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
     final String message;
     if (_isVfoAAprs) {
-      message = 'Transmit is disabled while VFO A is set to the APRS channel.';
+      message = l10n.commsTransmitDisabledAprs;
     } else if (!MicrophoneCapture.isSupported) {
-      message = 'Microphone capture is not supported on this platform.';
+      message = l10n.commsMicNotSupported;
     } else if (!_isCurrentRadioConnected) {
-      message = 'Connect a radio before using push-to-talk.';
+      message = l10n.commsConnectRadioPtt;
     } else if (!_audioEnabled) {
-      message = 'Enable audio (the Enable button) before using push-to-talk.';
+      message = l10n.commsEnableAudioPtt;
     } else {
-      message = 'Please wait for the current transmission to finish.';
+      message = l10n.commsWaitTransmission;
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
@@ -1444,14 +1446,14 @@ class _CommsTabState extends State<CommsTab>
   String get _sendButtonLabel {
     switch (_currentMode) {
       case VoiceTransmitMode.speak:
-        return 'Speak';
+        return AppLocalizations.of(context).commsModeSpeak;
       case VoiceTransmitMode.morse:
-        return 'Morse';
+        return AppLocalizations.of(context).commsModeMorse;
       case VoiceTransmitMode.dtmf:
-        return 'DTMF';
+        return AppLocalizations.of(context).commsModeDtmf;
       case VoiceTransmitMode.chat:
       case VoiceTransmitMode.ptt:
-        return 'Send';
+        return AppLocalizations.of(context).commonSend;
     }
   }
 
@@ -1540,18 +1542,18 @@ class _CommsTabState extends State<CommsTab>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear History'),
-        content: const Text(
-          'Are you sure you want to clear the voice history?',
+        title: Text(AppLocalizations.of(context).commsClearHistory),
+        content: Text(
+          AppLocalizations.of(context).commsClearHistoryPrompt,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('No'),
+            child: Text(AppLocalizations.of(context).commonNo),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes'),
+            child: Text(AppLocalizations.of(context).commonYes),
           ),
         ],
       ),
@@ -1607,8 +1609,8 @@ class _CommsTabState extends State<CommsTab>
     if (kIsWeb) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Recording playback from files is unavailable on web.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).commsRecordingWebUnavailable),
         ),
       );
       return;
@@ -1643,36 +1645,36 @@ class _CommsTabState extends State<CommsTab>
       ),
       items: [
         if (isImage)
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'showImage',
-            child: Text('Show Image...'),
+            child: Text(AppLocalizations.of(context).commsShowImage),
           ),
         if (isRecording)
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'playRecording',
-            child: Text('Play Recording...'),
+            child: Text(AppLocalizations.of(context).commsPlayRecording),
           ),
         if ((isImage || isRecording) && !kIsWeb)
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'saveAs',
-            child: Text('Save as...'),
+            child: Text(AppLocalizations.of(context).commsSaveAsMenu),
           ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'details',
-          child: Text('Details...'),
+          child: Text(AppLocalizations.of(context).aprsDetails),
         ),
         if (hasLocation)
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'location',
-            child: Text('Show Location'),
+            child: Text(AppLocalizations.of(context).commsShowLocation),
           ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'copyMessage',
-          child: Text('Copy Message'),
+          child: Text(AppLocalizations.of(context).aprsCopyMessage),
         ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'copyCallsign',
-          child: Text('Copy Callsign'),
+          child: Text(AppLocalizations.of(context).aprsCopyCallsign),
         ),
       ],
     );
@@ -1716,6 +1718,7 @@ class _CommsTabState extends State<CommsTab>
   /// recording file to disk.
   Future<void> _saveAs(ChatMessage message) async {
     if (kIsWeb) return;
+    final l10n = AppLocalizations.of(context);
 
     // Resolve the source file: an inline image or a stored recording.
     String? sourcePath;
@@ -1733,7 +1736,9 @@ class _CommsTabState extends State<CommsTab>
     if (!await sourceFile.exists()) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('The file no longer exists.')),
+          SnackBar(
+            content: Text(l10n.commsFileNoLongerExists),
+          ),
         );
       }
       return;
@@ -1747,7 +1752,7 @@ class _CommsTabState extends State<CommsTab>
     String? outputPath;
     try {
       outputPath = await FilePicker.saveFile(
-        dialogTitle: 'Save As',
+        dialogTitle: l10n.commsSaveAsTitle,
         fileName: baseName,
         type: extension.isNotEmpty ? FileType.custom : FileType.any,
         allowedExtensions: extension.isNotEmpty ? [extension] : null,
@@ -1755,7 +1760,9 @@ class _CommsTabState extends State<CommsTab>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error opening file dialog: $e')),
+          SnackBar(
+            content: Text(l10n.errorOpeningFileDialog(e.toString())),
+          ),
         );
       }
       return;
@@ -1772,15 +1779,19 @@ class _CommsTabState extends State<CommsTab>
     try {
       await sourceFile.copy(outputPath);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Saved to $outputPath')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.commonSavedTo(outputPath)),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving file: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.errorSavingFile(e.toString())),
+          ),
+        );
       }
     }
   }
@@ -1837,11 +1848,11 @@ class _CommsTabState extends State<CommsTab>
         globalPosition.dy,
       ),
       items: [
-        if (!kIsWeb) modeItem(VoiceTransmitMode.ptt, 'PTT'),
-        modeItem(VoiceTransmitMode.chat, 'Chat'),
-        if (!kIsWeb) modeItem(VoiceTransmitMode.speak, 'Speak'),
-        if (!kIsWeb) modeItem(VoiceTransmitMode.morse, 'Morse'),
-        if (!kIsWeb) modeItem(VoiceTransmitMode.dtmf, 'DTMF'),
+        if (!kIsWeb) modeItem(VoiceTransmitMode.ptt, AppLocalizations.of(context).commsModePtt),
+        modeItem(VoiceTransmitMode.chat, AppLocalizations.of(context).commsModeChat),
+        if (!kIsWeb) modeItem(VoiceTransmitMode.speak, AppLocalizations.of(context).commsModeSpeak),
+        if (!kIsWeb) modeItem(VoiceTransmitMode.morse, AppLocalizations.of(context).commsModeMorse),
+        if (!kIsWeb) modeItem(VoiceTransmitMode.dtmf, AppLocalizations.of(context).commsModeDtmf),
       ],
     ).then((mode) {
       if (mode == null || !mounted) return;
@@ -1850,6 +1861,7 @@ class _CommsTabState extends State<CommsTab>
   }
 
   void _showMenu(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
 
@@ -1880,7 +1892,7 @@ class _CommsTabState extends State<CommsTab>
                       ? const Text('✓', style: TextStyle(fontSize: 14))
                       : null,
                 ),
-                const Text('PTT'),
+                Text(l10n.commsModePtt),
               ],
             ),
           ),
@@ -1897,7 +1909,7 @@ class _CommsTabState extends State<CommsTab>
                       ? const Text('✓', style: TextStyle(fontSize: 14))
                       : null,
                 ),
-                const Text('Chat'),
+                Text(l10n.commsModeChat),
               ],
             ),
           ),
@@ -1914,7 +1926,7 @@ class _CommsTabState extends State<CommsTab>
                       ? const Text('✓', style: TextStyle(fontSize: 14))
                       : null,
                 ),
-                const Text('Speak'),
+                Text(l10n.commsModeSpeak),
               ],
             ),
           ),
@@ -1931,7 +1943,7 @@ class _CommsTabState extends State<CommsTab>
                       ? const Text('✓', style: TextStyle(fontSize: 14))
                       : null,
                 ),
-                const Text('Morse'),
+                Text(l10n.commsModeMorse),
               ],
             ),
           ),
@@ -1948,7 +1960,7 @@ class _CommsTabState extends State<CommsTab>
                       ? const Text('✓', style: TextStyle(fontSize: 14))
                       : null,
                 ),
-                const Text('DTMF'),
+                Text(l10n.commsModeDtmf),
               ],
             ),
           ),
@@ -1973,7 +1985,7 @@ class _CommsTabState extends State<CommsTab>
                         : null,
                   ),
                   Text(
-                    'Speech-to-Text',
+                    AppLocalizations.of(context).settingsSpeechToText,
                     style: _sttModelReady
                         ? null
                         : const TextStyle(color: Colors.grey),
@@ -1993,7 +2005,7 @@ class _CommsTabState extends State<CommsTab>
                       ? const Text('✓', style: TextStyle(fontSize: 14))
                       : null,
                 ),
-                const Text('Record Audio'),
+                Text(AppLocalizations.of(context).commsRecordAudio),
               ],
             ),
           ),
@@ -2003,8 +2015,8 @@ class _CommsTabState extends State<CommsTab>
             height: menuItemHeight,
             padding: menuItemPadding,
             enabled: _canSendMedia,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Send Image...')],
+            child: Row(
+              children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).commsSendImage)],
             ),
           ),
           PopupMenuItem<String>(
@@ -2012,8 +2024,8 @@ class _CommsTabState extends State<CommsTab>
             height: menuItemHeight,
             padding: menuItemPadding,
             enabled: _canSendMedia,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Send Audio...')],
+            child: Row(
+              children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).commsSendAudio)],
             ),
           ),
         ],
@@ -2031,8 +2043,8 @@ class _CommsTabState extends State<CommsTab>
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Clear History')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).commsClearHistory)],
           ),
         ),
         if (windowService.canDetach) ...[
@@ -2041,8 +2053,8 @@ class _CommsTabState extends State<CommsTab>
             value: 'detach',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Detach...')],
+            child: Row(
+              children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).tabDetach)],
             ),
           ),
         ],
@@ -2103,12 +2115,6 @@ class _CommsTabState extends State<CommsTab>
           break;
       }
     });
-  }
-
-  Color _getIndicatorColor() {
-    if (_isProcessing) return Colors.red;
-    if (_isListening) return Colors.green;
-    return Colors.transparent;
   }
 
   /// Maps the space bar to push-to-talk while the PTT mode is selected, so the
@@ -2209,8 +2215,11 @@ class _CommsTabState extends State<CommsTab>
         children: [
           const Icon(Icons.volume_off, size: 18, color: Colors.black54),
           const SizedBox(width: 8),
-          const Expanded(
-            child: Text('Audio is muted.', style: TextStyle(fontSize: 14)),
+          Expanded(
+            child: Text(
+              AppLocalizations.of(context).commsAudioMuted,
+              style: const TextStyle(fontSize: 14),
+            ),
           ),
           SizedBox(
             height: 28,
@@ -2220,7 +2229,7 @@ class _CommsTabState extends State<CommsTab>
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 textStyle: const TextStyle(fontSize: 12),
               ),
-              child: const Text('Un-mute'),
+              child: Text(AppLocalizations.of(context).commsUnmute),
             ),
           ),
         ],
@@ -2239,9 +2248,9 @@ class _CommsTabState extends State<CommsTab>
           final showButton = constraints.maxWidth > 180;
           return Row(
             children: [
-              const Text(
-                'Communications',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              Text(
+                AppLocalizations.of(context).tabComms,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               // Processing indicator
               if (_isListening || _isProcessing)
@@ -2271,7 +2280,11 @@ class _CommsTabState extends State<CommsTab>
                           ? Colors.red.shade100
                           : null,
                     ),
-                    child: Text(_audioEnabled ? 'Disable' : 'Enable'),
+                    child: Text(
+                      _audioEnabled
+                          ? AppLocalizations.of(context).audioDisable
+                          : AppLocalizations.of(context).audioEnable,
+                    ),
                   ),
                 ),
               if (showButton && _audioChannelSupported)
@@ -2344,7 +2357,9 @@ class _CommsTabState extends State<CommsTab>
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _pttActive ? 'Transmitting...' : 'PTT - Hold to Transmit',
+                      _pttActive
+                          ? AppLocalizations.of(context).commsPttTransmitting
+                          : AppLocalizations.of(context).commsPttHold,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
@@ -2385,8 +2400,8 @@ class _CommsTabState extends State<CommsTab>
                 style: const TextStyle(fontSize: 14),
                 decoration: InputDecoration(
                   hintText: _currentMode == VoiceTransmitMode.dtmf
-                      ? 'Enter DTMF digits (0-9, *, #)...'
-                      : 'Type a message...',
+                      ? AppLocalizations.of(context).commsDtmfHint
+                      : AppLocalizations.of(context).aprsTypeMessage,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                   border: InputBorder.none,
                   isCollapsed: true,
@@ -2451,7 +2466,7 @@ class _CommsTabState extends State<CommsTab>
             foregroundColor: Colors.white,
           ),
           icon: const Icon(Icons.stop, size: 18),
-          label: const Text('Cancel'),
+          label: Text(AppLocalizations.of(context).commonCancel),
         ),
       ),
     );

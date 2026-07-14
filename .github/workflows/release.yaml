@@ -311,6 +311,7 @@ jobs:
           [Desktop Entry]
           Name=HTCommander
           Comment=Amateur Radio tool for UV-Pro, GA-5WB, VR-N76, VR-N7500 and compatible radios
+          Comment[fr]=Outil de radio amateur pour UV-Pro, GA-5WB, VR-N76, VR-N7500 et radios compatibles
           Exec=/usr/bin/htcommander
           Icon=htcommander
           Type=Application
@@ -358,6 +359,7 @@ jobs:
           [Desktop Entry]
           Name=HTCommander
           Comment=Amateur Radio tool for UV-Pro, GA-5WB, VR-N76, VR-N7500 and compatible radios
+          Comment[fr]=Outil de radio amateur pour UV-Pro, GA-5WB, VR-N76, VR-N7500 et radios compatibles
           Exec=/usr/bin/htcommander
           Icon=htcommander
           Type=Application
@@ -414,6 +416,7 @@ jobs:
           [Desktop Entry]
           Name=HTCommander
           Comment=Amateur Radio tool for UV-Pro, GA-5WB, VR-N76, VR-N7500 and compatible radios
+          Comment[fr]=Outil de radio amateur pour UV-Pro, GA-5WB, VR-N76, VR-N7500 et radios compatibles
           Exec=htcommander
           Icon=htcommander
           Type=Application

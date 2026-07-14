@@ -1,0 +1,1598 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Handi-Talkie Commander",
+  "@appTitle": {
+    "description": "The application product name. Do not translate."
+  },
+
+  "menuFile": "File",
+  "@menuFile": {
+    "description": "Top-level File menu label (labeled 'Radio' on macOS)."
+  },
+  "menuConnect": "Connect...",
+  "@menuConnect": {
+    "description": "Menu item to connect to a radio."
+  },
+  "menuDisconnect": "Disconnect",
+  "@menuDisconnect": {
+    "description": "Menu item to disconnect from a radio."
+  },
+  "menuSettings": "Settings...",
+  "@menuSettings": {
+    "description": "Menu item that opens the settings dialog."
+  },
+  "menuExit": "Exit",
+  "@menuExit": {
+    "description": "Menu item that quits the application."
+  },
+  "menuDualWatch": "Dual-Watch",
+  "menuScan": "Scan",
+  "menuRegions": "Regions",
+  "menuTrustedDevices": "Trusted Devices...",
+  "menuButtons": "Buttons...",
+  "menuExportChannels": "Export Channels...",
+  "menuImportChannels": "Import Channels...",
+  "menuMacRadio": "Radio",
+  "menuMacDisplay": "Display",
+
+  "commonClose": "Close",
+  "@commonClose": {
+    "description": "Generic Close button."
+  },
+  "commonCancel": "Cancel",
+  "@commonCancel": {
+    "description": "Generic Cancel button."
+  },
+  "commonOk": "OK",
+  "@commonOk": {
+    "description": "Generic confirm/OK button."
+  },
+
+  "aboutCheckForUpdates": "Check for Updates",
+  "@aboutCheckForUpdates": {
+    "description": "Button in the About dialog to check for application updates."
+  },
+  "aboutVersionAuthor": "Version {version}\nYlian Saint-Hilaire, KK7VZT\nOpen Source, Apache 2.0 License",
+  "@aboutVersionAuthor": {
+    "description": "Version and author block in the About dialog.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "0.1.11"
+      }
+    }
+  },
+
+  "settingsLanguage": "Language",
+  "@settingsLanguage": {
+    "description": "Label for the application language selector in Settings."
+  },
+  "settingsLanguageHint": "Choose the language used by the application. 'System default' follows your device language.",
+  "@settingsLanguageHint": {
+    "description": "Helper text under the language selector."
+  },
+  "languageSystem": "System default",
+  "@languageSystem": {
+    "description": "Language option that follows the operating system locale."
+  },
+  "languageEnglish": "English",
+  "@languageEnglish": {
+    "description": "English language option."
+  },
+  "languageFrench": "French",
+  "@languageFrench": {
+    "description": "French language option."
+  },
+
+  "menuAudio": "Audio",
+  "@menuAudio": {
+    "description": "Top-level Audio menu label."
+  },
+  "menuAudioEnabled": "Audio Enabled",
+  "@menuAudioEnabled": {
+    "description": "Toggle that enables radio audio."
+  },
+  "menuSoftwareModem": "Software Modem",
+  "@menuSoftwareModem": {
+    "description": "Submenu selecting the software modem mode."
+  },
+  "menuModemDisabled": "Disabled",
+  "@menuModemDisabled": {
+    "description": "Menu option that turns a modem off."
+  },
+  "menuDartTransmitLevel": "DART Transmit Level",
+  "@menuDartTransmitLevel": {
+    "description": "Submenu selecting the DART modem transmit level."
+  },
+  "menuDartLevel0": "Level 0 (BPSK, LDPC 1/2)",
+  "menuDartLevel1": "Level 1 (QPSK, LDPC 1/2)",
+  "menuDartLevel2": "Level 2 (QPSK, LDPC 2/3)",
+  "menuDartLevel3": "Level 3 (8PSK, LDPC 2/3)",
+  "menuDartLevel4": "Level 4 (16QAM, LDPC 3/4)",
+  "menuDartLevel5": "Level 5 (16QAM, LDPC 5/6)",
+  "menuDartLevelF": "Level F (4-FSK, LDPC 1/2)",
+  "@menuDartLevelF": {
+    "description": "DART transmit levels. Only 'Level'/'Niveau' is translated; the modulation and coding descriptors are technical and kept as-is."
+  },
+  "menuAprsModem": "APRS Modem",
+  "@menuAprsModem": {
+    "description": "Submenu selecting the APRS modem mode."
+  },
+
+  "menuView": "View",
+  "@menuView": {
+    "description": "Top-level View menu label (labeled 'Display' on macOS)."
+  },
+  "menuRadio": "Radio",
+  "@menuRadio": {
+    "description": "Radio label, used for the File menu on macOS and the View menu radio-panel toggle."
+  },
+  "menuTabs": "Tabs",
+  "@menuTabs": {
+    "description": "Toggle that shows or hides the tab strip in compact mode."
+  },
+  "menuTabNames": "Tab Names",
+  "@menuTabNames": {
+    "description": "Toggle that shows or hides the text names under tab icons."
+  },
+  "menuShowAllTabs": "Show All Tabs",
+  "@menuShowAllTabs": {
+    "description": "Toggle that reveals every tab, including hidden ones."
+  },
+  "menuAllChannels": "All Channels",
+  "@menuAllChannels": {
+    "description": "Toggle that shows all radio channels."
+  },
+
+  "menuHelp": "Help",
+  "@menuHelp": {
+    "description": "Top-level Help menu label."
+  },
+  "menuRadioInformation": "Radio Information...",
+  "@menuRadioInformation": {
+    "description": "Menu item that opens the radio information dialog."
+  },
+  "menuGpsInformation": "GPS Information...",
+  "@menuGpsInformation": {
+    "description": "Menu item that opens the GPS information dialog."
+  },
+  "menuCheckForUpdatesEllipsis": "Check for Updates...",
+  "@menuCheckForUpdatesEllipsis": {
+    "description": "Help menu item that checks for application updates."
+  },
+  "menuAbout": "About...",
+  "@menuAbout": {
+    "description": "Menu item that opens the About dialog."
+  },
+
+  "tabComms": "Comms",
+  "tabAudio": "Audio",
+  "tabAprs": "APRS",
+  "tabMap": "Map",
+  "tabMail": "Mail",
+  "tabTerminal": "Terminal",
+  "tabContacts": "Contacts",
+  "tabBbs": "BBS",
+  "tabTorrent": "Torrent",
+  "tabPackets": "Packets",
+  "tabDebug": "Debug",
+  "tabRadio": "Radio",
+  "@tabRadio": {
+    "description": "Display names for the main navigation tabs."
+  },
+
+  "stateDisconnected": "Disconnected",
+  "@stateDisconnected": {
+    "description": "Radio connection state: not connected."
+  },
+  "stateConnecting": "Connecting...",
+  "@stateConnecting": {
+    "description": "Radio connection state: connection in progress."
+  },
+  "stateConnected": "Connected",
+  "@stateConnected": {
+    "description": "Radio connection state: connected."
+  },
+  "stateUnableToConnect": "Unable to Connect",
+  "@stateUnableToConnect": {
+    "description": "Radio connection state: connection attempt failed."
+  },
+  "stateAccessDenied": "Access Denied",
+  "@stateAccessDenied": {
+    "description": "Radio connection state: Bluetooth access was denied."
+  },
+  "stateSelectRadio": "Select Radio",
+  "@stateSelectRadio": {
+    "description": "Radio connection state: prompt to pick one of several radios."
+  },
+
+  "statusBattery": "Battery: {percent}%",
+  "@statusBattery": {
+    "description": "Status bar battery indicator.",
+    "placeholders": {
+      "percent": {
+        "type": "int",
+        "example": "80"
+      }
+    }
+  },
+  "statusCheckingBluetooth": "Checking Bluetooth...",
+  "@statusCheckingBluetooth": {
+    "description": "Status message shown while verifying Bluetooth availability."
+  },
+  "statusBluetoothNotAvailable": "Bluetooth not available",
+  "@statusBluetoothNotAvailable": {
+    "description": "Status message when Bluetooth is unavailable."
+  },
+  "statusScanningForRadios": "Scanning for radios...",
+  "@statusScanningForRadios": {
+    "description": "Status message shown while scanning for radios."
+  },
+  "statusErrorScanning": "Error scanning for radios",
+  "@statusErrorScanning": {
+    "description": "Status message when a scan for radios fails."
+  },
+  "statusNoCompatibleRadios": "No compatible radios found",
+  "@statusNoCompatibleRadios": {
+    "description": "Status message when no compatible radios are found."
+  },
+  "statusAllRadiosConnected": "All radios already connected",
+  "@statusAllRadiosConnected": {
+    "description": "Status message when every detected radio is already connected."
+  },
+  "statusConnectingTo": "Connecting to {name}...",
+  "@statusConnectingTo": {
+    "description": "Status message while connecting to a specific radio.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "UV-Pro"
+      }
+    }
+  },
+  "statusConnectedTo": "Connected to {name}",
+  "@statusConnectedTo": {
+    "description": "Status message after connecting to a specific radio.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "UV-Pro"
+      }
+    }
+  },
+  "statusFailedToConnect": "Failed to connect to {name}",
+  "@statusFailedToConnect": {
+    "description": "Status message when connecting to a radio fails.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "UV-Pro"
+      }
+    }
+  },
+  "statusDisconnecting": "Disconnecting...",
+  "@statusDisconnecting": {
+    "description": "Status message while disconnecting from a radio."
+  },
+
+  "settingsTabLicense": "License",
+  "settingsTabAprs": "APRS",
+  "settingsTabComms": "Comms",
+  "settingsTabWinlink": "Winlink",
+  "settingsTabServers": "Servers",
+  "settingsTabMap": "Map",
+  "settingsTabLimits": "Limits",
+  "settingsTabApplication": "Application",
+  "@settingsTabLimits": {
+    "description": "Settings dialog tab titles."
+  },
+
+  "settingsAdd": "Add",
+  "settingsRemove": "Remove",
+  "settingsDownload": "Download",
+  "settingsRetry": "Retry",
+  "settingsPreview": "Preview",
+  "settingsNone": "None",
+  "@settingsNone": {
+    "description": "Generic 'None' option, e.g. for the station ID selector."
+  },
+
+  "settingsLicenseInfo": "In the United States, you need an amateur radio license to transmit. Visit the ARRL website for more information on getting licensed.",
+  "settingsCallSignStationId": "Call Sign & Station ID",
+  "settingsCallSign": "Call Sign",
+  "settingsCallSignHint": "e.g. W1AW",
+  "settingsStationId": "Station ID",
+  "settingsAllowTransmit": "Allow this application to transmit",
+  "settingsCallSignHelp": "Enter a valid call sign (at least 3 characters) to enable transmit",
+
+  "settingsAprsIntro": "Configure APRS routing paths for packet transmission.",
+  "settingsAprsRoutes": "APRS Routes",
+  "settingsEditRoute": "Edit route",
+  "settingsEditRouteProtected": "Built-in route cannot be edited",
+  "settingsDeleteRoute": "Delete route",
+  "settingsDeleteRouteProtected": "Built-in route cannot be removed",
+
+  "settingsCommsIntro": "Configure speech recognition and text-to-speech settings.",
+  "settingsSpeechToText": "Speech-to-Text",
+  "settingsSpeechToTextInfo": "Transcribes received radio audio to text. Runs fully offline on this device; audio is never written to disk.",
+  "settingsModel": "Model",
+  "settingsRecognitionLanguage": "Recognition Language",
+  "settingsRecognitionLanguageHelp": "Language changes take effect the next time the engine starts.",
+  "settingsStatus": "Status",
+  "settingsModelInstalled": "Model installed{suffix}",
+  "@settingsModelInstalled": {
+    "placeholders": {
+      "suffix": {
+        "type": "String",
+        "example": " (120 MB)"
+      }
+    }
+  },
+  "settingsDownloadingModelPct": "Downloading model… {percent}%",
+  "@settingsDownloadingModelPct": {
+    "placeholders": {
+      "percent": {
+        "type": "String",
+        "example": "42"
+      }
+    }
+  },
+  "settingsDownloadingModel": "Downloading model…",
+  "settingsInstallingModelPct": "Installing model… {percent}%",
+  "@settingsInstallingModelPct": {
+    "placeholders": {
+      "percent": {
+        "type": "String",
+        "example": "42"
+      }
+    }
+  },
+  "settingsInstallingModel": "Installing model…",
+  "settingsModelInstallError": "Model could not be installed.",
+  "settingsModelNotDownloaded": "Model not downloaded. {downloadLabel} happens once and is cached on this device.",
+  "@settingsModelNotDownloaded": {
+    "placeholders": {
+      "downloadLabel": {
+        "type": "String",
+        "example": "A 120 MB download"
+      }
+    }
+  },
+  "settingsBytesOf": "{received} of {total}",
+  "@settingsBytesOf": {
+    "placeholders": {
+      "received": {
+        "type": "String",
+        "example": "40 MB"
+      },
+      "total": {
+        "type": "String",
+        "example": "120 MB"
+      }
+    }
+  },
+  "settingsRemoveSttModelTitle": "Remove speech-to-text model?",
+  "settingsRemoveSttModelBody": "The downloaded \"{name}\" model will be deleted to reclaim disk space. It will be downloaded again the next time it is used.",
+  "@settingsRemoveSttModelBody": {
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "SenseVoice"
+      }
+    }
+  },
+  "settingsTextToSpeech": "Text-to-Speech",
+  "settingsTextToSpeechInfo": "Used when sending text in \"Speech\" mode from the Comms tab.",
+  "settingsTtsUnavailableTitle": "Text-to-speech is unavailable",
+  "settingsVoice": "Voice",
+  "settingsSpeechRate": "Speech Rate",
+  "settingsPitch": "Pitch",
+  "settingsLoadingVoices": "Loading voices…",
+  "settingsSystemDefault": "System Default",
+
+  "settingsLangAutoDetect": "Auto-detect",
+  "settingsLangChinese": "Chinese",
+  "settingsLangJapanese": "Japanese",
+  "settingsLangKorean": "Korean",
+  "settingsLangCantonese": "Cantonese",
+
+  "settingsWinlinkIntro": "Configure Winlink email settings for radio email.",
+  "settingsWinlinkAccount": "Winlink Account",
+  "settingsAccount": "Account",
+  "settingsWinlinkAccountHelp": "Based on your call sign from the License tab",
+  "settingsPassword": "Password",
+  "settingsUseStationIdWinlink": "Use Station ID for Winlink",
+
+  "settingsServersIntro": "Configure local server settings.",
+  "settingsLocalServers": "Local Servers",
+  "settingsEnableWebServer": "Enable Web Server",
+  "settingsPort": "Port:",
+  "settingsEnableAgwpeServer": "Enable AGWPE Server",
+
+  "settingsMapIntroGps": "Configure GPS and airplane tracking data sources.",
+  "settingsMapIntroNoGps": "Configure airplane tracking data sources.",
+  "settingsGpsSerialPort": "GPS Serial Port",
+  "settingsSerialPort": "Serial Port",
+  "settingsBaudRate": "Baud Rate",
+  "settingsShareGpsLocation": "Share serial GPS location",
+  "settingsShareGpsLocationHelp": "Send the serial GPS position to the connected radio so it beacons your current location.",
+  "settingsAirplaneTracking": "Airplane Tracking (dump1090)",
+  "settingsServerUrl": "Server URL",
+  "settingsTestConnection": "Test Connection",
+  "settingsTest": "Test",
+  "settingsTestTesting": "Testing...",
+  "settingsTestEmptyAddress": "Failed: empty server address",
+  "settingsTestFailedHttp": "Failed: HTTP {code}",
+  "@settingsTestFailedHttp": {
+    "placeholders": {
+      "code": {
+        "type": "int",
+        "example": "404"
+      }
+    }
+  },
+  "settingsTestSuccess": "Success, {count} aircraft found.",
+  "@settingsTestSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "settingsTestUnexpectedJson": "Failed: unexpected JSON format",
+  "settingsTestTimedOut": "Failed: request timed out",
+  "settingsTestInvalidJson": "Failed: invalid JSON response",
+  "settingsTestFailed": "Failed",
+  "settingsTestConnectionFailedTitle": "Test Connection Failed",
+
+  "settingsLimitsIntro": "Limit how many historical items are kept across app restarts. Set to \"Unlimited\" to keep everything.",
+  "settingsHistoryLimits": "History Limits",
+  "settingsUnlimited": "Unlimited",
+  "settingsLimitAprsMessages": "APRS Messages",
+  "settingsLimitPackets": "Packets",
+  "settingsLimitSstvImages": "SSTV Images",
+  "settingsLimitCommEvents": "Communication Events",
+  "settingsLimitCurrent": "Current: {count}",
+  "@settingsLimitCurrent": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "1200"
+      }
+    }
+  },
+  "settingsLimitItemsDeleted": "{count} items will be deleted",
+  "@settingsLimitItemsDeleted": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "50"
+      }
+    }
+  },
+  "settingsDeleteHistoryTitle": "Delete History Items?",
+  "settingsDeleteHistoryBody": "These limits will permanently delete the oldest:\n\n{items}\n\nThis cannot be undone.",
+  "@settingsDeleteHistoryBody": {
+    "placeholders": {
+      "items": {
+        "type": "String",
+        "example": "• 50 packets"
+      }
+    }
+  },
+  "settingsDeleteAprsMessages": "{count} APRS messages",
+  "@settingsDeleteAprsMessages": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "50"
+      }
+    }
+  },
+  "settingsDeletePackets": "{count} packets",
+  "@settingsDeletePackets": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "50"
+      }
+    }
+  },
+  "settingsDeleteSstvImages": "{count} SSTV images",
+  "@settingsDeleteSstvImages": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "50"
+      }
+    }
+  },
+  "settingsDeleteCommEvents": "{count} communication events",
+  "@settingsDeleteCommEvents": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "50"
+      }
+    }
+  },
+
+  "settingsAddAprsRoute": "Add APRS Route",
+  "settingsEditAprsRoute": "Edit APRS Route",
+  "settingsName": "Name",
+  "settingsNameHint": "e.g. Standard",
+  "settingsDuplicateRoute": "A route with this name already exists.",
+  "settingsPath": "Path",
+
+  "commonError": "Error",
+  "commonConnect": "Connect",
+  "commonDisconnect": "Disconnect",
+  "commonRename": "Rename",
+  "commonRemove": "Remove",
+
+  "connectScanError": "Failed to scan for Bluetooth devices: {error}",
+  "@connectScanError": {
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "timeout"
+      }
+    }
+  },
+  "connectNoRadiosTitle": "No Radios Found",
+  "connectNoRadiosBody": "No compatible radio devices were found.\n\nMake sure your radio is powered on and Bluetooth is enabled.",
+  "connectAllConnectedTitle": "All Connected",
+  "connectAllConnectedBody": "All detected radio devices are already connected.",
+  "connectBluetoothOffTitle": "Bluetooth Not Available",
+  "connectBluetoothOffBody": "Bluetooth is not available or is turned off.\n\nPlease enable Bluetooth in your device settings and try again.",
+
+  "radioConnectionTitle": "Radio Connection",
+  "radioConnectionEmpty": "No compatible radios found.\nMake sure your radio is powered on and Bluetooth is enabled.",
+  "radioRenameTitle": "Rename Radio",
+  "radioRenamePrompt": "Enter a custom name for this radio:",
+  "radioRenameHint": "Leave blank to use the default name",
+
+  "updateTitle": "Software Update",
+  "updateChecking": "Checking for updates...",
+  "updateVersionAvailable": "Version {version} is available.",
+  "@updateVersionAvailable": {
+    "placeholders": {
+      "version": { "type": "String", "example": "0.1.12" }
+    }
+  },
+  "updateFreshDownload": "Version {version} requires a fresh download.",
+  "@updateFreshDownload": {
+    "placeholders": {
+      "version": { "type": "String", "example": "0.1.12" }
+    }
+  },
+  "updateUnsupported": "This version is no longer supported. Update to {version}.",
+  "@updateUnsupported": {
+    "placeholders": {
+      "version": { "type": "String", "example": "0.1.12" }
+    }
+  },
+  "updateUpToDate": "You are running the latest version.",
+  "updateCheckFailed": "Update check failed: {error}",
+  "@updateCheckFailed": {
+    "placeholders": {
+      "error": { "type": "String", "example": "network error" }
+    }
+  },
+  "updateDownloading": "Downloading update...",
+  "updateDownloaded": "Update downloaded. Ready to install.",
+  "updateDownloadFailed": "Download failed: {error}",
+  "@updateDownloadFailed": {
+    "placeholders": {
+      "error": { "type": "String", "example": "network error" }
+    }
+  },
+  "updateInstallFailed": "Install failed: {error}",
+  "@updateInstallFailed": {
+    "placeholders": {
+      "error": { "type": "String", "example": "disk full" }
+    }
+  },
+  "updateDiagnosticsLog": "If the update does not complete, see the diagnostics log:\n{path}",
+  "@updateDiagnosticsLog": {
+    "placeholders": {
+      "path": { "type": "String", "example": "C:/logs/update.log" }
+    }
+  },
+  "updateInstallRestart": "Install & Restart",
+  "updateCheckAgain": "Check Again",
+
+  "regionsTitle": "Rename Regions",
+  "regionsMaxChars": "Region names can be up to {count} characters.",
+  "@regionsMaxChars": {
+    "placeholders": {
+      "count": { "type": "int", "example": "10" }
+    }
+  },
+  "regionLabel": "Region {number}",
+  "@regionLabel": {
+    "placeholders": {
+      "number": { "type": "int", "example": "1" }
+    }
+  },
+
+  "gpsInfoTitle": "GPS Information",
+  "gpsSectionConnection": "Connection",
+  "gpsSectionFix": "GPS Fix",
+  "gpsSectionPosition": "Position",
+  "gpsSectionMotion": "Motion",
+  "gpsSectionTime": "Time",
+  "gpsPortStatus": "Port Status",
+  "gpsNotConfigured": "Not Configured",
+  "gpsOpenReceiving": "Open — Receiving Data",
+  "gpsPermDeniedLinux": "Permission denied — add your user to the 'dialout' group (sudo usermod -aG dialout $USER), then log out and back in.",
+  "gpsPermDenied": "Permission denied — the app cannot access this port.",
+  "gpsPortError": "Port error — could not open the serial port.",
+  "gpsFix": "Fix",
+  "gpsFixQuality": "Fix Quality",
+  "gpsSatellites": "Satellites",
+  "gpsNoData": "No Data",
+  "gpsActive": "Active",
+  "gpsNoFix": "No Fix",
+  "gpsQualGps": "GPS Fix (1)",
+  "gpsQualDgps": "DGPS Fix (2)",
+  "gpsQualInvalid": "Invalid (0)",
+  "gpsQualUnknown": "{quality} (unknown)",
+  "@gpsQualUnknown": {
+    "placeholders": {
+      "quality": { "type": "int", "example": "5" }
+    }
+  },
+  "gpsLatitude": "Latitude",
+  "gpsLatitudeDms": "Latitude (DMS)",
+  "gpsLongitude": "Longitude",
+  "gpsLongitudeDms": "Longitude (DMS)",
+  "gpsAltitude": "Altitude",
+  "gpsSpeed": "Speed",
+  "gpsHeading": "Heading",
+  "gpsTimeUtc": "GPS Time (UTC)",
+  "gpsDate": "GPS Date",
+  "gpsLastUpdate": "Last Update",
+
+  "trustedDevicesTitle": "Trusted Devices",
+  "trustedRemoveTitle": "Remove Trusted Device",
+  "trustedRemoveMessage": "Remove \"{name}\" from the radio's trusted device list?",
+  "@trustedRemoveMessage": {
+    "placeholders": {
+      "name": { "type": "String", "example": "My Radio" }
+    }
+  },
+  "trustedNoDevices": "No trusted devices found.",
+
+  "pfConfigTitle": "Configure Buttons",
+  "pfSaveToRadio": "Save to Radio",
+  "pfNoRadio": "No radio connected.",
+  "pfNoButtons": "This radio reported no programmable buttons.",
+  "pfIntro": "Choose what each programmable button does for every press type. Changes are written to the radio when you save.",
+  "pfButtonLabel": "Button {number}",
+  "@pfButtonLabel": {
+    "placeholders": {
+      "number": { "type": "int", "example": "1" }
+    }
+  },
+  "pfActionShort": "Short press",
+  "pfActionLong": "Long press",
+  "pfActionVeryLong": "Very long press",
+  "pfActionVeryVeryLong": "Very-very long press",
+  "pfActionDouble": "Double press",
+  "pfActionTriple": "Triple press",
+  "pfActionRepeat": "Repeat",
+  "pfActionPressDown": "Press down",
+  "pfActionRelease": "Release",
+  "pfActionLongRelease": "Long release",
+  "pfActionVeryLongRelease": "Very long release",
+  "pfActionVeryVeryLongRelease": "Very-very long release",
+  "pfActionUnknown": "Action {action}",
+  "@pfActionUnknown": {
+    "placeholders": {
+      "action": { "type": "int", "example": "12" }
+    }
+  },
+  "pfEffectDisabled": "Disabled",
+  "pfEffectAlarm": "Alarm",
+  "pfEffectAlarmAndMute": "Alarm and Mute",
+  "pfEffectToggleOffline": "Toggle Offline",
+  "pfEffectToggleRadioTx": "Toggle Radio TX",
+  "pfEffectToggleTxPower": "Toggle TX Power",
+  "pfEffectToggleFm": "Toggle FM Radio",
+  "pfEffectPrevChannel": "Previous Channel",
+  "pfEffectNextChannel": "Next Channel",
+  "pfEffectTCall": "T-Call (1750 Hz)",
+  "pfEffectPrevRegion": "Previous Region",
+  "pfEffectNextRegion": "Next Region",
+  "pfEffectToggleChScan": "Toggle Channel Scan",
+  "pfEffectMainPtt": "Main PTT",
+  "pfEffectSubPtt": "Sub PTT",
+  "pfEffectToggleMonitor": "Toggle Monitor",
+  "pfEffectBtPairing": "Bluetooth Pairing",
+  "pfEffectToggleDoubleCh": "Toggle Dual Channel",
+  "pfEffectToggleAbCh": "Toggle A/B Channel",
+  "pfEffectSendLocation": "Send Location",
+  "pfEffectOneClickLink": "One-Click Link",
+  "pfEffectVolDown": "Volume Down",
+  "pfEffectVolUp": "Volume Up",
+  "pfEffectToggleMute": "Toggle Mute",
+  "pfEffectUnknown": "Unknown ({effect})",
+  "@pfEffectUnknown": {
+    "placeholders": {
+      "effect": { "type": "int", "example": "99" }
+    }
+  },
+
+  "importChannelsTitle": "Import Channels",
+  "importChannelsTitleWith": "Import Channels — {name}",
+  "@importChannelsTitleWith": {
+    "placeholders": {
+      "name": { "type": "String", "example": "UV-Pro" }
+    }
+  },
+  "importIntro": "Drag a channel from the left onto a radio slot, or select a channel and a slot and press the arrow. Tap the info icon for details. Channels are written to the radio only when you press OK.",
+  "importOkCount": "OK ({count})",
+  "@importOkCount": {
+    "placeholders": {
+      "count": { "type": "int", "example": "3" }
+    }
+  },
+  "importImportedHeader": "Imported ({count})",
+  "@importImportedHeader": {
+    "placeholders": {
+      "count": { "type": "int", "example": "20" }
+    }
+  },
+  "importNoChannels": "No channels imported.",
+  "importRadioChannelsHeader": "Radio Channels ({count})",
+  "@importRadioChannelsHeader": {
+    "placeholders": {
+      "count": { "type": "int", "example": "32" }
+    }
+  },
+  "importNoRadioChannels": "No radio channels.",
+  "importMoveTooltip": "Move selected channel to selected slot",
+  "importCopyAllTooltip": "Copy all imported channels to radio slots 1:1",
+  "importChannelShort": "Ch {number}",
+  "@importChannelShort": {
+    "placeholders": {
+      "number": { "type": "int", "example": "1" }
+    }
+  },
+  "importClearTooltip": "Clear pending assignment",
+  "importChannelDetails": "Channel details",
+
+  "riTitle": "Radio Information",
+  "riNoRadioConnected": "No radio connected",
+  "riConnectPrompt": "Connect a radio to view its information.",
+  "riRadioFallback": "Radio {id}",
+  "@riRadioFallback": {
+    "placeholders": {
+      "id": { "type": "int", "example": "1" }
+    }
+  },
+  "riSectionRadio": "Radio",
+  "riSectionDeviceInfo": "Device Information",
+  "riSectionDeviceStatus": "Device Status",
+  "riSectionDeviceSettings": "Device Settings",
+  "riSectionBss": "BSS Settings",
+  "riSectionPosition": "Position",
+  "riName": "Name",
+  "riStatus": "Status",
+  "riSettingsLabel": "Settings",
+  "riNoData": "No data",
+  "riNoGpsData": "No GPS data",
+  "riNoGpsLock": "No GPS lock",
+  "riGpsLocked": "GPS locked",
+  "riTrue": "True",
+  "riFalse": "False",
+  "riPresent": "Present",
+  "riNotPresent": "Not-Present",
+  "riSupported": "Supported",
+  "riNotSupported": "Not-Supported",
+  "riCurrent": "Current",
+  "riOff": "Off",
+  "riChannelValue": "Channel {number}",
+  "@riChannelValue": {
+    "placeholders": {
+      "number": { "type": "int", "example": "1" }
+    }
+  },
+  "riSeconds": "{count} second(s)",
+  "@riSeconds": {
+    "placeholders": {
+      "count": { "type": "int", "example": "30" }
+    }
+  },
+  "riMeters": "{value} meters",
+  "@riMeters": {
+    "placeholders": {
+      "value": { "type": "String", "example": "12" }
+    }
+  },
+  "riDegrees": "{value} degrees",
+  "@riDegrees": {
+    "placeholders": {
+      "value": { "type": "String", "example": "90" }
+    }
+  },
+  "riProductId": "Product ID",
+  "riVendorId": "Vendor ID",
+  "riDmrSupport": "DMR Support",
+  "riGmrsSupport": "GMRS Support",
+  "riHardwareSpeaker": "Hardware Speaker",
+  "riHardwareVersion": "Hardware Version",
+  "riSoftwareVersion": "Software Version",
+  "riRegionCount": "Region Count",
+  "riMediumPower": "Medium Power",
+  "riChannelCount": "Channel Count",
+  "riNoaa": "NOAA",
+  "riRadioLabel": "Radio",
+  "riVfo": "VFO",
+  "riFreqRangeCount": "Freq Range Count",
+  "riPowerOn": "Power On",
+  "riInTx": "In TX",
+  "riInRx": "In RX",
+  "riDoubleChannelLabel": "Double Channel",
+  "riScanning": "Scanning",
+  "riCurrentChannelId": "Current Channel ID",
+  "riGpsLockedLabel": "GPS Locked",
+  "riHfpConnected": "HFP Connected",
+  "riAocConnected": "AOC Connected",
+  "riRssi": "RSSI",
+  "riCurrentRegion": "Current Region",
+  "riAccuracy": "Accuracy",
+  "riReceivedTime": "Received Time",
+  "riGpsTimeLocal": "GPS Time Local",
+  "riGpsTimeUtcLabel": "GPS Time UTC",
+
+  "tabDetach": "Detach...",
+  "tabClear": "Clear",
+  "tabSaveToFile": "Save to File...",
+  "commonNoRadioConnected": "No radio connected.",
+  "errorOpeningFileDialog": "Error opening file dialog: {error}",
+  "@errorOpeningFileDialog": {
+    "placeholders": {
+      "error": { "type": "String", "example": "cancelled" }
+    }
+  },
+  "errorSavingFile": "Error saving file: {error}",
+  "@errorSavingFile": {
+    "placeholders": {
+      "error": { "type": "String", "example": "disk full" }
+    }
+  },
+
+  "debugSaveTitle": "Save Debug Log",
+  "debugLogSavedTo": "Debug log saved to {path}",
+  "@debugLogSavedTo": {
+    "placeholders": {
+      "path": { "type": "String", "example": "C:/logs/debug.txt" }
+    }
+  },
+  "debugShowBluetoothFrames": "Show Bluetooth Frames",
+  "debugLoopbackMode": "Loopback Mode",
+  "debugQueryDeviceNames": "Query Device Names",
+  "debugRawCommand": "Raw Command...",
+  "debugAutoScroll": "Auto Scroll",
+  "debugFirmwareUpdate": "Firmware Update...",
+  "debugShowBuiltInMenus": "Show Built-in Menus",
+
+  "packetsCopyHex": "Copy HEX packet",
+  "packetsHexCopied": "HEX packet copied to clipboard",
+  "packetsSaveTitle": "Save Packet Capture",
+  "packetsSaved": "Packet capture saved",
+  "packetsSavedTo": "Packet capture saved to {path}",
+  "@packetsSavedTo": {
+    "placeholders": {
+      "path": { "type": "String", "example": "C:/captures/packets.ptcap" }
+    }
+  },
+  "packetsShowDecode": "Show Packet Decode",
+  "packetsEmpty": "No packets captured",
+  "packetsColTime": "Time",
+  "packetsColChannel": "Channel",
+  "packetsColData": "Data",
+
+  "commonAdd": "Add",
+  "commonEdit": "Edit",
+  "commonEditEllipsis": "Edit...",
+  "commonAddEllipsis": "Add...",
+  "commonExportEllipsis": "Export...",
+  "commonImportEllipsis": "Import...",
+
+  "contactsTypeGeneric": "Generic Stations",
+  "contactsTypeAprs": "APRS Stations",
+  "contactsTypeTerminal": "Terminal Stations",
+  "contactsTypeBbs": "BBS Stations",
+  "contactsTypeWinlink": "Winlink Stations",
+  "contactsTypeTorrent": "Torrent Stations",
+  "contactsTypeAgwpe": "AGWPE Stations",
+  "contactsExists": "A station with this callsign and type already exists",
+  "contactsRemovePrompt": "Remove selected station?",
+  "contactsNoExport": "There are no stations to export",
+  "contactsExportTitle": "Export Stations",
+  "contactsImportTitle": "Import Stations",
+  "contactsExported": "Exported {count} stations",
+  "@contactsExported": {
+    "placeholders": {
+      "count": { "type": "int", "example": "5" }
+    }
+  },
+  "contactsImported": "Imported {count} stations",
+  "@contactsImported": {
+    "placeholders": {
+      "count": { "type": "int", "example": "5" }
+    }
+  },
+  "contactsUnableOpen": "Unable to open address book",
+  "contactsInvalid": "Invalid address book",
+  "contactsColCallsign": "Callsign",
+  "contactsColName": "Name",
+  "contactsColDescription": "Description",
+
+  "terminalHeaderWith": "Terminal - {callsign}",
+  "@terminalHeaderWith": {
+    "placeholders": {
+      "callsign": { "type": "String", "example": "W1AW" }
+    }
+  },
+  "terminalNoRadio": "No available radio to connect.",
+  "terminalShowCallsign": "Show Callsign",
+  "terminalWordWrap": "Word Wrap",
+  "terminalWaitForConnection": "Wait for Connection...",
+  "terminalSend": "Send",
+  "terminalConnectedTo": "Connected to {callsign}",
+  "@terminalConnectedTo": {
+    "placeholders": {
+      "callsign": { "type": "String", "example": "W1AW" }
+    }
+  },
+  "terminalConnectingTo": "Connecting to {callsign}...",
+  "@terminalConnectingTo": {
+    "placeholders": {
+      "callsign": { "type": "String", "example": "W1AW" }
+    }
+  },
+  "terminalInvalidCallsignDest": "Invalid callsign/destination",
+  "terminalInvalidCallsign": "Invalid callsign",
+  "terminalNotConnected": "Not connected",
+  "terminalError": "Error: {error}",
+  "@terminalError": {
+    "placeholders": {
+      "error": { "type": "String", "example": "timeout" }
+    }
+  },
+  "terminalBrotli": "Received a Brotli-compressed packet (not supported)",
+
+  "audioSectionDevices": "Devices",
+  "audioRefreshDevices": "Refresh device list",
+  "audioOutput": "Output",
+  "audioInput": "Input",
+  "audioVolume": "Volume",
+  "audioSquelch": "Squelch",
+  "audioSectionComputer": "Computer",
+  "audioApplication": "Application",
+  "audioMaster": "Master",
+  "audioMicGain": "Mic Gain",
+  "audioMicNotAvailable": "Microphone capture is not available on this platform.",
+  "audioMicNotSupported": "Microphone capture is not supported here.",
+  "audioSpectRadio": "Radio Spectrograph",
+  "audioSpectMic": "Microphone Spectrograph",
+  "audioSpectNone": "Spectrograph",
+  "audioSpectMenuNone": "No Spectrograph",
+  "audioDartQuality": "DART Reception Quality",
+  "audioDartSignalAnalysis": "DART Signal Analysis",
+  "audioDefault": "Default",
+  "audioMute": "Mute",
+  "audioUnmute": "Unmute",
+  "audioEnable": "Enable",
+  "audioDisable": "Disable",
+  "audioNa": "N/A",
+
+  "bbsHeaderActive": "BBS - Active",
+  "bbsActivate": "Activate",
+  "bbsDeactivate": "Deactivate",
+  "bbsViewTraffic": "View Traffic",
+  "bbsClearTraffic": "Clear Traffic",
+  "bbsClearStats": "Clear Stats",
+  "bbsColCallSign": "Call Sign",
+  "bbsColLastSeen": "Last Seen",
+  "bbsColStats": "Stats",
+  "bbsTraffic": "Traffic",
+  "bbsJustNow": "Just now",
+  "bbsMinAgo": "{n}m ago",
+  "@bbsMinAgo": {
+    "placeholders": {
+      "n": { "type": "int", "example": "5" }
+    }
+  },
+  "bbsHoursAgo": "{n}h ago",
+  "@bbsHoursAgo": {
+    "placeholders": {
+      "n": { "type": "int", "example": "3" }
+    }
+  },
+  "bbsDaysAgo": "{n}d ago",
+  "@bbsDaysAgo": {
+    "placeholders": {
+      "n": { "type": "int", "example": "2" }
+    }
+  },
+
+  "commonDelete": "Delete",
+  "torrentAddFile": "Add File",
+  "torrentShowDetails": "Show Details",
+  "torrentFileSaved": "File saved.",
+  "torrentFileDataUnavailable": "Error saving file: file data not available",
+  "torrentUnknownError": "Unknown error",
+  "torrentSaveTitle": "Save Torrent File",
+  "torrentNoRadios": "No radios connected. Connect a radio first.",
+  "torrentMultiRadio": "Multi-radio torrent mode is not yet supported.",
+  "torrentDropSingle": "Please drop a single file.",
+  "torrentDeletePrompt": "Delete selected torrent file?",
+  "torrentPause": "Pause",
+  "torrentShare": "Share",
+  "torrentRequest": "Request",
+  "torrentSaveAs": "Save As...",
+  "torrentDropToShare": "Drop a file to share",
+  "torrentNoFiles": "No torrent files. Add or drop a file to share.",
+  "torrentUnknownSource": "Unknown",
+  "torrentColFile": "File",
+  "torrentColMode": "Mode",
+  "torrentDetailFileName": "File name",
+  "torrentDetailSource": "Source",
+  "torrentDetailFileSize": "File size",
+  "torrentBytes": "{count} bytes",
+  "@torrentBytes": {
+    "placeholders": {
+      "count": { "type": "int", "example": "1024" }
+    }
+  },
+  "torrentDetailCompression": "Compression",
+  "torrentDetailBlocks": "Blocks",
+  "torrentDetailsTitle": "Torrent Details",
+  "torrentSelectPrompt": "Select a torrent to view details",
+  "torrentModePaused": "Paused",
+  "torrentModeSharing": "Sharing",
+  "torrentModeRequesting": "Requesting",
+  "torrentModeError": "Error",
+  "torrentCompUnknown": "Unknown",
+
+  "mailInbox": "Inbox",
+  "mailOutbox": "Outbox",
+  "mailDraft": "Draft",
+  "mailSent": "Sent",
+  "mailArchive": "Archive",
+  "mailTrash": "Trash",
+  "mailInternet": "Internet",
+  "mailDeleteTitle": "Delete Mail",
+  "mailMoveToTrashTitle": "Move to Trash",
+  "mailDeletePermanent": "Permanently delete the selected mail? This cannot be undone.",
+  "mailMoveToTrashPrompt": "Move the selected mail to Trash?",
+  "mailMove": "Move",
+  "mailOpen": "Open",
+  "mailReply": "Reply",
+  "mailReplyAll": "Reply All",
+  "mailForward": "Forward",
+  "mailShowPreview": "Show Preview",
+  "mailBackup": "Backup Mail...",
+  "mailRestore": "Restore Mail...",
+  "mailShowTraffic": "Show Traffic...",
+  "mailBackupFailed": "Backup failed: {error}",
+  "@mailBackupFailed": {
+    "placeholders": {
+      "error": { "type": "String", "example": "disk full" }
+    }
+  },
+  "mailBackupTitle": "Backup Mail",
+  "mailBackupSuccess": "Backup completed successfully.",
+  "mailRestoreTitle": "Restore Mail",
+  "mailRestoreUnableOpen": "Unable to open backup file",
+  "mailRestoreFailed": "Restore failed: {error}",
+  "@mailRestoreFailed": {
+    "placeholders": {
+      "error": { "type": "String", "example": "corrupt file" }
+    }
+  },
+  "mailNew": "New",
+  "mailNewMail": "New Mail",
+  "mailColTime": "Time",
+  "mailColTo": "To",
+  "mailColFrom": "From",
+  "mailColSubject": "Subject",
+  "mailSelectPreview": "Select a message to preview",
+
+  "commonUnknown": "Unknown",
+  "mapOfflineMode": "Offline Mode",
+  "mapOfflineMap": "Offline Map",
+  "mapCacheArea": "Cache Area...",
+  "mapCenterGps": "Center to GPS",
+  "mapShowTracks": "Show Tracks",
+  "mapShowMarkers": "Show Markers",
+  "mapShowAirplanes": "Show Airplanes",
+  "mapLargeMarkers": "Large Markers",
+  "mapShowContactsOnly": "Show Contacts Only",
+  "mapFilterAll": "All",
+  "mapFilterLast30": "Last 30 Minutes",
+  "mapFilterLastHour": "Last Hour",
+  "mapFilterLast6": "Last 6 Hours",
+  "mapFilterLast12": "Last 12 Hours",
+  "mapFilterLast24": "Last 24 Hours",
+  "mapCacheTitle": "Cache Map Area",
+  "mapCachePrompt": "Download {count} tiles for zoom levels {minZoom}–{maxZoom}?\n\nThis will cache the selected area for offline use.",
+  "@mapCachePrompt": {
+    "placeholders": {
+      "count": { "type": "int", "example": "500" },
+      "minZoom": { "type": "int", "example": "10" },
+      "maxZoom": { "type": "int", "example": "16" }
+    }
+  },
+  "mapDownloadingTitle": "Downloading Tiles",
+  "mapTilesProgress": "{done} / {total} tiles",
+  "@mapTilesProgress": {
+    "placeholders": {
+      "done": { "type": "int", "example": "50" },
+      "total": { "type": "int", "example": "500" }
+    }
+  },
+  "mapDragToSelect": "Drag to select area to cache",
+
+  "aprsNoChannel": "No radio with an APRS channel is available",
+  "aprsNoLoadedChannels": "No radio with loaded channels is available",
+  "aprsDetails": "Details...",
+  "aprsShowLocation": "Show Location...",
+  "aprsSetReceiver": "Set as receiver",
+  "aprsCopyMessage": "Copy Message",
+  "aprsCopyCallsign": "Copy Callsign",
+  "aprsClearTitle": "Clear APRS Messages",
+  "aprsClearPrompt": "Clear all APRS messages? This also removes all APRS markers from the map. This cannot be undone.",
+  "aprsShowAll": "Show All Messages",
+  "aprsSendSms": "Send SMS Message...",
+  "aprsWeatherReport": "Weather Report...",
+  "aprsBeaconSettingsMenu": "Beacon Settings...",
+  "aprsDropShare": "Drop to share this channel",
+  "aprsBeaconWarning": "Beaconing is enabled on the current channel which is not recommended.",
+  "aprsBeaconActive": "Radio beacon is active, interval: {interval}.",
+  "@aprsBeaconActive": {
+    "placeholders": {
+      "interval": { "type": "String", "example": "5 minutes" }
+    }
+  },
+  "aprsBeaconSettings": "Beacon Settings",
+  "aprsIntervalSeconds": "{count} seconds",
+  "@aprsIntervalSeconds": {
+    "placeholders": {
+      "count": { "type": "int", "example": "30" }
+    }
+  },
+  "aprsIntervalMinute": "1 minute",
+  "aprsIntervalMinutes": "{count} minutes",
+  "@aprsIntervalMinutes": {
+    "placeholders": {
+      "count": { "type": "int", "example": "5" }
+    }
+  },
+  "aprsMissingChannel": "No \"APRS\" channel is configured on the connected radio. Add an APRS channel to send and receive APRS messages.",
+  "aprsSetup": "Set up",
+  "aprsTypeMessage": "Type a message...",
+
+  "commonYes": "Yes",
+  "commonNo": "No",
+  "commonSend": "Send",
+  "commonSavedTo": "Saved to {path}",
+  "@commonSavedTo": {
+    "placeholders": {
+      "path": { "type": "String", "example": "C:/files/out.wav" }
+    }
+  },
+
+  "commsFailedLoadImage": "Failed to load image: {error}",
+  "@commsFailedLoadImage": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "commsFailedSaveImage": "Failed to save image: {error}",
+  "@commsFailedSaveImage": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "commsFailedEncodeSstv": "Failed to encode SSTV audio: {error}",
+  "@commsFailedEncodeSstv": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "commsFailedLoadAudio": "Failed to load audio: {error}",
+  "@commsFailedLoadAudio": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "commsUnsupportedWav": "Unsupported or empty WAV file.",
+  "commsSstvWebUnavailable": "SSTV image save/transmit is not available on web.",
+  "commsNoRadioVoice": "No radio is connected for voice transmission.",
+  "commsSelectImageTitle": "Select Image for SSTV",
+  "commsSelectWavTitle": "Select WAV Audio",
+  "commsRecordingWebUnavailable": "Recording playback from files is unavailable on web.",
+  "commsFileNoLongerExists": "The file no longer exists.",
+  "commsSaveAsTitle": "Save As",
+  "commsTransmitDisabledAprs": "Transmit is disabled while VFO A is set to the APRS channel.",
+  "commsWaitTransmission": "Please wait for the current transmission to finish.",
+  "commsConnectRadioChat": "Connect a radio before sending a chat message.",
+  "commsEnableAudioMode": "Enable audio (the Enable button) before sending in this mode.",
+  "commsMicNotSupported": "Microphone capture is not supported on this platform.",
+  "commsConnectRadioPtt": "Connect a radio before using push-to-talk.",
+  "commsEnableAudioPtt": "Enable audio (the Enable button) before using push-to-talk.",
+  "commsSwitchChatShare": "Switch to Chat mode to share a channel.",
+  "commsModePtt": "PTT",
+  "commsModeChat": "Chat",
+  "commsModeSpeak": "Speak",
+  "commsModeMorse": "Morse",
+  "commsModeDtmf": "DTMF",
+  "commsRecordAudio": "Record Audio",
+  "commsSendImage": "Send Image...",
+  "commsSendAudio": "Send Audio...",
+  "commsPttReleaseSettings": "PTT Release Settings...",
+  "commsClearHistory": "Clear History",
+  "commsShowImage": "Show Image...",
+  "commsPlayRecording": "Play Recording...",
+  "commsSaveAsMenu": "Save as...",
+  "commsShowLocation": "Show Location",
+  "commsClearHistoryPrompt": "Are you sure you want to clear the voice history?",
+  "commsAudioMuted": "Audio is muted.",
+  "commsUnmute": "Un-mute",
+  "commsPttTransmitting": "Transmitting...",
+  "commsPttHold": "PTT - Hold to Transmit",
+  "commsDtmfHint": "Enter DTMF digits (0-9, *, #)...",
+
+  "mailComposeNewTitle": "New Message",
+  "mailComposeEditTitle": "Edit Message",
+  "mailDiscardChanges": "Discard changes to this message?",
+  "mailDiscardMessage": "Discard this message?",
+  "mailDiscard": "Discard",
+  "mailAddCc": "Add Cc",
+  "mailCc": "Cc",
+  "mailRemoveCc": "Remove Cc",
+  "mailMessageLabel": "Message",
+  "mailSaveDraft": "Save Draft",
+
+  "smsTitle": "Send SMS Message",
+  "smsPhoneNumber": "Phone Number",
+  "smsIntro": "You can send SMS messages to phones in the USA, Puerto Rico, Canada, Australia & UK as long as the phone number has already opted in to the service. You can opt-in at: ",
+
+  "locationTitle": "Location",
+
+  "beaconIntro": "Change how the radio will beacon information about itself including position, voltage and a custom message. Other stations around will be able to see this information.",
+  "beaconRadio": "Radio: {name}",
+  "@beaconRadio": {
+    "placeholders": {
+      "name": { "type": "String", "example": "UV-Pro" }
+    }
+  },
+  "beaconSection": "Beacon",
+  "beaconPacketFormat": "Packet Format",
+  "beaconInterval": "Beacon Interval",
+  "beaconAprsCallsign": "APRS Callsign",
+  "beaconCallsignHint": "Callsign - Station ID",
+  "beaconCallsignInvalid": "Enter a valid callsign and station ID (e.g. W1AW-5)",
+  "beaconAprsMessage": "APRS Message",
+  "beaconShareLocation": "Should Share Location",
+  "beaconSendVoltage": "Send Voltage",
+  "beaconAllowPositionCheck": "Allow Position Check",
+  "beaconChannelCurrent": "Current (Not Recommended)",
+  "beaconEverySeconds": "Every {n} seconds",
+  "@beaconEverySeconds": {
+    "placeholders": {
+      "n": { "type": "int", "example": "30" }
+    }
+  },
+  "beaconEveryMinutes": "Every {n} minutes",
+  "@beaconEveryMinutes": {
+    "placeholders": {
+      "n": { "type": "int", "example": "5" }
+    }
+  },
+
+  "assConnectTerminal": "Connect to Terminal Station",
+  "assConnectBbs": "Connect to BBS Station",
+  "assConnectWinlink": "Connect to Winlink Gateway",
+  "assConnectStation": "Connect to Station",
+  "assNew": "New…",
+
+  "attSelectFile": "Select File to Share",
+  "attCompressing": "Compressing...",
+  "attTitle": "Add Torrent File",
+  "attSelect": "Select...",
+  "attDescriptionOptional": "Description (optional)",
+
+  "stationTitleVoice": "Voice Station",
+  "stationTitleAprs": "APRS Station",
+  "stationTitleTerminal": "Terminal Station",
+  "stationTitleWinlink": "Winlink Gateway",
+  "stationTitleGeneric": "Station",
+  "stationTypeOptionVoice": "Voice / Generic Station",
+  "stationTypeLabel": "Station Type",
+  "stationAprsRoute": "APRS Route",
+  "stationUseAuth": "Use message authentication",
+  "stationAuthPassword": "Auth Password",
+  "stationPasswordRequired": "Password required",
+  "stationTerminalProtocol": "Terminal Protocol",
+  "stationAx25Destination": "AX.25 Destination (e.g. CALL-1)",
+  "stationAx25Invalid": "Invalid AX.25 address",
+  "stationModem": "Modem",
+
+  "apdTitle": "APRS Packet Details",
+  "apdCopyAll": "Copy All",
+  "apdCopyValue": "Copy Value",
+  "apdValueCopied": "Value copied",
+  "apdAllValuesCopied": "All values copied",
+  "apdNoDetails": "No details available.",
+  "apdShowLocation": "Show Location...",
+
+  "acfgTitle": "Set up APRS Channel",
+  "acfgIntro": "The APRS frequency changes depending on the region of the world. Use this site to find the right frequency to configure the APRS channel.",
+  "acfgConfiguration": "APRS Configuration",
+  "acfgFrequency": "Frequency",
+  "acfgFrequencyHint": "144.39 in North America\n144.80 in Europe",
+  "acfgChannelOverwritten": "The selected channel will be overwritten",
+
+  "sstvSendTitle": "Send SSTV Image",
+  "sstvSendTitleNamed": "Send SSTV Image - {name}",
+  "@sstvSendTitleNamed": {
+    "placeholders": {
+      "name": { "type": "String", "example": "photo.jpg" }
+    }
+  },
+  "sstvMode": "Mode:",
+  "sstvTransmitTime": "Transmit time: ~{time}",
+  "@sstvTransmitTime": {
+    "placeholders": {
+      "time": { "type": "String", "example": "36s" }
+    }
+  },
+
+  "msgdTitle": "Message Details",
+  "msgdFieldType": "Type",
+  "msgdFieldDirection": "Direction",
+  "msgdFieldTime": "Time",
+  "msgdFieldSource": "Source",
+  "msgdFieldReceiver": "Receiver",
+  "msgdFieldDuration": "Duration",
+  "msgdFieldLatitude": "Latitude",
+  "msgdFieldLongitude": "Longitude",
+  "msgdFieldMessage": "Message",
+  "msgdFieldFile": "File",
+  "msgdDirReceived": "Received",
+  "msgdDirSent": "Sent",
+  "msgdTypeVoice": "Voice",
+  "msgdTypeVoiceClip": "Voice Clip",
+  "msgdTypeRecording": "Recording",
+  "msgdTypeSstvPicture": "SSTV Picture",
+  "msgdTypeIdentification": "Identification",
+  "msgdTypeChatMessage": "Chat Message",
+  "msgdTypeAx25Packet": "AX.25 Packet",
+
+  "rpbFailedToLoad": "Failed to load recording.",
+  "ivwFailedToLoad": "Failed to load image.",
+
+  "rawTitle": "Raw Radio Command",
+  "rawCommand": "Command",
+  "rawHexPayload": "HEX Payload (optional)",
+  "rawResponse": "Response",
+
+  "identTitle": "PTT Release Settings",
+  "identDescription": "If enabled, sends your callsign and/or location information each time you release the PTT on the channel you are transmitting on.",
+  "identCallsignHint": "Enter Callsign - Station ID",
+  "identSendCallsign": "Send Callsign",
+  "identSendPosition": "Send Position",
+
+  "commonOn": "On",
+  "commonOff": "Off",
+  "commonNone": "None",
+
+  "chChannelNumber": "Channel {n}",
+  "@chChannelNumber": {
+    "placeholders": {
+      "n": { "type": "int", "example": "5" }
+    }
+  },
+  "chChShort": "Ch {n}",
+  "@chChShort": {
+    "placeholders": {
+      "n": { "type": "int", "example": "5" }
+    }
+  },
+  "chMoreSettings": "More settings",
+  "chChannelNameHint": "Channel name",
+  "chFrequencyMhz": "Frequency (MHz)",
+  "chReceiveMhz": "Receive (MHz)",
+  "chTransmitMhz": "Transmit (MHz)",
+  "chMode": "Mode",
+  "chPower": "Power",
+  "chBandwidth": "Bandwidth",
+  "chReceiveTone": "Receive tone (CTCSS / DCS)",
+  "chTransmitTone": "Transmit tone (CTCSS / DCS)",
+  "chDisableTransmit": "Disable transmit",
+  "chMute": "Mute",
+  "chScan": "Scan",
+  "chTalkAround": "Talk around",
+  "chDeemphasis": "De-emphasis",
+  "chPowerHigh": "High",
+  "chPowerMedium": "Medium",
+  "chPowerLow": "Low",
+  "chBandwidthWide": "25 KHz Wide",
+  "chBandwidthNarrow": "12.5 KHz Narrow",
+  "chClearTitle": "Clear channel",
+  "chClearConfirm": "Clear channel {n}?\n\nThis removes the frequency, name and settings from this slot on the radio.",
+  "@chClearConfirm": {
+    "placeholders": {
+      "n": { "type": "int", "example": "5" }
+    }
+  },
+
+  "cdRxFrequency": "RX Frequency",
+  "cdTxFrequency": "TX Frequency",
+  "cdRxModulation": "RX Modulation",
+  "cdTxModulation": "TX Modulation",
+  "cdRxTone": "RX Tone",
+  "cdTxTone": "TX Tone",
+  "cdTxDisabled": "TX Disabled",
+  "cdTalkAround": "Talk Around",
+  "cdEmpty": "(empty)",
+  "cdBandwidthWide": "25 kHz (Wide)",
+  "cdBandwidthNarrow": "12.5 kHz (Narrow)",
+
+  "gpsDetailsTitle": "GPS Details",
+  "gpsSectionFix": "GPS Fix",
+  "gpsSectionPosition": "Position",
+  "gpsSectionMotion": "Motion",
+  "gpsSectionTime": "Time",
+  "gpsFix": "Fix",
+  "gpsDisabled": "GPS Disabled",
+  "gpsNoData": "No Data",
+  "gpsLock": "GPS Lock",
+  "gpsNoLock": "No GPS Lock",
+  "gpsLatitude": "Latitude",
+  "gpsLatitudeDms": "Latitude (DMS)",
+  "gpsLongitude": "Longitude",
+  "gpsLongitudeDms": "Longitude (DMS)",
+  "gpsAltitude": "Altitude",
+  "gpsSpeed": "Speed",
+  "gpsHeading": "Heading",
+  "gpsTimeUtc": "GPS Time (UTC)",
+  "gpsDate": "GPS Date",
+  "gpsLastUpdate": "Last Update",
+
+  "mdbgTitle": "Winlink Traffic",
+  "mdbgNoTraffic": "No traffic yet.",
+
+  "fwTitle": "Radio Firmware Update",
+  "fwStatusInitial": "Check online for a firmware update, or load a firmware file from disk.",
+  "fwErrNotConnected": "Radio is not connected.",
+  "fwErrNoDeviceInfo": "Radio device information is not available yet.",
+  "fwStatusChecking": "Checking for a firmware update…",
+  "fwErrNoServerInfo": "The vendor server did not return firmware information.",
+  "fwUpdateAvailable": "A firmware update is available {version}. Review the release notes below, then download to update.",
+  "@fwUpdateAvailable": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "fwErrCheckFailed": "Update check failed: {error}",
+  "@fwErrCheckFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "fwPickTitle": "Select Firmware File",
+  "fwLoaded": "Loaded {name}: {size} (MD5 {md5}…).",
+  "@fwLoaded": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "size": { "type": "String" },
+      "md5": { "type": "String" }
+    }
+  },
+  "fwErrLoadFailed": "Could not load firmware file: {error}",
+  "@fwErrLoadFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "fwSaveTitle": "Save Firmware File",
+  "fwSavedTo": "Firmware saved to {path}",
+  "@fwSavedTo": {
+    "placeholders": { "path": { "type": "String" } }
+  },
+  "fwErrSaveFailed": "Could not save firmware file: {error}",
+  "@fwErrSaveFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "fwStatusDownloading": "Downloading and assembling firmware…",
+  "fwProgressStarting": "Starting…",
+  "fwReady": "Firmware ready: {size} (MD5 {md5}…).",
+  "@fwReady": {
+    "placeholders": {
+      "size": { "type": "String" },
+      "md5": { "type": "String" }
+    }
+  },
+  "fwErrDownloadFailed": "Download failed: {error}",
+  "@fwErrDownloadFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "fwStatusWriting": "Writing firmware to the radio. Do not power it off.",
+  "fwProgressTransferring": "Transferring…",
+  "fwErrTransferFailed": "Firmware transfer failed: {error}",
+  "@fwErrTransferFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "fwStatusRebooting": "Radio is rebooting. Reconnecting…",
+  "fwProgressWaitingRestart": "Waiting for the radio to restart…",
+  "fwErrReconnectFailed": "Reconnect failed after reboot: {error}",
+  "@fwErrReconnectFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "fwErrReconnectNull": "Could not reconnect to the radio after it rebooted. The firmware was transferred but not confirmed. Reconnect manually and retry.",
+  "fwStatusFinalising": "Finalising the update…",
+  "fwProgressConfirming": "Confirming…",
+  "fwErrConfirmFailed": "Update confirmation failed: {error}",
+  "@fwErrConfirmFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "fwStatusComplete": "Firmware update complete! The radio is now running the new firmware.",
+  "fwProgressDownloadPatch": "Downloading patch",
+  "fwProgressDownloadBase": "Downloading base image",
+  "fwProgressAssemble": "Assembling firmware",
+  "fwProgressBytes": "{label} ({done} / {total})",
+  "@fwProgressBytes": {
+    "placeholders": {
+      "label": { "type": "String" },
+      "done": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  },
+  "fwProgressTransferringBytes": "Transferring ({done} / {total})",
+  "@fwProgressTransferringBytes": {
+    "placeholders": {
+      "done": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  },
+  "fwCurrentFirmware": "Current firmware: {version}",
+  "@fwCurrentFirmware": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "fwErrGeneric": "An error occurred.",
+  "fwIdleDisclosure": "Checking online contacts the radio vendor's server (rpc.benshikj.com) and sends only your radio's product ID. Nothing is sent until you press Check for Update.",
+  "fwWhatsNew": "What's new",
+  "fwConfirmWarning": "Warning: keep the radio powered on, charged, and within Bluetooth range for the entire process. The radio will reboot partway through. Interrupting the update may require a manual recovery.",
+  "fwFromFile": "From File…",
+  "fwCheckForUpdate": "Check for Update",
+  "fwDownload": "Download",
+  "fwSave": "Save…",
+  "fwFlashNow": "Flash Now",
+  "fwRetry": "Retry",
+
+  "wxTitle": "Request Weather Report",
+  "wxIntro": "Request a weather report using APRS. ",
+  "wxLocation": "Location",
+  "wxLocationHelper": "US city/state or US zipcode, or coordinates 41.123/-121.334",
+  "wxTime": "Time",
+  "wxReport": "Report",
+  "wxToday": "Today",
+  "wxTonight": "Tonight",
+  "wxTomorrow": "Tomorrow",
+  "wxTomorrowNight": "Tomorrow night",
+  "wxMonday": "Monday",
+  "wxMondayNight": "Monday night",
+  "wxTuesday": "Tuesday",
+  "wxTuesdayNight": "Tuesday night",
+  "wxWednesday": "Wednesday",
+  "wxWednesdayNight": "Wednesday night",
+  "wxThursday": "Thursday",
+  "wxThursdayNight": "Thursday night",
+  "wxFriday": "Friday",
+  "wxFridayNight": "Friday night",
+  "wxSaturday": "Saturday",
+  "wxSaturdayNight": "Saturday night",
+  "wxSunday": "Sunday",
+  "wxSundayNight": "Sunday night",
+  "wxReportBrief": "Brief, Short forecast, US only",
+  "wxReportFull": "Full, More complete forecast, US only",
+  "wxReportCurrent": "Current, Nearest NWS station, US only",
+  "wxReportMetar": "METAR, ICAO station in METAR form",
+  "wxReportCwop": "CWOP, Nearest CWOP station"
+}

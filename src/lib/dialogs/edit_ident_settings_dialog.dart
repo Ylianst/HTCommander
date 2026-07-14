@@ -13,6 +13,7 @@ DataBroker (per-device `BssSettings` value and `SetBssSettings` event).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
 import '../services/data_broker_client.dart';
 import 'dialog_utils.dart';
@@ -135,6 +136,7 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -150,7 +152,7 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'PTT Release Settings',
+                  l10n.identTitle,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -166,9 +168,7 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
                   children: [
                     Expanded(
                       child: Text(
-                        'If enabled, sends your callsign and/or location '
-                        'information each time you release the PTT on the '
-                        'channel you are transmitting on.',
+                        l10n.identDescription,
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade700,
@@ -196,13 +196,13 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.secondaryButtonStyle(context),
-                    child: const Text('Cancel'),
+                    child: Text(l10n.commonCancel),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _canSave ? _onOk : null,
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('OK'),
+                    child: Text(l10n.commonOk),
                   ),
                 ],
               ),
@@ -214,6 +214,7 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
   }
 
   Widget _buildForm() {
+    final l10n = AppLocalizations.of(context);
     final enabled = _canSave;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -228,8 +229,8 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
             FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9/\- ]')),
           ],
           decoration: InputDecoration(
-            labelText: 'Callsign - Station ID',
-            hintText: 'Enter Callsign - Station ID',
+            labelText: l10n.beaconCallsignHint,
+            hintText: l10n.identCallsignHint,
             filled: true,
             fillColor: Colors.white,
             isDense: true,
@@ -258,7 +259,7 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
           onChanged: enabled
               ? (v) => setState(() => _sendCallsign = v ?? false)
               : null,
-          title: const Text('Send Callsign'),
+          title: Text(l10n.identSendCallsign),
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
           dense: true,
@@ -268,7 +269,7 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
           onChanged: enabled
               ? (v) => setState(() => _sendPosition = v ?? false)
               : null,
-          title: const Text('Send Position'),
+          title: Text(l10n.identSendPosition),
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
           dense: true,

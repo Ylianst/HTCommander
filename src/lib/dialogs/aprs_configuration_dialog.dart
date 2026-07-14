@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
+import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
 
 /// Result returned by [showAprsConfigurationDialog] when the user confirms.
@@ -102,8 +103,9 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return HTDialog(
-      title: 'Set up APRS Channel',
+      title: l10n.acfgTitle,
       maxWidth: 460,
       maxHeight: 460,
       content: SingleChildScrollView(
@@ -119,10 +121,8 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'The APRS frequency changes depending on the region of '
-                        'the world. Use this site to find the right frequency to '
-                        'configure the APRS channel.',
+                      Text(
+                        l10n.acfgIntro,
                         style: DialogStyles.bodyStyle,
                       ),
                       const SizedBox(height: 6),
@@ -148,20 +148,20 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'APRS Configuration',
+                  Text(
+                    l10n.acfgConfiguration,
                     style: DialogStyles.labelStyle,
                   ),
                   const SizedBox(height: 12),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(
+                      SizedBox(
                         width: 90,
                         child: Padding(
-                          padding: EdgeInsets.only(top: 10),
+                          padding: const EdgeInsets.only(top: 10),
                           child: Text(
-                            'Frequency',
+                            l10n.acfgFrequency,
                             style: DialogStyles.bodyStyle,
                           ),
                         ),
@@ -201,9 +201,9 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              '144.39 in North America\n144.80 in Europe',
-                              style: TextStyle(
+                            Text(
+                              l10n.acfgFrequencyHint,
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey,
                               ),
@@ -217,11 +217,12 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(
+                      SizedBox(
                         width: 90,
                         child: Padding(
-                          padding: EdgeInsets.only(top: 10),
-                          child: Text('Channel', style: DialogStyles.bodyStyle),
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Text(l10n.packetsColChannel,
+                              style: DialogStyles.bodyStyle),
                         ),
                       ),
                       Expanded(
@@ -251,9 +252,9 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
                                   setState(() => _selectedChannelId = value),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              'The selected channel will be overwritten',
-                              style: TextStyle(
+                            Text(
+                              l10n.acfgChannelOverwritten,
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey,
                               ),
@@ -273,12 +274,12 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           style: DialogStyles.secondaryButtonStyle(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.commonCancel),
         ),
         ElevatedButton(
           onPressed: _canConfirm ? _onConfirm : null,
           style: DialogStyles.primaryButtonStyle(context),
-          child: const Text('OK'),
+          child: Text(l10n.commonOk),
         ),
       ],
     );

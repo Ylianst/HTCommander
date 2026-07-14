@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 
 /// Time options for the weather request (matches the C# `timeComboBox`).
@@ -96,11 +97,44 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
 
   void _onChanged() => setState(() {});
 
+  /// Localized display labels for the time options. The order MUST match
+  /// [_timeOptions], which is used to build the (English) APRS message.
+  List<String> _timeLabels(AppLocalizations l10n) => [
+        l10n.wxToday,
+        l10n.wxTonight,
+        l10n.wxTomorrow,
+        l10n.wxTomorrowNight,
+        l10n.wxMonday,
+        l10n.wxMondayNight,
+        l10n.wxTuesday,
+        l10n.wxTuesdayNight,
+        l10n.wxWednesday,
+        l10n.wxWednesdayNight,
+        l10n.wxThursday,
+        l10n.wxThursdayNight,
+        l10n.wxFriday,
+        l10n.wxFridayNight,
+        l10n.wxSaturday,
+        l10n.wxSaturdayNight,
+        l10n.wxSunday,
+        l10n.wxSundayNight,
+      ];
+
+  /// Localized display labels for the report options. The order MUST match
+  /// [_reportOptions], which is used to build the (English) APRS message.
+  List<String> _reportLabels(AppLocalizations l10n) => [
+        l10n.wxReportBrief,
+        l10n.wxReportFull,
+        l10n.wxReportCurrent,
+        l10n.wxReportMetar,
+        l10n.wxReportCwop,
+      ];
+
   /// Location must be non-empty (matches the C# `UpdateInfo`).
   bool get _isValid => _locationController.text.isNotEmpty;
 
-  /// Builds the APRS message body: "<location> <time> <report>" lowercased,
-  /// where <report> is the first word of the selected report option.
+  /// Builds the APRS message body: `<location> <time> <report>` lowercased,
+  /// where `<report>` is the first word of the selected report option.
   String _buildAprsMessage() {
     final time = _timeOptions[_timeIndex].toLowerCase();
     final report = _reportOptions[_reportIndex].split(',')[0].toLowerCase();
@@ -126,8 +160,11 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final timeLabels = _timeLabels(l10n);
+    final reportLabels = _reportLabels(l10n);
     return AlertDialog(
-      title: const Text('Request Weather Report'),
+      title: Text(l10n.wxTitle),
       content: SizedBox(
         width: 460,
         child: SingleChildScrollView(
@@ -146,19 +183,17 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
                   LengthLimitingTextInputFormatter(32),
                 ],
                 decoration: _inputDecoration(
-                  labelText: 'Location',
-                  helperText:
-                      'US city/state or US zipcode, '
-                      'or coordinates 41.123/-121.334',
+                  labelText: l10n.wxLocation,
+                  helperText: l10n.wxLocationHelper,
                 ),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 initialValue: _timeIndex,
-                decoration: _inputDecoration(labelText: 'Time'),
+                decoration: _inputDecoration(labelText: l10n.wxTime),
                 items: [
                   for (int i = 0; i < _timeOptions.length; i++)
-                    DropdownMenuItem(value: i, child: Text(_timeOptions[i])),
+                    DropdownMenuItem(value: i, child: Text(timeLabels[i])),
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _timeIndex = value);
@@ -167,10 +202,10 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 initialValue: _reportIndex,
-                decoration: _inputDecoration(labelText: 'Report'),
+                decoration: _inputDecoration(labelText: l10n.wxReport),
                 items: [
                   for (int i = 0; i < _reportOptions.length; i++)
-                    DropdownMenuItem(value: i, child: Text(_reportOptions[i])),
+                    DropdownMenuItem(value: i, child: Text(reportLabels[i])),
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _reportIndex = value);
@@ -183,11 +218,11 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.commonCancel),
         ),
         ElevatedButton(
           onPressed: _isValid ? _onOk : null,
-          child: const Text('OK'),
+          child: Text(l10n.commonOk),
         ),
       ],
     );
@@ -198,7 +233,7 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
       TextSpan(
         style: Theme.of(context).textTheme.bodyMedium,
         children: [
-          const TextSpan(text: 'Request a weather report using APRS. '),
+          TextSpan(text: AppLocalizations.of(context).wxIntro),
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
             child: InkWell(

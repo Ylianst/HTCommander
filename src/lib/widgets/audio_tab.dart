@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart' show InputDevice;
 
+import '../l10n/app_localizations.dart';
 import '../services/audio_output_devices.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -703,7 +704,10 @@ class _AudioTabState extends State<AudioTab>
     if (windowService.isChildWindow) return;
     if (!MicrophoneCapture.isSupported) {
       if (mounted) {
-        setState(() => _micError = 'Microphone capture is not supported here.');
+        setState(
+          () => _micError =
+              AppLocalizations.of(context).audioMicNotSupported,
+        );
       }
       return;
     }
@@ -848,13 +852,13 @@ class _AudioTabState extends State<AudioTab>
     return [
       Row(
         children: [
-          _buildSectionTitle('Devices'),
+          _buildSectionTitle(AppLocalizations.of(context).audioSectionDevices),
           const Spacer(),
           IconButton(
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            tooltip: 'Refresh device list',
+            tooltip: AppLocalizations.of(context).audioRefreshDevices,
             icon: const Icon(Icons.refresh, size: 18),
             onPressed: _loadAudioDevices,
           ),
@@ -862,7 +866,7 @@ class _AudioTabState extends State<AudioTab>
       ),
       if (_outputDeviceSelectable)
         _buildDeviceDropdown(
-          label: 'Output',
+          label: AppLocalizations.of(context).audioOutput,
           value: _outputDeviceId,
           items: [
             for (final d in _outputDevices)
@@ -875,7 +879,7 @@ class _AudioTabState extends State<AudioTab>
         ),
       if (_inputDeviceSelectable)
         _buildDeviceDropdown(
-          label: 'Input',
+          label: AppLocalizations.of(context).audioInput,
           value: _inputDeviceId,
           items: [
             for (final d in _inputDevices)
@@ -903,9 +907,9 @@ class _AudioTabState extends State<AudioTab>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ..._buildDevicesSection(),
-                _buildSectionTitle('Radio'),
+                _buildSectionTitle(AppLocalizations.of(context).tabRadio),
                 _buildSliderRow(
-                  label: 'Volume',
+                  label: AppLocalizations.of(context).audioVolume,
                   value: _radioVolume.toDouble(),
                   min: 0,
                   max: 15,
@@ -916,7 +920,7 @@ class _AudioTabState extends State<AudioTab>
                   onChangeEnd: _onRadioVolumeCommitted,
                 ),
                 _buildSliderRow(
-                  label: 'Squelch',
+                  label: AppLocalizations.of(context).audioSquelch,
                   value: _squelchLevel.toDouble(),
                   min: 0,
                   max: 9,
@@ -931,9 +935,9 @@ class _AudioTabState extends State<AudioTab>
                 // the spectrograph, so those sections are hidden there.
                 if (_audioChannelSupported) ...[
                   const SizedBox(height: 16),
-                  _buildSectionTitle('Computer'),
+                  _buildSectionTitle(AppLocalizations.of(context).audioSectionComputer),
                   _buildSliderRow(
-                    label: 'Application',
+                    label: AppLocalizations.of(context).audioApplication,
                     value: _appVolume,
                     min: 0,
                     max: 1,
@@ -947,13 +951,13 @@ class _AudioTabState extends State<AudioTab>
                   ),
                   if (SystemAudio.isSupported)
                     _buildSliderRow(
-                      label: 'Master',
+                      label: AppLocalizations.of(context).audioMaster,
                       value: _masterVolume,
                       min: 0,
                       max: 1,
                       valueLabel: _masterAvailable
                           ? '${(_masterVolume * 100).round()}%'
-                          : 'N/A',
+                          : AppLocalizations.of(context).audioNa,
                       enabled: _masterAvailable,
                       muted: _masterMuted,
                       onMuteToggled: _masterAvailable
@@ -964,7 +968,7 @@ class _AudioTabState extends State<AudioTab>
                       onChangeEnd: (_) => _draggingMaster = false,
                     ),
                   _buildSliderRow(
-                    label: 'Mic Gain',
+                    label: AppLocalizations.of(context).audioMicGain,
                     value: _micGain,
                     min: 1,
                     max: 8,
@@ -973,11 +977,11 @@ class _AudioTabState extends State<AudioTab>
                     onChanged: _onMicGainSliderChanged,
                   ),
                   if (!MicrophoneCapture.isSupported)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4, top: 2),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, top: 2),
                       child: Text(
-                        'Microphone capture is not available on this platform.',
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                        AppLocalizations.of(context).audioMicNotAvailable,
+                        style: const TextStyle(fontSize: 11, color: Colors.grey),
                       ),
                     ),
                   if (_showSpectrogram) ...[
@@ -1005,7 +1009,7 @@ class _AudioTabState extends State<AudioTab>
                   ],
                   if (_isDartModem && _dartAnalysisEnabled) ...[
                     const SizedBox(height: 16),
-                    _buildSectionTitle('DART Reception Quality'),
+                    _buildSectionTitle(AppLocalizations.of(context).audioDartQuality),
                     DartAnalysisSection(analysis: _dartAnalysis),
                   ],
                 ],
@@ -1020,11 +1024,11 @@ class _AudioTabState extends State<AudioTab>
   String _spectrogramTitle() {
     switch (_spectrogramSource) {
       case SpectrogramSource.radio:
-        return 'Radio Spectrograph';
+        return AppLocalizations.of(context).audioSpectRadio;
       case SpectrogramSource.microphone:
-        return 'Microphone Spectrograph';
+        return AppLocalizations.of(context).audioSpectMic;
       case SpectrogramSource.none:
-        return 'Spectrograph';
+        return AppLocalizations.of(context).audioSpectNone;
     }
   }
 
@@ -1048,7 +1052,10 @@ class _AudioTabState extends State<AudioTab>
     required ValueChanged<String?> onChanged,
   }) {
     final allItems = <DropdownMenuItem<String>>[
-      const DropdownMenuItem<String>(value: '', child: Text('Default')),
+      DropdownMenuItem<String>(
+        value: '',
+        child: Text(AppLocalizations.of(context).audioDefault),
+      ),
       ...items,
     ];
     final bool present = allItems.any((item) => item.value == value);
@@ -1111,7 +1118,9 @@ class _AudioTabState extends State<AudioTab>
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  tooltip: (muted ?? false) ? 'Unmute' : 'Mute',
+                  tooltip: (muted ?? false)
+                      ? AppLocalizations.of(context).audioUnmute
+                      : AppLocalizations.of(context).audioMute,
                   icon: Icon(
                     (muted ?? false) ? Icons.volume_off : Icons.volume_up,
                     size: 18,
@@ -1160,9 +1169,9 @@ class _AudioTabState extends State<AudioTab>
           final showButton = constraints.maxWidth > 180;
           return Row(
             children: [
-              const Text(
-                'Audio',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              Text(
+                AppLocalizations.of(context).tabAudio,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const Spacer(),
               if (showButton && _audioChannelSupported)
@@ -1179,7 +1188,11 @@ class _AudioTabState extends State<AudioTab>
                           ? Colors.red.shade100
                           : null,
                     ),
-                    child: Text(_audioEnabled ? 'Disable' : 'Enable'),
+                    child: Text(
+                      _audioEnabled
+                          ? AppLocalizations.of(context).audioDisable
+                          : AppLocalizations.of(context).audioEnable,
+                    ),
                   ),
                 ),
               if (showButton && _audioChannelSupported)
@@ -1243,7 +1256,7 @@ class _AudioTabState extends State<AudioTab>
           height: menuItemHeight,
           padding: menuItemPadding,
           child: checkRow(
-            'No Spectrograph',
+            AppLocalizations.of(context).audioSpectMenuNone,
             _spectrogramSource == SpectrogramSource.none,
           ),
         ),
@@ -1252,7 +1265,7 @@ class _AudioTabState extends State<AudioTab>
           height: menuItemHeight,
           padding: menuItemPadding,
           child: checkRow(
-            'Radio Spectrograph',
+            AppLocalizations.of(context).audioSpectRadio,
             _spectrogramSource == SpectrogramSource.radio,
           ),
         ),
@@ -1261,7 +1274,7 @@ class _AudioTabState extends State<AudioTab>
           height: menuItemHeight,
           padding: menuItemPadding,
           child: checkRow(
-            'Microphone Spectrograph',
+            AppLocalizations.of(context).audioSpectMic,
             _spectrogramSource == SpectrogramSource.microphone,
           ),
         ),
@@ -1271,7 +1284,10 @@ class _AudioTabState extends State<AudioTab>
             value: 'dartAnalysis',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: checkRow('DART Signal Analysis', _dartAnalysisEnabled),
+            child: checkRow(
+              AppLocalizations.of(context).audioDartSignalAnalysis,
+              _dartAnalysisEnabled,
+            ),
           ),
         ],
         if (windowService.canDetach) ...[
@@ -1280,8 +1296,11 @@ class _AudioTabState extends State<AudioTab>
             value: 'detach',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Detach...')],
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Text(AppLocalizations.of(context).tabDetach),
+              ],
             ),
           ),
         ],

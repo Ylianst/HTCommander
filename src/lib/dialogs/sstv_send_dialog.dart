@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 /// Result returned by [SstvSendDialog] when the user confirms a transmission.
 class SstvSendResult {
   /// Selected SSTV mode name (e.g. "Robot 36 Color").
@@ -156,6 +158,7 @@ class _SstvSendDialogState extends State<SstvSendDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final media = MediaQuery.of(context);
     final mode = _sstvModes[_modeIndex];
     final maxPreviewWidth = (media.size.width * 0.7).clamp(240.0, 520.0);
@@ -178,8 +181,8 @@ class _SstvSendDialogState extends State<SstvSendDialog> {
                 Expanded(
                   child: Text(
                     widget.sourceName == null
-                        ? 'Send SSTV Image'
-                        : 'Send SSTV Image - ${widget.sourceName}',
+                        ? l10n.sstvSendTitle
+                        : l10n.sstvSendTitleNamed(widget.sourceName!),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -194,7 +197,7 @@ class _SstvSendDialogState extends State<SstvSendDialog> {
             // Mode selection
             Row(
               children: [
-                const Text('Mode:'),
+                Text(l10n.sstvMode),
                 const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButton<int>(
@@ -222,7 +225,7 @@ class _SstvSendDialogState extends State<SstvSendDialog> {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Transmit time: ~${mode.transmitTimeString}',
+                l10n.sstvTransmitTime(mode.transmitTimeString),
                 style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
               ),
             ),
@@ -264,12 +267,12 @@ class _SstvSendDialogState extends State<SstvSendDialog> {
                 children: [
                   TextButton(
                     onPressed: _busy ? null : () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
+                    child: Text(l10n.commonCancel),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _busy || _previewPng == null ? null : _onSend,
-                    child: const Text('Send'),
+                    child: Text(l10n.commonSend),
                   ),
                 ],
               ),

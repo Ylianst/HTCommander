@@ -17,12 +17,10 @@ class WindowService {
   static final WindowService instance = WindowService._();
 
   /// Whether this instance is running in a child/detached window
-  bool _isChildWindow = false;
-  bool get isChildWindow => _isChildWindow;
-  set isChildWindow(bool value) => _isChildWindow = value;
+  bool isChildWindow = false;
 
   /// Whether detaching is allowed (only in parent window on desktop)
-  bool get canDetach => isDesktop && !_isChildWindow;
+  bool get canDetach => isDesktop && !isChildWindow;
 
   /// List of child window controllers we've created
   final List<WindowController> _childWindows = [];

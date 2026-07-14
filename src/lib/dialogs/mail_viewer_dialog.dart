@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 import 'dialog_utils.dart';
 
 /// A read-only attachment shown in the mail viewer.
@@ -132,31 +134,31 @@ class _MailViewerDialog extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.reply, size: 20),
                       onPressed: () => _runAction(context, onReply!),
-                      tooltip: 'Reply',
+                      tooltip: AppLocalizations.of(context).mailReply,
                     ),
                   if (onReplyAll != null)
                     IconButton(
                       icon: const Icon(Icons.reply_all, size: 20),
                       onPressed: () => _runAction(context, onReplyAll!),
-                      tooltip: 'Reply All',
+                      tooltip: AppLocalizations.of(context).mailReplyAll,
                     ),
                   if (onForward != null)
                     IconButton(
                       icon: const Icon(Icons.forward, size: 20),
                       onPressed: () => _runAction(context, onForward!),
-                      tooltip: 'Forward',
+                      tooltip: AppLocalizations.of(context).mailForward,
                     ),
                   if (onDelete != null)
                     IconButton(
                       icon: const Icon(Icons.delete, size: 20),
                       onPressed: () => _runAction(context, onDelete!),
-                      tooltip: 'Delete',
+                      tooltip: AppLocalizations.of(context).commonDelete,
                     ),
                   const Spacer(),
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('Close'),
+                    child: Text(AppLocalizations.of(context).commonClose),
                   ),
                 ],
               ),

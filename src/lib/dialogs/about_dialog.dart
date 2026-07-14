@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/update_service.dart';
 import 'update_dialog.dart';
 
@@ -76,9 +77,9 @@ class HTAboutDialog extends StatelessWidget {
                                 const SizedBox(height: 8),
                                 // Version and author info
                                 Text(
-                                  'Version $version\n'
-                                  'Ylian Saint-Hilaire, KK7VZT\n'
-                                  'Open Source, Apache 2.0 License',
+                                  AppLocalizations.of(
+                                    context,
+                                  ).aboutVersionAuthor(version),
                                   style: TextStyle(fontSize: 13),
                                 ),
                                 const SizedBox(height: 12),
@@ -129,11 +130,13 @@ class HTAboutDialog extends StatelessWidget {
                           builder: (context) => const UpdateDialog(),
                         );
                       },
-                      child: const Text('Check for Updates'),
+                      child: Text(
+                        AppLocalizations.of(context).aboutCheckForUpdates,
+                      ),
                     ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Close'),
+                    child: Text(AppLocalizations.of(context).commonClose),
                   ),
                 ],
               ),

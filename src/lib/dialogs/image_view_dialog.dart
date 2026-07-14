@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 /// Simple dialog that displays an image at a larger size, with pinch/scroll
 /// zoom and a Close button in the bottom-right (matching the other dialogs).
 class ImageViewDialog extends StatelessWidget {
@@ -15,6 +17,7 @@ class ImageViewDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final fileName = title ?? filePath.split(Platform.pathSeparator).last;
     final media = MediaQuery.of(context).size;
 
@@ -55,11 +58,11 @@ class ImageViewDialog extends StatelessWidget {
                     File(filePath),
                     fit: BoxFit.contain,
                     gaplessPlayback: true,
-                    errorBuilder: (context, error, stackTrace) => const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
+                    errorBuilder: (context, error, stackTrace) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
                       child: Text(
-                        'Failed to load image.',
-                        style: TextStyle(color: Colors.red),
+                        l10n.ivwFailedToLoad,
+                        style: const TextStyle(color: Colors.red),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -72,7 +75,7 @@ class ImageViewDialog extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
+                child: Text(l10n.commonClose),
               ),
             ),
           ],

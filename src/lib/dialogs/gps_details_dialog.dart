@@ -12,6 +12,7 @@ dispatches new values.
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/radio_models.dart';
 import '../services/data_broker_client.dart';
 import 'dialog_utils.dart';
@@ -89,6 +90,7 @@ class _GpsDetailsDialogState extends State<_GpsDetailsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -103,7 +105,7 @@ class _GpsDetailsDialogState extends State<_GpsDetailsDialog> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'GPS Details',
+                  l10n.gpsDetailsTitle,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -119,7 +121,7 @@ class _GpsDetailsDialogState extends State<_GpsDetailsDialog> {
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('OK'),
+                    child: Text(l10n.commonOk),
                   ),
                 ],
               ),
@@ -131,17 +133,18 @@ class _GpsDetailsDialogState extends State<_GpsDetailsDialog> {
   }
 
   Widget _buildContent() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildSection('GPS Fix', _fixRows()),
+          _buildSection(l10n.gpsSectionFix, _fixRows()),
           const SizedBox(height: 12),
-          _buildSection('Position', _positionRows()),
+          _buildSection(l10n.gpsSectionPosition, _positionRows()),
           const SizedBox(height: 12),
-          _buildSection('Motion', _motionRows()),
+          _buildSection(l10n.gpsSectionMotion, _motionRows()),
           const SizedBox(height: 12),
-          _buildSection('Time', _timeRows()),
+          _buildSection(l10n.gpsSectionTime, _timeRows()),
         ],
       ),
     );
@@ -152,15 +155,17 @@ class _GpsDetailsDialogState extends State<_GpsDetailsDialog> {
   // ------------------------------------------------------------------
 
   List<_InfoRow> _fixRows() {
-    if (!_gpsEnabled) return const [_InfoRow('Fix', 'GPS Disabled')];
+    final l10n = AppLocalizations.of(context);
+    if (!_gpsEnabled) return [_InfoRow(l10n.gpsFix, l10n.gpsDisabled)];
     final p = _position;
-    if (p == null) return const [_InfoRow('Fix', 'No Data')];
-    return [_row('Fix', p.locked ? 'GPS Lock' : 'No GPS Lock')];
+    if (p == null) return [_InfoRow(l10n.gpsFix, l10n.gpsNoData)];
+    return [_row(l10n.gpsFix, p.locked ? l10n.gpsLock : l10n.gpsNoLock)];
   }
 
   List<_InfoRow> _positionRows() {
+    final l10n = AppLocalizations.of(context);
     final p = _position;
-    if (p == null) return const [_InfoRow('Position', 'No Data')];
+    if (p == null) return [_InfoRow(l10n.gpsSectionPosition, l10n.gpsNoData)];
 
     final rows = <_InfoRow>[];
     if (p.latitude != 0.0 || p.longitude != 0.0) {
@@ -169,19 +174,19 @@ class _GpsDetailsDialogState extends State<_GpsDetailsDialog> {
       final absLat = p.latitude.abs();
       final absLon = p.longitude.abs();
 
-      rows.add(_row('Latitude', '${absLat.toStringAsFixed(6)}° $latDir'));
-      rows.add(_row('Latitude (DMS)', '${_formatDms(absLat)} $latDir'));
-      rows.add(_row('Longitude', '${absLon.toStringAsFixed(6)}° $lonDir'));
-      rows.add(_row('Longitude (DMS)', '${_formatDms(absLon)} $lonDir'));
+      rows.add(_row(l10n.gpsLatitude, '${absLat.toStringAsFixed(6)}° $latDir'));
+      rows.add(_row(l10n.gpsLatitudeDms, '${_formatDms(absLat)} $latDir'));
+      rows.add(_row(l10n.gpsLongitude, '${absLon.toStringAsFixed(6)}° $lonDir'));
+      rows.add(_row(l10n.gpsLongitudeDms, '${_formatDms(absLon)} $lonDir'));
     } else {
-      rows.add(_row('Latitude', '-'));
-      rows.add(_row('Longitude', '-'));
+      rows.add(_row(l10n.gpsLatitude, '-'));
+      rows.add(_row(l10n.gpsLongitude, '-'));
     }
 
     final feet = p.altitude * 3.28084;
     rows.add(
       _row(
-        'Altitude',
+        l10n.gpsAltitude,
         '${p.altitude.toStringAsFixed(1)} m  '
             '(${feet.toStringAsFixed(1)} ft)',
       ),
@@ -190,38 +195,40 @@ class _GpsDetailsDialogState extends State<_GpsDetailsDialog> {
   }
 
   List<_InfoRow> _motionRows() {
+    final l10n = AppLocalizations.of(context);
     final p = _position;
-    if (p == null) return const [_InfoRow('Motion', 'No Data')];
+    if (p == null) return [_InfoRow(l10n.gpsSectionMotion, l10n.gpsNoData)];
 
     final kmh = p.speed * 1.852;
     final mph = p.speed * 1.15078;
     return [
       _row(
-        'Speed',
+        l10n.gpsSpeed,
         '${p.speed.toStringAsFixed(1)} kn  '
             '(${kmh.toStringAsFixed(1)} km/h  /  ${mph.toStringAsFixed(1)} mph)',
       ),
       _row(
-        'Heading',
+        l10n.gpsHeading,
         '${p.heading.toStringAsFixed(1)}°  (${_headingToCompass(p.heading)})',
       ),
     ];
   }
 
   List<_InfoRow> _timeRows() {
+    final l10n = AppLocalizations.of(context);
     final p = _position;
     final rows = <_InfoRow>[];
     if (p?.timestamp != null) {
       final t = p!.timestamp!.toUtc();
-      rows.add(_row('GPS Time (UTC)', _formatTimeOfDay(t)));
-      rows.add(_row('GPS Date', _formatDate(t)));
+      rows.add(_row(l10n.gpsTimeUtc, _formatTimeOfDay(t)));
+      rows.add(_row(l10n.gpsDate, _formatDate(t)));
     } else {
-      rows.add(_row('GPS Time (UTC)', '-'));
-      rows.add(_row('GPS Date', '-'));
+      rows.add(_row(l10n.gpsTimeUtc, '-'));
+      rows.add(_row(l10n.gpsDate, '-'));
     }
     rows.add(
       _row(
-        'Last Update',
+        l10n.gpsLastUpdate,
         _lastUpdate != null ? _formatTimeOfDay(_lastUpdate!.toLocal()) : '-',
       ),
     );

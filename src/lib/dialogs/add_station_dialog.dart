@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/station_info.dart';
 import '../models/radio_models.dart';
 import '../radio/ax25_address.dart';
@@ -228,15 +229,32 @@ class _StationDialogState extends State<_StationDialog> {
   }
 
   String get _title {
+    final l10n = AppLocalizations.of(context);
     final base = switch (_stationType) {
-      StationType.generic => 'Voice Station',
-      StationType.aprs => 'APRS Station',
-      StationType.terminal => 'Terminal Station',
-      StationType.winlink => 'Winlink Gateway',
-      _ => 'Station',
+      StationType.generic => l10n.stationTitleVoice,
+      StationType.aprs => l10n.stationTitleAprs,
+      StationType.terminal => l10n.stationTitleTerminal,
+      StationType.winlink => l10n.stationTitleWinlink,
+      _ => l10n.stationTitleGeneric,
     };
     if (_isEditing) return '$base - ${widget.existing!.callsign}';
     return base;
+  }
+
+  /// Localized label for a station [type] in the type dropdown.
+  String _typeLabel(StationType type, AppLocalizations l10n) {
+    switch (type) {
+      case StationType.generic:
+        return l10n.stationTypeOptionVoice;
+      case StationType.aprs:
+        return l10n.stationTitleAprs;
+      case StationType.terminal:
+        return l10n.stationTitleTerminal;
+      case StationType.winlink:
+        return l10n.stationTitleWinlink;
+      default:
+        return l10n.stationTitleGeneric;
+    }
   }
 
   StationInfo _buildResult() {
@@ -269,6 +287,7 @@ class _StationDialogState extends State<_StationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
       title: Text(_title),
       content: SizedBox(
@@ -282,12 +301,13 @@ class _StationDialogState extends State<_StationDialog> {
               const SizedBox(height: 12),
               TextField(
                 controller: _nameController,
-                decoration: _inputDecoration(labelText: 'Name'),
+                decoration: _inputDecoration(labelText: l10n.contactsColName),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _descriptionController,
-                decoration: _inputDecoration(labelText: 'Description'),
+                decoration:
+                    _inputDecoration(labelText: l10n.contactsColDescription),
               ),
               const SizedBox(height: 12),
               if (!_isTypeLocked) _buildTypeDropdown(),
@@ -299,13 +319,13 @@ class _StationDialogState extends State<_StationDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.commonCancel),
         ),
         ElevatedButton(
           onPressed: _isValid
               ? () => Navigator.of(context).pop(_buildResult())
               : null,
-          child: const Text('OK'),
+          child: Text(l10n.commonOk),
         ),
       ],
     );
@@ -343,14 +363,15 @@ class _StationDialogState extends State<_StationDialog> {
   }
 
   Widget _buildCallsignField() {
+    final l10n = AppLocalizations.of(context);
     return TextField(
       controller: _callsignController,
       enabled: !_isEditing,
       textCapitalization: TextCapitalization.characters,
       decoration: _inputDecoration(
-        labelText: 'Callsign',
+        labelText: l10n.contactsColCallsign,
         errorText: _callsignController.text.isNotEmpty && !_callsignValid
-            ? 'Invalid callsign'
+            ? l10n.terminalInvalidCallsign
             : null,
       ),
       onChanged: (value) {
@@ -366,16 +387,19 @@ class _StationDialogState extends State<_StationDialog> {
   }
 
   Widget _buildTypeDropdown() {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<StationType>(
         initialValue: _typeOptions.any((o) => o.type == _stationType)
             ? _stationType
             : StationType.generic,
-        decoration: _inputDecoration(labelText: 'Station Type'),
+        decoration: _inputDecoration(labelText: l10n.stationTypeLabel),
         items: [
           for (final option in _typeOptions)
-            DropdownMenuItem(value: option.type, child: Text(option.label)),
+            DropdownMenuItem(
+                value: option.type,
+                child: Text(_typeLabel(option.type, l10n))),
         ],
         onChanged: (value) {
           if (value != null) setState(() => _stationType = value);
@@ -398,13 +422,14 @@ class _StationDialogState extends State<_StationDialog> {
   }
 
   List<Widget> _buildAprsFields() {
+    final l10n = AppLocalizations.of(context);
     return [
       if (_aprsRouteNames.isNotEmpty) ...[
         DropdownButtonFormField<String>(
           initialValue: _aprsRouteNames.contains(_aprsRoute)
               ? _aprsRoute
               : _aprsRouteNames.first,
-          decoration: _inputDecoration(labelText: 'APRS Route'),
+          decoration: _inputDecoration(labelText: l10n.stationAprsRoute),
           items: [
             for (final name in _aprsRouteNames)
               DropdownMenuItem(value: name, child: Text(name)),
@@ -419,7 +444,7 @@ class _StationDialogState extends State<_StationDialog> {
         contentPadding: EdgeInsets.zero,
         controlAffinity: ListTileControlAffinity.leading,
         dense: true,
-        title: const Text('Use message authentication'),
+        title: Text(l10n.stationUseAuth),
         value: _useAuth,
         onChanged: (value) => setState(() => _useAuth = value ?? false),
       ),
@@ -428,9 +453,9 @@ class _StationDialogState extends State<_StationDialog> {
           controller: _authPasswordController,
           obscureText: true,
           decoration: _inputDecoration(
-            labelText: 'Auth Password',
+            labelText: l10n.stationAuthPassword,
             errorText: _useAuth && _authPasswordController.text.isEmpty
-                ? 'Password required'
+                ? l10n.stationPasswordRequired
                 : null,
           ),
         ),
@@ -438,10 +463,11 @@ class _StationDialogState extends State<_StationDialog> {
   }
 
   List<Widget> _buildTerminalFields() {
+    final l10n = AppLocalizations.of(context);
     return [
       DropdownButtonFormField<TerminalProtocol>(
         initialValue: _terminalProtocol,
-        decoration: _inputDecoration(labelText: 'Terminal Protocol'),
+        decoration: _inputDecoration(labelText: l10n.stationTerminalProtocol),
         items: [
           for (final option in _protocolOptions)
             DropdownMenuItem(value: option.protocol, child: Text(option.label)),
@@ -458,9 +484,9 @@ class _StationDialogState extends State<_StationDialog> {
           controller: _ax25DestController,
           textCapitalization: TextCapitalization.characters,
           decoration: _inputDecoration(
-            labelText: 'AX.25 Destination (e.g. CALL-1)',
+            labelText: l10n.stationAx25Destination,
             errorText: _ax25DestController.text.isNotEmpty && !_ax25DestValid
-                ? 'Invalid AX.25 address'
+                ? l10n.stationAx25Invalid
                 : null,
           ),
           onChanged: (value) {
@@ -496,11 +522,12 @@ class _StationDialogState extends State<_StationDialog> {
   bool get _audioChannelSupported => !kIsWeb && !Platform.isIOS;
 
   Widget _buildModemDropdown() {
+    final l10n = AppLocalizations.of(context);
     final current =
         _modemOptions.any((o) => o.value == _modem) ? _modem : 'Hardware';
     return DropdownButtonFormField<String>(
       initialValue: current,
-      decoration: _inputDecoration(labelText: 'Modem'),
+      decoration: _inputDecoration(labelText: l10n.stationModem),
       items: [
         for (final option in _modemOptions)
           DropdownMenuItem(value: option.value, child: Text(option.label)),
@@ -512,11 +539,12 @@ class _StationDialogState extends State<_StationDialog> {
   }
 
   Widget _buildChannelField() {
+    final l10n = AppLocalizations.of(context);
     // Use a dropdown when channel names are available, otherwise free text.
     if (_channelNames.isEmpty) {
       return TextField(
         controller: _channelController,
-        decoration: _inputDecoration(labelText: 'Channel'),
+        decoration: _inputDecoration(labelText: l10n.packetsColChannel),
       );
     }
 
@@ -530,7 +558,7 @@ class _StationDialogState extends State<_StationDialog> {
       initialValue: items.contains(current) && current.isNotEmpty
           ? current
           : items.first,
-      decoration: _inputDecoration(labelText: 'Channel'),
+      decoration: _inputDecoration(labelText: l10n.packetsColChannel),
       items: [
         for (final name in items)
           DropdownMenuItem(value: name, child: Text(name)),

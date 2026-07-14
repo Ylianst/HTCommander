@@ -12,6 +12,7 @@ READ_REGION_NAME replies). Edited names are written back to the radio via the
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import 'dialog_utils.dart';
 
@@ -170,6 +171,7 @@ class _RenameRegionsDialogState extends State<_RenameRegionsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -183,7 +185,7 @@ class _RenameRegionsDialogState extends State<_RenameRegionsDialog> {
             children: [
               // Title
               Text(
-                'Rename Regions',
+                l10n.regionsTitle,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -192,7 +194,7 @@ class _RenameRegionsDialogState extends State<_RenameRegionsDialog> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Region names can be up to $_kMaxRegionNameLength characters.',
+                l10n.regionsMaxChars(_kMaxRegionNameLength),
                 style: DialogStyles.bodyStyle,
               ),
               const SizedBox(height: 16),
@@ -213,7 +215,7 @@ class _RenameRegionsDialogState extends State<_RenameRegionsDialog> {
                               SizedBox(
                                 width: 80,
                                 child: Text(
-                                  'Region ${i + 1}',
+                                  l10n.regionLabel(i + 1),
                                   style: DialogStyles.labelStyle,
                                 ),
                               ),
@@ -227,7 +229,7 @@ class _RenameRegionsDialogState extends State<_RenameRegionsDialog> {
                                     ),
                                   ],
                                   decoration: _inputDecoration(
-                                    hintText: 'Region ${i + 1}',
+                                    hintText: l10n.regionLabel(i + 1),
                                   ),
                                   style: DialogStyles.bodyStyle,
                                 ),
@@ -248,13 +250,13 @@ class _RenameRegionsDialogState extends State<_RenameRegionsDialog> {
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.secondaryButtonStyle(context),
-                    child: const Text('Cancel'),
+                    child: Text(l10n.commonCancel),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _onSave,
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('OK'),
+                    child: Text(l10n.commonOk),
                   ),
                 ],
               ),

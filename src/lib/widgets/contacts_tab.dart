@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../services/window_service.dart';
 import '../services/data_broker_client.dart';
 import '../models/station_info.dart';
@@ -98,21 +99,22 @@ class _ContactsTabState extends State<ContactsTab>
   }
 
   String _getStationTypeName(StationType type) {
+    final l10n = AppLocalizations.of(context);
     switch (type) {
       case StationType.generic:
-        return 'Generic Stations';
+        return l10n.contactsTypeGeneric;
       case StationType.aprs:
-        return 'APRS Stations';
+        return l10n.contactsTypeAprs;
       case StationType.terminal:
-        return 'Terminal Stations';
+        return l10n.contactsTypeTerminal;
       case StationType.bbs:
-        return 'BBS Stations';
+        return l10n.contactsTypeBbs;
       case StationType.winlink:
-        return 'Winlink Stations';
+        return l10n.contactsTypeWinlink;
       case StationType.torrent:
-        return 'Torrent Stations';
+        return l10n.contactsTypeTorrent;
       case StationType.agwpe:
-        return 'AGWPE Stations';
+        return l10n.contactsTypeAgwpe;
     }
   }
 
@@ -146,8 +148,8 @@ class _ContactsTabState extends State<ContactsTab>
     );
     if (exists) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('A station with this callsign and type already exists'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).contactsExists),
         ),
       );
       return;
@@ -171,16 +173,16 @@ class _ContactsTabState extends State<ContactsTab>
     showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Contacts'),
-        content: const Text('Remove selected station?'),
+        title: Text(AppLocalizations.of(context).tabContacts),
+        content: Text(AppLocalizations.of(context).contactsRemovePrompt),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context).commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('OK'),
+            child: Text(AppLocalizations.of(context).commonOk),
           ),
         ],
       ),
@@ -234,7 +236,7 @@ class _ContactsTabState extends State<ContactsTab>
     if (stations.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('There are no stations to export')),
+          SnackBar(content: Text(AppLocalizations.of(context).contactsNoExport)),
         );
       }
       return;
@@ -242,6 +244,7 @@ class _ContactsTabState extends State<ContactsTab>
 
     final content = StationInfo.serializeList(stations);
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    final l10n = mounted ? AppLocalizations.of(context) : null;
 
     // Web and mobile require the bytes up front; desktop returns a path that
     // we write to ourselves.
@@ -250,7 +253,7 @@ class _ContactsTabState extends State<ContactsTab>
     String? outputPath;
     try {
       outputPath = await FilePicker.saveFile(
-        dialogTitle: 'Export Stations',
+        dialogTitle: l10n?.contactsExportTitle ?? 'Export Stations',
         fileName: 'stations.txt',
         type: FileType.custom,
         allowedExtensions: const ['txt'],
@@ -258,7 +261,11 @@ class _ContactsTabState extends State<ContactsTab>
       );
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(content: Text('Error opening file dialog: $e')),
+        SnackBar(
+          content: Text(
+            l10n?.errorOpeningFileDialog(e.toString()) ?? 'Error: $e',
+          ),
+        ),
       );
       return;
     }
@@ -272,14 +279,18 @@ class _ContactsTabState extends State<ContactsTab>
         await File(outputPath).writeAsString(content);
       } catch (e) {
         messenger?.showSnackBar(
-          SnackBar(content: Text('Error saving file: $e')),
+          SnackBar(
+            content: Text(l10n?.errorSavingFile(e.toString()) ?? 'Error: $e'),
+          ),
         );
         return;
       }
     }
 
     messenger?.showSnackBar(
-      SnackBar(content: Text('Exported ${stations.length} stations')),
+      SnackBar(
+        content: Text(l10n?.contactsExported(stations.length) ?? ''),
+      ),
     );
   }
 
@@ -287,18 +298,23 @@ class _ContactsTabState extends State<ContactsTab>
   /// the existing list (mirrors the C# `importStationsToolStripMenuItem_Click`).
   Future<void> _onImport() async {
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    final l10n = mounted ? AppLocalizations.of(context) : null;
 
     FilePickerResult? result;
     try {
       result = await FilePicker.pickFiles(
-        dialogTitle: 'Import Stations',
+        dialogTitle: l10n?.contactsImportTitle ?? 'Import Stations',
         type: FileType.custom,
         allowedExtensions: const ['txt'],
         withData: true,
       );
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(content: Text('Error opening file dialog: $e')),
+        SnackBar(
+          content: Text(
+            l10n?.errorOpeningFileDialog(e.toString()) ?? 'Error: $e',
+          ),
+        ),
       );
       return;
     }
@@ -319,7 +335,7 @@ class _ContactsTabState extends State<ContactsTab>
 
     if (data == null) {
       messenger?.showSnackBar(
-        const SnackBar(content: Text('Unable to open address book')),
+        SnackBar(content: Text(l10n?.contactsUnableOpen ?? '')),
       );
       return;
     }
@@ -327,7 +343,7 @@ class _ContactsTabState extends State<ContactsTab>
     final imported = StationInfo.deserializeList(data);
     if (imported.isEmpty) {
       messenger?.showSnackBar(
-        const SnackBar(content: Text('Invalid address book')),
+        SnackBar(content: Text(l10n?.contactsInvalid ?? '')),
       );
       return;
     }
@@ -346,11 +362,14 @@ class _ContactsTabState extends State<ContactsTab>
     _saveStations(stations);
 
     messenger?.showSnackBar(
-      SnackBar(content: Text('Imported ${imported.length} stations')),
+      SnackBar(
+        content: Text(l10n?.contactsImported(imported.length) ?? ''),
+      ),
     );
   }
 
   void _showMenu(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
 
@@ -373,27 +392,27 @@ class _ContactsTabState extends State<ContactsTab>
           height: menuItemHeight,
           padding: menuItemPadding,
           enabled: hasSingleSelection,
-          child: const Row(children: [SizedBox(width: 20), Text('Edit')]),
+          child: Row(children: [const SizedBox(width: 20), Text(l10n.commonEdit)]),
         ),
         PopupMenuItem<String>(
           value: 'remove',
           height: menuItemHeight,
           padding: menuItemPadding,
           enabled: hasSelection,
-          child: const Row(children: [SizedBox(width: 20), Text('Remove')]),
+          child: Row(children: [const SizedBox(width: 20), Text(l10n.commonRemove)]),
         ),
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
           value: 'export',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(children: [SizedBox(width: 20), Text('Export...')]),
+          child: Row(children: [const SizedBox(width: 20), Text(l10n.commonExportEllipsis)]),
         ),
         PopupMenuItem<String>(
           value: 'import',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(children: [SizedBox(width: 20), Text('Import...')]),
+          child: Row(children: [const SizedBox(width: 20), Text(l10n.commonImportEllipsis)]),
         ),
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
@@ -401,8 +420,8 @@ class _ContactsTabState extends State<ContactsTab>
             value: 'detach',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Detach...')],
+            child: Row(
+              children: [const SizedBox(width: 20), Text(l10n.tabDetach)],
             ),
           ),
         ],
@@ -443,6 +462,7 @@ class _ContactsTabState extends State<ContactsTab>
     const menuItemPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
     const menuItemHeight = 32.0;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final l10n = AppLocalizations.of(context);
 
     showMenu<String>(
       context: context,
@@ -450,25 +470,25 @@ class _ContactsTabState extends State<ContactsTab>
         position & const Size(40, 40),
         Offset.zero & overlay.size,
       ),
-      items: const [
+      items: [
         PopupMenuItem<String>(
           value: 'edit',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: Row(children: [SizedBox(width: 20), Text('Edit...')]),
+          child: Row(children: [const SizedBox(width: 20), Text(l10n.commonEditEllipsis)]),
         ),
         PopupMenuItem<String>(
           value: 'remove',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: Row(children: [SizedBox(width: 20), Text('Remove')]),
+          child: Row(children: [const SizedBox(width: 20), Text(l10n.commonRemove)]),
         ),
-        PopupMenuDivider(height: 8),
+        const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
           value: 'add',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: Row(children: [SizedBox(width: 20), Text('Add...')]),
+          child: Row(children: [const SizedBox(width: 20), Text(l10n.commonAddEllipsis)]),
         ),
       ],
     ).then((value) {
@@ -548,9 +568,9 @@ class _ContactsTabState extends State<ContactsTab>
       child: Row(
         children: [
           // Contacts label
-          const Text(
-            'Contacts',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          Text(
+            AppLocalizations.of(context).tabContacts,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
           const Spacer(),
           // Menu icon
@@ -617,9 +637,10 @@ class _ContactsTabState extends State<ContactsTab>
       ),
       child: Row(
         children: [
-          _buildColumnHeader('Callsign', 0, flex: 2),
-          _buildColumnHeader('Name', 1, flex: 3),
-          if (!_isCompact) _buildColumnHeader('Description', 2, flex: 4),
+          _buildColumnHeader(AppLocalizations.of(context).contactsColCallsign, 0, flex: 2),
+          _buildColumnHeader(AppLocalizations.of(context).contactsColName, 1, flex: 3),
+          if (!_isCompact)
+            _buildColumnHeader(AppLocalizations.of(context).contactsColDescription, 2, flex: 4),
         ],
       ),
     );
@@ -792,7 +813,7 @@ class _ContactsTabState extends State<ContactsTab>
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
-                  child: const Text('Add'),
+                  child: Text(AppLocalizations.of(context).commonAdd),
                 ),
               ),
               if (showAllButtons) ...[
@@ -805,7 +826,7 @@ class _ContactsTabState extends State<ContactsTab>
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                     ),
-                    child: const Text('Remove'),
+                    child: Text(AppLocalizations.of(context).commonRemove),
                   ),
                 ),
               ],
@@ -819,7 +840,7 @@ class _ContactsTabState extends State<ContactsTab>
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                     ),
-                    child: const Text('Edit...'),
+                    child: Text(AppLocalizations.of(context).commonEditEllipsis),
                   ),
                 ),
               ],

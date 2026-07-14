@@ -6,9 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
+import '../l10n/app_localizations.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
 import '../services/history_limiter.dart';
+import '../services/locale_controller.dart';
 import '../services/tts_service.dart';
 import '../services/sherpa_model_manager.dart';
 
@@ -18,6 +20,9 @@ class AppSettings {
   String callSign;
   int stationId;
   bool allowTransmit;
+
+  // Application language tag: 'system' (follow the OS), 'en', 'fr'.
+  String language;
 
   // APRS tab
   List<AprsRoute> aprsRoutes;
@@ -92,6 +97,7 @@ class AppSettings {
     this.callSign = '',
     this.stationId = 0,
     this.allowTransmit = false,
+    this.language = LocaleController.systemTag,
     List<AprsRoute>? aprsRoutes,
     this.voiceLanguage = 'auto',
     this.voiceModel = 'sense-voice',
@@ -118,6 +124,7 @@ class AppSettings {
     String? callSign,
     int? stationId,
     bool? allowTransmit,
+    String? language,
     List<AprsRoute>? aprsRoutes,
     String? voiceLanguage,
     String? voiceModel,
@@ -143,6 +150,7 @@ class AppSettings {
       callSign: callSign ?? this.callSign,
       stationId: stationId ?? this.stationId,
       allowTransmit: allowTransmit ?? this.allowTransmit,
+      language: language ?? this.language,
       aprsRoutes: aprsRoutes ?? List.from(this.aprsRoutes),
       voiceLanguage: voiceLanguage ?? this.voiceLanguage,
       voiceModel: voiceModel ?? this.voiceModel,
@@ -177,6 +185,10 @@ class AppSettings {
       stationId: DataBroker.getValue<int>(0, 'StationId', 0) ?? 0,
       allowTransmit:
           (DataBroker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1,
+      language:
+          DataBroker.getValue<String>(0, LocaleController.storageKey,
+                  LocaleController.systemTag) ??
+              LocaleController.systemTag,
       aprsRoutes: aprsRoutes,
       voiceLanguage:
           DataBroker.getValue<String>(0, 'VoiceLanguage', 'auto') ?? 'auto',
@@ -333,14 +345,6 @@ class AprsRoute {
   AprsRoute({required this.name, required this.path});
 }
 
-/// Voice language option
-class LanguageOption {
-  final String code;
-  final String name;
-
-  const LanguageOption(this.code, this.name);
-}
-
 /// Settings dialog with tabbed interface
 class SettingsDialog extends StatefulWidget {
   final int initialTab;
@@ -372,6 +376,8 @@ class _SettingsDialogState extends State<SettingsDialog>
   // Dump1090 "Test Connection" state.
   bool _airplaneTesting = false;
   String _airplaneTestResult = '';
+  // Whether the last completed test succeeded (drives the result text color).
+  bool _airplaneTestOk = false;
 
   // Serial ports available for the GPS receiver (desktop only).
   List<String> _availablePorts = const [];
@@ -388,16 +394,6 @@ class _SettingsDialogState extends State<SettingsDialog>
   // Current history item counts (loaded asynchronously for the Limits tab).
   HistoryCounts? _historyCounts;
 
-  // Language options (SenseVoice-supported recognition languages).
-  static const List<LanguageOption> _languages = [
-    LanguageOption('auto', 'Auto-detect'),
-    LanguageOption('en', 'English'),
-    LanguageOption('zh', 'Chinese'),
-    LanguageOption('ja', 'Japanese'),
-    LanguageOption('ko', 'Korean'),
-    LanguageOption('yue', 'Cantonese'),
-  ];
-
   // GPS baud rates
   static const List<int> _baudRates = [4800, 9600, 19200, 38400, 57600, 115200];
 
@@ -406,7 +402,7 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// internet-service "Servers" / "Map" tabs are hidden. On Android/iOS the
   /// "Servers" tab is hidden. All tabs remain visible on desktop platforms.
   List<String> get _visibleTabs {
-    const all = ['License', 'APRS', 'Comms', 'Winlink', 'Servers', 'Map', 'Limits'];
+    const all = ['License', 'APRS', 'Comms', 'Winlink', 'Servers', 'Map', 'Limits', 'Application'];
     if (kIsWeb) {
       return all
           .where((t) => t != 'Comms' && t != 'Servers' && t != 'Map')
@@ -417,6 +413,30 @@ class _SettingsDialogState extends State<SettingsDialog>
       return all.where((t) => t != 'Servers').toList();
     }
     return all;
+  }
+
+  /// Localized display title for a given tab identifier (see [_visibleTabs]).
+  String _tabTitle(String title) {
+    final l10n = AppLocalizations.of(context);
+    switch (title) {
+      case 'License':
+        return l10n.settingsTabLicense;
+      case 'APRS':
+        return l10n.settingsTabAprs;
+      case 'Comms':
+        return l10n.settingsTabComms;
+      case 'Winlink':
+        return l10n.settingsTabWinlink;
+      case 'Servers':
+        return l10n.settingsTabServers;
+      case 'Map':
+        return l10n.settingsTabMap;
+      case 'Limits':
+        return l10n.settingsTabLimits;
+      case 'Application':
+        return l10n.settingsTabApplication;
+    }
+    return title;
   }
 
   /// Builds the content widget for a given tab title (see [_visibleTabs]).
@@ -436,6 +456,8 @@ class _SettingsDialogState extends State<SettingsDialog>
         return _buildMapTab();
       case 'Limits':
         return _buildLimitsTab();
+      case 'Application':
+        return _buildApplicationTab();
     }
     return const SizedBox.shrink();
   }
@@ -553,18 +575,23 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// mirroring the C# `OnTestAirplaneServer` test. Reports the aircraft count
   /// on success or a failure message otherwise.
   Future<void> _testAirplaneConnection() async {
+    final l10n = AppLocalizations.of(context);
     final url = _resolveDump1090Url(_airplaneUrlController.text);
     if (url == null) {
-      setState(() => _airplaneTestResult = 'Failed: empty server address');
+      setState(() {
+        _airplaneTestOk = false;
+        _airplaneTestResult = l10n.settingsTestEmptyAddress;
+      });
       return;
     }
 
     setState(() {
       _airplaneTesting = true;
-      _airplaneTestResult = 'Testing...';
+      _airplaneTestResult = l10n.settingsTestTesting;
     });
 
     String result;
+    bool ok = false;
     // Holds the full exception text when the test fails so it can be shown in
     // a pop-up dialog instead of overflowing the settings dialog.
     String? errorDetail;
@@ -573,25 +600,26 @@ class _SettingsDialogState extends State<SettingsDialog>
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        result = 'Failed: HTTP ${response.statusCode}';
+        result = l10n.settingsTestFailedHttp(response.statusCode);
       } else {
         final decoded = jsonDecode(response.body);
         if (decoded is Map) {
           final aircraft = decoded['aircraft'];
           final count = aircraft is List ? aircraft.length : 0;
-          result = 'Success, $count aircraft found.';
+          result = l10n.settingsTestSuccess(count);
+          ok = true;
         } else {
-          result = 'Failed: unexpected JSON format';
+          result = l10n.settingsTestUnexpectedJson;
         }
       }
     } on TimeoutException {
-      result = 'Failed: request timed out';
+      result = l10n.settingsTestTimedOut;
     } on FormatException {
-      result = 'Failed: invalid JSON response';
+      result = l10n.settingsTestInvalidJson;
     } catch (e) {
       // Keep the inline status short and surface the (potentially long)
       // exception text in a pop-up dialog instead.
-      result = 'Failed';
+      result = l10n.settingsTestFailed;
       errorDetail = e.toString();
     }
 
@@ -599,6 +627,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     setState(() {
       _airplaneTesting = false;
       _airplaneTestResult = result;
+      _airplaneTestOk = ok;
     });
 
     if (errorDetail != null) {
@@ -612,12 +641,12 @@ class _SettingsDialogState extends State<SettingsDialog>
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Test Connection Failed'),
+        title: Text(AppLocalizations.of(context).settingsTestConnectionFailedTitle),
         content: SingleChildScrollView(child: SelectableText(error)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(AppLocalizations.of(context).commonOk),
           ),
         ],
       ),
@@ -625,6 +654,7 @@ class _SettingsDialogState extends State<SettingsDialog>
   }
 
   void _onSave() async {
+    final l10n = AppLocalizations.of(context);
     // Update settings from text controllers
     _settings.winlinkPassword = _winlinkPasswordController.text;
     _settings.webServerPort = int.tryParse(_webPortController.text) ?? 8080;
@@ -638,25 +668,31 @@ class _SettingsDialogState extends State<SettingsDialog>
       if (_settings.maxAprsMessages > 0 &&
           counts.aprsMessages > _settings.maxAprsMessages) {
         deletions.add(
-          '${counts.aprsMessages - _settings.maxAprsMessages} APRS messages',
+          l10n.settingsDeleteAprsMessages(
+            counts.aprsMessages - _settings.maxAprsMessages,
+          ),
         );
       }
       if (_settings.maxPackets > 0 &&
           counts.packets > _settings.maxPackets) {
         deletions.add(
-          '${counts.packets - _settings.maxPackets} packets',
+          l10n.settingsDeletePackets(counts.packets - _settings.maxPackets),
         );
       }
       if (_settings.maxSstvImages > 0 &&
           counts.sstvImages > _settings.maxSstvImages) {
         deletions.add(
-          '${counts.sstvImages - _settings.maxSstvImages} SSTV images',
+          l10n.settingsDeleteSstvImages(
+            counts.sstvImages - _settings.maxSstvImages,
+          ),
         );
       }
       if (_settings.maxCommEvents > 0 &&
           counts.commEvents > _settings.maxCommEvents) {
         deletions.add(
-          '${counts.commEvents - _settings.maxCommEvents} communication events',
+          l10n.settingsDeleteCommEvents(
+            counts.commEvents - _settings.maxCommEvents,
+          ),
         );
       }
 
@@ -664,20 +700,20 @@ class _SettingsDialogState extends State<SettingsDialog>
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Delete History Items?'),
+            title: Text(l10n.settingsDeleteHistoryTitle),
             content: Text(
-              'These limits will permanently delete the oldest:\n\n'
-              '${deletions.map((d) => '\u2022 $d').join('\n')}\n\n'
-              'This cannot be undone.',
+              l10n.settingsDeleteHistoryBody(
+                deletions.map((d) => '\u2022 $d').join('\n'),
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
+                child: Text(l10n.commonCancel),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('OK'),
+                child: Text(l10n.commonOk),
               ),
             ],
           ),
@@ -688,6 +724,9 @@ class _SettingsDialogState extends State<SettingsDialog>
 
     // Save all settings to DataBroker (persisted to SharedPreferences)
     _settings.saveToDataBroker();
+
+    // Apply the selected application language (persists and rebuilds the app).
+    LocaleController.instance.setLanguage(_settings.language);
 
     if (!mounted) return;
     Navigator.of(
@@ -758,7 +797,9 @@ class _SettingsDialogState extends State<SettingsDialog>
                 indicatorColor: Colors.blue,
                 indicatorSize: TabBarIndicatorSize.label,
                 dividerColor: Colors.transparent,
-                tabs: _visibleTabs.map((t) => Tab(text: t)).toList(),
+                tabs: _visibleTabs
+                    .map((t) => Tab(text: _tabTitle(t)))
+                    .toList(),
               ),
               const SizedBox(height: 8),
               // Tab content
@@ -776,13 +817,13 @@ class _SettingsDialogState extends State<SettingsDialog>
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(null),
                     style: DialogStyles.secondaryButtonStyle(context),
-                    child: const Text('Cancel'),
+                    child: Text(AppLocalizations.of(context).commonCancel),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _onSave,
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('OK'),
+                    child: Text(AppLocalizations.of(context).commonOk),
                   ),
                 ],
               ),
@@ -793,16 +834,77 @@ class _SettingsDialogState extends State<SettingsDialog>
     );
   }
 
+  Widget _buildApplicationTab() {
+    final l10n = AppLocalizations.of(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Application language selector
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: _sectionDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.settingsLanguage,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _settings.language,
+                  decoration: _inputDecoration(),
+                  items: [
+                    DropdownMenuItem(
+                      value: LocaleController.systemTag,
+                      child: Text(l10n.languageSystem),
+                    ),
+                    DropdownMenuItem(
+                      value: 'en',
+                      child: Text(l10n.languageEnglish),
+                    ),
+                    DropdownMenuItem(
+                      value: 'fr',
+                      child: Text(l10n.languageFrench),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _settings.language = value);
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.settingsLanguageHint,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLicenseTab() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Info text
-          const Text(
-            'In the United States, you need an amateur radio license to transmit. '
-            'Visit the ARRL website for more information on getting licensed.',
+          Text(
+            l10n.settingsLicenseInfo,
             style: DialogStyles.bodyStyle,
           ),
           const SizedBox(height: 8),
@@ -822,7 +924,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Call Sign & Station ID',
+                  l10n.settingsCallSignStationId,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade800,
@@ -838,14 +940,16 @@ class _SettingsDialogState extends State<SettingsDialog>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Call Sign',
+                          Text(
+                            l10n.settingsCallSign,
                             style: DialogStyles.labelStyle,
                           ),
                           const SizedBox(height: 4),
                           TextField(
                             controller: _callSignController,
-                            decoration: _inputDecoration(hintText: 'e.g. W1AW'),
+                            decoration: _inputDecoration(
+                              hintText: l10n.settingsCallSignHint,
+                            ),
                             textCapitalization: TextCapitalization.characters,
                             inputFormatters: [
                               FilteringTextInputFormatter.allow(
@@ -867,8 +971,8 @@ class _SettingsDialogState extends State<SettingsDialog>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Station ID',
+                          Text(
+                            l10n.settingsStationId,
                             style: DialogStyles.labelStyle,
                           ),
                           const SizedBox(height: 4),
@@ -879,7 +983,9 @@ class _SettingsDialogState extends State<SettingsDialog>
                               16,
                               (i) => DropdownMenuItem(
                                 value: i,
-                                child: Text(i == 0 ? 'None' : i.toString()),
+                                child: Text(
+                                  i == 0 ? l10n.settingsNone : i.toString(),
+                                ),
                               ),
                             ),
                             onChanged: (value) {
@@ -914,7 +1020,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                               )
                             : null,
                         child: Text(
-                          'Allow this application to transmit',
+                          l10n.settingsAllowTransmit,
                           style: TextStyle(
                             color: _settings.callSign.length >= 3
                                 ? null
@@ -927,7 +1033,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 ),
                 if (_settings.callSign.length < 3)
                   Text(
-                    'Enter a valid call sign (at least 3 characters) to enable transmit',
+                    l10n.settingsCallSignHelp,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade600,
@@ -943,13 +1049,14 @@ class _SettingsDialogState extends State<SettingsDialog>
   }
 
   Widget _buildAprsTab() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Configure APRS routing paths for packet transmission.',
+          Text(
+            l10n.settingsAprsIntro,
             style: DialogStyles.bodyStyle,
           ),
           const SizedBox(height: 16),
@@ -960,7 +1067,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'APRS Routes',
+                  l10n.settingsAprsRoutes,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade800,
@@ -994,8 +1101,8 @@ class _SettingsDialogState extends State<SettingsDialog>
                               IconButton(
                                 icon: const Icon(Icons.edit, size: 20),
                                 tooltip: isProtected
-                                    ? 'Built-in route cannot be edited'
-                                    : 'Edit route',
+                                    ? l10n.settingsEditRouteProtected
+                                    : l10n.settingsEditRoute,
                                 onPressed: isProtected
                                     ? null
                                     : () => _editAprsRoute(index),
@@ -1007,8 +1114,8 @@ class _SettingsDialogState extends State<SettingsDialog>
                                   color: canDelete ? Colors.red.shade400 : null,
                                 ),
                                 tooltip: canDelete
-                                    ? 'Delete route'
-                                    : 'Built-in route cannot be removed',
+                                    ? l10n.settingsDeleteRoute
+                                    : l10n.settingsDeleteRouteProtected,
                                 onPressed: canDelete
                                     ? () => _deleteAprsRoute(index)
                                     : null,
@@ -1025,7 +1132,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                   children: [
                     ElevatedButton(
                       onPressed: _addAprsRoute,
-                      child: const Text('Add'),
+                      child: Text(l10n.settingsAdd),
                     ),
                   ],
                 ),
@@ -1079,14 +1186,27 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   /// Display name for a recognition language code.
   String _sttLanguageName(String code) {
-    for (final l in _languages) {
-      if (l.code == code) return l.name;
+    final l10n = AppLocalizations.of(context);
+    switch (code) {
+      case 'auto':
+        return l10n.settingsLangAutoDetect;
+      case 'en':
+        return l10n.languageEnglish;
+      case 'zh':
+        return l10n.settingsLangChinese;
+      case 'ja':
+        return l10n.settingsLangJapanese;
+      case 'ko':
+        return l10n.settingsLangKorean;
+      case 'yue':
+        return l10n.settingsLangCantonese;
     }
     return code;
   }
 
   /// Speech-to-text setup: model selection, language and on-device management.
   Widget _buildSpeechRecognitionSection() {
+    final l10n = AppLocalizations.of(context);
     final model = SherpaModelManager.modelById(_settings.voiceModel);
     final langCodes = model.languages ?? const <String>[];
     final sttLang = langCodes.contains(_settings.voiceLanguage)
@@ -1099,20 +1219,19 @@ class _SettingsDialogState extends State<SettingsDialog>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Speech-to-Text',
+            l10n.settingsSpeechToText,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.grey.shade800,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Transcribes received radio audio to text. Runs fully offline on '
-            'this device; audio is never written to disk.',
+          Text(
+            l10n.settingsSpeechToTextInfo,
             style: DialogStyles.bodyStyle,
           ),
           const SizedBox(height: 16),
-          const Text('Model', style: DialogStyles.labelStyle),
+          Text(l10n.settingsModel, style: DialogStyles.labelStyle),
           const SizedBox(height: 4),
           DropdownButtonFormField<String>(
             initialValue: model.id,
@@ -1138,7 +1257,10 @@ class _SettingsDialogState extends State<SettingsDialog>
           ),
           const SizedBox(height: 16),
           if (model.multilingual) ...[
-            const Text('Recognition Language', style: DialogStyles.labelStyle),
+            Text(
+              l10n.settingsRecognitionLanguage,
+              style: DialogStyles.labelStyle,
+            ),
             const SizedBox(height: 4),
             DropdownButtonFormField<String>(
               initialValue: sttLang,
@@ -1157,12 +1279,12 @@ class _SettingsDialogState extends State<SettingsDialog>
             ),
             const SizedBox(height: 6),
             Text(
-              'Language changes take effect the next time the engine starts.',
+              l10n.settingsRecognitionLanguageHelp,
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 16),
           ],
-          const Text('Status', style: DialogStyles.labelStyle),
+          Text(l10n.settingsStatus, style: DialogStyles.labelStyle),
           const SizedBox(height: 4),
           ValueListenableBuilder<SttModelStatus>(
             valueListenable: SherpaModelManager.statusOf(model.id),
@@ -1176,6 +1298,7 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   /// Status line + actions for the selected recognition [model].
   Widget _buildSttModelStatus(SttModel model, SttModelStatus status) {
+    final l10n = AppLocalizations.of(context);
     final busy =
         status.state == SttModelState.downloading ||
         status.state == SttModelState.installing;
@@ -1194,7 +1317,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                   final size = snap.data ?? 0;
                   final suffix = size > 0 ? ' (${_formatBytes(size)})' : '';
                   return Text(
-                    'Model installed$suffix',
+                    l10n.settingsModelInstalled(suffix),
                     style: DialogStyles.bodyStyle,
                   );
                 },
@@ -1206,16 +1329,20 @@ class _SettingsDialogState extends State<SettingsDialog>
       case SttModelState.downloading:
         final pct = status.progress;
         final detail = status.totalBytes > 0
-            ? '${_formatBytes(status.receivedBytes)} of '
-                  '${_formatBytes(status.totalBytes)}'
+            ? l10n.settingsBytesOf(
+                _formatBytes(status.receivedBytes),
+                _formatBytes(status.totalBytes),
+              )
             : _formatBytes(status.receivedBytes);
         statusLine = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               pct != null
-                  ? 'Downloading model… ${(pct * 100).toStringAsFixed(0)}%'
-                  : 'Downloading model…',
+                  ? l10n.settingsDownloadingModelPct(
+                      (pct * 100).toStringAsFixed(0),
+                    )
+                  : l10n.settingsDownloadingModel,
               style: DialogStyles.bodyStyle,
             ),
             const SizedBox(height: 6),
@@ -1235,8 +1362,10 @@ class _SettingsDialogState extends State<SettingsDialog>
           children: [
             Text(
               pct != null
-                  ? 'Installing model… ${(pct * 100).toStringAsFixed(0)}%'
-                  : 'Installing model…',
+                  ? l10n.settingsInstallingModelPct(
+                      (pct * 100).toStringAsFixed(0),
+                    )
+                  : l10n.settingsInstallingModel,
               style: DialogStyles.bodyStyle,
             ),
             const SizedBox(height: 6),
@@ -1252,7 +1381,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                status.message ?? 'Model could not be installed.',
+                status.message ?? l10n.settingsModelInstallError,
                 style: const TextStyle(color: Colors.red),
               ),
             ),
@@ -1261,8 +1390,7 @@ class _SettingsDialogState extends State<SettingsDialog>
         break;
       case SttModelState.notInstalled:
         statusLine = Text(
-          'Model not downloaded. ${model.downloadLabel} happens once and is '
-          'cached on this device.',
+          l10n.settingsModelNotDownloaded(model.downloadLabel),
           style: DialogStyles.bodyStyle,
         );
         break;
@@ -1281,7 +1409,9 @@ class _SettingsDialogState extends State<SettingsDialog>
                   : () => SherpaModelManager.ensureModel(model.id),
               icon: const Icon(Icons.download, size: 18),
               label: Text(
-                status.state == SttModelState.error ? 'Retry' : 'Download',
+                status.state == SttModelState.error
+                    ? l10n.settingsRetry
+                    : l10n.settingsDownload,
               ),
             ),
             const SizedBox(width: 8),
@@ -1290,7 +1420,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                   ? null
                   : () => _confirmRemoveSttModel(model),
               icon: const Icon(Icons.delete_outline, size: 18),
-              label: const Text('Remove'),
+              label: Text(l10n.settingsRemove),
             ),
           ],
         ),
@@ -1300,22 +1430,20 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   /// Confirms then deletes the cached files for [model] from disk.
   Future<void> _confirmRemoveSttModel(SttModel model) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove speech-to-text model?'),
-        content: Text(
-          'The downloaded "${model.name}" model will be deleted to reclaim '
-          'disk space. It will be downloaded again the next time it is used.',
-        ),
+        title: Text(l10n.settingsRemoveSttModelTitle),
+        content: Text(l10n.settingsRemoveSttModelBody(model.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Remove'),
+            child: Text(l10n.settingsRemove),
           ),
         ],
       ),
@@ -1326,13 +1454,14 @@ class _SettingsDialogState extends State<SettingsDialog>
   }
 
   Widget _buildCommsTab() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Configure speech recognition and text-to-speech settings.',
+          Text(
+            l10n.settingsCommsIntro,
             style: DialogStyles.bodyStyle,
           ),
           const SizedBox(height: 16),
@@ -1349,15 +1478,15 @@ class _SettingsDialogState extends State<SettingsDialog>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Text-to-Speech',
+                  l10n.settingsTextToSpeech,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade800,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Used when sending text in "Speech" mode from the Comms tab.',
+                Text(
+                  l10n.settingsTextToSpeechInfo,
                   style: DialogStyles.bodyStyle,
                 ),
                 const SizedBox(height: 16),
@@ -1365,13 +1494,16 @@ class _SettingsDialogState extends State<SettingsDialog>
                   _buildTtsUnavailableNotice(),
                   const SizedBox(height: 16),
                 ],
-                const Text('Voice', style: DialogStyles.labelStyle),
+                Text(l10n.settingsVoice, style: DialogStyles.labelStyle),
                 const SizedBox(height: 4),
                 _buildVoiceDropdown(),
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Text('Speech Rate', style: DialogStyles.labelStyle),
+                    Text(
+                      l10n.settingsSpeechRate,
+                      style: DialogStyles.labelStyle,
+                    ),
                     const Spacer(),
                     Text(
                       _settings.voiceSpeechRate.toStringAsFixed(2),
@@ -1392,7 +1524,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Text('Pitch', style: DialogStyles.labelStyle),
+                    Text(l10n.settingsPitch, style: DialogStyles.labelStyle),
                     const Spacer(),
                     Text(
                       _settings.voicePitch.toStringAsFixed(2),
@@ -1417,7 +1549,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                     child: ElevatedButton.icon(
                       onPressed: _previewVoice,
                       icon: const Icon(Icons.volume_up, size: 18),
-                      label: const Text('Preview'),
+                      label: Text(l10n.settingsPreview),
                     ),
                   ),
                 ],
@@ -1432,6 +1564,7 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// A highlighted notice shown in the Text-to-Speech section when synthesis is
   /// unavailable on this machine, including platform-specific setup steps.
   Widget _buildTtsUnavailableNotice() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -1450,7 +1583,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Text-to-speech is unavailable',
+                  l10n.settingsTtsUnavailableTitle,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.amber.shade900,
@@ -1483,25 +1616,26 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// Builds the voice selection dropdown for the Text-to-Speech section,
   /// populated from the platform's available voices.
   Widget _buildVoiceDropdown() {
+    final l10n = AppLocalizations.of(context);
     if (!_voicesLoaded) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
-            SizedBox(
+            const SizedBox(
               width: 16,
               height: 16,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            SizedBox(width: 12),
-            Text('Loading voices…', style: DialogStyles.bodyStyle),
+            const SizedBox(width: 12),
+            Text(l10n.settingsLoadingVoices, style: DialogStyles.bodyStyle),
           ],
         ),
       );
     }
 
     final items = <DropdownMenuItem<String>>[
-      const DropdownMenuItem(value: '', child: Text('System Default')),
+      DropdownMenuItem(value: '', child: Text(l10n.settingsSystemDefault)),
       for (final voice in _voices)
         DropdownMenuItem(
           value: TtsService.encodeVoice(voice),
@@ -1525,21 +1659,22 @@ class _SettingsDialogState extends State<SettingsDialog>
   }
 
   Widget _buildWinlinkTab() {
+    final l10n = AppLocalizations.of(context);
     final winlinkLogin =
         _settings.winlinkUseStationId && _settings.stationId > 0
         ? '${_settings.callSign}-${_settings.stationId}'
         : _settings.callSign;
     final winlinkAccount = _settings.callSign.isNotEmpty
         ? '$winlinkLogin@winlink.org'
-        : 'None';
+        : l10n.settingsNone;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Configure Winlink email settings for radio email.',
+          Text(
+            l10n.settingsWinlinkIntro,
             style: DialogStyles.bodyStyle,
           ),
           const SizedBox(height: 8),
@@ -1555,14 +1690,14 @@ class _SettingsDialogState extends State<SettingsDialog>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Winlink Account',
+                  l10n.settingsWinlinkAccount,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade800,
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text('Account', style: DialogStyles.labelStyle),
+                Text(l10n.settingsAccount, style: DialogStyles.labelStyle),
                 const SizedBox(height: 4),
                 TextField(
                   enabled: false,
@@ -1571,11 +1706,11 @@ class _SettingsDialogState extends State<SettingsDialog>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Based on your call sign from the License tab',
+                  l10n.settingsWinlinkAccountHelp,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 16),
-                const Text('Password', style: DialogStyles.labelStyle),
+                Text(l10n.settingsPassword, style: DialogStyles.labelStyle),
                 const SizedBox(height: 4),
                 TextField(
                   controller: _winlinkPasswordController,
@@ -1600,7 +1735,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                           () => _settings.winlinkUseStationId =
                               !_settings.winlinkUseStationId,
                         ),
-                        child: const Text('Use Station ID for Winlink'),
+                        child: Text(l10n.settingsUseStationIdWinlink),
                       ),
                     ),
                   ],
@@ -1614,13 +1749,14 @@ class _SettingsDialogState extends State<SettingsDialog>
   }
 
   Widget _buildServersTab() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Configure local server settings.',
+          Text(
+            l10n.settingsServersIntro,
             style: DialogStyles.bodyStyle,
           ),
           const SizedBox(height: 16),
@@ -1631,7 +1767,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Local Servers',
+                  l10n.settingsLocalServers,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade800,
@@ -1655,7 +1791,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                           () => _settings.webServerEnabled =
                               !_settings.webServerEnabled,
                         ),
-                        child: const Text('Enable Web Server'),
+                        child: Text(l10n.settingsEnableWebServer),
                       ),
                     ),
                   ],
@@ -1664,7 +1800,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                   padding: const EdgeInsets.only(left: 48),
                   child: Row(
                     children: [
-                      const Text('Port:', style: DialogStyles.labelStyle),
+                      Text(l10n.settingsPort, style: DialogStyles.labelStyle),
                       const SizedBox(width: 8),
                       SizedBox(
                         width: 100,
@@ -1698,7 +1834,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                           () => _settings.agwpeServerEnabled =
                               !_settings.agwpeServerEnabled,
                         ),
-                        child: const Text('Enable AGWPE Server'),
+                        child: Text(l10n.settingsEnableAgwpeServer),
                       ),
                     ),
                   ],
@@ -1707,7 +1843,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                   padding: const EdgeInsets.only(left: 48),
                   child: Row(
                     children: [
-                      const Text('Port:', style: DialogStyles.labelStyle),
+                      Text(l10n.settingsPort, style: DialogStyles.labelStyle),
                       const SizedBox(width: 8),
                       SizedBox(
                         width: 100,
@@ -1761,9 +1897,10 @@ class _SettingsDialogState extends State<SettingsDialog>
   }
 
   Widget _buildMapTab() {
+    final l10n = AppLocalizations.of(context);
     final mapIntro = _serialGpsSupported
-        ? 'Configure GPS and airplane tracking data sources.'
-        : 'Configure airplane tracking data sources.';
+        ? l10n.settingsMapIntroGps
+        : l10n.settingsMapIntroNoGps;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1781,7 +1918,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'GPS Serial Port',
+                    l10n.settingsGpsSerialPort,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.grey.shade800,
@@ -1796,8 +1933,8 @@ class _SettingsDialogState extends State<SettingsDialog>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Serial Port',
+                            Text(
+                              l10n.settingsSerialPort,
                               style: DialogStyles.labelStyle,
                             ),
                             const SizedBox(height: 4),
@@ -1822,8 +1959,8 @@ class _SettingsDialogState extends State<SettingsDialog>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Baud Rate',
+                            Text(
+                              l10n.settingsBaudRate,
                               style: DialogStyles.labelStyle,
                             ),
                             const SizedBox(height: 4),
@@ -1872,11 +2009,10 @@ class _SettingsDialogState extends State<SettingsDialog>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 12),
-                              const Text('Share serial GPS location'),
+                              Text(l10n.settingsShareGpsLocation),
                               const SizedBox(height: 2),
                               Text(
-                                'Send the serial GPS position to the connected '
-                                'radio so it beacons your current location.',
+                                l10n.settingsShareGpsLocationHelp,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey.shade600,
@@ -1901,14 +2037,14 @@ class _SettingsDialogState extends State<SettingsDialog>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Airplane Tracking (dump1090)',
+                  l10n.settingsAirplaneTracking,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade800,
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text('Server URL', style: DialogStyles.labelStyle),
+                Text(l10n.settingsServerUrl, style: DialogStyles.labelStyle),
                 const SizedBox(height: 4),
                 TextField(
                   controller: _airplaneUrlController,
@@ -1933,7 +2069,11 @@ class _SettingsDialogState extends State<SettingsDialog>
                                   !_airplaneTesting)
                               ? _testAirplaneConnection
                               : null,
-                          child: Text(narrow ? 'Test' : 'Test Connection'),
+                          child: Text(
+                            narrow
+                                ? l10n.settingsTest
+                                : l10n.settingsTestConnection,
+                          ),
                         ),
                         if (_airplaneTestResult.isNotEmpty) ...[
                           const SizedBox(width: 12),
@@ -1941,12 +2081,11 @@ class _SettingsDialogState extends State<SettingsDialog>
                             child: Text(
                               _airplaneTestResult,
                               style: TextStyle(
-                                color:
-                                    _airplaneTestResult.startsWith('Success')
-                                    ? Colors.green.shade700
-                                    : _airplaneTestResult == 'Testing...'
+                                color: _airplaneTesting
                                     ? Colors.grey.shade700
-                                    : Colors.red.shade700,
+                                    : (_airplaneTestOk
+                                          ? Colors.green.shade700
+                                          : Colors.red.shade700),
                               ),
                             ),
                           ),
@@ -1965,7 +2104,9 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   /// Formats a limit value for display: 0 means "Unlimited".
   String _limitLabel(int value) {
-    return value == 0 ? 'Unlimited' : value.toString();
+    return value == 0
+        ? AppLocalizations.of(context).settingsUnlimited
+        : value.toString();
   }
 
   /// Builds a single limit slider row.
@@ -1975,6 +2116,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     required ValueChanged<int> onChanged,
     int? currentCount,
   }) {
+    final l10n = AppLocalizations.of(context);
     // Slider positions: 0=Unlimited, then log-ish steps.
     const List<int> steps = [0, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
     final int idx = steps.indexOf(value);
@@ -1994,7 +2136,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Text(
-                  'Current: $currentCount',
+                  l10n.settingsLimitCurrent(currentCount),
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade600,
@@ -2024,7 +2166,7 @@ class _SettingsDialogState extends State<SettingsDialog>
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 4),
             child: Text(
-              '${currentCount - value} items will be deleted',
+              l10n.settingsLimitItemsDeleted(currentCount - value),
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.red.shade700,
@@ -2037,15 +2179,15 @@ class _SettingsDialogState extends State<SettingsDialog>
   }
 
   Widget _buildLimitsTab() {
+    final l10n = AppLocalizations.of(context);
     final counts = _historyCounts;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Limit how many historical items are kept across app restarts. '
-            'Set to "Unlimited" to keep everything.',
+          Text(
+            l10n.settingsLimitsIntro,
             style: DialogStyles.bodyStyle,
           ),
           const SizedBox(height: 16),
@@ -2056,7 +2198,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'History Limits',
+                  l10n.settingsHistoryLimits,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade800,
@@ -2064,7 +2206,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 ),
                 const SizedBox(height: 16),
                 _buildLimitSlider(
-                  label: 'APRS Messages',
+                  label: l10n.settingsLimitAprsMessages,
                   value: _settings.maxAprsMessages,
                   currentCount: counts?.aprsMessages,
                   onChanged: (v) =>
@@ -2072,14 +2214,14 @@ class _SettingsDialogState extends State<SettingsDialog>
                 ),
                 const SizedBox(height: 8),
                 _buildLimitSlider(
-                  label: 'Packets',
+                  label: l10n.settingsLimitPackets,
                   value: _settings.maxPackets,
                   currentCount: counts?.packets,
                   onChanged: (v) => setState(() => _settings.maxPackets = v),
                 ),
                 const SizedBox(height: 8),
                 _buildLimitSlider(
-                  label: 'SSTV Images',
+                  label: l10n.settingsLimitSstvImages,
                   value: _settings.maxSstvImages,
                   currentCount: counts?.sstvImages,
                   onChanged: (v) =>
@@ -2087,7 +2229,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 ),
                 const SizedBox(height: 8),
                 _buildLimitSlider(
-                  label: 'Communication Events',
+                  label: l10n.settingsLimitCommEvents,
                   value: _settings.maxCommEvents,
                   currentCount: counts?.commEvents,
                   onChanged: (v) =>
@@ -2159,22 +2301,25 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return HTDialog(
-      title: widget.route == null ? 'Add APRS Route' : 'Edit APRS Route',
+      title: widget.route == null
+          ? l10n.settingsAddAprsRoute
+          : l10n.settingsEditAprsRoute,
       maxWidth: 400,
       maxHeight: 320,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Name', style: DialogStyles.labelStyle),
+          Text(l10n.settingsName, style: DialogStyles.labelStyle),
           const SizedBox(height: 4),
           TextField(
             controller: _nameController,
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.grey.shade100,
-              hintText: 'e.g. Standard',
+              hintText: l10n.settingsNameHint,
               isDense: true,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -2193,12 +2338,12 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
           if (_isDuplicateName) ...[
             const SizedBox(height: 4),
             Text(
-              'A route with this name already exists.',
+              l10n.settingsDuplicateRoute,
               style: TextStyle(color: Colors.red.shade700, fontSize: 12),
             ),
           ],
           const SizedBox(height: 16),
-          const Text('Path', style: DialogStyles.labelStyle),
+          Text(l10n.settingsPath, style: DialogStyles.labelStyle),
           const SizedBox(height: 4),
           TextField(
             controller: _pathController,
@@ -2227,7 +2372,7 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(null),
           style: DialogStyles.secondaryButtonStyle(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.commonCancel),
         ),
         ElevatedButton(
           onPressed: _canSave
@@ -2241,7 +2386,7 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
                 }
               : null,
           style: DialogStyles.primaryButtonStyle(context),
-          child: const Text('OK'),
+          child: Text(l10n.commonOk),
         ),
       ],
     );

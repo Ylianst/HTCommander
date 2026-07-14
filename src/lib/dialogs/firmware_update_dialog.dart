@@ -11,6 +11,7 @@ reconnect, confirm). Only supported over Bluetooth Classic transports.
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' hide Radio;
 
+import '../l10n/app_localizations.dart';
 import '../radio/firmware_updater.dart';
 import '../radio/radio.dart';
 import '../services/bluetooth_service.dart';
@@ -56,8 +57,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
   final ScrollController _notesScrollController = ScrollController();
 
   _Stage _stage = _Stage.idle;
-  String _statusText =
-      'Check online for a firmware update, or load a firmware file from disk.';
+  String _statusText = '';
   String? _errorText;
 
   @override
@@ -100,19 +100,20 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
   // ── Flow steps ────────────────────────────────────────────────────────────
 
   Future<void> _performCheck() async {
+    final l10n = AppLocalizations.of(context);
     final radio = _radio;
     if (radio == null) {
-      _fail('Radio is not connected.');
+      _fail(l10n.fwErrNotConnected);
       return;
     }
     final productId = radio.info?.productId;
     if (productId == null) {
-      _fail('Radio device information is not available yet.');
+      _fail(l10n.fwErrNoDeviceInfo);
       return;
     }
     setState(() {
       _stage = _Stage.checking;
-      _statusText = 'Checking for a firmware update…';
+      _statusText = l10n.fwStatusChecking;
       _errorText = null;
     });
 
@@ -125,18 +126,16 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
       );
       if (!mounted) return;
       if (info == null) {
-        _fail('The vendor server did not return firmware information.');
+        _fail(l10n.fwErrNoServerInfo);
         return;
       }
       setState(() {
         _updateInfo = info;
         _stage = _Stage.available;
-        _statusText =
-            'A firmware update is available ${info.displayVersion}. '
-            'Review the release notes below, then download to update.';
+        _statusText = l10n.fwUpdateAvailable(info.displayVersion);
       });
     } catch (e) {
-      _fail('Update check failed: $e');
+      _fail(l10n.fwErrCheckFailed('$e'));
     }
   }
 
@@ -144,14 +143,15 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
   /// download/assemble steps. The file must already be an assembled, ready-to-
   /// flash firmware image (not a BSDIFF40 patch).
   Future<void> _loadFromFile() async {
+    final l10n = AppLocalizations.of(context);
     final radio = _radio;
     if (radio == null) {
-      _fail('Radio is not connected.');
+      _fail(l10n.fwErrNotConnected);
       return;
     }
     try {
       final result = await FilePicker.pickFiles(
-        dialogTitle: 'Select Firmware File',
+        dialogTitle: l10n.fwPickTitle,
         withData: true,
       );
       final picked = result?.files.single;
@@ -164,12 +164,14 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
         _bundle = bundle;
         _updateInfo = null;
         _stage = _Stage.confirm;
-        _statusText =
-            'Loaded ${picked!.name}: ${_formatBytes(bundle.size)} '
-            '(MD5 ${bundle.md5Hex.substring(0, 8)}…).';
+        _statusText = l10n.fwLoaded(
+          picked!.name,
+          _formatBytes(bundle.size),
+          bundle.md5Hex.substring(0, 8),
+        );
       });
     } catch (e) {
-      _fail('Could not load firmware file: $e');
+      _fail(l10n.fwErrLoadFailed('$e'));
     }
   }
 
@@ -177,6 +179,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
   /// "From File…" option loads. The version is included in the default file
   /// name when known.
   Future<void> _saveToFile() async {
+    final l10n = AppLocalizations.of(context);
     final bundle = _bundle;
     if (bundle == null) return;
     try {
@@ -189,27 +192,28 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
       final defaultName = '${parts.join('_')}.bin';
 
       final path = await FilePicker.saveFile(
-        dialogTitle: 'Save Firmware File',
+        dialogTitle: l10n.fwSaveTitle,
         fileName: defaultName,
         bytes: bundle.data,
       );
       if (path == null) return; // cancelled
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Firmware saved to $path')),
+        SnackBar(content: Text(l10n.fwSavedTo(path))),
       );
     } catch (e) {
-      _fail('Could not save firmware file: $e');
+      _fail(l10n.fwErrSaveFailed('$e'));
     }
   }
 
   Future<void> _download() async {
+    final l10n = AppLocalizations.of(context);
     final info = _updateInfo;
     if (info == null) return;
     setState(() {
       _stage = _Stage.downloading;
-      _statusText = 'Downloading and assembling firmware…';
-      _progressLabel = 'Starting…';
+      _statusText = l10n.fwStatusDownloading;
+      _progressLabel = l10n.fwProgressStarting;
       _progressValue = null;
     });
 
@@ -222,20 +226,22 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
       setState(() {
         _bundle = bundle;
         _stage = _Stage.confirm;
-        _statusText =
-            'Firmware ready: ${_formatBytes(bundle.size)} '
-            '(MD5 ${bundle.md5Hex.substring(0, 8)}…).';
+        _statusText = l10n.fwReady(
+          _formatBytes(bundle.size),
+          bundle.md5Hex.substring(0, 8),
+        );
       });
     } catch (e) {
-      _fail('Download failed: $e');
+      _fail(l10n.fwErrDownloadFailed('$e'));
     }
   }
 
   Future<void> _flash() async {
+    final l10n = AppLocalizations.of(context);
     final radio = _radio;
     final bundle = _bundle;
     if (radio == null || bundle == null) {
-      _fail('Radio is not connected.');
+      _fail(l10n.fwErrNotConnected);
       return;
     }
 
@@ -245,8 +251,8 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
     // Phase 1 — transfer.
     setState(() {
       _stage = _Stage.flashing;
-      _statusText = 'Writing firmware to the radio. Do not power it off.';
-      _progressLabel = 'Transferring…';
+      _statusText = l10n.fwStatusWriting;
+      _progressLabel = l10n.fwProgressTransferring;
       _progressValue = 0;
     });
 
@@ -254,7 +260,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
       final updater = FirmwareUpdater(radio, bundle, progress: _onFlashProgress);
       await updater.transfer();
     } catch (e) {
-      _fail('Firmware transfer failed: $e');
+      _fail(l10n.fwErrTransferFailed('$e'));
       return;
     }
 
@@ -263,8 +269,8 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
     // Phase 1 → 2 — reboot & reconnect.
     setState(() {
       _stage = _Stage.rebooting;
-      _statusText = 'Radio is rebooting. Reconnecting…';
-      _progressLabel = 'Waiting for the radio to restart…';
+      _statusText = l10n.fwStatusRebooting;
+      _progressLabel = l10n.fwProgressWaitingRestart;
       _progressValue = null;
     });
 
@@ -272,14 +278,13 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
     try {
       newRadio = await _bt.reconnectAfterReboot(mac, name);
     } catch (e) {
-      _fail('Reconnect failed after reboot: $e');
+      _fail(l10n.fwErrReconnectFailed('$e'));
       return;
     }
     if (!mounted) return;
     if (newRadio == null) {
       _fail(
-        'Could not reconnect to the radio after it rebooted. The firmware was '
-        'transferred but not confirmed. Reconnect manually and retry.',
+        l10n.fwErrReconnectNull,
       );
       return;
     }
@@ -287,23 +292,22 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
     // Phase 2 — confirm.
     setState(() {
       _stage = _Stage.confirming;
-      _statusText = 'Finalising the update…';
-      _progressLabel = 'Confirming…';
+      _statusText = l10n.fwStatusFinalising;
+      _progressLabel = l10n.fwProgressConfirming;
       _progressValue = null;
     });
 
     try {
       await FirmwareUpdater.confirm(newRadio, bundle);
     } catch (e) {
-      _fail('Update confirmation failed: $e');
+      _fail(l10n.fwErrConfirmFailed('$e'));
       return;
     }
     if (!mounted) return;
 
     setState(() {
       _stage = _Stage.done;
-      _statusText =
-          'Firmware update complete! The radio is now running the new firmware.';
+      _statusText = l10n.fwStatusComplete;
     });
   }
 
@@ -311,15 +315,17 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
 
   void _onAcquireProgress(String stage, int done, int total) {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
     setState(() {
       final label = switch (stage) {
-        'patch' => 'Downloading patch',
-        'base' => 'Downloading base image',
-        'assemble' => 'Assembling firmware',
+        'patch' => l10n.fwProgressDownloadPatch,
+        'base' => l10n.fwProgressDownloadBase,
+        'assemble' => l10n.fwProgressAssemble,
         _ => stage,
       };
       _progressLabel = total > 0
-          ? '$label (${_formatBytes(done)} / ${_formatBytes(total)})'
+          ? l10n.fwProgressBytes(
+              label, _formatBytes(done), _formatBytes(total))
           : '$label…';
       _progressValue = total > 0 ? done / total : null;
     });
@@ -327,9 +333,10 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
 
   void _onFlashProgress(String stage, int done, int total) {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
     setState(() {
-      _progressLabel =
-          'Transferring (${_formatBytes(done)} / ${_formatBytes(total)})';
+      _progressLabel = l10n.fwProgressTransferringBytes(
+          _formatBytes(done), _formatBytes(total));
       _progressValue = total > 0 ? done / total : null;
     });
   }
@@ -395,7 +402,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text(
-                    'Radio Firmware Update',
+                    AppLocalizations.of(context).fwTitle,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -432,21 +439,25 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
   }
 
   Widget _buildContent() {
+    final l10n = AppLocalizations.of(context);
+    final statusText =
+        _statusText.isEmpty ? l10n.fwStatusInitial : _statusText;
     final children = <Widget>[
-      Text('Current firmware: $_currentVersion', style: DialogStyles.labelStyle),
+      Text(l10n.fwCurrentFirmware(_currentVersion),
+          style: DialogStyles.labelStyle),
       const SizedBox(height: 12),
     ];
 
     if (_stage == _Stage.error) {
       children.add(
         SelectableText(
-          _errorText ?? 'An error occurred.',
+          _errorText ?? l10n.fwErrGeneric,
           style: DialogStyles.bodyStyle.copyWith(color: Colors.red.shade800),
         ),
       );
     } else {
-      if (_statusText.isNotEmpty) {
-        children.add(Text(_statusText, style: DialogStyles.bodyStyle));
+      if (statusText.isNotEmpty) {
+        children.add(Text(statusText, style: DialogStyles.bodyStyle));
       }
 
       // Inline online-check disclosure (idle).
@@ -454,9 +465,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
         children.addAll([
           const SizedBox(height: 10),
           Text(
-            'Checking online contacts the radio vendor\'s server '
-            '(rpc.benshikj.com) and sends only your radio\'s product ID. '
-            'Nothing is sent until you press Check for Update.',
+            l10n.fwIdleDisclosure,
             style: DialogStyles.bodyStyle.copyWith(fontSize: 12),
           ),
         ]);
@@ -468,7 +477,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
         children.addAll([
           const SizedBox(height: 16),
           Text(
-            'What\'s new',
+            l10n.fwWhatsNew,
             style: DialogStyles.bodyStyle.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
@@ -506,11 +515,9 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
               borderRadius: BorderRadius.circular(4),
               border: Border.all(color: Colors.amber.shade700),
             ),
-            child: const Text(
-              'Warning: keep the radio powered on, charged, and within Bluetooth '
-              'range for the entire process. The radio will reboot partway '
-              'through. Interrupting the update may require a manual recovery.',
-              style: TextStyle(fontSize: 12),
+            child: Text(
+              l10n.fwConfirmWarning,
+              style: const TextStyle(fontSize: 12),
             ),
           ),
         ]);
@@ -552,10 +559,11 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
   }
 
   List<Widget> _buildActions() {
+    final l10n = AppLocalizations.of(context);
     final close = TextButton(
       onPressed: _isBusy ? null : () => Navigator.of(context).pop(),
       style: DialogStyles.secondaryButtonStyle(context),
-      child: Text(_stage == _Stage.done ? 'Close' : 'Cancel'),
+      child: Text(_stage == _Stage.done ? l10n.commonClose : l10n.commonCancel),
     );
 
     switch (_stage) {
@@ -565,12 +573,12 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
           TextButton(
             onPressed: _loadFromFile,
             style: DialogStyles.secondaryButtonStyle(context),
-            child: const Text('From File…'),
+            child: Text(l10n.fwFromFile),
           ),
           ElevatedButton(
             onPressed: _performCheck,
             style: DialogStyles.primaryButtonStyle(context),
-            child: const Text('Check for Update'),
+            child: Text(l10n.fwCheckForUpdate),
           ),
         ];
       case _Stage.available:
@@ -579,7 +587,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
           ElevatedButton(
             onPressed: _download,
             style: DialogStyles.primaryButtonStyle(context),
-            child: const Text('Download'),
+            child: Text(l10n.fwDownload),
           ),
         ];
       case _Stage.confirm:
@@ -588,7 +596,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
           TextButton(
             onPressed: _saveToFile,
             style: DialogStyles.secondaryButtonStyle(context),
-            child: const Text('Save…'),
+            child: Text(l10n.fwSave),
           ),
           ElevatedButton(
             onPressed: _flash,
@@ -596,7 +604,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
               backgroundColor: Colors.red.shade700,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Flash Now'),
+            child: Text(l10n.fwFlashNow),
           ),
         ];
       case _Stage.error:
@@ -604,12 +612,12 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             style: DialogStyles.secondaryButtonStyle(context),
-            child: const Text('Close'),
+            child: Text(l10n.commonClose),
           ),
           ElevatedButton(
             onPressed: _performCheck,
             style: DialogStyles.primaryButtonStyle(context),
-            child: const Text('Retry'),
+            child: Text(l10n.fwRetry),
           ),
         ];
       case _Stage.checking:
@@ -624,7 +632,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
             TextButton(
               onPressed: _saveToFile,
               style: DialogStyles.secondaryButtonStyle(context),
-              child: const Text('Save…'),
+              child: Text(l10n.fwSave),
             ),
           close,
         ];

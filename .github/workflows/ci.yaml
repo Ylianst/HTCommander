@@ -1,0 +1,84 @@
+name: CI
+
+# Continuous validation on pull requests and pushes. Keeps the codebase and its
+# localizations healthy between manual/tagged release builds. In particular this
+# guards multi-language support: it fails the build if any translation ARB file
+# drifts out of sync with the English template (missing or extra keys), which
+# would otherwise ship a half-translated locale.
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - '.github/workflows/ci.yaml'
+  push:
+    branches: [main, master]
+    paths:
+      - 'src/**'
+      - '.github/workflows/ci.yaml'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze & validate localizations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        working-directory: src
+        run: flutter pub get
+
+      - name: Generate localizations
+        working-directory: src
+        run: flutter gen-l10n
+
+      - name: Check translation parity across ARB files
+        working-directory: src
+        run: |
+          python3 - <<'PY'
+          import glob, json, os, sys
+
+          def message_keys(path):
+              with open(path, encoding='utf-8') as f:
+                  data = json.load(f)
+              # Skip metadata entries: @@locale and any @<key> descriptors.
+              return {k for k in data if not k.startswith('@')}
+
+          template = 'lib/l10n/app_en.arb'
+          en_keys = message_keys(template)
+          failed = False
+
+          for arb in sorted(glob.glob('lib/l10n/app_*.arb')):
+              if os.path.basename(arb) == 'app_en.arb':
+                  continue
+              locale_keys = message_keys(arb)
+              missing = sorted(en_keys - locale_keys)
+              extra = sorted(locale_keys - en_keys)
+              if missing or extra:
+                  failed = True
+                  print(f'::error file=src/{arb}::{os.path.basename(arb)} is out of sync with app_en.arb')
+                  if missing:
+                      print(f'  Missing {len(missing)} translation(s): {", ".join(missing)}')
+                  if extra:
+                      print(f'  Unexpected {len(extra)} key(s) not in template: {", ".join(extra)}')
+
+          if failed:
+              sys.exit(1)
+          print(f'All translation ARB files are in sync with app_en.arb ({len(en_keys)} keys).')
+          PY
+
+      - name: Analyze
+        working-directory: src
+        run: flutter analyze
+
+      # Only the true unit tests are gated here. dart_link_test.dart and
+      # dart_modem_test.dart declare `main(List<String> args)` (they are CLI
+      # tools), which is incompatible with the `flutter test` harness, so they
+      # are excluded rather than run.
+      - name: Run unit tests
+        working-directory: src
+        run: flutter test test/channel_share_test.dart test/dart_debug_test.dart test/firmware_test.dart

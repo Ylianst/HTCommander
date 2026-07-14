@@ -12,6 +12,7 @@ tweaked and re-sent repeatedly.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../radio/gaia_protocol.dart';
 import '../radio/utils.dart';
 import '../services/data_broker_client.dart';
@@ -207,15 +208,16 @@ class _RawCommandDialogState extends State<_RawCommandDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return HTDialog(
-      title: 'Raw Radio Command',
+      title: l10n.rawTitle,
       maxWidth: 640,
       maxHeight: 560,
       content: Column(
         mainAxisSize: MainAxisSize.max,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Command', style: DialogStyles.labelStyle),
+          Text(l10n.rawCommand, style: DialogStyles.labelStyle),
           const SizedBox(height: 4),
           DropdownButtonFormField<RadioBasicCommand>(
             initialValue: _selectedCommand,
@@ -249,7 +251,7 @@ class _RawCommandDialogState extends State<_RawCommandDialog> {
             },
           ),
           const SizedBox(height: 12),
-          const Text('HEX Payload (optional)', style: DialogStyles.labelStyle),
+          Text(l10n.rawHexPayload, style: DialogStyles.labelStyle),
           const SizedBox(height: 4),
           TextField(
             controller: _payloadController,
@@ -269,12 +271,12 @@ class _RawCommandDialogState extends State<_RawCommandDialog> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Text('Response', style: DialogStyles.labelStyle),
+              Text(l10n.rawResponse, style: DialogStyles.labelStyle),
               const Spacer(),
               TextButton(
                 onPressed: _onClearLog,
                 style: DialogStyles.secondaryButtonStyle(context),
-                child: const Text('Clear'),
+                child: Text(l10n.tabClear),
               ),
             ],
           ),
@@ -306,12 +308,12 @@ class _RawCommandDialogState extends State<_RawCommandDialog> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           style: DialogStyles.secondaryButtonStyle(context),
-          child: const Text('Close'),
+          child: Text(l10n.commonClose),
         ),
         ElevatedButton(
           onPressed: _onSend,
           style: DialogStyles.primaryButtonStyle(context),
-          child: const Text('Send'),
+          child: Text(l10n.commonSend),
         ),
       ],
     );

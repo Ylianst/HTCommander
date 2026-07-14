@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import '../models/radio_models.dart';
 
@@ -195,26 +196,27 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
   bool get _isConnected => _currentState == 'Connected';
 
   String get _connectionState {
+    final l10n = AppLocalizations.of(context);
     if (widget.deviceId <= 0 || _currentState == null) {
-      return 'Disconnected';
+      return l10n.stateDisconnected;
     }
     switch (_currentState) {
       case 'Disconnected':
       case 'NotRadioFound':
       case 'BluetoothNotAvailable':
-        return 'Disconnected';
+        return l10n.stateDisconnected;
       case 'Connecting':
-        return 'Connecting...';
+        return l10n.stateConnecting;
       case 'Connected':
-        return 'Connected';
+        return l10n.stateConnected;
       case 'UnableToConnect':
-        return 'Unable to Connect';
+        return l10n.stateUnableToConnect;
       case 'AccessDenied':
-        return 'Access Denied';
+        return l10n.stateAccessDenied;
       case 'MultiRadioSelect':
-        return 'Select Radio';
+        return l10n.stateSelectRadio;
       default:
-        return _currentState ?? 'Disconnected';
+        return _currentState ?? l10n.stateDisconnected;
     }
   }
 

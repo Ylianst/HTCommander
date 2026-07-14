@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../dialogs/add_torrent_file_dialog.dart';
+import '../l10n/app_localizations.dart';
 import '../models/radio_models.dart';
 import '../models/torrent_file.dart';
 import '../radio/radio.dart';
@@ -283,12 +284,13 @@ class _TorrentTabState extends State<TorrentTab>
     if (!mounted || data is! Map) return;
     final success = (data['Success'] as bool?) ?? false;
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context);
     if (success) {
-      messenger.showSnackBar(const SnackBar(content: Text('File saved.')));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.torrentFileSaved)));
     } else {
-      final error = (data['Error'] as String?) ?? 'Unknown error';
+      final error = (data['Error'] as String?) ?? l10n.torrentUnknownError;
       messenger.showSnackBar(
-        SnackBar(content: Text('Error saving file: $error')),
+        SnackBar(content: Text(l10n.errorSavingFile(error))),
       );
     }
   }
@@ -380,11 +382,11 @@ class _TorrentTabState extends State<TorrentTab>
 
   void _onActivate() {
     if (_connectedRadios.isEmpty) {
-      _showInfo('No radios connected. Connect a radio first.');
+      _showInfo(AppLocalizations.of(context).torrentNoRadios);
       return;
     }
     if (_connectedRadios.length > 1) {
-      _showInfo('Multi-radio torrent mode is not yet supported.');
+      _showInfo(AppLocalizations.of(context).torrentMultiRadio);
       return;
     }
     final radioId = _connectedRadios.first;
@@ -453,6 +455,7 @@ class _TorrentTabState extends State<TorrentTab>
 
   Future<void> _onSaveAs(_TorrentView view) async {
     if (!view.completed) return;
+    final l10n = AppLocalizations.of(context);
 
     // On web and mobile the OS file picker writes the file itself and needs the
     // bytes up front, so ask the handler (which owns the blocks) to reassemble
@@ -464,8 +467,8 @@ class _TorrentTabState extends State<TorrentTab>
       if (bytes == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Error saving file: file data not available'),
+            SnackBar(
+              content: Text(l10n.torrentFileDataUnavailable),
             ),
           );
         }
@@ -474,29 +477,33 @@ class _TorrentTabState extends State<TorrentTab>
       String? result;
       try {
         result = await FilePicker.saveFile(
-          dialogTitle: 'Save Torrent File',
+          dialogTitle: l10n.torrentSaveTitle,
           fileName: view.fileName,
           bytes: bytes,
         );
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error saving file: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.errorSavingFile(e.toString())),
+            ),
+          );
         }
         return;
       }
       if (result == null) return; // Cancelled.
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('File saved.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.torrentFileSaved),
+          ),
+        );
       }
       return;
     }
 
     final path = await FilePicker.saveFile(
-      dialogTitle: 'Save Torrent File',
+      dialogTitle: l10n.torrentSaveTitle,
       fileName: view.fileName,
     );
     if (path == null) return;
@@ -527,16 +534,16 @@ class _TorrentTabState extends State<TorrentTab>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Torrent'),
-        content: const Text('Delete selected torrent file?'),
+        title: Text(AppLocalizations.of(context).tabTorrent),
+        content: Text(AppLocalizations.of(context).torrentDeletePrompt),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context).commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context).commonDelete),
           ),
         ],
       ),
@@ -621,24 +628,25 @@ class _TorrentTabState extends State<TorrentTab>
   }
 
   String _modeToString(TorrentMode mode) {
+    final l10n = AppLocalizations.of(context);
     switch (mode) {
       case TorrentMode.pause:
-        return 'Paused';
+        return l10n.torrentModePaused;
       case TorrentMode.sharing:
-        return 'Sharing';
+        return l10n.torrentModeSharing;
       case TorrentMode.request:
-        return 'Requesting';
+        return l10n.torrentModeRequesting;
       case TorrentMode.error:
-        return 'Error';
+        return l10n.torrentModeError;
     }
   }
 
   String _compressionToString(TorrentCompression compression) {
     switch (compression) {
       case TorrentCompression.unknown:
-        return 'Unknown';
+        return AppLocalizations.of(context).torrentCompUnknown;
       case TorrentCompression.none:
-        return 'None';
+        return AppLocalizations.of(context).settingsNone;
       case TorrentCompression.brotli:
         return 'Brotli';
       case TorrentCompression.deflate:
@@ -695,9 +703,9 @@ class _TorrentTabState extends State<TorrentTab>
           final showButtons = constraints.maxWidth > 300;
           return Row(
             children: [
-              const Text(
-                'Torrent',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              Text(
+                AppLocalizations.of(context).tabTorrent,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const Spacer(),
               if (showButtons) ...[
@@ -709,7 +717,7 @@ class _TorrentTabState extends State<TorrentTab>
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       textStyle: const TextStyle(fontSize: 12),
                     ),
-                    child: const Text('Add File'),
+                    child: Text(AppLocalizations.of(context).torrentAddFile),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -721,7 +729,11 @@ class _TorrentTabState extends State<TorrentTab>
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       textStyle: const TextStyle(fontSize: 12),
                     ),
-                    child: Text(_isActivated ? 'Deactivate' : 'Activate'),
+                    child: Text(
+                      _isActivated
+                          ? AppLocalizations.of(context).bbsDeactivate
+                          : AppLocalizations.of(context).bbsActivate,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -777,7 +789,7 @@ class _TorrentTabState extends State<TorrentTab>
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Show Details'),
+              Text(AppLocalizations.of(context).torrentShowDetails),
             ],
           ),
         ),
@@ -787,8 +799,11 @@ class _TorrentTabState extends State<TorrentTab>
             value: 'detach',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Detach...')],
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Text(AppLocalizations.of(context).tabDetach),
+              ],
             ),
           ),
         ],
@@ -856,26 +871,26 @@ class _TorrentTabState extends State<TorrentTab>
       items: [
         item(
           'pause',
-          'Pause',
+          AppLocalizations.of(context).torrentPause,
           enabled: canPause,
           checked: view.mode == TorrentMode.pause,
         ),
         item(
           'share',
-          'Share',
+          AppLocalizations.of(context).torrentShare,
           enabled: canShare,
           checked: view.mode == TorrentMode.sharing,
         ),
         item(
           'request',
-          'Request',
+          AppLocalizations.of(context).torrentRequest,
           enabled: canRequest,
           checked: view.mode == TorrentMode.request,
         ),
         const PopupMenuDivider(height: 8),
-        item('saveAs', 'Save As...', enabled: canSaveAs),
+        item('saveAs', AppLocalizations.of(context).torrentSaveAs, enabled: canSaveAs),
         const PopupMenuDivider(height: 8),
-        item('delete', 'Delete', enabled: true),
+        item('delete', AppLocalizations.of(context).commonDelete, enabled: true),
       ],
     ).then((value) {
       if (value == null) return;
@@ -941,7 +956,7 @@ class _TorrentTabState extends State<TorrentTab>
         if (detail.files.length == 1) {
           _onDropFile(detail.files.first.path);
         } else if (detail.files.length > 1) {
-          _showInfo('Please drop a single file.');
+          _showInfo(AppLocalizations.of(context).torrentDropSingle);
         }
       },
       child: Container(
@@ -954,8 +969,8 @@ class _TorrentTabState extends State<TorrentTab>
                   ? Center(
                       child: Text(
                         _dragging
-                            ? 'Drop a file to share'
-                            : 'No torrent files. Add or drop a file to share.',
+                            ? AppLocalizations.of(context).torrentDropToShare
+                            : AppLocalizations.of(context).torrentNoFiles,
                         style: const TextStyle(color: Colors.grey),
                       ),
                     )
@@ -992,7 +1007,7 @@ class _TorrentTabState extends State<TorrentTab>
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       color: Colors.grey.shade100,
       child: Text(
-        source.isEmpty ? 'Unknown' : source,
+        source.isEmpty ? AppLocalizations.of(context).torrentUnknownSource : source,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.bold,
@@ -1101,9 +1116,9 @@ class _TorrentTabState extends State<TorrentTab>
       child: Row(
         children: [
           const SizedBox(width: 32), // Icon column
-          _buildColumnHeader('File', 0, flex: 2),
-          _buildColumnHeader('Mode', 1, width: 80),
-          _buildColumnHeader('Description', 2, flex: 2),
+          _buildColumnHeader(AppLocalizations.of(context).torrentColFile, 0, flex: 2),
+          _buildColumnHeader(AppLocalizations.of(context).torrentColMode, 1, width: 80),
+          _buildColumnHeader(AppLocalizations.of(context).contactsColDescription, 2, flex: 2),
         ],
       ),
     );
@@ -1145,36 +1160,38 @@ class _TorrentTabState extends State<TorrentTab>
   }
 
   Widget _buildDetailsPanel() {
+    final l10n = AppLocalizations.of(context);
     final torrent = _selectedTorrent;
     if (torrent == null) {
       return Container(
         color: Colors.white,
-        child: const Center(
+        child: Center(
           child: Text(
-            'Select a torrent to view details',
-            style: TextStyle(color: Colors.grey),
+            l10n.torrentSelectPrompt,
+            style: const TextStyle(color: Colors.grey),
           ),
         ),
       );
     }
 
     final details = <MapEntry<String, String>>[
-      MapEntry('File name', torrent.fileName),
+      MapEntry(l10n.torrentDetailFileName, torrent.fileName),
       if (torrent.description.isNotEmpty)
-        MapEntry('Description', torrent.description),
-      if (torrent.source.isNotEmpty) MapEntry('Source', torrent.source),
-      if (torrent.size != 0) MapEntry('File size', '${torrent.size} bytes'),
+        MapEntry(l10n.contactsColDescription, torrent.description),
+      if (torrent.source.isNotEmpty) MapEntry(l10n.torrentDetailSource, torrent.source),
+      if (torrent.size != 0)
+        MapEntry(l10n.torrentDetailFileSize, l10n.torrentBytes(torrent.size)),
       if (torrent.compression != TorrentCompression.unknown)
         MapEntry(
-          'Compression',
+          l10n.torrentDetailCompression,
           torrent.compressedSize > 0
-              ? '${_compressionToString(torrent.compression)}, ${torrent.compressedSize} bytes'
+              ? '${_compressionToString(torrent.compression)}, ${l10n.torrentBytes(torrent.compressedSize)}'
               : _compressionToString(torrent.compression),
         ),
-      MapEntry('Mode', _modeToString(torrent.mode)),
+      MapEntry(l10n.torrentColMode, _modeToString(torrent.mode)),
       if (torrent.totalBlocks > 0)
         MapEntry(
-          'Blocks',
+          l10n.torrentDetailBlocks,
           '${torrent.receivedBlocks} / ${torrent.totalBlocks}',
         ),
     ];
@@ -1188,11 +1205,11 @@ class _TorrentTabState extends State<TorrentTab>
             height: 28,
             color: Colors.grey.shade200,
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: const Align(
+            child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Torrent Details',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                AppLocalizations.of(context).torrentDetailsTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               ),
             ),
           ),

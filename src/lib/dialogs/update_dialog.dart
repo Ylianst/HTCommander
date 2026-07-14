@@ -1,6 +1,7 @@
 import 'package:desktop_updater/desktop_updater.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/update_service.dart';
 import 'dialog_utils.dart';
 
@@ -22,8 +23,13 @@ class _UpdateDialogState extends State<UpdateDialog> {
   void initState() {
     super.initState();
     _controller?.addListener(_onStateChanged);
-    // Start an immediate check when the dialog opens.
-    _checkForUpdates();
+    // Start an immediate check when the dialog opens. This is scheduled for
+    // after the first frame so that the localization (inherited) context is
+    // available — calling AppLocalizations.of(context) directly in initState
+    // throws and would leave the dialog blank.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checkForUpdates();
+    });
   }
 
   @override
@@ -39,9 +45,10 @@ class _UpdateDialogState extends State<UpdateDialog> {
 
   Future<void> _checkForUpdates() async {
     if (_controller == null || _checking) return;
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _checking = true;
-      _status = 'Checking for updates...';
+      _status = l10n.updateChecking;
     });
     try {
       final result = await _controller.checkForUpdates();
@@ -50,21 +57,21 @@ class _UpdateDialogState extends State<UpdateDialog> {
         _checkedOnce = true;
         _status = switch (result) {
           ManualUpdateCheckAvailable(:final descriptor) =>
-            'Version ${descriptor.version} is available.',
+            l10n.updateVersionAvailable(descriptor.version),
           ManualUpdateCheckFreshInstallRequired(:final descriptor) =>
-            'Version ${descriptor.version} requires a fresh download.',
+            l10n.updateFreshDownload(descriptor.version),
           ManualUpdateCheckBlockedBySupportPolicy(:final descriptor) =>
-            'This version is no longer supported. Update to ${descriptor.version}.',
-          ManualUpdateCheckUpToDate() => 'You are running the latest version.',
+            l10n.updateUnsupported(descriptor.version),
+          ManualUpdateCheckUpToDate() => l10n.updateUpToDate,
           ManualUpdateCheckFailed(:final error) =>
-            'Update check failed: $error',
+            l10n.updateCheckFailed(error.toString()),
         };
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _checkedOnce = true;
-        _status = 'Update check failed: $e';
+        _status = l10n.updateCheckFailed(e.toString());
       });
     } finally {
       if (mounted) {
@@ -75,24 +82,26 @@ class _UpdateDialogState extends State<UpdateDialog> {
 
   Future<void> _downloadUpdate() async {
     if (_controller == null) return;
-    setState(() => _status = 'Downloading update...');
+    final l10n = AppLocalizations.of(context);
+    setState(() => _status = l10n.updateDownloading);
     try {
       await _controller.downloadUpdate();
       if (!mounted) return;
-      setState(() => _status = 'Update downloaded. Ready to install.');
+      setState(() => _status = l10n.updateDownloaded);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _status = 'Download failed: $e');
+      setState(() => _status = l10n.updateDownloadFailed(e.toString()));
     }
   }
 
   Future<void> _installUpdate() async {
     if (_controller == null) return;
+    final l10n = AppLocalizations.of(context);
     try {
       await _controller.restartApp();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _status = 'Install failed: $e');
+      setState(() => _status = l10n.updateInstallFailed(e.toString()));
     }
   }
 
@@ -110,9 +119,10 @@ class _UpdateDialogState extends State<UpdateDialog> {
     }
 
     final logPath = UpdateService.instance.logPath;
+    final l10n = AppLocalizations.of(context);
 
     return HTDialog(
-      title: 'Software Update',
+      title: l10n.updateTitle,
       maxWidth: 450,
       maxHeight: 300,
       content: Column(
@@ -132,8 +142,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
               logPath != null) ...[
             const SizedBox(height: 12),
             SelectableText(
-              'If the update does not complete, see the diagnostics log:\n'
-              '$logPath',
+              l10n.updateDiagnosticsLog(logPath),
               style: DialogStyles.bodyStyle.copyWith(fontSize: 11),
             ),
           ],
@@ -141,20 +150,23 @@ class _UpdateDialogState extends State<UpdateDialog> {
       ),
       actions: [
         if (canDownload && !isDownloading)
-          TextButton(onPressed: _downloadUpdate, child: const Text('Download')),
+          TextButton(
+            onPressed: _downloadUpdate,
+            child: Text(l10n.settingsDownload),
+          ),
         if (isReadyToInstall)
           TextButton(
             onPressed: _installUpdate,
-            child: const Text('Install & Restart'),
+            child: Text(l10n.updateInstallRestart),
           ),
         if (!_checking && _checkedOnce && !canDownload && !isReadyToInstall)
           TextButton(
             onPressed: _checkForUpdates,
-            child: const Text('Check Again'),
+            child: Text(l10n.updateCheckAgain),
           ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(l10n.commonClose),
         ),
       ],
     );

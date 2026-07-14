@@ -385,24 +385,4 @@ class Fx25Rec {
     if (Fx25.getDebugLevel() >= 3) Fx25.hexDump(pin, ilen);
     return 0;
   }
-
-  /// Count number of '1' bits in a 64-bit integer.
-  int _popCount(int x) {
-    int count = 0;
-    while (x != 0) {
-      count++;
-      x &= x - 1; // Clear the least significant bit set
-    }
-    return count;
-  }
-
-  /// Compact single-line hex dump of the first [len] bytes of [b], for logging.
-  static String _hexInline(Uint8List b, int len) {
-    final StringBuffer sb = StringBuffer();
-    final int n = len < b.length ? len : b.length;
-    for (int i = 0; i < n; i++) {
-      sb.write(b[i].toRadixString(16).padLeft(2, '0'));
-    }
-    return sb.toString().toUpperCase();
-  }
 }

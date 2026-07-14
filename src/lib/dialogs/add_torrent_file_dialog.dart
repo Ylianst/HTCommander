@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 
 import '../models/torrent_file.dart';
 import '../utils/compression.dart';
+import '../l10n/app_localizations.dart';
 import 'dialog_utils.dart';
 
 /// Shows the "Add Torrent File" dialog and returns the built [TorrentFile] when
@@ -70,7 +71,7 @@ class _AddTorrentFileDialogState extends State<AddTorrentFileDialog> {
 
   Future<void> _selectFile() async {
     final result = await FilePicker.pickFiles(
-      dialogTitle: 'Select File to Share',
+      dialogTitle: AppLocalizations.of(context).attSelectFile,
     );
     final path = result?.files.single.path;
     if (path == null) return;
@@ -83,7 +84,7 @@ class _AddTorrentFileDialogState extends State<AddTorrentFileDialog> {
     setState(() {
       _busy = true;
       _errorMessage = null;
-      _compressionLabel = 'Compressing...';
+      _compressionLabel = AppLocalizations.of(context).attCompressing;
     });
     try {
       final file = File(path);
@@ -157,7 +158,7 @@ class _AddTorrentFileDialogState extends State<AddTorrentFileDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Add Torrent File', style: DialogStyles.titleStyle),
+              Text(AppLocalizations.of(context).attTitle, style: DialogStyles.titleStyle),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -172,14 +173,14 @@ class _AddTorrentFileDialogState extends State<AddTorrentFileDialog> {
                           child: TextField(
                             readOnly: true,
                             controller: _fileController,
-                            decoration: _inputDecoration(labelText: 'File'),
+                            decoration: _inputDecoration(labelText: AppLocalizations.of(context).torrentColFile),
                           ),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: _busy ? null : _selectFile,
                           style: DialogStyles.primaryButtonStyle(context),
-                          child: const Text('Select...'),
+                          child: Text(AppLocalizations.of(context).attSelect),
                         ),
                       ],
                     ),
@@ -240,7 +241,7 @@ class _AddTorrentFileDialogState extends State<AddTorrentFileDialog> {
                       minLines: 3,
                       inputFormatters: [LengthLimitingTextInputFormatter(200)],
                       decoration: _inputDecoration(
-                        labelText: 'Description (optional)',
+                        labelText: AppLocalizations.of(context).attDescriptionOptional,
                         alignLabelWithHint: true,
                       ),
                     ),
@@ -254,13 +255,13 @@ class _AddTorrentFileDialogState extends State<AddTorrentFileDialog> {
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.secondaryButtonStyle(context),
-                    child: const Text('Cancel'),
+                    child: Text(AppLocalizations.of(context).commonCancel),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: (_torrentFile != null && !_busy) ? _onAdd : null,
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('Add'),
+                    child: Text(AppLocalizations.of(context).commonAdd),
                   ),
                 ],
               ),

@@ -6,6 +6,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
 import '../services/data_broker_client.dart';
 import 'channel_details_dialog.dart';
@@ -139,17 +140,18 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
     final staged = _staged[slot.channelId];
     final channel = staged ?? slot;
     if (channel.name.isNotEmpty) return channel.name;
-    return 'Ch ${slot.channelId + 1}';
+    return AppLocalizations.of(context).importChannelShort(slot.channelId + 1);
   }
 
   // --- UI --------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final radio = widget.radioName;
     final title = (radio != null && radio.isNotEmpty)
-        ? 'Import Channels — $radio'
-        : 'Import Channels';
+        ? l10n.importChannelsTitleWith(radio)
+        : l10n.importChannelsTitle;
 
     return AlertDialog(
       title: Text(title),
@@ -159,14 +161,11 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
         height: 460,
         child: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.only(bottom: 8),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                'Drag a channel from the left onto a radio slot, or select a '
-                'channel and a slot and press the arrow. Tap the info icon for '
-                'details. Channels are written to the radio only when you press '
-                'OK.',
-                style: TextStyle(fontSize: 12, color: Colors.black54),
+                l10n.importIntro,
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
             ),
             Expanded(
@@ -185,11 +184,11 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.commonCancel),
         ),
         TextButton(
           onPressed: _staged.isEmpty ? null : _onOk,
-          child: Text('OK (${_staged.length})'),
+          child: Text(l10n.importOkCount(_staged.length)),
         ),
       ],
     );
@@ -197,9 +196,11 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
 
   Widget _buildImportedColumn() {
     return _buildColumnFrame(
-      header: 'Imported (${widget.importedChannels.length})',
+      header: AppLocalizations.of(
+        context,
+      ).importImportedHeader(widget.importedChannels.length),
       child: widget.importedChannels.isEmpty
-          ? const Center(child: Text('No channels imported.'))
+          ? Center(child: Text(AppLocalizations.of(context).importNoChannels))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(6),
               child: Column(
@@ -218,9 +219,9 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
 
   Widget _buildRadioColumn() {
     return _buildColumnFrame(
-      header: 'Radio Channels (${_slots.length})',
+      header: AppLocalizations.of(context).importRadioChannelsHeader(_slots.length),
       child: _slots.isEmpty
-          ? const Center(child: Text('No radio channels.'))
+          ? Center(child: Text(AppLocalizations.of(context).importNoRadioChannels))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(6),
               child: Column(
@@ -271,7 +272,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            tooltip: 'Move selected channel to selected slot',
+            tooltip: AppLocalizations.of(context).importMoveTooltip,
             icon: const Icon(Icons.arrow_forward),
             onPressed: canMove ? _moveSelected : null,
             style: IconButton.styleFrom(
@@ -284,7 +285,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Tooltip(
-                message: 'Copy all imported channels to radio slots 1:1',
+                message: AppLocalizations.of(context).importCopyAllTooltip,
                 child: OutlinedButton(
                   onPressed: _copyAllOneToOne,
                   style: OutlinedButton.styleFrom(
@@ -445,7 +446,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   iconSize: 16,
-                  tooltip: 'Clear pending assignment',
+                  tooltip: AppLocalizations.of(context).importClearTooltip,
                   icon: const Icon(Icons.cancel, color: Colors.black54),
                   onPressed: onClear,
                 ),
@@ -458,7 +459,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   iconSize: 16,
-                  tooltip: 'Channel details',
+                  tooltip: AppLocalizations.of(context).importChannelDetails,
                   icon: const Icon(Icons.info_outline, color: Colors.black54),
                   onPressed: onInfo,
                 ),

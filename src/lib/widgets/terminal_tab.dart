@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../dialogs/active_station_selector_dialog.dart';
+import '../l10n/app_localizations.dart';
 import '../models/radio_models.dart';
 import '../models/station_info.dart';
 import '../radio/ax25_address.dart';
@@ -297,7 +298,7 @@ class _TerminalTabState extends State<TerminalTab>
         _connectedStation = null;
         _connectedRadioId = -1;
       });
-      _appendSystem('*** Disconnected ***');
+      _appendSystem('*** ${AppLocalizations.of(context).stateDisconnected} ***');
       return;
     }
 
@@ -305,7 +306,7 @@ class _TerminalTabState extends State<TerminalTab>
     if (available.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No available radio to connect.')),
+        SnackBar(content: Text(AppLocalizations.of(context).terminalNoRadio)),
       );
       return;
     }
@@ -333,7 +334,7 @@ class _TerminalTabState extends State<TerminalTab>
     return showDialog<int>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Select Radio'),
+        title: Text(AppLocalizations.of(context).stateSelectRadio),
         children: [
           for (final radioId in radios)
             SimpleDialogOption(
@@ -420,7 +421,7 @@ class _TerminalTabState extends State<TerminalTab>
     );
     final src = AX25Address.getAddress(myCallsign, myStationId);
     if (dest == null || src == null) {
-      _appendSystem('*** Invalid callsign/destination ***');
+      _appendSystem('*** ${AppLocalizations.of(context).terminalInvalidCallsignDest} ***');
       return;
     }
 
@@ -432,7 +433,7 @@ class _TerminalTabState extends State<TerminalTab>
     session.onError = _onSessionError;
     _session = session;
 
-    _appendSystem('*** Connecting to ${station.callsign}... ***');
+    _appendSystem('*** ${AppLocalizations.of(context).terminalConnectingTo(station.callsign)} ***');
     session.connect([dest, src]);
   }
 
@@ -440,10 +441,10 @@ class _TerminalTabState extends State<TerminalTab>
     if (!mounted) return;
     switch (state) {
       case AX25ConnectionState.connected:
-        _appendSystem('*** Connected ***');
+        _appendSystem('*** ${AppLocalizations.of(context).stateConnected} ***');
         break;
       case AX25ConnectionState.disconnected:
-        _appendSystem('*** Disconnected ***');
+        _appendSystem('*** ${AppLocalizations.of(context).stateDisconnected} ***');
         // If the radio is still locked to Terminal, release it so the UI
         // returns to the disconnected state.
         final radioId = _activeTerminalRadioId;
@@ -489,7 +490,7 @@ class _TerminalTabState extends State<TerminalTab>
 
   void _onSessionError(AX25Session sender, String error) {
     if (!mounted) return;
-    _appendSystem('*** Error: $error ***');
+    _appendSystem('*** ${AppLocalizations.of(context).terminalError(error)} ***');
   }
 
   // ---------------------------------------------------------------------------
@@ -517,7 +518,7 @@ class _TerminalTabState extends State<TerminalTab>
         final session = _session;
         if (session == null ||
             session.currentState != AX25ConnectionState.connected) {
-          _appendSystem('*** Not connected ***');
+          _appendSystem('*** ${AppLocalizations.of(context).terminalNotConnected} ***');
           return;
         }
         // Send a line terminated with a carriage return (BBS convention).
@@ -576,7 +577,7 @@ class _TerminalTabState extends State<TerminalTab>
     final src = _buildSourceAddress();
     final dest = _buildDestAddress(station);
     if (src == null || dest == null) {
-      _appendSystem('*** Invalid callsign/destination ***');
+      _appendSystem('*** ${AppLocalizations.of(context).terminalInvalidCallsignDest} ***');
       return;
     }
 
@@ -614,7 +615,7 @@ class _TerminalTabState extends State<TerminalTab>
     final src = _buildSourceAddress();
     final dest = AX25Address.parse('APRS');
     if (src == null || dest == null) {
-      _appendSystem('*** Invalid callsign ***');
+      _appendSystem('*** ${AppLocalizations.of(context).terminalInvalidCallsign} ***');
       return;
     }
 
@@ -685,7 +686,7 @@ class _TerminalTabState extends State<TerminalTab>
       } else if (pid == 242) {
         // Brotli compressed - unsupported in this build; show raw bytes count.
         _appendSystem(
-          '*** Received a Brotli-compressed packet (not supported) ***',
+          '*** ${AppLocalizations.of(context).terminalBrotli} ***',
         );
         return;
       } else {
@@ -929,7 +930,7 @@ class _TerminalTabState extends State<TerminalTab>
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Show Callsign'),
+              Text(AppLocalizations.of(context).terminalShowCallsign),
             ],
           ),
         ),
@@ -945,18 +946,21 @@ class _TerminalTabState extends State<TerminalTab>
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Word Wrap'),
+              Text(AppLocalizations.of(context).terminalWordWrap),
             ],
           ),
         ),
         // "Wait for Connection" requires the AX.25 session layer (not ported).
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'waitForConnection',
           height: menuItemHeight,
           padding: menuItemPadding,
           enabled: false,
           child: Row(
-            children: [SizedBox(width: 20), Text('Wait for Connection...')],
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).terminalWaitForConnection),
+            ],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -964,7 +968,12 @@ class _TerminalTabState extends State<TerminalTab>
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(children: [SizedBox(width: 20), Text('Clear')]),
+          child: Row(
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).tabClear),
+            ],
+          ),
         ),
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
@@ -972,8 +981,11 @@ class _TerminalTabState extends State<TerminalTab>
             value: 'detach',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Detach...')],
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Text(AppLocalizations.of(context).tabDetach),
+              ],
             ),
           ),
         ],
@@ -1037,8 +1049,10 @@ class _TerminalTabState extends State<TerminalTab>
   Widget _buildHeader() {
     final connected = _isConnected;
     final title = connected && _connectedStation != null
-        ? 'Terminal - ${_connectedStation!.callsign}'
-        : 'Terminal';
+        ? AppLocalizations.of(context).terminalHeaderWith(
+            _connectedStation!.callsign,
+          )
+        : AppLocalizations.of(context).tabTerminal;
     return Container(
       height: 40,
       decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
@@ -1070,7 +1084,11 @@ class _TerminalTabState extends State<TerminalTab>
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       textStyle: const TextStyle(fontSize: 12),
                     ),
-                    child: Text(connected ? 'Disconnect' : 'Connect'),
+                    child: Text(
+                      connected
+                          ? AppLocalizations.of(context).commonDisconnect
+                          : AppLocalizations.of(context).commonConnect,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1205,7 +1223,7 @@ class _TerminalTabState extends State<TerminalTab>
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
               ),
-              child: const Text('Send'),
+              child: Text(AppLocalizations.of(context).terminalSend),
             ),
           ),
         ],

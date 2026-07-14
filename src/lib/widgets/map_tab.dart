@@ -14,6 +14,7 @@ import 'package:latlong2/latlong.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../gps/gps_data.dart';
+import '../l10n/app_localizations.dart';
 import '../models/aircraft.dart';
 import '../models/radio_models.dart';
 import '../services/data_broker.dart';
@@ -609,6 +610,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   }
 
   void _showMenu(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
 
@@ -644,7 +646,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Offline Mode'),
+              Text(l10n.mapOfflineMode),
             ],
           ),
         ),
@@ -653,8 +655,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           height: menuItemHeight,
           padding: menuItemPadding,
           enabled: !_isOfflineMode,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Cache Area...')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.mapCacheArea)],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -663,8 +665,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           height: menuItemHeight,
           padding: menuItemPadding,
           enabled: _centerToGpsEnabled,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Center to GPS')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.mapCenterGps)],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -680,7 +682,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Show Tracks'),
+              Text(l10n.mapShowTracks),
             ],
           ),
         ),
@@ -691,7 +693,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
           child: Row(
             children: [
               const SizedBox(width: 20),
-              const Text('Show Markers'),
+              Text(l10n.mapShowMarkers),
               const Spacer(),
               Text(
                 _markerFilterLabel(_markerTimeFilter),
@@ -714,7 +716,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                       ? const Text('✓', style: TextStyle(fontSize: 14))
                       : null,
                 ),
-                const Text('Show Airplanes'),
+                Text(AppLocalizations.of(context).mapShowAirplanes),
               ],
             ),
           ),
@@ -730,7 +732,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Large Markers'),
+              Text(AppLocalizations.of(context).mapLargeMarkers),
             ],
           ),
         ),
@@ -740,8 +742,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
             value: 'detach',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Detach...')],
+            child: Row(
+              children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).tabDetach)],
             ),
           ),
         ],
@@ -834,10 +836,22 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
 
   /// Human-readable label for the active marker time filter (in minutes).
   String _markerFilterLabel(int minutes) {
-    for (final (label, value) in _markerFilterOptions) {
-      if (value == minutes) return label;
+    final l10n = AppLocalizations.of(context);
+    switch (minutes) {
+      case 0:
+        return l10n.mapFilterAll;
+      case 30:
+        return l10n.mapFilterLast30;
+      case 60:
+        return l10n.mapFilterLastHour;
+      case 360:
+        return l10n.mapFilterLast6;
+      case 720:
+        return l10n.mapFilterLast12;
+      case 1440:
+        return l10n.mapFilterLast24;
     }
-    return 'All';
+    return l10n.mapFilterAll;
   }
 
   /// Opens the cascading "Show Markers" time-filter submenu. Selecting an
@@ -850,7 +864,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
       context: context,
       position: position,
       items: [
-        for (final (label, minutes) in _markerFilterOptions)
+        for (final (_, minutes) in _markerFilterOptions)
           PopupMenuItem<int>(
             value: minutes,
             height: menuItemHeight,
@@ -863,7 +877,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                       ? const Text('✓', style: TextStyle(fontSize: 14))
                       : null,
                 ),
-                Text(label),
+                Text(_markerFilterLabel(minutes)),
               ],
             ),
           ),
@@ -880,7 +894,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Show Contacts Only'),
+              Text(AppLocalizations.of(context).mapShowContactsOnly),
             ],
           ),
         ),
@@ -927,7 +941,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   Widget _buildAirplaneMarker(Aircraft aircraft) {
     final label = (aircraft.flight != null && aircraft.flight!.isNotEmpty)
         ? aircraft.flight!
-        : (aircraft.hex ?? 'Unknown');
+        : (aircraft.hex ?? AppLocalizations.of(context).commonUnknown);
     // The Material "flight" glyph points straight up (north), so rotate it
     // directly by the reported track (0° = north, increasing clockwise).
     final angle = (aircraft.track ?? 0) * math.pi / 180;
@@ -1114,19 +1128,22 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
     showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cache Map Area'),
+        title: Text(AppLocalizations.of(ctx).mapCacheTitle),
         content: Text(
-          'Download $tileCount tiles for zoom levels $currentZoom\u2013$maxZoom?\n\n'
-          'This will cache the selected area for offline use.',
+          AppLocalizations.of(ctx).mapCachePrompt(
+            tileCount,
+            currentZoom,
+            maxZoom,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(ctx).commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Download'),
+            child: Text(AppLocalizations.of(ctx).settingsDownload),
           ),
         ],
       ),
@@ -1148,7 +1165,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
       builder: (ctx) => PopScope(
         canPop: false,
         child: AlertDialog(
-          title: const Text('Downloading Tiles'),
+          title: Text(AppLocalizations.of(ctx).mapDownloadingTitle),
           content: ValueListenableBuilder<(int, int)>(
             valueListenable: progressNotifier,
             builder: (_, value, child) {
@@ -1159,7 +1176,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                 children: [
                   LinearProgressIndicator(value: pct),
                   const SizedBox(height: 12),
-                  Text('$done / $total tiles'),
+                  Text(AppLocalizations.of(ctx).mapTilesProgress(done, total)),
                 ],
               );
             },
@@ -1170,7 +1187,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                 cancelNotifier.value = true;
                 Navigator.of(ctx).pop();
               },
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(ctx).commonCancel),
             ),
           ],
         ),
@@ -1319,9 +1336,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Drag to select area to cache',
-                            style: TextStyle(color: Colors.white, fontSize: 14),
+                          Text(
+                            AppLocalizations.of(context).mapDragToSelect,
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
                           ),
                           const SizedBox(width: 12),
                           GestureDetector(
@@ -1360,7 +1377,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
             children: [
               // Map label
               Text(
-                _isOfflineMode ? 'Offline Map' : 'Map',
+                _isOfflineMode
+                    ? AppLocalizations.of(context).mapOfflineMap
+                    : AppLocalizations.of(context).tabMap,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -1377,7 +1396,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       textStyle: const TextStyle(fontSize: 12),
                     ),
-                    child: const Text('Center to GPS'),
+                    child: Text(AppLocalizations.of(context).mapCenterGps),
                   ),
                 ),
                 const SizedBox(width: 8),

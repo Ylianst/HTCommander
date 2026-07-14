@@ -7,6 +7,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dialog_utils.dart';
+import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import '../radio/radio_models.dart';
 
@@ -74,12 +75,15 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   int _rxToneValue = 0;
   int _txToneValue = 0;
 
-  static const List<String> _powerOptions = ['High', 'Medium', 'Low'];
   static const List<String> _modeOptions = ['FM', 'AM'];
-  static const List<String> _bandwidthOptions = [
-    '25 KHz Wide',
-    '12.5 KHz Narrow',
-  ];
+
+  /// Localized power option labels (indices: 0=High, 1=Medium, 2=Low).
+  List<String> _powerLabels(AppLocalizations l10n) =>
+      [l10n.chPowerHigh, l10n.chPowerMedium, l10n.chPowerLow];
+
+  /// Localized bandwidth option labels (indices: 0=Wide, 1=Narrow).
+  List<String> _bandwidthLabels(AppLocalizations l10n) =>
+      [l10n.chBandwidthWide, l10n.chBandwidthNarrow];
 
   @override
   void initState() {
@@ -294,23 +298,22 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   /// frequencies, name and settings to empty defaults and writes it back.
   Future<void> _onClear() async {
     if (widget.deviceId <= 0) return;
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear channel'),
+        title: Text(l10n.chClearTitle),
         content: Text(
-          'Clear channel ${widget.channelId + 1}?\n\n'
-          'This removes the frequency, name and settings from this slot '
-          'on the radio.',
+          l10n.chClearConfirm(widget.channelId + 1),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Clear'),
+            child: Text(l10n.tabClear),
           ),
         ],
       ),
@@ -333,7 +336,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   // --- UI --------------------------------------------------------------------
 
   String get _title {
-    final base = 'Channel ${widget.channelId + 1}';
+    final base = AppLocalizations.of(context).chChannelNumber(widget.channelId + 1);
     final radio = widget.radioName;
     if (radio != null && radio.isNotEmpty) return '$radio $base';
     return base;
@@ -341,6 +344,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -372,27 +376,27 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.red.shade700,
                     ),
-                    child: const Text('Clear'),
+                    child: Text(l10n.tabClear),
                   ),
                   const SizedBox(width: 8),
                   if (!_advancedMode)
                     TextButton.icon(
                       onPressed: () => setState(() => _advancedMode = true),
                       icon: const Icon(Icons.tune, size: 18),
-                      label: const Text('More settings'),
+                      label: Text(l10n.chMoreSettings),
                       style: DialogStyles.secondaryButtonStyle(context),
                     ),
                   const Spacer(),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.secondaryButtonStyle(context),
-                    child: const Text('Cancel'),
+                    child: Text(l10n.commonCancel),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _canSave ? _onSave : null,
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('OK'),
+                    child: Text(l10n.commonOk),
                   ),
                 ],
               ),
@@ -404,23 +408,24 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   }
 
   Widget _buildBasicContent() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _sectionDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _label('Name'),
+          _label(l10n.contactsColName),
           const SizedBox(height: 4),
           TextField(
             controller: _nameController,
             maxLength: 10,
             decoration: _inputDecoration(
-              hintText: 'Channel name',
+              hintText: l10n.chChannelNameHint,
             ).copyWith(counterText: ''),
           ),
           const SizedBox(height: 16),
-          _label('Frequency (MHz)'),
+          _label(l10n.chFrequencyMhz),
           const SizedBox(height: 4),
           _freqField(_rxFreqController, _rxFreqValid),
           const SizedBox(height: 4),
@@ -435,7 +440,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _label('Mode'),
+                    _label(l10n.chMode),
                     const SizedBox(height: 4),
                     _dropdown(
                       _modeOptions,
@@ -450,10 +455,10 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _label('Power'),
+                    _label(l10n.chPower),
                     const SizedBox(height: 4),
                     _dropdown(
-                      _powerOptions,
+                      _powerLabels(l10n),
                       _powerIndex,
                       (v) => setState(() => _powerIndex = v),
                     ),
@@ -464,30 +469,31 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
           ),
           const SizedBox(height: 8),
           _checkbox(
-            'Disable transmit',
+            l10n.chDisableTransmit,
             _txDisable,
             (v) => setState(() => _txDisable = v),
           ),
-          _checkbox('Mute', _mute, (v) => setState(() => _mute = v)),
+          _checkbox(l10n.chMute, _mute, (v) => setState(() => _mute = v)),
         ],
       ),
     );
   }
 
   Widget _buildAdvancedContent() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _sectionDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _label('Name'),
+          _label(l10n.contactsColName),
           const SizedBox(height: 4),
           TextField(
             controller: _nameController,
             maxLength: 10,
             decoration: _inputDecoration(
-              hintText: 'Channel name',
+              hintText: l10n.chChannelNameHint,
             ).copyWith(counterText: ''),
           ),
           const SizedBox(height: 16),
@@ -497,7 +503,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _label('Receive (MHz)'),
+                    _label(l10n.chReceiveMhz),
                     const SizedBox(height: 4),
                     _freqField(_rxFreqController, _rxFreqValid),
                   ],
@@ -508,7 +514,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _label('Transmit (MHz)'),
+                    _label(l10n.chTransmitMhz),
                     const SizedBox(height: 4),
                     _freqField(_txFreqController, _txFreqValid),
                   ],
@@ -529,7 +535,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _label('Mode'),
+                    _label(l10n.chMode),
                     const SizedBox(height: 4),
                     _dropdown(
                       _modeOptions,
@@ -545,10 +551,10 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _label('Bandwidth'),
+                    _label(l10n.chBandwidth),
                     const SizedBox(height: 4),
                     _dropdown(
-                      _bandwidthOptions,
+                      _bandwidthLabels(l10n),
                       _bandwidthIndex,
                       (v) => setState(() => _bandwidthIndex = v),
                     ),
@@ -558,36 +564,36 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
             ],
           ),
           const SizedBox(height: 16),
-          _label('Power'),
+          _label(l10n.chPower),
           const SizedBox(height: 4),
           _dropdown(
-            _powerOptions,
+            _powerLabels(l10n),
             _powerIndex,
             (v) => setState(() => _powerIndex = v),
           ),
           const SizedBox(height: 16),
-          _label('Receive tone (CTCSS / DCS)'),
+          _label(l10n.chReceiveTone),
           const SizedBox(height: 4),
           _toneDropdown(_rxToneValue, (v) => setState(() => _rxToneValue = v)),
           const SizedBox(height: 16),
-          _label('Transmit tone (CTCSS / DCS)'),
+          _label(l10n.chTransmitTone),
           const SizedBox(height: 4),
           _toneDropdown(_txToneValue, (v) => setState(() => _txToneValue = v)),
           const SizedBox(height: 8),
           _checkbox(
-            'Disable transmit',
+            l10n.chDisableTransmit,
             _txDisable,
             (v) => setState(() => _txDisable = v),
           ),
-          _checkbox('Mute', _mute, (v) => setState(() => _mute = v)),
-          _checkbox('Scan', _scan, (v) => setState(() => _scan = v)),
+          _checkbox(l10n.chMute, _mute, (v) => setState(() => _mute = v)),
+          _checkbox(l10n.chScan, _scan, (v) => setState(() => _scan = v)),
           _checkbox(
-            'Talk around',
+            l10n.chTalkAround,
             _talkAround,
             (v) => setState(() => _talkAround = v),
           ),
           _checkbox(
-            'De-emphasis',
+            l10n.chDeemphasis,
             _deemphasis,
             (v) => setState(() => _deemphasis = v),
           ),
@@ -634,13 +640,16 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   }
 
   Widget _toneDropdown(int value, ValueChanged<int> onChanged) {
+    final noneLabel = AppLocalizations.of(context).commonNone;
     return DropdownButtonFormField<int>(
       initialValue: _toneValues.contains(value) ? value : 0,
       isExpanded: true,
       decoration: _inputDecoration(),
       items: [
         for (int i = 0; i < _toneOptions.length; i++)
-          DropdownMenuItem(value: _toneValues[i], child: Text(_toneOptions[i])),
+          DropdownMenuItem(
+              value: _toneValues[i],
+              child: Text(i == 0 ? noneLabel : _toneOptions[i])),
       ],
       onChanged: (v) => onChanged(v ?? 0),
     );

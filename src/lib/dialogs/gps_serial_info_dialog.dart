@@ -14,6 +14,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../gps/gps_data.dart';
+import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import 'dialog_utils.dart';
 
@@ -121,6 +122,7 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -135,7 +137,7 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'GPS Information',
+                  l10n.gpsInfoTitle,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -151,7 +153,7 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('OK'),
+                    child: Text(l10n.commonOk),
                   ),
                 ],
               ),
@@ -163,19 +165,20 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
   }
 
   Widget _buildContent() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildSection('Connection', _connectionRows()),
+          _buildSection(l10n.gpsSectionConnection, _connectionRows()),
           const SizedBox(height: 12),
-          _buildSection('GPS Fix', _fixRows()),
+          _buildSection(l10n.gpsSectionFix, _fixRows()),
           const SizedBox(height: 12),
-          _buildSection('Position', _positionRows()),
+          _buildSection(l10n.gpsSectionPosition, _positionRows()),
           const SizedBox(height: 12),
-          _buildSection('Motion', _motionRows()),
+          _buildSection(l10n.gpsSectionMotion, _motionRows()),
           const SizedBox(height: 12),
-          _buildSection('Time', _timeRows()),
+          _buildSection(l10n.gpsSectionTime, _timeRows()),
         ],
       ),
     );
@@ -186,84 +189,86 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
   // --------------------------------------------------------------------------
 
   List<_InfoRow> _connectionRows() {
+    final l10n = AppLocalizations.of(context);
     final configured = _port.isNotEmpty && _port != 'None';
     String portStatus;
     if (!configured) {
-      portStatus = 'Not Configured';
+      portStatus = l10n.gpsNotConfigured;
     } else if (_gpsData != null) {
-      portStatus = 'Open \u2014 Receiving Data';
+      portStatus = l10n.gpsOpenReceiving;
     } else {
       portStatus = _friendlyStatus(_status);
     }
     return [
-      _InfoRow('Serial Port', _port.isEmpty ? 'None' : _port),
-      _InfoRow('Baud Rate', '$_baudRate baud'),
-      _InfoRow('Port Status', portStatus),
+      _InfoRow(l10n.settingsSerialPort, _port.isEmpty ? l10n.settingsNone : _port),
+      _InfoRow(l10n.settingsBaudRate, '$_baudRate baud'),
+      _InfoRow(l10n.gpsPortStatus, portStatus),
     ];
   }
 
   /// Maps internal status codes to human-readable descriptions.
   String _friendlyStatus(String status) {
+    final l10n = AppLocalizations.of(context);
     switch (status) {
       case 'PermissionDenied':
         return defaultTargetPlatform == TargetPlatform.linux
-            ? 'Permission denied \u2014 add your user to the '
-                "'dialout' group (sudo usermod -aG dialout \$USER), "
-                'then log out and back in.'
-            : 'Permission denied \u2014 the app cannot access this port.';
+            ? l10n.gpsPermDeniedLinux
+            : l10n.gpsPermDenied;
       case 'PortError':
-        return 'Port error \u2014 could not open the serial port.';
+        return l10n.gpsPortError;
       default:
         return status;
     }
   }
 
   List<_InfoRow> _fixRows() {
+    final l10n = AppLocalizations.of(context);
     final gps = _gpsData;
     if (gps == null) {
-      return const [
-        _InfoRow('Fix', 'No Data'),
-        _InfoRow('Fix Quality', '-'),
-        _InfoRow('Satellites', '-'),
+      return [
+        _InfoRow(l10n.gpsFix, l10n.gpsNoData),
+        _InfoRow(l10n.gpsFixQuality, '-'),
+        _InfoRow(l10n.gpsSatellites, '-'),
       ];
     }
 
     String qualDesc;
     switch (gps.fixQuality) {
       case 1:
-        qualDesc = 'GPS Fix (1)';
+        qualDesc = l10n.gpsQualGps;
       case 2:
-        qualDesc = 'DGPS Fix (2)';
+        qualDesc = l10n.gpsQualDgps;
       case 0:
-        qualDesc = 'Invalid (0)';
+        qualDesc = l10n.gpsQualInvalid;
       default:
-        qualDesc = '${gps.fixQuality} (unknown)';
+        qualDesc = l10n.gpsQualUnknown(gps.fixQuality);
     }
 
     return [
-      _InfoRow('Fix', gps.isFixed ? 'Active' : 'No Fix'),
-      _InfoRow('Fix Quality', qualDesc),
-      _InfoRow('Satellites', '${gps.satellites}'),
+      _InfoRow(l10n.gpsFix, gps.isFixed ? l10n.gpsActive : l10n.gpsNoFix),
+      _InfoRow(l10n.gpsFixQuality, qualDesc),
+      _InfoRow(l10n.gpsSatellites, '${gps.satellites}'),
     ];
   }
 
   List<_InfoRow> _positionRows() {
+    final l10n = AppLocalizations.of(context);
     final gps = _gpsData;
     if (gps == null) {
-      return const [
-        _InfoRow('Latitude', '-'),
-        _InfoRow('Longitude', '-'),
-        _InfoRow('Altitude', '-'),
+      return [
+        _InfoRow(l10n.gpsLatitude, '-'),
+        _InfoRow(l10n.gpsLongitude, '-'),
+        _InfoRow(l10n.gpsAltitude, '-'),
       ];
     }
 
     if (gps.latitude == 0.0 && gps.longitude == 0.0) {
-      return const [
-        _InfoRow('Latitude', '-'),
-        _InfoRow('Latitude (DMS)', '-'),
-        _InfoRow('Longitude', '-'),
-        _InfoRow('Longitude (DMS)', '-'),
-        _InfoRow('Altitude', '-'),
+      return [
+        _InfoRow(l10n.gpsLatitude, '-'),
+        _InfoRow(l10n.gpsLatitudeDms, '-'),
+        _InfoRow(l10n.gpsLongitude, '-'),
+        _InfoRow(l10n.gpsLongitudeDms, '-'),
+        _InfoRow(l10n.gpsAltitude, '-'),
       ];
     }
 
@@ -273,12 +278,12 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
     final absLon = gps.longitude.abs();
 
     return [
-      _InfoRow('Latitude', '${absLat.toStringAsFixed(6)}\u00B0 $latDir'),
-      _InfoRow('Latitude (DMS)', '${_formatDMS(absLat)} $latDir'),
-      _InfoRow('Longitude', '${absLon.toStringAsFixed(6)}\u00B0 $lonDir'),
-      _InfoRow('Longitude (DMS)', '${_formatDMS(absLon)} $lonDir'),
+      _InfoRow(l10n.gpsLatitude, '${absLat.toStringAsFixed(6)}\u00B0 $latDir'),
+      _InfoRow(l10n.gpsLatitudeDms, '${_formatDMS(absLat)} $latDir'),
+      _InfoRow(l10n.gpsLongitude, '${absLon.toStringAsFixed(6)}\u00B0 $lonDir'),
+      _InfoRow(l10n.gpsLongitudeDms, '${_formatDMS(absLon)} $lonDir'),
       _InfoRow(
-        'Altitude',
+        l10n.gpsAltitude,
         '${gps.altitude.toStringAsFixed(1)} m  '
             '(${(gps.altitude * 3.28084).toStringAsFixed(1)} ft)',
       ),
@@ -286,11 +291,12 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
   }
 
   List<_InfoRow> _motionRows() {
+    final l10n = AppLocalizations.of(context);
     final gps = _gpsData;
     if (gps == null) {
-      return const [
-        _InfoRow('Speed', '-'),
-        _InfoRow('Heading', '-'),
+      return [
+        _InfoRow(l10n.gpsSpeed, '-'),
+        _InfoRow(l10n.gpsHeading, '-'),
       ];
     }
 
@@ -298,13 +304,13 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
     final mph = gps.speed * 1.15078;
     return [
       _InfoRow(
-        'Speed',
+        l10n.gpsSpeed,
         '${gps.speed.toStringAsFixed(1)} kn  '
             '(${kmh.toStringAsFixed(1)} km/h  /  '
             '${mph.toStringAsFixed(1)} mph)',
       ),
       _InfoRow(
-        'Heading',
+        l10n.gpsHeading,
         '${gps.heading.toStringAsFixed(1)}\u00B0  '
             '(${_headingToCompass(gps.heading)})',
       ),
@@ -312,21 +318,22 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
   }
 
   List<_InfoRow> _timeRows() {
+    final l10n = AppLocalizations.of(context);
     final gps = _gpsData;
     final epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
     final hasTime = gps != null && gps.gpsTime.isAfter(epoch);
 
     return [
       _InfoRow(
-        'GPS Time (UTC)',
+        l10n.gpsTimeUtc,
         hasTime ? _formatTimeOfDay(gps.gpsTime) : '-',
       ),
       _InfoRow(
-        'GPS Date',
+        l10n.gpsDate,
         hasTime ? _formatDate(gps.gpsTime) : '-',
       ),
       _InfoRow(
-        'Last Update',
+        l10n.gpsLastUpdate,
         _lastUpdate != null ? _formatTimeOfDay(_lastUpdate!) : '-',
       ),
     ];

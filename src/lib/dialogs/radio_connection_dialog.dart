@@ -6,6 +6,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 import 'package:flutter/material.dart';
 import 'dialog_utils.dart';
+import '../l10n/app_localizations.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -225,46 +226,49 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
 
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: DialogStyles.backgroundColor,
-        title: const Text('Rename Radio'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Enter a custom name for this radio:'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                hintText: placeholder.isEmpty ? mac : placeholder,
-                border: const OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
+      builder: (context) {
+        final l10n = AppLocalizations.of(context);
+        return AlertDialog(
+          backgroundColor: DialogStyles.backgroundColor,
+          title: Text(l10n.radioRenameTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.radioRenamePrompt),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  hintText: placeholder.isEmpty ? mac : placeholder,
+                  border: const OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                autofocus: true,
               ),
-              autofocus: true,
+              const SizedBox(height: 8),
+              Text(
+                l10n.radioRenameHint,
+                style: DialogStyles.bodyStyle.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.commonCancel),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Leave blank to use the default name',
-              style: DialogStyles.bodyStyle.copyWith(
-                fontStyle: FontStyle.italic,
-                color: Colors.grey[600],
-              ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: Text(l10n.commonOk),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     if (result != null) {
@@ -348,11 +352,12 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final sortedDevices = List<CompatibleDevice>.from(widget.devices)
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
     return HTDialog(
-      title: 'Radio Connection',
+      title: l10n.radioConnectionTitle,
       maxWidth: 500,
       maxHeight: 450,
       content: Column(
@@ -365,9 +370,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
               child: Material(
                 color: Colors.white,
                 child: sortedDevices.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
-                          'No compatible radios found.\nMake sure your radio is powered on and Bluetooth is enabled.',
+                          l10n.radioConnectionEmpty,
                           textAlign: TextAlign.center,
                           style: DialogStyles.bodyStyle,
                         ),
@@ -389,7 +394,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                             visualDensity: VisualDensity.compact,
                             leading: IconButton(
                               visualDensity: VisualDensity.compact,
-                              tooltip: connected ? 'Disconnect' : 'Connect',
+                              tooltip: connected
+                                  ? l10n.commonDisconnect
+                                  : l10n.commonConnect,
                               icon: Icon(
                                 connected
                                     ? Icons.bluetooth_connected
@@ -420,7 +427,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                               children: [
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
-                                  tooltip: connected ? 'Disconnect' : 'Connect',
+                                  tooltip: connected
+                                      ? l10n.commonDisconnect
+                                      : l10n.commonConnect,
                                   icon: Icon(
                                     connected ? Icons.link_off : Icons.link,
                                     color: connected
@@ -435,7 +444,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                                 ),
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
-                                  tooltip: 'Rename',
+                                  tooltip: l10n.commonRename,
                                   icon: const Icon(Icons.edit),
                                   onPressed: () => _onRename(device.mac),
                                 ),
@@ -454,7 +463,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
             children: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
+                child: Text(l10n.commonClose),
               ),
             ],
           ),

@@ -11,6 +11,7 @@ import '../dialogs/mail_viewer_dialog.dart';
 import '../dialogs/mail_debug_dialog.dart';
 import '../dialogs/active_station_selector_dialog.dart';
 import '../dialogs/dialog_utils.dart';
+import '../l10n/app_localizations.dart';
 import '../models/station_info.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
@@ -142,6 +143,27 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       'Archive': Mailbox(name: 'Archive', icon: Icons.archive),
       'Trash': Mailbox(name: 'Trash', icon: Icons.delete),
     };
+  }
+
+  /// Localized display name for an internal mailbox key (the key itself is used
+  /// as an identifier throughout, so only the shown text is translated).
+  String _mailboxDisplayName(String key) {
+    final l10n = AppLocalizations.of(context);
+    switch (key) {
+      case 'Inbox':
+        return l10n.mailInbox;
+      case 'Outbox':
+        return l10n.mailOutbox;
+      case 'Draft':
+        return l10n.mailDraft;
+      case 'Sent':
+        return l10n.mailSent;
+      case 'Archive':
+        return l10n.mailArchive;
+      case 'Trash':
+        return l10n.mailTrash;
+    }
+    return key;
   }
 
   void _onMailsChanged(int deviceId, String name, Object? data) {
@@ -300,9 +322,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
     final Offset offset = box.localToGlobal(Offset.zero);
 
     final items = <PopupMenuEntry<Object>>[
-      const PopupMenuItem<Object>(
+      PopupMenuItem<Object>(
         value: '__internet__',
-        child: Text('Internet'),
+        child: Text(AppLocalizations.of(context).mailInternet),
       ),
     ];
 
@@ -312,7 +334,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       for (final r in radios) {
         if (r is Map) {
           final id = r['DeviceId'];
-          final name = (r['FriendlyName'] as String?) ?? 'Radio';
+          final name =
+              (r['FriendlyName'] as String?) ??
+              AppLocalizations.of(context).tabRadio;
           if (id is int) {
             items.add(PopupMenuItem<Object>(value: id, child: Text(name)));
           }
@@ -464,13 +488,14 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
     final m = _selectedMail;
     if (m == null) return;
     final inTrash = _selectedMailbox == 'Trash';
+    final l10n = AppLocalizations.of(context);
     final confirmed = await DialogHelper.showConfirmDialog(
       context,
-      title: inTrash ? 'Delete Mail' : 'Move to Trash',
+      title: inTrash ? l10n.mailDeleteTitle : l10n.mailMoveToTrashTitle,
       message: inTrash
-          ? 'Permanently delete the selected mail? This cannot be undone.'
-          : 'Move the selected mail to Trash?',
-      okText: inTrash ? 'Delete' : 'Move',
+          ? l10n.mailDeletePermanent
+          : l10n.mailMoveToTrashPrompt,
+      okText: inTrash ? l10n.commonDelete : l10n.mailMove,
     );
     if (!confirmed) return;
     if (inTrash) {
@@ -503,41 +528,41 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
         Offset.zero & overlay.size,
       ),
       items: [
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'open',
           child: ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.open_in_new),
-            title: Text('Open'),
+            leading: const Icon(Icons.open_in_new),
+            title: Text(AppLocalizations.of(context).mailOpen),
           ),
         ),
         const PopupMenuDivider(),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'reply',
           child: ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.reply),
-            title: Text('Reply'),
+            leading: const Icon(Icons.reply),
+            title: Text(AppLocalizations.of(context).mailReply),
           ),
         ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'replyAll',
           child: ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.reply_all),
-            title: Text('Reply All'),
+            leading: const Icon(Icons.reply_all),
+            title: Text(AppLocalizations.of(context).mailReplyAll),
           ),
         ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'forward',
           child: ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.forward),
-            title: Text('Forward'),
+            leading: const Icon(Icons.forward),
+            title: Text(AppLocalizations.of(context).mailForward),
           ),
         ),
         const PopupMenuDivider(),
@@ -548,7 +573,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.delete_outline, color: Colors.red),
             title: Text(
-              inTrash ? 'Delete' : 'Move to Trash',
+              inTrash
+                  ? AppLocalizations.of(context).commonDelete
+                  : AppLocalizations.of(context).mailMoveToTrashTitle,
               style: const TextStyle(color: Colors.red),
             ),
           ),
@@ -610,8 +637,8 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                 ),
                 Text(
                   entry.value.messages.isNotEmpty
-                      ? '${entry.value.name} (${entry.value.messages.length})'
-                      : entry.value.name,
+                      ? '${_mailboxDisplayName(entry.key)} (${entry.value.messages.length})'
+                      : _mailboxDisplayName(entry.key),
                   style: TextStyle(
                     fontWeight: entry.value.unreadCount > 0
                         ? FontWeight.bold
@@ -655,7 +682,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Show Preview'),
+              Text(AppLocalizations.of(context).mailShowPreview),
             ],
           ),
         ),
@@ -676,8 +703,8 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                   ),
                   Text(
                     entry.value.messages.isNotEmpty
-                        ? '${entry.value.name} (${entry.value.messages.length})'
-                        : entry.value.name,
+                        ? '${_mailboxDisplayName(entry.key)} (${entry.value.messages.length})'
+                        : _mailboxDisplayName(entry.key),
                     style: TextStyle(
                       fontWeight: entry.value.unreadCount > 0
                           ? FontWeight.bold
@@ -693,16 +720,16 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
           value: 'backup',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Backup Mail...')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).mailBackup)],
           ),
         ),
         PopupMenuItem<String>(
           value: 'restore',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Restore Mail...')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).mailRestore)],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -710,8 +737,8 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
           value: 'showTraffic',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Show Traffic...')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).mailShowTraffic)],
           ),
         ),
         if (windowService.canDetach) ...[
@@ -720,8 +747,8 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
             value: 'detach',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Detach...')],
+            child: Row(
+              children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).tabDetach)],
             ),
           ),
         ],
@@ -756,6 +783,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   /// C# application's backup files.
   Future<void> _onBackupMail() async {
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    final l10n = mounted ? AppLocalizations.of(context) : null;
 
     final mails = _rawMails.values.toList();
 
@@ -767,7 +795,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       final encoded = GZipEncoder().encode(utf8.encode(json));
       data = Uint8List.fromList(encoded);
     } catch (e) {
-      messenger?.showSnackBar(SnackBar(content: Text('Backup failed: $e')));
+      messenger?.showSnackBar(
+        SnackBar(content: Text(l10n?.mailBackupFailed(e.toString()) ?? '')),
+      );
       return;
     }
 
@@ -778,7 +808,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
     String? outputPath;
     try {
       outputPath = await FilePicker.saveFile(
-        dialogTitle: 'Backup Mail',
+        dialogTitle: l10n?.mailBackupTitle ?? 'Backup Mail',
         fileName: 'mail-backup',
         type: FileType.custom,
         allowedExtensions: const ['dat'],
@@ -786,7 +816,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       );
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(content: Text('Error opening file dialog: $e')),
+        SnackBar(
+          content: Text(l10n?.errorOpeningFileDialog(e.toString()) ?? ''),
+        ),
       );
       return;
     }
@@ -797,13 +829,15 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       try {
         await File(outputPath).writeAsBytes(data);
       } catch (e) {
-        messenger?.showSnackBar(SnackBar(content: Text('Backup failed: $e')));
+        messenger?.showSnackBar(
+          SnackBar(content: Text(l10n?.mailBackupFailed(e.toString()) ?? '')),
+        );
         return;
       }
     }
 
     messenger?.showSnackBar(
-      const SnackBar(content: Text('Backup completed successfully.')),
+      SnackBar(content: Text(l10n?.mailBackupSuccess ?? '')),
     );
   }
 
@@ -811,18 +845,21 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   /// whose MID is not already present (ports `restoreMailToolStripMenuItem_Click`).
   Future<void> _onRestoreMail() async {
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    final l10n = mounted ? AppLocalizations.of(context) : null;
 
     FilePickerResult? result;
     try {
       result = await FilePicker.pickFiles(
-        dialogTitle: 'Restore Mail',
+        dialogTitle: l10n?.mailRestoreTitle ?? 'Restore Mail',
         type: FileType.custom,
         allowedExtensions: const ['dat'],
         withData: true,
       );
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(content: Text('Error opening file dialog: $e')),
+        SnackBar(
+          content: Text(l10n?.errorOpeningFileDialog(e.toString()) ?? ''),
+        ),
       );
       return;
     }
@@ -843,7 +880,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
 
     if (bytes == null) {
       messenger?.showSnackBar(
-        const SnackBar(content: Text('Unable to open backup file')),
+        SnackBar(content: Text(l10n?.mailRestoreUnableOpen ?? '')),
       );
       return;
     }
@@ -858,7 +895,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
           .map((m) => WinLinkMail.fromJson(m.cast<String, dynamic>()))
           .toList();
     } catch (e) {
-      messenger?.showSnackBar(SnackBar(content: Text('Restore failed: $e')));
+      messenger?.showSnackBar(
+        SnackBar(content: Text(l10n?.mailRestoreFailed(e.toString()) ?? '')),
+      );
       return;
     }
 
@@ -1003,7 +1042,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   textStyle: const TextStyle(fontSize: 12),
                 ),
-                child: const Text('OK'),
+                child: Text(AppLocalizations.of(context).commonOk),
               ),
             ),
           ],
@@ -1044,7 +1083,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   textStyle: const TextStyle(fontSize: 12),
                 ),
-                child: const Text('Cancel'),
+                child: Text(AppLocalizations.of(context).commonCancel),
               ),
             ),
           ],
@@ -1123,7 +1162,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Mail $_selectedMailbox',
+                            '${AppLocalizations.of(context).tabMail} ${_mailboxDisplayName(_selectedMailbox)}',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
@@ -1136,9 +1175,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                   ),
                 )
               else
-                const Text(
-                  'Mail',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                Text(
+                  AppLocalizations.of(context).tabMail,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
               const Spacer(),
               if (showButtons) ...[
@@ -1150,7 +1189,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       textStyle: const TextStyle(fontSize: 12),
                     ),
-                    child: Text(_isCompact ? 'New' : 'New Mail'),
+                    child: Text(
+                      _isCompact
+                          ? AppLocalizations.of(context).mailNew
+                          : AppLocalizations.of(context).mailNewMail,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1163,7 +1206,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         textStyle: const TextStyle(fontSize: 12),
                       ),
-                      child: const Text('Connect'),
+                      child: Text(AppLocalizations.of(context).commonConnect),
                     ),
                   ),
                 ),
@@ -1225,7 +1268,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      count > 0 ? '${mailbox.name} ($count)' : mailbox.name,
+                      count > 0
+                          ? '${_mailboxDisplayName(entry.key)} ($count)'
+                          : _mailboxDisplayName(entry.key),
                       style: TextStyle(
                         fontWeight: mailbox.unreadCount > 0
                             ? FontWeight.bold
@@ -1351,9 +1396,15 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       ),
       child: Row(
         children: [
-          _buildColumnHeader('Time', 0, flex: 2),
-          _buildColumnHeader(_showRecipientColumn ? 'To' : 'From', 1, flex: 2),
-          _buildColumnHeader('Subject', 2, flex: 3),
+          _buildColumnHeader(AppLocalizations.of(context).mailColTime, 0, flex: 2),
+          _buildColumnHeader(
+            _showRecipientColumn
+                ? AppLocalizations.of(context).mailColTo
+                : AppLocalizations.of(context).mailColFrom,
+            1,
+            flex: 2,
+          ),
+          _buildColumnHeader(AppLocalizations.of(context).mailColSubject, 2, flex: 3),
         ],
       ),
     );
@@ -1405,10 +1456,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
     if (_selectedMail == null) {
       return Container(
         color: Colors.white,
-        child: const Center(
+        child: Center(
           child: Text(
-            'Select a message to preview',
-            style: TextStyle(color: Colors.grey),
+            AppLocalizations.of(context).mailSelectPreview,
+            style: const TextStyle(color: Colors.grey),
           ),
         ),
       );
@@ -1430,21 +1481,21 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                 IconButton(
                   icon: const Icon(Icons.reply, size: 20),
                   onPressed: _onReply,
-                  tooltip: 'Reply',
+                  tooltip: AppLocalizations.of(context).mailReply,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
                 ),
                 IconButton(
                   icon: const Icon(Icons.reply_all, size: 20),
                   onPressed: _onReplyAll,
-                  tooltip: 'Reply All',
+                  tooltip: AppLocalizations.of(context).mailReplyAll,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
                 ),
                 IconButton(
                   icon: const Icon(Icons.forward, size: 20),
                   onPressed: _onForward,
-                  tooltip: 'Forward',
+                  tooltip: AppLocalizations.of(context).mailForward,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
                 ),
@@ -1452,7 +1503,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                 IconButton(
                   icon: const Icon(Icons.delete, size: 20),
                   onPressed: _onDelete,
-                  tooltip: 'Delete',
+                  tooltip: AppLocalizations.of(context).commonDelete,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
                 ),

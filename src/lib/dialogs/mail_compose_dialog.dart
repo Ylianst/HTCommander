@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import 'dialog_utils.dart';
 
@@ -196,13 +197,14 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
       return;
     }
 
+    final l10n = AppLocalizations.of(context);
     final discard = await DialogHelper.showConfirmDialog(
       context,
-      title: 'Mail',
+      title: l10n.tabMail,
       message: widget.isEdit
-          ? 'Discard changes to this message?'
-          : 'Discard this message?',
-      okText: 'Discard',
+          ? l10n.mailDiscardChanges
+          : l10n.mailDiscardMessage,
+      okText: l10n.mailDiscard,
     );
     if (discard && mounted) Navigator.of(context).pop();
   }
@@ -275,7 +277,9 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
             children: [
               // Title
               Text(
-                widget.isEdit ? 'Edit Message' : 'New Message',
+                widget.isEdit
+                    ? AppLocalizations.of(context).mailComposeEditTitle
+                    : AppLocalizations.of(context).mailComposeNewTitle,
                 style: DialogStyles.titleStyle,
               ),
               SizedBox(height: keyboardOpen ? 8 : 16),
@@ -299,8 +303,8 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                           children: [
                             Row(
                               children: [
-                                const Text(
-                                  'To',
+                                Text(
+                                  AppLocalizations.of(context).mailColTo,
                                   style: DialogStyles.labelStyle,
                                 ),
                                 const Spacer(),
@@ -309,7 +313,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                                     onPressed: () =>
                                         setState(() => _showCc = true),
                                     icon: const Icon(Icons.add, size: 18),
-                                    label: const Text('Add Cc'),
+                                    label: Text(AppLocalizations.of(context).mailAddCc),
                                     style: TextButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,
@@ -338,8 +342,8 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                             if (_showCc) ...[
                               Row(
                                 children: [
-                                  const Text(
-                                    'Cc',
+                                  Text(
+                                    AppLocalizations.of(context).mailCc,
                                     style: DialogStyles.labelStyle,
                                   ),
                                   const Spacer(),
@@ -351,7 +355,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                                       });
                                     },
                                     icon: const Icon(Icons.close, size: 18),
-                                    tooltip: 'Remove Cc',
+                                    tooltip: AppLocalizations.of(context).mailRemoveCc,
                                     visualDensity: VisualDensity.compact,
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints(),
@@ -372,8 +376,8 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                               ),
                               const SizedBox(height: 12),
                             ],
-                            const Text(
-                              'Subject',
+                            Text(
+                              AppLocalizations.of(context).mailColSubject,
                               style: DialogStyles.labelStyle,
                             ),
                             const SizedBox(height: 4),
@@ -382,8 +386,8 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                               decoration: _inputDecoration(),
                             ),
                             const SizedBox(height: 12),
-                            const Text(
-                              'Message',
+                            Text(
+                              AppLocalizations.of(context).mailMessageLabel,
                               style: DialogStyles.labelStyle,
                             ),
                             const SizedBox(height: 4),
@@ -414,19 +418,19 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                   TextButton(
                     onPressed: _onCancel,
                     style: DialogStyles.secondaryButtonStyle(context),
-                    child: const Text('Cancel'),
+                    child: Text(AppLocalizations.of(context).commonCancel),
                   ),
                   const SizedBox(width: 8),
                   TextButton(
                     onPressed: () => _submit(isDraft: true),
                     style: DialogStyles.secondaryButtonStyle(context),
-                    child: const Text('Save Draft'),
+                    child: Text(AppLocalizations.of(context).mailSaveDraft),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _canSend ? () => _submit(isDraft: false) : null,
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('Send'),
+                    child: Text(AppLocalizations.of(context).commonSend),
                   ),
                 ],
               ),

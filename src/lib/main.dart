@@ -40,7 +40,9 @@ import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
 import 'services/data_broker_serializers.dart';
 import 'services/history_limiter.dart';
+import 'services/locale_controller.dart';
 import 'services/window_service.dart';
+import 'l10n/app_localizations.dart';
 import 'utils/channel_export.dart';
 import 'utils/channel_import.dart';
 import 'radio/radio_models.dart' show RadioChannelInfo;
@@ -101,6 +103,9 @@ void main(List<String> args) async {
         // calls in initState see the mirrored data.
         await DataBroker.becomeClient(controller.windowId);
         await DataBroker.requestSnapshot();
+        // Apply the persisted application language so detached windows match
+        // the main window's locale.
+        LocaleController.instance.load();
         runApp(SubWindowApp(windowController: controller, argument: argument));
         return;
       }
@@ -112,6 +117,9 @@ void main(List<String> args) async {
   // This is the main window: act as the authoritative data-broker host so that
   // detached windows can be served over IPC.
   await DataBroker.becomeHost();
+
+  // Apply the persisted application language (falls back to the OS locale).
+  LocaleController.instance.load();
 
   // Ensure the built-in protected APRS routes ("Standard" and "None") always
   // exist before any component reads the APRS route configuration.
@@ -332,19 +340,27 @@ class _SubWindowAppState extends State<SubWindowApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Handi-Talkie Commander - $tabTitle',
-      debugShowCheckedModeBanner: false,
-      builder: (context, child) =>
-          _wrapWithResponsiveDialogTheme(context, child),
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      home: Scaffold(body: tabContent),
+    return ValueListenableBuilder<Locale?>(
+      valueListenable: LocaleController.instance.locale,
+      builder: (context, locale, _) {
+        return MaterialApp(
+          title: 'Handi-Talkie Commander - $tabTitle',
+          debugShowCheckedModeBanner: false,
+          locale: locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) =>
+              _wrapWithResponsiveDialogTheme(context, child),
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.light,
+            ),
+            useMaterial3: true,
+          ),
+          home: Scaffold(body: tabContent),
+        );
+      },
     );
   }
 }
@@ -359,20 +375,28 @@ class HTCommanderApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Handi-Talkie Commander',
-      debugShowCheckedModeBanner: false,
-      navigatorObservers: [_unfocusOnPushObserver],
-      builder: (context, child) =>
-          _wrapWithResponsiveDialogTheme(context, child),
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      home: const MainForm(),
+    return ValueListenableBuilder<Locale?>(
+      valueListenable: LocaleController.instance.locale,
+      builder: (context, locale, _) {
+        return MaterialApp(
+          onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+          debugShowCheckedModeBanner: false,
+          locale: locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          navigatorObservers: [_unfocusOnPushObserver],
+          builder: (context, child) =>
+              _wrapWithResponsiveDialogTheme(context, child),
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.light,
+            ),
+            useMaterial3: true,
+          ),
+          home: const MainForm(),
+        );
+      },
     );
   }
 }
@@ -1600,14 +1624,15 @@ class _MainFormState extends State<MainForm>
   }
 
   List<AppSubmenu> _buildMenuDefinition() {
+    final l10n = AppLocalizations.of(context);
     return [
       // Radio menu (Connect/Disconnect on top, radio settings below)
       AppSubmenu(
-        label: 'File',
-        macOSLabel: 'Radio',
+        label: l10n.menuFile,
+        macOSLabel: l10n.menuMacRadio,
         children: [
           AppMenuAction(
-            label: 'Connect...',
+            label: l10n.menuConnect,
             onPressed: _onConnect,
             shortcut: const SingleActivator(
               LogicalKeyboardKey.keyO,
@@ -1615,17 +1640,17 @@ class _MainFormState extends State<MainForm>
             ),
           ),
           AppMenuAction(
-            label: 'Disconnect',
+            label: l10n.menuDisconnect,
             onPressed: _hasConnectedRadio ? _onDisconnect : null,
           ),
           const AppMenuDivider(),
           AppMenuAction(
-            label: 'Dual-Watch',
+            label: l10n.menuDualWatch,
             onPressed: _hasConnectedRadio ? _onToggleDualWatch : null,
             checked: _dualWatchEnabled,
           ),
           AppMenuAction(
-            label: 'Scan',
+            label: l10n.menuScan,
             onPressed: _hasConnectedRadio ? _onToggleScan : null,
             checked: _scanEnabled,
           ),
@@ -1638,11 +1663,11 @@ class _MainFormState extends State<MainForm>
           // reports regions; otherwise show a disabled (grayed) entry with no
           // sub-menu.
           if (_hasConnectedRadio && _regionCount > 0)
-            AppSubmenu(label: 'Regions', children: _buildRegionMenuItems())
+            AppSubmenu(label: l10n.menuRegions, children: _buildRegionMenuItems())
           else
-            const AppMenuAction(label: 'Regions', onPressed: null),
+            AppMenuAction(label: l10n.menuRegions, onPressed: null),
           AppMenuAction(
-            label: 'Trusted Devices...',
+            label: l10n.menuTrustedDevices,
             onPressed: _hasConnectedRadio
                 ? () => showTrustedDevicesDialog(
                     context,
@@ -1651,7 +1676,7 @@ class _MainFormState extends State<MainForm>
                 : null,
           ),
           AppMenuAction(
-            label: 'Buttons...',
+            label: l10n.menuButtons,
             onPressed: _hasConnectedRadio
                 ? () => showConfigureButtonsDialog(
                     context,
@@ -1661,16 +1686,16 @@ class _MainFormState extends State<MainForm>
           ),
           const AppMenuDivider(),
           AppMenuAction(
-            label: 'Export Channels...',
+            label: l10n.menuExportChannels,
             onPressed: _hasConnectedRadio ? _onExportChannels : null,
           ),
           AppMenuAction(
-            label: 'Import Channels...',
+            label: l10n.menuImportChannels,
             onPressed: _hasConnectedRadio ? _onImportChannels : null,
           ),
           const AppMenuDivider(hideOnMacOS: true),
           AppMenuAction(
-            label: 'Settings...',
+            label: l10n.menuSettings,
             onPressed: _onSettings,
             shortcut: const SingleActivator(
               LogicalKeyboardKey.comma,
@@ -1684,7 +1709,7 @@ class _MainFormState extends State<MainForm>
           if (!kIsWeb && !Platform.isIOS && !Platform.isAndroid) ...[
             const AppMenuDivider(hideOnMacOS: true),
             AppMenuAction(
-              label: 'Exit',
+              label: l10n.menuExit,
               onPressed: () => _onExit(),
               hideOnMacOS: true,
             ),
@@ -1695,19 +1720,19 @@ class _MainFormState extends State<MainForm>
       // control-only transport).
       if (!kIsWeb && !Platform.isIOS)
         AppSubmenu(
-          label: 'Audio',
+          label: l10n.menuAudio,
           children: [
             AppMenuAction(
-              label: 'Audio Enabled',
+              label: l10n.menuAudioEnabled,
               onPressed: _hasConnectedRadio ? _onToggleAudio : null,
               checked: _audioEnabled,
             ),
             const AppMenuDivider(),
             AppSubmenu(
-              label: 'Software Modem',
+              label: l10n.menuSoftwareModem,
               children: [
                 AppMenuAction(
-                  label: 'Disabled',
+                  label: l10n.menuModemDisabled,
                   onPressed: () => _setSoftwareModemMode('None'),
                   checked: _softwareModemMode == 'none',
                 ),
@@ -1738,50 +1763,50 @@ class _MainFormState extends State<MainForm>
             // modem is selected, to avoid cluttering the menu otherwise.
             if (_softwareModemMode == 'dart')
               AppSubmenu(
-                label: 'DART Transmit Level',
+                label: l10n.menuDartTransmitLevel,
                 children: [
                   AppMenuAction(
-                    label: 'Level 0 (BPSK, LDPC 1/2)',
+                    label: l10n.menuDartLevel0,
                     onPressed: () => _setDartTxLevel('0'),
                     checked: _dartTxLevel == '0',
                   ),
                   AppMenuAction(
-                    label: 'Level 1 (QPSK, LDPC 1/2)',
+                    label: l10n.menuDartLevel1,
                     onPressed: () => _setDartTxLevel('1'),
                     checked: _dartTxLevel == '1',
                   ),
                   AppMenuAction(
-                    label: 'Level 2 (QPSK, LDPC 2/3)',
+                    label: l10n.menuDartLevel2,
                     onPressed: () => _setDartTxLevel('2'),
                     checked: _dartTxLevel == '2',
                   ),
                   AppMenuAction(
-                    label: 'Level 3 (8PSK, LDPC 2/3)',
+                    label: l10n.menuDartLevel3,
                     onPressed: () => _setDartTxLevel('3'),
                     checked: _dartTxLevel == '3',
                   ),
                   AppMenuAction(
-                    label: 'Level 4 (16QAM, LDPC 3/4)',
+                    label: l10n.menuDartLevel4,
                     onPressed: () => _setDartTxLevel('4'),
                     checked: _dartTxLevel == '4',
                   ),
                   AppMenuAction(
-                    label: 'Level 5 (16QAM, LDPC 5/6)',
+                    label: l10n.menuDartLevel5,
                     onPressed: () => _setDartTxLevel('5'),
                     checked: _dartTxLevel == '5',
                   ),
                   AppMenuAction(
-                    label: 'Level F (4-FSK, LDPC 1/2)',
+                    label: l10n.menuDartLevelF,
                     onPressed: () => _setDartTxLevel('F'),
                     checked: _dartTxLevel == 'F',
                   ),
                 ],
               ),
             AppSubmenu(
-              label: 'APRS Modem',
+              label: l10n.menuAprsModem,
               children: [
                 AppMenuAction(
-                  label: 'Disabled',
+                  label: l10n.menuModemDisabled,
                   onPressed: () => _setAprsModemMode('None'),
                   checked: _aprsModemMode == 'none',
                 ),
@@ -1802,13 +1827,13 @@ class _MainFormState extends State<MainForm>
         ),
       // View menu (renamed on macOS to avoid automatic system items like "Show Tab Bar")
       AppSubmenu(
-        label: 'View',
-        macOSLabel: 'Display',
+        label: l10n.menuView,
+        macOSLabel: l10n.menuMacDisplay,
         children: [
           // Only show Radio toggle when not in compact mode
           if (!_isCompactMode)
             AppMenuAction(
-              label: 'Radio',
+              label: l10n.menuRadio,
               onPressed: () {
                 setState(() {
                   _radioVisible = !_radioVisible;
@@ -1819,12 +1844,12 @@ class _MainFormState extends State<MainForm>
           // Only show Tabs toggle when in compact mode
           if (_isCompactMode)
             AppMenuAction(
-              label: 'Tabs',
+              label: l10n.menuTabs,
               onPressed: _toggleTabsVisible,
               checked: _tabsVisible,
             ),
           AppMenuAction(
-            label: 'Tab Names',
+            label: l10n.menuTabNames,
             onPressed: () {
               setState(() {
                 _showTabNames = !_showTabNames;
@@ -1838,7 +1863,7 @@ class _MainFormState extends State<MainForm>
             checked: _showTabNames,
           ),
           AppMenuAction(
-            label: 'Show All Tabs',
+            label: l10n.menuShowAllTabs,
             onPressed: () {
               setState(() {
                 _showAllTabs = !_showAllTabs;
@@ -1853,7 +1878,7 @@ class _MainFormState extends State<MainForm>
             checked: _showAllTabs,
           ),
           AppMenuAction(
-            label: 'All Channels',
+            label: l10n.menuAllChannels,
             onPressed: () {
               final newValue = !_showAllChannels;
               setState(() {
@@ -1894,10 +1919,10 @@ class _MainFormState extends State<MainForm>
       ),
       // Help/About menu
       AppSubmenu(
-        label: 'Help',
+        label: l10n.menuHelp,
         children: [
           AppMenuAction(
-            label: 'Radio Information...',
+            label: l10n.menuRadioInformation,
             onPressed: _hasConnectedRadio
                 ? () => showRadioInfoDialog(
                     context,
@@ -1907,17 +1932,17 @@ class _MainFormState extends State<MainForm>
           ),
           if (_hasGpsConfigured)
             AppMenuAction(
-              label: 'GPS Information...',
+              label: l10n.menuGpsInformation,
               onPressed: () => showGpsSerialInfoDialog(context),
             ),
           const AppMenuDivider(),
           if (UpdateService.instance.isSupported)
             AppMenuAction(
-              label: 'Check for Updates...',
+              label: l10n.menuCheckForUpdatesEllipsis,
               onPressed: _onCheckForUpdates,
             ),
           AppMenuAction(
-            label: 'About...',
+            label: l10n.menuAbout,
             onPressed: _onAbout,
             hideOnMacOS: true,
           ),
@@ -2381,7 +2406,7 @@ class _MainFormState extends State<MainForm>
                                     if (_showTabNames) ...[
                                       const SizedBox(height: 4),
                                       Text(
-                                        tab.label,
+                                        _tabDisplayName(tab.label),
                                         textAlign: TextAlign.center,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
@@ -2494,6 +2519,40 @@ class _MainFormState extends State<MainForm>
     _tabController.addListener(_onTabChanged);
   }
 
+  /// Maps an internal tab [label] (used throughout as an identifier) to its
+  /// localized display name shown in the tab strip.
+  String _tabDisplayName(String label) {
+    final l10n = AppLocalizations.of(context);
+    switch (label) {
+      case 'Comms':
+        return l10n.tabComms;
+      case 'Audio':
+        return l10n.tabAudio;
+      case 'APRS':
+        return l10n.tabAprs;
+      case 'Map':
+        return l10n.tabMap;
+      case 'Mail':
+        return l10n.tabMail;
+      case 'Terminal':
+        return l10n.tabTerminal;
+      case 'Contacts':
+        return l10n.tabContacts;
+      case 'BBS':
+        return l10n.tabBbs;
+      case 'Torrent':
+        return l10n.tabTorrent;
+      case 'Packets':
+        return l10n.tabPackets;
+      case 'Debug':
+        return l10n.tabDebug;
+      case 'Radio':
+        return l10n.tabRadio;
+      default:
+        return label;
+    }
+  }
+
   Widget _buildTabContent(_TabInfo tab) {
     // Return the appropriate widget based on tab label
     switch (tab.label) {
@@ -2553,7 +2612,7 @@ class _MainFormState extends State<MainForm>
           // Battery percentage on the right (only show when connected and battery info available)
           if (_currentRadioDeviceId > 0 && _batteryPercentage >= 0)
             Text(
-              'Battery: $_batteryPercentage%',
+              AppLocalizations.of(context).statusBattery(_batteryPercentage),
               style: Theme.of(context).textTheme.bodySmall,
             ),
         ],
@@ -2569,7 +2628,7 @@ class _MainFormState extends State<MainForm>
     _broker.logInfo('Connect requested - checking Bluetooth...');
 
     setState(() {
-      _statusText = 'Checking Bluetooth...';
+      _statusText = AppLocalizations.of(context).statusCheckingBluetooth;
     });
 
     // Check if Bluetooth is available
@@ -2578,7 +2637,7 @@ class _MainFormState extends State<MainForm>
       if (!mounted) return;
       _broker.logError('Bluetooth not available');
       setState(() {
-        _statusText = 'Bluetooth not available';
+        _statusText = AppLocalizations.of(context).statusBluetoothNotAvailable;
       });
       _showBluetoothWarning();
       return;
@@ -2586,7 +2645,7 @@ class _MainFormState extends State<MainForm>
 
     _broker.logInfo('Scanning for compatible radios...');
     setState(() {
-      _statusText = 'Scanning for radios...';
+      _statusText = AppLocalizations.of(context).statusScanningForRadios;
     });
 
     // Find compatible devices
@@ -2601,9 +2660,12 @@ class _MainFormState extends State<MainForm>
       if (!mounted) return;
       _broker.logError('Error scanning for radios: $e');
       setState(() {
-        _statusText = 'Error scanning for radios';
+        _statusText = AppLocalizations.of(context).statusErrorScanning;
       });
-      _showErrorDialog('Error', 'Failed to scan for Bluetooth devices: $e');
+      _showErrorDialog(
+        AppLocalizations.of(context).commonError,
+        AppLocalizations.of(context).connectScanError(e.toString()),
+      );
       return;
     }
 
@@ -2613,12 +2675,11 @@ class _MainFormState extends State<MainForm>
     if (allDevices.isEmpty) {
       _broker.logInfo('No compatible radios found');
       setState(() {
-        _statusText = 'No compatible radios found';
+        _statusText = AppLocalizations.of(context).statusNoCompatibleRadios;
       });
       _showInfoDialog(
-        'No Radios Found',
-        'No compatible radio devices were found.\n\n'
-            'Make sure your radio is powered on and Bluetooth is enabled.',
+        AppLocalizations.of(context).connectNoRadiosTitle,
+        AppLocalizations.of(context).connectNoRadiosBody,
       );
       return;
     }
@@ -2647,11 +2708,11 @@ class _MainFormState extends State<MainForm>
     if (availableDevices.isEmpty) {
       _broker.logInfo('All radios already connected');
       setState(() {
-        _statusText = 'All radios already connected';
+        _statusText = AppLocalizations.of(context).statusAllRadiosConnected;
       });
       _showInfoDialog(
-        'All Connected',
-        'All detected radio devices are already connected.',
+        AppLocalizations.of(context).connectAllConnectedTitle,
+        AppLocalizations.of(context).connectAllConnectedBody,
       );
       return;
     }
@@ -2661,7 +2722,9 @@ class _MainFormState extends State<MainForm>
       final device = availableDevices.first;
       _broker.logInfo('Connecting to ${device.name}...');
       setState(() {
-        _statusText = 'Connecting to ${device.name}...';
+        _statusText = AppLocalizations.of(
+          context,
+        ).statusConnectingTo(device.name);
       });
 
       final deviceId = await bluetoothService.connectToRadio(
@@ -2674,12 +2737,16 @@ class _MainFormState extends State<MainForm>
       if (deviceId != null) {
         _broker.logInfo('Connected to ${device.name} (deviceId: $deviceId)');
         setState(() {
-          _statusText = 'Connected to ${device.name}';
+          _statusText = AppLocalizations.of(
+            context,
+          ).statusConnectedTo(device.name);
         });
       } else {
         _broker.logError('Failed to connect to ${device.name}');
         setState(() {
-          _statusText = 'Failed to connect to ${device.name}';
+          _statusText = AppLocalizations.of(
+            context,
+          ).statusFailedToConnect(device.name);
         });
       }
       return;
@@ -2737,18 +2804,16 @@ class _MainFormState extends State<MainForm>
   }
 
   void _showBluetoothWarning() {
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Bluetooth Not Available'),
-        content: const Text(
-          'Bluetooth is not available or is turned off.\n\n'
-          'Please enable Bluetooth in your device settings and try again.',
-        ),
+        title: Text(l10n.connectBluetoothOffTitle),
+        content: Text(l10n.connectBluetoothOffBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(l10n.commonOk),
           ),
         ],
       ),
@@ -2764,7 +2829,7 @@ class _MainFormState extends State<MainForm>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(AppLocalizations.of(context).commonOk),
           ),
         ],
       ),
@@ -2781,7 +2846,7 @@ class _MainFormState extends State<MainForm>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(AppLocalizations.of(context).commonOk),
           ),
         ],
       ),
@@ -2798,7 +2863,7 @@ class _MainFormState extends State<MainForm>
       final deviceId = _connectedRadioIds.first;
       _broker.logInfo('Disconnecting radio (deviceId: $deviceId)...');
       setState(() {
-        _statusText = 'Disconnecting...';
+        _statusText = AppLocalizations.of(context).statusDisconnecting;
       });
 
       await bluetoothService.disconnectRadio(deviceId);
@@ -2806,7 +2871,7 @@ class _MainFormState extends State<MainForm>
       if (!mounted) return;
       _broker.logInfo('Disconnected');
       setState(() {
-        _statusText = 'Disconnected';
+        _statusText = AppLocalizations.of(context).stateDisconnected;
       });
     } else {
       // Show radio selection dialog for disconnect
@@ -2816,7 +2881,7 @@ class _MainFormState extends State<MainForm>
           'Disconnecting radio (deviceId: $_currentRadioDeviceId)...',
         );
         setState(() {
-          _statusText = 'Disconnecting...';
+          _statusText = AppLocalizations.of(context).statusDisconnecting;
         });
 
         await bluetoothService.disconnectRadio(_currentRadioDeviceId);
@@ -2824,7 +2889,7 @@ class _MainFormState extends State<MainForm>
         if (!mounted) return;
         _broker.logInfo('Disconnected');
         setState(() {
-          _statusText = 'Disconnected';
+          _statusText = AppLocalizations.of(context).stateDisconnected;
         });
       }
     }

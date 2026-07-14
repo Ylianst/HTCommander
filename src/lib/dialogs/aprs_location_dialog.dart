@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../l10n/app_localizations.dart';
 import '../utils/map_tile_provider.dart';
 
 /// Shows a dialog with a map permanently centered on [latitude]/[longitude]
@@ -106,7 +107,7 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
                 children: [
                   Expanded(
                     child: Text(
-                      widget.title ?? 'Location',
+                      widget.title ?? AppLocalizations.of(context).locationTitle,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,

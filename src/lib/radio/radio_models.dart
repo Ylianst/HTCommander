@@ -766,13 +766,6 @@ class RadioBssSettings {
         (data[offset + 3] << 24);
   }
 
-  static int _getInt32LE(Uint8List data, int offset) {
-    return data[offset] |
-        (data[offset + 1] << 8) |
-        (data[offset + 2] << 16) |
-        (data[offset + 3] << 24);
-  }
-
   static void _setInt32LE(Uint8List data, int offset, int value) {
     data[offset] = value & 0xFF;
     data[offset + 1] = (value >> 8) & 0xFF;

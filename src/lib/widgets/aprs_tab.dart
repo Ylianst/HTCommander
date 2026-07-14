@@ -11,6 +11,7 @@ import '../dialogs/aprs_weather_dialog.dart';
 import '../dialogs/dialog_utils.dart';
 import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_beacon_settings_dialog.dart';
+import '../l10n/app_localizations.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -723,9 +724,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           color: Colors.amber.shade700,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: const Text(
-          'Drop to share this channel',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        child: Text(
+          AppLocalizations.of(context).aprsDropShare,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -766,9 +767,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     final radioDeviceId = _getPreferredAprsRadioDeviceId();
     if (radioDeviceId == -1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No radio with an APRS channel is available'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).aprsNoChannel),
+          duration: const Duration(seconds: 2),
         ),
       );
       return;
@@ -800,9 +801,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     final radioDeviceId = _getPreferredAprsRadioDeviceId();
     if (radioDeviceId == -1) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('No radio with an APRS channel is available'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).aprsNoChannel),
+          duration: const Duration(seconds: 2),
         ),
       );
       return;
@@ -831,9 +832,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     final radioDeviceId = _getPreferredAprsRadioDeviceId();
     if (radioDeviceId == -1) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('No radio with an APRS channel is available'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).aprsNoChannel),
+          duration: const Duration(seconds: 2),
         ),
       );
       return;
@@ -970,27 +971,27 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         Offset.zero & overlay.size,
       ),
       items: [
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'details',
-          child: Text('Details...'),
+          child: Text(AppLocalizations.of(context).aprsDetails),
         ),
         if (hasLocation)
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'location',
-            child: Text('Show Location...'),
+            child: Text(AppLocalizations.of(context).aprsShowLocation),
           ),
         if (!message.isSender)
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'setReceiver',
-            child: Text('Set as receiver'),
+            child: Text(AppLocalizations.of(context).aprsSetReceiver),
           ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'copyMessage',
-          child: Text('Copy Message'),
+          child: Text(AppLocalizations.of(context).aprsCopyMessage),
         ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'copyCallsign',
-          child: Text('Copy Callsign'),
+          child: Text(AppLocalizations.of(context).aprsCopyCallsign),
         ),
       ],
     );
@@ -1062,13 +1063,12 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   }
 
   Future<void> _clearMessages() async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await DialogHelper.showConfirmDialog(
       context,
-      title: 'Clear APRS Messages',
-      message:
-          'Clear all APRS messages? This also removes all APRS markers from '
-          'the map. This cannot be undone.',
-      okText: 'Clear',
+      title: l10n.aprsClearTitle,
+      message: l10n.aprsClearPrompt,
+      okText: l10n.tabClear,
     );
     if (!confirmed || !mounted) return;
     setState(() {
@@ -1084,6 +1084,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   }
 
   void _showMenu(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
 
@@ -1111,7 +1112,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Show All Messages'),
+              Text(l10n.aprsShowAll),
             ],
           ),
         ),
@@ -1121,8 +1122,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           height: menuItemHeight,
           padding: menuItemPadding,
           enabled: _allowTransmit && _hasAprsChannel && !_isRadioLocked,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Send SMS Message...')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.aprsSendSms)],
           ),
         ),
         PopupMenuItem<String>(
@@ -1130,8 +1131,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           height: menuItemHeight,
           padding: menuItemPadding,
           enabled: _allowTransmit && _hasAprsChannel && !_isRadioLocked,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Weather Report...')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.aprsWeatherReport)],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -1140,8 +1141,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           height: menuItemHeight,
           padding: menuItemPadding,
           enabled: _connectedRadioDeviceIds().isNotEmpty,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Beacon Settings...')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.aprsBeaconSettingsMenu)],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -1149,7 +1150,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(children: [SizedBox(width: 20), Text('Clear')]),
+          child: Row(children: [const SizedBox(width: 20), Text(l10n.tabClear)]),
         ),
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
@@ -1157,8 +1158,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
             value: 'detach',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Detach...')],
+            child: Row(
+              children: [const SizedBox(width: 20), Text(l10n.tabDetach)],
             ),
           ),
         ],
@@ -1230,6 +1231,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildBeaconBanner() {
+    final l10n = AppLocalizations.of(context);
     final bool isWarning = _beaconOnCurrentChannel;
     final Color bgColor =
         isWarning ? const Color(0xFFF8D7DA) : const Color(0xFFD4EDDA);
@@ -1238,8 +1240,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     final IconData icon =
         isWarning ? Icons.warning_amber : Icons.info_outline;
     final String message = isWarning
-        ? 'Beaconing is enabled on the current channel which is not recommended.'
-        : 'Radio beacon is active, interval: ${_formatBeaconInterval(_beaconInterval)}.';
+        ? l10n.aprsBeaconWarning
+        : l10n.aprsBeaconActive(_formatBeaconInterval(_beaconInterval));
 
     return Container(
       width: double.infinity,
@@ -1263,17 +1265,20 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
-            child: const Text('Beacon Settings'),
+            child: Text(AppLocalizations.of(context).aprsBeaconSettings),
           ),
         ],
       ),
     );
   }
 
-  static String _formatBeaconInterval(int seconds) {
-    if (seconds < 60) return '$seconds seconds';
+  String _formatBeaconInterval(int seconds) {
+    final l10n = AppLocalizations.of(context);
+    if (seconds < 60) return l10n.aprsIntervalSeconds(seconds);
     final minutes = seconds ~/ 60;
-    return minutes == 1 ? '1 minute' : '$minutes minutes';
+    return minutes == 1
+        ? l10n.aprsIntervalMinute
+        : l10n.aprsIntervalMinutes(minutes);
   }
 
   Widget _buildMissingChannelBanner() {
@@ -1285,11 +1290,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         children: [
           const Icon(Icons.warning_amber, color: Color(0xFF856404), size: 20),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'No "APRS" channel is configured on the connected radio. '
-              'Add an APRS channel to send and receive APRS messages.',
-              style: TextStyle(color: Color(0xFF856404), fontSize: 13),
+              AppLocalizations.of(context).aprsMissingChannel,
+              style: const TextStyle(color: Color(0xFF856404), fontSize: 13),
             ),
           ),
           const SizedBox(width: 8),
@@ -1300,7 +1304,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
-            child: const Text('Set up'),
+            child: Text(AppLocalizations.of(context).aprsSetup),
           ),
         ],
       ),
@@ -1334,9 +1338,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
 
     if (radioDeviceId == -1 || channels == null) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('No radio with loaded channels is available'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).aprsNoLoadedChannels),
+          duration: const Duration(seconds: 2),
         ),
       );
       return;
@@ -1396,9 +1400,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
               constraints.maxWidth > 250 && _aprsRoutes.length > 1;
           return Row(
             children: [
-              const Text(
-                'APRS',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              Text(
+                AppLocalizations.of(context).tabAprs,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const Spacer(),
               // APRS Route dropdown - hide when too narrow or only one route.
@@ -1552,9 +1556,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
                 controller: _messageController,
                 focusNode: _messageFocusNode,
                 style: const TextStyle(fontSize: 14),
-                decoration: const InputDecoration(
-                  hintText: 'Type a message...',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                decoration: InputDecoration(
+                  hintText: AppLocalizations.of(context).aprsTypeMessage,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                   border: InputBorder.none,
                   isCollapsed: true,
                 ),

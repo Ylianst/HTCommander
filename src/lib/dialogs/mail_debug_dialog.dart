@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import '../winlink/winlink_client.dart';
 import 'dialog_utils.dart';
@@ -155,8 +156,9 @@ class _MailDebugDialogState extends State<_MailDebugDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return HTDialog(
-      title: 'Winlink Traffic',
+      title: l10n.mdbgTitle,
       maxWidth: 640,
       maxHeight: 520,
       content: Container(
@@ -166,10 +168,10 @@ class _MailDebugDialogState extends State<_MailDebugDialog> {
         ),
         padding: const EdgeInsets.all(8),
         child: _lines.isEmpty
-            ? const Center(
+            ? Center(
                 child: Text(
-                  'No traffic yet.',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                  l10n.mdbgNoTraffic,
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
                 ),
               )
             : SingleChildScrollView(
@@ -203,7 +205,7 @@ class _MailDebugDialogState extends State<_MailDebugDialog> {
         ElevatedButton(
           onPressed: () => Navigator.of(context).pop(),
           style: DialogStyles.primaryButtonStyle(context),
-          child: const Text('Close'),
+          child: Text(l10n.commonClose),
         ),
       ],
     );

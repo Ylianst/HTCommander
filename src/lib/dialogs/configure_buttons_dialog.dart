@@ -13,6 +13,7 @@ preserving the button/action of each slot and only changing the effect.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../radio/gaia_protocol.dart';
 import '../services/data_broker_client.dart';
 
@@ -25,70 +26,72 @@ class _PfSlot {
 }
 
 /// Human-readable label for a PF action (press type).
-String _actionLabel(int action) {
+String _actionLabel(AppLocalizations l10n, int action) {
   switch (PFActionType.fromValue(action)) {
     case PFActionType.short:
     case PFActionType.shortSingle:
-      return 'Short press';
+      return l10n.pfActionShort;
     case PFActionType.long:
-      return 'Long press';
+      return l10n.pfActionLong;
     case PFActionType.veryLong:
-      return 'Very long press';
+      return l10n.pfActionVeryLong;
     case PFActionType.veryVeryLong:
-      return 'Very-very long press';
+      return l10n.pfActionVeryVeryLong;
     case PFActionType.double:
-      return 'Double press';
+      return l10n.pfActionDouble;
     case PFActionType.triple:
-      return 'Triple press';
+      return l10n.pfActionTriple;
     case PFActionType.repeat:
-      return 'Repeat';
+      return l10n.pfActionRepeat;
     case PFActionType.lowToHigh:
-      return 'Press down';
+      return l10n.pfActionPressDown;
     case PFActionType.highToLow:
-      return 'Release';
+      return l10n.pfActionRelease;
     case PFActionType.longRelease:
-      return 'Long release';
+      return l10n.pfActionLongRelease;
     case PFActionType.veryLongRelease:
-      return 'Very long release';
+      return l10n.pfActionVeryLongRelease;
     case PFActionType.veryVeryLongRelease:
-      return 'Very-very long release';
+      return l10n.pfActionVeryVeryLongRelease;
     case PFActionType.invalid:
-      return 'Action $action';
+      return l10n.pfActionUnknown(action);
   }
 }
 
 /// Human-readable label for a PF effect.
-String _effectLabel(int effect) {
-  const labels = <PFEffectType, String>{
-    PFEffectType.disable: 'Disabled',
-    PFEffectType.alarm: 'Alarm',
-    PFEffectType.alarmAndMute: 'Alarm and Mute',
-    PFEffectType.toggleOffline: 'Toggle Offline',
-    PFEffectType.toggleRadioTx: 'Toggle Radio TX',
-    PFEffectType.toggleTxPower: 'Toggle TX Power',
-    PFEffectType.toggleFm: 'Toggle FM Radio',
-    PFEffectType.prevChannel: 'Previous Channel',
-    PFEffectType.nextChannel: 'Next Channel',
-    PFEffectType.tCall: 'T-Call (1750 Hz)',
-    PFEffectType.prevRegion: 'Previous Region',
-    PFEffectType.nextRegion: 'Next Region',
-    PFEffectType.toggleChScan: 'Toggle Channel Scan',
-    PFEffectType.mainPtt: 'Main PTT',
-    PFEffectType.subPtt: 'Sub PTT',
-    PFEffectType.toggleMonitor: 'Toggle Monitor',
-    PFEffectType.btPairing: 'Bluetooth Pairing',
-    PFEffectType.toggleDoubleCh: 'Toggle Dual Channel',
-    PFEffectType.toggleAbCh: 'Toggle A/B Channel',
-    PFEffectType.sendLocation: 'Send Location',
-    PFEffectType.oneClickLink: 'One-Click Link',
-    PFEffectType.volDown: 'Volume Down',
-    PFEffectType.volUp: 'Volume Up',
-    PFEffectType.toggleMute: 'Toggle Mute',
+String _effectLabel(AppLocalizations l10n, int effect) {
+  final labels = <PFEffectType, String>{
+    PFEffectType.disable: l10n.pfEffectDisabled,
+    PFEffectType.alarm: l10n.pfEffectAlarm,
+    PFEffectType.alarmAndMute: l10n.pfEffectAlarmAndMute,
+    PFEffectType.toggleOffline: l10n.pfEffectToggleOffline,
+    PFEffectType.toggleRadioTx: l10n.pfEffectToggleRadioTx,
+    PFEffectType.toggleTxPower: l10n.pfEffectToggleTxPower,
+    PFEffectType.toggleFm: l10n.pfEffectToggleFm,
+    PFEffectType.prevChannel: l10n.pfEffectPrevChannel,
+    PFEffectType.nextChannel: l10n.pfEffectNextChannel,
+    PFEffectType.tCall: l10n.pfEffectTCall,
+    PFEffectType.prevRegion: l10n.pfEffectPrevRegion,
+    PFEffectType.nextRegion: l10n.pfEffectNextRegion,
+    PFEffectType.toggleChScan: l10n.pfEffectToggleChScan,
+    PFEffectType.mainPtt: l10n.pfEffectMainPtt,
+    PFEffectType.subPtt: l10n.pfEffectSubPtt,
+    PFEffectType.toggleMonitor: l10n.pfEffectToggleMonitor,
+    PFEffectType.btPairing: l10n.pfEffectBtPairing,
+    PFEffectType.toggleDoubleCh: l10n.pfEffectToggleDoubleCh,
+    PFEffectType.toggleAbCh: l10n.pfEffectToggleAbCh,
+    PFEffectType.sendLocation: l10n.pfEffectSendLocation,
+    PFEffectType.oneClickLink: l10n.pfEffectOneClickLink,
+    PFEffectType.volDown: l10n.pfEffectVolDown,
+    PFEffectType.volUp: l10n.pfEffectVolUp,
+    PFEffectType.toggleMute: l10n.pfEffectToggleMute,
   };
   final e = PFEffectType.fromValue(effect);
   // fromValue() falls back to disable(0) for unknown codes; show the raw code
   // instead of mislabeling it as "Disabled".
-  if (e == PFEffectType.disable && effect != 0) return 'Unknown ($effect)';
+  if (e == PFEffectType.disable && effect != 0) {
+    return l10n.pfEffectUnknown(effect);
+  }
   return labels[e] ?? e.name;
 }
 
@@ -194,25 +197,27 @@ class _ConfigureButtonsDialogState extends State<_ConfigureButtonsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Configure Buttons'),
+      title: Text(l10n.pfConfigTitle),
       content: SizedBox(width: 460, child: _buildContent()),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.commonCancel),
         ),
         FilledButton(
           onPressed: (_slots == null || _slots!.isEmpty) ? null : _save,
-          child: const Text('Save to Radio'),
+          child: Text(l10n.pfSaveToRadio),
         ),
       ],
     );
   }
 
   Widget _buildContent() {
+    final l10n = AppLocalizations.of(context);
     if (_deviceId <= 0) {
-      return const Text('No radio connected.');
+      return Text(l10n.pfNoRadio);
     }
     final slots = _slots;
     if (slots == null) {
@@ -222,7 +227,7 @@ class _ConfigureButtonsDialogState extends State<_ConfigureButtonsDialog> {
       );
     }
     if (slots.isEmpty) {
-      return const Text('This radio reported no programmable buttons.');
+      return Text(l10n.pfNoButtons);
     }
 
     // Group slots by physical button, preserving order.
@@ -236,10 +241,9 @@ class _ConfigureButtonsDialogState extends State<_ConfigureButtonsDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Choose what each programmable button does for every press type. '
-            'Changes are written to the radio when you save.',
-            style: TextStyle(fontSize: 12, color: Colors.black54),
+          Text(
+            AppLocalizations.of(context).pfIntro,
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
           ),
           const SizedBox(height: 8),
           for (final buttonId in buttonIds) _buildButtonSection(buttonId, slots),
@@ -258,7 +262,7 @@ class _ConfigureButtonsDialogState extends State<_ConfigureButtonsDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Button ${buttonId + 1}',
+              AppLocalizations.of(context).pfButtonLabel(buttonId + 1),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
@@ -270,6 +274,7 @@ class _ConfigureButtonsDialogState extends State<_ConfigureButtonsDialog> {
   }
 
   Widget _buildSlotRow(_PfSlot slot) {
+    final l10n = AppLocalizations.of(context);
     // If the current effect isn't a known option, include it so it can be shown
     // and preserved rather than silently reset.
     final options = List<int>.from(_effectOptions);
@@ -279,7 +284,10 @@ class _ConfigureButtonsDialogState extends State<_ConfigureButtonsDialog> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          SizedBox(width: 140, child: Text(_actionLabel(slot.action))),
+          SizedBox(
+            width: 140,
+            child: Text(_actionLabel(l10n, slot.action)),
+          ),
           Expanded(
             child: DropdownButton<int>(
               isExpanded: true,
@@ -288,7 +296,7 @@ class _ConfigureButtonsDialogState extends State<_ConfigureButtonsDialog> {
                   .map(
                     (code) => DropdownMenuItem<int>(
                       value: code,
-                      child: Text(_effectLabel(code)),
+                      child: Text(_effectLabel(l10n, code)),
                     ),
                   )
                   .toList(),

@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../dialogs/firmware_update_dialog.dart';
+import '../l10n/app_localizations.dart';
 import '../dialogs/raw_command_dialog.dart';
 import '../models/radio_models.dart';
 import '../services/bluetooth_service.dart';
@@ -174,7 +175,9 @@ class _DebugTabState extends State<DebugTab>
     if (id < 0) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No radio connected.')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).commonNoRadioConnected),
+        ),
       );
       return;
     }
@@ -187,7 +190,9 @@ class _DebugTabState extends State<DebugTab>
     if (id < 0) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No radio connected.')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).commonNoRadioConnected),
+        ),
       );
       return;
     }
@@ -219,13 +224,17 @@ class _DebugTabState extends State<DebugTab>
     String? outputPath;
     try {
       outputPath = await FilePicker.saveFile(
-        dialogTitle: 'Save Debug Log',
+        dialogTitle: AppLocalizations.of(context).debugSaveTitle,
         fileName: defaultFileName,
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error opening file dialog: $e')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context).errorOpeningFileDialog(e.toString()),
+            ),
+          ),
         );
       }
       return;
@@ -237,14 +246,22 @@ class _DebugTabState extends State<DebugTab>
         await file.writeAsString(logContent);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Debug log saved to $outputPath')),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context).debugLogSavedTo(outputPath),
+              ),
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error saving file: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context).errorSavingFile(e.toString()),
+              ),
+            ),
+          );
         }
       }
     }
@@ -262,6 +279,7 @@ class _DebugTabState extends State<DebugTab>
   }
 
   void _showMenu(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
 
@@ -281,8 +299,8 @@ class _DebugTabState extends State<DebugTab>
           value: 'saveToFile',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Save to File...')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.tabSaveToFile)],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -298,7 +316,7 @@ class _DebugTabState extends State<DebugTab>
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Show Bluetooth Frames'),
+              Text(l10n.debugShowBluetoothFrames),
             ],
           ),
         ),
@@ -314,7 +332,7 @@ class _DebugTabState extends State<DebugTab>
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Loopback Mode'),
+              Text(l10n.debugLoopbackMode),
             ],
           ),
         ),
@@ -323,16 +341,16 @@ class _DebugTabState extends State<DebugTab>
           value: 'queryDeviceNames',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Query Device Names')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.debugQueryDeviceNames)],
           ),
         ),
         PopupMenuItem<String>(
           value: 'rawCommand',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Raw Command...')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.debugRawCommand)],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -348,7 +366,7 @@ class _DebugTabState extends State<DebugTab>
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('Auto Scroll'),
+              Text(l10n.debugAutoScroll),
             ],
           ),
         ),
@@ -356,7 +374,7 @@ class _DebugTabState extends State<DebugTab>
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(children: [SizedBox(width: 20), Text('Clear')]),
+          child: Row(children: [const SizedBox(width: 20), Text(l10n.tabClear)]),
         ),
         // Firmware update is only supported over Bluetooth Classic transports.
         if (!kIsWeb &&
@@ -368,8 +386,8 @@ class _DebugTabState extends State<DebugTab>
             value: 'firmwareUpdate',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Firmware Update...')],
+            child: Row(
+              children: [const SizedBox(width: 20), Text(l10n.debugFirmwareUpdate)],
             ),
           ),
         ],
@@ -388,7 +406,7 @@ class _DebugTabState extends State<DebugTab>
                       ? const Text('✓', style: TextStyle(fontSize: 14))
                       : null,
                 ),
-                const Text('Show Built-in Menus'),
+                Text(l10n.debugShowBuiltInMenus),
               ],
             ),
           ),
@@ -399,8 +417,8 @@ class _DebugTabState extends State<DebugTab>
             value: 'detach',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Detach...')],
+            child: Row(
+              children: [const SizedBox(width: 20), Text(l10n.tabDetach)],
             ),
           ),
         ],
@@ -475,9 +493,9 @@ class _DebugTabState extends State<DebugTab>
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
-          const Text(
-            'Debug',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          Text(
+            AppLocalizations.of(context).tabDebug,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
           const Spacer(),
           Builder(

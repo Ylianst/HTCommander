@@ -14,6 +14,7 @@ import '../radio/radio.dart';
 import '../radio/radio_models.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker_client.dart';
+import '../l10n/app_localizations.dart';
 import 'dialog_utils.dart';
 
 /// Shows the beacon settings dialog used to configure a connected radio's
@@ -29,29 +30,6 @@ Future<void> showEditBeaconSettingsDialog(BuildContext context) {
 }
 
 /// Beacon interval options (label + value in seconds), matching the C# form.
-const List<String> _intervalLabels = [
-  'Off',
-  'Every 10 seconds',
-  'Every 20 seconds',
-  'Every 30 seconds',
-  'Every 40 seconds',
-  'Every 50 seconds',
-  'Every 1 minute',
-  'Every 2 minutes',
-  'Every 3 minutes',
-  'Every 4 minutes',
-  'Every 5 minutes',
-  'Every 6 minutes',
-  'Every 7 minutes',
-  'Every 8 minutes',
-  'Every 9 minutes',
-  'Every 10 minutes',
-  'Every 15 minutes',
-  'Every 20 minutes',
-  'Every 25 minutes',
-  'Every 30 minutes',
-];
-
 const List<int> _intervalSeconds = [
   0,
   10,
@@ -343,9 +321,12 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Title
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8, left: 4),
-                child: Text('Beacon Settings', style: DialogStyles.titleStyle),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8, left: 4),
+                child: Text(
+                  AppLocalizations.of(context).aprsBeaconSettings,
+                  style: DialogStyles.titleStyle,
+                ),
               ),
               // Content
               Flexible(
@@ -353,17 +334,14 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Change how the radio will beacon information about '
-                        'itself including position, voltage and a custom '
-                        'message. Other stations around will be able to see '
-                        'this information.',
+                      Text(
+                        AppLocalizations.of(context).beaconIntro,
                         style: DialogStyles.bodyStyle,
                       ),
                       if (_radioName.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Text(
-                          'Radio: $_radioName',
+                          AppLocalizations.of(context).beaconRadio(_radioName),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -385,13 +363,13 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.secondaryButtonStyle(context),
-                    child: const Text('Cancel'),
+                    child: Text(AppLocalizations.of(context).commonCancel),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _canSave ? _onSave : null,
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('OK'),
+                    child: Text(AppLocalizations.of(context).commonOk),
                   ),
                 ],
               ),
@@ -409,7 +387,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('Beacon'),
+          _sectionTitle(AppLocalizations.of(context).beaconSection),
           const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,17 +405,17 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
           _buildMessageField(),
           const SizedBox(height: 8),
           _buildCheckbox(
-            'Should Share Location',
+            AppLocalizations.of(context).beaconShareLocation,
             _shareLocation,
             (v) => setState(() => _shareLocation = v),
           ),
           _buildCheckbox(
-            'Send Voltage',
+            AppLocalizations.of(context).beaconSendVoltage,
             _sendVoltage,
             (v) => setState(() => _sendVoltage = v),
           ),
           _buildCheckbox(
-            'Allow Position Check',
+            AppLocalizations.of(context).beaconAllowPositionCheck,
             _allowPositionCheck,
             (v) => setState(() => _allowPositionCheck = v),
           ),
@@ -447,8 +425,9 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
   }
 
   Widget _buildChannelDropdown() {
+    final l10n = AppLocalizations.of(context);
     return _labeled(
-      'Channel',
+      l10n.packetsColChannel,
       DropdownButtonFormField<int>(
         isExpanded: true,
         initialValue: _channelLabels.isEmpty ? null : _channelIndex,
@@ -457,7 +436,12 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
           for (int i = 0; i < _channelLabels.length; i++)
             DropdownMenuItem<int>(
               value: i,
-              child: Text(_channelLabels[i], overflow: TextOverflow.ellipsis),
+              child: Text(
+                _channelValues[i] == 0
+                    ? l10n.beaconChannelCurrent
+                    : _channelLabels[i],
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
         ],
         onChanged: _controlsEnabled
@@ -471,7 +455,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
 
   Widget _buildPacketFormatDropdown() {
     return _labeled(
-      'Packet Format',
+      AppLocalizations.of(context).beaconPacketFormat,
       DropdownButtonFormField<int>(
         isExpanded: true,
         initialValue: _packetFormatIndex,
@@ -492,16 +476,25 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
     );
   }
 
+  /// Localized label for the beacon interval at [index] into [_intervalSeconds].
+  String _intervalLabel(int index) {
+    final seconds = _intervalSeconds[index];
+    final l10n = AppLocalizations.of(context);
+    if (seconds == 0) return l10n.riOff;
+    if (seconds < 60) return l10n.beaconEverySeconds(seconds);
+    return l10n.beaconEveryMinutes(seconds ~/ 60);
+  }
+
   Widget _buildIntervalDropdown() {
     return _labeled(
-      'Beacon Interval',
+      AppLocalizations.of(context).beaconInterval,
       DropdownButtonFormField<int>(
         isExpanded: true,
         initialValue: _intervalIndex,
         decoration: _inputDecoration(),
         items: [
-          for (int i = 0; i < _intervalLabels.length; i++)
-            DropdownMenuItem<int>(value: i, child: Text(_intervalLabels[i])),
+          for (int i = 0; i < _intervalSeconds.length; i++)
+            DropdownMenuItem<int>(value: i, child: Text(_intervalLabel(i))),
         ],
         onChanged: _controlsEnabled
             ? (value) {
@@ -513,9 +506,10 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
   }
 
   Widget _buildCallsignField() {
+    final l10n = AppLocalizations.of(context);
     final invalid = _controlsEnabled && !_callsignValid;
     return _labeled(
-      'APRS Callsign',
+      l10n.beaconAprsCallsign,
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -531,7 +525,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
               ),
             ],
             decoration: _inputDecoration(
-              hintText: 'Callsign - Station ID',
+              hintText: l10n.beaconCallsignHint,
               invalid: invalid,
             ),
           ),
@@ -539,7 +533,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                'Enter a valid callsign and station ID (e.g. W1AW-5)',
+                l10n.beaconCallsignInvalid,
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.red.shade600,
@@ -554,7 +548,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
 
   Widget _buildMessageField() {
     return _labeled(
-      'APRS Message',
+      AppLocalizations.of(context).beaconAprsMessage,
       TextField(
         controller: _messageController,
         enabled: _controlsEnabled,

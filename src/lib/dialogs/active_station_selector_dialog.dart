@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../models/station_info.dart';
 import '../services/data_broker_client.dart';
+import '../l10n/app_localizations.dart';
 import 'add_station_dialog.dart';
 import 'dialog_utils.dart';
 
@@ -117,16 +118,17 @@ class _StationSelectorDialog extends StatelessWidget {
     required this.stations,
   });
 
-  String get _title {
+  String _title(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     switch (stationType) {
       case StationType.terminal:
-        return 'Connect to Terminal Station';
+        return l10n.assConnectTerminal;
       case StationType.bbs:
-        return 'Connect to BBS Station';
+        return l10n.assConnectBbs;
       case StationType.winlink:
-        return 'Connect to Winlink Gateway';
+        return l10n.assConnectWinlink;
       default:
-        return 'Connect to Station';
+        return l10n.assConnectStation;
     }
   }
 
@@ -144,7 +146,7 @@ class _StationSelectorDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Title
-              Text(_title, style: DialogStyles.titleStyle),
+              Text(_title(context), style: DialogStyles.titleStyle),
               const SizedBox(height: 16),
               // Station list section card
               Flexible(
@@ -203,7 +205,7 @@ class _StationSelectorDialog extends StatelessWidget {
                       const StationSelectorResult(StationSelectorAction.cancel),
                     ),
                     style: DialogStyles.secondaryButtonStyle(context),
-                    child: const Text('Cancel'),
+                    child: Text(AppLocalizations.of(context).commonCancel),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -213,7 +215,7 @@ class _StationSelectorDialog extends StatelessWidget {
                       ),
                     ),
                     style: DialogStyles.primaryButtonStyle(context),
-                    child: const Text('New…'),
+                    child: Text(AppLocalizations.of(context).assNew),
                   ),
                 ],
               ),

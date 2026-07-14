@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../handlers/bbs_handler.dart';
+import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -277,7 +278,9 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
             child: Text(
               (r['FriendlyName'] as String?)?.isNotEmpty == true
                   ? r['FriendlyName'] as String
-                  : 'Radio ${r['DeviceId']}',
+                  : AppLocalizations.of(context).riRadioFallback(
+                      r['DeviceId'] as int,
+                    ),
             ),
           ),
       ],
@@ -348,6 +351,7 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
   }
 
   void _showMenu(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
 
@@ -375,7 +379,7 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
                     ? const Text('✓', style: TextStyle(fontSize: 14))
                     : null,
               ),
-              const Text('View Traffic'),
+              Text(l10n.bbsViewTraffic),
             ],
           ),
         ),
@@ -384,16 +388,16 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
           value: 'clearTraffic',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Clear Traffic')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.bbsClearTraffic)],
           ),
         ),
         PopupMenuItem<String>(
           value: 'clearStats',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: const Row(
-            children: [SizedBox(width: 20), Text('Clear Stats')],
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.bbsClearStats)],
           ),
         ),
         if (windowService.canDetach) ...[
@@ -402,8 +406,8 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
             value: 'detach',
             height: menuItemHeight,
             padding: menuItemPadding,
-            child: const Row(
-              children: [SizedBox(width: 20), Text('Detach...')],
+            child: Row(
+              children: [const SizedBox(width: 20), Text(l10n.tabDetach)],
             ),
           ),
         ],
@@ -466,16 +470,17 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
   }
 
   String _formatLastSeen(DateTime lastSeen) {
+    final l10n = AppLocalizations.of(context);
     final now = DateTime.now();
     final diff = now.difference(lastSeen);
     if (diff.inMinutes < 1) {
-      return 'Just now';
+      return l10n.bbsJustNow;
     } else if (diff.inMinutes < 60) {
-      return '${diff.inMinutes}m ago';
+      return l10n.bbsMinAgo(diff.inMinutes);
     } else if (diff.inHours < 24) {
-      return '${diff.inHours}h ago';
+      return l10n.bbsHoursAgo(diff.inHours);
     } else {
-      return '${diff.inDays}d ago';
+      return l10n.bbsDaysAgo(diff.inDays);
     }
   }
 
@@ -525,7 +530,9 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
           return Row(
             children: [
               Text(
-                _isActive ? 'BBS - Active' : 'BBS',
+                _isActive
+                    ? AppLocalizations.of(context).bbsHeaderActive
+                    : AppLocalizations.of(context).tabBbs,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -544,7 +551,11 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         textStyle: const TextStyle(fontSize: 12),
                       ),
-                      child: Text(_isActive ? 'Deactivate' : 'Activate'),
+                      child: Text(
+                        _isActive
+                            ? AppLocalizations.of(context).bbsDeactivate
+                            : AppLocalizations.of(context).bbsActivate,
+                      ),
                     ),
                   ),
                 ),
@@ -718,9 +729,10 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
       child: Row(
         children: [
           const SizedBox(width: 32), // Icon column
-          _buildColumnHeader('Call Sign', 0, width: 100),
-          _buildColumnHeader('Last Seen', 1, width: 80),
-          if (!_isCompact) _buildColumnHeader('Stats', 2, flex: 1),
+          _buildColumnHeader(AppLocalizations.of(context).bbsColCallSign, 0, width: 100),
+          _buildColumnHeader(AppLocalizations.of(context).bbsColLastSeen, 1, width: 80),
+          if (!_isCompact)
+            _buildColumnHeader(AppLocalizations.of(context).bbsColStats, 2, flex: 1),
         ],
       ),
     );
@@ -772,11 +784,11 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
             height: 28,
             color: Colors.grey.shade800,
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: const Align(
+            child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Traffic',
-                style: TextStyle(
+                AppLocalizations.of(context).bbsTraffic,
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                   color: Colors.white,
