@@ -80,6 +80,11 @@ class _AudioTabState extends State<AudioTab>
   bool _dartAnalysisEnabled = false;
   DartReceptionAnalysis? _dartAnalysis;
 
+  // Whether the general software modem is currently set to DART. The DART
+  // Signal Analysis menu item and the DART Reception Quality section are only
+  // shown in this mode. Tracks device 0 'SoftwareModemMode'.
+  bool _isDartModem = false;
+
   /// Whether the spectrograph is currently shown (any source other than none).
   bool get _showSpectrogram => _spectrogramSource != SpectrogramSource.none;
   // Live microphone capture (used by the microphone source).
@@ -181,6 +186,15 @@ class _AudioTabState extends State<AudioTab>
       name: 'DartAnalysis',
       callback: _onDartAnalysisChanged,
     );
+
+    // Track the general software modem mode so the DART-specific controls are
+    // only shown when DART is selected.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SoftwareModemMode',
+      callback: _onSoftwareModemModeChanged,
+    );
+    _isDartModem = _readIsDartModem();
 
     _currentRadioDeviceId = _resolveCurrentRadioId();
     _audioEnabled = _readAudioState();
@@ -586,6 +600,21 @@ class _AudioTabState extends State<AudioTab>
     );
   }
 
+  /// Read whether the general software modem is currently set to DART.
+  bool _readIsDartModem() {
+    final mode =
+        (_broker.getValue<String>(0, 'SoftwareModemMode', 'none') ?? 'none')
+            .toLowerCase();
+    return mode == 'dart';
+  }
+
+  void _onSoftwareModemModeChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final isDart = (data?.toString() ?? 'none').toLowerCase() == 'dart';
+    if (isDart == _isDartModem) return;
+    setState(() => _isDartModem = isDart);
+  }
+
   // ---------------------------------------------------------------------------
   // Spectrograph
   // ---------------------------------------------------------------------------
@@ -923,7 +952,7 @@ class _AudioTabState extends State<AudioTab>
                         ),
                       ),
                   ],
-                  if (_dartAnalysisEnabled) ...[
+                  if (_isDartModem && _dartAnalysisEnabled) ...[
                     const SizedBox(height: 16),
                     _buildSectionTitle('DART Reception Quality'),
                     DartAnalysisSection(analysis: _dartAnalysis),
@@ -1185,7 +1214,7 @@ class _AudioTabState extends State<AudioTab>
             _spectrogramSource == SpectrogramSource.microphone,
           ),
         ),
-        if (_audioChannelSupported) ...[
+        if (_audioChannelSupported && _isDartModem) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
             value: 'dartAnalysis',
