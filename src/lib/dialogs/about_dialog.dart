@@ -99,6 +99,10 @@ class HTAboutDialog extends StatelessWidget {
                                   'https://github.com/k0qed/aprs-parser',
                                 ),
                                 _buildAttribution(
+                                  'Radio firmware update by Cyrus Field, N0TEZ',
+                                  'https://github.com/repins267',
+                                ),
+                                _buildAttribution(
                                   'Map data provided by OpenStreetMap, the project\nthat creates and distributes free geographic\ndata for the world.',
                                   'https://openstreetmap.org',
                                 ),

@@ -115,30 +115,29 @@ class _UpdateDialogState extends State<UpdateDialog> {
       title: 'Software Update',
       maxWidth: 450,
       maxHeight: 300,
-      content: Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(_status, style: DialogStyles.bodyStyle),
-            if (isDownloading) ...[
-              const SizedBox(height: 12),
-              LinearProgressIndicator(value: progress),
-            ],
-            if (_checking) ...[
-              const SizedBox(height: 12),
-              const LinearProgressIndicator(),
-            ],
-            if ((isReadyToInstall || state is UpdateInstalling) &&
-                logPath != null) ...[
-              const SizedBox(height: 12),
-              SelectableText(
-                'If the update does not complete, see the diagnostics log:\n'
-                '$logPath',
-                style: DialogStyles.bodyStyle.copyWith(fontSize: 11),
-              ),
-            ],
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(_status, style: DialogStyles.bodyStyle),
+          if (isDownloading) ...[
+            const SizedBox(height: 12),
+            LinearProgressIndicator(value: progress),
           ],
-        ),
+          if (_checking) ...[
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(),
+          ],
+          if ((isReadyToInstall || state is UpdateInstalling) &&
+              logPath != null) ...[
+            const SizedBox(height: 12),
+            SelectableText(
+              'If the update does not complete, see the diagnostics log:\n'
+              '$logPath',
+              style: DialogStyles.bodyStyle.copyWith(fontSize: 11),
+            ),
+          ],
+        ],
       ),
       actions: [
         if (canDownload && !isDownloading)
