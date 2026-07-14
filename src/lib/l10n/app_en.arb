@@ -96,6 +96,10 @@
   "@languageJapanese": {
     "description": "Japanese language option."
   },
+  "languageHindi": "Hindi",
+  "@languageHindi": {
+    "description": "Hindi language option."
+  },
 
   "menuAudio": "Audio",
   "@menuAudio": {

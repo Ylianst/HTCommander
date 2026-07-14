@@ -7,7 +7,7 @@ import 'data_broker.dart';
 /// The selected language is persisted via the [DataBroker] under the
 /// `Language` key on device 0 (the same store used by the settings dialog).
   /// The stored value is a language tag: `system` (follow the OS locale), `en`,
-  /// `fr`, `es`, `zh` or `ja`. The active [Locale] is exposed as a [ValueNotifier] so that the
+  /// `fr`, `es`, `zh`, `ja` or `hi`. The active [Locale] is exposed as a [ValueNotifier] so that the
 /// top-level `MaterialApp` can rebuild whenever the language changes.
 class LocaleController {
   LocaleController._();
@@ -22,7 +22,7 @@ class LocaleController {
   static const String systemTag = 'system';
 
   /// Language tags the application ships translations for.
-  static const List<String> supportedLanguageTags = ['en', 'fr', 'es', 'zh', 'ja'];
+  static const List<String> supportedLanguageTags = ['en', 'fr', 'es', 'zh', 'ja', 'hi'];
 
   /// The active locale, or `null` to follow the operating system locale.
   final ValueNotifier<Locale?> locale = ValueNotifier<Locale?>(null);
@@ -35,7 +35,7 @@ class LocaleController {
     locale.value = _localeForTag(tag);
   }
 
-  /// The persisted language tag (`system`, `en`, `fr`, `es`, `zh`, `ja`, ...).
+  /// The persisted language tag (`system`, `en`, `fr`, `es`, `zh`, `ja`, `hi`, ...).
   String get languageTag {
     final loc = locale.value;
     return loc == null ? systemTag : loc.languageCode;

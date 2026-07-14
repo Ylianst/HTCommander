@@ -95,6 +95,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageJapanese => '日语';
 
   @override
+  String get languageHindi => '印地语';
+
+  @override
   String get menuAudio => '音频';
 
   @override
