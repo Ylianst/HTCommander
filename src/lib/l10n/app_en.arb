@@ -88,6 +88,10 @@
   "@languageSpanish": {
     "description": "Spanish language option."
   },
+  "languageChinese": "Chinese",
+  "@languageChinese": {
+    "description": "Chinese language option."
+  },
 
   "menuAudio": "Audio",
   "@menuAudio": {
