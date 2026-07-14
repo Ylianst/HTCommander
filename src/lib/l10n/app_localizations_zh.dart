@@ -77,6 +77,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsLanguageHint => '选择应用程序使用的语言。“系统默认”将跟随设备语言。';
 
   @override
+  String get settingsThemeMode => '主题';
+
+  @override
+  String get settingsThemeModeHint => '选择浅色或深色外观。“系统默认”将跟随您的设备设置。';
+
+  @override
+  String get settingsThemeModeSystem => '系统默认';
+
+  @override
+  String get settingsThemeModeLight => '浅色';
+
+  @override
+  String get settingsThemeModeDark => '深色';
+
+  @override
   String get languageSystem => '系统默认';
 
   @override

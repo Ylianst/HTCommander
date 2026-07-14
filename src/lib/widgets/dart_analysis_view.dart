@@ -111,13 +111,14 @@ class DartAnalysisSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final a = analysis;
     if (a == null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Text(
           'Waiting for a received DART packet…',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
         ),
       );
     }
@@ -138,7 +139,7 @@ class DartAnalysisSection extends StatelessWidget {
           width: diagramSide,
           height: diagramSide,
           child: a.isFsk || a.received.isEmpty
-              ? _noConstellation(a, background)
+              ? _noConstellation(a, background, scheme)
               : GestureDetector(
                   onSecondaryTapDown: (details) => _showDiagramMenu(
                     context,
@@ -168,7 +169,7 @@ class DartAnalysisSection extends StatelessWidget {
             children: [
               diagram,
               const SizedBox(width: 16),
-              Expanded(child: _buildMetrics(a)),
+              Expanded(child: _buildMetrics(a, scheme)),
             ],
           );
         }
@@ -176,7 +177,7 @@ class DartAnalysisSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildMetrics(a),
+            _buildMetrics(a, scheme),
             const SizedBox(height: 12),
             Center(child: diagram),
           ],
@@ -244,7 +245,11 @@ class DartAnalysisSection extends StatelessWidget {
     await Pasteboard.writeImage(byteData.buffer.asUint8List());
   }
 
-  Widget _noConstellation(DartReceptionAnalysis a, Color background) {
+  Widget _noConstellation(
+    DartReceptionAnalysis a,
+    Color background,
+    ColorScheme scheme,
+  ) {
     return Container(
       color: background,
       alignment: Alignment.center,
@@ -252,12 +257,12 @@ class DartAnalysisSection extends StatelessWidget {
         a.isFsk
             ? 'Mode F (FSK) — no constellation'
             : 'No constellation captured',
-        style: const TextStyle(fontSize: 12, color: Colors.black54),
+        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
       ),
     );
   }
 
-  Widget _buildMetrics(DartReceptionAnalysis a) {
+  Widget _buildMetrics(DartReceptionAnalysis a, ColorScheme scheme) {
     final ago = DateTime.now().difference(a.time);
     final agoStr = ago.inSeconds < 1
         ? 'just now'
@@ -266,28 +271,34 @@ class DartAnalysisSection extends StatelessWidget {
             : '${ago.inMinutes}m ago';
 
     final chips = <Widget>[
-      _chip('Mode', '${a.modeIndex} — ${a.modeDescription}'),
-      _chip('SNR', '${a.snrDb.toStringAsFixed(1)} dB', emphasize: true),
-      _chip('EVM', '${a.evmPercent.toStringAsFixed(1)} %'),
-      _chip('Preamble corr', a.preambleCorrelation.toStringAsFixed(2)),
-      _chip('Channel gain', '${a.channelGainDb.toStringAsFixed(1)} dB'),
+      _chip(scheme, 'Mode', '${a.modeIndex} — ${a.modeDescription}'),
+      _chip(scheme, 'SNR', '${a.snrDb.toStringAsFixed(1)} dB', emphasize: true),
+      _chip(scheme, 'EVM', '${a.evmPercent.toStringAsFixed(1)} %'),
+      _chip(scheme, 'Preamble corr', a.preambleCorrelation.toStringAsFixed(2)),
+      _chip(scheme, 'Channel gain', '${a.channelGainDb.toStringAsFixed(1)} dB'),
       if (a.phaseDriftDeg != null)
-        _chip('Phase drift', '${a.phaseDriftDeg!.toStringAsFixed(1)}°/sym'),
-      _chip('LDPC fixes', '${a.ldpcCorrections}'),
-      _chip('Payload', '${a.payloadLength} B'),
-      _chip('Duration', '${a.durationMs.toStringAsFixed(0)} ms'),
+        _chip(
+          scheme,
+          'Phase drift',
+          '${a.phaseDriftDeg!.toStringAsFixed(1)}°/sym',
+        ),
+      _chip(scheme, 'LDPC fixes', '${a.ldpcCorrections}'),
+      _chip(scheme, 'Payload', '${a.payloadLength} B'),
+      _chip(scheme, 'Duration', '${a.durationMs.toStringAsFixed(0)} ms'),
       _chip(
+        scheme,
         'CRC',
         a.crcOk ? 'OK' : 'FAIL',
         color: a.crcOk ? Colors.green.shade700 : Colors.red.shade700,
       ),
-      _chip('Received', agoStr),
+      _chip(scheme, 'Received', agoStr),
     ];
 
     return Wrap(spacing: 8, runSpacing: 8, children: chips);
   }
 
   Widget _chip(
+    ColorScheme scheme,
     String label,
     String value, {
     bool emphasize = false,
@@ -296,23 +307,23 @@ class DartAnalysisSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        border: Border.all(color: Colors.grey.shade300),
+        color: scheme.surfaceContainerHighest,
+        border: Border.all(color: scheme.outlineVariant),
         borderRadius: BorderRadius.circular(4),
       ),
       child: RichText(
         text: TextSpan(
-          style: const TextStyle(fontSize: 12, color: Colors.black87),
+          style: TextStyle(fontSize: 12, color: scheme.onSurface),
           children: [
             TextSpan(
               text: '$label: ',
-              style: const TextStyle(color: Colors.black54),
+              style: TextStyle(color: scheme.onSurfaceVariant),
             ),
             TextSpan(
               text: value,
               style: TextStyle(
                 fontWeight: emphasize ? FontWeight.bold : FontWeight.w500,
-                color: color ?? Colors.black87,
+                color: color ?? scheme.onSurface,
               ),
             ),
           ],

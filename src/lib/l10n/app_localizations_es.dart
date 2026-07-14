@@ -78,6 +78,22 @@ class AppLocalizationsEs extends AppLocalizations {
       'Elija el idioma que usa la aplicación. «Predeterminado del sistema» sigue el idioma de su dispositivo.';
 
   @override
+  String get settingsThemeMode => 'Tema';
+
+  @override
+  String get settingsThemeModeHint =>
+      'Elija la apariencia clara u oscura. «Predeterminado del sistema» sigue la configuración de su dispositivo.';
+
+  @override
+  String get settingsThemeModeSystem => 'Predeterminado del sistema';
+
+  @override
+  String get settingsThemeModeLight => 'Claro';
+
+  @override
+  String get settingsThemeModeDark => 'Oscuro';
+
+  @override
   String get languageSystem => 'Predeterminado del sistema';
 
   @override

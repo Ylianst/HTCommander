@@ -693,9 +693,10 @@ class _TorrentTabState extends State<TorrentTab>
   }
 
   Widget _buildHeader() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 40,
-      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
+      decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       clipBehavior: Clip.hardEdge,
       child: LayoutBuilder(
@@ -747,6 +748,8 @@ class _TorrentTabState extends State<TorrentTab>
                       'assets/images/MenuIcon.png',
                       width: 24,
                       height: 24,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      colorBlendMode: BlendMode.srcIn,
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(Icons.menu, size: 24);
                       },
@@ -915,6 +918,7 @@ class _TorrentTabState extends State<TorrentTab>
   }
 
   Widget _buildSplitter(double totalHeight) {
+    final scheme = Theme.of(context).colorScheme;
     return MouseRegion(
       cursor: SystemMouseCursors.resizeRow,
       child: GestureDetector(
@@ -931,13 +935,13 @@ class _TorrentTabState extends State<TorrentTab>
         },
         child: Container(
           height: 8,
-          color: const Color(0xFFC0C0C0),
+          color: scheme.surfaceContainerHigh,
           child: Center(
             child: Container(
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade600,
+                color: scheme.onSurfaceVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -948,6 +952,7 @@ class _TorrentTabState extends State<TorrentTab>
   }
 
   Widget _buildTorrentList() {
+    final scheme = Theme.of(context).colorScheme;
     return DropTarget(
       onDragEntered: (_) => setState(() => _dragging = true),
       onDragExited: (_) => setState(() => _dragging = false),
@@ -960,7 +965,7 @@ class _TorrentTabState extends State<TorrentTab>
         }
       },
       child: Container(
-        color: _dragging ? Colors.blue.shade50 : Colors.white,
+        color: _dragging ? Colors.blue.shade50 : scheme.surface,
         child: Column(
           children: [
             _buildTorrentListHeaders(),
@@ -971,7 +976,7 @@ class _TorrentTabState extends State<TorrentTab>
                         _dragging
                             ? AppLocalizations.of(context).torrentDropToShare
                             : AppLocalizations.of(context).torrentNoFiles,
-                        style: const TextStyle(color: Colors.grey),
+                        style: TextStyle(color: scheme.onSurfaceVariant),
                       ),
                     )
                   : _buildGroupedList(),
@@ -1003,21 +1008,23 @@ class _TorrentTabState extends State<TorrentTab>
   }
 
   Widget _buildGroupHeader(String source) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: Colors.grey.shade100,
+      color: scheme.surfaceContainerHighest,
       child: Text(
         source.isEmpty ? AppLocalizations.of(context).torrentUnknownSource : source,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.bold,
-          color: Colors.grey.shade700,
+          color: scheme.onSurfaceVariant,
         ),
       ),
     );
   }
 
   Widget _buildTorrentRow(_TorrentView torrent) {
+    final scheme = Theme.of(context).colorScheme;
     final isSelected = _selectedKey == torrent.key;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -1034,8 +1041,8 @@ class _TorrentTabState extends State<TorrentTab>
         child: Container(
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
-            color: isSelected ? Colors.blue.shade100 : null,
-            border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+            color: isSelected ? scheme.primaryContainer : null,
+            border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
           ),
           child: Row(
             children: [
@@ -1107,11 +1114,12 @@ class _TorrentTabState extends State<TorrentTab>
   }
 
   Widget _buildTorrentListHeaders() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
+        color: scheme.surfaceContainerHighest,
+        border: Border(bottom: BorderSide(color: scheme.outline)),
       ),
       child: Row(
         children: [
@@ -1161,14 +1169,15 @@ class _TorrentTabState extends State<TorrentTab>
 
   Widget _buildDetailsPanel() {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final torrent = _selectedTorrent;
     if (torrent == null) {
       return Container(
-        color: Colors.white,
+        color: scheme.surface,
         child: Center(
           child: Text(
             l10n.torrentSelectPrompt,
-            style: const TextStyle(color: Colors.grey),
+            style: TextStyle(color: scheme.onSurfaceVariant),
           ),
         ),
       );
@@ -1197,13 +1206,13 @@ class _TorrentTabState extends State<TorrentTab>
     ];
 
     return Container(
-      color: Colors.white,
+      color: scheme.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             height: 28,
-            color: Colors.grey.shade200,
+            color: scheme.surfaceContainerHighest,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Align(
               alignment: Alignment.centerLeft,
@@ -1227,7 +1236,7 @@ class _TorrentTabState extends State<TorrentTab>
                       ),
                       decoration: BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade200),
+                          bottom: BorderSide(color: scheme.outlineVariant),
                         ),
                       ),
                       child: Row(
@@ -1238,7 +1247,7 @@ class _TorrentTabState extends State<TorrentTab>
                             child: Text(
                               entry.key,
                               style: TextStyle(
-                                color: Colors.grey.shade700,
+                                color: scheme.onSurfaceVariant,
                                 fontSize: 12,
                               ),
                             ),
@@ -1255,7 +1264,7 @@ class _TorrentTabState extends State<TorrentTab>
                   if (torrent.totalBlocks > 0) ...[
                     Container(
                       height: 24,
-                      color: Colors.grey.shade100,
+                      color: scheme.surfaceContainerHighest,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -1263,7 +1272,7 @@ class _TorrentTabState extends State<TorrentTab>
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 11,
-                          color: Colors.grey.shade700,
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -1286,6 +1295,7 @@ class _TorrentTabState extends State<TorrentTab>
   }
 
   Widget _buildProgressBar(_TorrentView torrent) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1296,7 +1306,7 @@ class _TorrentTabState extends State<TorrentTab>
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: torrent.progress,
-                backgroundColor: Colors.grey.shade300,
+                backgroundColor: scheme.surfaceContainerHighest,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   torrent.completed ? Colors.green : Colors.blue,
                 ),

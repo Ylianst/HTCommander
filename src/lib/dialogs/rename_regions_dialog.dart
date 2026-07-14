@@ -133,9 +133,10 @@ class _RenameRegionsDialogState extends State<_RenameRegionsDialog> {
   // --- Styling helpers (mirrors SettingsDialog) --------------------------
 
   InputDecoration _inputDecoration({String? hintText}) {
+    final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
       filled: true,
-      fillColor: Colors.grey.shade100,
+      fillColor: scheme.surfaceContainerHighest,
       hintText: hintText,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -156,12 +157,13 @@ class _RenameRegionsDialogState extends State<_RenameRegionsDialog> {
   }
 
   BoxDecoration _sectionDecoration() {
+    final theme = Theme.of(context);
     return BoxDecoration(
-      color: Colors.white,
+      color: theme.colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
+          color: theme.shadowColor.withValues(alpha: 0.05),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),
@@ -172,8 +174,9 @@ class _RenameRegionsDialogState extends State<_RenameRegionsDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460, maxHeight: 560),
@@ -189,7 +192,7 @@ class _RenameRegionsDialogState extends State<_RenameRegionsDialog> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade800,
+                  color: scheme.onSurface,
                 ),
               ),
               const SizedBox(height: 4),

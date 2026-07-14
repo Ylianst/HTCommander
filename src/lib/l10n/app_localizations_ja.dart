@@ -78,6 +78,22 @@ class AppLocalizationsJa extends AppLocalizations {
       'アプリケーションで使用する言語を選択します。「システムのデフォルト」はデバイスの言語に従います。';
 
   @override
+  String get settingsThemeMode => 'テーマ';
+
+  @override
+  String get settingsThemeModeHint =>
+      'ライトまたはダークの外観を選択します。「システムのデフォルト」はデバイスの設定に従います。';
+
+  @override
+  String get settingsThemeModeSystem => 'システムのデフォルト';
+
+  @override
+  String get settingsThemeModeLight => 'ライト';
+
+  @override
+  String get settingsThemeModeDark => 'ダーク';
+
+  @override
   String get languageSystem => 'システムのデフォルト';
 
   @override

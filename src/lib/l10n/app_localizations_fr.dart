@@ -78,6 +78,22 @@ class AppLocalizationsFr extends AppLocalizations {
       'Choisissez la langue utilisée par l\'application. « Langue du système » suit la langue de votre appareil.';
 
   @override
+  String get settingsThemeMode => 'Thème';
+
+  @override
+  String get settingsThemeModeHint =>
+      'Choisissez l\'apparence claire ou sombre. « Par défaut du système » suit le réglage de votre appareil.';
+
+  @override
+  String get settingsThemeModeSystem => 'Par défaut du système';
+
+  @override
+  String get settingsThemeModeLight => 'Clair';
+
+  @override
+  String get settingsThemeModeDark => 'Sombre';
+
+  @override
   String get languageSystem => 'Langue du système';
 
   @override

@@ -371,12 +371,14 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
 
   /// Section card styling, matching the Settings / Radio Information dialogs.
   BoxDecoration _sectionDecoration() {
+    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return BoxDecoration(
-      color: Colors.white,
+      color: scheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
+          color: theme.shadowColor.withValues(alpha: 0.05),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),
@@ -386,10 +388,11 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return PopScope(
       canPop: !_isBusy,
       child: Dialog(
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: scheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 500, maxHeight: 540),
@@ -406,7 +409,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade800,
+                      color: scheme.onSurface,
                     ),
                   ),
                 ),
@@ -440,6 +443,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
 
   Widget _buildContent() {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final statusText =
         _statusText.isEmpty ? l10n.fwStatusInitial : _statusText;
     final children = <Widget>[
@@ -487,7 +491,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Scrollbar(
@@ -537,7 +541,7 @@ class _FirmwareUpdateDialogState extends State<_FirmwareUpdateDialog> {
             child: LinearProgressIndicator(
               value: _progressValue,
               minHeight: 8,
-              backgroundColor: Colors.grey.shade400,
+              backgroundColor: scheme.surfaceContainerHighest,
             ),
           ),
         ]);

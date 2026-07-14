@@ -72,6 +72,26 @@
   "@settingsLanguageHint": {
     "description": "Helper text under the language selector."
   },
+  "settingsThemeMode": "Theme",
+  "@settingsThemeMode": {
+    "description": "Label for the application theme (light/dark) selector in Settings."
+  },
+  "settingsThemeModeHint": "Choose the light or dark appearance. 'System default' follows your device setting.",
+  "@settingsThemeModeHint": {
+    "description": "Helper text under the theme selector."
+  },
+  "settingsThemeModeSystem": "System default",
+  "@settingsThemeModeSystem": {
+    "description": "Theme option that follows the operating system light/dark setting."
+  },
+  "settingsThemeModeLight": "Light",
+  "@settingsThemeModeLight": {
+    "description": "Light theme option."
+  },
+  "settingsThemeModeDark": "Dark",
+  "@settingsThemeModeDark": {
+    "description": "Dark theme option."
+  },
   "languageSystem": "System default",
   "@languageSystem": {
     "description": "Language option that follows the operating system locale."

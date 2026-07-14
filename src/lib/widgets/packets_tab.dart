@@ -523,9 +523,10 @@ class _PacketsTabState extends State<PacketsTab>
   }
 
   Widget _buildHeader() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 40,
-      color: const Color(0xFFC0C0C0),
+      color: scheme.surfaceContainerHigh,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
@@ -543,6 +544,8 @@ class _PacketsTabState extends State<PacketsTab>
                   'assets/images/MenuIcon.png',
                   width: 24,
                   height: 24,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  colorBlendMode: BlendMode.srcIn,
                   errorBuilder: (context, error, stackTrace) {
                     return const Icon(Icons.menu, size: 24);
                   },
@@ -556,6 +559,7 @@ class _PacketsTabState extends State<PacketsTab>
   }
 
   Widget _buildSplitter(double totalHeight) {
+    final scheme = Theme.of(context).colorScheme;
     return MouseRegion(
       cursor: SystemMouseCursors.resizeRow,
       child: GestureDetector(
@@ -572,13 +576,13 @@ class _PacketsTabState extends State<PacketsTab>
         },
         child: Container(
           height: 8,
-          color: const Color(0xFFC0C0C0),
+          color: scheme.surfaceContainerHigh,
           child: Center(
             child: Container(
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade600,
+                color: scheme.onSurfaceVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -589,8 +593,9 @@ class _PacketsTabState extends State<PacketsTab>
   }
 
   Widget _buildPacketList() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      color: Colors.white,
+      color: scheme.surface,
       child: Column(
         children: [
           _buildPacketListHeaders(),
@@ -599,7 +604,7 @@ class _PacketsTabState extends State<PacketsTab>
                 ? Center(
                     child: Text(
                       AppLocalizations.of(context).packetsEmpty,
-                      style: const TextStyle(color: Colors.grey),
+                      style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                   )
                 : Focus(
@@ -622,9 +627,9 @@ class _PacketsTabState extends State<PacketsTab>
                         child: Container(
                           clipBehavior: Clip.hardEdge,
                           decoration: BoxDecoration(
-                            color: isSelected ? Colors.blue.shade100 : null,
+                            color: isSelected ? scheme.primaryContainer : null,
                             border: Border(
-                              bottom: BorderSide(color: Colors.grey.shade300),
+                              bottom: BorderSide(color: scheme.outlineVariant),
                             ),
                           ),
                           child: Row(
@@ -718,11 +723,12 @@ class _PacketsTabState extends State<PacketsTab>
   }
 
   Widget _buildPacketListHeaders() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
+        color: scheme.surfaceContainerHighest,
+        border: Border(bottom: BorderSide(color: scheme.outline)),
       ),
       child: Row(
         children: [
@@ -771,13 +777,14 @@ class _PacketsTabState extends State<PacketsTab>
   }
 
   Widget _buildDecodePanel() {
+    final scheme = Theme.of(context).colorScheme;
     if (_selectedPacket == null) {
       return Container(
-        color: Colors.white,
-        child: const Center(
+        color: scheme.surface,
+        child: Center(
           child: Text(
             'Select a packet to view decode',
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: scheme.onSurfaceVariant),
           ),
         ),
       );
@@ -786,14 +793,14 @@ class _PacketsTabState extends State<PacketsTab>
     final sections = PacketDecoder.decode(_selectedPacket!.fragment);
 
     return Container(
-      color: Colors.white,
+      color: scheme.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Container(
             height: 28,
-            color: Colors.grey.shade200,
+            color: scheme.surfaceContainerHighest,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: const Align(
               alignment: Alignment.centerLeft,
@@ -821,26 +828,28 @@ class _PacketsTabState extends State<PacketsTab>
   }
 
   Widget _buildSectionHeader(String title) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: Colors.grey.shade100,
+      color: scheme.surfaceContainerHighest,
       child: Text(
         title,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 11,
-          color: Colors.grey.shade800,
+          color: scheme.onSurface,
         ),
       ),
     );
   }
 
   Widget _buildDetailRow(String key, String value) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -849,7 +858,7 @@ class _PacketsTabState extends State<PacketsTab>
             width: 100,
             child: Text(
               key,
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
             ),
           ),
           Expanded(

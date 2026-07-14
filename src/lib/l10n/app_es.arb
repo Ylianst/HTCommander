@@ -27,6 +27,11 @@
 
   "settingsLanguage": "Idioma",
   "settingsLanguageHint": "Elija el idioma que usa la aplicación. «Predeterminado del sistema» sigue el idioma de su dispositivo.",
+  "settingsThemeMode": "Tema",
+  "settingsThemeModeHint": "Elija la apariencia clara u oscura. «Predeterminado del sistema» sigue la configuración de su dispositivo.",
+  "settingsThemeModeSystem": "Predeterminado del sistema",
+  "settingsThemeModeLight": "Claro",
+  "settingsThemeModeDark": "Oscuro",
   "languageSystem": "Predeterminado del sistema",
   "languageEnglish": "Inglés",
   "languageFrench": "Francés",

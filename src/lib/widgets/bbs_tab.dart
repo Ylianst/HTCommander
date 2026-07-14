@@ -521,7 +521,9 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
   Widget _buildHeader() {
     return Container(
       height: 40,
-      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       clipBehavior: Clip.hardEdge,
       child: LayoutBuilder(
@@ -570,6 +572,8 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
                       'assets/images/MenuIcon.png',
                       width: 24,
                       height: 24,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      colorBlendMode: BlendMode.srcIn,
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(Icons.menu, size: 24);
                       },
@@ -601,13 +605,13 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
         },
         child: Container(
           height: 8,
-          color: const Color(0xFFC0C0C0),
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
           child: Center(
             child: Container(
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade600,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -618,8 +622,9 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildStationList() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      color: Colors.white,
+      color: scheme.surface,
       child: LayoutBuilder(
         builder: (context, constraints) {
           _isCompact = constraints.maxWidth < _compactWidthThreshold;
@@ -637,9 +642,9 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
                       child: Container(
                         clipBehavior: Clip.hardEdge,
                         decoration: BoxDecoration(
-                          color: isSelected ? Colors.blue.shade100 : null,
+                          color: isSelected ? scheme.primaryContainer : null,
                           border: Border(
-                            bottom: BorderSide(color: Colors.grey.shade300),
+                            bottom: BorderSide(color: scheme.outlineVariant),
                           ),
                         ),
                         child: Row(
@@ -720,11 +725,12 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildStationListHeaders() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
+        color: scheme.surfaceContainerHighest,
+        border: Border(bottom: BorderSide(color: scheme.outline)),
       ),
       child: Row(
         children: [

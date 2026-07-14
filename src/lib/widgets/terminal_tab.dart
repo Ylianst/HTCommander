@@ -1047,6 +1047,7 @@ class _TerminalTabState extends State<TerminalTab>
   }
 
   Widget _buildHeader() {
+    final scheme = Theme.of(context).colorScheme;
     final connected = _isConnected;
     final title = connected && _connectedStation != null
         ? AppLocalizations.of(context).terminalHeaderWith(
@@ -1055,7 +1056,7 @@ class _TerminalTabState extends State<TerminalTab>
         : AppLocalizations.of(context).tabTerminal;
     return Container(
       height: 40,
-      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
+      decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       clipBehavior: Clip.hardEdge,
       child: LayoutBuilder(
@@ -1102,6 +1103,8 @@ class _TerminalTabState extends State<TerminalTab>
                       'assets/images/MenuIcon.png',
                       width: 24,
                       height: 24,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      colorBlendMode: BlendMode.srcIn,
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(Icons.menu, size: 24);
                       },
@@ -1185,10 +1188,11 @@ class _TerminalTabState extends State<TerminalTab>
   }
 
   Widget _buildInputPanel() {
+    final scheme = Theme.of(context).colorScheme;
     final enabled = _isConnected;
     return Container(
       height: 50,
-      color: const Color(0xFFC0C0C0),
+      color: scheme.surfaceContainerHigh,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Row(
         children: [
@@ -1196,8 +1200,8 @@ class _TerminalTabState extends State<TerminalTab>
             child: Container(
               height: 34,
               decoration: BoxDecoration(
-                color: enabled ? Colors.white : const Color(0xFFE0E0E0),
-                border: Border.all(color: Colors.grey),
+                color: enabled ? scheme.surface : scheme.surfaceContainerHighest,
+                border: Border.all(color: scheme.outline),
                 borderRadius: BorderRadius.circular(4),
               ),
               padding: const EdgeInsets.symmetric(vertical: 6),

@@ -1015,22 +1015,23 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   /// a transient transfer status while mail is being processed. Mirrors the C#
   /// mailTransferStatusPanel behaviour, with an added error display.
   Widget _buildStatusPanel() {
+    final scheme = Theme.of(context).colorScheme;
     if (_errorMessage != null) {
       return Container(
         width: double.infinity,
-        decoration: const BoxDecoration(
-          color: Color(0xFFFDECEA),
-          border: Border(top: BorderSide(color: Color(0xFFE0A0A0))),
+        decoration: BoxDecoration(
+          color: scheme.errorContainer,
+          border: Border(top: BorderSide(color: scheme.error)),
         ),
         padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
         child: Row(
           children: [
-            const Icon(Icons.error_outline, color: Color(0xFFC62828), size: 20),
+            Icon(Icons.error_outline, color: scheme.error, size: 20),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 _errorMessage!,
-                style: const TextStyle(color: Color(0xFFB71C1C), fontSize: 13),
+                style: TextStyle(color: scheme.onErrorContainer, fontSize: 13),
               ),
             ),
             const SizedBox(width: 8),
@@ -1054,9 +1055,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
     if (status != null && status.isNotEmpty) {
       return Container(
         width: double.infinity,
-        decoration: const BoxDecoration(
-          color: Color(0xFFE8E8E8),
-          border: Border(top: BorderSide(color: Color(0xFFC0C0C0))),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          border: Border(top: BorderSide(color: scheme.outlineVariant)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
@@ -1105,6 +1106,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildSplitter(double totalHeight) {
+    final scheme = Theme.of(context).colorScheme;
     return MouseRegion(
       cursor: SystemMouseCursors.resizeRow,
       child: GestureDetector(
@@ -1122,13 +1124,13 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
         },
         child: Container(
           height: 8,
-          color: const Color(0xFFC0C0C0),
+          color: scheme.surfaceContainerHigh,
           child: Center(
             child: Container(
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade600,
+                color: scheme.onSurfaceVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -1139,9 +1141,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildHeader() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 40,
-      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
+      decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       clipBehavior: Clip.hardEdge,
       child: LayoutBuilder(
@@ -1221,6 +1224,8 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                       'assets/images/MenuIcon.png',
                       width: 24,
                       height: 24,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      colorBlendMode: BlendMode.srcIn,
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(Icons.menu, size: 24);
                       },
@@ -1250,8 +1255,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildMailboxTree() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      color: Colors.white,
+      color: scheme.surface,
       child: ListView(
         children: _mailboxes.entries.map((entry) {
           final mailbox = entry.value;
@@ -1261,10 +1267,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
             onTap: () => _onMailboxSelected(entry.key),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              color: isSelected ? Colors.blue.shade100 : null,
+              color: isSelected ? scheme.primaryContainer : null,
               child: Row(
                 children: [
-                  Icon(mailbox.icon, size: 20, color: Colors.grey.shade700),
+                  Icon(mailbox.icon, size: 20, color: scheme.onSurfaceVariant),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1288,8 +1294,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildMailList() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      color: Colors.white,
+      color: scheme.surface,
       child: Column(
         children: [
           // Column headers
@@ -1314,9 +1321,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                   child: Container(
                     clipBehavior: Clip.hardEdge,
                     decoration: BoxDecoration(
-                      color: isSelected ? Colors.blue.shade100 : null,
+                      color: isSelected ? scheme.primaryContainer : null,
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade300),
+                        bottom: BorderSide(color: scheme.outlineVariant),
                       ),
                     ),
                     child: Row(
@@ -1388,11 +1395,12 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildMailListHeaders() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
+        color: scheme.surfaceContainerHighest,
+        border: Border(bottom: BorderSide(color: scheme.outline)),
       ),
       child: Row(
         children: [
@@ -1453,13 +1461,14 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildPreviewArea() {
+    final scheme = Theme.of(context).colorScheme;
     if (_selectedMail == null) {
       return Container(
-        color: Colors.white,
+        color: scheme.surface,
         child: Center(
           child: Text(
             AppLocalizations.of(context).mailSelectPreview,
-            style: const TextStyle(color: Colors.grey),
+            style: TextStyle(color: scheme.onSurfaceVariant),
           ),
         ),
       );
@@ -1467,14 +1476,14 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
 
     final mail = _selectedMail!;
     return Container(
-      color: Colors.white,
+      color: scheme.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Toolbar
           Container(
             height: 36,
-            color: Colors.grey.shade100,
+            color: scheme.surfaceContainerHighest,
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Row(
               children: [
@@ -1528,15 +1537,15 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
                     const SizedBox(height: 8),
                     Text(
                       'From: ${mail.from}',
-                      style: TextStyle(color: Colors.grey.shade700),
+                      style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                     Text(
                       'To: ${mail.to}',
-                      style: TextStyle(color: Colors.grey.shade700),
+                      style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                     Text(
                       'Date: ${_formatMailTime(mail.time)}',
-                      style: TextStyle(color: Colors.grey.shade700),
+                      style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                     const Divider(height: 24),
                     Text(mail.body),

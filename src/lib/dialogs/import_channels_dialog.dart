@@ -148,6 +148,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final radio = widget.radioName;
     final title = (radio != null && radio.isNotEmpty)
         ? l10n.importChannelsTitleWith(radio)
@@ -165,7 +166,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 l10n.importIntro,
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
               ),
             ),
             Expanded(
@@ -239,9 +240,10 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
   }
 
   Widget _buildColumnFrame({required String header, required Widget child}) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade400),
+        border: Border.all(color: scheme.outline),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
@@ -250,7 +252,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.grey.shade200,
+              color: scheme.surfaceContainerHighest,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
             ),
             child: Text(

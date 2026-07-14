@@ -41,6 +41,7 @@ import 'services/data_broker_client.dart';
 import 'services/data_broker_serializers.dart';
 import 'services/history_limiter.dart';
 import 'services/locale_controller.dart';
+import 'services/theme_controller.dart';
 import 'services/window_service.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/channel_export.dart';
@@ -106,6 +107,8 @@ void main(List<String> args) async {
         // Apply the persisted application language so detached windows match
         // the main window's locale.
         LocaleController.instance.load();
+        // Apply the persisted theme so detached windows match the main window.
+        ThemeController.instance.load();
         runApp(SubWindowApp(windowController: controller, argument: argument));
         return;
       }
@@ -120,6 +123,8 @@ void main(List<String> args) async {
 
   // Apply the persisted application language (falls back to the OS locale).
   LocaleController.instance.load();
+  // Apply the persisted theme mode (falls back to the OS setting).
+  ThemeController.instance.load();
 
   // Ensure the built-in protected APRS routes ("Standard" and "None") always
   // exist before any component reads the APRS route configuration.
@@ -259,6 +264,18 @@ Widget _wrapWithResponsiveDialogTheme(BuildContext context, Widget? child) {
   return Theme(data: themed, child: child ?? const SizedBox.shrink());
 }
 
+/// Builds the application [ThemeData] for the given [brightness]. Shared by
+/// every `MaterialApp` so the light and dark themes stay consistent.
+ThemeData _buildAppTheme(Brightness brightness) {
+  return ThemeData(
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.blue,
+      brightness: brightness,
+    ),
+    useMaterial3: true,
+  );
+}
+
 /// Sub-window application for detached tabs
 class SubWindowApp extends StatefulWidget {
   final WindowController windowController;
@@ -343,22 +360,23 @@ class _SubWindowAppState extends State<SubWindowApp> {
     return ValueListenableBuilder<Locale?>(
       valueListenable: LocaleController.instance.locale,
       builder: (context, locale, _) {
-        return MaterialApp(
-          title: 'Handi-Talkie Commander - $tabTitle',
-          debugShowCheckedModeBanner: false,
-          locale: locale,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          builder: (context, child) =>
-              _wrapWithResponsiveDialogTheme(context, child),
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue,
-              brightness: Brightness.light,
-            ),
-            useMaterial3: true,
-          ),
-          home: Scaffold(body: tabContent),
+        return ValueListenableBuilder<ThemeMode>(
+          valueListenable: ThemeController.instance.themeMode,
+          builder: (context, themeMode, _) {
+            return MaterialApp(
+              title: 'Handi-Talkie Commander - $tabTitle',
+              debugShowCheckedModeBanner: false,
+              locale: locale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) =>
+                  _wrapWithResponsiveDialogTheme(context, child),
+              theme: _buildAppTheme(Brightness.light),
+              darkTheme: _buildAppTheme(Brightness.dark),
+              themeMode: themeMode,
+              home: Scaffold(body: tabContent),
+            );
+          },
         );
       },
     );
@@ -378,23 +396,25 @@ class HTCommanderApp extends StatelessWidget {
     return ValueListenableBuilder<Locale?>(
       valueListenable: LocaleController.instance.locale,
       builder: (context, locale, _) {
-        return MaterialApp(
-          onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
-          debugShowCheckedModeBanner: false,
-          locale: locale,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          navigatorObservers: [_unfocusOnPushObserver],
-          builder: (context, child) =>
-              _wrapWithResponsiveDialogTheme(context, child),
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue,
-              brightness: Brightness.light,
-            ),
-            useMaterial3: true,
-          ),
-          home: const MainForm(),
+        return ValueListenableBuilder<ThemeMode>(
+          valueListenable: ThemeController.instance.themeMode,
+          builder: (context, themeMode, _) {
+            return MaterialApp(
+              onGenerateTitle: (context) =>
+                  AppLocalizations.of(context).appTitle,
+              debugShowCheckedModeBanner: false,
+              locale: locale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              navigatorObservers: [_unfocusOnPushObserver],
+              builder: (context, child) =>
+                  _wrapWithResponsiveDialogTheme(context, child),
+              theme: _buildAppTheme(Brightness.light),
+              darkTheme: _buildAppTheme(Brightness.dark),
+              themeMode: themeMode,
+              home: const MainForm(),
+            );
+          },
         );
       },
     );
@@ -2264,10 +2284,11 @@ class _MainFormState extends State<MainForm>
   // ============================================================================
 
   Widget _buildRadioPanel() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: 300,
       decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: Colors.grey.shade300)),
+        border: Border(right: BorderSide(color: scheme.outlineVariant)),
       ),
       child: RadioPanelControl(
         deviceId: _currentRadioDeviceId,
@@ -2599,7 +2620,7 @@ class _MainFormState extends State<MainForm>
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
       ),
       child: Row(
         children: [

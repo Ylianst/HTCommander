@@ -27,6 +27,11 @@
 
   "settingsLanguage": "语言",
   "settingsLanguageHint": "选择应用程序使用的语言。“系统默认”将跟随设备语言。",
+  "settingsThemeMode": "主题",
+  "settingsThemeModeHint": "选择浅色或深色外观。“系统默认”将跟随您的设备设置。",
+  "settingsThemeModeSystem": "系统默认",
+  "settingsThemeModeLight": "浅色",
+  "settingsThemeModeDark": "深色",
   "languageSystem": "系统默认",
   "languageEnglish": "英语",
   "languageFrench": "法语",

@@ -22,8 +22,9 @@ class HTAboutDialog extends StatelessWidget {
   }
 
   Widget _buildDialog(BuildContext context, String version) {
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: const Color(0xFFD3D3D3), // Light gray like C# app
+      backgroundColor: scheme.surface, // Light gray like C# app
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 650, maxHeight: 360),
         child: Padding(
@@ -52,7 +53,7 @@ class HTAboutDialog extends StatelessWidget {
                                 return Container(
                                   width: 200,
                                   height: 200,
-                                  color: Colors.grey.shade400,
+                                  color: scheme.surfaceContainerHighest,
                                   child: const Icon(Icons.radio, size: 80),
                                 );
                               },

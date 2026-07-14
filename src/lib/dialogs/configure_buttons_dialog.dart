@@ -216,6 +216,7 @@ class _ConfigureButtonsDialogState extends State<_ConfigureButtonsDialog> {
 
   Widget _buildContent() {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     if (_deviceId <= 0) {
       return Text(l10n.pfNoRadio);
     }
@@ -243,7 +244,7 @@ class _ConfigureButtonsDialogState extends State<_ConfigureButtonsDialog> {
         children: [
           Text(
             AppLocalizations.of(context).pfIntro,
-            style: const TextStyle(fontSize: 12, color: Colors.black54),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
           for (final buttonId in buttonIds) _buildButtonSection(buttonId, slots),

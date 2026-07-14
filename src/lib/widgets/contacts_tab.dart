@@ -563,7 +563,7 @@ class _ContactsTabState extends State<ContactsTab>
   Widget _buildHeader() {
     return Container(
       height: 40,
-      color: const Color(0xFFC0C0C0), // Silver color
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
@@ -583,6 +583,8 @@ class _ContactsTabState extends State<ContactsTab>
                   'assets/images/MenuIcon.png',
                   width: 24,
                   height: 24,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  colorBlendMode: BlendMode.srcIn,
                   errorBuilder: (context, error, stackTrace) {
                     return const Icon(Icons.menu, size: 24);
                   },
@@ -596,6 +598,7 @@ class _ContactsTabState extends State<ContactsTab>
   }
 
   Widget _buildContactList() {
+    final scheme = Theme.of(context).colorScheme;
     // Group contacts by station type
     final groupedContacts = <StationType, List<MapEntry<int, StationInfo>>>{};
     for (var i = 0; i < _contacts.length; i++) {
@@ -609,7 +612,7 @@ class _ContactsTabState extends State<ContactsTab>
       builder: (context, constraints) {
         _isCompact = constraints.maxWidth < _compactWidthThreshold;
         return Container(
-          color: Colors.white,
+          color: scheme.surface,
           child: ListView(
             children: [
               // Column headers
@@ -629,11 +632,12 @@ class _ContactsTabState extends State<ContactsTab>
   }
 
   Widget _buildColumnHeaders() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
+        color: scheme.surfaceContainerHighest,
+        border: Border(bottom: BorderSide(color: scheme.outline)),
       ),
       child: Row(
         children: [
@@ -684,13 +688,14 @@ class _ContactsTabState extends State<ContactsTab>
   }
 
   Widget _buildGroupHeader(StationType type) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: scheme.surfaceContainerHighest,
         border: Border(
-          top: BorderSide(color: Colors.grey.shade400),
-          bottom: BorderSide(color: Colors.grey.shade400),
+          top: BorderSide(color: scheme.outline),
+          bottom: BorderSide(color: scheme.outline),
         ),
       ),
       child: Text(
@@ -698,7 +703,7 @@ class _ContactsTabState extends State<ContactsTab>
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 13,
-          color: Colors.grey.shade800,
+          color: scheme.onSurface,
         ),
       ),
     );
@@ -736,8 +741,14 @@ class _ContactsTabState extends State<ContactsTab>
       child: Container(
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue.shade100 : null,
-          border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+          color: isSelected
+              ? Theme.of(context).colorScheme.primaryContainer
+              : null,
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
         ),
         child: Row(
           children: [
@@ -796,7 +807,9 @@ class _ContactsTabState extends State<ContactsTab>
 
     return Container(
       height: 50,
-      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       clipBehavior: Clip.hardEdge,
       child: LayoutBuilder(

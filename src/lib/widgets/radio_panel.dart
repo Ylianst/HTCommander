@@ -1033,6 +1033,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
   Widget _buildConnectPanel() {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(8),
       child: SizedBox(
@@ -1041,8 +1042,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         child: ElevatedButton(
           onPressed: _isConnecting ? null : _onConnect,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
+            backgroundColor: scheme.surface,
+            foregroundColor: scheme.onSurface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
             ),

@@ -345,8 +345,9 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460, maxHeight: 640),
@@ -409,6 +410,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
 
   Widget _buildBasicContent() {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _sectionDecoration(),
@@ -431,7 +433,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
           const SizedBox(height: 4),
           Text(
             _freqHelp,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           Row(
@@ -481,6 +483,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
 
   Widget _buildAdvancedContent() {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _sectionDecoration(),
@@ -525,7 +528,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
           const SizedBox(height: 4),
           Text(
             _freqHelp,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           Row(
@@ -607,14 +610,15 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   Widget _label(String text) => Text(text, style: DialogStyles.labelStyle);
 
   Widget _freqField(TextEditingController controller, bool valid) {
+    final scheme = Theme.of(context).colorScheme;
     return TextField(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
       decoration: _inputDecoration(hintText: 'e.g. 146.520').copyWith(
         fillColor: valid || controller.text.isEmpty
-            ? Colors.grey.shade100
-            : const Color(0xFFFFD0C0),
+            ? scheme.surfaceContainerHighest
+            : scheme.errorContainer,
       ),
     );
   }
@@ -668,12 +672,14 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   }
 
   BoxDecoration _sectionDecoration() {
+    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return BoxDecoration(
-      color: Colors.white,
+      color: scheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
+          color: theme.shadowColor.withValues(alpha: 0.05),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),
@@ -682,9 +688,10 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   }
 
   InputDecoration _inputDecoration({String? hintText}) {
+    final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
       filled: true,
-      fillColor: Colors.grey.shade100,
+      fillColor: scheme.surfaceContainerHighest,
       hintText: hintText,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -698,7 +705,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
+        borderSide: BorderSide(color: scheme.primary, width: 2),
       ),
     );
   }

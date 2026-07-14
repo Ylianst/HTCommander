@@ -229,8 +229,9 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 550, maxHeight: 650),
@@ -248,7 +249,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
+                    color: scheme.onSurface,
                   ),
                 ),
               ),
@@ -277,13 +278,14 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   }
 
   Widget _buildRadioSelector() {
+    final scheme = Theme.of(context).colorScheme;
     if (_radios.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: _sectionDecoration(),
         child: Text(
           AppLocalizations.of(context).riNoRadioConnected,
-          style: TextStyle(color: Colors.grey.shade600),
+          style: TextStyle(color: scheme.onSurfaceVariant),
         ),
       );
     }
@@ -296,7 +298,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
       initialValue: value,
       decoration: InputDecoration(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: scheme.surfaceContainerHighest,
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
@@ -312,7 +314,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.blue, width: 2),
+          borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
       ),
       items: [
@@ -330,11 +332,12 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
 
   Widget _buildContent() {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     if (_deviceId <= 0) {
       return Center(
         child: Text(
           l10n.riConnectPrompt,
-          style: TextStyle(color: Colors.grey.shade600),
+          style: TextStyle(color: scheme.onSurfaceVariant),
         ),
       );
     }
@@ -580,6 +583,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   }
 
   Widget _buildSection(String title, List<_InfoRow> rows) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _sectionDecoration(),
@@ -590,12 +594,12 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
             title,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
+              color: scheme.onSurface,
             ),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0) Divider(height: 16, color: Colors.grey.shade200),
+            if (i > 0) Divider(height: 16, color: scheme.outlineVariant),
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onLongPressStart: (details) =>
@@ -609,7 +613,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
                     flex: 5,
                     child: Text(
                       rows[i].label,
-                      style: TextStyle(color: Colors.grey.shade700),
+                      style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                   ),
                   Expanded(
@@ -629,12 +633,14 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   }
 
   BoxDecoration _sectionDecoration() {
+    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return BoxDecoration(
-      color: Colors.white,
+      color: scheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
+          color: theme.shadowColor.withValues(alpha: 0.05),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),

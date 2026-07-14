@@ -78,8 +78,10 @@ class _MailViewerDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
@@ -96,7 +98,7 @@ class _MailViewerDialog extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
+                    color: scheme.onSurface,
                   ),
                 ),
               ),
@@ -105,19 +107,19 @@ class _MailViewerDialog extends StatelessWidget {
                   child: SelectionArea(
                     child: Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: _sectionDecoration(),
+                      decoration: _sectionDecoration(theme),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (from.isNotEmpty) _headerLine('From: ', from),
-                          if (to.isNotEmpty) _headerLine('To: ', to),
-                          if (cc.isNotEmpty) _headerLine('Cc: ', cc),
-                          _headerLine('Time: ', _formatTime(time)),
+                          if (from.isNotEmpty) _headerLine('From: ', from, scheme),
+                          if (to.isNotEmpty) _headerLine('To: ', to, scheme),
+                          if (cc.isNotEmpty) _headerLine('Cc: ', cc, scheme),
+                          _headerLine('Time: ', _formatTime(time), scheme),
                           if (subject.isNotEmpty)
-                            _headerLine('Subject: ', subject),
+                            _headerLine('Subject: ', subject, scheme),
                           if (attachments.isNotEmpty) ...[
                             const SizedBox(height: 8),
-                            _buildAttachments(),
+                            _buildAttachments(scheme),
                           ],
                           const Divider(height: 24),
                           Text(body, style: DialogStyles.bodyStyle),
@@ -169,13 +171,13 @@ class _MailViewerDialog extends StatelessWidget {
     );
   }
 
-  BoxDecoration _sectionDecoration() {
+  BoxDecoration _sectionDecoration(ThemeData theme) {
     return BoxDecoration(
-      color: Colors.white,
+      color: theme.colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
+          color: theme.shadowColor.withValues(alpha: 0.05),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),
@@ -199,12 +201,12 @@ class _MailViewerDialog extends StatelessWidget {
         '${two(t.hour)}:${two(t.minute)}';
   }
 
-  Widget _headerLine(String label, String value) {
+  Widget _headerLine(String label, String value, ColorScheme scheme) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Text.rich(
         TextSpan(
-          style: DialogStyles.bodyStyle.copyWith(color: Colors.black),
+          style: DialogStyles.bodyStyle.copyWith(color: scheme.onSurface),
           children: [
             TextSpan(
               text: label,
@@ -217,7 +219,7 @@ class _MailViewerDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildAttachments() {
+  Widget _buildAttachments(ColorScheme scheme) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -225,8 +227,8 @@ class _MailViewerDialog extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: Colors.grey.shade400),
+            color: scheme.surfaceContainerLow,
+            border: Border.all(color: scheme.outline),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Row(
@@ -240,7 +242,7 @@ class _MailViewerDialog extends StatelessWidget {
                 Text(
                   _formatSize(a.sizeBytes!),
                   style: DialogStyles.bodyStyle.copyWith(
-                    color: Colors.grey.shade600,
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
               ],

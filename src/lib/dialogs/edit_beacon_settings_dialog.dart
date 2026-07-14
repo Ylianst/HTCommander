@@ -309,8 +309,9 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480, maxHeight: 650),
@@ -345,7 +346,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: Colors.grey.shade800,
+                            color: scheme.onSurface,
                           ),
                         ),
                       ],
@@ -574,7 +575,9 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
             onTap: _controlsEnabled ? () => onChanged(!value) : null,
             child: Text(
               label,
-              style: TextStyle(color: _controlsEnabled ? null : Colors.grey),
+              style: TextStyle(
+                color: _controlsEnabled ? null : Theme.of(context).disabledColor,
+              ),
             ),
           ),
         ),
@@ -598,7 +601,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
       text,
       style: TextStyle(
         fontWeight: FontWeight.bold,
-        color: Colors.grey.shade800,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
@@ -608,9 +611,10 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
     String? counterText,
     bool invalid = false,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
       filled: true,
-      fillColor: invalid ? const Color(0xFFFFE4E1) : Colors.grey.shade100,
+      fillColor: invalid ? scheme.errorContainer : scheme.surfaceContainerHighest,
       hintText: hintText,
       counterText: counterText,
       isDense: true,
@@ -632,12 +636,13 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
 
   // Helper for section card styling
   BoxDecoration _sectionDecoration() {
+    final theme = Theme.of(context);
     return BoxDecoration(
-      color: Colors.white,
+      color: theme.colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
+          color: theme.shadowColor.withValues(alpha: 0.05),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),

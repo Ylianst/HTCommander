@@ -72,9 +72,6 @@ class _MailComposeDialog extends StatefulWidget {
 class _MailComposeDialogState extends State<_MailComposeDialog> {
   final DataBrokerClient _broker = DataBrokerClient();
 
-  // Bisque highlight for invalid address lines (matches the C# Color.Bisque).
-  static const Color _invalidColor = Color(0xFFFFE4C4);
-
   late final TextEditingController _toController;
   late final TextEditingController _ccController;
   late final TextEditingController _subjectController;
@@ -211,9 +208,10 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
 
   // Helper for consistent input decoration (matches settings_dialog).
   InputDecoration _inputDecoration({Color? fillColor}) {
+    final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
       filled: true,
-      fillColor: fillColor ?? Colors.grey.shade100,
+      fillColor: fillColor ?? scheme.surfaceContainerHighest,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(
@@ -226,19 +224,20 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
+        borderSide: BorderSide(color: scheme.primary, width: 2),
       ),
     );
   }
 
   // Helper for section card styling (matches settings_dialog).
   BoxDecoration _sectionDecoration() {
+    final theme = Theme.of(context);
     return BoxDecoration(
-      color: Colors.white,
+      color: theme.colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
+          color: theme.shadowColor.withValues(alpha: 0.05),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),
@@ -257,7 +256,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
     final dialogMaxHeight = availableHeight.clamp(200.0, 620.0);
 
     return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       // Add the keyboard inset so the dialog floats above the on-screen
       // keyboard on mobile and its scrollable body stays usable.
@@ -335,7 +334,11 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                                 );
                               },
                               decoration: _inputDecoration(
-                                fillColor: _toValid ? null : _invalidColor,
+                                fillColor: _toValid
+                                    ? null
+                                    : Theme.of(context)
+                                          .colorScheme
+                                          .errorContainer,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -371,7 +374,11 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                                   );
                                 },
                                 decoration: _inputDecoration(
-                                  fillColor: _ccValid ? null : _invalidColor,
+                                  fillColor: _ccValid
+                                      ? null
+                                      : Theme.of(context)
+                                            .colorScheme
+                                            .errorContainer,
                                 ),
                               ),
                               const SizedBox(height: 12),

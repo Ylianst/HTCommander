@@ -1988,7 +1988,7 @@ class _CommsTabState extends State<CommsTab>
                     AppLocalizations.of(context).settingsSpeechToText,
                     style: _sttModelReady
                         ? null
-                        : const TextStyle(color: Colors.grey),
+                        : TextStyle(color: Theme.of(context).disabledColor),
                   ),
                 ],
               ),
@@ -2208,17 +2208,18 @@ class _CommsTabState extends State<CommsTab>
   /// receiving an SSTV image). Mirrors the C# mutePanel: a misty-rose strip
   /// with an "Audio is muted." message and an Un-mute button.
   Widget _buildMuteBanner() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      color: const Color(0xFFFFE4E1), // MistyRose
+      color: scheme.errorContainer,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
-          const Icon(Icons.volume_off, size: 18, color: Colors.black54),
+          Icon(Icons.volume_off, size: 18, color: scheme.onErrorContainer),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               AppLocalizations.of(context).commsAudioMuted,
-              style: const TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: 14, color: scheme.onErrorContainer),
             ),
           ),
           SizedBox(
@@ -2238,9 +2239,10 @@ class _CommsTabState extends State<CommsTab>
   }
 
   Widget _buildHeader() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 40,
-      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
+      decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       clipBehavior: Clip.hardEdge,
       child: LayoutBuilder(
@@ -2277,8 +2279,9 @@ class _CommsTabState extends State<CommsTab>
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       textStyle: const TextStyle(fontSize: 12),
                       backgroundColor: _audioEnabled
-                          ? Colors.red.shade100
+                          ? Colors.red.shade300
                           : null,
+                      foregroundColor: _audioEnabled ? Colors.black : null,
                     ),
                     child: Text(
                       _audioEnabled
@@ -2298,6 +2301,8 @@ class _CommsTabState extends State<CommsTab>
                       'assets/images/MenuIcon.png',
                       width: 24,
                       height: 24,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      colorBlendMode: BlendMode.srcIn,
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(Icons.menu, size: 24);
                       },
@@ -2321,7 +2326,7 @@ class _CommsTabState extends State<CommsTab>
         : (enabled ? Colors.red.shade400 : Colors.grey.shade400);
     return Container(
       height: 50,
-      color: const Color(0xFFC0C0C0),
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: GestureDetector(
         // Only a real secondary (right) click opens the mode menu. We do NOT
@@ -2377,9 +2382,10 @@ class _CommsTabState extends State<CommsTab>
   }
 
   Widget _buildInputPanel() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 50,
-      color: const Color(0xFFC0C0C0),
+      color: scheme.surfaceContainerHigh,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Row(
         children: [
@@ -2388,8 +2394,8 @@ class _CommsTabState extends State<CommsTab>
             child: Container(
               height: 34,
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey),
+                color: scheme.surfaceContainerLow,
+                border: Border.all(color: scheme.onSurfaceVariant),
                 borderRadius: BorderRadius.circular(4),
               ),
               padding: const EdgeInsets.symmetric(vertical: 6),
@@ -2454,7 +2460,7 @@ class _CommsTabState extends State<CommsTab>
   Widget _buildCancelPanel() {
     return Container(
       height: 50,
-      color: const Color(0xFFC0C0C0),
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: SizedBox(
         height: 34,

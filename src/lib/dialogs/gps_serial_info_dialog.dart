@@ -123,8 +123,9 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 550, maxHeight: 650),
@@ -141,7 +142,7 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
+                    color: scheme.onSurface,
                   ),
                 ),
               ),
@@ -384,14 +385,16 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
   // --------------------------------------------------------------------------
 
   Widget _buildSection(String title, List<_InfoRow> rows) {
+    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: theme.shadowColor.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -404,12 +407,12 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
             title,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
+              color: scheme.onSurface,
             ),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0) Divider(height: 16, color: Colors.grey.shade200),
+            if (i > 0) Divider(height: 16, color: scheme.outlineVariant),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -417,7 +420,7 @@ class _GpsSerialInfoDialogState extends State<_GpsSerialInfoDialog> {
                   flex: 5,
                   child: Text(
                     rows[i].label,
-                    style: TextStyle(color: Colors.grey.shade700),
+                    style: TextStyle(color: scheme.onSurfaceVariant),
                   ),
                 ),
                 Expanded(

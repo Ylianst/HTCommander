@@ -78,6 +78,22 @@ class AppLocalizationsHi extends AppLocalizations {
       'एप्लिकेशन द्वारा उपयोग की जाने वाली भाषा चुनें। \'सिस्टम डिफ़ॉल्ट\' आपके डिवाइस की भाषा का अनुसरण करता है।';
 
   @override
+  String get settingsThemeMode => 'थीम';
+
+  @override
+  String get settingsThemeModeHint =>
+      'हल्का या गहरा रूप चुनें। \'सिस्टम डिफ़ॉल्ट\' आपके डिवाइस की सेटिंग का अनुसरण करता है।';
+
+  @override
+  String get settingsThemeModeSystem => 'सिस्टम डिफ़ॉल्ट';
+
+  @override
+  String get settingsThemeModeLight => 'हल्का';
+
+  @override
+  String get settingsThemeModeDark => 'गहरा';
+
+  @override
   String get languageSystem => 'सिस्टम डिफ़ॉल्ट';
 
   @override

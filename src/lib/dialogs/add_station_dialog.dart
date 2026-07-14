@@ -337,9 +337,10 @@ class _StationDialogState extends State<_StationDialog> {
     String? hintText,
     String? errorText,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
       filled: true,
-      fillColor: Colors.grey.shade100,
+      fillColor: scheme.surfaceContainerHighest,
       labelText: labelText,
       hintText: hintText,
       errorText: errorText,

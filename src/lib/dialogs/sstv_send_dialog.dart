@@ -159,6 +159,7 @@ class _SstvSendDialogState extends State<SstvSendDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final media = MediaQuery.of(context);
     final mode = _sstvModes[_modeIndex];
     final maxPreviewWidth = (media.size.width * 0.7).clamp(240.0, 520.0);
@@ -226,7 +227,7 @@ class _SstvSendDialogState extends State<SstvSendDialog> {
               alignment: Alignment.centerLeft,
               child: Text(
                 l10n.sstvTransmitTime(mode.transmitTimeString),
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
               ),
             ),
             const SizedBox(height: 12),
@@ -246,7 +247,7 @@ class _SstvSendDialogState extends State<SstvSendDialog> {
                       )
                     : DecoratedBox(
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade400),
+                          border: Border.all(color: scheme.outline),
                         ),
                         child: Image.memory(
                           _previewPng!,

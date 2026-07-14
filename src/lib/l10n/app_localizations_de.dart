@@ -78,6 +78,22 @@ class AppLocalizationsDe extends AppLocalizations {
       'Wählen Sie die von der Anwendung verwendete Sprache. „Systemstandard“ folgt der Sprache Ihres Geräts.';
 
   @override
+  String get settingsThemeMode => 'Design';
+
+  @override
+  String get settingsThemeModeHint =>
+      'Wählen Sie das helle oder dunkle Erscheinungsbild. „Systemstandard“ folgt der Einstellung Ihres Geräts.';
+
+  @override
+  String get settingsThemeModeSystem => 'Systemstandard';
+
+  @override
+  String get settingsThemeModeLight => 'Hell';
+
+  @override
+  String get settingsThemeModeDark => 'Dunkel';
+
+  @override
   String get languageSystem => 'Systemstandard';
 
   @override

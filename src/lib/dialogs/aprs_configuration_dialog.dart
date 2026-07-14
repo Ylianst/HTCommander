@@ -104,6 +104,7 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return HTDialog(
       title: l10n.acfgTitle,
       maxWidth: 460,
@@ -141,7 +142,7 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
             const SizedBox(height: 16),
             Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
+                border: Border.all(color: scheme.onSurfaceVariant),
                 borderRadius: BorderRadius.circular(4),
               ),
               padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
@@ -196,16 +197,16 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
                                 fillColor:
                                     _freqController.text.isEmpty ||
                                         _isFrequencyValid
-                                    ? Colors.white
-                                    : const Color(0xFFFFCCCC),
+                                    ? scheme.surfaceContainerHighest
+                                    : scheme.errorContainer,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               l10n.acfgFrequencyHint,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey,
+                                color: scheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -232,11 +233,11 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
                             DropdownButtonFormField<int>(
                               initialValue: _selectedChannelId,
                               isExpanded: true,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 isDense: true,
-                                border: OutlineInputBorder(),
+                                border: const OutlineInputBorder(),
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: scheme.surfaceContainerHighest,
                               ),
                               items: [
                                 for (final channel in widget.channels)
@@ -254,9 +255,9 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
                             const SizedBox(height: 4),
                             Text(
                               l10n.acfgChannelOverwritten,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey,
+                                color: scheme.onSurfaceVariant,
                               ),
                             ),
                           ],

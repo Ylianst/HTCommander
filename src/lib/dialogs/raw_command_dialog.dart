@@ -209,6 +209,7 @@ class _RawCommandDialogState extends State<_RawCommandDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return HTDialog(
       title: l10n.rawTitle,
       maxWidth: 640,
@@ -284,8 +285,8 @@ class _RawCommandDialogState extends State<_RawCommandDialog> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey.shade500),
+                color: scheme.surface,
+                border: Border.all(color: scheme.onSurfaceVariant),
               ),
               child: TextField(
                 controller: _responseController,

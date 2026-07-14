@@ -981,7 +981,10 @@ class _AudioTabState extends State<AudioTab>
                       padding: const EdgeInsets.only(left: 4, top: 2),
                       child: Text(
                         AppLocalizations.of(context).audioMicNotAvailable,
-                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   if (_showSpectrogram) ...[
@@ -1100,6 +1103,7 @@ class _AudioTabState extends State<AudioTab>
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final theme = Theme.of(context);
           final bool showValue = constraints.maxWidth > 350;
           return Row(
             children: [
@@ -1109,7 +1113,7 @@ class _AudioTabState extends State<AudioTab>
                   label,
                   style: TextStyle(
                     fontSize: 13,
-                    color: enabled ? null : Colors.grey,
+                    color: enabled ? null : theme.disabledColor,
                   ),
                 ),
               ),
@@ -1124,7 +1128,7 @@ class _AudioTabState extends State<AudioTab>
                   icon: Icon(
                     (muted ?? false) ? Icons.volume_off : Icons.volume_up,
                     size: 18,
-                    color: enabled ? null : Colors.grey,
+                    color: enabled ? null : theme.disabledColor,
                   ),
                   onPressed: enabled ? onMuteToggled : null,
                 ),
@@ -1147,7 +1151,7 @@ class _AudioTabState extends State<AudioTab>
                     textAlign: TextAlign.right,
                     style: TextStyle(
                       fontSize: 12,
-                      color: enabled ? null : Colors.grey,
+                      color: enabled ? null : theme.disabledColor,
                     ),
                   ),
                 ),
@@ -1161,7 +1165,9 @@ class _AudioTabState extends State<AudioTab>
   Widget _buildHeader() {
     return Container(
       height: 40,
-      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       clipBehavior: Clip.hardEdge,
       child: LayoutBuilder(
@@ -1185,8 +1191,9 @@ class _AudioTabState extends State<AudioTab>
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       textStyle: const TextStyle(fontSize: 12),
                       backgroundColor: _audioEnabled
-                          ? Colors.red.shade100
+                          ? Colors.red.shade300
                           : null,
+                      foregroundColor: _audioEnabled ? Colors.black : null,
                     ),
                     child: Text(
                       _audioEnabled
@@ -1209,6 +1216,8 @@ class _AudioTabState extends State<AudioTab>
                         'assets/images/MenuIcon.png',
                         width: 24,
                         height: 24,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        colorBlendMode: BlendMode.srcIn,
                         errorBuilder: (context, error, stackTrace) {
                           return const Icon(Icons.menu, size: 24);
                         },

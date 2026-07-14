@@ -66,8 +66,8 @@ class ChatWidget extends StatefulWidget {
   final Color bubbleAuthColor;
   final Color bubbleFailedColor;
   final Color senderBubbleColor;
-  final Color routeTextColor;
-  final Color timeTextColor;
+  final Color? routeTextColor;
+  final Color? timeTextColor;
   final double bubbleMaxWidthFactor;
 
   const ChatWidget({
@@ -77,12 +77,12 @@ class ChatWidget extends StatefulWidget {
     this.onMessageDoubleTap,
     this.onMessageLongPress,
     this.onMessageContextMenu,
-    this.bubbleColor = const Color(0xFFADD8E6), // LightBlue
-    this.bubbleAuthColor = const Color(0xFF90EE90), // LightGreen
-    this.bubbleFailedColor = const Color(0xFFFFB6C1), // LightPink
-    this.senderBubbleColor = const Color(0xFFDCF8C6), // Light green for sent
-    this.routeTextColor = Colors.grey,
-    this.timeTextColor = Colors.grey,
+    this.bubbleColor = const Color(0xFF8AC0DB), // Darkened light blue
+    this.bubbleAuthColor = const Color(0xFF6ECD6E), // Darkened light green
+    this.bubbleFailedColor = const Color(0xFFEB96A2), // Darkened light pink
+    this.senderBubbleColor = const Color(0xFFBEE1A5), // Darkened sent green
+    this.routeTextColor,
+    this.timeTextColor,
     this.bubbleMaxWidthFactor = 0.75,
   });
 
@@ -227,7 +227,7 @@ class _ChatWidgetState extends State<ChatWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -269,7 +269,11 @@ class _ChatWidgetState extends State<ChatWidget> {
             child: Center(
               child: Text(
                 _formatTimestamp(message.time),
-                style: TextStyle(color: widget.timeTextColor, fontSize: 12),
+                style: TextStyle(
+                  color: widget.timeTextColor ??
+                      Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 12,
+                ),
               ),
             ),
           ),
@@ -290,13 +294,21 @@ class _ChatWidgetState extends State<ChatWidget> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (withIcon && message.icon != null) ...[
-          Icon(message.icon, size: 16, color: Colors.grey),
+          Icon(
+            message.icon,
+            size: 16,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: 4),
         ],
         Flexible(
           child: Text(
             message.route,
-            style: TextStyle(color: widget.routeTextColor, fontSize: 12),
+            style: TextStyle(
+              color: widget.routeTextColor ??
+                  Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 12,
+            ),
           ),
         ),
       ],
@@ -370,7 +382,11 @@ class _ChatWidgetState extends State<ChatWidget> {
               message.imagePath == null)
             Padding(
               padding: const EdgeInsets.only(right: 4),
-              child: Icon(message.icon, size: 16, color: Colors.grey),
+              child: Icon(
+                message.icon,
+                size: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           // Bubble
           Flexible(
@@ -394,7 +410,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
+                    color: Theme.of(context).shadowColor.withValues(alpha: 0.15),
                     offset: const Offset(1, 1),
                     blurRadius: 2,
                   ),
@@ -444,7 +460,11 @@ class _ChatWidgetState extends State<ChatWidget> {
               message.imagePath == null)
             Padding(
               padding: const EdgeInsets.only(left: 4),
-              child: Icon(message.icon, size: 16, color: Colors.grey),
+              child: Icon(
+                message.icon,
+                size: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
         ],
       ),
@@ -457,7 +477,10 @@ class _ChatWidgetState extends State<ChatWidget> {
   Widget _buildMessageContent(String text) {
     final matches = ChannelShare.findAll(text);
     if (matches.isEmpty) {
-      return Text(text, style: const TextStyle(fontSize: 14));
+      return Text(
+        text,
+        style: const TextStyle(fontSize: 14, color: Colors.black),
+      );
     }
 
     final spans = <InlineSpan>[];

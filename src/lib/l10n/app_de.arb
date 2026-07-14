@@ -27,6 +27,11 @@
 
   "settingsLanguage": "Sprache",
   "settingsLanguageHint": "Wählen Sie die von der Anwendung verwendete Sprache. „Systemstandard“ folgt der Sprache Ihres Geräts.",
+  "settingsThemeMode": "Design",
+  "settingsThemeModeHint": "Wählen Sie das helle oder dunkle Erscheinungsbild. „Systemstandard“ folgt der Einstellung Ihres Geräts.",
+  "settingsThemeModeSystem": "Systemstandard",
+  "settingsThemeModeLight": "Hell",
+  "settingsThemeModeDark": "Dunkel",
   "languageSystem": "Systemstandard",
   "languageEnglish": "Englisch",
   "languageFrench": "Französisch",

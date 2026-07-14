@@ -240,6 +240,36 @@ abstract class AppLocalizations {
   /// **'Choose the language used by the application. \'System default\' follows your device language.'**
   String get settingsLanguageHint;
 
+  /// Label for the application theme (light/dark) selector in Settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get settingsThemeMode;
+
+  /// Helper text under the theme selector.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the light or dark appearance. \'System default\' follows your device setting.'**
+  String get settingsThemeModeHint;
+
+  /// Theme option that follows the operating system light/dark setting.
+  ///
+  /// In en, this message translates to:
+  /// **'System default'**
+  String get settingsThemeModeSystem;
+
+  /// Light theme option.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get settingsThemeModeLight;
+
+  /// Dark theme option.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get settingsThemeModeDark;
+
   /// Language option that follows the operating system locale.
   ///
   /// In en, this message translates to:

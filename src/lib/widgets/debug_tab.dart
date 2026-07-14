@@ -487,9 +487,10 @@ class _DebugTabState extends State<DebugTab>
   }
 
   Widget _buildHeader() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 40,
-      color: const Color(0xFFC0C0C0),
+      color: scheme.surfaceContainerHigh,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
@@ -507,6 +508,8 @@ class _DebugTabState extends State<DebugTab>
                   'assets/images/MenuIcon.png',
                   width: 24,
                   height: 24,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  colorBlendMode: BlendMode.srcIn,
                   errorBuilder: (context, error, stackTrace) {
                     return const Icon(Icons.menu, size: 24);
                   },
@@ -520,8 +523,9 @@ class _DebugTabState extends State<DebugTab>
   }
 
   Widget _buildLogDisplay() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      color: Colors.white,
+      color: scheme.surface,
       width: double.infinity,
       child: SingleChildScrollView(
         controller: _scrollController,
@@ -537,7 +541,7 @@ class _DebugTabState extends State<DebugTab>
                     TextSpan(
                       text: '[$timeStr] ',
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: scheme.onSurfaceVariant,
                         fontFamily: 'monospace',
                         fontSize: 13,
                       ),
@@ -555,7 +559,7 @@ class _DebugTabState extends State<DebugTab>
                     TextSpan(
                       text: '${entry.message}\n',
                       style: TextStyle(
-                        color: entry.isError ? Colors.red : Colors.black,
+                        color: entry.isError ? Colors.red : scheme.onSurface,
                         fontFamily: 'monospace',
                         fontSize: 13,
                       ),

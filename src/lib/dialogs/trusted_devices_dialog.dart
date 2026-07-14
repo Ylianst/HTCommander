@@ -126,6 +126,7 @@ class _TrustedDevicesDialogState extends State<_TrustedDevicesDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return HTDialog(
       title: l10n.trustedDevicesTitle,
       maxWidth: 500,
@@ -135,9 +136,11 @@ class _TrustedDevicesDialogState extends State<_TrustedDevicesDialog> {
         children: [
           Expanded(
             child: Container(
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+              decoration: BoxDecoration(
+                border: Border.all(color: scheme.onSurfaceVariant),
+              ),
               child: Material(
-                color: Colors.white,
+                color: scheme.surface,
                 child: _buildList(),
               ),
             ),
@@ -155,6 +158,7 @@ class _TrustedDevicesDialogState extends State<_TrustedDevicesDialog> {
 
   Widget _buildList() {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     if (_devices.isEmpty) {
       if (_loading) {
         return const Center(child: CircularProgressIndicator());
@@ -188,7 +192,7 @@ class _TrustedDevicesDialogState extends State<_TrustedDevicesDialog> {
                   device.mac,
                   style: DialogStyles.bodyStyle.copyWith(
                     fontSize: 11,
-                    color: Colors.grey[600],
+                    color: scheme.onSurfaceVariant,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),

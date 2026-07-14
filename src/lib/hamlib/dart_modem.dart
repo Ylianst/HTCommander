@@ -467,8 +467,11 @@ class DartModem {
     final payloadCodedBits = _ldpcEncodeStream(payloadBits, modeParams.ldpcRate);
     // Interleave
     final interleavedBits = _interleave(payloadCodedBits);
+    // Scramble (PN15 energy dispersal) so repetitive payloads still produce a
+    // noise-like, low-PAPR symbol stream.
+    final scrambledBits = _scramble(interleavedBits);
     // Map to symbols
-    final payloadSymbols = _mapToSymbols(interleavedBits, modeParams.constellation);
+    final payloadSymbols = _mapToSymbols(scrambledBits, modeParams.constellation);
     // Modulate to OFDM symbols, then (optionally) intersperse known pilot
     // symbols so the receiver can track carrier phase noise independently of
     // its decisions.
@@ -524,7 +527,8 @@ class DartModem {
     final payloadBits = _bytesToBits(payloadWithCrc);
     final payloadCodedBits = _ldpcEncodeStream(payloadBits, LdpcRate.r1_2);
     final interleavedBits = _interleave(payloadCodedBits);
-    final payloadFsk = fsk.modulate(interleavedBits);
+    final scrambledBits = _scramble(interleavedBits);
+    final payloadFsk = fsk.modulate(scrambledBits);
 
     // Assemble: guard + preamble + FSK header + FSK payload + guard.
     final preambleSamples = preamble.generate();
@@ -704,8 +708,9 @@ class DartModem {
       }
     }
 
-    // Deinterleave
-    final deinterleavedLlrs = _deinterleave(payloadLlrs);
+    // Descramble (inverse PN15) then deinterleave
+    final descrambledLlrs = _descramble(payloadLlrs);
+    final deinterleavedLlrs = _deinterleave(descrambledLlrs);
 
     // LDPC decode (counting the bit errors corrected)
     final corrections = Int32List(1);
@@ -786,7 +791,8 @@ class DartModem {
 
     final payloadLlrs =
         fsk.demodulateSoft(rxSamples, payloadStart, totalCodedBits);
-    final deinterleavedLlrs = _deinterleave(payloadLlrs);
+    final descrambledLlrs = _descramble(payloadLlrs);
+    final deinterleavedLlrs = _deinterleave(descrambledLlrs);
     final corrections = Int32List(1);
     final payloadBits = _ldpcDecodeStream(
       deinterleavedLlrs, LdpcRate.r1_2, payloadBitsNeeded,
@@ -928,6 +934,60 @@ class DartModem {
       ofdmSymbols.add(ofdm.modulateSymbol(block));
     }
     return ofdmSymbols;
+  }
+
+  /// Additive (frame-synchronous) PN15 scrambler seed.
+  ///
+  /// A plain LFSR reset to this fixed non-zero value at the start of every
+  /// frame's payload. Because the sequence is generated independently of the
+  /// channel (not fed back like a G3RUH self-synchronizing scrambler), a single
+  /// channel bit error stays a single error — it does not multiply — so the
+  /// soft LDPC decoder downstream sees the clean additive-noise channel it was
+  /// designed for.
+  static const int _scramblerSeed = 0x7FFF; // 15 ones (any non-zero 15-bit seed)
+
+  /// Generate [length] bits of the PN15 sequence (polynomial x^15 + x^14 + 1,
+  /// period 32767) starting from [_scramblerSeed]. Period comfortably exceeds
+  /// the largest DART frame's coded-bit count, so it never repeats within a
+  /// frame.
+  static Uint8List _prbs15(int length) {
+    final out = Uint8List(length);
+    int state = _scramblerSeed & 0x7FFF;
+    for (int i = 0; i < length; i++) {
+      // Output the LSB, then advance: new bit = tap14 XOR tap13 (0-indexed).
+      final int bit = state & 1;
+      out[i] = bit;
+      final int feedback = ((state >> 14) ^ (state >> 13)) & 1;
+      state = ((state >> 1) | (feedback << 14)) & 0x7FFF;
+    }
+    return out;
+  }
+
+  /// Scramble coded bits by XOR-ing them with the PN15 sequence (TX side).
+  /// Applied to the interleaved coded bits, the last bit-domain step before the
+  /// constellation mapper, so even an all-zero payload produces a full-entropy,
+  /// noise-like symbol stream (flat spectrum, low PAPR).
+  Uint8List _scramble(Uint8List bits) {
+    if (bits.isEmpty) return bits;
+    final pn = _prbs15(bits.length);
+    final out = Uint8List(bits.length);
+    for (int i = 0; i < bits.length; i++) {
+      out[i] = bits[i] ^ pn[i];
+    }
+    return out;
+  }
+
+  /// Descramble soft LLRs (RX side, inverse of [_scramble]). Descrambling a
+  /// soft value is a conditional sign flip: where the PN bit is 1 the bit was
+  /// inverted, so negate the LLR. Lossless for the soft LDPC decoder.
+  Float64List _descramble(Float64List llrs) {
+    if (llrs.isEmpty) return llrs;
+    final pn = _prbs15(llrs.length);
+    final out = Float64List(llrs.length);
+    for (int i = 0; i < llrs.length; i++) {
+      out[i] = pn[i] == 1 ? -llrs[i] : llrs[i];
+    }
+    return out;
   }
 
   /// Block bit interleaver.

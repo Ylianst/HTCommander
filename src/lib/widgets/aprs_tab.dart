@@ -1232,11 +1232,12 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
 
   Widget _buildBeaconBanner() {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final bool isWarning = _beaconOnCurrentChannel;
     final Color bgColor =
-        isWarning ? const Color(0xFFF8D7DA) : const Color(0xFFD4EDDA);
+        isWarning ? scheme.errorContainer : scheme.tertiaryContainer;
     final Color fgColor =
-        isWarning ? const Color(0xFF721C24) : const Color(0xFF155724);
+        isWarning ? scheme.onErrorContainer : scheme.onTertiaryContainer;
     final IconData icon =
         isWarning ? Icons.warning_amber : Icons.info_outline;
     final String message = isWarning
@@ -1262,7 +1263,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
             onPressed: () => showEditBeaconSettingsDialog(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: fgColor,
-              foregroundColor: Colors.white,
+              foregroundColor: bgColor,
               padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
             child: Text(AppLocalizations.of(context).aprsBeaconSettings),
@@ -1282,26 +1283,27 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildMissingChannelBanner() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      color: const Color(0xFFFFF3CD),
+      color: scheme.secondaryContainer,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber, color: Color(0xFF856404), size: 20),
+          Icon(Icons.warning_amber, color: scheme.onSecondaryContainer, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               AppLocalizations.of(context).aprsMissingChannel,
-              style: const TextStyle(color: Color(0xFF856404), fontSize: 13),
+              style: TextStyle(color: scheme.onSecondaryContainer, fontSize: 13),
             ),
           ),
           const SizedBox(width: 8),
           ElevatedButton(
             onPressed: _setupAprsChannel,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF856404),
-              foregroundColor: Colors.white,
+              backgroundColor: scheme.secondary,
+              foregroundColor: scheme.onSecondary,
               padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
             child: Text(AppLocalizations.of(context).aprsSetup),
@@ -1389,9 +1391,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildHeader() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 40,
-      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
+      decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       clipBehavior: Clip.hardEdge,
       child: LayoutBuilder(
@@ -1413,8 +1416,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey),
+                    color: scheme.surfaceContainerLow,
+                    border: Border.all(color: scheme.onSurfaceVariant),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: DropdownButtonHideUnderline(
@@ -1424,7 +1427,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
                           : 0,
                       isDense: true,
                       isExpanded: true,
-                      style: const TextStyle(fontSize: 14, color: Colors.black),
+                      style: TextStyle(fontSize: 14, color: scheme.onSurface),
                       items: [
                         for (var i = 0; i < _aprsRoutes.length; i++)
                           DropdownMenuItem(
@@ -1457,6 +1460,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
                       'assets/images/MenuIcon.png',
                       width: 24,
                       height: 24,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      colorBlendMode: BlendMode.srcIn,
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(Icons.menu, size: 24);
                       },
@@ -1472,9 +1477,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildInputPanel() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 50,
-      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
+      decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       clipBehavior: Clip.hardEdge,
       child: Row(
@@ -1486,8 +1492,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
             height: 34,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey),
+                color: scheme.surfaceContainerLow,
+                border: Border.all(color: scheme.onSurfaceVariant),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Row(
@@ -1547,8 +1553,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
             child: Container(
               height: 34,
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey),
+                color: scheme.surfaceContainerLow,
+                border: Border.all(color: scheme.onSurfaceVariant),
                 borderRadius: BorderRadius.circular(4),
               ),
               padding: const EdgeInsets.symmetric(vertical: 6),

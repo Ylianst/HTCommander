@@ -27,6 +27,11 @@
 
   "settingsLanguage": "言語",
   "settingsLanguageHint": "アプリケーションで使用する言語を選択します。「システムのデフォルト」はデバイスの言語に従います。",
+  "settingsThemeMode": "テーマ",
+  "settingsThemeModeHint": "ライトまたはダークの外観を選択します。「システムのデフォルト」はデバイスの設定に従います。",
+  "settingsThemeModeSystem": "システムのデフォルト",
+  "settingsThemeModeLight": "ライト",
+  "settingsThemeModeDark": "ダーク",
   "languageSystem": "システムのデフォルト",
   "languageEnglish": "英語",
   "languageFrench": "フランス語",

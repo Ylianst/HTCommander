@@ -11,6 +11,7 @@ import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
 import '../services/history_limiter.dart';
 import '../services/locale_controller.dart';
+import '../services/theme_controller.dart';
 import '../services/tts_service.dart';
 import '../services/sherpa_model_manager.dart';
 
@@ -23,6 +24,9 @@ class AppSettings {
 
   // Application language tag: 'system' (follow the OS), 'en', 'fr'.
   String language;
+
+  // Application theme mode: 'system' (follow the OS), 'light', 'dark'.
+  String themeMode;
 
   // APRS tab
   List<AprsRoute> aprsRoutes;
@@ -98,6 +102,7 @@ class AppSettings {
     this.stationId = 0,
     this.allowTransmit = false,
     this.language = LocaleController.systemTag,
+    this.themeMode = ThemeController.systemTag,
     List<AprsRoute>? aprsRoutes,
     this.voiceLanguage = 'auto',
     this.voiceModel = 'sense-voice',
@@ -125,6 +130,7 @@ class AppSettings {
     int? stationId,
     bool? allowTransmit,
     String? language,
+    String? themeMode,
     List<AprsRoute>? aprsRoutes,
     String? voiceLanguage,
     String? voiceModel,
@@ -151,6 +157,7 @@ class AppSettings {
       stationId: stationId ?? this.stationId,
       allowTransmit: allowTransmit ?? this.allowTransmit,
       language: language ?? this.language,
+      themeMode: themeMode ?? this.themeMode,
       aprsRoutes: aprsRoutes ?? List.from(this.aprsRoutes),
       voiceLanguage: voiceLanguage ?? this.voiceLanguage,
       voiceModel: voiceModel ?? this.voiceModel,
@@ -189,6 +196,10 @@ class AppSettings {
           DataBroker.getValue<String>(0, LocaleController.storageKey,
                   LocaleController.systemTag) ??
               LocaleController.systemTag,
+      themeMode:
+          DataBroker.getValue<String>(0, ThemeController.storageKey,
+                  ThemeController.systemTag) ??
+              ThemeController.systemTag,
       aprsRoutes: aprsRoutes,
       voiceLanguage:
           DataBroker.getValue<String>(0, 'VoiceLanguage', 'auto') ?? 'auto',
@@ -728,6 +739,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     // Apply the selected application language (persists and rebuilds the app).
     LocaleController.instance.setLanguage(_settings.language);
 
+    // Apply the selected theme mode (persists and rebuilds the app).
+    ThemeController.instance.setThemeMode(_settings.themeMode);
+
     if (!mounted) return;
     Navigator.of(
       context,
@@ -736,9 +750,10 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   // Helper for consistent input decoration
   InputDecoration _inputDecoration({String? hintText, String? labelText}) {
+    final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
       filled: true,
-      fillColor: Colors.grey.shade100,
+      fillColor: scheme.surfaceContainerHighest,
       hintText: hintText,
       labelText: labelText,
       isDense: true,
@@ -755,19 +770,20 @@ class _SettingsDialogState extends State<SettingsDialog>
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
+        borderSide: BorderSide(color: scheme.primary, width: 2),
       ),
     );
   }
 
   // Helper for section card styling
   BoxDecoration _sectionDecoration() {
+    final theme = Theme.of(context);
     return BoxDecoration(
-      color: Colors.white,
+      color: theme.colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
+          color: theme.shadowColor.withValues(alpha: 0.05),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),
@@ -775,10 +791,36 @@ class _SettingsDialogState extends State<SettingsDialog>
     );
   }
 
+  // Bold section title style (theme-aware for light/dark).
+  TextStyle _sectionTitleStyle() {
+    return TextStyle(
+      fontWeight: FontWeight.bold,
+      color: Theme.of(context).colorScheme.onSurface,
+    );
+  }
+
+  // Small italic helper/hint text style (theme-aware for light/dark).
+  TextStyle _hintStyle() {
+    return TextStyle(
+      fontSize: 12,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      fontStyle: FontStyle.italic,
+    );
+  }
+
+  // Small non-italic secondary text style (theme-aware for light/dark).
+  TextStyle _secondaryStyle() {
+    return TextStyle(
+      fontSize: 12,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 550, maxHeight: 650),
@@ -792,9 +834,9 @@ class _SettingsDialogState extends State<SettingsDialog>
                 controller: _tabController,
                 isScrollable: true,
                 tabAlignment: TabAlignment.center,
-                labelColor: Colors.blue.shade700,
-                unselectedLabelColor: Colors.grey.shade600,
-                indicatorColor: Colors.blue,
+                labelColor: scheme.primary,
+                unselectedLabelColor: scheme.onSurfaceVariant,
+                indicatorColor: scheme.primary,
                 indicatorSize: TabBarIndicatorSize.label,
                 dividerColor: Colors.transparent,
                 tabs: _visibleTabs
@@ -850,10 +892,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               children: [
                 Text(
                   l10n.settingsLanguage,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
+                  style: _sectionTitleStyle(),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -901,11 +940,52 @@ class _SettingsDialogState extends State<SettingsDialog>
                 const SizedBox(height: 8),
                 Text(
                   l10n.settingsLanguageHint,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                    fontStyle: FontStyle.italic,
-                  ),
+                  style: _hintStyle(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Application theme mode selector
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: _sectionDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.settingsThemeMode,
+                  style: _sectionTitleStyle(),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _settings.themeMode,
+                  decoration: _inputDecoration(),
+                  items: [
+                    DropdownMenuItem(
+                      value: ThemeController.systemTag,
+                      child: Text(l10n.settingsThemeModeSystem),
+                    ),
+                    DropdownMenuItem(
+                      value: ThemeController.lightTag,
+                      child: Text(l10n.settingsThemeModeLight),
+                    ),
+                    DropdownMenuItem(
+                      value: ThemeController.darkTag,
+                      child: Text(l10n.settingsThemeModeDark),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _settings.themeMode = value);
+                    // Apply immediately so the change can be previewed live.
+                    ThemeController.instance.setThemeMode(value);
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.settingsThemeModeHint,
+                  style: _hintStyle(),
                 ),
               ],
             ),
@@ -945,10 +1025,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               children: [
                 Text(
                   l10n.settingsCallSignStationId,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
+                  style: _sectionTitleStyle(),
                 ),
                 const SizedBox(height: 16),
                 // Call Sign & Station ID on the same line
@@ -1044,7 +1121,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                           style: TextStyle(
                             color: _settings.callSign.length >= 3
                                 ? null
-                                : Colors.grey,
+                                : Theme.of(context).disabledColor,
                           ),
                         ),
                       ),
@@ -1054,11 +1131,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 if (_settings.callSign.length < 3)
                   Text(
                     l10n.settingsCallSignHelp,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                      fontStyle: FontStyle.italic,
-                    ),
+                    style: _hintStyle(),
                   ),
               ],
             ),
@@ -1088,17 +1161,14 @@ class _SettingsDialogState extends State<SettingsDialog>
               children: [
                 Text(
                   l10n.settingsAprsRoutes,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
+                  style: _sectionTitleStyle(),
                 ),
                 const SizedBox(height: 8),
                 // Routes list
                 Container(
                   height: 200,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Material(
@@ -1240,10 +1310,7 @@ class _SettingsDialogState extends State<SettingsDialog>
         children: [
           Text(
             l10n.settingsSpeechToText,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
+            style: _sectionTitleStyle(),
           ),
           const SizedBox(height: 8),
           Text(
@@ -1273,7 +1340,7 @@ class _SettingsDialogState extends State<SettingsDialog>
           const SizedBox(height: 6),
           Text(
             model.description,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: _secondaryStyle(),
           ),
           const SizedBox(height: 16),
           if (model.multilingual) ...[
@@ -1300,7 +1367,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             const SizedBox(height: 6),
             Text(
               l10n.settingsRecognitionLanguageHelp,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: _secondaryStyle(),
             ),
             const SizedBox(height: 16),
           ],
@@ -1370,7 +1437,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             const SizedBox(height: 4),
             Text(
               detail,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: _secondaryStyle(),
             ),
           ],
         );
@@ -1499,10 +1566,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               children: [
                 Text(
                   l10n.settingsTextToSpeech,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
+                  style: _sectionTitleStyle(),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -1711,10 +1775,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               children: [
                 Text(
                   l10n.settingsWinlinkAccount,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
+                  style: _sectionTitleStyle(),
                 ),
                 const SizedBox(height: 16),
                 Text(l10n.settingsAccount, style: DialogStyles.labelStyle),
@@ -1727,7 +1788,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 const SizedBox(height: 4),
                 Text(
                   l10n.settingsWinlinkAccountHelp,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: _secondaryStyle(),
                 ),
                 const SizedBox(height: 16),
                 Text(l10n.settingsPassword, style: DialogStyles.labelStyle),
@@ -1788,10 +1849,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               children: [
                 Text(
                   l10n.settingsLocalServers,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
+                  style: _sectionTitleStyle(),
                 ),
                 const SizedBox(height: 16),
                 // Web Server
@@ -1939,10 +1997,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 children: [
                   Text(
                     l10n.settingsGpsSerialPort,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade800,
-                    ),
+                    style: _sectionTitleStyle(),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -2033,10 +2088,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                               const SizedBox(height: 2),
                               Text(
                                 l10n.settingsShareGpsLocationHelp,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                ),
+                                style: _secondaryStyle(),
                               ),
                             ],
                           ),
@@ -2058,10 +2110,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               children: [
                 Text(
                   l10n.settingsAirplaneTracking,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
+                  style: _sectionTitleStyle(),
                 ),
                 const SizedBox(height: 16),
                 Text(l10n.settingsServerUrl, style: DialogStyles.labelStyle),
@@ -2102,7 +2151,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                               _airplaneTestResult,
                               style: TextStyle(
                                 color: _airplaneTesting
-                                    ? Colors.grey.shade700
+                                    ? Theme.of(context).colorScheme.onSurfaceVariant
                                     : (_airplaneTestOk
                                           ? Colors.green.shade700
                                           : Colors.red.shade700),
@@ -2157,10 +2206,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 padding: const EdgeInsets.only(right: 8),
                 child: Text(
                   l10n.settingsLimitCurrent(currentCount),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: _secondaryStyle(),
                 ),
               ),
             Text(
@@ -2219,10 +2265,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               children: [
                 Text(
                   l10n.settingsHistoryLimits,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
+                  style: _sectionTitleStyle(),
                 ),
                 const SizedBox(height: 16),
                 _buildLimitSlider(
@@ -2338,7 +2381,7 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
             controller: _nameController,
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.grey.shade100,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               hintText: l10n.settingsNameHint,
               isDense: true,
               border: OutlineInputBorder(
@@ -2351,7 +2394,10 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.blue, width: 2),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 2,
+                ),
               ),
             ),
           ),
@@ -2369,7 +2415,7 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
             controller: _pathController,
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.grey.shade100,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               hintText: 'e.g. APN000,WIDE1-1,WIDE2-2',
               isDense: true,
               border: OutlineInputBorder(
@@ -2382,7 +2428,10 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.blue, width: 2),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 2,
+                ),
               ),
             ),
           ),

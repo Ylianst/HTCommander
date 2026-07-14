@@ -124,8 +124,10 @@ class AprsDetailsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 550, maxHeight: 650),
@@ -159,11 +161,11 @@ class AprsDetailsDialog extends StatelessWidget {
               Flexible(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: scheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
+                        color: theme.shadowColor.withValues(alpha: 0.05),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -215,9 +217,9 @@ class AprsDetailsDialog extends StatelessWidget {
                               longitude: longitude!,
                               title: locationTitle,
                             ),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.location_pin,
-                              color: Colors.black87,
+                              color: scheme.onSurface,
                             ),
                           )
                         else
@@ -231,15 +233,15 @@ class AprsDetailsDialog extends StatelessWidget {
                             icon: const Icon(Icons.location_pin, size: 18),
                             label: Text(l10n.apdShowLocation),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black87,
+                              backgroundColor: scheme.surfaceContainerHighest,
+                              foregroundColor: scheme.onSurface,
                             ),
                           ),
                       const Spacer(),
                       TextButton(
                         onPressed: () => _copyAll(context),
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.black87,
+                          foregroundColor: scheme.onSurface,
                         ),
                         child: Text(l10n.apdCopyAll),
                       ),
@@ -278,11 +280,14 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onSecondaryTapDown: (d) => onContextMenu(d.globalPosition),
       onLongPressStart: (d) => onContextMenu(d.globalPosition),
       child: Container(
-        color: striped ? const Color(0xFFF7F9FB) : Colors.white,
+        color: striped
+            ? scheme.surfaceContainerHigh
+            : scheme.surfaceContainerLow,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

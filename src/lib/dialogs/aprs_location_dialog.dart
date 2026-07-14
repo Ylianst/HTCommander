@@ -92,6 +92,7 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
@@ -101,7 +102,7 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
             // Header bar
             Container(
               height: 40,
-              decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
+              decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
@@ -134,7 +135,7 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
                       initialZoom: _initialZoom,
                       minZoom: 3,
                       maxZoom: 18,
-                      backgroundColor: const Color(0xFFAAD3DF),
+                      backgroundColor: scheme.secondaryContainer,
                       // Keep the map permanently north-up: allow all gestures
                       // except rotation.
                       interactionOptions: const InteractionOptions(
@@ -188,6 +189,7 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
   }
 
   Widget _buildZoomButton(String label, VoidCallback onPressed) {
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: 32,
       height: 32,
@@ -195,8 +197,8 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           padding: EdgeInsets.zero,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          backgroundColor: scheme.surface,
+          foregroundColor: scheme.onSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         ),
         child: Text(

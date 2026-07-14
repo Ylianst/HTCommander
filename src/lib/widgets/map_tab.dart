@@ -611,6 +611,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
 
   void _showMenu(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
 
@@ -697,7 +698,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
               const Spacer(),
               Text(
                 _markerFilterLabel(_markerTimeFilter),
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
               ),
               const Icon(Icons.arrow_right, size: 18),
             ],
@@ -1211,6 +1212,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+    final scheme = Theme.of(context).colorScheme;
     final tracks = _showTracks ? _buildTracks() : const <Polyline>[];
     final stationMarkers = _buildStationMarkers();
     return Column(
@@ -1232,8 +1234,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                   // In offline mode no tiles are fetched from the internet, so
                   // render a neutral background behind the markers/tracks.
                   backgroundColor: _isOfflineMode
-                      ? const Color(0xFFE0E0E0)
-                      : const Color(0xFFAAD3DF),
+                      ? scheme.surfaceContainerHighest
+                      : scheme.secondaryContainer,
                   // Keep the map permanently north-up: allow all touch gestures
                   // except rotation (e.g. two-finger twist on a touch screen).
                   interactionOptions: const InteractionOptions(
@@ -1365,9 +1367,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildHeader() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 40,
-      decoration: const BoxDecoration(color: Color(0xFFC0C0C0)),
+      decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       clipBehavior: Clip.hardEdge,
       child: LayoutBuilder(
@@ -1411,6 +1414,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                       'assets/images/MenuIcon.png',
                       width: 24,
                       height: 24,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      colorBlendMode: BlendMode.srcIn,
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(Icons.menu, size: 24);
                       },
@@ -1426,6 +1431,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildZoomButton(String label, VoidCallback onPressed) {
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: 32,
       height: 32,
@@ -1433,8 +1439,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           padding: EdgeInsets.zero,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          backgroundColor: scheme.surface,
+          foregroundColor: scheme.onSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         ),
         child: Text(

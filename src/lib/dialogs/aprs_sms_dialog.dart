@@ -163,9 +163,10 @@ class _AprsSmsDialogState extends State<_AprsSmsDialog> {
 
   /// Filled, borderless input decoration matching the other dialogs.
   InputDecoration _inputDecoration({required String labelText}) {
+    final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
       filled: true,
-      fillColor: Colors.grey.shade100,
+      fillColor: scheme.surfaceContainerHighest,
       labelText: labelText,
       isDense: true,
       contentPadding: const EdgeInsets.fromLTRB(12, 20, 12, 12),

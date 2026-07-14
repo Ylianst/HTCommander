@@ -210,8 +210,10 @@ class MessageDetailsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 550, maxHeight: 650),
@@ -245,11 +247,11 @@ class MessageDetailsDialog extends StatelessWidget {
               Flexible(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: scheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
+                        color: theme.shadowColor.withValues(alpha: 0.05),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -290,7 +292,7 @@ class MessageDetailsDialog extends StatelessWidget {
                   TextButton(
                     onPressed: () => _copyAll(context),
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.black87,
+                      foregroundColor: scheme.onSurface,
                     ),
                     child: Text(l10n.apdCopyAll),
                   ),
@@ -327,11 +329,12 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onSecondaryTapDown: (d) => onContextMenu(d.globalPosition),
       onLongPressStart: (d) => onContextMenu(d.globalPosition),
       child: Container(
-        color: striped ? const Color(0xFFF7F9FB) : Colors.white,
+        color: striped ? scheme.surfaceContainerHigh : scheme.surfaceContainerLow,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

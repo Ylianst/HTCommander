@@ -228,8 +228,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
       context: context,
       builder: (context) {
         final l10n = AppLocalizations.of(context);
+        final scheme = Theme.of(context).colorScheme;
         return AlertDialog(
-          backgroundColor: DialogStyles.backgroundColor,
+          backgroundColor: scheme.surface,
           title: Text(l10n.radioRenameTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -243,7 +244,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                   hintText: placeholder.isEmpty ? mac : placeholder,
                   border: const OutlineInputBorder(),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: scheme.surfaceContainerHighest,
                 ),
                 autofocus: true,
               ),
@@ -252,7 +253,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                 l10n.radioRenameHint,
                 style: DialogStyles.bodyStyle.copyWith(
                   fontStyle: FontStyle.italic,
-                  color: Colors.grey[600],
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -353,6 +354,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final sortedDevices = List<CompatibleDevice>.from(widget.devices)
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
@@ -366,9 +368,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
           // Radio list
           Expanded(
             child: Container(
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+              decoration: BoxDecoration(border: Border.all(color: scheme.outline)),
               child: Material(
-                color: Colors.white,
+                color: scheme.surface,
                 child: sortedDevices.isEmpty
                     ? Center(
                         child: Text(
@@ -418,7 +420,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                                     device.mac,
                                     style: DialogStyles.bodyStyle.copyWith(
                                       fontSize: 11,
-                                      color: Colors.grey[600],
+                                      color: scheme.onSurfaceVariant,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),

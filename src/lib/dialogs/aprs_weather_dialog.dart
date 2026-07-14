@@ -257,9 +257,10 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
     required String labelText,
     String? helperText,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
       filled: true,
-      fillColor: Colors.grey.shade100,
+      fillColor: scheme.surfaceContainerHighest,
       labelText: labelText,
       helperText: helperText,
       isDense: true,

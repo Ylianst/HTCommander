@@ -17,7 +17,9 @@ class DialogStyles {
   }
 
   static ButtonStyle secondaryButtonStyle(BuildContext context) {
-    return TextButton.styleFrom(foregroundColor: Colors.black87);
+    return TextButton.styleFrom(
+      foregroundColor: Theme.of(context).colorScheme.onSurface,
+    );
   }
 
   // Standard text styles
@@ -61,8 +63,9 @@ class HTDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: DialogStyles.backgroundColor,
+      backgroundColor: scheme.surface,
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: maxWidth ?? 500,
@@ -75,7 +78,12 @@ class HTDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (title != null) ...[
-                Text(title!, style: DialogStyles.titleStyle),
+                Text(
+                  title!,
+                  style: DialogStyles.titleStyle.copyWith(
+                    color: scheme.onSurface,
+                  ),
+                ),
                 const SizedBox(height: 16),
               ],
               Flexible(child: content),

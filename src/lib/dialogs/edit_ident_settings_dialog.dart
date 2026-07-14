@@ -137,8 +137,9 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480),
@@ -156,7 +157,7 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
+                    color: scheme.onSurface,
                   ),
                 ),
               ),
@@ -171,7 +172,7 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
                         l10n.identDescription,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey.shade700,
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -180,7 +181,7 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
                       child: Icon(
                         Icons.location_on,
                         size: 40,
-                        color: Colors.grey.shade500,
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -215,6 +216,7 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
 
   Widget _buildForm() {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final enabled = _canSave;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -232,7 +234,7 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
             labelText: l10n.beaconCallsignHint,
             hintText: l10n.identCallsignHint,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: scheme.surfaceContainerHighest,
             isDense: true,
             counterText: '',
             contentPadding: const EdgeInsets.symmetric(

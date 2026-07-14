@@ -51,6 +51,12 @@ diagnosis and fix.
    confirms the SBC/audio path adds no dispersion the CP misses, and shows the
    short-CP bet was safe.
 
+7. **[Whitening the Signal: Why a Modem Scrambles Its Own Data](dart-scrambling.md)**
+   Why repetitive data (a frame full of zeros) wrecks spectrum, PAPR, and phase
+   tracking — and why the fix is to make the data look like noise first. Compares
+   the self-synchronizing G3RUH scrambler against an additive frame-synchronous
+   one, and lays out the LDPC-friendly PN15 whitener DART will adopt.
+
 **Related:** [DART Implementation Report](../DART-Implementation-Report.md) ·
 [Next-Gen Modem design spec](../NextGenModem.md) ·
 [Proposal / rationale](../findings/next-gen-modem-proposal.md)
