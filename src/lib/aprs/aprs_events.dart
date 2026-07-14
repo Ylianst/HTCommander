@@ -16,6 +16,19 @@ class AprsFrameEventArgs {
   final TncDataFragment? fragment;
 
   const AprsFrameEventArgs(this.aprsPacket, this.ax25Packet, this.fragment);
+
+  /// Serializes for cross-window transport. The underlying AX.25 frame carries
+  /// everything needed to rebuild both the raw and parsed packets.
+  Map<String, dynamic> toJson() => ax25Packet.toJson();
+
+  /// Rebuilds an [AprsFrameEventArgs] from data produced by [toJson] so a
+  /// detached window can render live APRS frames. Always returns a non-null
+  /// instance; unparseable frames yield empty packets that consumers ignore.
+  static AprsFrameEventArgs fromJson(Map<String, dynamic> json) {
+    final ax25 = AX25Packet.fromJson(json) ?? AX25Packet(addresses: []);
+    final aprs = AprsPacket.fromJson(json);
+    return AprsFrameEventArgs(aprs, ax25, null);
+  }
 }
 
 /// Data payload for the `SendAprsMessage` broker event.

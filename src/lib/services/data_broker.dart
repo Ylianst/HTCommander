@@ -5,7 +5,10 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show MethodCall;
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data_broker_client.dart';
@@ -13,6 +16,36 @@ import 'data_broker_client.dart';
 /// Callback type for data broker subscriptions.
 /// Parameters: deviceId, name, data
 typedef DataCallback = void Function(int deviceId, String name, Object? data);
+
+/// The role a [DataBroker] plays in a multi-window (multi-process) session.
+enum DataBrokerRole {
+  /// Single window / no detached windows. Everything is process-local.
+  standalone,
+
+  /// Main window. Owns the authoritative data store and forwards every
+  /// dispatch to all detached (child) windows.
+  host,
+
+  /// Detached window. Mirrors the host's data store (populated by a snapshot
+  /// and kept up to date by forwarded dispatches) and forwards its own
+  /// dispatches back to the host.
+  client,
+}
+
+/// Converts a typed object into a JSON-safe map for cross-window transport.
+typedef BrokerToJson = Map<String, dynamic> Function(Object? value);
+
+/// Reconstructs a typed object from a JSON map received from another window.
+typedef BrokerFromJson = Object? Function(Map<String, dynamic> json);
+
+/// Pairs the encode/decode functions and the wire tag for a registered type.
+class _BrokerSerializer {
+  final String tag;
+  final BrokerToJson toJson;
+  final BrokerFromJson fromJson;
+
+  const _BrokerSerializer(this.tag, this.toJson, this.fromJson);
+}
 
 /// A global data broker for dispatching and receiving data across components.
 /// Supports device-specific and named data channels with optional persistence.
@@ -44,6 +77,47 @@ class DataBroker {
   /// Whether the broker has been initialized
   bool _initialized = false;
 
+  /// The role this broker plays in a multi-window session.
+  DataBrokerRole _role = DataBrokerRole.standalone;
+
+  /// Host only: push channels to each detached child window, keyed by windowId.
+  /// Used to forward dispatches from the main window to detached windows.
+  final Map<String, WindowMethodChannel> _childChannels = {};
+
+  /// Client only: the channel used to reach the host window.
+  WindowMethodChannel? _clientToHost;
+
+  /// Client only: this window's own windowId.
+  String? _selfWindowId;
+
+  /// Registered cross-window serializers keyed by runtime [Type].
+  final Map<Type, _BrokerSerializer> _serializersByType = {};
+
+  /// Registered cross-window serializers keyed by wire tag.
+  final Map<String, _BrokerSerializer> _serializersByTag = {};
+
+  /// Unidirectional channel name detached windows use to reach the host.
+  static const String _hostChannelName = 'htcmd.broker.host';
+
+  /// Unidirectional channel name the host uses to push data to a given window.
+  static String _winChannelName(String windowId) =>
+      'htcmd.broker.win.$windowId';
+
+  /// Whether cross-window IPC is available on this platform.
+  static bool get _ipcSupported {
+    if (kIsWeb) return false;
+    return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+  }
+
+  /// The current multi-window role of the broker.
+  static DataBrokerRole get role => _instance._role;
+
+  /// Whether this broker is the authoritative host (main window).
+  static bool get isHost => _instance._role == DataBrokerRole.host;
+
+  /// Whether this broker is a detached client window.
+  static bool get isClient => _instance._role == DataBrokerRole.client;
+
   /// Private constructor for singleton
   DataBroker._internal();
 
@@ -72,19 +146,45 @@ class DataBroker {
   }) {
     final broker = _instance;
 
+    switch (broker._role) {
+      case DataBrokerRole.standalone:
+        broker._applyLocal(deviceId, name, data, store);
+        break;
+      case DataBrokerRole.host:
+        // Apply on the host, then forward to every detached window.
+        broker._applyLocal(deviceId, name, data, store);
+        broker._forwardToChildren(deviceId, name, data, store);
+        break;
+      case DataBrokerRole.client:
+        // Apply locally for immediate UI responsiveness, then forward to the
+        // host so host-side handlers and the other windows are notified.
+        broker._applyLocal(deviceId, name, data, store);
+        broker._sendToHost(deviceId, name, data, store);
+        break;
+    }
+  }
+
+  /// Stores a value (when [store] is true) and notifies matching subscribers.
+  ///
+  /// This is the process-local part of a dispatch, shared by every role. It
+  /// never crosses a window boundary.
+  void _applyLocal(int deviceId, String name, Object? data, bool store) {
     if (store) {
       final key = _DataKey(deviceId, name);
-      broker._dataStore[key] = data;
+      _dataStore[key] = data;
 
-      // Persist to SharedPreferences if device 0
-      if (deviceId == 0 && broker._prefs != null) {
-        broker._persistValue(name, data);
+      // Persist to SharedPreferences if device 0. Only the host (or a
+      // standalone window) owns persistence; clients rely on the host.
+      if (deviceId == 0 &&
+          _prefs != null &&
+          _role != DataBrokerRole.client) {
+        _persistValue(name, data);
       }
     }
 
     // Find and invoke matching subscriptions
     final matchingSubscriptions = <_Subscription>[];
-    for (final sub in broker._subscriptions) {
+    for (final sub in _subscriptions) {
       final deviceMatches =
           (sub.deviceId == allDevices) || (sub.deviceId == deviceId);
       final nameMatches = (sub.name == allNames) || (sub.name == name);
@@ -470,7 +570,267 @@ class DataBroker {
   static void removeAllDataHandlers() {
     _instance._dataHandlers.clear();
   }
+
+  // ========== Cross-window serialization ==========
+
+  /// Registers a serializer so values of type [T] can be sent to and rebuilt in
+  /// detached windows. Must be called on every process (host and clients)
+  /// before any windows are attached.
+  ///
+  /// [tag] is a short, unique identifier written on the wire.
+  static void registerSerializer<T>(
+    String tag,
+    Map<String, dynamic> Function(T value) toJson,
+    T Function(Map<String, dynamic> json) fromJson,
+  ) {
+    final serializer = _BrokerSerializer(
+      tag,
+      (value) => toJson(value as T),
+      (json) => fromJson(json),
+    );
+    _instance._serializersByType[T] = serializer;
+    _instance._serializersByTag[tag] = serializer;
+  }
+
+  /// Encodes a broker value to a JSON string safe for the platform channel.
+  /// Returns null if the value could not be encoded (e.g. no serializer for a
+  /// custom type); the caller then skips forwarding that value.
+  String? _encode(Object? value) {
+    try {
+      return jsonEncode(value, toEncodable: _toEncodable);
+    } catch (e) {
+      debugPrint('DataBroker: unable to encode value for transport: $e');
+      return null;
+    }
+  }
+
+  /// Decodes a JSON string received from another window back into broker data,
+  /// reconstructing registered types via their serializers.
+  Object? _decode(String? payload) {
+    if (payload == null) return null;
+    try {
+      return jsonDecode(payload, reviver: _reviver);
+    } catch (e) {
+      debugPrint('DataBroker: unable to decode value from transport: $e');
+      return null;
+    }
+  }
+
+  Object? _toEncodable(Object? object) {
+    if (object == null) return null;
+    final serializer = _serializersByType[object.runtimeType];
+    if (serializer != null) {
+      return {'__t': serializer.tag, '__v': serializer.toJson(object)};
+    }
+    // Fall back to a plain toJson() if the object provides one. It will arrive
+    // as a Map on the other side (consumers handle the Map form).
+    try {
+      final dynamic dyn = object;
+      final result = dyn.toJson();
+      if (result != null) return result;
+    } catch (_) {
+      // No toJson available.
+    }
+    throw UnsupportedError(
+      'DataBroker: no serializer registered for ${object.runtimeType}',
+    );
+  }
+
+  Object? _reviver(Object? key, Object? value) {
+    if (value is Map && value.length == 2 && value.containsKey('__t')) {
+      final tag = value['__t'];
+      final serializer = tag is String ? _serializersByTag[tag] : null;
+      if (serializer != null) {
+        final inner = value['__v'];
+        if (inner is Map<String, dynamic>) return serializer.fromJson(inner);
+        if (inner is Map) {
+          return serializer.fromJson(Map<String, dynamic>.from(inner));
+        }
+      }
+    }
+    return value;
+  }
+
+  // ========== Cross-window transport (host + client) ==========
+
+  /// Promotes this broker to the authoritative host and starts listening for
+  /// detached windows. Safe to call more than once; no-op off desktop.
+  static Future<void> becomeHost() async {
+    final broker = _instance;
+    if (!_ipcSupported || broker._role == DataBrokerRole.host) return;
+    broker._role = DataBrokerRole.host;
+    try {
+      final channel = WindowMethodChannel(
+        _hostChannelName,
+        mode: ChannelMode.unidirectional,
+      );
+      await channel.setMethodCallHandler(broker._onHostCall);
+    } catch (e) {
+      debugPrint('DataBroker: failed to start host channel: $e');
+    }
+  }
+
+  /// Turns this broker into a detached client bound to the host window and
+  /// registers the inbound push channel. Call [requestSnapshot] afterwards.
+  static Future<void> becomeClient(String selfWindowId) async {
+    final broker = _instance;
+    if (!_ipcSupported) return;
+    broker._role = DataBrokerRole.client;
+    broker._selfWindowId = selfWindowId;
+    broker._initialized = true;
+    try {
+      broker._clientToHost = WindowMethodChannel(
+        _hostChannelName,
+        mode: ChannelMode.unidirectional,
+      );
+      final inChannel = WindowMethodChannel(
+        _winChannelName(selfWindowId),
+        mode: ChannelMode.unidirectional,
+      );
+      await inChannel.setMethodCallHandler(broker._onClientCall);
+    } catch (e) {
+      debugPrint('DataBroker: failed to start client channel: $e');
+    }
+  }
+
+  /// Host only: registers a detached window so dispatches are forwarded to it.
+  static void registerChildWindow(String windowId) {
+    final broker = _instance;
+    if (!_ipcSupported) return;
+    broker._childChannels[windowId] = WindowMethodChannel(
+      _winChannelName(windowId),
+      mode: ChannelMode.unidirectional,
+    );
+  }
+
+  /// Host only: stops forwarding dispatches to a detached window.
+  static void unregisterChildWindow(String windowId) {
+    _instance._childChannels.remove(windowId);
+  }
+
+  /// Client only: asks the host for a full snapshot of its data store and
+  /// applies it locally. Retries briefly to tolerate host/child start-up races.
+  static Future<void> requestSnapshot() async {
+    final broker = _instance;
+    final channel = broker._clientToHost;
+    if (channel == null) return;
+    for (var attempt = 0; attempt < 50; attempt++) {
+      try {
+        final result = await channel.invokeMethod<dynamic>('snapshot');
+        if (result is List) {
+          for (final entry in result) {
+            if (entry is Map) {
+              final deviceId = entry['deviceId'] as int;
+              final name = entry['name'] as String;
+              final data = broker._decode(entry['payload'] as String?);
+              broker._applyLocal(deviceId, name, data, true);
+            }
+          }
+        }
+        return;
+      } catch (_) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    }
+    debugPrint('DataBroker: snapshot request timed out');
+  }
+
+  /// Host handler: services `dispatch` and `snapshot` calls from detached
+  /// windows.
+  Future<dynamic> _onHostCall(MethodCall call) async {
+    switch (call.method) {
+      case 'dispatch':
+        final args = (call.arguments as Map).cast<String, Object?>();
+        final deviceId = args['deviceId'] as int;
+        final name = args['name'] as String;
+        final store = args['store'] as bool? ?? true;
+        final from = args['from'] as String?;
+        final data = _decode(args['payload'] as String?);
+        // Apply on the host (notifies host-side handlers and subscribers),
+        // then forward to every OTHER detached window.
+        _applyLocal(deviceId, name, data, store);
+        _forwardToChildren(deviceId, name, data, store, exclude: from);
+        return null;
+      case 'snapshot':
+        return _buildSnapshot();
+    }
+    return null;
+  }
+
+  /// Client handler: applies data pushed from the host.
+  Future<dynamic> _onClientCall(MethodCall call) async {
+    if (call.method == 'onData') {
+      final args = (call.arguments as Map).cast<String, Object?>();
+      final deviceId = args['deviceId'] as int;
+      final name = args['name'] as String;
+      final store = args['store'] as bool? ?? true;
+      final data = _decode(args['payload'] as String?);
+      _applyLocal(deviceId, name, data, store);
+    }
+    return null;
+  }
+
+  /// Host only: builds a codec-safe snapshot of the entire data store.
+  List<Map<String, Object?>> _buildSnapshot() {
+    final out = <Map<String, Object?>>[];
+    _dataStore.forEach((key, value) {
+      final payload = _encode(value);
+      if (payload == null && value != null) return; // unencodable, skip
+      out.add({
+        'deviceId': key.deviceId,
+        'name': key.name,
+        'payload': payload,
+      });
+    });
+    return out;
+  }
+
+  /// Host only: forwards a dispatch to all detached windows (optionally
+  /// excluding the window that originated it).
+  void _forwardToChildren(
+    int deviceId,
+    String name,
+    Object? data,
+    bool store, {
+    String? exclude,
+  }) {
+    if (_childChannels.isEmpty) return;
+    final payload = _encode(data);
+    if (payload == null && data != null) return; // unencodable, skip
+    final args = {
+      'deviceId': deviceId,
+      'name': name,
+      'payload': payload,
+      'store': store,
+    };
+    _childChannels.forEach((windowId, channel) {
+      if (windowId == exclude) return;
+      channel.invokeMethod('onData', args).catchError((Object e) {
+        // Window may not have registered its handler yet, or has closed.
+        return null;
+      });
+    });
+  }
+
+  /// Client only: forwards a locally originated dispatch to the host.
+  void _sendToHost(int deviceId, String name, Object? data, bool store) {
+    final channel = _clientToHost;
+    if (channel == null) return;
+    final payload = _encode(data);
+    if (payload == null && data != null) return; // unencodable, skip
+    channel.invokeMethod('dispatch', {
+      'deviceId': deviceId,
+      'name': name,
+      'payload': payload,
+      'store': store,
+      'from': _selfWindowId,
+    }).catchError((Object e) {
+      debugPrint('DataBroker: failed to forward dispatch to host: $e');
+      return null;
+    });
+  }
 }
+
 
 /// Internal structure for storing data keys.
 class _DataKey {

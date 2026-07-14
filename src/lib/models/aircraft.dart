@@ -123,6 +123,30 @@ class Aircraft {
   /// Whether this aircraft has a usable position.
   bool get hasPosition => latitude != null && longitude != null;
 
+  /// Serializes to a Dump1090-style JSON map. Used to send aircraft to
+  /// detached windows via the data broker.
+  Map<String, dynamic> toJson() => {
+    'hex': hex,
+    'flight': flight,
+    'lat': latitude,
+    'lon': longitude,
+    'altitude': altitude,
+    'alt_geom': altitudeGeometric,
+    'alt_baro': altitudeBaro,
+    'speed': speed,
+    'gs': groundSpeed,
+    'track': track,
+    'squawk': squawk,
+    'vert_rate': verticalRate,
+    'baro_rate': baroRate,
+    'messages': messages,
+    'seen': seen,
+    'seen_pos': seenPos,
+    'rssi': rssi,
+    'category': category,
+    'emergency': emergency,
+  };
+
   /// Returns the best available altitude value for display.
   String getAltitudeDisplay() {
     if (altitudeBaro != null) return altitudeBaro.toString();

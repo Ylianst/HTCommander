@@ -1,8 +1,10 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <vector>
 
 #include "flutter/generated_plugin_registrant.h"
+#include <desktop_multi_window/desktop_multi_window_plugin.h>
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -29,6 +31,28 @@ bool FlutterWindow::OnCreate() {
       flutter_controller_->engine()->messenger());
   pcm_player_plugin_ = std::make_unique<PcmPlayerPlugin>(
       flutter_controller_->engine()->messenger());
+
+  // Detached tabs open in secondary windows created by desktop_multi_window.
+  // Those windows run in their own Flutter engine, which does NOT get plugins
+  // registered automatically - so window_manager, record, file_picker, etc.
+  // would throw MissingPluginException and crash the detached window. Register
+  // all plugins (and the app-specific native plugins) for every sub-window as
+  // it is created.
+  DesktopMultiWindowSetWindowCreatedCallback([](void* controller) {
+    auto* view_controller =
+        reinterpret_cast<flutter::FlutterViewController*>(controller);
+    auto* engine = view_controller->engine();
+    RegisterPlugins(engine);
+    // Keep the app-specific plugin instances alive for the sub-window's
+    // lifetime.
+    static std::vector<std::unique_ptr<BluetoothClassicPlugin>> bt_plugins;
+    static std::vector<std::unique_ptr<PcmPlayerPlugin>> pcm_plugins;
+    bt_plugins.push_back(
+        std::make_unique<BluetoothClassicPlugin>(engine->messenger()));
+    pcm_plugins.push_back(
+        std::make_unique<PcmPlayerPlugin>(engine->messenger()));
+  });
+
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {

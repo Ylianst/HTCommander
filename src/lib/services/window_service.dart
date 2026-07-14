@@ -3,6 +3,8 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 
+import 'data_broker.dart';
+
 /// Check if running on desktop platform
 bool get isDesktop {
   if (kIsWeb) return false;
@@ -40,6 +42,10 @@ class WindowService {
       ),
     );
 
+    // Register the child with the data broker so every dispatch on the main
+    // window is forwarded to this detached window (and vice-versa).
+    DataBroker.registerChildWindow(controller.windowId);
+
     _childWindows.add(controller);
     await controller.show();
 
@@ -67,11 +73,15 @@ class WindowService {
       // Ignore errors during cleanup
     }
 
+    for (final w in _childWindows) {
+      DataBroker.unregisterChildWindow(w.windowId);
+    }
     _childWindows.clear();
   }
 
   /// Remove a window from tracking (called when a child window closes)
   void removeWindow(WindowController controller) {
+    DataBroker.unregisterChildWindow(controller.windowId);
     _childWindows.removeWhere((w) => w.windowId == controller.windowId);
   }
 }

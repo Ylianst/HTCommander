@@ -12,10 +12,8 @@ import '../dialogs/mail_debug_dialog.dart';
 import '../dialogs/active_station_selector_dialog.dart';
 import '../dialogs/dialog_utils.dart';
 import '../models/station_info.dart';
-import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
-import '../winlink/mail_store.dart';
 import '../winlink/winlink_mail.dart';
 
 /// Email message data
@@ -107,6 +105,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
       callback: _onMailsChanged,
     );
     _broker.subscribe(
+      deviceId: 0,
+      name: 'MailList',
+      callback: _onMailList,
+    );
+    _broker.subscribe(
       deviceId: 1,
       name: 'WinlinkStateMessage',
       callback: _onWinlinkStateMessage,
@@ -181,12 +184,19 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
         '${two(t.hour)}:${two(t.minute)}';
   }
 
-  /// Loads all mail from the global MailStore and groups it by mailbox.
+  /// Requests the current mail list from the MailStore over the data broker.
+  /// The store responds with a 'MailList' event, handled by [_onMailList]. This
+  /// path works in both the main window and detached (client) windows.
   void _loadMails() {
-    final store = DataBroker.getDataHandler<MailStore>('MailStore');
-    if (store == null) return;
+    _broker.dispatch(deviceId: 0, name: 'MailGetAll', data: null, store: false);
+  }
 
-    final mails = store.getAllMails();
+  /// Populates the mailboxes from a 'MailList' broker event. The payload is a
+  /// list of [WinLinkMail] (rebuilt from JSON in detached windows).
+  void _onMailList(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    if (data is! List) return;
+    final mails = data.whereType<WinLinkMail>().toList();
     setState(() {
       _rawMails.clear();
       for (final box in _mailboxes.values) {
@@ -747,8 +757,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
   Future<void> _onBackupMail() async {
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
 
-    final store = DataBroker.getDataHandler<MailStore>('MailStore');
-    final mails = store?.getAllMails() ?? const <WinLinkMail>[];
+    final mails = _rawMails.values.toList();
 
     final Uint8List data;
     try {

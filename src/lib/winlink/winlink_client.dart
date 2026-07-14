@@ -42,6 +42,21 @@ class WinlinkDebugEntry {
   final bool outgoing;
   final String data;
   final bool isStateMessage;
+
+  Map<String, dynamic> toJson() => {
+    'address': address,
+    'outgoing': outgoing,
+    'data': data,
+    'isStateMessage': isStateMessage,
+  };
+
+  factory WinlinkDebugEntry.fromJson(Map<String, dynamic> json) =>
+      WinlinkDebugEntry(
+        address: json['address'] as String? ?? '',
+        outgoing: json['outgoing'] as bool? ?? false,
+        data: json['data'] as String? ?? '',
+        isStateMessage: json['isStateMessage'] as bool? ?? false,
+      );
 }
 
 /// The Winlink B2F protocol client. Supports both TCP (telnet to a CMS server)

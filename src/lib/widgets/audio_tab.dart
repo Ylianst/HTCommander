@@ -492,11 +492,21 @@ class _AudioTabState extends State<AudioTab>
 
   void _onRadioVolumeCommitted(double value) {
     if (_currentRadioDeviceId <= 0) return;
+    final level = value.round().clamp(0, 15);
     _broker.dispatch(
       deviceId: _currentRadioDeviceId,
       name: 'SetVolumeLevel',
-      data: value.round().clamp(0, 15),
+      data: level,
       store: false,
+    );
+    // Optimistically publish the new volume so other windows update instantly
+    // instead of waiting for the radio's slow volume poll. The next poll will
+    // confirm (or correct) this value. Matches the radio's own 'Volume' event
+    // (same device, stored).
+    _broker.dispatch(
+      deviceId: _currentRadioDeviceId,
+      name: 'Volume',
+      data: level,
     );
   }
 

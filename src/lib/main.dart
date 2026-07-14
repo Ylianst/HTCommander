@@ -38,6 +38,7 @@ import 'radio/software_modem_stub.dart'
 import 'services/bluetooth_service.dart';
 import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
+import 'services/data_broker_serializers.dart';
 import 'services/history_limiter.dart';
 import 'services/window_service.dart';
 import 'utils/channel_export.dart';
@@ -78,6 +79,39 @@ void main(List<String> args) async {
 
   // Initialize the DataBroker for cross-component communication
   await DataBroker.initialize();
+
+  // Register cross-window serializers so detached windows can rebuild typed
+  // values. Must happen before this window becomes a host or a client.
+  registerBrokerSerializers();
+
+  // Check if this is a sub-window on desktop platforms. This must run before any
+  // handlers are registered: detached windows are thin clients that mirror the
+  // main window's data broker over IPC and must not spin up their own handlers,
+  // servers or radio connections.
+  if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+    try {
+      final controller = await WindowController.fromCurrentEngine();
+      if (controller.arguments.isNotEmpty) {
+        final argument =
+            jsonDecode(controller.arguments) as Map<String, dynamic>;
+        // Mark this as a child window so tabs don't show "Detach..." option.
+        windowService.isChildWindow = true;
+        // Become a data-broker client bound to the host (main) window and pull
+        // a full snapshot before building the tab so synchronous getValue()
+        // calls in initState see the mirrored data.
+        await DataBroker.becomeClient(controller.windowId);
+        await DataBroker.requestSnapshot();
+        runApp(SubWindowApp(windowController: controller, argument: argument));
+        return;
+      }
+    } catch (e) {
+      // Not a sub-window, continue to main app
+    }
+  }
+
+  // This is the main window: act as the authoritative data-broker host so that
+  // detached windows can be served over IPC.
+  await DataBroker.becomeHost();
 
   // Ensure the built-in protected APRS routes ("Standard" and "None") always
   // exist before any component reads the APRS route configuration.
@@ -188,22 +222,6 @@ void main(List<String> args) async {
   // can check for and install application updates from the Help menu.
   await UpdateService.instance.init();
 
-  // Check if this is a sub-window on desktop platforms
-  if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-    try {
-      final controller = await WindowController.fromCurrentEngine();
-      if (controller.arguments.isNotEmpty) {
-        final argument =
-            jsonDecode(controller.arguments) as Map<String, dynamic>;
-        // Mark this as a child window so tabs don't show "Detach..." option
-        windowService.isChildWindow = true;
-        runApp(SubWindowApp(windowController: controller, argument: argument));
-        return;
-      }
-    } catch (e) {
-      // Not a sub-window, continue to main app
-    }
-  }
   runApp(const HTCommanderApp());
 }
 
@@ -301,9 +319,15 @@ class _SubWindowAppState extends State<SubWindowApp> {
   }
 
   Future<void> _setWindowTitle() async {
-    await windowManager.ensureInitialized();
-    await windowManager.setTitle('Handi-Talkie Commander - $tabTitle');
-    await windowManager.setMinimumSize(const Size(550, 600));
+    try {
+      await windowManager.ensureInitialized();
+      await windowManager.setTitle('Handi-Talkie Commander - $tabTitle');
+      await windowManager.setMinimumSize(const Size(550, 600));
+    } catch (e) {
+      // window_manager may be unavailable in a detached window engine on some
+      // platforms; the title is cosmetic, so ignore failures.
+      debugPrint('SubWindow: unable to set window title: $e');
+    }
   }
 
   @override

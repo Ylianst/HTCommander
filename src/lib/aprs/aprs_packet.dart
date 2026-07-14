@@ -43,6 +43,26 @@ class AprsPacket {
 
   String get symbol => symbolCode == 0 ? '' : String.fromCharCode(symbolCode);
 
+  /// Serializes for cross-window transport by encoding the underlying AX.25
+  /// frame. Consumers rebuild the fully parsed packet with [fromJson].
+  Map<String, dynamic>? toJson() => packet?.toJson();
+
+  /// Rebuilds an [AprsPacket] from data produced by [toJson]. Always returns a
+  /// non-null instance so it can be used as a data-broker serializer; if the
+  /// frame cannot be parsed as APRS the returned packet has no underlying
+  /// [packet] and is ignored by consumers.
+  static AprsPacket fromJson(Map<String, dynamic> json) {
+    final ax25 = AX25Packet.fromJson(json);
+    if (ax25 != null) {
+      final parsed = AprsPacket.parse(ax25);
+      if (parsed != null) return parsed;
+      final fallback = AprsPacket._();
+      fallback.packet = ax25;
+      return fallback;
+    }
+    return AprsPacket._();
+  }
+
   static const int _charBrace = 0x7D; // '}'
   static const int _charLBrace = 0x7B; // '{'
 

@@ -52,6 +52,22 @@ class DeviceStationStats {
   int packetsOut = 0;
   int bytesIn = 0;
   int bytesOut = 0;
+
+  Map<String, dynamic> toJson() => {
+    'packetsIn': packetsIn,
+    'packetsOut': packetsOut,
+    'bytesIn': bytesIn,
+    'bytesOut': bytesOut,
+  };
+
+  static DeviceStationStats fromJson(Map<String, dynamic> json) {
+    final d = DeviceStationStats();
+    d.packetsIn = (json['packetsIn'] as num?)?.toInt() ?? 0;
+    d.packetsOut = (json['packetsOut'] as num?)?.toInt() ?? 0;
+    d.bytesIn = (json['bytesIn'] as num?)?.toInt() ?? 0;
+    d.bytesOut = (json['bytesOut'] as num?)?.toInt() ?? 0;
+    return d;
+  }
 }
 
 /// Station statistics aggregated across all BBS instances.
@@ -69,6 +85,44 @@ class MergedStationStats {
   String get statsString =>
       '$protocol, $totalPacketsIn in / $totalPacketsOut out, '
       '$totalBytesIn in / $totalBytesOut out';
+
+  Map<String, dynamic> toJson() => {
+    'callsign': callsign,
+    'lastSeen': lastSeen.millisecondsSinceEpoch,
+    'protocol': protocol,
+    'totalPacketsIn': totalPacketsIn,
+    'totalPacketsOut': totalPacketsOut,
+    'totalBytesIn': totalBytesIn,
+    'totalBytesOut': totalBytesOut,
+    'deviceStats': deviceStats.map(
+      (k, v) => MapEntry(k.toString(), v.toJson()),
+    ),
+  };
+
+  static MergedStationStats fromJson(Map<String, dynamic> json) {
+    final m = MergedStationStats();
+    m.callsign = json['callsign'] as String? ?? '';
+    m.lastSeen = DateTime.fromMillisecondsSinceEpoch(
+      (json['lastSeen'] as num?)?.toInt() ?? 0,
+    );
+    m.protocol = json['protocol'] as String? ?? '';
+    m.totalPacketsIn = (json['totalPacketsIn'] as num?)?.toInt() ?? 0;
+    m.totalPacketsOut = (json['totalPacketsOut'] as num?)?.toInt() ?? 0;
+    m.totalBytesIn = (json['totalBytesIn'] as num?)?.toInt() ?? 0;
+    m.totalBytesOut = (json['totalBytesOut'] as num?)?.toInt() ?? 0;
+    final ds = json['deviceStats'];
+    if (ds is Map) {
+      ds.forEach((k, v) {
+        final key = int.tryParse(k.toString());
+        if (key != null && v is Map) {
+          m.deviceStats[key] = DeviceStationStats.fromJson(
+            Map<String, dynamic>.from(v),
+          );
+        }
+      });
+    }
+    return m;
+  }
 }
 
 /// Request payload for the `CreateBbs` command (device 1).

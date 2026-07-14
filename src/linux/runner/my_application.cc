@@ -9,6 +9,7 @@
 
 #include "bluetooth_classic_plugin.h"
 #include "pcm_player_plugin.h"
+#include <desktop_multi_window/desktop_multi_window_plugin.h>
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -16,6 +17,25 @@ struct _MyApplication {
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
+
+// Registers all plugins for a secondary (detached) window's Flutter engine.
+//
+// Detached tabs open in windows created by desktop_multi_window, each with its
+// own engine that gets no plugins automatically. Without this, the detached
+// window throws MissingPluginException (window_manager, record, file_picker,
+// ...) and crashes.
+static void multi_window_plugin_registrar_cb(FlPluginRegistry* registry) {
+  fl_register_plugins(registry);
+
+  g_autoptr(FlPluginRegistrar) bt_registrar =
+      fl_plugin_registry_get_registrar_for_plugin(registry,
+                                                  "BluetoothClassicPlugin");
+  bluetooth_classic_plugin_register_with_registrar(bt_registrar);
+
+  g_autoptr(FlPluginRegistrar) pcm_registrar =
+      fl_plugin_registry_get_registrar_for_plugin(registry, "PcmPlayerPlugin");
+  pcm_player_plugin_register_with_registrar(pcm_registrar);
+}
 
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
@@ -89,6 +109,10 @@ static void my_application_activate(GApplication* application) {
       fl_plugin_registry_get_registrar_for_plugin(FL_PLUGIN_REGISTRY(view),
                                                   "PcmPlayerPlugin");
   pcm_player_plugin_register_with_registrar(pcm_registrar);
+
+  // Ensure detached (sub-)windows also get all plugins registered on creation.
+  desktop_multi_window_plugin_set_window_created_callback(
+      multi_window_plugin_registrar_cb);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

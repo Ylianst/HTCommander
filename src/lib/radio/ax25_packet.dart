@@ -307,6 +307,49 @@ class AX25Packet {
     return rdata;
   }
 
+  /// Serializes this packet for cross-window transport. The AX.25 frame itself
+  /// is encoded to bytes (Base64) and the out-of-band metadata that is not part
+  /// of the frame (receive time, direction, auth state, channel) is carried
+  /// alongside so [fromJson] can fully rebuild the packet.
+  Map<String, dynamic> toJson() => {
+    'bytes': base64.encode(toByteArray()),
+    'time': time.millisecondsSinceEpoch,
+    'incoming': incoming,
+    'authState': authState.index,
+    'channelId': channelId,
+    'channelName': channelName,
+  };
+
+  /// Rebuilds a packet produced by [toJson] (used when a detached window
+  /// receives an AX.25 frame over the data broker). Returns null if the bytes
+  /// cannot be decoded.
+  static AX25Packet? fromJson(Map<String, dynamic> json) {
+    try {
+      final bytes = base64.decode(json['bytes'] as String);
+      final fragment = TncDataFragment(
+        finalFragment: true,
+        fragmentId: 0,
+        data: Uint8List.fromList(bytes),
+        channelId: (json['channelId'] as num?)?.toInt() ?? -1,
+        regionId: -1,
+        channelName: json['channelName'] as String? ?? '',
+        incoming: json['incoming'] as bool? ?? false,
+        time: DateTime.fromMillisecondsSinceEpoch(
+          (json['time'] as num?)?.toInt() ?? 0,
+        ),
+      );
+      final pkt = decode(fragment);
+      if (pkt == null) return null;
+      final authIdx = (json['authState'] as num?)?.toInt() ?? 0;
+      if (authIdx >= 0 && authIdx < AuthState.values.length) {
+        pkt.authState = AuthState.values[authIdx];
+      }
+      return pkt;
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   String toString() {
     final buf = StringBuffer();
