@@ -84,6 +84,10 @@
   "@languageFrench": {
     "description": "French language option."
   },
+  "languageSpanish": "Spanish",
+  "@languageSpanish": {
+    "description": "Spanish language option."
+  },
 
   "menuAudio": "Audio",
   "@menuAudio": {

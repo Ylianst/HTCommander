@@ -872,6 +872,10 @@ class _SettingsDialogState extends State<SettingsDialog>
                       value: 'fr',
                       child: Text(l10n.languageFrench),
                     ),
+                    DropdownMenuItem(
+                      value: 'es',
+                      child: Text(l10n.languageSpanish),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value == null) return;
