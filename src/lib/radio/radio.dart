@@ -191,6 +191,16 @@ class Radio {
   bool _savedScan = false;
   int _savedDualWatch = 0;
 
+  // Frequency-mode refresh throttle. While off the preset channels
+  // (currChId >= 254: VFO free-tune / NOAA) the live frequency is fetched via
+  // FREQ_MODE_GET_STATUS on each htStatusChanged, throttled to avoid flooding
+  // the link when RSSI-driven status events arrive rapidly.
+  DateTime? _lastFreqModeRead;
+  static const Duration _freqModeReadThrottle = Duration(milliseconds: 300);
+  // Tracks the FM broadcast (is_radio) state so we request the FM frequency once
+  // when the radio enters FM broadcast mode.
+  bool _wasFmBroadcast = false;
+
   // Receive buffer for GAIA decoding
   final List<int> _receiveBuffer = [];
 
@@ -2287,6 +2297,12 @@ class Radio {
       case RadioBasicCommand.getHtStatus:
         _handleHtStatus(cmd);
         break;
+      case RadioBasicCommand.radioGetStatus:
+        _handleRadioStatus(cmd);
+        break;
+      case RadioBasicCommand.freqModeGetStatus:
+        _handleFreqModeStatus(cmd);
+        break;
       case RadioBasicCommand.readRfCh:
         _handleReadRfCh(cmd);
         break;
@@ -2387,6 +2403,16 @@ class Radio {
         Uint8List.fromList([RadioNotification.htStatusChanged.value]),
       );
 
+      // Register for FM broadcast radio status changes (only when the radio has
+      // the FM broadcast receiver) so its frequency stays in sync while active.
+      if (info?.supportRadio ?? false) {
+        _sendCommand(
+          RadioCommandGroup.basic,
+          RadioBasicCommand.registerNotification,
+          Uint8List.fromList([RadioNotification.radioStatusChanged.value]),
+        );
+      }
+
       // On web BLE, issue staged init reads after dev info is parsed.
       if (kIsWeb) {
         _sendCommand(
@@ -2436,6 +2462,39 @@ class Radio {
     if (htStatus != null) {
       _dispatch('HtStatus', htStatus!.toJson());
     }
+  }
+
+  /// While the radio is off its preset channels (currChId >= 254: VFO free-tune
+  /// or NOAA weather) the tuned frequency is not in the HT status event and is
+  /// absent from this radio's short READ_SETTINGS struct. Query the dedicated
+  /// frequency-mode status, which returns the live tuned frequency.
+  void _requestFrequencyModeFreq() {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.freqModeGetStatus,
+      null,
+    );
+  }
+
+  /// Parses the FREQ_MODE_GET_STATUS reply. Layout (full command frame):
+  ///   data[4]    = reply status (0 = success)
+  ///   data[5..8] = current frequency in Hz, big-endian (top 2 bits = modulation)
+  /// e.g. 09 B0 50 F0 -> 162_550_000 Hz -> 162.550 MHz. Dispatched as
+  /// 'FreqModeFreq' (int Hz) for the radio panel / status bar.
+  void _handleFreqModeStatus(Uint8List data) {
+    if (data.length < 9 || data[4] != 0) return;
+    final freqHz = RadioUtils.getInt(data, 5) & 0x3FFFFFFF;
+    if (freqHz > 0) {
+      _dispatch('FreqModeFreq', freqHz);
+    }
+  }
+
+  /// Parses the FM broadcast receiver status from a RADIO_GET_STATUS reply or a
+  /// radioStatusChanged notification (both put the payload at offset 5) and
+  /// dispatches it as `FmRadioStatus` for the radio panel / status bar.
+  void _handleRadioStatus(Uint8List data) {
+    final fm = RadioFmRadioStatus.fromBytes(data);
+    _dispatch('FmRadioStatus', fm.toJson());
   }
 
   void _handleReadRfCh(Uint8List data) {
@@ -2566,6 +2625,16 @@ class Radio {
         // The notification contains the settings data inline (starting at offset 5)
         _handleSettingsChanged(data);
         break;
+      case RadioNotification.radioStatusChanged:
+        // FM broadcast receiver status (frequency/seek) changed. Logged
+        // unconditionally (not gated by the "Show Bluetooth Packets" debug
+        // option) to aid investigation of frequency-mode behavior.
+        _broker.logInfo(
+          '[Radio $deviceId] Notification ${notification.name}: '
+          '${RadioUtils.bytesToHex(data)}',
+        );
+        _handleRadioStatus(data);
+        break;
       case RadioNotification.bssSettingsChanged:
         _sendCommand(
           RadioCommandGroup.basic,
@@ -2590,6 +2659,29 @@ class Radio {
     htStatus = RadioHtStatus.fromBytes(data);
     if (htStatus != null) {
       _dispatch('HtStatus', htStatus!.toJson());
+
+      // In frequency mode (off the preset channels) the live frequency is not in
+      // the HT status event, so fetch it via FREQ_MODE_GET_STATUS, throttled to
+      // avoid flooding the link when RSSI-driven status events arrive rapidly.
+      if (htStatus!.currChId >= 254) {
+        final now = DateTime.now();
+        if (_lastFreqModeRead == null ||
+            now.difference(_lastFreqModeRead!) >= _freqModeReadThrottle) {
+          _lastFreqModeRead = now;
+          _requestFrequencyModeFreq();
+        }
+      }
+
+      // When the FM broadcast receiver becomes active, request its current
+      // frequency once (subsequent changes arrive via radioStatusChanged).
+      if (htStatus!.isRadio && !_wasFmBroadcast) {
+        _sendCommand(
+          RadioCommandGroup.basic,
+          RadioBasicCommand.radioGetStatus,
+          null,
+        );
+      }
+      _wasFmBroadcast = htStatus!.isRadio;
 
       // Check if region changed
       if (oldRegion != htStatus!.currRegion && oldRegion != -1) {

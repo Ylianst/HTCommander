@@ -1204,6 +1204,17 @@ class AppLocalizationsJa extends AppLocalizations {
   String get riNoaa => 'NOAA';
 
   @override
+  String get riWeather => '気象';
+
+  @override
+  String riWeatherChannel(int number) {
+    return '気象 $number';
+  }
+
+  @override
+  String get riBroadcastFm => 'FMラジオ';
+
+  @override
   String get riRadioLabel => '無線機';
 
   @override

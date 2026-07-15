@@ -35,6 +35,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   String? _currentState;
   RadioHtStatus? _currentHtStatus;
   RadioSettings? _currentSettings;
+  RadioFmRadioStatus? _fmRadioStatus;
+  // Live tuned frequency (Hz) while in frequency mode, probed from the radio's
+  // current RF channel. 0 when unknown / not in frequency mode.
+  int _freqModeFreqHz = 0;
   List<RadioChannelInfo>? _currentChannels;
   // Full channel objects (with tones, de-emphasis, power, etc.) keyed by
   // channelId, used as the payload when a channel is dragged out to be shared.
@@ -150,6 +154,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _currentState = null;
     _currentHtStatus = null;
     _currentSettings = null;
+    _fmRadioStatus = null;
+    _freqModeFreqHz = 0;
     _currentChannels = null;
     _fullChannels = {};
     _friendlyName = '';
@@ -168,6 +174,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         'State',
         'HtStatus',
         'Settings',
+        'FmRadioStatus',
+        'FreqModeFreq',
         'Channels',
         'FriendlyName',
         'GpsEnabled',
@@ -195,6 +203,13 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       'Settings',
       (json) => RadioSettings.fromJson(json),
     );
+    _fmRadioStatus = _broker.getJsonValue<RadioFmRadioStatus>(
+      widget.deviceId,
+      'FmRadioStatus',
+      (json) => RadioFmRadioStatus.fromJson(json),
+    );
+    _freqModeFreqHz =
+        _broker.getValue<int>(widget.deviceId, 'FreqModeFreq') ?? 0;
     _currentChannels = _broker.getJsonListValue<RadioChannelInfo>(
       widget.deviceId,
       'Channels',
@@ -266,6 +281,14 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           if (data is Map<String, dynamic>) {
             _currentSettings = RadioSettings.fromJson(data);
           }
+          break;
+        case 'FmRadioStatus':
+          if (data is Map<String, dynamic>) {
+            _fmRadioStatus = RadioFmRadioStatus.fromJson(data);
+          }
+          break;
+        case 'FreqModeFreq':
+          _freqModeFreqHz = data as int? ?? 0;
           break;
         case 'Channels':
           if (data is List) {
@@ -387,7 +410,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     return _currentChannels![idx];
   }
 
-  bool get _isNoaaChannel {
+  bool get _isFrequencyMode {
     if (_currentHtStatus != null && _currentHtStatus!.currChId >= 254) {
       return true;
     }
@@ -395,32 +418,87 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     return false;
   }
 
+  /// True when the built-in FM broadcast receiver is on. FM broadcast is shown
+  /// on VFO B, so this keeps VFO A on its normal channel.
+  bool get _isFmBroadcast => _fmRadioStatus?.isOn ?? false;
+
+  /// True when the radio is on the NOAA weather sub-band.
+  bool get _isWeatherMode => (_currentSettings?.wxMode ?? 0) != 0;
+
+  /// True when VFO A should show a live frequency instead of a channel name.
+  /// FM broadcast lives on VFO B, so it never forces VFO A into frequency mode.
+  bool get _showFrequencyMode => _isFrequencyMode && !_isFmBroadcast;
+
+  /// NOAA weather frequencies (Hz) mapped to their channel number (WX1..WX7).
+  static const Map<int, int> _noaaWeatherChannel = {
+    162550000: 1,
+    162400000: 2,
+    162475000: 3,
+    162425000: 4,
+    162450000: 5,
+    162500000: 6,
+    162525000: 7,
+  };
+
+  /// The current VFO / NOAA tuned frequency in Hz (0 when unknown).
+  int get _vfoFreqHz {
+    if (_freqModeFreqHz > 0) return _freqModeFreqHz;
+    final s = _currentSettings;
+    if (s != null) {
+      final hz = s.vfoX == 2 ? s.vfo2FreqHz : s.vfo1FreqHz;
+      if (hz > 0) return hz;
+    }
+    return 0;
+  }
+
+  /// The live VFO/NOAA frequency (MHz string, no unit) shown on VFO A while in
+  /// frequency mode.
+  String get _frequencyModeFreq {
+    final hz = _vfoFreqHz;
+    return hz > 0 ? (hz / 1000000).toStringAsFixed(3) : '';
+  }
+
+  /// The small-box caption shown under the VFO A frequency while in frequency
+  /// mode: the numbered weather channel when the frequency matches a NOAA
+  /// channel, otherwise a generic Weather label.
+  String get _frequencyModeCaption {
+    final l10n = AppLocalizations.of(context);
+    final wx = _noaaWeatherChannel[_vfoFreqHz];
+    if (wx != null) return l10n.riWeatherChannel(wx);
+    if (_isWeatherMode) return l10n.riWeather;
+    return '';
+  }
+
   bool get _isDualChannel => _currentSettings?.doubleChannel == 1;
   bool get _isScanning => _currentSettings?.scan ?? false;
 
   String get _vfo1Label {
-    if (_isNoaaChannel &&
-        _currentHtStatus != null &&
-        _currentHtStatus!.currChId >= 254) {
-      return 'NOAA';
+    // In frequency mode the large top box shows the live frequency (with unit)
+    // instead of a channel name; the mode caption drops to the small box below.
+    if (_showFrequencyMode) {
+      final freq = _frequencyModeFreq;
+      if (freq.isNotEmpty) return '$freq MHz';
+      final caption = _frequencyModeCaption;
+      if (caption.isNotEmpty) return caption;
+      return '';
     }
     final ch = _channelA;
     if (ch == null) return '';
-    if (ch.channelId >= 254) return 'NOAA';
     if (ch.name.isNotEmpty) return ch.name;
     if (ch.rxFreq > 0) return (ch.rxFreq / 1000000).toStringAsFixed(3);
     return 'Empty';
   }
 
   String get _vfo1Freq {
-    if (_isNoaaChannel &&
-        _currentHtStatus != null &&
-        _currentHtStatus!.currChId >= 254) {
-      return '';
+    // In frequency mode the small box shows the mode caption (Weather / Broadcast
+    // FM) beneath the large frequency; empty for a plain VFO free-tune or until a
+    // frequency is available.
+    if (_showFrequencyMode) {
+      return _frequencyModeFreq.isNotEmpty ? _frequencyModeCaption : '';
     }
     final ch = _channelA;
     if (ch == null) return '';
-    if (ch.channelId >= 254 || ch.name.isNotEmpty) {
+    if (ch.name.isNotEmpty) {
       return ch.rxFreq > 0 ? '${ch.frequencyDisplay} MHz' : '';
     }
     if (ch.rxFreq > 0) return ' MHz';
@@ -435,6 +513,14 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   String get _vfo2Label {
+    // FM broadcast uses VFO B: show the FM station frequency in the large text.
+    if (_isFmBroadcast) {
+      final fm = _fmRadioStatus;
+      if (fm != null && fm.freqHz > 0) return '${fm.frequencyDisplay} MHz';
+      return 'FM';
+    }
+    // In frequency mode VFO B is not active; keep it blank.
+    if (_showFrequencyMode) return '';
     if (_isScanning) {
       // Scanning mode
       if (_currentHtStatus != null && _currentChannels != null) {
@@ -466,6 +552,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   String get _vfo2Freq {
+    // FM broadcast uses VFO B: show "FM" in the small text under the frequency.
+    if (_isFmBroadcast) return 'FM';
+    // In frequency mode VFO B is not active; keep it blank.
+    if (_showFrequencyMode) return '';
     if (_isScanning) {
       if (_currentHtStatus != null && _currentChannels != null) {
         final currChId = _currentHtStatus!.currChId;
@@ -497,6 +587,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   String get _vfo2Status {
+    // FM broadcast uses VFO B; no extra status text.
+    if (_isFmBroadcast) return '';
+    // In frequency mode VFO B is not active; keep it blank.
+    if (_showFrequencyMode) return '';
     if (_isScanning) {
       // Only show "Scanning..." as the status when a channel name is shown in
       // the label. When the label itself shows "Scanning..." (no valid channel),
@@ -1229,12 +1323,16 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     int selectedChannelB,
   ) {
     final isChannelA = channel.channelId == selectedChannelA;
-    final isChannelB = _isDualChannel && channel.channelId == selectedChannelB;
+    // While FM broadcast is active VFO B shows the FM station rather than a
+    // memory channel, so don't highlight VFO B's channel in the grid.
+    final isChannelB = _isDualChannel &&
+        !_isFmBroadcast &&
+        channel.channelId == selectedChannelB;
     final palette = ChannelPalette.of(context);
 
     Color bgColor;
-    if (_isNoaaChannel) {
-      // NOAA active - no highlighting
+    if (_isFrequencyMode) {
+      // Frequency mode active - no channel highlighting
       bgColor = palette.base;
     } else if (isChannelA) {
       bgColor = palette.selected;

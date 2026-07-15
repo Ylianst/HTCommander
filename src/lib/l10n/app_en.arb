@@ -874,6 +874,16 @@
   "riMediumPower": "Medium Power",
   "riChannelCount": "Channel Count",
   "riNoaa": "NOAA",
+  "riWeather": "Weather",
+  "riWeatherChannel": "Weather {number}",
+  "@riWeatherChannel": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "riBroadcastFm": "Broadcast FM",
   "riRadioLabel": "Radio",
   "riVfo": "VFO",
   "riFreqRangeCount": "Freq Range Count",

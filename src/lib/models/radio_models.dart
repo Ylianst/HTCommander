@@ -81,6 +81,42 @@ class RadioHtStatus {
   };
 }
 
+/// FM broadcast radio status - live status of the built-in FM broadcast
+/// receiver (RADIO_GET_STATUS reply / radioStatusChanged notification).
+class RadioFmRadioStatus {
+  final bool isOn;
+  final bool isSeeking;
+
+  /// Decoded FM broadcast frequency in Hz.
+  final int freqHz;
+
+  RadioFmRadioStatus({
+    this.isOn = false,
+    this.isSeeking = false,
+    this.freqHz = 0,
+  });
+
+  factory RadioFmRadioStatus.fromJson(Map<String, dynamic> json) {
+    return RadioFmRadioStatus(
+      isOn: json['isOn'] as bool? ?? false,
+      isSeeking: json['isSeeking'] as bool? ?? false,
+      freqHz: json['freqHz'] as int? ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'isOn': isOn,
+    'isSeeking': isSeeking,
+    'freqHz': freqHz,
+  };
+
+  /// Frequency display in MHz with 2 decimal places (FM broadcast spacing).
+  String get frequencyDisplay {
+    if (freqHz == 0) return '';
+    return (freqHz / 1000000).toStringAsFixed(2);
+  }
+}
+
 /// Radio settings - configuration settings for the radio
 class RadioSettings {
   final int channelA;
@@ -164,6 +200,13 @@ class RadioSettings {
     this.vfo1ModFreqX = 0,
     this.vfo2ModFreqX = 0,
   });
+
+  /// Decoded VFO1 (Band A) frequency in Hz. The low 30 bits of the packed
+  /// vfo1_mod_freq_x field hold the frequency; the top 2 bits are modulation.
+  int get vfo1FreqHz => vfo1ModFreqX & 0x3FFFFFFF;
+
+  /// Decoded VFO2 (Band B) frequency in Hz.
+  int get vfo2FreqHz => vfo2ModFreqX & 0x3FFFFFFF;
 
   factory RadioSettings.fromJson(Map<String, dynamic> json) {
     return RadioSettings(

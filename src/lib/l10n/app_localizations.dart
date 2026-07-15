@@ -2298,6 +2298,24 @@ abstract class AppLocalizations {
   /// **'NOAA'**
   String get riNoaa;
 
+  /// No description provided for @riWeather.
+  ///
+  /// In en, this message translates to:
+  /// **'Weather'**
+  String get riWeather;
+
+  /// No description provided for @riWeatherChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Weather {number}'**
+  String riWeatherChannel(int number);
+
+  /// No description provided for @riBroadcastFm.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast FM'**
+  String get riBroadcastFm;
+
   /// No description provided for @riRadioLabel.
   ///
   /// In en, this message translates to:

@@ -1197,6 +1197,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get riNoaa => 'NOAA';
 
   @override
+  String get riWeather => '天气';
+
+  @override
+  String riWeatherChannel(int number) {
+    return '天气 $number';
+  }
+
+  @override
+  String get riBroadcastFm => '调频广播';
+
+  @override
   String get riRadioLabel => '电台';
 
   @override

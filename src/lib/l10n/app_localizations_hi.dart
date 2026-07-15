@@ -1225,6 +1225,17 @@ class AppLocalizationsHi extends AppLocalizations {
   String get riNoaa => 'NOAA';
 
   @override
+  String get riWeather => 'मौसम';
+
+  @override
+  String riWeatherChannel(int number) {
+    return 'मौसम $number';
+  }
+
+  @override
+  String get riBroadcastFm => 'एफएम रेडियो';
+
+  @override
   String get riRadioLabel => 'रेडियो';
 
   @override

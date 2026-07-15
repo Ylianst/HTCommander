@@ -1230,6 +1230,17 @@ class AppLocalizationsEs extends AppLocalizations {
   String get riNoaa => 'NOAA';
 
   @override
+  String get riWeather => 'Meteorología';
+
+  @override
+  String riWeatherChannel(int number) {
+    return 'Meteorología $number';
+  }
+
+  @override
+  String get riBroadcastFm => 'Radio FM';
+
+  @override
   String get riRadioLabel => 'Radio';
 
   @override

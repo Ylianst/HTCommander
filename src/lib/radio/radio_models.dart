@@ -178,6 +178,29 @@ class RadioHtStatus {
   };
 }
 
+/// FM broadcast radio status parsed from the RADIO_GET_STATUS reply and the
+/// radioStatusChanged notification. Both place the payload at offset 5:
+/// [flags, 0x00, freqHi, freqLo]. flags: 0x80 = FM on, 0x10 = seeking.
+/// Frequency is a big-endian uint16 in units of 10 kHz (e.g. 0x290E = 10510 ->
+/// 105.10 MHz -> 105_100_000 Hz). Confirmed from live notifications:
+///   08 D0 00 29 0E -> on, 105.10   |   08 40 00 29 AE -> off.
+class RadioFmRadioStatus {
+  final bool isOn;
+  final bool isSeeking;
+  final int freqHz;
+
+  RadioFmRadioStatus.fromBytes(Uint8List msg)
+    : isOn = (RadioUtils.getByte(msg, 5) & 0x80) != 0,
+      isSeeking = (RadioUtils.getByte(msg, 5) & 0x10) != 0,
+      freqHz = RadioUtils.getShort(msg, 7) * 10000;
+
+  Map<String, dynamic> toJson() => {
+    'isOn': isOn,
+    'isSeeking': isSeeking,
+    'freqHz': freqHz,
+  };
+}
+
 /// Radio settings - configuration settings for the radio
 class RadioSettings {
   final Uint8List rawData;
