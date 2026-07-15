@@ -51,17 +51,66 @@ Byte layouts, sequencing, and error codes are ported from
   `VM_CONNECT → UPDATE_SYNC_REQ/CFM → UPDATE_START_REQ/CFM(OK) →
   UPDATE_DATA_START_REQ → loop[UPDATE_DATA_BYTES_REQ → UPDATE_DATA(chunk,
   is_final)] → UPDATE_IS_VALIDATION_DONE_REQ → UPDATE_TRANSFER_COMPLETE_IND →
-  UPDATE_TRANSFER_COMPLETE_RES(true)` → radio reboots, BT drops.
+  UPDATE_TRANSFER_COMPLETE_RES(action=0x00)` → radio reboots into the trial
+  image, BT drops.
 
   **Phase 2 — confirm** (fresh connection)
-  `VM_CONNECT → UPDATE_SYNC_REQ/CFM → UPDATE_START_REQ/CFM(GOTO_NEXT_STATE=9) →
-  UPDATE_IN_PROGRESS_RES → UPDATE_COMPLETE_IND → VM_DISCONNECT`.
+  `VM_CONNECT → UPDATE_SYNC_REQ/CFM(update_state=IN_PROGRESS=3) →
+  UPDATE_START_REQ/CFM(GOTO_NEXT_STATE=9) → UPDATE_IN_PROGRESS_RES(0x00) →
+  UPDATE_COMPLETE_IND → VM_DISCONNECT`.
 
 - Abort: `UPDATE_ABORT_REQ → UPDATE_ABORT_CFM`. Errors via `UPDATE_ERROR`:
   `BATTERY_LOW` (33), `SYNC_IS_DIFFERENT` (129).
 
 The update is **fail-safe by design**: the image is staged and only committed in
 Phase 2, so an interrupted flash leaves the old firmware intact.
+
+### ⚠️ Critical correction — the commit finalize is a two-stage sequence (2026-07)
+
+This correction supersedes the `is_complete=True` behaviour ported from the
+upstream `benlink` reference. Two things were wrong in *every* implementation
+ported from `benlink` (including our own `firmware_updater.dart` /
+`firmware_vm_protocol.dart`), which is why the radio uploaded the image but then
+**either did not reboot, or rebooted back into the old firmware**. The corrected
+semantics were recovered off-the-wire from the vendor app's own debug strings
+(`UpdateVMFragment`) — not guesswork — and confirmed with a successful
+end-to-end OTA commit on the VR-N76 / GA-5WB over Bluetooth.
+
+1. **The `UPDATE_TRANSFER_COMPLETE_RES` action byte is inverted from its
+   `is_complete` naming.** The single body byte means:
+   - **`0x00` = proceed / commit-to-trial-reboot** — this is what actually makes
+     the radio reboot into the new image.
+   - **`0x01` = abort.**
+
+   `benlink`'s `is_complete=True` serializes to `0x01`, which is **abort** — so
+   the radio silently discarded the staged image and never rebooted. The app
+   must send **`0x00`** here to trigger the trial reboot. (Our
+   `VmControl.transferCompleteRes(isComplete: true)` currently emits `0x01` and
+   has the same bug — see *Fixes required*.)
+
+2. **Phase 2 is a mandatory second stage, not optional.** After the trial
+   reboot the app must reconnect and run the confirm sequence to make the update
+   **permanent**:
+   `VM_CONNECT → UPDATE_SYNC_REQ → UPDATE_START_REQ → UPDATE_IN_PROGRESS_RES
+   (action byte `0x00`) → UPDATE_COMPLETE_IND`.
+   The post-reboot `UPDATE_SYNC_CFM` reports **`update_state = 3` (IN_PROGRESS)**
+   — the resume point that *only appears once the Phase 1 `0x00` has actually
+   applied the trial*. Seeing `update_state = 3` on reconnect is therefore the
+   positive confirmation that Phase 1's commit byte worked. Without it, the
+   radio has booted the old firmware and the update did not take.
+
+#### Fixes required in our code (implement later)
+
+- `src/lib/radio/firmware_vm_protocol.dart` — `VmControl.transferCompleteRes`
+  must send `0x00` to commit (`0x01` = abort). Today it maps
+  `isComplete: true → 0x01`, which aborts. Invert the byte (and rename the
+  parameter to avoid the same trap, e.g. `commit`/`proceed`).
+- `src/lib/radio/firmware_updater.dart` — `transfer()` calls
+  `transferCompleteRes(isComplete: true)`; after the byte fix it must send the
+  commit (`0x00`) value. Optionally assert the Phase 2 `UPDATE_SYNC_CFM`
+  reports `update_state == 3` before sending `UPDATE_IN_PROGRESS_RES`.
+- `UPDATE_IN_PROGRESS_RES` already sends a `0x00` body byte, which is correct;
+  no change needed there beyond confirming it against a live commit.
 
 ## Layer 1 — Check (gRPC)
 

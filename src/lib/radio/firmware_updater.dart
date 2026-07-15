@@ -47,6 +47,10 @@ class FirmwareUpdater {
   static const Duration _validationTimeout = Duration(seconds: 120);
   static const Duration _completeTimeout = Duration(seconds: 120);
 
+  /// `update_state` reported in UPDATE_SYNC_CFM once the radio has booted the
+  /// staged trial image and is waiting to be confirmed (Phase 2).
+  static const int _updateStateInProgress = 3;
+
   /// Phase 1: transfer the firmware image to the radio.
   ///
   /// Returns once the radio has acknowledged the complete transfer
@@ -114,10 +118,12 @@ class FirmwareUpdater {
         _validationTimeout,
       );
 
-      // Tell the radio the transfer is complete — it will now reboot.
+      // Tell the radio the transfer is complete and to commit into the trial
+      // image — it will now reboot. The action byte MUST be 0x00 (commit);
+      // 0x01 is abort. See VmControl.transferCompleteRes.
       radio.sendVmCommand(
         RadioExtendedCommand.vmControl,
-        VmControl.transferCompleteRes(isComplete: true),
+        VmControl.transferCompleteRes(commit: true),
       );
     } catch (_) {
       _abort();
@@ -138,7 +144,19 @@ class FirmwareUpdater {
 
     try {
       await updater._vmConnect(inbox);
-      await updater._sync(inbox);
+      final syncCfm = await updater._sync(inbox);
+
+      // On a unit that applied the Phase 1 trial, the post-reboot UPDATE_SYNC_CFM
+      // reports update_state = 3 (IN_PROGRESS) — the resume point that only
+      // appears once the Phase 1 commit byte (0x00) actually took effect.
+      if (syncCfm.syncUpdateState != _updateStateInProgress) {
+        throw FirmwareUpdateException(
+          'Post-reboot UPDATE_SYNC_CFM reported update_state '
+          '${syncCfm.syncUpdateState}, expected $_updateStateInProgress '
+          '(IN_PROGRESS). The radio may not have committed the trial image or '
+          'has not finished rebooting.',
+        );
+      }
 
       final cfmCode = await updater._start(inbox);
       if (cfmCode != UpdateStartCfmCode.gotoNextState) {
@@ -184,13 +202,13 @@ class FirmwareUpdater {
     }
   }
 
-  Future<void> _sync(_VmEventInbox inbox) async {
+  Future<VmuPacket> _sync(_VmEventInbox inbox) async {
     final future = _waitVmuFuture(inbox, VmuPacketType.updateSyncCfm, _vmuTimeout);
     radio.sendVmCommand(
       RadioExtendedCommand.vmControl,
       VmControl.syncReq(bundle.md5Tail),
     );
-    await future;
+    return future;
   }
 
   Future<UpdateStartCfmCode> _start(_VmEventInbox inbox) async {

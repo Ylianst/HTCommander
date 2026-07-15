@@ -146,10 +146,16 @@ class VmControl {
   static Uint8List isValidationDoneReq() =>
       _build(VmControlType.updateIsValidationDoneReq, Uint8List(0));
 
-  /// UPDATE_TRANSFER_COMPLETE_RES — one bool byte.
-  static Uint8List transferCompleteRes({required bool isComplete}) => _build(
+  /// UPDATE_TRANSFER_COMPLETE_RES — one action byte.
+  ///
+  /// The action byte semantics are **inverted** from the `is_complete` naming
+  /// used by the `benlink` reference: `0x00` = proceed / commit-to-trial-reboot
+  /// (the radio reboots into the new image), `0x01` = abort. `benlink`'s
+  /// `is_complete=True` sends `0x01`, which is *abort* — so the radio never
+  /// rebooted. Pass `commit: true` to send `0x00` and trigger the trial reboot.
+  static Uint8List transferCompleteRes({required bool commit}) => _build(
     VmControlType.updateTransferCompleteRes,
-    Uint8List.fromList([isComplete ? 1 : 0]),
+    Uint8List.fromList([commit ? 0 : 1]),
   );
 
   /// UPDATE_IN_PROGRESS_RES — one padding byte (0).

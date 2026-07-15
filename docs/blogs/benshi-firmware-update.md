@@ -5,6 +5,25 @@ fork adds on top of stock `benlink` — from asking a cloud server "is there an
 update?" all the way down to the byte-by-byte handshake that streams a new image
 into the radio over Bluetooth.*
 
+> **Update (2026-07) — the commit finalize was wrong everywhere.** After this
+> post first went out, an end-to-end OTA commit on the VR-N76 / GA-5WB finally
+> succeeded, and it exposed two bugs present in *every* `benlink`-derived
+> implementation (including the early HTCommander port):
+>
+> 1. **The `UPDATE_TRANSFER_COMPLETE_RES` action byte is inverted from its
+>    `is_complete` naming:** `0x00` = *proceed / commit-to-trial-reboot*,
+>    `0x01` = *abort*. `benlink`'s `is_complete=True` sends `0x01` — abort — so
+>    the radio never rebooted. You must send **`0x00`**.
+> 2. **The finalize is genuinely two-stage.** After the trial reboot you must
+>    reconnect and run `SYNC → START → UPDATE_IN_PROGRESS_RES (0x00) →
+>    UPDATE_COMPLETE_IND` to make it permanent. On a unit that applied the trial,
+>    the post-reboot `UPDATE_SYNC_CFM` reports **`update_state = 3` (IN_PROGRESS)**
+>    — the resume point that only appears once the Phase 1 `0x00` actually took.
+>
+> These semantics were recovered off-the-wire from the vendor app's own
+> `UpdateVMFragment` debug strings — not guesswork. The sequences below are
+> annotated with the corrected bytes.
+
 
 ## The 30,000-foot view
 
@@ -149,8 +168,8 @@ sequenceDiagram
     end
     App->>Radio: UPDATE_IS_VALIDATION_DONE_REQ
     Radio-->>App: UPDATE_TRANSFER_COMPLETE_IND
-    App->>Radio: UPDATE_TRANSFER_COMPLETE_RES (is_complete=True)
-    Note over Radio: Radio reboots, BT drops
+    App->>Radio: UPDATE_TRANSFER_COMPLETE_RES (action=0x00 = commit)
+    Note over Radio: Radio reboots into trial image, BT drops
 ```
 
 Step by step:
@@ -200,9 +219,18 @@ Step by step:
    the image (CRC/MD5) and, when it passes, sends `UPDATE_TRANSFER_COMPLETE_IND`.
    Validation can take a while, so this step gets a generous timeout.
 
-7. **`UPDATE_TRANSFER_COMPLETE_RES (is_complete=True)`** — the app confirms. This
-   is the trigger: the radio **reboots** into the newly-staged image, and the
-   Bluetooth connection drops.
+7. **`UPDATE_TRANSFER_COMPLETE_RES (action = 0x00)`** — the app confirms. This
+   is the trigger: the radio **reboots** into the newly-staged trial image, and
+   the Bluetooth connection drops.
+
+   > ⚠️ **This is where every `benlink`-derived implementation got it wrong.**
+   > The single action byte is **inverted** from its `is_complete` naming:
+   > **`0x00` = proceed / commit-to-trial-reboot**, **`0x01` = abort**.
+   > `benlink`'s `is_complete=True` serializes to `0x01` — which is *abort* — so
+   > the radio quietly discarded the staged image and **never rebooted**. Sending
+   > `0x00` is what actually kicks off the trial reboot. (The byte semantics were
+   > recovered off-the-wire from the vendor app's own `UpdateVMFragment` debug
+   > strings, not guessed.)
 
 If anything throws during Phase 1, the updater sends a best-effort
 **`UPDATE_ABORT_REQ`** so the radio doesn't get stuck half-updated.
@@ -224,10 +252,10 @@ sequenceDiagram
     App->>Radio: VM_CONNECT
     Radio-->>App: (reply: SUCCESS)
     App->>Radio: UPDATE_SYNC_REQ (md5_tail)
-    Radio-->>App: UPDATE_SYNC_CFM
+    Radio-->>App: UPDATE_SYNC_CFM (update_state = IN_PROGRESS = 3)
     App->>Radio: UPDATE_START_REQ
     Radio-->>App: UPDATE_START_CFM (code = GOTO_NEXT_STATE)
-    App->>Radio: UPDATE_IN_PROGRESS_RES
+    App->>Radio: UPDATE_IN_PROGRESS_RES (action=0x00)
     Radio-->>App: UPDATE_COMPLETE_IND
     App->>Radio: VM_DISCONNECT
 ```
@@ -235,7 +263,11 @@ sequenceDiagram
 8. **`VM_CONNECT`** again, on the fresh post-reboot connection.
 
 9. **`UPDATE_SYNC_REQ` → `UPDATE_SYNC_CFM`** — same `md5_tail` as before, so the
-   radio recognizes we're finishing the same update.
+   radio recognizes we're finishing the same update. On a unit that actually
+   applied the trial, this reply now reports **`update_state = 3` (IN_PROGRESS)**
+   — the resume point that *only appears once the Phase 1 `0x00` commit byte
+   took effect*. Seeing `update_state = 3` here is the positive proof that the
+   reboot booted the new trial image; if it's missing, Phase 1 didn't commit.
 
 10. **`UPDATE_START_REQ` → `UPDATE_START_CFM`** — this time the code **must** be
     `GOTO_NEXT_STATE`. That's the radio saying "I've booted the new image and I'm
@@ -243,7 +275,8 @@ sequenceDiagram
     finished rebooting yet.
 
 11. **`UPDATE_IN_PROGRESS_RES` → `UPDATE_COMPLETE_IND`** — the app tells the radio
-    to finalize; the radio commits the image permanently and answers with
+    to finalize (the `UPDATE_IN_PROGRESS_RES` body is a `0x00` action byte); the
+    radio commits the image **permanently** and answers with
     `UPDATE_COMPLETE_IND`.
 
 12. **`VM_DISCONNECT`** — close the VM session. The radio is now running the new

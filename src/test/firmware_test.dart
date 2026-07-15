@@ -71,11 +71,15 @@ void main() {
       expect(msg.sublist(4), chunk);
     });
 
-    test('transferCompleteRes carries a bool byte', () {
-      final msg = VmControl.transferCompleteRes(isComplete: true);
-      expect(msg[0], VmControlType.updateTransferCompleteRes.value);
-      expect(msg[2], 1);
-      expect(msg[3], 1);
+    test('transferCompleteRes commit sends action byte 0x00', () {
+      // Action byte is inverted from is_complete naming: 0x00 = commit, 0x01 = abort.
+      final commit = VmControl.transferCompleteRes(commit: true);
+      expect(commit[0], VmControlType.updateTransferCompleteRes.value);
+      expect(commit[2], 1); // payload length
+      expect(commit[3], 0); // 0x00 = commit / trial-reboot
+
+      final abort = VmControl.transferCompleteRes(commit: false);
+      expect(abort[3], 1); // 0x01 = abort
     });
 
     test('empty-body messages have zero payload length', () {
