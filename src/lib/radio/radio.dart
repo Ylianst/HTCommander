@@ -2626,13 +2626,7 @@ class Radio {
         _handleSettingsChanged(data);
         break;
       case RadioNotification.radioStatusChanged:
-        // FM broadcast receiver status (frequency/seek) changed. Logged
-        // unconditionally (not gated by the "Show Bluetooth Packets" debug
-        // option) to aid investigation of frequency-mode behavior.
-        _broker.logInfo(
-          '[Radio $deviceId] Notification ${notification.name}: '
-          '${RadioUtils.bytesToHex(data)}',
-        );
+        // FM broadcast receiver status (frequency/seek) changed.
         _handleRadioStatus(data);
         break;
       case RadioNotification.bssSettingsChanged:
