@@ -2488,6 +2488,10 @@ class _MainFormState extends State<MainForm>
     _TabInfo tab,
   ) {
     final isHidden = _hiddenTabs.contains(tab.label);
+    // "Detach..." is available for every tab except the Radio tab, and only on
+    // desktop platforms in the main window (windowService.canDetach is false on
+    // iOS/Android/Web and in already-detached child windows).
+    final canDetachTab = windowService.canDetach && tab.label != 'Radio';
     showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -2502,10 +2506,17 @@ class _MainFormState extends State<MainForm>
           checked: !isHidden,
           child: const Text('Show Tab'),
         ),
+        if (canDetachTab)
+          PopupMenuItem<String>(
+            value: 'detach',
+            child: Text(AppLocalizations.of(context).tabDetach),
+          ),
       ],
     ).then((value) {
       if (value == 'toggle') {
         _toggleTabHidden(tab.label);
+      } else if (value == 'detach') {
+        windowService.createWindow(tab.label.toLowerCase());
       }
     });
   }
