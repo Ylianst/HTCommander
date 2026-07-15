@@ -504,6 +504,9 @@ class _MainFormState extends State<MainForm>
   // in compact mode; always shown when not in compact mode.
   bool _tabsVisible = true;
   bool _showAllChannels = false;
+  // Whether channel tiles show the frequency under the name. Toggled from the
+  // View menu to declutter the channel grid.
+  bool _showChannelFrequency = true;
   // Tabs the user has chosen to hide via the context menu.
   Set<String> _hiddenTabs = {};
   // When true, all tabs are shown regardless of _hiddenTabs.
@@ -657,6 +660,7 @@ class _MainFormState extends State<MainForm>
         'WinlinkPassword',
         'CheckForUpdates',
         'ShowAllChannels',
+        'ShowChannelFrequency',
       ],
       callback: _onSettingsChanged,
     );
@@ -818,6 +822,8 @@ class _MainFormState extends State<MainForm>
     _showTabNames = (DataBroker.getValue<int>(0, 'ShowTabNames', 1) ?? 1) == 1;
     _showAllChannels =
         (DataBroker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
+    _showChannelFrequency =
+        (DataBroker.getValue<int>(0, 'ShowChannelFrequency', 1) ?? 1) == 1;
     _showAllTabs = (DataBroker.getValue<int>(0, 'ShowAllTabs', 0) ?? 0) == 1;
     final hiddenTabsStr =
         DataBroker.getValue<String>(0, 'HiddenTabs', '') ?? '';
@@ -846,6 +852,9 @@ class _MainFormState extends State<MainForm>
           break;
         case 'ShowAllChannels':
           _showAllChannels = (data as int?) == 1;
+          break;
+        case 'ShowChannelFrequency':
+          _showChannelFrequency = (data as int?) == 1;
           break;
       }
     });
@@ -1911,6 +1920,21 @@ class _MainFormState extends State<MainForm>
               );
             },
             checked: _showAllChannels,
+          ),
+          AppMenuAction(
+            label: l10n.menuChannelFrequency,
+            onPressed: () {
+              final newValue = !_showChannelFrequency;
+              setState(() {
+                _showChannelFrequency = newValue;
+              });
+              _broker.dispatch(
+                deviceId: 0,
+                name: 'ShowChannelFrequency',
+                data: newValue ? 1 : 0,
+              );
+            },
+            checked: _showChannelFrequency,
           ),
           // Dynamic radio selection when multiple radios are connected
           if (_connectedRadioIds.length >= 2) ...[

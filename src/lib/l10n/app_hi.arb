@@ -61,6 +61,7 @@
   "menuTabNames": "टैब नाम",
   "menuShowAllTabs": "सभी टैब दिखाएँ",
   "menuAllChannels": "सभी चैनल",
+  "menuChannelFrequency": "चैनल आवृत्ति",
 
   "menuHelp": "सहायता",
   "menuRadioInformation": "रेडियो जानकारी...",
@@ -621,6 +622,7 @@
   "aprsSetReceiver": "प्राप्तकर्ता के रूप में सेट करें",
   "aprsCopyMessage": "संदेश कॉपी करें",
   "aprsCopyCallsign": "कॉल साइन कॉपी करें",
+  "aprsCopyChannel": "चैनल कॉपी करें",
   "aprsClearTitle": "APRS संदेश साफ़ करें",
   "aprsClearPrompt": "सभी APRS संदेश साफ़ करें? यह मानचित्र से सभी APRS मार्कर भी हटा देता है। यह क्रिया पूर्ववत नहीं की जा सकती।",
   "aprsShowAll": "सभी संदेश दिखाएँ",

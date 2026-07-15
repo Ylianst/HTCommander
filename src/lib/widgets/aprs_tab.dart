@@ -963,6 +963,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         message.latitude != null &&
         message.longitude != null &&
         (message.latitude != 0 || message.longitude != 0);
+    final hasChannel = ChannelShare.findAll(message.message).isNotEmpty;
 
     final selected = await showMenu<String>(
       context: context,
@@ -989,6 +990,11 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
           value: 'copyMessage',
           child: Text(AppLocalizations.of(context).aprsCopyMessage),
         ),
+        if (hasChannel)
+          PopupMenuItem<String>(
+            value: 'copyChannel',
+            child: Text(AppLocalizations.of(context).aprsCopyChannel),
+          ),
         PopupMenuItem<String>(
           value: 'copyCallsign',
           child: Text(AppLocalizations.of(context).aprsCopyCallsign),
@@ -1011,6 +1017,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
         break;
       case 'copyMessage':
         _copyMessage(message);
+        break;
+      case 'copyChannel':
+        _copyChannel(message);
         break;
       case 'setReceiver':
         _setReceiver(message.senderCallsign);
@@ -1045,6 +1054,18 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
       }
     }
     await Clipboard.setData(ClipboardData(text: message.message));
+  }
+
+  /// Copies the first shared-channel token found in [message] to the clipboard
+  /// so it can be pasted onto a radio channel slot.
+  void _copyChannel(ChatMessage message) {
+    final matches = ChannelShare.findAll(message.message);
+    if (matches.isEmpty) return;
+    final token = message.message.substring(
+      matches.first.start,
+      matches.first.end,
+    );
+    Clipboard.setData(ClipboardData(text: token));
   }
 
   void _toggleShowAll() {

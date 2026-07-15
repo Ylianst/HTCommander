@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
 import '../dialogs/radio_channel_dialog.dart';
 import '../dialogs/gps_details_dialog.dart';
+import '../utils/channel_colors.dart';
+import '../utils/channel_share.dart';
 
 /// Radio panel control widget - displays radio image, VFO frequencies, and status
 class RadioPanelControl extends StatefulWidget {
@@ -43,6 +46,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
   // UI state
   bool _showAllChannels = false;
+  // Whether channel tiles display the frequency under the name (View menu).
+  bool _showChannelFrequency = true;
   int _vfo2LastChannelId = -1;
 
   // In compact mode (limited height), false shows the radio display while true
@@ -79,10 +84,17 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     super.initState();
     _showAllChannels =
         (_broker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
+    _showChannelFrequency =
+        (_broker.getValue<int>(0, 'ShowChannelFrequency', 1) ?? 1) == 1;
     _broker.subscribe(
       deviceId: 0,
       name: 'ShowAllChannels',
       callback: _onShowAllChannelsChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'ShowChannelFrequency',
+      callback: _onShowChannelFrequencyChanged,
     );
     _subscribeToDevice();
   }
@@ -97,6 +109,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         deviceId: 0,
         name: 'ShowAllChannels',
         callback: _onShowAllChannelsChanged,
+      );
+      _broker.subscribe(
+        deviceId: 0,
+        name: 'ShowChannelFrequency',
+        callback: _onShowChannelFrequencyChanged,
       );
       _clearCachedState();
       _subscribeToDevice();
@@ -116,6 +133,16 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     if (newValue == _showAllChannels) return;
     setState(() {
       _showAllChannels = newValue;
+    });
+  }
+
+  /// Handle ShowChannelFrequency changes broadcast on device 0 (from the main
+  /// menu "Channel Frequency" item).
+  void _onShowChannelFrequencyChanged(int deviceId, String name, Object? data) {
+    final newValue = (data as int?) == 1;
+    if (newValue == _showChannelFrequency) return;
+    setState(() {
+      _showChannelFrequency = newValue;
     });
   }
 
@@ -537,18 +564,33 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     );
   }
 
-  void _showChannelContextMenu(
-    BuildContext context,
+  Future<void> _showChannelContextMenu(
     Offset position,
     RadioChannelInfo channel,
-  ) {
+  ) async {
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
 
     final selectedChannelA = _channelA?.channelId ?? -1;
     final selectedChannelB = _channelB?.channelId ?? -1;
 
-    showMenu<String>(
+    // Read the clipboard up front so we can enable "Paste" only when it holds a
+    // shared channel token (HTC:...). The menu items must be built
+    // synchronously, so this has to be resolved before showMenu is called.
+    radio.RadioChannelInfo? clipboardChannel;
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text;
+      if (text != null) {
+        final matches = ChannelShare.findAll(text);
+        if (matches.isNotEmpty) clipboardChannel = matches.first.channel;
+      }
+    } catch (_) {
+      // Clipboard may be unavailable on some platforms; just omit "Paste".
+    }
+    if (!mounted) return;
+
+    final value = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
         position & const Size(40, 40),
@@ -567,6 +609,13 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           child: const Text('Set VFO B'),
         ),
         const PopupMenuDivider(),
+        const PopupMenuItem<String>(value: 'copy', child: Text('Copy')),
+        PopupMenuItem<String>(
+          value: 'paste',
+          enabled: clipboardChannel != null && widget.deviceId > 0,
+          child: const Text('Paste'),
+        ),
+        const PopupMenuDivider(),
         PopupMenuItem<String>(
           value: 'showAll',
           child: Row(
@@ -581,30 +630,56 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           ),
         ),
       ],
-    ).then((value) {
-      if (value == null) return;
-      switch (value) {
-        case 'show':
-          _showChannelDetails(channel);
-          break;
-        case 'setA':
-          _setChannelA(channel.channelId);
-          break;
-        case 'setB':
-          _setChannelB(channel.channelId);
-          break;
-        case 'showAll':
-          // Toggle the shared ShowAllChannels state via the DataBroker so the
-          // main menu "All Channels" item stays in sync.
-          final newValue = !_showAllChannels;
-          _broker.dispatch(
-            deviceId: 0,
-            name: 'ShowAllChannels',
-            data: newValue ? 1 : 0,
-          );
-          break;
-      }
-    });
+    );
+
+    if (value == null || !mounted) return;
+    switch (value) {
+      case 'show':
+        _showChannelDetails(channel);
+        break;
+      case 'setA':
+        _setChannelA(channel.channelId);
+        break;
+      case 'setB':
+        _setChannelB(channel.channelId);
+        break;
+      case 'copy':
+        _copyChannel(channel);
+        break;
+      case 'paste':
+        if (clipboardChannel != null) {
+          _onChannelDroppedOnSlot(clipboardChannel, channel.channelId);
+        }
+        break;
+      case 'showAll':
+        // Toggle the shared ShowAllChannels state via the DataBroker so the
+        // main menu "All Channels" item stays in sync.
+        final newValue = !_showAllChannels;
+        _broker.dispatch(
+          deviceId: 0,
+          name: 'ShowAllChannels',
+          data: newValue ? 1 : 0,
+        );
+        break;
+    }
+  }
+
+  /// Encodes [channel] as a channel-share token and copies it to the clipboard
+  /// so it can be pasted into another radio slot or into a chat message.
+  void _copyChannel(RadioChannelInfo channel) {
+    final full = _fullChannels[channel.channelId] ?? _asFullChannel(channel);
+    final token = ChannelShare.encode(full);
+    Clipboard.setData(ClipboardData(text: token));
+    if (!mounted) return;
+    final name = channel.name.isNotEmpty
+        ? channel.name
+        : 'Channel ${channel.channelId + 1}';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Copied "$name" to the clipboard'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -1096,7 +1171,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     return Container(
       width: panelWidth,
       height: panelHeight,
-      color: const Color(0xFFBDB76B), // DarkKhaki
+      color: ChannelPalette.of(context).base,
       child: GridView.builder(
         physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.zero,
@@ -1128,7 +1203,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     final selectedChannelB = _channelB?.channelId ?? -1;
 
     return Container(
-      color: const Color(0xFFBDB76B), // DarkKhaki
+      color: ChannelPalette.of(context).base,
       child: GridView.builder(
         padding: EdgeInsets.zero,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -1155,59 +1230,65 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   ) {
     final isChannelA = channel.channelId == selectedChannelA;
     final isChannelB = _isDualChannel && channel.channelId == selectedChannelB;
+    final palette = ChannelPalette.of(context);
 
     Color bgColor;
     if (_isNoaaChannel) {
       // NOAA active - no highlighting
-      bgColor = const Color(0xFFBDB76B); // DarkKhaki
+      bgColor = palette.base;
     } else if (isChannelA) {
-      bgColor = const Color(0xFFEEE8AA); // PaleGoldenrod
+      bgColor = palette.selected;
     } else if (isChannelB) {
-      bgColor = const Color(0xFFF0E68C); // Khaki
+      bgColor = palette.channelB;
     } else {
-      bgColor = const Color(0xFFBDB76B); // DarkKhaki
+      bgColor = palette.base;
     }
 
     final tile = GestureDetector(
       onTap: () => _onChannelTap(channel.channelId),
       onDoubleTap: () => _showChannelDetails(channel),
       onSecondaryTapDown: (details) {
-        _showChannelContextMenu(context, details.globalPosition, channel);
+        _showChannelContextMenu(details.globalPosition, channel);
       },
       onLongPressStart: (details) {
-        _showChannelContextMenu(context, details.globalPosition, channel);
+        _showChannelContextMenu(details.globalPosition, channel);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(2),
-          border: Border.all(color: Colors.grey.shade600, width: 0.5),
+          border: Border.all(color: palette.border, width: 0.5),
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
             // Only show frequency if there's enough vertical space (need ~28px for both)
             final bool showFrequency =
-                channel.rxFreq > 0 && constraints.maxHeight >= 28;
+                _showChannelFrequency &&
+                channel.rxFreq > 0 &&
+                constraints.maxHeight >= 28;
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: showFrequency
+                  ? CrossAxisAlignment.start
+                  : CrossAxisAlignment.center,
               children: [
                 Text(
                   channel.name.isNotEmpty
                       ? channel.name
                       : 'Ch ${channel.channelId + 1}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: palette.onChannel,
                   ),
+                  textAlign: showFrequency ? TextAlign.start : TextAlign.center,
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (showFrequency)
                   Text(
                     '${channel.frequencyDisplay} MHz',
-                    style: TextStyle(fontSize: 9, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: 9, color: palette.onChannelSecondary),
                   ),
               ],
             );
@@ -1306,6 +1387,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
   /// Small floating tile shown under the pointer while a channel is dragged.
   Widget _buildChannelDragFeedback(RadioChannelInfo channel) {
+    final palette = ChannelPalette.of(context);
     return Material(
       color: Colors.transparent,
       child: Opacity(
@@ -1314,9 +1396,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           width: 120,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFFEEE8AA), // PaleGoldenrod
+            color: palette.selected,
             borderRadius: BorderRadius.circular(3),
-            border: Border.all(color: Colors.grey.shade700, width: 1),
+            border: Border.all(color: palette.border, width: 1),
             boxShadow: const [
               BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
             ],
@@ -1329,17 +1411,17 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                 channel.name.isNotEmpty
                     ? channel.name
                     : 'Ch ${channel.channelId + 1}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: palette.onChannel,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
               if (channel.rxFreq > 0)
                 Text(
                   '${channel.frequencyDisplay} MHz',
-                  style: TextStyle(fontSize: 9, color: Colors.grey.shade700),
+                  style: TextStyle(fontSize: 9, color: palette.onChannelSecondary),
                 ),
             ],
           ),

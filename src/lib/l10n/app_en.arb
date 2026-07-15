@@ -184,6 +184,10 @@
   "@menuAllChannels": {
     "description": "Toggle that shows all radio channels."
   },
+  "menuChannelFrequency": "Channel Frequency",
+  "@menuChannelFrequency": {
+    "description": "Toggle that shows the frequency under a channel name."
+  },
 
   "menuHelp": "Help",
   "@menuHelp": {
@@ -1188,6 +1192,7 @@
   "aprsSetReceiver": "Set as receiver",
   "aprsCopyMessage": "Copy Message",
   "aprsCopyCallsign": "Copy Callsign",
+  "aprsCopyChannel": "Copy Channel",
   "aprsClearTitle": "Clear APRS Messages",
   "aprsClearPrompt": "Clear all APRS messages? This also removes all APRS markers from the map. This cannot be undone.",
   "aprsShowAll": "Show All Messages",

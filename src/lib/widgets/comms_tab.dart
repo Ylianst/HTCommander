@@ -1636,6 +1636,7 @@ class _CommsTabState extends State<CommsTab>
     final isImage = message.imagePath != null;
     final isRecording =
         message.icon == Icons.play_circle && message.filename != null;
+    final hasChannel = ChannelShare.findAll(message.message).isNotEmpty;
 
     final selected = await showMenu<String>(
       context: context,
@@ -1672,6 +1673,11 @@ class _CommsTabState extends State<CommsTab>
           value: 'copyMessage',
           child: Text(AppLocalizations.of(context).aprsCopyMessage),
         ),
+        if (hasChannel)
+          PopupMenuItem<String>(
+            value: 'copyChannel',
+            child: Text(AppLocalizations.of(context).aprsCopyChannel),
+          ),
         PopupMenuItem<String>(
           value: 'copyCallsign',
           child: Text(AppLocalizations.of(context).aprsCopyCallsign),
@@ -1701,10 +1707,25 @@ class _CommsTabState extends State<CommsTab>
       case 'copyMessage':
         _copyMessage(message);
         break;
+      case 'copyChannel':
+        _copyChannel(message);
+        break;
       case 'copyCallsign':
         Clipboard.setData(ClipboardData(text: message.senderCallsign));
         break;
     }
+  }
+
+  /// Copies the first shared-channel token found in [message] to the clipboard
+  /// so it can be pasted onto a radio channel slot.
+  void _copyChannel(ChatMessage message) {
+    final matches = ChannelShare.findAll(message.message);
+    if (matches.isEmpty) return;
+    final token = message.message.substring(
+      matches.first.start,
+      matches.first.end,
+    );
+    Clipboard.setData(ClipboardData(text: token));
   }
 
   /// Shows the message details dialog for a Comms message.

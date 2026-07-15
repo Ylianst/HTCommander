@@ -175,6 +175,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get menuAllChannels => 'सभी चैनल';
 
   @override
+  String get menuChannelFrequency => 'चैनल आवृत्ति';
+
+  @override
   String get menuHelp => 'सहायता';
 
   @override
@@ -1903,6 +1906,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get aprsCopyCallsign => 'कॉल साइन कॉपी करें';
+
+  @override
+  String get aprsCopyChannel => 'चैनल कॉपी करें';
 
   @override
   String get aprsClearTitle => 'APRS संदेश साफ़ करें';

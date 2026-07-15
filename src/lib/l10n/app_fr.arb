@@ -61,6 +61,7 @@
   "menuTabNames": "Noms des onglets",
   "menuShowAllTabs": "Afficher tous les onglets",
   "menuAllChannels": "Tous les canaux",
+  "menuChannelFrequency": "Fréquence du canal",
 
   "menuHelp": "Aide",
   "menuRadioInformation": "Informations sur la radio...",
@@ -621,6 +622,7 @@
   "aprsSetReceiver": "Définir comme destinataire",
   "aprsCopyMessage": "Copier le message",
   "aprsCopyCallsign": "Copier l'indicatif",
+  "aprsCopyChannel": "Copier le canal",
   "aprsClearTitle": "Effacer les messages APRS",
   "aprsClearPrompt": "Effacer tous les messages APRS ? Cela supprime également tous les marqueurs APRS de la carte. Cette action est irréversible.",
   "aprsShowAll": "Afficher tous les messages",

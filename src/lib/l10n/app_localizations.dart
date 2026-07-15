@@ -432,6 +432,12 @@ abstract class AppLocalizations {
   /// **'All Channels'**
   String get menuAllChannels;
 
+  /// Toggle that shows the frequency under a channel name.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel Frequency'**
+  String get menuChannelFrequency;
+
   /// Top-level Help menu label.
   ///
   /// In en, this message translates to:
@@ -3569,6 +3575,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy Callsign'**
   String get aprsCopyCallsign;
+
+  /// No description provided for @aprsCopyChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Channel'**
+  String get aprsCopyChannel;
 
   /// No description provided for @aprsClearTitle.
   ///

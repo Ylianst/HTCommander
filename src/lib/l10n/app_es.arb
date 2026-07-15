@@ -61,6 +61,7 @@
   "menuTabNames": "Nombres de pestañas",
   "menuShowAllTabs": "Mostrar todas las pestañas",
   "menuAllChannels": "Todos los canales",
+  "menuChannelFrequency": "Frecuencia del canal",
 
   "menuHelp": "Ayuda",
   "menuRadioInformation": "Información de la radio...",
@@ -621,6 +622,7 @@
   "aprsSetReceiver": "Establecer como destinatario",
   "aprsCopyMessage": "Copiar el mensaje",
   "aprsCopyCallsign": "Copiar el indicativo",
+  "aprsCopyChannel": "Copiar el canal",
   "aprsClearTitle": "Borrar los mensajes APRS",
   "aprsClearPrompt": "¿Borrar todos los mensajes APRS? Esto también elimina todos los marcadores APRS del mapa. Esta acción no se puede deshacer.",
   "aprsShowAll": "Mostrar todos los mensajes",

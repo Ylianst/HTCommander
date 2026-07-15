@@ -175,6 +175,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get menuAllChannels => 'Alle Kanäle';
 
   @override
+  String get menuChannelFrequency => 'Kanalfrequenz';
+
+  @override
   String get menuHelp => 'Hilfe';
 
   @override
@@ -1921,6 +1924,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aprsCopyCallsign => 'Rufzeichen kopieren';
+
+  @override
+  String get aprsCopyChannel => 'Kanal kopieren';
 
   @override
   String get aprsClearTitle => 'APRS-Nachrichten löschen';

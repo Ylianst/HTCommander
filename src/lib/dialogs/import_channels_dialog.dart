@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
 import '../services/data_broker_client.dart';
+import '../utils/channel_colors.dart';
 import 'channel_details_dialog.dart';
 
 /// Opens the channel import dialog.
@@ -57,11 +58,6 @@ class ImportChannelsDialog extends StatefulWidget {
 
 class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
   final DataBrokerClient _broker = DataBrokerClient();
-
-  // Tile colours, matching the radio panel.
-  static const Color _khaki = Color(0xFFBDB76B); // DarkKhaki
-  static const Color _selected = Color(0xFFEEE8AA); // PaleGoldenrod
-  static const Color _pending = Color(0xFFB5E0B5); // Soft green for staged
 
   static const double _tileWidth = 156;
   static const double _tileHeight = 50;
@@ -310,10 +306,11 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
 
   Widget _buildImportedTile(int index, RadioChannelInfo channel) {
     final selected = _selectedImportedIndex == index;
+    final palette = ChannelPalette.of(context);
     final tile = _channelTile(
       label: channel.name.isNotEmpty ? channel.name : 'Ch ${index + 1}',
       freqHz: channel.rxFreq,
-      background: selected ? _selected : _khaki,
+      background: selected ? palette.selected : palette.base,
       highlight: selected,
       onTap: () => setState(() => _selectedImportedIndex = index),
       onInfo: () => showChannelDetailsDialog(context, channel: channel),
@@ -329,7 +326,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
           child: _channelTile(
             label: channel.name.isNotEmpty ? channel.name : 'Ch ${index + 1}',
             freqHz: channel.rxFreq,
-            background: _selected,
+            background: palette.selected,
             highlight: true,
             width: _tileWidth,
           ),
@@ -351,13 +348,14 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
       onAcceptWithDetails: (details) => _assign(details.data, slot.channelId),
       builder: (context, candidate, rejected) {
         final hovering = candidate.isNotEmpty;
+        final palette = ChannelPalette.of(context);
         return _channelTile(
           label: _slotLabel(slot),
           freqHz: channel.rxFreq,
           slotNumber: slot.channelId + 1,
           background: isStaged
-              ? _pending
-              : (selected || hovering ? _selected : _khaki),
+              ? palette.pending
+              : (selected || hovering ? palette.selected : palette.base),
           highlight: selected || hovering || isStaged,
           onTap: () => setState(() => _selectedSlotId = slot.channelId),
           onInfo: () => showChannelDetailsDialog(
@@ -387,6 +385,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
     final freq = freqHz > 0
         ? '${(freqHz / 1000000).toStringAsFixed(3)} MHz'
         : null;
+    final palette = ChannelPalette.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -397,7 +396,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
           color: background,
           borderRadius: BorderRadius.circular(3),
           border: Border.all(
-            color: highlight ? Colors.black87 : Colors.grey.shade600,
+            color: highlight ? palette.borderHighlight : palette.border,
             width: highlight ? 1.5 : 0.5,
           ),
         ),
@@ -413,10 +412,10 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
                     padding: const EdgeInsets.only(right: 18),
                     child: Text(
                       label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: palette.onChannel,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -426,7 +425,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
                       'Slot $slotNumber',
                       style: TextStyle(
                         fontSize: 8,
-                        color: Colors.grey.shade800,
+                        color: palette.onChannelSecondary,
                       ),
                     ),
                   if (freq != null)
@@ -434,7 +433,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
                       freq,
                       style: TextStyle(
                         fontSize: 9,
-                        color: Colors.grey.shade800,
+                        color: palette.onChannelSecondary,
                       ),
                     ),
                 ],
@@ -449,7 +448,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
                   constraints: const BoxConstraints(),
                   iconSize: 16,
                   tooltip: AppLocalizations.of(context).importClearTooltip,
-                  icon: const Icon(Icons.cancel, color: Colors.black54),
+                  icon: Icon(Icons.cancel, color: palette.onChannel),
                   onPressed: onClear,
                 ),
               )
@@ -462,7 +461,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
                   constraints: const BoxConstraints(),
                   iconSize: 16,
                   tooltip: AppLocalizations.of(context).importChannelDetails,
-                  icon: const Icon(Icons.info_outline, color: Colors.black54),
+                  icon: Icon(Icons.info_outline, color: palette.onChannel),
                   onPressed: onInfo,
                 ),
               ),

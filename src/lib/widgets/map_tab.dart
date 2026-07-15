@@ -63,6 +63,16 @@ class MapTab extends StatefulWidget {
   State<MapTab> createState() => _MapTabState();
 }
 
+/// Luminance-inverting grayscale filter that turns the light OpenStreetMap
+/// tiles into a dark-themed map. Colored markers and tracks are drawn above
+/// the filtered tile layer so they keep their own colors.
+const ColorFilter _darkMapTileFilter = ColorFilter.matrix(<double>[
+  -0.2126, -0.7152, -0.0722, 0, 255, //
+  -0.2126, -0.7152, -0.0722, 0, 255, //
+  -0.2126, -0.7152, -0.0722, 0, 255, //
+  0, 0, 0, 1, 0, //
+]);
+
 class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   final MapController _mapController = MapController();
   final DataBrokerClient _broker = DataBrokerClient();
@@ -1247,13 +1257,26 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
                   // Map tiles. Online: fetched from OpenStreetMap and cached to
                   // disk. Offline: only previously-cached tiles are shown (no
                   // network access). Keyed by offline state so toggling fully
-                  // resets the layer and disposes the old provider.
-                  TileLayer(
-                    key: ValueKey(_isOfflineMode),
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.htcommander.app',
-                    tileProvider: _tileProvider,
+                  // resets the layer and disposes the old provider. In dark
+                  // mode the light tiles are run through an inverting filter so
+                  // the map matches the theme.
+                  Builder(
+                    builder: (context) {
+                      final Widget tiles = TileLayer(
+                        key: ValueKey(_isOfflineMode),
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.htcommander.app',
+                        tileProvider: _tileProvider,
+                      );
+                      if (Theme.of(context).brightness == Brightness.dark) {
+                        return ColorFiltered(
+                          colorFilter: _darkMapTileFilter,
+                          child: tiles,
+                        );
+                      }
+                      return tiles;
+                    },
                   ),
                   if (tracks.isNotEmpty) PolylineLayer(polylines: tracks),
                   if (stationMarkers.isNotEmpty)

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../dialogs/channel_details_dialog.dart';
 import '../radio/radio_models.dart' as radio;
+import '../utils/channel_colors.dart';
 import '../utils/channel_share.dart';
 
 /// Authentication state for chat messages
@@ -604,19 +605,20 @@ class _ChannelChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = channel.name.isNotEmpty ? channel.name : 'Channel';
     final freq = channel.rxFreq > 0 ? '${channel.frequencyDisplay} MHz' : '';
+    final palette = ChannelPalette.of(context);
 
     final chip = Container(
       margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEE8AA), // PaleGoldenrod
+        color: palette.selected,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade700, width: 1),
+        border: Border.all(color: palette.border, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.radio, size: 14, color: Colors.black87),
+          Icon(Icons.radio, size: 14, color: palette.onChannel),
           const SizedBox(width: 4),
           Column(
             mainAxisSize: MainAxisSize.min,
@@ -624,16 +626,16 @@ class _ChannelChip extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: palette.onChannel,
                 ),
               ),
               if (freq.isNotEmpty)
                 Text(
                   freq,
-                  style: TextStyle(fontSize: 9, color: Colors.grey.shade800),
+                  style: TextStyle(fontSize: 9, color: palette.onChannelSecondary),
                 ),
             ],
           ),

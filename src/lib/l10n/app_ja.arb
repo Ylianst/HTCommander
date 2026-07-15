@@ -61,6 +61,7 @@
   "menuTabNames": "タブ名",
   "menuShowAllTabs": "すべてのタブを表示",
   "menuAllChannels": "すべてのチャンネル",
+  "menuChannelFrequency": "チャンネル周波数",
 
   "menuHelp": "ヘルプ",
   "menuRadioInformation": "無線機の情報...",
@@ -621,6 +622,7 @@
   "aprsSetReceiver": "受信者に設定",
   "aprsCopyMessage": "メッセージをコピー",
   "aprsCopyCallsign": "コールサインをコピー",
+  "aprsCopyChannel": "チャンネルをコピー",
   "aprsClearTitle": "APRS メッセージをクリア",
   "aprsClearPrompt": "すべての APRS メッセージをクリアしますか？これにより地図上のすべての APRS マーカーも削除されます。この操作は元に戻せません。",
   "aprsShowAll": "すべてのメッセージを表示",

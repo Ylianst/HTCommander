@@ -173,6 +173,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get menuAllChannels => '所有信道';
 
   @override
+  String get menuChannelFrequency => '信道频率';
+
+  @override
   String get menuHelp => '帮助';
 
   @override
@@ -1867,6 +1870,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aprsCopyCallsign => '复制呼号';
+
+  @override
+  String get aprsCopyChannel => '复制信道';
 
   @override
   String get aprsClearTitle => '清除 APRS 消息';

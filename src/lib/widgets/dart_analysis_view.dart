@@ -355,6 +355,11 @@ class _ConstellationPainter extends CustomPainter {
     final bg = Paint()..color = background;
     canvas.drawRect(Offset.zero & size, bg);
 
+    // Line/marker color that contrasts with the background so the grid and
+    // axes remain visible in both light and dark themes.
+    final Color foreground =
+        background.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+
     final cx = size.width / 2;
     final cy = size.height / 2;
 
@@ -367,7 +372,7 @@ class _ConstellationPainter extends CustomPainter {
 
     // Grid rings at |r| = 0.5, 1.0, 1.5.
     final gridPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.10)
+      ..color = foreground.withValues(alpha: 0.10)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
     for (final r in [0.5, 1.0, 1.5]) {
@@ -376,7 +381,7 @@ class _ConstellationPainter extends CustomPainter {
 
     // Axes.
     final axisPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.25)
+      ..color = foreground.withValues(alpha: 0.25)
       ..strokeWidth = 1;
     canvas.drawLine(Offset(0, cy), Offset(size.width, cy), axisPaint);
     canvas.drawLine(Offset(cx, 0), Offset(cx, size.height), axisPaint);
@@ -394,7 +399,7 @@ class _ConstellationPainter extends CustomPainter {
       ..color = const Color(0xFF1565C0)
       ..style = PaintingStyle.fill;
     final refRing = Paint()
-      ..color = Colors.black.withValues(alpha: 0.6)
+      ..color = foreground.withValues(alpha: 0.6)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
     for (final p in reference) {
