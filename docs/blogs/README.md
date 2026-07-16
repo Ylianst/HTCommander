@@ -93,4 +93,17 @@ Making HTCommander features portable between operators and radios.
 
 ---
 
+## App Architecture
+
+How HTCommander is built under the hood — the threading, plumbing, and design
+decisions that keep the radio responsive.
+
+1. **[Getting Audio Off the Main Thread: Moving the Radio Pipeline to Its Own Isolate](audio-isolate-threading.md)**
+   Why the whole receive pipeline — SBC decode, software modem, and SSTV — runs on
+   the UI thread today and stutters when the interface is busy, and the plan to
+   move it into a dedicated background isolate with playback fed straight from the
+   worker. Written before the work begins.
+
+---
+
 *More topics coming as the project grows.*
