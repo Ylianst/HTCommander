@@ -463,8 +463,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              TextButton(
+              ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
+                style: DialogStyles.primaryButtonStyle(context),
                 child: Text(l10n.commonClose),
               ),
             ],

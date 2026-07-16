@@ -214,8 +214,9 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
+              child: ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
+                style: DialogStyles.primaryButtonStyle(context),
                 child: Text(l10n.commonClose),
               ),
             ),
