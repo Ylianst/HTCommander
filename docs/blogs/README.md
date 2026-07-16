@@ -93,6 +93,18 @@ Making HTCommander features portable between operators and radios.
 
 ---
 
+## Home Automation & Integrations
+
+Connecting HTCommander to the wider ecosystem of tools operators already run.
+
+1. **[Your Radio, on the Dashboard: Home Assistant Integration over MQTT](home-assistant-mqtt.md)**
+   How HTCommander publishes each connected radio to Home Assistant as its own
+   device — battery, GPS, volume, squelch, scan, channels, and incoming APRS —
+   using an MQTT broker and Home Assistant's auto-discovery, plus a step-by-step
+   setup guide. Desktop-only (Windows / Linux / macOS).
+
+---
+
 ## App Architecture
 
 How HTCommander is built under the hood — the threading, plumbing, and design
