@@ -145,7 +145,7 @@ class _ModemInstance {
   DartMode dartTxMode = DartMode.mode0;
 
   /// Rolling receive buffer of 16-bit samples awaiting a DART decode.
-  final List<int> dartRxSamples = <int>[];
+  final _DartSampleBuffer dartRxSamples = _DartSampleBuffer();
 
   /// Monotonic sequence number for transmitted DART frames.
   int dartTxSeq = 0;
@@ -233,7 +233,7 @@ class _ModemInstance {
 
     // Try to decode from the current buffer; on success, consume the frame.
     while (dartRxSamples.length > 2000) {
-      final Int16List buf = Int16List.fromList(dartRxSamples);
+      final Int16List buf = dartRxSamples.view();
       final int searchLen = buf.length - dartModem!.preambleSamples;
 
       // Incremental preamble scan: only correlate positions we haven't cleared
@@ -273,7 +273,7 @@ class _ModemInstance {
       // Consume everything up to the end of this frame.
       final int consume = result.endSample.clamp(0, dartRxSamples.length);
       if (consume <= 0) break;
-      dartRxSamples.removeRange(0, consume);
+      dartRxSamples.removeFront(consume);
       _dartScannedPos -= consume;
       if (_dartScannedPos < 0) _dartScannedPos = 0;
     }
@@ -281,7 +281,7 @@ class _ModemInstance {
     // Bound memory: if no frame is completing, drop the oldest half.
     if (dartRxSamples.length > _dartMaxRxSamples) {
       final int drop = dartRxSamples.length ~/ 2;
-      dartRxSamples.removeRange(0, drop);
+      dartRxSamples.removeFront(drop);
       _dartScannedPos -= drop;
       if (_dartScannedPos < 0) _dartScannedPos = 0;
     }
@@ -307,6 +307,55 @@ class _ModemInstance {
     _dartScannedPos = 0;
     onDartFrame = null;
     onDartAnalysis = null;
+  }
+}
+
+/// Growable 16-bit sample buffer for the DART receive chain.
+///
+/// Backed by a single [Int16List] that grows by doubling. Compared with the
+/// `List<int>` it replaces, it avoids boxing every incoming sample and — the
+/// bigger win — lets the decoder read the buffered audio through a zero-copy
+/// [view] instead of copying the whole (up to several-second) rolling buffer on
+/// every throttled decode attempt. The decoder only ever reads its input (it
+/// immediately converts to floating point internally), so handing it a view is
+/// safe.
+class _DartSampleBuffer {
+  Int16List _data = Int16List(0);
+  int _length = 0;
+
+  int get length => _length;
+
+  /// Append one sample, growing the backing store by doubling when full.
+  void add(int sample) {
+    if (_length == _data.length) {
+      final int newCap = _data.isEmpty ? 4096 : _data.length * 2;
+      final grown = Int16List(newCap);
+      grown.setRange(0, _length, _data);
+      _data = grown;
+    }
+    _data[_length++] = sample;
+  }
+
+  /// Zero-copy view of the [length] buffered samples. Only valid until the next
+  /// mutating call ([add]/[removeFront]/[clear]).
+  Int16List view() =>
+      Int16List.view(_data.buffer, _data.offsetInBytes, _length);
+
+  /// Drop the first [count] samples, shifting the remainder to the front.
+  void removeFront(int count) {
+    if (count <= 0) return;
+    if (count >= _length) {
+      _length = 0;
+      return;
+    }
+    // Leftward move (destination index < source index) — a forward copy is
+    // safe against overlap.
+    _data.setRange(0, _length - count, _data, count);
+    _length -= count;
+  }
+
+  void clear() {
+    _length = 0;
   }
 }
 

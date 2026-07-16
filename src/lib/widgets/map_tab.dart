@@ -8,6 +8,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'tab_visibility.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
@@ -73,7 +74,7 @@ const ColorFilter _darkMapTileFilter = ColorFilter.matrix(<double>[
   0, 0, 0, 1, 0, //
 ]);
 
-class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
+class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   final MapController _mapController = MapController();
   final DataBrokerClient _broker = DataBrokerClient();
 
@@ -516,7 +517,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
   void _updateFilterRefreshTimer() {
     _filterRefreshTimer?.cancel();
     _filterRefreshTimer = null;
-    if (_markerTimeFilter > 0) {
+    if (_markerTimeFilter > 0 && isTabVisible) {
       _filterRefreshTimer = Timer.periodic(
         const Duration(seconds: 60),
         (_) {
@@ -524,6 +525,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin {
         },
       );
     }
+  }
+
+  @override
+  void onTabVisibilityChanged(bool visible) {
+    // Only run the marker-ageing refresh timer while the Map tab is on-screen.
+    _updateFilterRefreshTimer();
   }
 
   /// True when [time] is within the active time filter window (or no filter).

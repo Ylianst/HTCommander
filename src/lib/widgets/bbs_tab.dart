@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'tab_visibility.dart';
 import '../handlers/bbs_handler.dart';
 import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
@@ -29,7 +30,7 @@ class BbsTab extends StatefulWidget {
   State<BbsTab> createState() => _BbsTabState();
 }
 
-class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin {
+class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   final DataBrokerClient _broker = DataBrokerClient();
   final List<MergedStationStats> _stations = [];
   final List<BbsTrafficEntry> _traffic = [];

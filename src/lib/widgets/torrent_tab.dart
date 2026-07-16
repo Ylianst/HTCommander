@@ -13,6 +13,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'tab_visibility.dart';
 
 import '../dialogs/add_torrent_file_dialog.dart';
 import '../l10n/app_localizations.dart';
@@ -165,7 +166,7 @@ class TorrentTab extends StatefulWidget {
 }
 
 class _TorrentTabState extends State<TorrentTab>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   final DataBrokerClient _broker = DataBrokerClient();
 
   // Torrent files keyed by [_TorrentView.key], preserving insertion order.

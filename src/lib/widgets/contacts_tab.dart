@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'tab_visibility.dart';
 import '../l10n/app_localizations.dart';
 import '../services/window_service.dart';
 import '../services/data_broker_client.dart';
@@ -19,7 +20,7 @@ class ContactsTab extends StatefulWidget {
 }
 
 class _ContactsTabState extends State<ContactsTab>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   /// Device id that owns persisted application settings (the station list).
   static const int _settingsDeviceId = 0;
 

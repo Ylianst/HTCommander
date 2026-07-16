@@ -57,6 +57,82 @@ class LdpcCode {
     required this.checkNodeConnections,
     required this.varNodeConnections,
   });
+
+  // --- Cached decoder edge structure (flat CSR form, built once) ---
+  //
+  // The message-passing decoder needs, for every check node, the flat index of
+  // its edges, and for every variable node, the flat indices of the edges that
+  // touch it. These depend only on the code, so they are computed once on first
+  // use and reused for every decode — this is numerically identical to rebuilding
+  // them on each call, it just avoids the per-decode allocation.
+  Int32List? _checkEdgeStart;
+  Int32List? _varEdgeStart;
+  Int32List? _varEdgeIndex;
+  int _totalEdges = -1;
+
+  void _buildEdgeStructure() {
+    final int mm = m;
+    final int nn = n;
+
+    // Prefix sum of check-node degrees: edges of check c occupy
+    // [checkEdgeStart[c], checkEdgeStart[c+1]).
+    final ces = Int32List(mm + 1);
+    for (int c = 0; c < mm; c++) {
+      ces[c + 1] = ces[c] + checkNodeConnections[c].length;
+    }
+    final int total = ces[mm];
+
+    // Prefix sum of variable-node degrees.
+    final ves = Int32List(nn + 1);
+    for (int v = 0; v < nn; v++) {
+      ves[v + 1] = ves[v] + varNodeConnections[v].length;
+    }
+
+    // Fill each variable's edge bucket in ascending (check, position) order —
+    // the same order the previous List<_Edge> implementation used, so the
+    // floating-point message summation order is unchanged (bit-identical).
+    final vei = Int32List(total);
+    final fill = Int32List(nn);
+    for (int c = 0; c < mm; c++) {
+      final conns = checkNodeConnections[c];
+      final int base = ces[c];
+      for (int j = 0; j < conns.length; j++) {
+        final int v = conns[j];
+        vei[ves[v] + fill[v]] = base + j;
+        fill[v]++;
+      }
+    }
+
+    _checkEdgeStart = ces;
+    _varEdgeStart = ves;
+    _varEdgeIndex = vei;
+    _totalEdges = total;
+  }
+
+  /// Flat start index of each check node's edges (length m + 1).
+  Int32List get checkEdgeStart {
+    if (_checkEdgeStart == null) _buildEdgeStructure();
+    return _checkEdgeStart!;
+  }
+
+  /// Flat start index of each variable node's edges (length n + 1).
+  Int32List get varEdgeStart {
+    if (_varEdgeStart == null) _buildEdgeStructure();
+    return _varEdgeStart!;
+  }
+
+  /// For each variable node's edges (in [varEdgeStart] order), the flat edge
+  /// index into the message arrays.
+  Int32List get varEdgeIndex {
+    if (_varEdgeIndex == null) _buildEdgeStructure();
+    return _varEdgeIndex!;
+  }
+
+  /// Total number of edges in the Tanner graph.
+  int get totalEdges {
+    if (_totalEdges < 0) _buildEdgeStructure();
+    return _totalEdges;
+  }
 }
 
 /// LDPC encoder/decoder.
@@ -66,18 +142,23 @@ class DartLdpc {
   /// Maximum iterations for the decoder.
   static const int maxIterations = 50;
 
-  /// Get the code for a given rate.
+  /// Cache of built codes, keyed by rate. The parity-check matrix depends only
+  /// on the rate, so it is built once and reused — [getCode] is called for
+  /// every encoded and decoded block.
+  static final Map<LdpcRate, LdpcCode> _codeCache = <LdpcRate, LdpcCode>{};
+
+  /// Get the code for a given rate (built once, then cached).
   static LdpcCode getCode(LdpcRate rate) {
-    switch (rate) {
-      case LdpcRate.r1_2:
-        return _buildCode(rate, 324, 648);
-      case LdpcRate.r2_3:
-        return _buildCode(rate, 432, 648);
-      case LdpcRate.r3_4:
-        return _buildCode(rate, 486, 648);
-      case LdpcRate.r5_6:
-        return _buildCode(rate, 540, 648);
-    }
+    final cached = _codeCache[rate];
+    if (cached != null) return cached;
+    final LdpcCode code = switch (rate) {
+      LdpcRate.r1_2 => _buildCode(rate, 324, 648),
+      LdpcRate.r2_3 => _buildCode(rate, 432, 648),
+      LdpcRate.r3_4 => _buildCode(rate, 486, 648),
+      LdpcRate.r5_6 => _buildCode(rate, 540, 648),
+    };
+    _codeCache[rate] = code;
+    return code;
   }
 
   /// Encode information bits into a codeword (systematic: info | parity).
@@ -144,29 +225,13 @@ class DartLdpc {
     // Messages from check nodes to variable nodes: r[c][index_in_checkNode_list]
     // We use flat arrays indexed by edge for efficiency.
 
-    // Count total edges
-    int totalEdges = 0;
-    for (int c = 0; c < numChecks; c++) {
-      totalEdges += code.checkNodeConnections[c].length;
-    }
-
-    // Build edge index mappings
-    // For each check node c, edge indices start at checkEdgeStart[c]
-    final checkEdgeStart = Int32List(numChecks + 1);
-    for (int c = 0; c < numChecks; c++) {
-      checkEdgeStart[c + 1] =
-          checkEdgeStart[c] + code.checkNodeConnections[c].length;
-    }
-
-    // For each variable node v, we need to know which edges connect to it
-    // varEdges[v] = list of (checkNode, positionInCheckNode) pairs
-    final varEdges = List<List<_Edge>>.generate(numVars, (_) => []);
-    for (int c = 0; c < numChecks; c++) {
-      for (int j = 0; j < code.checkNodeConnections[c].length; j++) {
-        final int v = code.checkNodeConnections[c][j];
-        varEdges[v].add(_Edge(c, j));
-      }
-    }
+    // Edge structure (check/variable adjacency, flat CSR form) depends only on
+    // the code, so it is built once and cached on [code] rather than rebuilt on
+    // every decode. This is numerically identical to rebuilding it each call.
+    final checkEdgeStart = code.checkEdgeStart;
+    final varEdgeStart = code.varEdgeStart;
+    final varEdgeIndex = code.varEdgeIndex;
+    final int totalEdges = code.totalEdges;
 
     // r[edgeIndex] = check-to-variable message
     final r = Float64List(totalEdges);
@@ -175,9 +240,10 @@ class DartLdpc {
 
     // Initialize q messages to channel LLRs
     for (int c = 0; c < numChecks; c++) {
-      for (int j = 0; j < code.checkNodeConnections[c].length; j++) {
-        final int v = code.checkNodeConnections[c][j];
-        q[checkEdgeStart[c] + j] = llr[v];
+      final conns = code.checkNodeConnections[c];
+      final int base = checkEdgeStart[c];
+      for (int j = 0; j < conns.length; j++) {
+        q[base + j] = llr[conns[j]];
       }
     }
 
@@ -226,18 +292,21 @@ class DartLdpc {
 
       // --- Variable node update ---
       for (int v = 0; v < numVars; v++) {
+        final int vs = varEdgeStart[v];
+        final int ve = varEdgeStart[v + 1];
+
         // Total LLR = channel + sum of all incoming check messages
         double totalLlr = llr[v];
-        for (final edge in varEdges[v]) {
-          totalLlr += r[checkEdgeStart[edge.checkNode] + edge.position];
+        for (int e = vs; e < ve; e++) {
+          totalLlr += r[varEdgeIndex[e]];
         }
 
         // Hard decision
         hardDecision[v] = totalLlr < 0 ? 1 : 0;
 
         // Outgoing messages: total - incoming from target check
-        for (final edge in varEdges[v]) {
-          final int edgeIdx = checkEdgeStart[edge.checkNode] + edge.position;
+        for (int e = vs; e < ve; e++) {
+          final int edgeIdx = varEdgeIndex[e];
           q[edgeIdx] = totalLlr - r[edgeIdx];
         }
       }
@@ -412,11 +481,4 @@ class DartLdpc {
     [22, 16, 4, 3, 10, 21, 12, 5, 21, 14, 19, 5, -1, 8, 5, 18, 11, 5, 5, 15, 0, -1, 0, 0],
     [7, 7, 14, 14, 4, 16, 16, 24, 24, 10, 1, 7, 15, 6, 10, 26, 8, 18, 21, 14, 1, -1, -1, 0],
   ];
-}
-
-/// Internal edge reference for variable-to-check node mapping.
-class _Edge {
-  final int checkNode;
-  final int position;
-  const _Edge(this.checkNode, this.position);
 }

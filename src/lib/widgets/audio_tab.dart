@@ -20,6 +20,7 @@ import '../services/system_audio.dart';
 import '../services/window_service.dart';
 import 'dart_analysis_view.dart';
 import 'spectrogram/spectrogram_view.dart';
+import 'tab_visibility.dart';
 
 /// Which audio source the spectrograph visualizes (or none to hide it).
 enum SpectrogramSource { none, radio, microphone }
@@ -45,7 +46,7 @@ class AudioTab extends StatefulWidget {
 }
 
 class _AudioTabState extends State<AudioTab>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   final DataBrokerClient _broker = DataBrokerClient();
 
   int _currentRadioDeviceId = -1;
@@ -446,6 +447,9 @@ class _AudioTabState extends State<AudioTab>
     if (controller == null || _spectrogramSource != SpectrogramSource.radio) {
       return;
     }
+    // Skip the (fairly costly) spectrogram FFT while the Audio tab is hidden;
+    // TabBarView keeps it alive but nothing it draws is visible.
+    if (!isTabVisible) return;
     if (deviceId != _currentRadioDeviceId) return;
     if (data is! Map) return;
 
@@ -477,11 +481,34 @@ class _AudioTabState extends State<AudioTab>
       return;
     }
     await _refreshMasterVolume();
-    // Poll periodically so external changes (e.g. media keys) are reflected.
+    // Poll periodically so external changes (e.g. media keys) are reflected,
+    // but only while the Audio tab is on-screen (see onTabVisibilityChanged).
+    if (isTabVisible) _startMasterPoll();
+  }
+
+  void _startMasterPoll() {
+    if (!SystemAudio.isSupported || _masterPollTimer != null) return;
     _masterPollTimer = Timer.periodic(
       const Duration(milliseconds: 1500),
       (_) => _refreshMasterVolume(),
     );
+  }
+
+  void _stopMasterPoll() {
+    _masterPollTimer?.cancel();
+    _masterPollTimer = null;
+  }
+
+  @override
+  void onTabVisibilityChanged(bool visible) {
+    if (visible) {
+      // Refresh once immediately so the slider is current on show, then resume
+      // polling for external changes.
+      _refreshMasterVolume();
+      _startMasterPoll();
+    } else {
+      _stopMasterPoll();
+    }
   }
 
   Future<void> _refreshMasterVolume() async {
@@ -738,6 +765,8 @@ class _AudioTabState extends State<AudioTab>
         _spectrogramSource != SpectrogramSource.microphone) {
       return;
     }
+    // Skip the spectrogram FFT while the Audio tab is hidden.
+    if (!isTabVisible) return;
     controller.feedPcm16(pcm16);
   }
 

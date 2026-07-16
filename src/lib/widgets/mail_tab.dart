@@ -6,6 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'tab_visibility.dart';
 import '../dialogs/mail_compose_dialog.dart';
 import '../dialogs/mail_viewer_dialog.dart';
 import '../dialogs/mail_debug_dialog.dart';
@@ -60,7 +61,7 @@ class MailTab extends StatefulWidget {
   State<MailTab> createState() => _MailTabState();
 }
 
-class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin {
+class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   String _selectedMailbox = 'Inbox';
   int? _selectedMailIndex;
   bool _showPreview = true;

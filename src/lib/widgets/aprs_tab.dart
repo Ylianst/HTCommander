@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'tab_visibility.dart';
 import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'chat_widget.dart';
@@ -81,7 +82,7 @@ class AprsTab extends StatefulWidget {
   State<AprsTab> createState() => _AprsTabState();
 }
 
-class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
+class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   static const int _aprsDeviceId = 1;
 
   final DataBrokerClient _broker = DataBrokerClient();
@@ -514,31 +515,47 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     return null;
   }
 
+  ChatMessage _entryToMessage(int index, _AprsEntry e) {
+    return ChatMessage(
+      id: '$index',
+      route: e.routingString,
+      senderCallsign: e.senderCallsign,
+      message: e.messageText.trim(),
+      time: e.time,
+      isSender: e.sender,
+      authState: _mapAuth(e.authState),
+      latitude: e.latitude,
+      longitude: e.longitude,
+      icon: _iconFor(e),
+      tag: e,
+    );
+  }
+
   void _rebuildMessages() {
     final list = <ChatMessage>[];
     for (var i = 0; i < _entries.length; i++) {
       final e = _entries[i];
       if (!e.visible) continue;
-      list.add(
-        ChatMessage(
-          id: '$i',
-          route: e.routingString,
-          senderCallsign: e.senderCallsign,
-          message: e.messageText.trim(),
-          time: e.time,
-          isSender: e.sender,
-          authState: _mapAuth(e.authState),
-          latitude: e.latitude,
-          longitude: e.longitude,
-          icon: _iconFor(e),
-          tag: e,
-        ),
-      );
+      list.add(_entryToMessage(i, e));
     }
     if (mounted) {
       setState(() => _messages = list);
     } else {
       _messages = list;
+    }
+  }
+
+  /// Appends a single newly added entry to the display list without rebuilding
+  /// the entire message list. A full rebuild re-created a [ChatMessage] for
+  /// every entry (O(n) allocations) and ran on every incoming packet, so cost
+  /// grew with history size. Appending keeps the per-packet cost constant.
+  void _appendMessage(int index, _AprsEntry e) {
+    if (!e.visible) return;
+    final msg = _entryToMessage(index, e);
+    if (mounted) {
+      setState(() => _messages.add(msg));
+    } else {
+      _messages.add(msg);
     }
   }
 
@@ -674,7 +691,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin {
     }
 
     _entries.add(entry);
-    if (rebuild) _rebuildMessages();
+    if (rebuild) _appendMessage(_entries.length - 1, entry);
   }
 
   void _updateDeliveryIcon(

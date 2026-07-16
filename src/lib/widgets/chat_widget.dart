@@ -31,7 +31,7 @@ class ChatMessage {
   /// SSTV picture), if any.
   final String? imagePath;
 
-  const ChatMessage({
+  ChatMessage({
     required this.id,
     required this.route,
     required this.senderCallsign,
@@ -48,6 +48,15 @@ class ChatMessage {
   });
 
   bool get hasLocation => latitude != null && longitude != null;
+
+  /// Channel-share tokens (`HTC:1:...*CK`) found in [message], computed lazily
+  /// and cached. Parsing runs a regex over the whole text and decodes each
+  /// match, which is far too expensive to repeat on every bubble rebuild (the
+  /// item builder re-runs for each visible bubble on every scroll frame). The
+  /// result is cached on the message instance so it is computed at most once.
+  List<ChannelShareMatch>? _channelMatches;
+  List<ChannelShareMatch> get channelMatches =>
+      _channelMatches ??= ChannelShare.findAll(message);
 }
 
 /// Reusable chat widget for displaying message conversations
@@ -232,10 +241,20 @@ class _ChatWidgetState extends State<ChatWidget> {
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        // Bubbles are stateless, so there is no per-item state worth retaining
+        // off-screen; disabling keep-alives avoids holding built elements for
+        // scrolled-away bubbles in very long histories.
+        addAutomaticKeepAlives: false,
         itemCount: widget.messages.length,
         itemBuilder: (context, index) {
           final message = widget.messages[index];
-          return _buildMessageItem(message, index);
+          // A stable key lets Flutter match elements to the right message when
+          // the list changes (new bubble appended, filter toggled) instead of
+          // rebuilding mismatched items.
+          return KeyedSubtree(
+            key: ValueKey(message.id),
+            child: _buildMessageItem(message, index),
+          );
         },
       ),
     );
@@ -442,7 +461,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                       children: [
                         if (message.message.isNotEmpty)
                           Flexible(
-                            child: _buildMessageContent(message.message),
+                            child: _buildMessageContent(message),
                           ),
                         // Authentication indicator (lock = verified, broken =
                         // failed). Surfaces AX25 auth state on the bubble itself,
@@ -475,8 +494,9 @@ class _ChatWidgetState extends State<ChatWidget> {
   /// Builds the body text of a bubble, replacing any channel-share tokens
   /// (`HTC:1:...*CK`) with draggable "yellow block" chips that can be dropped
   /// onto a radio slot to program the channel. Surrounding text is preserved.
-  Widget _buildMessageContent(String text) {
-    final matches = ChannelShare.findAll(text);
+  Widget _buildMessageContent(ChatMessage message) {
+    final text = message.message;
+    final matches = message.channelMatches;
     if (matches.isEmpty) {
       return Text(
         text,

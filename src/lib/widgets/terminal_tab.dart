@@ -9,6 +9,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'tab_visibility.dart';
 
 import '../dialogs/active_station_selector_dialog.dart';
 import '../l10n/app_localizations.dart';
@@ -83,7 +84,7 @@ class _TerminalLine {
 }
 
 class _TerminalTabState extends State<TerminalTab>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   final DataBrokerClient _broker = DataBrokerClient();
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();

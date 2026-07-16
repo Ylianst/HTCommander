@@ -3,6 +3,7 @@ import 'dart:io' show File, Platform;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'tab_visibility.dart';
 import '../dialogs/firmware_update_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../dialogs/raw_command_dialog.dart';
@@ -40,7 +41,7 @@ class DebugTab extends StatefulWidget {
 }
 
 class _DebugTabState extends State<DebugTab>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   /// Device id under which application log messages are published/stored.
   static const int _logDeviceId = 1;
 

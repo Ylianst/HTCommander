@@ -4,6 +4,7 @@ import 'dart:io' show File, Platform;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'tab_visibility.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
@@ -50,7 +51,7 @@ class PacketsTab extends StatefulWidget {
 }
 
 class _PacketsTabState extends State<PacketsTab>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   /// Maximum number of packets to keep in memory.
   static const int _maxPackets = 2000;
 

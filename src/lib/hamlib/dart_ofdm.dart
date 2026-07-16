@@ -298,6 +298,16 @@ class DartOfdm {
     return _dftSpread(symbols, inverse: inverse);
   }
 
+  /// Cached DFT-spread twiddle tables, keyed by transform size M and direction.
+  /// The transform size (number of active carriers) is fixed, so the cos/sin
+  /// values are computed once and reused across every symbol. The stored values
+  /// and the accumulation order below are unchanged from computing them inline,
+  /// so the transform output is bit-identical.
+  static final Map<int, Float64List> _dftCosFwd = {};
+  static final Map<int, Float64List> _dftSinFwd = {};
+  static final Map<int, Float64List> _dftCosInv = {};
+  static final Map<int, Float64List> _dftSinInv = {};
+
   /// DFT-spread precoding (unitary, arbitrary size).
   ///
   /// Forward (inverse=false): X[k] = (1/√M) Σ_m d[m] e^(-j2πkm/M)
@@ -305,21 +315,41 @@ class DartOfdm {
   ///
   /// M = params.numDataCarriers is small (≈9), so a direct O(M²) DFT is exact
   /// and cheap. The 1/√M scaling makes the transform unitary, preserving signal
-  /// power so downstream noise-variance/LLR estimates stay consistent.
+  /// power so downstream noise-variance/LLR estimates stay consistent. The
+  /// twiddle factors are cached per size (see above) rather than recomputed per
+  /// call — numerically identical, just fewer trig evaluations.
   static List<Complex> _dftSpread(List<Complex> input, {required bool inverse}) {
     final int m = input.length;
     if (m == 0) return const [];
-    final double sign = inverse ? 1.0 : -1.0;
     final double norm = 1.0 / math.sqrt(m);
-    final out = List<Complex>.filled(m, const Complex(0, 0));
 
+    final cosMap = inverse ? _dftCosInv : _dftCosFwd;
+    final sinMap = inverse ? _dftSinInv : _dftSinFwd;
+    Float64List? cosTab = cosMap[m];
+    Float64List? sinTab = sinMap[m];
+    if (cosTab == null || sinTab == null) {
+      final double sign = inverse ? 1.0 : -1.0;
+      cosTab = Float64List(m * m);
+      sinTab = Float64List(m * m);
+      for (int k = 0; k < m; k++) {
+        for (int n = 0; n < m; n++) {
+          final double angle = sign * 2 * math.pi * k * n / m;
+          cosTab[k * m + n] = math.cos(angle);
+          sinTab[k * m + n] = math.sin(angle);
+        }
+      }
+      cosMap[m] = cosTab;
+      sinMap[m] = sinTab;
+    }
+
+    final out = List<Complex>.filled(m, const Complex(0, 0));
     for (int k = 0; k < m; k++) {
       double re = 0.0;
       double im = 0.0;
+      final int krow = k * m;
       for (int n = 0; n < m; n++) {
-        final double angle = sign * 2 * math.pi * k * n / m;
-        final double c = math.cos(angle);
-        final double s = math.sin(angle);
+        final double c = cosTab[krow + n];
+        final double s = sinTab[krow + n];
         // (input[n].i + j input[n].q) * (c + j s)
         re += input[n].i * c - input[n].q * s;
         im += input[n].i * s + input[n].q * c;
@@ -336,6 +366,12 @@ class DartOfdm {
 
   /// In-place FFT (or IFFT if inverse=true).
   /// Input length must be a power of 2.
+  ///
+  /// This is a thin wrapper over [_fftInPlace]: it copies the Complex input into
+  /// split real/imaginary buffers, transforms them allocation-free, and repacks
+  /// the result. The heavy butterfly loop no longer allocates a Complex object
+  /// per operation, but performs the exact same arithmetic, so the output is
+  /// bit-identical to the previous implementation.
   static List<Complex> _fft(List<Complex> input, {required bool inverse}) {
     final int n = input.length;
     if (n == 1) return [input[0]];
@@ -343,8 +379,39 @@ class DartOfdm {
       throw ArgumentError('FFT size must be a power of 2, got $n');
     }
 
+    final re = Float64List(n);
+    final im = Float64List(n);
+    for (int i = 0; i < n; i++) {
+      re[i] = input[i].i;
+      im[i] = input[i].q;
+    }
+
+    _fftInPlace(re, im, inverse: inverse);
+
+    final result = List<Complex>.filled(n, const Complex(0, 0));
+    for (int i = 0; i < n; i++) {
+      result[i] = Complex(re[i], im[i]);
+    }
+    return result;
+  }
+
+  /// In-place radix-2 Cooley-Tukey FFT on split real/imaginary buffers.
+  ///
+  /// [re] and [im] share the same power-of-two length and are transformed in
+  /// place. This is the allocation-free core: it performs the exact same
+  /// operations, in the same order, as the original Complex-object butterfly
+  /// (complex multiply `t = w·x`, `u±t`, incremental twiddle `w = w·wn`, and the
+  /// `/n` IFFT scaling), so the numerical result is bit-identical — it only
+  /// avoids allocating a Complex object per butterfly.
+  static void _fftInPlace(
+    Float64List re,
+    Float64List im, {
+    required bool inverse,
+  }) {
+    final int n = re.length;
+    if (n <= 1) return;
+
     // Bit-reversal permutation
-    final result = List<Complex>.from(input);
     int j = 0;
     for (int i = 1; i < n; i++) {
       int bit = n >> 1;
@@ -354,9 +421,12 @@ class DartOfdm {
       }
       j ^= bit;
       if (i < j) {
-        final temp = result[i];
-        result[i] = result[j];
-        result[j] = temp;
+        final double tr = re[i];
+        re[i] = re[j];
+        re[j] = tr;
+        final double ti = im[i];
+        im[i] = im[j];
+        im[j] = ti;
       }
     }
 
@@ -364,15 +434,32 @@ class DartOfdm {
     final double sign = inverse ? 1.0 : -1.0;
     for (int len = 2; len <= n; len <<= 1) {
       final double angle = sign * 2 * math.pi / len;
-      final Complex wn = Complex(math.cos(angle), math.sin(angle));
+      final double wnRe = math.cos(angle);
+      final double wnIm = math.sin(angle);
+      final int half = len >> 1;
       for (int i = 0; i < n; i += len) {
-        Complex w = const Complex(1.0, 0.0);
-        for (int k = 0; k < len ~/ 2; k++) {
-          final Complex t = w * result[i + k + len ~/ 2];
-          final Complex u = result[i + k];
-          result[i + k] = u + t;
-          result[i + k + len ~/ 2] = u - t;
-          w = w * wn;
+        double wRe = 1.0;
+        double wIm = 0.0;
+        for (int k = 0; k < half; k++) {
+          final int a = i + k;
+          final int b = a + half;
+          // t = w * x  (x = result[b])
+          final double xRe = re[b];
+          final double xIm = im[b];
+          final double tRe = wRe * xRe - wIm * xIm;
+          final double tIm = wRe * xIm + wIm * xRe;
+          // u = result[a]
+          final double uRe = re[a];
+          final double uIm = im[a];
+          re[a] = uRe + tRe;
+          im[a] = uIm + tIm;
+          re[b] = uRe - tRe;
+          im[b] = uIm - tIm;
+          // w = w * wn
+          final double nwRe = wRe * wnRe - wIm * wnIm;
+          final double nwIm = wRe * wnIm + wIm * wnRe;
+          wRe = nwRe;
+          wIm = nwIm;
         }
       }
     }
@@ -380,10 +467,9 @@ class DartOfdm {
     // Normalize for IFFT
     if (inverse) {
       for (int i = 0; i < n; i++) {
-        result[i] = result[i] / n.toDouble();
+        re[i] = re[i] / n;
+        im[i] = im[i] / n;
       }
     }
-
-    return result;
   }
 }

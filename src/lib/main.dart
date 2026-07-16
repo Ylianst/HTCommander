@@ -55,6 +55,7 @@ import 'widgets/radio_status_bar.dart';
 import 'widgets/comms_tab.dart';
 import 'widgets/audio_tab.dart';
 import 'widgets/aprs_tab.dart';
+import 'widgets/tab_visibility.dart';
 import 'widgets/map_tab.dart';
 import 'widgets/mail_tab.dart';
 import 'widgets/terminal_tab.dart';
@@ -496,6 +497,10 @@ class MainForm extends StatefulWidget {
 class _MainFormState extends State<MainForm>
     with TickerProviderStateMixin, WindowListener {
   late TabController _tabController;
+  /// Index of the currently-shown tab, published so each tab can learn whether
+  /// it is on-screen (via [TabVisibility]) and skip work while hidden. Updated
+  /// only when the index actually changes, so it doesn't churn during swipes.
+  final ValueNotifier<int> _visibleTabIndex = ValueNotifier<int>(0);
   final ScrollController _tabListScrollController = ScrollController();
   late List<_TabInfo> _currentTabs;
   bool _radioVisible = true;
@@ -805,6 +810,7 @@ class _MainFormState extends State<MainForm>
 
     // Listen for tab changes to save
     _tabController.addListener(_onTabChanged);
+    _visibleTabIndex.value = initialIndex;
 
     _initWindowManager();
     _updateWindowTitle();
@@ -1428,6 +1434,10 @@ class _MainFormState extends State<MainForm>
 
   /// Called when tab selection changes.
   void _onTabChanged() {
+    // Keep the visibility signal in sync so hidden tabs can pause work. Updated
+    // before anything else so a tapped tab is marked visible immediately.
+    _visibleTabIndex.value = _tabController.index;
+
     // Drop keyboard focus when moving between tabs so a text input on one tab
     // can't keep (or regain) focus while a different tab is showing. Without
     // this, the soft keyboard could reappear on tabs that have no text input.
@@ -1499,6 +1509,7 @@ class _MainFormState extends State<MainForm>
     }
     _tabController.dispose();
     _tabListScrollController.dispose();
+    _visibleTabIndex.dispose();
     super.dispose();
   }
 
@@ -1546,6 +1557,7 @@ class _MainFormState extends State<MainForm>
       );
     });
     _tabController.addListener(_onTabChanged);
+    _visibleTabIndex.value = newIndex;
   }
 
   /// Rebuilds the tab list and controller when the "AllowTransmit" or
@@ -1579,6 +1591,7 @@ class _MainFormState extends State<MainForm>
       initialIndex: newIndex,
     );
     _tabController.addListener(_onTabChanged);
+    _visibleTabIndex.value = newIndex;
   }
 
   // ============================================================================
@@ -2348,9 +2361,22 @@ class _MainFormState extends State<MainForm>
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
-                  children: _currentTabs
-                      .map((tab) => _buildTabContent(tab))
-                      .toList(),
+                  children: <Widget>[
+                    for (int i = 0; i < _currentTabs.length; i++)
+                      // Wrap each tab so its subtree knows whether it is the
+                      // one currently shown. The tab content itself is built
+                      // once (passed as `child`); only the visibility flag
+                      // updates when the selected tab changes, and dependents
+                      // rebuild only when their own visibility flips.
+                      ValueListenableBuilder<int>(
+                        valueListenable: _visibleTabIndex,
+                        child: _buildTabContent(_currentTabs[i]),
+                        builder: (context, current, child) => TabVisibility(
+                          visible: current == i,
+                          child: child!,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               // Hide the tab list only in compact mode when the user toggles it off
