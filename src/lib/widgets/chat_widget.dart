@@ -643,22 +643,22 @@ class _ChannelChip extends StatelessWidget {
       ),
     );
 
-    return Tooltip(
-      message: 'Drag onto a radio channel to program it',
-      child: MouseRegion(
-        cursor: SystemMouseCursors.grab,
-        child: Draggable<radio.RadioChannelInfo>(
-          data: channel,
-          dragAnchorStrategy: pointerDragAnchorStrategy,
-          feedback: Material(
-            color: Colors.transparent,
-            child: Opacity(opacity: 0.9, child: chip),
-          ),
-          childWhenDragging: Opacity(opacity: 0.4, child: chip),
-          child: GestureDetector(
-            onTap: () => showChannelDetailsDialog(context, channel: channel),
-            child: chip,
-          ),
+    // No tooltip/help message: a stationary press-and-hold falls through to the
+    // bubble's context menu (so the channel can be copied and pasted onto a
+    // radio slot), while dragging still shares the channel via the Draggable.
+    return MouseRegion(
+      cursor: SystemMouseCursors.grab,
+      child: Draggable<radio.RadioChannelInfo>(
+        data: channel,
+        dragAnchorStrategy: pointerDragAnchorStrategy,
+        feedback: Material(
+          color: Colors.transparent,
+          child: Opacity(opacity: 0.9, child: chip),
+        ),
+        childWhenDragging: Opacity(opacity: 0.4, child: chip),
+        child: GestureDetector(
+          onTap: () => showChannelDetailsDialog(context, channel: channel),
+          child: chip,
         ),
       ),
     );
