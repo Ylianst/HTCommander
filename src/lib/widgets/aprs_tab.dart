@@ -359,7 +359,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         'Settings',
         (json) => RadioSettings.fromJson(json),
       );
-      if (bss != null && bss.locationShareInterval > 0) {
+      if (bss != null &&
+          bss.shouldShareLocation &&
+          bss.locationShareInterval > 0) {
         interval = bss.locationShareInterval;
         onCurrent = (settings?.autoShareLocCh ?? 0) == 0;
         break;

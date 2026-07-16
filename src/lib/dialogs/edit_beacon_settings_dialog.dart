@@ -191,7 +191,9 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
         0,
         _packetFormatLabels.length - 1,
       );
-      _callsignController.text = '${bss.aprsCallsign}-${bss.aprsSsid}';
+      _callsignController.text = bss.aprsCallsign.isEmpty
+          ? ''
+          : '${bss.aprsCallsign}-${bss.aprsSsid}';
       _messageController.text = bss.beaconMessage;
       _shareLocation = bss.shouldShareLocation;
       _sendVoltage = bss.sendPwrVoltage;
@@ -242,15 +244,28 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
 
   void _onCallsignChanged() {
     final valid = AX25Address.parse(_callsignController.text) != null;
-    if (valid != _callsignValid) {
-      setState(() => _callsignValid = valid);
-    } else {
-      _callsignValid = valid;
-    }
+    // Rebuild unconditionally: acceptability can change even when validity does
+    // not (e.g. clearing the field while beaconing is off).
+    setState(() => _callsignValid = valid);
+  }
+
+  /// Beaconing is enabled only when location sharing is on and the interval is
+  /// non-zero; this mirrors the APRS tab's beacon banner condition.
+  bool get _beaconingEnabled =>
+      _shareLocation &&
+      _intervalIndex >= 0 &&
+      _intervalIndex < _intervalSeconds.length &&
+      _intervalSeconds[_intervalIndex] > 0;
+
+  /// A callsign is acceptable when it is valid, or when beaconing is off and the
+  /// field is left empty. When beaconing is on, a valid callsign is mandatory.
+  bool get _callsignAcceptable {
+    if (_callsignValid) return true;
+    return !_beaconingEnabled && _callsignController.text.trim().isEmpty;
   }
 
   bool get _canSave =>
-      _controlsEnabled && _callsignValid && _selectedDeviceId > 0;
+      _controlsEnabled && _callsignAcceptable && _selectedDeviceId > 0;
 
   void _onSave() {
     final radio = _bluetooth.radioInstance(_selectedDeviceId);
@@ -258,7 +273,8 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
     if (radio == null || current == null) return;
 
     final addr = AX25Address.parse(_callsignController.text);
-    if (addr == null) return;
+    // A missing callsign is only allowed while beaconing is off.
+    if (addr == null && _beaconingEnabled) return;
 
     // Make an independent copy of the current settings to preserve the fields
     // the dialog does not edit (mirrors the C# copy-then-modify approach).
@@ -267,8 +283,8 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
     prefixed.setRange(5, 5 + src.length, src);
     final newSettings = RadioBssSettings.fromBytes(prefixed);
 
-    newSettings.aprsCallsign = addr.address;
-    newSettings.aprsSsid = addr.ssid;
+    newSettings.aprsCallsign = addr?.address ?? '';
+    newSettings.aprsSsid = addr?.ssid ?? 0;
     newSettings.packetFormat = _packetFormatIndex;
     newSettings.beaconMessage = _messageController.text;
     newSettings.shouldShareLocation = _shareLocation;
@@ -514,7 +530,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
 
   Widget _buildCallsignField() {
     final l10n = AppLocalizations.of(context);
-    final invalid = _controlsEnabled && !_callsignValid;
+    final invalid = _controlsEnabled && !_callsignAcceptable;
     return _labeled(
       l10n.beaconAprsCallsign,
       Column(
