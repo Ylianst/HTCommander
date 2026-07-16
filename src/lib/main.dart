@@ -26,6 +26,7 @@ import 'handlers/comms_handler.dart';
 import 'handlers/bbs_handler.dart';
 import 'handlers/agwpe_handler.dart';
 import 'handlers/web_server_handler.dart';
+import 'handlers/home_assistant_handler.dart';
 import 'handlers/debug_log_handler.dart';
 import 'gps/gps_serial_handler.dart';
 import 'torrent/torrent_handler.dart';
@@ -226,6 +227,15 @@ void main(List<String> args) async {
     final webServerHandler = WebServerHandler();
     webServerHandler.init();
     DataBroker.addDataHandler('WebServerHandler', webServerHandler);
+  }
+
+  // Register the Home Assistant handler (desktop only) so that, when enabled in
+  // settings, each connected radio is exposed to Home Assistant over MQTT using
+  // auto-discovery for monitoring and control. Not available on web/iOS/Android.
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    final homeAssistantHandler = HomeAssistantHandler();
+    homeAssistantHandler.init();
+    DataBroker.addDataHandler('HomeAssistantHandler', homeAssistantHandler);
   }
 
   // Initialize the history limiter so that persisted data is pruned at startup,

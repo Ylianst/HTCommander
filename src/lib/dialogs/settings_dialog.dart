@@ -11,6 +11,7 @@ import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
 import '../services/history_limiter.dart';
 import '../services/locale_controller.dart';
+import '../services/mqtt/mqtt_client_facade.dart';
 import '../services/theme_controller.dart';
 import '../services/tts_service.dart';
 import '../services/sherpa_model_manager.dart';
@@ -47,6 +48,12 @@ class AppSettings {
   int webServerPort;
   bool agwpeServerEnabled;
   int agwpeServerPort;
+
+  // Home Assistant (Servers tab)
+  bool homeAssistantEnabled;
+  String homeAssistantMqttUrl;
+  String homeAssistantUsername;
+  String homeAssistantPassword;
 
   // Map/GPS tab
   String gpsSerialPort;
@@ -115,6 +122,10 @@ class AppSettings {
     this.webServerPort = 8080,
     this.agwpeServerEnabled = false,
     this.agwpeServerPort = 8000,
+    this.homeAssistantEnabled = false,
+    this.homeAssistantMqttUrl = '',
+    this.homeAssistantUsername = '',
+    this.homeAssistantPassword = '',
     this.gpsSerialPort = 'None',
     this.gpsBaudRate = 4800,
     this.shareSerialGpsLocation = false,
@@ -143,6 +154,10 @@ class AppSettings {
     int? webServerPort,
     bool? agwpeServerEnabled,
     int? agwpeServerPort,
+    bool? homeAssistantEnabled,
+    String? homeAssistantMqttUrl,
+    String? homeAssistantUsername,
+    String? homeAssistantPassword,
     String? gpsSerialPort,
     int? gpsBaudRate,
     bool? shareSerialGpsLocation,
@@ -170,6 +185,10 @@ class AppSettings {
       webServerPort: webServerPort ?? this.webServerPort,
       agwpeServerEnabled: agwpeServerEnabled ?? this.agwpeServerEnabled,
       agwpeServerPort: agwpeServerPort ?? this.agwpeServerPort,
+      homeAssistantEnabled: homeAssistantEnabled ?? this.homeAssistantEnabled,
+      homeAssistantMqttUrl: homeAssistantMqttUrl ?? this.homeAssistantMqttUrl,
+      homeAssistantUsername: homeAssistantUsername ?? this.homeAssistantUsername,
+      homeAssistantPassword: homeAssistantPassword ?? this.homeAssistantPassword,
       gpsSerialPort: gpsSerialPort ?? this.gpsSerialPort,
       gpsBaudRate: gpsBaudRate ?? this.gpsBaudRate,
       shareSerialGpsLocation:
@@ -221,6 +240,14 @@ class AppSettings {
           (DataBroker.getValue<int>(0, 'agwpeServerEnabled', 0) ?? 0) == 1,
       agwpeServerPort:
           DataBroker.getValue<int>(0, 'agwpeServerPort', 8000) ?? 8000,
+      homeAssistantEnabled:
+          (DataBroker.getValue<int>(0, 'homeAssistantEnabled', 0) ?? 0) == 1,
+      homeAssistantMqttUrl:
+          DataBroker.getValue<String>(0, 'homeAssistantMqttUrl', '') ?? '',
+      homeAssistantUsername:
+          DataBroker.getValue<String>(0, 'homeAssistantUsername', '') ?? '',
+      homeAssistantPassword:
+          DataBroker.getValue<String>(0, 'homeAssistantPassword', '') ?? '',
       gpsSerialPort:
           DataBroker.getValue<String>(0, 'GpsSerialPort', 'None') ?? 'None',
       gpsBaudRate: DataBroker.getValue<int>(0, 'GpsBaudRate', 4800) ?? 4800,
@@ -292,6 +319,26 @@ class AppSettings {
       deviceId: 0,
       name: 'agwpeServerPort',
       data: agwpeServerPort,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'homeAssistantEnabled',
+      data: homeAssistantEnabled ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'homeAssistantMqttUrl',
+      data: homeAssistantMqttUrl,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'homeAssistantUsername',
+      data: homeAssistantUsername,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'homeAssistantPassword',
+      data: homeAssistantPassword,
     );
     DataBroker.dispatch(
       deviceId: 0,
@@ -383,12 +430,20 @@ class _SettingsDialogState extends State<SettingsDialog>
   late TextEditingController _webPortController;
   late TextEditingController _agwpePortController;
   late TextEditingController _airplaneUrlController;
+  late TextEditingController _homeAssistantUrlController;
+  late TextEditingController _homeAssistantUsernameController;
+  late TextEditingController _homeAssistantPasswordController;
 
   // Dump1090 "Test Connection" state.
   bool _airplaneTesting = false;
   String _airplaneTestResult = '';
   // Whether the last completed test succeeded (drives the result text color).
   bool _airplaneTestOk = false;
+
+  // Home Assistant MQTT "Test" state.
+  bool _homeAssistantTesting = false;
+  String _homeAssistantTestResult = '';
+  bool _homeAssistantTestOk = false;
 
   // Serial ports available for the GPS receiver (desktop only).
   List<String> _availablePorts = const [];
@@ -501,6 +556,15 @@ class _SettingsDialogState extends State<SettingsDialog>
     _airplaneUrlController = TextEditingController(
       text: _settings.airplaneServerUrl,
     );
+    _homeAssistantUrlController = TextEditingController(
+      text: _settings.homeAssistantMqttUrl,
+    );
+    _homeAssistantUsernameController = TextEditingController(
+      text: _settings.homeAssistantUsername,
+    );
+    _homeAssistantPasswordController = TextEditingController(
+      text: _settings.homeAssistantPassword,
+    );
 
     _callSignController.addListener(_onCallSignChanged);
 
@@ -557,6 +621,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     _webPortController.dispose();
     _agwpePortController.dispose();
     _airplaneUrlController.dispose();
+    _homeAssistantUrlController.dispose();
+    _homeAssistantUsernameController.dispose();
+    _homeAssistantPasswordController.dispose();
     super.dispose();
   }
 
@@ -664,6 +731,45 @@ class _SettingsDialogState extends State<SettingsDialog>
     );
   }
 
+  /// Tests the Home Assistant MQTT broker connection using the URL, username,
+  /// and password currently entered, updating the inline result text.
+  Future<void> _testHomeAssistantConnection() async {
+    final l10n = AppLocalizations.of(context);
+    final url = _homeAssistantUrlController.text.trim();
+    if (url.isEmpty) {
+      setState(() {
+        _homeAssistantTestOk = false;
+        _homeAssistantTestResult = l10n.settingsTestEmptyAddress;
+      });
+      return;
+    }
+
+    setState(() {
+      _homeAssistantTesting = true;
+      _homeAssistantTestResult = l10n.settingsTestTesting;
+    });
+
+    final result = await MqttClientFacade.testConnection(
+      url: url,
+      username: _homeAssistantUsernameController.text,
+      password: _homeAssistantPasswordController.text,
+      timeout: const Duration(seconds: 10),
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _homeAssistantTesting = false;
+      _homeAssistantTestOk = result.ok;
+      _homeAssistantTestResult = result.ok
+          ? l10n.settingsHomeAssistantTestSuccess
+          : l10n.settingsTestFailed;
+    });
+
+    if (!result.ok && result.error != null) {
+      _showTestErrorDialog(result.error!);
+    }
+  }
+
   void _onSave() async {
     final l10n = AppLocalizations.of(context);
     // Update settings from text controllers
@@ -671,6 +777,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     _settings.webServerPort = int.tryParse(_webPortController.text) ?? 8080;
     _settings.agwpeServerPort = int.tryParse(_agwpePortController.text) ?? 8000;
     _settings.airplaneServerUrl = _airplaneUrlController.text;
+    _settings.homeAssistantMqttUrl = _homeAssistantUrlController.text.trim();
+    _settings.homeAssistantUsername = _homeAssistantUsernameController.text;
+    _settings.homeAssistantPassword = _homeAssistantPasswordController.text;
 
     // Check if any limit would cause items to be deleted.
     final counts = _historyCounts;
@@ -1934,6 +2043,131 @@ class _SettingsDialogState extends State<SettingsDialog>
                       ),
                     ],
                   ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: _sectionDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.settingsHomeAssistant,
+                  style: _sectionTitleStyle(),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.settingsHomeAssistantDescription,
+                  style: DialogStyles.bodyStyle,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _settings.homeAssistantEnabled,
+                      onChanged: (value) {
+                        setState(
+                          () => _settings.homeAssistantEnabled = value ?? false,
+                        );
+                      },
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(
+                          () => _settings.homeAssistantEnabled =
+                              !_settings.homeAssistantEnabled,
+                        ),
+                        child: Text(l10n.settingsEnableHomeAssistant),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  l10n.settingsHomeAssistantMqttUrl,
+                  style: DialogStyles.labelStyle,
+                ),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: _homeAssistantUrlController,
+                  decoration: _inputDecoration().copyWith(
+                    hintText: 'mqtt://homeassistant.local:1883',
+                  ),
+                  onChanged: (_) {
+                    setState(() => _homeAssistantTestResult = '');
+                  },
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.settingsHomeAssistantUsername,
+                            style: DialogStyles.labelStyle,
+                          ),
+                          const SizedBox(height: 4),
+                          TextField(
+                            controller: _homeAssistantUsernameController,
+                            decoration: _inputDecoration(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.settingsHomeAssistantPassword,
+                            style: DialogStyles.labelStyle,
+                          ),
+                          const SizedBox(height: 4),
+                          TextField(
+                            controller: _homeAssistantPasswordController,
+                            obscureText: true,
+                            decoration: _inputDecoration(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: (_homeAssistantUrlController.text
+                                  .trim()
+                                  .isNotEmpty &&
+                              !_homeAssistantTesting)
+                          ? _testHomeAssistantConnection
+                          : null,
+                      child: Text(l10n.settingsTest),
+                    ),
+                    if (_homeAssistantTestResult.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _homeAssistantTestResult,
+                          style: TextStyle(
+                            color: _homeAssistantTesting
+                                ? Theme.of(context).colorScheme.onSurfaceVariant
+                                : (_homeAssistantTestOk
+                                    ? Colors.green.shade700
+                                    : Colors.red.shade700),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

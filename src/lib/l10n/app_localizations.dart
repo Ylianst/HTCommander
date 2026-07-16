@@ -1152,6 +1152,48 @@ abstract class AppLocalizations {
   /// **'Enable AGWPE Server'**
   String get settingsEnableAgwpeServer;
 
+  /// Section title for the Home Assistant MQTT integration in Settings > Servers
+  ///
+  /// In en, this message translates to:
+  /// **'Home Assistant'**
+  String get settingsHomeAssistant;
+
+  /// Explanatory text under the Home Assistant section heading
+  ///
+  /// In en, this message translates to:
+  /// **'Expose each connected radio to Home Assistant over MQTT for monitoring and control.'**
+  String get settingsHomeAssistantDescription;
+
+  /// Checkbox label to enable the Home Assistant MQTT bridge
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Home Assistant'**
+  String get settingsEnableHomeAssistant;
+
+  /// Label for the MQTT broker URL field
+  ///
+  /// In en, this message translates to:
+  /// **'MQTT URL'**
+  String get settingsHomeAssistantMqttUrl;
+
+  /// Label for the MQTT username field
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get settingsHomeAssistantUsername;
+
+  /// Label for the MQTT password field
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get settingsHomeAssistantPassword;
+
+  /// Message shown when the Home Assistant MQTT test connection succeeds
+  ///
+  /// In en, this message translates to:
+  /// **'Success: connected to broker.'**
+  String get settingsHomeAssistantTestSuccess;
+
   /// No description provided for @settingsMapIntroGps.
   ///
   /// In en, this message translates to:

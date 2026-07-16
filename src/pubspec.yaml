@@ -64,6 +64,7 @@ dependencies:
   desktop_updater: ^2.4.2
   package_info_plus: ^8.0.0
   grpc: ^4.0.1
+  mqtt_client: ^10.9.0
 
 dev_dependencies:
   flutter_test:

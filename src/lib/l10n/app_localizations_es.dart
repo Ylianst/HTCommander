@@ -574,6 +574,29 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'Habilitar el servidor AGWPE';
 
   @override
+  String get settingsHomeAssistant => 'Home Assistant';
+
+  @override
+  String get settingsHomeAssistantDescription =>
+      'Expose each connected radio to Home Assistant over MQTT for monitoring and control.';
+
+  @override
+  String get settingsEnableHomeAssistant => 'Enable Home Assistant';
+
+  @override
+  String get settingsHomeAssistantMqttUrl => 'MQTT URL';
+
+  @override
+  String get settingsHomeAssistantUsername => 'Username';
+
+  @override
+  String get settingsHomeAssistantPassword => 'Password';
+
+  @override
+  String get settingsHomeAssistantTestSuccess =>
+      'Success: connected to broker.';
+
+  @override
   String get settingsMapIntroGps =>
       'Configure las fuentes de datos de GPS y de seguimiento de aviones.';
 

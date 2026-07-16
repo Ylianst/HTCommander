@@ -533,6 +533,35 @@
   "settingsPort": "Port:",
   "settingsEnableAgwpeServer": "Enable AGWPE Server",
 
+  "settingsHomeAssistant": "Home Assistant",
+  "@settingsHomeAssistant": {
+    "description": "Section title for the Home Assistant MQTT integration in Settings > Servers"
+  },
+  "settingsHomeAssistantDescription": "Expose each connected radio to Home Assistant over MQTT for monitoring and control.",
+  "@settingsHomeAssistantDescription": {
+    "description": "Explanatory text under the Home Assistant section heading"
+  },
+  "settingsEnableHomeAssistant": "Enable Home Assistant",
+  "@settingsEnableHomeAssistant": {
+    "description": "Checkbox label to enable the Home Assistant MQTT bridge"
+  },
+  "settingsHomeAssistantMqttUrl": "MQTT URL",
+  "@settingsHomeAssistantMqttUrl": {
+    "description": "Label for the MQTT broker URL field"
+  },
+  "settingsHomeAssistantUsername": "Username",
+  "@settingsHomeAssistantUsername": {
+    "description": "Label for the MQTT username field"
+  },
+  "settingsHomeAssistantPassword": "Password",
+  "@settingsHomeAssistantPassword": {
+    "description": "Label for the MQTT password field"
+  },
+  "settingsHomeAssistantTestSuccess": "Success: connected to broker.",
+  "@settingsHomeAssistantTestSuccess": {
+    "description": "Message shown when the Home Assistant MQTT test connection succeeds"
+  },
+
   "settingsMapIntroGps": "Configure GPS and airplane tracking data sources.",
   "settingsMapIntroNoGps": "Configure airplane tracking data sources.",
   "settingsGpsSerialPort": "GPS Serial Port",

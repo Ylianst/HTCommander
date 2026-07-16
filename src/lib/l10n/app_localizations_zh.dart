@@ -558,6 +558,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsEnableAgwpeServer => '启用 AGWPE 服务器';
 
   @override
+  String get settingsHomeAssistant => 'Home Assistant';
+
+  @override
+  String get settingsHomeAssistantDescription =>
+      'Expose each connected radio to Home Assistant over MQTT for monitoring and control.';
+
+  @override
+  String get settingsEnableHomeAssistant => 'Enable Home Assistant';
+
+  @override
+  String get settingsHomeAssistantMqttUrl => 'MQTT URL';
+
+  @override
+  String get settingsHomeAssistantUsername => 'Username';
+
+  @override
+  String get settingsHomeAssistantPassword => 'Password';
+
+  @override
+  String get settingsHomeAssistantTestSuccess =>
+      'Success: connected to broker.';
+
+  @override
   String get settingsMapIntroGps => '配置 GPS 和飞机跟踪数据源。';
 
   @override
