@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
+import 'dialog_utils.dart';
 import '../radio/gaia_protocol.dart';
 import '../services/data_broker_client.dart';
 
@@ -204,10 +205,12 @@ class _ConfigureButtonsDialogState extends State<_ConfigureButtonsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
+          style: DialogStyles.secondaryButtonStyle(context),
           child: Text(l10n.commonCancel),
         ),
-        FilledButton(
+        ElevatedButton(
           onPressed: (_slots == null || _slots!.isEmpty) ? null : _save,
+          style: DialogStyles.primaryButtonStyle(context),
           child: Text(l10n.pfSaveToRadio),
         ),
       ],

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import 'dialog_utils.dart';
 
 /// Simple dialog that displays an image at a larger size, with pinch/scroll
 /// zoom and a Close button in the bottom-right (matching the other dialogs).
@@ -73,8 +74,9 @@ class ImageViewDialog extends StatelessWidget {
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
+              child: ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
+                style: DialogStyles.primaryButtonStyle(context),
                 child: Text(l10n.commonClose),
               ),
             ),

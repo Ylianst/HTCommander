@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/update_service.dart';
+import 'dialog_utils.dart';
 import 'update_dialog.dart';
 
 /// Custom About dialog matching the C# AboutForm
@@ -131,12 +132,14 @@ class HTAboutDialog extends StatelessWidget {
                           builder: (context) => const UpdateDialog(),
                         );
                       },
+                      style: DialogStyles.secondaryButtonStyle(context),
                       child: Text(
                         AppLocalizations.of(context).aboutCheckForUpdates,
                       ),
                     ),
-                  TextButton(
+                  ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
+                    style: DialogStyles.primaryButtonStyle(context),
                     child: Text(AppLocalizations.of(context).commonClose),
                   ),
                 ],

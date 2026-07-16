@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import 'dialog_utils.dart';
 
 /// Result returned by [SstvSendDialog] when the user confirms a transmission.
 class SstvSendResult {
@@ -268,11 +269,13 @@ class _SstvSendDialogState extends State<SstvSendDialog> {
                 children: [
                   TextButton(
                     onPressed: _busy ? null : () => Navigator.of(context).pop(),
+                    style: DialogStyles.secondaryButtonStyle(context),
                     child: Text(l10n.commonCancel),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _busy || _previewPng == null ? null : _onSend,
+                    style: DialogStyles.primaryButtonStyle(context),
                     child: Text(l10n.commonSend),
                   ),
                 ],

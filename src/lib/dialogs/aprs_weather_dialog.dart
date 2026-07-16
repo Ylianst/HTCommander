@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
+import 'dialog_utils.dart';
 import '../services/data_broker_client.dart';
 
 /// Time options for the weather request (matches the C# `timeComboBox`).
@@ -218,10 +219,12 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
+          style: DialogStyles.secondaryButtonStyle(context),
           child: Text(l10n.commonCancel),
         ),
         ElevatedButton(
           onPressed: _isValid ? _onOk : null,
+          style: DialogStyles.primaryButtonStyle(context),
           child: Text(l10n.commonOk),
         ),
       ],

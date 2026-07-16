@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import 'aprs_location_dialog.dart';
+import 'dialog_utils.dart';
 
 /// A single name/value row shown in the [AprsDetailsDialog].
 class AprsDetailItem {
@@ -240,18 +241,13 @@ class AprsDetailsDialog extends StatelessWidget {
                       const Spacer(),
                       TextButton(
                         onPressed: () => _copyAll(context),
-                        style: TextButton.styleFrom(
-                          foregroundColor: scheme.onSurface,
-                        ),
+                        style: DialogStyles.secondaryButtonStyle(context),
                         child: Text(l10n.apdCopyAll),
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
+                        style: DialogStyles.primaryButtonStyle(context),
                         child: Text(l10n.commonClose),
                       ),
                     ],

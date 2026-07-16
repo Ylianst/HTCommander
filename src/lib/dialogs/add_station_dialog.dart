@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import 'dialog_utils.dart';
 import '../models/station_info.dart';
 import '../models/radio_models.dart';
 import '../radio/ax25_address.dart';
@@ -319,12 +320,14 @@ class _StationDialogState extends State<_StationDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
+          style: DialogStyles.secondaryButtonStyle(context),
           child: Text(l10n.commonCancel),
         ),
         ElevatedButton(
           onPressed: _isValid
               ? () => Navigator.of(context).pop(_buildResult())
               : null,
+          style: DialogStyles.primaryButtonStyle(context),
           child: Text(l10n.commonOk),
         ),
       ],

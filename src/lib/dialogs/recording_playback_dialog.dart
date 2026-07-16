@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import 'dialog_utils.dart';
 
 /// Playback dialog for an audio recording, ported from the C#
 /// `RecordingPlaybackForm`. Shows a play/pause button, a draggable position

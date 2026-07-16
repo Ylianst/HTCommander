@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
+import 'dialog_utils.dart';
 
 /// All the metadata known about a single Comms tab message. Attached as the
 /// [ChatMessage.tag] so the details dialog can display the full record.
@@ -291,18 +292,13 @@ class MessageDetailsDialog extends StatelessWidget {
                 children: [
                   TextButton(
                     onPressed: () => _copyAll(context),
-                    style: TextButton.styleFrom(
-                      foregroundColor: scheme.onSurface,
-                    ),
+                    style: DialogStyles.secondaryButtonStyle(context),
                     child: Text(l10n.apdCopyAll),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
+                    style: DialogStyles.primaryButtonStyle(context),
                     child: Text(l10n.commonClose),
                   ),
                 ],

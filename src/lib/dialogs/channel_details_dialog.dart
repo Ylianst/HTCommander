@@ -7,6 +7,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import 'dialog_utils.dart';
 import '../radio/radio_models.dart';
 
 /// Opens a read-only details view for a [channel].
@@ -100,8 +101,9 @@ class ChannelDetailsDialog extends StatelessWidget {
         ),
       ),
       actions: [
-        TextButton(
+        ElevatedButton(
           onPressed: () => Navigator.of(context).pop(),
+          style: DialogStyles.primaryButtonStyle(context),
           child: Text(l10n.commonClose),
         ),
       ],

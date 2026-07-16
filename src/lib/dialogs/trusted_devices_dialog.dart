@@ -148,8 +148,9 @@ class _TrustedDevicesDialogState extends State<_TrustedDevicesDialog> {
         ],
       ),
       actions: [
-        TextButton(
+        ElevatedButton(
           onPressed: () => Navigator.of(context).pop(),
+          style: DialogStyles.primaryButtonStyle(context),
           child: Text(l10n.commonClose),
         ),
       ],
