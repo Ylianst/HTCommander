@@ -42,6 +42,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get menuButtons => 'Tasten...';
 
   @override
+  String get menuFmRadio => 'UKW-Radio...';
+
+  @override
   String get menuExportChannels => 'Kanäle exportieren...';
 
   @override
@@ -52,6 +55,58 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get menuMacDisplay => 'Anzeige';
+
+  @override
+  String get fmRadioTitle => 'UKW-Radio';
+
+  @override
+  String fmRadioMhz(String value) {
+    return '${value}MHz';
+  }
+
+  @override
+  String get fmRadioOff => 'Aus';
+
+  @override
+  String get fmRadioPowerTooltip => 'UKW-Radio ein-/ausschalten';
+
+  @override
+  String get fmRadioSeekDownTooltip => 'Abwärts suchen';
+
+  @override
+  String get fmRadioStepDownTooltip => 'Frequenz verringern';
+
+  @override
+  String get fmRadioStopTooltip => 'Ausschalten';
+
+  @override
+  String get fmRadioStepUpTooltip => 'Frequenz erhöhen';
+
+  @override
+  String get fmRadioSeekUpTooltip => 'Aufwärts suchen';
+
+  @override
+  String get fmRadioStationsHeader => 'Bevorzugte Sender';
+
+  @override
+  String get fmRadioAddStationTooltip => 'Aktuelle Frequenz hinzufügen';
+
+  @override
+  String get fmRadioNoStations => 'Keine bevorzugten Sender';
+
+  @override
+  String get fmRadioStationNameLabel => 'Sendername';
+
+  @override
+  String get fmRadioRenameTitle => 'Sendername';
+
+  @override
+  String get fmRadioDeleteTitle => 'Sender löschen';
+
+  @override
+  String fmRadioDeleteMessage(String name) {
+    return '„$name“ aus Ihren bevorzugten Sendern entfernen?';
+  }
 
   @override
   String get commonClose => 'Schließen';

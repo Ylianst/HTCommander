@@ -42,6 +42,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get menuButtons => 'ボタン...';
 
   @override
+  String get menuFmRadio => 'FMラジオ...';
+
+  @override
   String get menuExportChannels => 'チャンネルをエクスポート...';
 
   @override
@@ -52,6 +55,58 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get menuMacDisplay => '表示';
+
+  @override
+  String get fmRadioTitle => 'FMラジオ';
+
+  @override
+  String fmRadioMhz(String value) {
+    return '${value}MHz';
+  }
+
+  @override
+  String get fmRadioOff => 'オフ';
+
+  @override
+  String get fmRadioPowerTooltip => 'FMラジオのオン/オフ';
+
+  @override
+  String get fmRadioSeekDownTooltip => '下方向にシーク';
+
+  @override
+  String get fmRadioStepDownTooltip => '周波数を下げる';
+
+  @override
+  String get fmRadioStopTooltip => 'オフにする';
+
+  @override
+  String get fmRadioStepUpTooltip => '周波数を上げる';
+
+  @override
+  String get fmRadioSeekUpTooltip => '上方向にシーク';
+
+  @override
+  String get fmRadioStationsHeader => 'お気に入りの放送局';
+
+  @override
+  String get fmRadioAddStationTooltip => '現在の周波数を追加';
+
+  @override
+  String get fmRadioNoStations => 'お気に入りの放送局がありません';
+
+  @override
+  String get fmRadioStationNameLabel => '放送局名';
+
+  @override
+  String get fmRadioRenameTitle => '放送局名';
+
+  @override
+  String get fmRadioDeleteTitle => '放送局を削除';
+
+  @override
+  String fmRadioDeleteMessage(String name) {
+    return '「$name」をお気に入りの放送局から削除しますか？';
+  }
 
   @override
   String get commonClose => '閉じる';

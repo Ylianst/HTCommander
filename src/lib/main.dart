@@ -11,8 +11,8 @@ import 'package:window_manager/window_manager.dart';
 
 import 'dialogs/about_dialog.dart';
 import 'dialogs/configure_buttons_dialog.dart';
-import 'dialogs/gps_serial_info_dialog.dart';
-import 'dialogs/import_channels_dialog.dart';
+import 'dialogs/fm_radio_dialog.dart';
+import 'dialogs/gps_serial_info_dialog.dart';import 'dialogs/import_channels_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/radio_info_dialog.dart';
 import 'dialogs/rename_regions_dialog.dart';
@@ -537,6 +537,8 @@ class _MainFormState extends State<MainForm>
   bool _aprsModemFec = true; // FX.25 FEC on transmit (APRS modem)
   int _regionCount =
       0; // Number of regions offered by the currently displayed radio
+  // Whether the currently displayed radio has a built-in FM broadcast receiver.
+  bool _supportRadio = false;
   int _currRegion = 0; // Current region index of the currently displayed radio
   // Names of the regions offered by the currently displayed radio, indexed by
   // region id. Entries may be null until the radio reports the name.
@@ -1018,12 +1020,15 @@ class _MainFormState extends State<MainForm>
   void _onRadioInfoChanged(int deviceId, String name, Object? data) {
     if (deviceId == _currentRadioDeviceId && data is Map) {
       final newRegionCount = data['regionCount'] as int? ?? 0;
+      final newSupportRadio = data['supportRadio'] as bool? ?? false;
       // Only rebuild when the value the menu actually depends on changes.
       // Info messages can arrive frequently; rebuilding on every one would
       // recreate the (Platform)MenuBar and dismiss any open menu.
-      if (newRegionCount != _regionCount) {
+      if (newRegionCount != _regionCount ||
+          newSupportRadio != _supportRadio) {
         setState(() {
           _regionCount = newRegionCount;
+          _supportRadio = newSupportRadio;
         });
       }
     }
@@ -1189,6 +1194,8 @@ class _MainFormState extends State<MainForm>
     if (_currentRadioDeviceId > 0) {
       final info = DataBroker.getValueDynamic(_currentRadioDeviceId, 'Info');
       _regionCount = (info is Map ? info['regionCount'] as int? : null) ?? 0;
+      _supportRadio =
+          (info is Map ? info['supportRadio'] as bool? : null) ?? false;
       final htStatus = DataBroker.getValueDynamic(
         _currentRadioDeviceId,
         'HtStatus',
@@ -1197,6 +1204,7 @@ class _MainFormState extends State<MainForm>
           (htStatus is Map ? htStatus['currRegion'] as int? : null) ?? 0;
     } else {
       _regionCount = 0;
+      _supportRadio = false;
       _currRegion = 0;
     }
     if (_currentRadioDeviceId > 0) {
@@ -1712,6 +1720,15 @@ class _MainFormState extends State<MainForm>
             label: l10n.menuTrustedDevices,
             onPressed: _hasConnectedRadio
                 ? () => showTrustedDevicesDialog(
+                    context,
+                    deviceId: _currentRadioDeviceId,
+                  )
+                : null,
+          ),
+          AppMenuAction(
+            label: l10n.menuFmRadio,
+            onPressed: _hasConnectedRadio && _supportRadio
+                ? () => showFmRadioDialog(
                     context,
                     deviceId: _currentRadioDeviceId,
                   )

@@ -42,6 +42,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuButtons => 'Buttons...';
 
   @override
+  String get menuFmRadio => 'FM Radio...';
+
+  @override
   String get menuExportChannels => 'Export Channels...';
 
   @override
@@ -52,6 +55,58 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get menuMacDisplay => 'Display';
+
+  @override
+  String get fmRadioTitle => 'FM Radio';
+
+  @override
+  String fmRadioMhz(String value) {
+    return '${value}MHz';
+  }
+
+  @override
+  String get fmRadioOff => 'Off';
+
+  @override
+  String get fmRadioPowerTooltip => 'Turn FM radio on or off';
+
+  @override
+  String get fmRadioSeekDownTooltip => 'Seek down';
+
+  @override
+  String get fmRadioStepDownTooltip => 'Tune down';
+
+  @override
+  String get fmRadioStopTooltip => 'Turn off';
+
+  @override
+  String get fmRadioStepUpTooltip => 'Tune up';
+
+  @override
+  String get fmRadioSeekUpTooltip => 'Seek up';
+
+  @override
+  String get fmRadioStationsHeader => 'Preferred Stations';
+
+  @override
+  String get fmRadioAddStationTooltip => 'Add current frequency';
+
+  @override
+  String get fmRadioNoStations => 'No preferred stations';
+
+  @override
+  String get fmRadioStationNameLabel => 'Station name';
+
+  @override
+  String get fmRadioRenameTitle => 'Station Name';
+
+  @override
+  String get fmRadioDeleteTitle => 'Delete Station';
+
+  @override
+  String fmRadioDeleteMessage(String name) {
+    return 'Remove \"$name\" from your preferred stations?';
+  }
 
   @override
   String get commonClose => 'Close';

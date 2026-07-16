@@ -42,6 +42,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get menuButtons => '按键...';
 
   @override
+  String get menuFmRadio => '调频广播...';
+
+  @override
   String get menuExportChannels => '导出信道...';
 
   @override
@@ -52,6 +55,58 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get menuMacDisplay => '显示';
+
+  @override
+  String get fmRadioTitle => '调频广播';
+
+  @override
+  String fmRadioMhz(String value) {
+    return '${value}MHz';
+  }
+
+  @override
+  String get fmRadioOff => '关闭';
+
+  @override
+  String get fmRadioPowerTooltip => '开启或关闭调频广播';
+
+  @override
+  String get fmRadioSeekDownTooltip => '向下搜台';
+
+  @override
+  String get fmRadioStepDownTooltip => '向下微调';
+
+  @override
+  String get fmRadioStopTooltip => '关闭';
+
+  @override
+  String get fmRadioStepUpTooltip => '向上微调';
+
+  @override
+  String get fmRadioSeekUpTooltip => '向上搜台';
+
+  @override
+  String get fmRadioStationsHeader => '收藏电台';
+
+  @override
+  String get fmRadioAddStationTooltip => '添加当前频率';
+
+  @override
+  String get fmRadioNoStations => '暂无收藏电台';
+
+  @override
+  String get fmRadioStationNameLabel => '电台名称';
+
+  @override
+  String get fmRadioRenameTitle => '电台名称';
+
+  @override
+  String get fmRadioDeleteTitle => '删除电台';
+
+  @override
+  String fmRadioDeleteMessage(String name) {
+    return '要将“$name”从收藏电台中移除吗？';
+  }
 
   @override
   String get commonClose => '关闭';

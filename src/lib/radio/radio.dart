@@ -382,6 +382,33 @@ class Radio {
       callback: _onDeleteTrustedDeviceEvent,
     );
 
+    // Subscribe to FM broadcast radio control events from the FM Radio dialog.
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'FmRadioSetMode',
+      callback: _onFmRadioSetModeEvent,
+    );
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'FmRadioSetFrequency',
+      callback: _onFmRadioSetFrequencyEvent,
+    );
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'FmRadioSeekUp',
+      callback: _onFmRadioSeekUpEvent,
+    );
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'FmRadioSeekDown',
+      callback: _onFmRadioSeekDownEvent,
+    );
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'QueryFmRadioStatus',
+      callback: _onQueryFmRadioStatusEvent,
+    );
+
     // Subscribe to GPS serial data
     _broker.subscribe(
       deviceId: 1,
@@ -428,6 +455,37 @@ class Radio {
     } else if (data is Map && data['mac'] is String) {
       deleteTrustedDevice(data['mac'] as String);
     }
+  }
+
+  void _onFmRadioSetModeEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    if (data is bool) {
+      setFmRadioMode(data);
+    } else if (data is int) {
+      setFmRadioMode(data != 0);
+    }
+  }
+
+  void _onFmRadioSetFrequencyEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    if (data is int) {
+      setFmRadioFrequency(data);
+    }
+  }
+
+  void _onFmRadioSeekUpEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    fmRadioSeekUp();
+  }
+
+  void _onFmRadioSeekDownEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    fmRadioSeekDown();
+  }
+
+  void _onQueryFmRadioStatusEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    queryFmRadioStatus();
   }
 
   // Event handlers
@@ -1557,6 +1615,66 @@ class Radio {
       RadioCommandGroup.basic,
       RadioBasicCommand.setVolume,
       Uint8List.fromList([level]),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // FM broadcast radio control
+  // ---------------------------------------------------------------------------
+  //
+  // The radio has a built-in FM broadcast receiver controlled by the RADIO_*
+  // commands. RADIO_SET_MODE turns it on/off, RADIO_SET_FREQ tunes to an exact
+  // frequency, RADIO_SEEK_UP/RADIO_SEEK_DOWN scan for the next station, and
+  // RADIO_GET_STATUS reads the current state. Live changes are pushed via the
+  // radioStatusChanged notification (registered on connect) and parsed by
+  // [_handleRadioStatus], which dispatches `FmRadioStatus`.
+
+  /// Requests the current FM broadcast receiver status (RADIO_GET_STATUS). The
+  /// reply is parsed by [_handleRadioStatus] and dispatched as `FmRadioStatus`.
+  void queryFmRadioStatus() {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.radioGetStatus,
+      null,
+    );
+  }
+
+  /// Turns the FM broadcast receiver on or off (RADIO_SET_MODE). The mode byte
+  /// is `2` to enable FM reception and `0` to disable it (values observed on a
+  /// real radio).
+  void setFmRadioMode(bool on) {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.radioSetMode,
+      Uint8List.fromList([on ? 2 : 0]),
+    );
+  }
+
+  /// Tunes the FM broadcast receiver to [freqHz] (RADIO_SET_FREQ). The radio
+  /// expects the frequency as a big-endian uint16 in units of 10 kHz
+  /// (e.g. 91.5 MHz -> 9150 -> 0x23BE).
+  void setFmRadioFrequency(int freqHz) {
+    if (freqHz <= 0) return;
+    final units = (freqHz / 10000).round();
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.radioSetFreq,
+      Uint8List.fromList([(units >> 8) & 0xFF, units & 0xFF]),
+    );
+  }
+
+  /// Seeks up to the next FM broadcast station (RADIO_SEEK_UP). Progress is
+  /// reported through `FmRadioStatus` notifications.
+  void fmRadioSeekUp() {
+    _sendCommand(RadioCommandGroup.basic, RadioBasicCommand.radioSeekUp, null);
+  }
+
+  /// Seeks down to the previous FM broadcast station (RADIO_SEEK_DOWN).
+  void fmRadioSeekDown() {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.radioSeekDown,
+      null,
     );
   }
 

@@ -42,6 +42,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get menuButtons => 'बटन...';
 
   @override
+  String get menuFmRadio => 'FM रेडियो...';
+
+  @override
   String get menuExportChannels => 'चैनल निर्यात करें...';
 
   @override
@@ -52,6 +55,58 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get menuMacDisplay => 'डिस्प्ले';
+
+  @override
+  String get fmRadioTitle => 'FM रेडियो';
+
+  @override
+  String fmRadioMhz(String value) {
+    return '${value}MHz';
+  }
+
+  @override
+  String get fmRadioOff => 'बंद';
+
+  @override
+  String get fmRadioPowerTooltip => 'FM रेडियो चालू या बंद करें';
+
+  @override
+  String get fmRadioSeekDownTooltip => 'नीचे खोजें';
+
+  @override
+  String get fmRadioStepDownTooltip => 'आवृत्ति घटाएँ';
+
+  @override
+  String get fmRadioStopTooltip => 'बंद करें';
+
+  @override
+  String get fmRadioStepUpTooltip => 'आवृत्ति बढ़ाएँ';
+
+  @override
+  String get fmRadioSeekUpTooltip => 'ऊपर खोजें';
+
+  @override
+  String get fmRadioStationsHeader => 'पसंदीदा स्टेशन';
+
+  @override
+  String get fmRadioAddStationTooltip => 'वर्तमान आवृत्ति जोड़ें';
+
+  @override
+  String get fmRadioNoStations => 'कोई पसंदीदा स्टेशन नहीं';
+
+  @override
+  String get fmRadioStationNameLabel => 'स्टेशन का नाम';
+
+  @override
+  String get fmRadioRenameTitle => 'स्टेशन का नाम';
+
+  @override
+  String get fmRadioDeleteTitle => 'स्टेशन हटाएँ';
+
+  @override
+  String fmRadioDeleteMessage(String name) {
+    return '\"$name\" को अपने पसंदीदा स्टेशनों से हटाएँ?';
+  }
 
   @override
   String get commonClose => 'बंद करें';

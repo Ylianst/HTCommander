@@ -31,10 +31,89 @@
   "menuRegions": "Regions",
   "menuTrustedDevices": "Trusted Devices...",
   "menuButtons": "Buttons...",
+  "menuFmRadio": "FM Radio...",
+  "@menuFmRadio": {
+    "description": "File/Radio menu item that opens the FM broadcast radio control dialog."
+  },
   "menuExportChannels": "Export Channels...",
   "menuImportChannels": "Import Channels...",
   "menuMacRadio": "Radio",
   "menuMacDisplay": "Display",
+
+  "fmRadioTitle": "FM Radio",
+  "@fmRadioTitle": {
+    "description": "Title of the FM broadcast radio control dialog."
+  },
+  "fmRadioMhz": "{value}MHz",
+  "@fmRadioMhz": {
+    "description": "FM broadcast frequency shown in MHz (e.g. 91.5MHz).",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "fmRadioOff": "Off",
+  "@fmRadioOff": {
+    "description": "Shown in the FM frequency display when the receiver is turned off."
+  },
+  "fmRadioPowerTooltip": "Turn FM radio on or off",
+  "@fmRadioPowerTooltip": {
+    "description": "Tooltip for the FM Power button that toggles the receiver on/off."
+  },
+  "fmRadioSeekDownTooltip": "Seek down",
+  "@fmRadioSeekDownTooltip": {
+    "description": "Tooltip for the FM seek-down (previous station) button."
+  },
+  "fmRadioStepDownTooltip": "Tune down",
+  "@fmRadioStepDownTooltip": {
+    "description": "Tooltip for the FM tune-down (one step lower) button."
+  },
+  "fmRadioStopTooltip": "Turn off",
+  "@fmRadioStopTooltip": {
+    "description": "Tooltip for the FM stop button that turns the receiver off."
+  },
+  "fmRadioStepUpTooltip": "Tune up",
+  "@fmRadioStepUpTooltip": {
+    "description": "Tooltip for the FM tune-up (one step higher) button."
+  },
+  "fmRadioSeekUpTooltip": "Seek up",
+  "@fmRadioSeekUpTooltip": {
+    "description": "Tooltip for the FM seek-up (next station) button."
+  },
+  "fmRadioStationsHeader": "Preferred Stations",
+  "@fmRadioStationsHeader": {
+    "description": "Header above the list of saved FM broadcast stations."
+  },
+  "fmRadioAddStationTooltip": "Add current frequency",
+  "@fmRadioAddStationTooltip": {
+    "description": "Tooltip for the button that saves the current FM frequency as a preferred station."
+  },
+  "fmRadioNoStations": "No preferred stations",
+  "@fmRadioNoStations": {
+    "description": "Placeholder shown when no preferred FM stations have been saved."
+  },
+  "fmRadioStationNameLabel": "Station name",
+  "@fmRadioStationNameLabel": {
+    "description": "Text field label for a preferred FM station's name."
+  },
+  "fmRadioRenameTitle": "Station Name",
+  "@fmRadioRenameTitle": {
+    "description": "Title of the dialog used to name or rename a preferred FM station."
+  },
+  "fmRadioDeleteTitle": "Delete Station",
+  "@fmRadioDeleteTitle": {
+    "description": "Title of the confirm dialog when removing a preferred FM station."
+  },
+  "fmRadioDeleteMessage": "Remove \"{name}\" from your preferred stations?",
+  "@fmRadioDeleteMessage": {
+    "description": "Confirmation message when removing a preferred FM station.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
 
   "commonClose": "Close",
   "@commonClose": {

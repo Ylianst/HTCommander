@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
@@ -6,6 +8,7 @@ import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
 import '../dialogs/radio_channel_dialog.dart';
 import '../dialogs/gps_details_dialog.dart';
+import '../dialogs/fm_radio_dialog.dart';
 import '../utils/channel_colors.dart';
 import '../utils/channel_share.dart';
 
@@ -36,6 +39,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   RadioHtStatus? _currentHtStatus;
   RadioSettings? _currentSettings;
   RadioFmRadioStatus? _fmRadioStatus;
+  // Preferred FM broadcast stations (freq in Hz + name), persisted on device 0
+  // under 'FmRadioStations' by the FM Radio dialog. Used to label VFO B with the
+  // station name when the tuned FM frequency matches a saved station.
+  List<({int freqHz, String name})> _fmStations = const [];
   // Live tuned frequency (Hz) while in frequency mode, pushed by the radio via
   // the freqModeStatusChanged notification. 0 when unknown / not in freq mode.
   int _freqModeFreqHz = 0;
@@ -103,6 +110,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       name: 'ShowChannelFrequency',
       callback: _onShowChannelFrequencyChanged,
     );
+    _loadFmStations();
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'FmRadioStations',
+      callback: _onFmStationsChanged,
+    );
     _subscribeToDevice();
   }
 
@@ -121,6 +134,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         deviceId: 0,
         name: 'ShowChannelFrequency',
         callback: _onShowChannelFrequencyChanged,
+      );
+      _broker.subscribe(
+        deviceId: 0,
+        name: 'FmRadioStations',
+        callback: _onFmStationsChanged,
       );
       _clearCachedState();
       _subscribeToDevice();
@@ -151,6 +169,48 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     setState(() {
       _showChannelFrequency = newValue;
     });
+  }
+
+  /// Handle preferred FM station changes broadcast on device 0 (from the FM
+  /// Radio dialog adding/renaming/removing stations).
+  void _onFmStationsChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(_loadFmStations);
+  }
+
+  /// Loads and parses the persisted preferred FM stations from device 0.
+  void _loadFmStations() {
+    final raw = _broker.getValue<String>(0, 'FmRadioStations');
+    final list = <({int freqHz, String name})>[];
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          for (final item in decoded) {
+            if (item is Map) {
+              final freq = (item['freqHz'] as num?)?.toInt();
+              if (freq != null) {
+                list.add((freqHz: freq, name: item['name'] as String? ?? ''));
+              }
+            }
+          }
+        }
+      } catch (_) {
+        // Ignore malformed stored data.
+      }
+    }
+    _fmStations = list;
+  }
+
+  /// Returns the saved name of the preferred FM station matching [freqHz], or
+  /// null if the current frequency is not one of the user's preferred stations.
+  String? _fmStationName(int freqHz) {
+    for (final s in _fmStations) {
+      if ((s.freqHz - freqHz).abs() < 1000 && s.name.isNotEmpty) {
+        return s.name;
+      }
+    }
+    return null;
   }
 
   void _clearCachedState() {
@@ -560,8 +620,17 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   String get _vfo2Freq {
-    // FM broadcast uses VFO B: show "FM" in the small text under the frequency.
-    if (_isFmBroadcast) return 'FM';
+    // FM broadcast uses VFO B: show the preferred station name in the small text
+    // under the frequency when the tuned frequency matches a saved station,
+    // otherwise fall back to "FM".
+    if (_isFmBroadcast) {
+      final fm = _fmRadioStatus;
+      if (fm != null && fm.freqHz > 0) {
+        final name = _fmStationName(fm.freqHz);
+        if (name != null) return name;
+      }
+      return 'FM';
+    }
     // In frequency mode VFO B is not active; keep it blank.
     if (_showFrequencyMode) return '';
     if (_isScanning) {
@@ -1139,7 +1208,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       return const SizedBox(height: 46);
     }
 
-    return Column(
+    final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // VFO2 main label (channel name) - large font
@@ -1178,6 +1247,18 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         ),
       ],
     );
+
+    // While the FM broadcast receiver is active, VFO B shows the FM station.
+    // Tapping it opens the FM Radio dialog so the user can quickly change the
+    // station.
+    if (_isFmBroadcast) {
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => showFmRadioDialog(context, deviceId: widget.deviceId),
+        child: content,
+      );
+    }
+    return content;
   }
 
   Widget _buildStatusRow() {

@@ -174,6 +174,12 @@ abstract class AppLocalizations {
   /// **'Buttons...'**
   String get menuButtons;
 
+  /// File/Radio menu item that opens the FM broadcast radio control dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'FM Radio...'**
+  String get menuFmRadio;
+
   /// No description provided for @menuExportChannels.
   ///
   /// In en, this message translates to:
@@ -197,6 +203,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Display'**
   String get menuMacDisplay;
+
+  /// Title of the FM broadcast radio control dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'FM Radio'**
+  String get fmRadioTitle;
+
+  /// FM broadcast frequency shown in MHz (e.g. 91.5MHz).
+  ///
+  /// In en, this message translates to:
+  /// **'{value}MHz'**
+  String fmRadioMhz(String value);
+
+  /// Shown in the FM frequency display when the receiver is turned off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get fmRadioOff;
+
+  /// Tooltip for the FM Power button that toggles the receiver on/off.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn FM radio on or off'**
+  String get fmRadioPowerTooltip;
+
+  /// Tooltip for the FM seek-down (previous station) button.
+  ///
+  /// In en, this message translates to:
+  /// **'Seek down'**
+  String get fmRadioSeekDownTooltip;
+
+  /// Tooltip for the FM tune-down (one step lower) button.
+  ///
+  /// In en, this message translates to:
+  /// **'Tune down'**
+  String get fmRadioStepDownTooltip;
+
+  /// Tooltip for the FM stop button that turns the receiver off.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off'**
+  String get fmRadioStopTooltip;
+
+  /// Tooltip for the FM tune-up (one step higher) button.
+  ///
+  /// In en, this message translates to:
+  /// **'Tune up'**
+  String get fmRadioStepUpTooltip;
+
+  /// Tooltip for the FM seek-up (next station) button.
+  ///
+  /// In en, this message translates to:
+  /// **'Seek up'**
+  String get fmRadioSeekUpTooltip;
+
+  /// Header above the list of saved FM broadcast stations.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferred Stations'**
+  String get fmRadioStationsHeader;
+
+  /// Tooltip for the button that saves the current FM frequency as a preferred station.
+  ///
+  /// In en, this message translates to:
+  /// **'Add current frequency'**
+  String get fmRadioAddStationTooltip;
+
+  /// Placeholder shown when no preferred FM stations have been saved.
+  ///
+  /// In en, this message translates to:
+  /// **'No preferred stations'**
+  String get fmRadioNoStations;
+
+  /// Text field label for a preferred FM station's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Station name'**
+  String get fmRadioStationNameLabel;
+
+  /// Title of the dialog used to name or rename a preferred FM station.
+  ///
+  /// In en, this message translates to:
+  /// **'Station Name'**
+  String get fmRadioRenameTitle;
+
+  /// Title of the confirm dialog when removing a preferred FM station.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Station'**
+  String get fmRadioDeleteTitle;
+
+  /// Confirmation message when removing a preferred FM station.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\" from your preferred stations?'**
+  String fmRadioDeleteMessage(String name);
 
   /// Generic Close button.
   ///

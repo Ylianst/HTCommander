@@ -42,6 +42,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get menuButtons => 'Botones...';
 
   @override
+  String get menuFmRadio => 'Radio FM...';
+
+  @override
   String get menuExportChannels => 'Exportar canales...';
 
   @override
@@ -52,6 +55,58 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get menuMacDisplay => 'Pantalla';
+
+  @override
+  String get fmRadioTitle => 'Radio FM';
+
+  @override
+  String fmRadioMhz(String value) {
+    return '${value}MHz';
+  }
+
+  @override
+  String get fmRadioOff => 'Apagada';
+
+  @override
+  String get fmRadioPowerTooltip => 'Encender o apagar la radio FM';
+
+  @override
+  String get fmRadioSeekDownTooltip => 'Buscar hacia abajo';
+
+  @override
+  String get fmRadioStepDownTooltip => 'Bajar frecuencia';
+
+  @override
+  String get fmRadioStopTooltip => 'Apagar';
+
+  @override
+  String get fmRadioStepUpTooltip => 'Subir frecuencia';
+
+  @override
+  String get fmRadioSeekUpTooltip => 'Buscar hacia arriba';
+
+  @override
+  String get fmRadioStationsHeader => 'Emisoras preferidas';
+
+  @override
+  String get fmRadioAddStationTooltip => 'Añadir la frecuencia actual';
+
+  @override
+  String get fmRadioNoStations => 'No hay emisoras preferidas';
+
+  @override
+  String get fmRadioStationNameLabel => 'Nombre de la emisora';
+
+  @override
+  String get fmRadioRenameTitle => 'Nombre de la emisora';
+
+  @override
+  String get fmRadioDeleteTitle => 'Eliminar emisora';
+
+  @override
+  String fmRadioDeleteMessage(String name) {
+    return '¿Quitar «$name» de tus emisoras preferidas?';
+  }
 
   @override
   String get commonClose => 'Cerrar';
