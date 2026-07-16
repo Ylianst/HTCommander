@@ -1,11 +1,20 @@
 # Getting Audio Off the Main Thread: Moving the Radio Pipeline to Its Own Isolate
 
-*A design note written **before** we start the work — the plan, and the reasoning
-behind it. HTCommander decodes Bluetooth audio, plays it, demodulates data, and
-decodes SSTV images, and today it does all of that on the same thread that paints
-the user interface. This is the story of why that's a problem, why the honest fix
-is a dedicated audio isolate, and how we intend to get there without breaking the
-radio.*
+*A design note that started life **before** we wrote any code — the plan and the
+reasoning behind it — now updated with what we found actually building it.
+HTCommander decodes Bluetooth audio, plays it, demodulates data, and decodes SSTV
+images, and until recently it did all of that on the same thread that paints the
+user interface. This is the story of why that's a problem, why the honest fix is a
+dedicated audio isolate, and the one hard lesson that reshaped the design.*
+
+---
+
+> **Update (build notes).** Phase 1 has landed: SBC decode, WAV recording and the
+> transmit pacing loop now run in a dedicated background isolate. Along the way we
+> hit a wall that changed the architecture — **you cannot play audio from a
+> background isolate** — and the reasons are worth a section of their own (see
+> *“The hard lesson”* below). The plan sections are kept as originally written;
+> the findings correct them where reality disagreed.
 
 ---
 
@@ -122,30 +131,67 @@ demodulation must be prompt. The broker fan-out — the recording, the scope, th
 transcription — does not. So we make the prompt part prompt, and let the rest
 arrive in tidy batches a fraction of a second later.
 
-## The one genuinely hard part: playing audio from a background isolate
+## The hard lesson: you can't play audio from a background isolate
 
 Most of the pipeline is pure Dart — the SBC decoder, the modem, the SSTV
 decoder — and pure Dart moves between isolates without ceremony. The catch is the
 speaker.
 
 Playback goes through a **platform channel** to native code (a small PCM player
-plugin on Windows, macOS, and Linux; `flutter_pcm_sound` on Android). Platform
-channels historically only worked on the main isolate. Since Flutter 3.7 there's a
-supported way around it: capture a `RootIsolateToken` on the main isolate, hand it
-to the worker, and call `BackgroundIsolateBinaryMessenger.ensureInitialized(token)`
-inside the isolate. After that, `MethodChannel` calls from the worker route to the
-same native handlers.
+plugin on Windows, macOS, and Linux; `flutter_pcm_sound` on Android). The original
+plan leaned on a Flutter 3.7 feature: capture a `RootIsolateToken` on the main
+isolate, hand it to the worker, call
+`BackgroundIsolateBinaryMessenger.ensureInitialized(token)`, and then invoke the
+player's `MethodChannel` straight from the worker. We built exactly that — and the
+app crashed the instant it opened the audio device:
 
-This is the highest-risk piece — feeding the native audio device from a
-background isolate has to behave on every platform we ship. So the plan carries a
-fallback: if a platform misbehaves, the isolate can ship decoded PCM back to the
-main isolate and feed the speaker from there. We still win, because the expensive
-part — SBC decode and demodulation — is off the UI thread either way; only the
-cheap `feed()` call would move back.
+```
+Unsupported operation: Background isolates do not support setMessageHandler().
+Messages from the host platform always go to the root isolate.
+```
+
+Here's the asymmetry we'd missed. A background isolate can **send** to the
+platform — `invokeMethod` calls are proxied to the platform thread just fine. What
+it *cannot* do is **receive**: no `EventChannel` streams, no `setMethodCallHandler`,
+no native-to-Dart callbacks. As the error says plainly, messages *from* the host
+platform always go to the root isolate, full stop.
+
+And our PCM player needs to receive. It exposes a **drain callback** — the native
+side tells Dart “the buffer has fallen below the threshold, send more” — over an
+`EventChannel`. That callback is how we apply back-pressure and decide when to drop
+a chunk to catch up. It is native-to-Dart, so it simply cannot be wired up from a
+background isolate. (The same is true of `flutter_pcm_sound` on Android, whose feed
+callback rides a method channel the same way.) The player, in other words, is
+inherently a root-isolate citizen.
+
+So we took the fallback the plan had already reserved, and it turned out to be the
+better design anyway: **the player stays on the root isolate; the isolate does the
+CPU work and hands finished PCM back for the host to feed.**
+
+```
+ MAIN ISOLATE (UI + plugins)               AUDIO ISOLATE (pure-Dart DSP)
+ ─────────────────────────                 ────────────────────────────
+ EventChannel receives BT bytes  ──raw──▶  frame extract / unescape
+ forwards them (zero-copy)                 SBC decode  (real CPU)
+ feed the speaker  ◀───PCM───────────────  volume-scale + record
+ relay to Bluetooth  ◀──framed TX────────  transmit SBC encode + pacing
+ re-dispatch to DataBroker  ◀──events────  (modem + SSTV land here in Phase 2)
+ control (mode, mute, volume) ──cmds────▶
+```
+
+The crucial realisation is that **feeding the device is cheap** — it's a single
+`invokeMethod` that hands a buffer to native code, which has its own audio thread
+and its own ring buffer (about 125 ms of it). What was expensive, and what actually
+caused the stutter, was the *SBC decode and demodulation* sitting in front of that
+feed. Move those off the UI isolate and the main isolate has almost nothing left to
+do per frame — so even mid-paint it can service the feed promptly and the ring
+buffer never underruns. We get the win without the player ever leaving the root
+isolate. As a bonus, the isolate now makes **zero platform-channel calls at all**,
+which sidesteps the whole class of background-messaging problems.
 
 Two platforms opt out entirely by design: **iOS and web have no audio channel in
-HTCommander**, so there's nothing to move. They keep the current code path
-untouched, and the isolate simply isn't spawned there.
+HTCommander**, so there's nothing to move; the isolate is simply never spawned
+there.
 
 ## Doing it in phases (so we can stop and check)
 
@@ -153,24 +199,25 @@ We're deliberately not landing this as one giant commit. The pipeline has real
 consequences — a broken modem means dropped packets, a broken playback means dead
 audio — so the plan is staged to be verifiable at each step:
 
-1. **Infrastructure.** Stand up the isolate, the message protocol, the
-   zero-copy byte transfer, and the `RootIsolateToken` plumbing — with the
-   platform guard for iOS/web.
-2. **Move SBC decode + playback.** This alone should kill the playback stutter,
-   and it's the lowest-risk half. Ship it, confirm audio survives an aggressive
-   UI workout, then continue.
-3. **Move the software modem and SSTV.** The bigger refactor, because the modem is
-   deeply wired into the broker for its settings and its transmit path (including
-   the carrier-sense that keeps it from transmitting over someone else). Moving
-   the whole modem in — receive, transmit, and channel-busy detection together —
-   keeps that logic self-consistent, with a thin proxy on the main isolate
-   bridging the control events both directions.
-4. **Clean up and profile.** Remove the now-dead in-line paths and confirm on a
+1. **Infrastructure + SBC decode + transmit — DONE.** We stood up the isolate, the
+   message protocol, and the zero-copy byte transfer, and moved SBC decode/encode,
+   WAV recording and the transmit pacing loop into it. This is where we learned the
+   playback lesson above and settled the final split (DSP in the isolate, player on
+   the host). The primary symptom — playback that hitches under UI load — is
+   addressed, because the heavy decode no longer shares the UI thread.
+2. **Move the software modem and SSTV — next.** The bigger refactor, because the
+   modem is deeply wired into the broker for its settings and its transmit path
+   (including the carrier-sense that keeps it from transmitting over someone else).
+   Moving the whole modem in — receive, transmit, and channel-busy detection
+   together — keeps that logic self-consistent, with a thin proxy on the main
+   isolate bridging the control events both directions. These are pure Dart, so
+   unlike the player they move into the isolate cleanly.
+3. **Clean up and profile.** Remove the now-dead in-line paths and confirm on a
    DevTools timeline that the audio work really has left the UI thread.
 
-Staging it this way means the first tangible win — audio that doesn't hitch —
-arrives early and independently, and the riskier modem move happens on top of a
-foundation we've already proven.
+Staging it this way meant the first tangible win — audio that doesn't hitch —
+arrived early and independently, and it's also where the architecture got its one
+big correction before we built anything on top of it.
 
 ## What "done" looks like
 
@@ -193,8 +240,11 @@ looks once the first phase is in.
 
 ---
 
-*Architecture: Flutter/Dart, single UI isolate today. The receive pipeline —
-SBC decode, software modem (AFSK/PSK/DART), and SSTV — is moving to a dedicated
-background isolate, with playback fed via `BackgroundIsolateBinaryMessenger`.
+*Architecture: Flutter/Dart. The receive/transmit DSP — SBC decode/encode, WAV
+recording and the transmit pacing loop — now runs in a dedicated background
+isolate; the software modem and SSTV follow in Phase 2. The PCM player stays on the
+root isolate because background isolates can send to the platform but cannot
+receive from it (no `EventChannel`/callback delivery), so the isolate hands decoded
+PCM back to the host to feed. The isolate makes no platform-channel calls at all.
 Windows / macOS / Linux / Android only; iOS and web have no audio channel and keep
-the current path. Written before implementation begins.*
+the current path.*
