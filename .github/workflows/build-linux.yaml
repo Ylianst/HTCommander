@@ -276,7 +276,9 @@ jobs:
                 ninja-build libgtk-3-dev liblzma-dev libstdc++-12-dev pkg-config \
                 cmake clang libserialport-dev libbluetooth-dev libpulse-dev \
                 libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
-              git clone https://github.com/flutter/flutter.git --depth 1 --branch stable /flutter
+              # RISC-V (riscv64) engine/Dart SDK artifacts are only published on
+              # the master channel, so bootstrap from master instead of stable.
+              git clone https://github.com/flutter/flutter.git --depth 1 --branch master /flutter
               git config --global --add safe.directory /flutter
               export PATH="/flutter/bin:$PATH"
               flutter --version
