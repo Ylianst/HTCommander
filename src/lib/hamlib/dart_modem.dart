@@ -576,18 +576,39 @@ class DartModem {
   /// first, then the constant-envelope Mode F (FSK) fallback.
   /// When [captureConstellation] is true, the result includes the equalized
   /// payload symbols (for constellation plots / diagnostics).
-  DartDecodeResult? decode(Int16List pcm, {bool captureConstellation = false}) {
+  DartDecodeResult? decode(
+    Int16List pcm, {
+    bool captureConstellation = false,
+    int searchStart = 0,
+    PreambleDetection? detection,
+  }) {
     final rxSamples = DartOfdm.fromPcm(pcm);
     final double durationMs = pcm.length * 1000.0 / ofdmParams.sampleRate;
 
-    // Detect preamble (shared by both waveforms).
-    final detection = preamble.detectDetailed(rxSamples);
-    if (detection.position < 0) return null;
+    // Detect preamble (shared by both waveforms). Callers streaming audio can
+    // pass a detection already computed by [detectPreamble] to avoid running
+    // the O(N) correlation twice; otherwise scan from [searchStart].
+    final det = detection ??
+        preamble.detectDetailed(rxSamples, searchStart: searchStart);
+    if (det.position < 0) return null;
 
     // Try OFDM first; fall back to Mode F (FSK).
-    return _decodeOfdm(rxSamples, detection, durationMs,
+    return _decodeOfdm(rxSamples, det, durationMs,
             captureConstellation: captureConstellation) ??
-        _decodeFsk(rxSamples, detection, durationMs);
+        _decodeFsk(rxSamples, det, durationMs);
+  }
+
+  /// Number of samples in a full preamble (ZC halves + channel-est symbol).
+  int get preambleSamples => preamble.preambleSamples;
+
+  /// Locate the earliest preamble in [pcm] at or after [searchStart], without
+  /// attempting a full decode. Streaming receivers use this to advance an
+  /// incremental scan watermark (positions before the returned one contain no
+  /// preamble) and then feed the result straight into [decode] via its
+  /// `detection` argument, so the correlation only runs once per pass.
+  PreambleDetection detectPreamble(Int16List pcm, {int searchStart = 0}) {
+    final rxSamples = DartOfdm.fromPcm(pcm);
+    return preamble.detectDetailed(rxSamples, searchStart: searchStart);
   }
 
   /// Decode an OFDM frame (modes 0–5). Returns null if it does not decode as a

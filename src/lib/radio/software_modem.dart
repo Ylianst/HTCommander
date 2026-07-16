@@ -212,6 +212,14 @@ class _ModemInstance {
 
   int _dartSamplesSinceDecode = 0;
 
+  /// Incremental preamble-scan watermark: samples in `dartRxSamples[0.._dartScannedPos)`
+  /// have already been correlated and contain no preamble start, so they are
+  /// never re-scanned. This keeps per-pass detection cost proportional to the
+  /// newly-arrived audio instead of the whole (up to 8 s) rolling buffer — the
+  /// difference between light and crippling CPU load while only voice is on the
+  /// channel and no preamble ever locks.
+  int _dartScannedPos = 0;
+
   /// Buffer incoming PCM and attempt to decode complete DART frames.
   void _processDartSamples(Uint8List data, int offset, int length) {
     for (int i = offset; i < offset + length - 1; i += 2) {
@@ -226,8 +234,35 @@ class _ModemInstance {
     // Try to decode from the current buffer; on success, consume the frame.
     while (dartRxSamples.length > 2000) {
       final Int16List buf = Int16List.fromList(dartRxSamples);
-      final result = dartModem!.decode(buf, captureConstellation: dartCaptureQuality);
-      if (result == null) break;
+      final int searchLen = buf.length - dartModem!.preambleSamples;
+
+      // Incremental preamble scan: only correlate positions we haven't cleared
+      // yet. Positions before _dartScannedPos are known preamble-free.
+      final detection =
+          dartModem!.detectPreamble(buf, searchStart: _dartScannedPos);
+      if (detection.position < 0) {
+        // No preamble anywhere in the scannable range. Everything we could
+        // fully evaluate this pass is confirmed clear — never re-scan it.
+        if (searchLen >= 0 && _dartScannedPos < searchLen + 1) {
+          _dartScannedPos = searchLen + 1;
+        }
+        break;
+      }
+
+      // A preamble exists; the prefix before it is confirmed clear. Decode from
+      // it, reusing the detection so the correlation is not run a second time.
+      final result = dartModem!.decode(
+        buf,
+        detection: detection,
+        captureConstellation: dartCaptureQuality,
+      );
+      if (result == null) {
+        // Detected but not yet decodable (payload still arriving, or a false
+        // lobe). Hold the watermark at the preamble and wait for more audio;
+        // the memory bound below eventually drops it if it never completes.
+        _dartScannedPos = detection.position;
+        break;
+      }
       // Report quality for every detected frame (even CRC failures) so the
       // analysis panel can show how bad receptions look. Gated so nothing is
       // computed or dispatched unless the panel is enabled.
@@ -239,11 +274,16 @@ class _ModemInstance {
       final int consume = result.endSample.clamp(0, dartRxSamples.length);
       if (consume <= 0) break;
       dartRxSamples.removeRange(0, consume);
+      _dartScannedPos -= consume;
+      if (_dartScannedPos < 0) _dartScannedPos = 0;
     }
 
     // Bound memory: if no frame is completing, drop the oldest half.
     if (dartRxSamples.length > _dartMaxRxSamples) {
-      dartRxSamples.removeRange(0, dartRxSamples.length ~/ 2);
+      final int drop = dartRxSamples.length ~/ 2;
+      dartRxSamples.removeRange(0, drop);
+      _dartScannedPos -= drop;
+      if (_dartScannedPos < 0) _dartScannedPos = 0;
     }
   }
 
@@ -264,6 +304,7 @@ class _ModemInstance {
     packetFx25Send = null;
     dartModem = null;
     dartRxSamples.clear();
+    _dartScannedPos = 0;
     onDartFrame = null;
     onDartAnalysis = null;
   }

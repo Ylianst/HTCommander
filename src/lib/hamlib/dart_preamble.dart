@@ -136,8 +136,14 @@ class DartPreamble {
   /// Detect preamble in received samples. Returns the sample index of the
   /// detected preamble start, or -1 if not found.
   /// [threshold] is the normalized correlation threshold (0..1).
-  int detect(Float64List rxSamples, {double threshold = 0.6}) {
-    return detectDetailed(rxSamples, threshold: threshold).position;
+  /// [searchStart] skips the first that-many sample positions; callers that
+  /// stream audio use it to avoid re-correlating samples already checked in a
+  /// previous pass (positions before it are known to contain no preamble).
+  int detect(Float64List rxSamples,
+      {double threshold = 0.6, int searchStart = 0}) {
+    return detectDetailed(rxSamples,
+            threshold: threshold, searchStart: searchStart)
+        .position;
   }
 
   /// Detect preamble and also report the correlation peak (detection
@@ -154,6 +160,7 @@ class DartPreamble {
   PreambleDetection detectDetailed(
     Float64List rxSamples, {
     double threshold = 0.6,
+    int searchStart = 0,
   }) {
     final int refLen = _corrReference.length;
     if (rxSamples.length < preambleSamples) {
@@ -184,7 +191,7 @@ class DartPreamble {
       return corr.abs() / denom;
     }
 
-    int start = 0;
+    int start = searchStart < 0 ? 0 : searchStart;
     // Collect the peak of every above-threshold run whose second half also
     // correlates (a genuine preamble lobe), in ascending position order.
     final List<PreambleDetection> lobes = <PreambleDetection>[];
