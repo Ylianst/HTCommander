@@ -285,7 +285,11 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
       store: false,
     );
 
-    // Write auto_share_loc_ch into the radio settings (byte 5, low 5 bits).
+    // Write auto_share_loc_ch into the radio settings. This is an 8-bit value
+    // split across two bytes: the low 5 bits go into byte 5 (bits 4-0, after
+    // autoPowerOff) and the upper 3 bits into byte 11 (bits 2-0, after
+    // chDataLock). In the write buffer the raw message header is stripped, so
+    // raw byte 10 -> index 5 and raw byte 16 -> index 11.
     final settings = radio.settings;
     if (settings != null) {
       int channelValue = 0;
@@ -293,8 +297,10 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
         channelValue = _channelValues[_channelIndex];
       }
       final settingsData = settings.toByteArrayWith();
-      if (settingsData.length > 5) {
+      if (settingsData.length > 11) {
         settingsData[5] = (settingsData[5] & 0xE0) | (channelValue & 0x1F);
+        settingsData[11] =
+            (settingsData[11] & 0xF8) | ((channelValue >> 5) & 0x07);
         _broker.dispatch(
           deviceId: _selectedDeviceId,
           name: 'WriteSettings',

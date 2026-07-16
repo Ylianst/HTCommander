@@ -271,7 +271,12 @@ class RadioSettings {
       disTone = (RadioUtils.getByte(msg, 9) & 0x02) != 0,
       powerSavingMode = (RadioUtils.getByte(msg, 9) & 0x01) != 0,
       autoPowerOff = RadioUtils.getByte(msg, 10) >> 5,
-      autoShareLocCh = RadioUtils.getByte(msg, 10) & 0x1F,
+      // auto_share_loc_ch is an 8-bit value split across two bytes: the low 5
+      // bits live in byte 10 (bits 4-0) and the upper 3 bits in byte 16 (bits
+      // 2-0, right after chDataLock). Combined = (upper << 5) | lower.
+      autoShareLocCh =
+          (RadioUtils.getByte(msg, 10) & 0x1F) |
+          ((RadioUtils.getByte(msg, 16) & 0x07) << 5),
       hmSpeaker = RadioUtils.getByte(msg, 11) >> 6,
       positioningSystem = (RadioUtils.getByte(msg, 11) & 0x3C) >> 2,
       timeOffset =
