@@ -191,12 +191,6 @@ class Radio {
   bool _savedScan = false;
   int _savedDualWatch = 0;
 
-  // Frequency-mode refresh throttle. While off the preset channels
-  // (currChId >= 254: VFO free-tune / NOAA) the live frequency is fetched via
-  // FREQ_MODE_GET_STATUS on each htStatusChanged, throttled to avoid flooding
-  // the link when RSSI-driven status events arrive rapidly.
-  DateTime? _lastFreqModeRead;
-  static const Duration _freqModeReadThrottle = Duration(milliseconds: 300);
   // Tracks the FM broadcast (is_radio) state so we request the FM frequency once
   // when the radio enters FM broadcast mode.
   bool _wasFmBroadcast = false;
@@ -2396,11 +2390,18 @@ class Radio {
       _dispatch('GpsEnabled', _gpsEnabled);
       _dispatch('AllChannelsLoaded', false);
 
-      // Register for HT status change notifications
+      // Register for HT status changes and frequency-mode (VFO) frequency
+      // changes in a single command. The radio's REGISTER_NOTIFICATION accepts a
+      // list of notification bytes, so both are subscribed at once. The
+      // freqModeStatusChanged event pushes the live tuned frequency while
+      // scanning/tuning, avoiding the need to poll FREQ_MODE_GET_STATUS.
       _sendCommand(
         RadioCommandGroup.basic,
         RadioBasicCommand.registerNotification,
-        Uint8List.fromList([RadioNotification.htStatusChanged.value]),
+        Uint8List.fromList([
+          RadioNotification.htStatusChanged.value,
+          RadioNotification.freqModeStatusChanged.value,
+        ]),
       );
 
       // Register for FM broadcast radio status changes (only when the radio has
@@ -2464,18 +2465,6 @@ class Radio {
     }
   }
 
-  /// While the radio is off its preset channels (currChId >= 254: VFO free-tune
-  /// or NOAA weather) the tuned frequency is not in the HT status event and is
-  /// absent from this radio's short READ_SETTINGS struct. Query the dedicated
-  /// frequency-mode status, which returns the live tuned frequency.
-  void _requestFrequencyModeFreq() {
-    _sendCommand(
-      RadioCommandGroup.basic,
-      RadioBasicCommand.freqModeGetStatus,
-      null,
-    );
-  }
-
   /// Parses the FREQ_MODE_GET_STATUS reply. Layout (full command frame):
   ///   data[4]    = reply status (0 = success)
   ///   data[5..8] = current frequency in Hz, big-endian (top 2 bits = modulation)
@@ -2486,6 +2475,34 @@ class Radio {
     final freqHz = RadioUtils.getInt(data, 5) & 0x3FFFFFFF;
     if (freqHz > 0) {
       _dispatch('FreqModeFreq', freqHz);
+    }
+  }
+
+  /// Parses a freqModeStatusChanged (notification 14) event, pushed by the radio
+  /// whenever the tuned/scanned frequency changes in frequency (VFO) mode.
+  /// Layout (full command frame):
+  ///   data[4]       = notification type (14)
+  ///   data[5..8]    = live RX frequency in Hz, big-endian (top 2 bits = modulation)
+  ///   data[9..12]   = TX frequency in Hz
+  ///   data[13..16]  = sub-audio
+  ///   data[17..18]  = status flags
+  /// The final flags byte (data[18]) is the reliable frequency (VFO) mode
+  /// indicator: non-zero (e.g. 0x40) while in frequency mode, 0 when back on a
+  /// preset channel. The high flags byte can stay set outside frequency mode
+  /// (e.g. 0x8000 on exit), so only the low byte is authoritative. The active
+  /// state is dispatched as 'FreqModeActive' (bool) and the RX frequency as
+  /// 'FreqModeFreq' (int Hz). Leaving frequency mode clears the frequency to 0.
+  void _handleFreqModeStatusChanged(Uint8List data) {
+    if (data.length < 19) return;
+    final active = data[18] != 0;
+    _dispatch('FreqModeActive', active);
+    if (active) {
+      final freqHz = RadioUtils.getInt(data, 5) & 0x3FFFFFFF;
+      if (freqHz > 0) {
+        _dispatch('FreqModeFreq', freqHz);
+      }
+    } else {
+      _dispatch('FreqModeFreq', 0);
     }
   }
 
@@ -2629,6 +2646,10 @@ class Radio {
         // FM broadcast receiver status (frequency/seek) changed.
         _handleRadioStatus(data);
         break;
+      case RadioNotification.freqModeStatusChanged:
+        // Frequency-mode (VFO) tuned frequency changed while scanning/tuning.
+        _handleFreqModeStatusChanged(data);
+        break;
       case RadioNotification.bssSettingsChanged:
         _sendCommand(
           RadioCommandGroup.basic,
@@ -2653,18 +2674,6 @@ class Radio {
     htStatus = RadioHtStatus.fromBytes(data);
     if (htStatus != null) {
       _dispatch('HtStatus', htStatus!.toJson());
-
-      // In frequency mode (off the preset channels) the live frequency is not in
-      // the HT status event, so fetch it via FREQ_MODE_GET_STATUS, throttled to
-      // avoid flooding the link when RSSI-driven status events arrive rapidly.
-      if (htStatus!.currChId >= 254) {
-        final now = DateTime.now();
-        if (_lastFreqModeRead == null ||
-            now.difference(_lastFreqModeRead!) >= _freqModeReadThrottle) {
-          _lastFreqModeRead = now;
-          _requestFrequencyModeFreq();
-        }
-      }
 
       // When the FM broadcast receiver becomes active, request its current
       // frequency once (subsequent changes arrive via radioStatusChanged).

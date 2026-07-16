@@ -30,9 +30,12 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
   RadioHtStatus? _currentHtStatus;
   RadioSettings? _currentSettings;
   RadioFmRadioStatus? _fmRadioStatus;
-  // Live tuned frequency (Hz) while in frequency mode, probed from the radio's
-  // current RF channel. 0 when unknown / not in frequency mode.
+  // Live tuned frequency (Hz) while in frequency mode, pushed by the radio via
+  // the freqModeStatusChanged notification. 0 when unknown / not in freq mode.
   int _freqModeFreqHz = 0;
+  // True while the radio is in frequency (VFO) mode, derived from the reliable
+  // freqModeStatusChanged status flags (curr channel id is not reliable).
+  bool _freqModeActive = false;
   List<RadioChannelInfo>? _currentChannels;
   RadioLockState? _lockState;
   bool _gpsEnabled = false;
@@ -78,6 +81,7 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     _currentSettings = null;
     _fmRadioStatus = null;
     _freqModeFreqHz = 0;
+    _freqModeActive = false;
     _currentChannels = null;
     _lockState = null;
     _gpsEnabled = false;
@@ -95,6 +99,7 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
         'Settings',
         'FmRadioStatus',
         'FreqModeFreq',
+        'FreqModeActive',
         'Channels',
         'LockState',
         'GpsEnabled',
@@ -127,6 +132,8 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     );
     _freqModeFreqHz =
         _broker.getValue<int>(widget.deviceId, 'FreqModeFreq') ?? 0;
+    _freqModeActive =
+        _broker.getValue<bool>(widget.deviceId, 'FreqModeActive') ?? false;
     _currentChannels = _broker.getJsonListValue<RadioChannelInfo>(
       widget.deviceId,
       'Channels',
@@ -174,6 +181,9 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
           break;
         case 'FreqModeFreq':
           _freqModeFreqHz = data as int? ?? 0;
+          break;
+        case 'FreqModeActive':
+          _freqModeActive = data as bool? ?? false;
           break;
         case 'Channels':
           if (data is List) {
@@ -257,13 +267,10 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     return _currentChannels![idx];
   }
 
-  bool get _isFrequencyMode {
-    if (_currentHtStatus != null && _currentHtStatus!.currChId >= 254) {
-      return true;
-    }
-    if (_channelA != null && _channelA!.channelId >= 254) return true;
-    return false;
-  }
+  /// True while the radio is in frequency (VFO) mode. Driven by the reliable
+  /// freqModeStatusChanged status flags; NOAA weather (settings-based) is also
+  /// treated as frequency mode so its live frequency is shown.
+  bool get _isFrequencyMode => _freqModeActive || _isWeatherMode;
 
   /// True when the built-in FM broadcast receiver is on. FM broadcast is shown
   /// on VFO B, so this keeps VFO A on its normal channel.
@@ -273,8 +280,9 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
   bool get _isWeatherMode => (_currentSettings?.wxMode ?? 0) != 0;
 
   /// True when VFO A should show a live frequency instead of a channel name.
-  /// FM broadcast lives on VFO B, so it never forces VFO A into frequency mode.
-  bool get _showFrequencyMode => _isFrequencyMode && !_isFmBroadcast;
+  /// FM broadcast (shown on VFO B) can be active at the same time as frequency
+  /// mode, so it does not suppress the VFO A frequency display.
+  bool get _showFrequencyMode => _isFrequencyMode;
 
   /// NOAA weather frequencies (Hz) mapped to their channel number (WX1..WX7).
   static const Map<int, int> _noaaWeatherChannel = {
@@ -445,6 +453,9 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
   Color get _vfo1Color {
     if (!_isConnected) return _inactiveColor;
 
+    // In frequency mode only VFO A is active.
+    if (_showFrequencyMode) return _activeVfoColor;
+
     if (_channelB != null && _isDualChannel && _currentHtStatus != null) {
       if (_currentHtStatus!.doubleChannel == RadioChannelType.a) {
         if ((_isReceiving || _isTransmitting) &&
@@ -458,6 +469,9 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
 
   Color get _vfo2Color {
     if (!_isConnected || _vfo2Label.isEmpty) return _inactiveColor;
+
+    // In frequency mode VFO B is inactive.
+    if (_showFrequencyMode) return _inactiveColor;
 
     if (_channelB != null && _isDualChannel && _currentHtStatus != null) {
       if (_currentHtStatus!.doubleChannel == RadioChannelType.a) {

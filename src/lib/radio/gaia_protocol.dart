@@ -149,7 +149,11 @@ enum RadioNotification {
   systemEvent(10),
   bssSettingsChanged(11),
   dataTxd(12),
-  positionChange(13);
+  positionChange(13),
+  // Pushed by the radio whenever the tuned/scanned frequency changes while in
+  // frequency (VFO) mode. Payload carries the live RX/TX frequency, letting the
+  // app track scanning/tuning without polling FREQ_MODE_GET_STATUS.
+  freqModeStatusChanged(14);
 
   final int value;
   const RadioNotification(this.value);
