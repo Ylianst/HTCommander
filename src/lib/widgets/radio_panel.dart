@@ -872,7 +872,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     if (pasteEnabled && clipboardChannel != null) {
       final currentFull =
           _fullChannels[channel.channelId] ?? _asFullChannel(channel);
-      if (ChannelShare.encode(clipboardChannel!) ==
+      if (ChannelShare.encode(clipboardChannel) ==
           ChannelShare.encode(currentFull)) {
         pasteEnabled = false;
       }
