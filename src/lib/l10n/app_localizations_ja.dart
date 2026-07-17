@@ -27,6 +27,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get menuExit => '終了';
 
   @override
+  String get menuRadios => '無線機';
+
+  @override
   String get menuDualWatch => 'デュアルワッチ';
 
   @override

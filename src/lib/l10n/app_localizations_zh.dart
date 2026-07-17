@@ -27,6 +27,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get menuExit => '退出';
 
   @override
+  String get menuRadios => '电台';
+
+  @override
   String get menuDualWatch => '双频监听';
 
   @override

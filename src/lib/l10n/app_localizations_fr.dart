@@ -27,6 +27,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get menuExit => 'Quitter';
 
   @override
+  String get menuRadios => 'Radios';
+
+  @override
   String get menuDualWatch => 'Double veille';
 
   @override

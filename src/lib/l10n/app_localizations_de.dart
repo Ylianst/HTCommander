@@ -27,6 +27,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get menuExit => 'Beenden';
 
   @override
+  String get menuRadios => 'Funkgeräte';
+
+  @override
   String get menuDualWatch => 'Dual-Watch';
 
   @override

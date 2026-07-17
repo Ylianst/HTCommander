@@ -27,6 +27,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get menuExit => 'बाहर निकलें';
 
   @override
+  String get menuRadios => 'रेडियो';
+
+  @override
   String get menuDualWatch => 'डुअल-वॉच';
 
   @override

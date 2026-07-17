@@ -261,8 +261,14 @@ class HomeAssistantHandler {
           );
           _publishRadio(_radios[id]!);
         } else {
-          existing.friendlyName =
-              friendly.isEmpty ? existing.friendlyName : friendly;
+          final newName = friendly.isEmpty ? existing.friendlyName : friendly;
+          if (newName != existing.friendlyName) {
+            existing.friendlyName = newName;
+            // Push the new name to Home Assistant by re-publishing discovery.
+            // The MAC-based `radio.id` stays the same, so Home Assistant updates
+            // the existing device in place instead of creating a new one.
+            if (existing.discovered) _publishRadio(existing);
+          }
         }
       }
     }

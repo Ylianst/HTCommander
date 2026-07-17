@@ -144,6 +144,12 @@ abstract class AppLocalizations {
   /// **'Exit'**
   String get menuExit;
 
+  /// Submenu listing connected radios so the user can pick the preferred (active) one.
+  ///
+  /// In en, this message translates to:
+  /// **'Radios'**
+  String get menuRadios;
+
   /// No description provided for @menuDualWatch.
   ///
   /// In en, this message translates to:

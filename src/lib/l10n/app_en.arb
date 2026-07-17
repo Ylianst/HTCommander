@@ -26,6 +26,10 @@
   "@menuExit": {
     "description": "Menu item that quits the application."
   },
+  "menuRadios": "Radios",
+  "@menuRadios": {
+    "description": "Submenu listing connected radios so the user can pick the preferred (active) one."
+  },
   "menuDualWatch": "Dual-Watch",
   "menuScan": "Scan",
   "menuRegions": "Regions",

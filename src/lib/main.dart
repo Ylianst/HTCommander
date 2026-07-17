@@ -696,6 +696,14 @@ class _MainFormState extends State<MainForm>
       callback: _onRadioConnectRequested,
     );
 
+    // Subscribe to SetPreferredRadio command (from menus, the radio panel
+    // context menu or external DataBroker clients) to switch the active radio.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'SetPreferredRadio',
+      callback: _onSetPreferredRadioRequested,
+    );
+
     // Subscribe to BatteryAsPercentage from all radio devices
     _broker.subscribe(
       deviceId: DataBroker.allDevices,
@@ -897,6 +905,7 @@ class _MainFormState extends State<MainForm>
           if (!ids.contains(id)) ids.add(id);
         }
       }
+      final previousPreferred = _currentRadioDeviceId;
       setState(() {
         _connectedRadioIds = ids;
         // If we have no current radio selected and radios are connected, select the first
@@ -915,6 +924,43 @@ class _MainFormState extends State<MainForm>
           _loadSettingsForCurrentRadio();
         }
       });
+      // Publish the preferred radio if it changed as a result of the connect /
+      // disconnect, so other components stay in sync.
+      if (_currentRadioDeviceId != previousPreferred) {
+        _broker.dispatch(
+          deviceId: 1,
+          name: 'SelectedRadioDeviceId',
+          data: _currentRadioDeviceId,
+        );
+      }
+    }
+  }
+
+  /// Sets the preferred (active) radio to [radioId] and notifies the rest of the
+  /// app via the DataBroker. Ignores unknown radios. This is the single entry
+  /// point used by the menus, the radio panel context menu and the
+  /// `SetPreferredRadio` DataBroker command.
+  void _setPreferredRadio(int radioId) {
+    if (radioId == _currentRadioDeviceId) return;
+    if (!_connectedRadioIds.contains(radioId)) return;
+    setState(() {
+      _currentRadioDeviceId = radioId;
+      _loadBatteryForCurrentRadio();
+      _loadSettingsForCurrentRadio();
+    });
+    // Publish the selected radio device ID so every subscriber updates.
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'SelectedRadioDeviceId',
+      data: radioId,
+    );
+  }
+
+  /// Handle a `SetPreferredRadio` DataBroker command (device 1). The payload is
+  /// the target radio device ID (int).
+  void _onSetPreferredRadioRequested(int deviceId, String name, Object? data) {
+    if (data is int) {
+      _setPreferredRadio(data);
     }
   }
 
@@ -1703,6 +1749,21 @@ class _MainFormState extends State<MainForm>
             label: l10n.menuDisconnect,
             onPressed: _hasConnectedRadio ? _onDisconnect : null,
           ),
+          // When more than one radio is connected, show a "Radios" submenu that
+          // lists each connected radio with a checkmark next to the preferred
+          // (active) one, so the user can switch between them.
+          if (_connectedRadioIds.length >= 2)
+            AppSubmenu(
+              label: l10n.menuRadios,
+              children: [
+                for (final radioId in _connectedRadioIds)
+                  AppMenuAction(
+                    label: _radioMenuLabel(radioId),
+                    onPressed: () => _setPreferredRadio(radioId),
+                    checked: radioId == _currentRadioDeviceId,
+                  ),
+              ],
+            ),
           const AppMenuDivider(),
           AppMenuAction(
             label: l10n.menuDualWatch,
@@ -1976,29 +2037,6 @@ class _MainFormState extends State<MainForm>
             },
             checked: _showChannelFrequency,
           ),
-          // Dynamic radio selection when multiple radios are connected
-          if (_connectedRadioIds.length >= 2) ...[
-            const AppMenuDivider(),
-            ..._connectedRadioIds.map(
-              (radioId) => AppMenuAction(
-                label: _radioMenuLabel(radioId),
-                onPressed: () {
-                  setState(() {
-                    _currentRadioDeviceId = radioId;
-                    _loadBatteryForCurrentRadio();
-                    _loadSettingsForCurrentRadio();
-                  });
-                  // Dispatch the selected radio device ID
-                  _broker.dispatch(
-                    deviceId: 1,
-                    name: 'SelectedRadioDeviceId',
-                    data: radioId,
-                  );
-                },
-                checked: radioId == _currentRadioDeviceId,
-              ),
-            ),
-          ],
         ],
       ),
       // Help/About menu

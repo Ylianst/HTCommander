@@ -116,6 +116,13 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       name: 'FmRadioStations',
       callback: _onFmStationsChanged,
     );
+    // Rebuild when the set of connected radios changes so the radio-name
+    // switcher affordance appears/disappears as radios connect/disconnect.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'ConnectedRadios',
+      callback: _onConnectedRadiosChanged,
+    );
     _subscribeToDevice();
   }
 
@@ -139,6 +146,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         deviceId: 0,
         name: 'FmRadioStations',
         callback: _onFmStationsChanged,
+      );
+      _broker.subscribe(
+        deviceId: 1,
+        name: 'ConnectedRadios',
+        callback: _onConnectedRadiosChanged,
       );
       _clearCachedState();
       _subscribeToDevice();
@@ -176,6 +188,13 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   void _onFmStationsChanged(int deviceId, String name, Object? data) {
     if (!mounted) return;
     setState(_loadFmStations);
+  }
+
+  /// Rebuilds when the set of connected radios changes (device 1's
+  /// `ConnectedRadios`) so the radio-name switcher affordance stays in sync.
+  void _onConnectedRadiosChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() {});
   }
 
   /// Loads and parses the persisted preferred FM stations from device 0.
@@ -328,6 +347,70 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       }
     }
     return '';
+  }
+
+  /// Returns the de-duplicated list of currently connected radios (device 1's
+  /// `ConnectedRadios`), preserving order.
+  List<ConnectedRadioInfo> _connectedRadios() {
+    final radios = _broker.getJsonListValue<ConnectedRadioInfo>(
+      1,
+      'ConnectedRadios',
+      (json) => ConnectedRadioInfo.fromJson(json),
+    );
+    if (radios == null) return const [];
+    final seen = <int>{};
+    final unique = <ConnectedRadioInfo>[];
+    for (final r in radios) {
+      if (seen.add(r.deviceId)) unique.add(r);
+    }
+    return unique;
+  }
+
+  /// Shows a context menu listing all connected radios (with a checkmark next to
+  /// the currently displayed / preferred one) and switches to the chosen radio
+  /// by dispatching `SetPreferredRadio` to the main form. Does nothing unless at
+  /// least two radios are connected.
+  Future<void> _showRadioSelectionMenu(
+    BuildContext context,
+    Offset globalPosition,
+  ) async {
+    final radios = _connectedRadios();
+    if (radios.length < 2) return;
+
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final selected = await showMenu<int>(
+      context: context,
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(40, 40),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        for (final r in radios)
+          PopupMenuItem<int>(
+            value: r.deviceId,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 24,
+                  child: r.deviceId == widget.deviceId
+                      ? const Icon(Icons.check, size: 18)
+                      : null,
+                ),
+                Text(
+                  r.friendlyName.isNotEmpty
+                      ? r.friendlyName
+                      : 'Radio ${r.deviceId}',
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    if (selected != null && selected != widget.deviceId) {
+      _broker.dispatch(deviceId: 1, name: 'SetPreferredRadio', data: selected);
+    }
   }
 
   void _onBrokerEvent(int deviceId, String name, Object? data) {
@@ -981,7 +1064,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       ),
 
       // Friendly name overlay (above the display). Cropped away first when the
-      // available height shrinks.
+      // available height shrinks. When more than one radio is connected, tapping
+      // or right-clicking the name opens a menu to switch the active radio.
       if (_friendlyName.isNotEmpty)
         Positioned(
           left: leftMargin + 4,
@@ -991,13 +1075,40 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
               _kFriendlyNameTopOffset -
               topCrop,
           child: Center(
-            child: Text(
-              _friendlyName,
-              style: TextStyle(
-                color: Colors.grey.shade500,
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
+            child: Builder(
+              builder: (ctx) {
+                final hasMultiple = _connectedRadios().length >= 2;
+                final text = Text(
+                  _friendlyName,
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                  ),
+                );
+                if (!hasMultiple) return text;
+                return MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapDown: (d) =>
+                        _showRadioSelectionMenu(ctx, d.globalPosition),
+                    onSecondaryTapDown: (d) =>
+                        _showRadioSelectionMenu(ctx, d.globalPosition),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        text,
+                        Icon(
+                          Icons.arrow_drop_down,
+                          size: 18,
+                          color: Colors.grey.shade500,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ),
