@@ -2432,17 +2432,13 @@ class _SettingsDialogState extends State<SettingsDialog>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
-            Text(label, style: DialogStyles.labelStyle),
-            const Spacer(),
-            if (currentCount != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text(
-                  l10n.settingsLimitCurrent(currentCount),
-                  style: _secondaryStyle(),
-                ),
-              ),
+            Expanded(
+              child: Text(label, style: DialogStyles.labelStyle),
+            ),
+            const SizedBox(width: 8),
             Text(
               _limitLabel(value),
               style: TextStyle(
@@ -2452,7 +2448,13 @@ class _SettingsDialogState extends State<SettingsDialog>
             ),
           ],
         ),
+        if (currentCount != null)
+          Text(
+            l10n.settingsLimitCurrent(currentCount),
+            style: _secondaryStyle(),
+          ),
         Slider(
+          padding: const EdgeInsets.symmetric(vertical: 8),
           value: sliderIndex.toDouble(),
           min: 0,
           max: (steps.length - 1).toDouble(),
