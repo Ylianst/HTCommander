@@ -305,6 +305,12 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       ..body = c.body
       ..mailbox = target;
 
+    if (c.attachments.isNotEmpty) {
+      mail.attachments = c.attachments
+          .map((a) => WinLinkMailAttachement(name: a.name, data: a.data))
+          .toList();
+    }
+
     if (replaceId != null && _rawMails.containsKey(replaceId)) {
       _broker.dispatch(
         deviceId: 0,
@@ -441,8 +447,77 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       context,
       initialSubject: subject,
       initialBody: body,
+      initialAttachments: _composeAttachmentsFor(m.id),
     );
     if (result != null) _addComposedMail(result);
+  }
+
+  /// Builds compose attachments from a raw mail's stored attachments, used when
+  /// forwarding or editing a message.
+  List<ComposedAttachment> _composeAttachmentsFor(String id) {
+    final raw = _rawMails[id];
+    final atts = raw?.attachments;
+    if (atts == null) return const [];
+    return atts
+        .map((a) => ComposedAttachment(name: a.name, data: a.data))
+        .toList();
+  }
+
+  /// Builds read-only viewer attachments from a raw mail's stored attachments.
+  List<MailViewerAttachment> _viewerAttachmentsFor(String id) {
+    final raw = _rawMails[id];
+    final atts = raw?.attachments;
+    if (atts == null) return const [];
+    return atts
+        .map(
+          (a) => MailViewerAttachment(
+            name: a.name,
+            data: a.data,
+            sizeBytes: a.data.length,
+          ),
+        )
+        .toList();
+  }
+
+  /// Prompts for a destination and writes an attachment's bytes to disk.
+  Future<void> _saveAttachment(WinLinkMailAttachement attachment) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Web and mobile require the bytes up front; desktop returns a path that
+    // we write to ourselves.
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
+
+    String? outputPath;
+    try {
+      outputPath = await FilePicker.saveFile(
+        dialogTitle: l10n.mailSaveAttachment,
+        fileName: attachment.name,
+        bytes: needsBytes ? attachment.data : null,
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.errorOpeningFileDialog(e.toString()))),
+      );
+      return;
+    }
+
+    if (outputPath == null) return;
+
+    if (!needsBytes) {
+      try {
+        await File(outputPath).writeAsBytes(attachment.data);
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.errorSavingFile(e.toString()))),
+        );
+        return;
+      }
+    }
+
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.mailAttachmentSaved(attachment.name))),
+    );
   }
 
   void _onOpenMail(MailMessage m) async {
@@ -456,6 +531,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
         initialCc: m.cc,
         initialSubject: m.subject,
         initialBody: m.body,
+        initialAttachments: _composeAttachmentsFor(m.id),
       );
       if (result != null) _addComposedMail(result, replaceId: m.id);
     } else {
@@ -468,6 +544,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
         time: m.time,
         subject: m.subject,
         body: m.body,
+        attachments: _viewerAttachmentsFor(m.id),
         onReply: _onReply,
         onReplyAll: _onReplyAll,
         onForward: _onForward,
@@ -1461,6 +1538,76 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
     return Expanded(flex: flex ?? 1, child: content);
   }
 
+  /// Builds the clickable attachment list shown in the preview pane. Returns an
+  /// empty widget when the message has no attachments. Tapping a chip prompts to
+  /// save the file to disk.
+  Widget _buildPreviewAttachments(String id, ColorScheme scheme) {
+    final atts = _rawMails[id]?.attachments;
+    if (atts == null || atts.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppLocalizations.of(context).mailAttachmentsLabel,
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final a in atts)
+                Tooltip(
+                  message: AppLocalizations.of(context).mailSaveAttachment,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(4),
+                    onTap: () => _saveAttachment(a),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest,
+                        border: Border.all(color: scheme.outline),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.attach_file, size: 16),
+                          const SizedBox(width: 4),
+                          Text(a.name),
+                          const SizedBox(width: 6),
+                          Text(
+                            '(${_formatAttachmentSize(a.data.length)})',
+                            style: TextStyle(color: scheme.onSurfaceVariant),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(Icons.download, size: 16, color: scheme.primary),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatAttachmentSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
   Widget _buildPreviewArea() {
     final scheme = Theme.of(context).colorScheme;
     if (_selectedMail == null) {
@@ -1548,6 +1695,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
                       'Date: ${_formatMailTime(mail.time)}',
                       style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
+                    _buildPreviewAttachments(mail.id, scheme),
                     const Divider(height: 24),
                     Text(mail.body),
                   ],

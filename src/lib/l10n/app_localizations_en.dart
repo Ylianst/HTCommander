@@ -2236,6 +2236,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mailSaveDraft => 'Save Draft';
 
   @override
+  String get mailAttachmentsLabel => 'Attachments';
+
+  @override
+  String get mailAddAttachment => 'Add Attachment';
+
+  @override
+  String get mailRemoveAttachment => 'Remove attachment';
+
+  @override
+  String get mailSaveAttachment => 'Save Attachment';
+
+  @override
+  String get mailAttachmentDropHint => 'Drag & drop files here to attach';
+
+  @override
+  String mailAttachmentReadFailed(String name) {
+    return 'Failed to read file: $name';
+  }
+
+  @override
+  String mailAttachmentSaved(String name) {
+    return 'Saved \"$name\"';
+  }
+
+  @override
+  String mailAttachmentLargeWarning(String size) {
+    return 'Large attachments ($size) may take a long time to send over radio.';
+  }
+
+  @override
   String get smsTitle => 'Send SMS Message';
 
   @override

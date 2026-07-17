@@ -1420,6 +1420,29 @@
   "mailRemoveCc": "Remove Cc",
   "mailMessageLabel": "Message",
   "mailSaveDraft": "Save Draft",
+  "mailAttachmentsLabel": "Attachments",
+  "mailAddAttachment": "Add Attachment",
+  "mailRemoveAttachment": "Remove attachment",
+  "mailSaveAttachment": "Save Attachment",
+  "mailAttachmentDropHint": "Drag & drop files here to attach",
+  "mailAttachmentReadFailed": "Failed to read file: {name}",
+  "@mailAttachmentReadFailed": {
+    "placeholders": {
+      "name": { "type": "String", "example": "photo.jpg" }
+    }
+  },
+  "mailAttachmentSaved": "Saved \"{name}\"",
+  "@mailAttachmentSaved": {
+    "placeholders": {
+      "name": { "type": "String", "example": "photo.jpg" }
+    }
+  },
+  "mailAttachmentLargeWarning": "Large attachments ({size}) may take a long time to send over radio.",
+  "@mailAttachmentLargeWarning": {
+    "placeholders": {
+      "size": { "type": "String", "example": "150.0 KB" }
+    }
+  },
 
   "smsTitle": "Send SMS Message",
   "smsPhoneNumber": "Phone Number",

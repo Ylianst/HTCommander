@@ -2262,6 +2262,36 @@ class AppLocalizationsDe extends AppLocalizations {
   String get mailSaveDraft => 'Entwurf speichern';
 
   @override
+  String get mailAttachmentsLabel => 'Anhänge';
+
+  @override
+  String get mailAddAttachment => 'Anhang hinzufügen';
+
+  @override
+  String get mailRemoveAttachment => 'Anhang entfernen';
+
+  @override
+  String get mailSaveAttachment => 'Anhang speichern';
+
+  @override
+  String get mailAttachmentDropHint => 'Dateien zum Anhängen hierher ziehen';
+
+  @override
+  String mailAttachmentReadFailed(String name) {
+    return 'Datei konnte nicht gelesen werden: $name';
+  }
+
+  @override
+  String mailAttachmentSaved(String name) {
+    return '„$name“ gespeichert';
+  }
+
+  @override
+  String mailAttachmentLargeWarning(String size) {
+    return 'Große Anhänge ($size) können beim Senden über Funk lange dauern.';
+  }
+
+  @override
   String get smsTitle => 'SMS-Nachricht senden';
 
   @override

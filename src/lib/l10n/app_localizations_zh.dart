@@ -2193,6 +2193,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mailSaveDraft => '保存草稿';
 
   @override
+  String get mailAttachmentsLabel => '附件';
+
+  @override
+  String get mailAddAttachment => '添加附件';
+
+  @override
+  String get mailRemoveAttachment => '移除附件';
+
+  @override
+  String get mailSaveAttachment => '保存附件';
+
+  @override
+  String get mailAttachmentDropHint => '将文件拖放到此处以添加附件';
+
+  @override
+  String mailAttachmentReadFailed(String name) {
+    return '无法读取文件：$name';
+  }
+
+  @override
+  String mailAttachmentSaved(String name) {
+    return '已保存“$name”';
+  }
+
+  @override
+  String mailAttachmentLargeWarning(String size) {
+    return '较大的附件（$size）通过无线电发送可能需要很长时间。';
+  }
+
+  @override
   String get smsTitle => '发送 SMS 消息';
 
   @override

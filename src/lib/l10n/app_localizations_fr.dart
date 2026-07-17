@@ -2257,6 +2257,37 @@ class AppLocalizationsFr extends AppLocalizations {
   String get mailSaveDraft => 'Enregistrer le brouillon';
 
   @override
+  String get mailAttachmentsLabel => 'Pièces jointes';
+
+  @override
+  String get mailAddAttachment => 'Ajouter une pièce jointe';
+
+  @override
+  String get mailRemoveAttachment => 'Supprimer la pièce jointe';
+
+  @override
+  String get mailSaveAttachment => 'Enregistrer la pièce jointe';
+
+  @override
+  String get mailAttachmentDropHint =>
+      'Glissez-déposez des fichiers ici pour les joindre';
+
+  @override
+  String mailAttachmentReadFailed(String name) {
+    return 'Échec de la lecture du fichier : $name';
+  }
+
+  @override
+  String mailAttachmentSaved(String name) {
+    return 'Enregistré « $name »';
+  }
+
+  @override
+  String mailAttachmentLargeWarning(String size) {
+    return 'Les pièces jointes volumineuses ($size) peuvent prendre beaucoup de temps à envoyer par radio.';
+  }
+
+  @override
   String get smsTitle => 'Envoyer un message SMS';
 
   @override

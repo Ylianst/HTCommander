@@ -2244,6 +2244,37 @@ class AppLocalizationsHi extends AppLocalizations {
   String get mailSaveDraft => 'ड्राफ़्ट सहेजें';
 
   @override
+  String get mailAttachmentsLabel => 'अनुलग्नक';
+
+  @override
+  String get mailAddAttachment => 'अनुलग्नक जोड़ें';
+
+  @override
+  String get mailRemoveAttachment => 'अनुलग्नक हटाएँ';
+
+  @override
+  String get mailSaveAttachment => 'अनुलग्नक सहेजें';
+
+  @override
+  String get mailAttachmentDropHint =>
+      'संलग्न करने के लिए फ़ाइलें यहाँ खींचें और छोड़ें';
+
+  @override
+  String mailAttachmentReadFailed(String name) {
+    return 'फ़ाइल पढ़ने में विफल: $name';
+  }
+
+  @override
+  String mailAttachmentSaved(String name) {
+    return '\"$name\" सहेजा गया';
+  }
+
+  @override
+  String mailAttachmentLargeWarning(String size) {
+    return 'बड़े अनुलग्नक ($size) रेडियो पर भेजने में लंबा समय ले सकते हैं।';
+  }
+
+  @override
   String get smsTitle => 'SMS संदेश भेजें';
 
   @override

@@ -848,6 +848,20 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     }
     if (!mounted) return;
 
+    // Enable "Paste" only when the clipboard holds a channel whose content
+    // differs from what is already stored in this slot. The channel-share token
+    // does not carry the slot id, so compare by re-encoding both channels: an
+    // identical channel produces an identical token.
+    bool pasteEnabled = clipboardChannel != null && widget.deviceId > 0;
+    if (pasteEnabled) {
+      final currentFull =
+          _fullChannels[channel.channelId] ?? _asFullChannel(channel);
+      if (ChannelShare.encode(clipboardChannel!) ==
+          ChannelShare.encode(currentFull)) {
+        pasteEnabled = false;
+      }
+    }
+
     final value = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -870,7 +884,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         const PopupMenuItem<String>(value: 'copy', child: Text('Copy')),
         PopupMenuItem<String>(
           value: 'paste',
-          enabled: clipboardChannel != null && widget.deviceId > 0,
+          enabled: pasteEnabled,
           child: const Text('Paste'),
         ),
         const PopupMenuDivider(),
@@ -905,7 +919,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         _copyChannel(channel);
         break;
       case 'paste':
-        if (clipboardChannel != null) {
+        if (pasteEnabled && clipboardChannel != null) {
           _onChannelDroppedOnSlot(clipboardChannel, channel.channelId);
         }
         break;
@@ -1614,7 +1628,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     // Also accept a dropped channel (e.g. a "yellow block" shared in chat, or
     // another slot) to program this slot on the radio.
     return DragTarget<radio.RadioChannelInfo>(
-      onWillAcceptWithDetails: (_) => widget.deviceId > 0,
+      onWillAcceptWithDetails: (details) =>
+          widget.deviceId > 0 && details.data.channelId != channel.channelId,
       onAcceptWithDetails: (details) =>
           _onChannelDroppedOnSlot(details.data, channel.channelId),
       builder: (context, candidate, rejected) {

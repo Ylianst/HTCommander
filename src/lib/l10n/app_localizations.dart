@@ -4170,6 +4170,54 @@ abstract class AppLocalizations {
   /// **'Save Draft'**
   String get mailSaveDraft;
 
+  /// No description provided for @mailAttachmentsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachments'**
+  String get mailAttachmentsLabel;
+
+  /// No description provided for @mailAddAttachment.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Attachment'**
+  String get mailAddAttachment;
+
+  /// No description provided for @mailRemoveAttachment.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove attachment'**
+  String get mailRemoveAttachment;
+
+  /// No description provided for @mailSaveAttachment.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Attachment'**
+  String get mailSaveAttachment;
+
+  /// No description provided for @mailAttachmentDropHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag & drop files here to attach'**
+  String get mailAttachmentDropHint;
+
+  /// No description provided for @mailAttachmentReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to read file: {name}'**
+  String mailAttachmentReadFailed(String name);
+
+  /// No description provided for @mailAttachmentSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved \"{name}\"'**
+  String mailAttachmentSaved(String name);
+
+  /// No description provided for @mailAttachmentLargeWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Large attachments ({size}) may take a long time to send over radio.'**
+  String mailAttachmentLargeWarning(String size);
+
   /// No description provided for @smsTitle.
   ///
   /// In en, this message translates to:

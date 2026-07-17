@@ -2260,6 +2260,37 @@ class AppLocalizationsEs extends AppLocalizations {
   String get mailSaveDraft => 'Guardar borrador';
 
   @override
+  String get mailAttachmentsLabel => 'Archivos adjuntos';
+
+  @override
+  String get mailAddAttachment => 'Agregar adjunto';
+
+  @override
+  String get mailRemoveAttachment => 'Quitar adjunto';
+
+  @override
+  String get mailSaveAttachment => 'Guardar adjunto';
+
+  @override
+  String get mailAttachmentDropHint =>
+      'Arrastra y suelta archivos aquí para adjuntar';
+
+  @override
+  String mailAttachmentReadFailed(String name) {
+    return 'No se pudo leer el archivo: $name';
+  }
+
+  @override
+  String mailAttachmentSaved(String name) {
+    return 'Guardado «$name»';
+  }
+
+  @override
+  String mailAttachmentLargeWarning(String size) {
+    return 'Los adjuntos grandes ($size) pueden tardar mucho en enviarse por radio.';
+  }
+
+  @override
   String get smsTitle => 'Enviar un mensaje SMS';
 
   @override

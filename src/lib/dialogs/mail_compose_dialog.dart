@@ -1,8 +1,23 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import 'dialog_utils.dart';
+
+/// A file attached to a composed message, carrying the file name and its raw
+/// bytes so it can be turned into a `WinLinkMailAttachement` on send.
+class ComposedAttachment {
+  const ComposedAttachment({required this.name, required this.data});
+
+  final String name;
+  final Uint8List data;
+}
 
 /// The result returned by [showMailComposeDialog] when the user sends or saves
 /// a message. [isDraft] is true when the message should be saved to the Draft
@@ -15,6 +30,7 @@ class ComposedMail {
     required this.subject,
     required this.body,
     required this.isDraft,
+    this.attachments = const [],
   });
 
   final String from;
@@ -23,6 +39,7 @@ class ComposedMail {
   final String subject;
   final String body;
   final bool isDraft;
+  final List<ComposedAttachment> attachments;
 }
 
 /// Shows the mail compose / edit dialog (ports `MailComposeForm`).
@@ -36,6 +53,7 @@ Future<ComposedMail?> showMailComposeDialog(
   String initialCc = '',
   String initialSubject = '',
   String initialBody = '',
+  List<ComposedAttachment> initialAttachments = const [],
 }) {
   return showDialog<ComposedMail>(
     context: context,
@@ -46,6 +64,7 @@ Future<ComposedMail?> showMailComposeDialog(
       initialCc: initialCc,
       initialSubject: initialSubject,
       initialBody: initialBody,
+      initialAttachments: initialAttachments,
     ),
   );
 }
@@ -57,6 +76,7 @@ class _MailComposeDialog extends StatefulWidget {
     required this.initialCc,
     required this.initialSubject,
     required this.initialBody,
+    required this.initialAttachments,
   });
 
   final bool isEdit;
@@ -64,6 +84,7 @@ class _MailComposeDialog extends StatefulWidget {
   final String initialCc;
   final String initialSubject;
   final String initialBody;
+  final List<ComposedAttachment> initialAttachments;
 
   @override
   State<_MailComposeDialog> createState() => _MailComposeDialogState();
@@ -83,6 +104,20 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
   // automatically when the message is pre-filled with a Cc (reply / forward).
   bool _showCc = false;
 
+  // Attachments added to the message (from the file picker or drag & drop).
+  final List<ComposedAttachment> _attachments = [];
+
+  // True while a file is being dragged over the dialog, used to show the drop
+  // overlay hint.
+  bool _dragging = false;
+
+  // Total attachment size above which a soft "large attachment" warning is
+  // shown (Winlink over radio is very low-bandwidth). Sending is still allowed.
+  static const int _largeAttachmentThreshold = 120 * 1024;
+
+  int get _totalAttachmentBytes =>
+      _attachments.fold(0, (sum, a) => sum + a.data.length);
+
   @override
   void initState() {
     super.initState();
@@ -91,6 +126,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
     _showCc = widget.initialCc.trim().isNotEmpty;
     _subjectController = TextEditingController(text: widget.initialSubject);
     _bodyController = TextEditingController(text: widget.initialBody);
+    _attachments.addAll(widget.initialAttachments);
 
     for (final c in [
       _toController,
@@ -179,6 +215,234 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
         subject: _subjectController.text,
         body: _bodyController.text,
         isDraft: isDraft,
+        attachments: List.unmodifiable(_attachments),
+      ),
+    );
+  }
+
+  /// Opens the file picker and appends the selected files as attachments.
+  Future<void> _onAddAttachment() async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.pickFiles(allowMultiple: true, withData: true);
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.errorOpeningFileDialog(e.toString()))),
+      );
+      return;
+    }
+    if (result == null) return;
+
+    for (final file in result.files) {
+      Uint8List? bytes = file.bytes;
+      if (bytes == null && !kIsWeb && file.path != null) {
+        try {
+          bytes = await File(file.path!).readAsBytes();
+        } catch (_) {
+          bytes = null;
+        }
+      }
+      if (bytes == null) {
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(l10n.mailAttachmentReadFailed(file.name))),
+          );
+        }
+        continue;
+      }
+      _addAttachment(file.name, bytes);
+    }
+  }
+
+  /// Reads dropped files and appends them as attachments (desktop / web).
+  Future<void> _onDropFiles(DropDoneDetails detail) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    for (final file in detail.files) {
+      Uint8List bytes;
+      try {
+        bytes = await file.readAsBytes();
+      } catch (_) {
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(l10n.mailAttachmentReadFailed(file.name))),
+          );
+        }
+        continue;
+      }
+      _addAttachment(file.name, bytes);
+    }
+  }
+
+  void _addAttachment(String name, Uint8List data) {
+    if (!mounted) return;
+    setState(() {
+      _attachments.add(ComposedAttachment(name: name, data: data));
+      _messageChanged = true;
+    });
+  }
+
+  void _removeAttachment(int index) {
+    setState(() {
+      _attachments.removeAt(index);
+      _messageChanged = true;
+    });
+  }
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  Widget _buildAttachmentsSection() {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Text(
+                l10n.mailAttachmentsLabel,
+                style: DialogStyles.labelStyle,
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: _onAddAttachment,
+                icon: const Icon(Icons.attach_file, size: 18),
+                label: Text(l10n.mailAddAttachment),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  visualDensity: VisualDensity.compact,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+          if (_attachments.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                l10n.mailAttachmentDropHint,
+                style: DialogStyles.bodyStyle.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            )
+          else ...[
+            const SizedBox(height: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 120),
+              child: SingleChildScrollView(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (int i = 0; i < _attachments.length; i++)
+                      _buildAttachmentChip(i, scheme),
+                  ],
+                ),
+              ),
+            ),
+            if (_totalAttachmentBytes > _largeAttachmentThreshold) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.warning_amber, size: 16, color: scheme.error),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      l10n.mailAttachmentLargeWarning(
+                        _formatSize(_totalAttachmentBytes),
+                      ),
+                      style: DialogStyles.bodyStyle.copyWith(
+                        color: scheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttachmentChip(int index, ColorScheme scheme) {
+    final a = _attachments[index];
+    return Container(
+      padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        border: Border.all(color: scheme.outline),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.attach_file, size: 16),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              a.name,
+              overflow: TextOverflow.ellipsis,
+              style: DialogStyles.bodyStyle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '(${_formatSize(a.data.length)})',
+            style: DialogStyles.bodyStyle.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16),
+            onPressed: () => _removeAttachment(index),
+            tooltip: AppLocalizations.of(context).mailRemoveAttachment,
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.only(left: 4),
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDropOverlay() {
+    final scheme = Theme.of(context).colorScheme;
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: scheme.primary, width: 2),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.file_upload, size: 48, color: scheme.primary),
+                const SizedBox(height: 8),
+                Text(
+                  AppLocalizations.of(context).mailAttachmentDropHint,
+                  style: DialogStyles.titleStyle.copyWith(color: scheme.primary),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -268,22 +532,31 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
       ),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 600, maxHeight: dialogMaxHeight),
-        child: Padding(
-          padding: EdgeInsets.all(keyboardOpen ? 12 : 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: DropTarget(
+          onDragEntered: (_) => setState(() => _dragging = true),
+          onDragExited: (_) => setState(() => _dragging = false),
+          onDragDone: (detail) {
+            setState(() => _dragging = false);
+            _onDropFiles(detail);
+          },
+          child: Stack(
             children: [
-              // Title
-              Text(
-                widget.isEdit
-                    ? AppLocalizations.of(context).mailComposeEditTitle
-                    : AppLocalizations.of(context).mailComposeNewTitle,
-                style: DialogStyles.titleStyle,
-              ),
-              SizedBox(height: keyboardOpen ? 8 : 16),
-              // Fields section card. The contents scroll so the dialog stays
-              // usable on short displays (e.g. mobile with the keyboard up).
+              Padding(
+                padding: EdgeInsets.all(keyboardOpen ? 12 : 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Title
+                    Text(
+                      widget.isEdit
+                          ? AppLocalizations.of(context).mailComposeEditTitle
+                          : AppLocalizations.of(context).mailComposeNewTitle,
+                      style: DialogStyles.titleStyle,
+                    ),
+                    SizedBox(height: keyboardOpen ? 8 : 16),
+                    // Fields section card. The contents scroll so the dialog stays
+                    // usable on short displays (e.g. mobile with the keyboard up).
               Expanded(
                 child: Container(
                   decoration: _sectionDecoration(),
@@ -417,6 +690,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                   ),
                 ),
               ),
+              _buildAttachmentsSection(),
               SizedBox(height: keyboardOpen ? 8 : 16),
               // Buttons
               Row(
@@ -441,6 +715,10 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                   ),
                 ],
               ),
+            ],
+          ),
+        ),
+              if (_dragging) _buildDropOverlay(),
             ],
           ),
         ),

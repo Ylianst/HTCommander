@@ -2204,6 +2204,36 @@ class AppLocalizationsJa extends AppLocalizations {
   String get mailSaveDraft => '下書きを保存';
 
   @override
+  String get mailAttachmentsLabel => '添付ファイル';
+
+  @override
+  String get mailAddAttachment => '添付ファイルを追加';
+
+  @override
+  String get mailRemoveAttachment => '添付ファイルを削除';
+
+  @override
+  String get mailSaveAttachment => '添付ファイルを保存';
+
+  @override
+  String get mailAttachmentDropHint => 'ここにファイルをドラッグ＆ドロップして添付';
+
+  @override
+  String mailAttachmentReadFailed(String name) {
+    return 'ファイルを読み込めませんでした: $name';
+  }
+
+  @override
+  String mailAttachmentSaved(String name) {
+    return '「$name」を保存しました';
+  }
+
+  @override
+  String mailAttachmentLargeWarning(String size) {
+    return '大きな添付ファイル（$size）は無線での送信に時間がかかることがあります。';
+  }
+
+  @override
   String get smsTitle => 'SMS メッセージを送信';
 
   @override

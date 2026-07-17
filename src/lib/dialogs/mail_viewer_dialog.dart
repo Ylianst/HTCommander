@@ -1,3 +1,8 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -6,9 +11,14 @@ import 'dialog_utils.dart';
 
 /// A read-only attachment shown in the mail viewer.
 class MailViewerAttachment {
-  const MailViewerAttachment({required this.name, this.sizeBytes});
+  const MailViewerAttachment({
+    required this.name,
+    required this.data,
+    this.sizeBytes,
+  });
 
   final String name;
+  final Uint8List data;
   final int? sizeBytes;
 }
 
@@ -119,7 +129,7 @@ class _MailViewerDialog extends StatelessWidget {
                             _headerLine('Subject: ', subject, scheme),
                           if (attachments.isNotEmpty) ...[
                             const SizedBox(height: 8),
-                            _buildAttachments(scheme),
+                            _buildAttachments(context, scheme),
                           ],
                           const Divider(height: 24),
                           Text(body, style: DialogStyles.bodyStyle),
@@ -219,37 +229,90 @@ class _MailViewerDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildAttachments(ColorScheme scheme) {
+  Widget _buildAttachments(BuildContext context, ColorScheme scheme) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: attachments.map((a) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerLow,
-            border: Border.all(color: scheme.outline),
+        return Tooltip(
+          message: AppLocalizations.of(context).mailSaveAttachment,
+          child: InkWell(
             borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.attach_file, size: 16),
-              const SizedBox(width: 4),
-              Text(a.name, style: DialogStyles.bodyStyle),
-              if (a.sizeBytes != null) ...[
-                const SizedBox(width: 6),
-                Text(
-                  _formatSize(a.sizeBytes!),
-                  style: DialogStyles.bodyStyle.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ],
+            onTap: () => _saveAttachment(context, a),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                border: Border.all(color: scheme.outline),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.attach_file, size: 16),
+                  const SizedBox(width: 4),
+                  Text(a.name, style: DialogStyles.bodyStyle),
+                  if (a.sizeBytes != null) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatSize(a.sizeBytes!),
+                      style: DialogStyles.bodyStyle.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 6),
+                  Icon(Icons.download, size: 16, color: scheme.primary),
+                ],
+              ),
+            ),
           ),
         );
       }).toList(),
+    );
+  }
+
+  /// Prompts for a destination and writes the attachment bytes to disk.
+  Future<void> _saveAttachment(
+    BuildContext context,
+    MailViewerAttachment attachment,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Web and mobile require the bytes up front; desktop returns a path that
+    // we write to ourselves.
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
+
+    String? outputPath;
+    try {
+      outputPath = await FilePicker.saveFile(
+        dialogTitle: l10n.mailSaveAttachment,
+        fileName: attachment.name,
+        bytes: needsBytes ? attachment.data : null,
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.errorOpeningFileDialog(e.toString()))),
+      );
+      return;
+    }
+
+    if (outputPath == null) return;
+
+    if (!needsBytes) {
+      try {
+        await File(outputPath).writeAsBytes(attachment.data);
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.errorSavingFile(e.toString()))),
+        );
+        return;
+      }
+    }
+
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.mailAttachmentSaved(attachment.name))),
     );
   }
 
