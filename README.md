@@ -1,5 +1,5 @@
 > [!NOTE]
-> Official web site at: [https://ylianst.github.io/HTCommanderSite/](https://github.com/Ylianst/HTCommander/issues).
+> Official web site at: [https://ylianst.github.io/HTCommanderSite/](https://ylianst.github.io/HTCommanderSite/).
 
 # Handi-Talky Commander
 
