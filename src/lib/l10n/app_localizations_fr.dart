@@ -580,23 +580,22 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get settingsHomeAssistantDescription =>
-      'Expose each connected radio to Home Assistant over MQTT for monitoring and control.';
+      'Exposez chaque radio connectée à Home Assistant via MQTT pour la surveillance et le contrôle.';
 
   @override
-  String get settingsEnableHomeAssistant => 'Enable Home Assistant';
+  String get settingsEnableHomeAssistant => 'Activer Home Assistant';
 
   @override
-  String get settingsHomeAssistantMqttUrl => 'MQTT URL';
+  String get settingsHomeAssistantMqttUrl => 'URL MQTT';
 
   @override
-  String get settingsHomeAssistantUsername => 'Username';
+  String get settingsHomeAssistantUsername => 'Nom d\'utilisateur';
 
   @override
-  String get settingsHomeAssistantPassword => 'Password';
+  String get settingsHomeAssistantPassword => 'Mot de passe';
 
   @override
-  String get settingsHomeAssistantTestSuccess =>
-      'Success: connected to broker.';
+  String get settingsHomeAssistantTestSuccess => 'Succès : connecté au broker.';
 
   @override
   String get settingsMapIntroGps =>

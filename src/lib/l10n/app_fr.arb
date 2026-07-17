@@ -1043,5 +1043,12 @@
   "wxReportFull": "Complet, Prévision plus détaillée, US uniquement",
   "wxReportCurrent": "Actuel, Station NWS la plus proche, US uniquement",
   "wxReportMetar": "METAR, Station OACI au format METAR",
-  "wxReportCwop": "CWOP, Station CWOP la plus proche"
+  "wxReportCwop": "CWOP, Station CWOP la plus proche",
+  "settingsHomeAssistant": "Home Assistant",
+  "settingsHomeAssistantDescription": "Exposez chaque radio connectée à Home Assistant via MQTT pour la surveillance et le contrôle.",
+  "settingsEnableHomeAssistant": "Activer Home Assistant",
+  "settingsHomeAssistantMqttUrl": "URL MQTT",
+  "settingsHomeAssistantUsername": "Nom d'utilisateur",
+  "settingsHomeAssistantPassword": "Mot de passe",
+  "settingsHomeAssistantTestSuccess": "Succès : connecté au broker."
 }

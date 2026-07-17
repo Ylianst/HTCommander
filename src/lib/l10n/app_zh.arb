@@ -1043,5 +1043,12 @@
   "wxReportFull": "完整，更详细的预报，仅限美国",
   "wxReportCurrent": "当前，最近的 NWS 站，仅限美国",
   "wxReportMetar": "METAR，ICAO 站 METAR 格式",
-  "wxReportCwop": "CWOP，最近的 CWOP 站"
+  "wxReportCwop": "CWOP，最近的 CWOP 站",
+  "settingsHomeAssistant": "Home Assistant",
+  "settingsHomeAssistantDescription": "通过 MQTT 将每个已连接的无线电公开到 Home Assistant 以进行监控和控制。",
+  "settingsEnableHomeAssistant": "启用 Home Assistant",
+  "settingsHomeAssistantMqttUrl": "MQTT URL",
+  "settingsHomeAssistantUsername": "用户名",
+  "settingsHomeAssistantPassword": "密码",
+  "settingsHomeAssistantTestSuccess": "成功：已连接到代理。"
 }

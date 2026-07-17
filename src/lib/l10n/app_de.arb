@@ -1043,5 +1043,12 @@
   "wxReportFull": "Vollständig, Detailliertere Vorhersage, nur USA",
   "wxReportCurrent": "Aktuell, Nächstgelegene NWS-Station, nur USA",
   "wxReportMetar": "METAR, ICAO-Station im METAR-Format",
-  "wxReportCwop": "CWOP, Nächstgelegene CWOP-Station"
+  "wxReportCwop": "CWOP, Nächstgelegene CWOP-Station",
+  "settingsHomeAssistant": "Home Assistant",
+  "settingsHomeAssistantDescription": "Jedes verbundene Funkgerät über MQTT für Überwachung und Steuerung in Home Assistant verfügbar machen.",
+  "settingsEnableHomeAssistant": "Home Assistant aktivieren",
+  "settingsHomeAssistantMqttUrl": "MQTT-URL",
+  "settingsHomeAssistantUsername": "Benutzername",
+  "settingsHomeAssistantPassword": "Passwort",
+  "settingsHomeAssistantTestSuccess": "Erfolg: Mit Broker verbunden."
 }

@@ -562,23 +562,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsHomeAssistantDescription =>
-      'Expose each connected radio to Home Assistant over MQTT for monitoring and control.';
+      '通过 MQTT 将每个已连接的无线电公开到 Home Assistant 以进行监控和控制。';
 
   @override
-  String get settingsEnableHomeAssistant => 'Enable Home Assistant';
+  String get settingsEnableHomeAssistant => '启用 Home Assistant';
 
   @override
   String get settingsHomeAssistantMqttUrl => 'MQTT URL';
 
   @override
-  String get settingsHomeAssistantUsername => 'Username';
+  String get settingsHomeAssistantUsername => '用户名';
 
   @override
-  String get settingsHomeAssistantPassword => 'Password';
+  String get settingsHomeAssistantPassword => '密码';
 
   @override
-  String get settingsHomeAssistantTestSuccess =>
-      'Success: connected to broker.';
+  String get settingsHomeAssistantTestSuccess => '成功：已连接到代理。';
 
   @override
   String get settingsMapIntroGps => '配置 GPS 和飞机跟踪数据源。';

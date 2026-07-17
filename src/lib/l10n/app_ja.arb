@@ -1043,5 +1043,12 @@
   "wxReportFull": "完全、より詳細な予報、米国のみ",
   "wxReportCurrent": "現在、最寄りの NWS 局、米国のみ",
   "wxReportMetar": "METAR、ICAO 局の METAR 形式",
-  "wxReportCwop": "CWOP、最寄りの CWOP 局"
+  "wxReportCwop": "CWOP、最寄りの CWOP 局",
+  "settingsHomeAssistant": "Home Assistant",
+  "settingsHomeAssistantDescription": "接続された各無線機を MQTT 経由で Home Assistant に公開し、監視と制御を行います。",
+  "settingsEnableHomeAssistant": "Home Assistant を有効にする",
+  "settingsHomeAssistantMqttUrl": "MQTT URL",
+  "settingsHomeAssistantUsername": "ユーザー名",
+  "settingsHomeAssistantPassword": "パスワード",
+  "settingsHomeAssistantTestSuccess": "成功: ブローカーに接続しました。"
 }
