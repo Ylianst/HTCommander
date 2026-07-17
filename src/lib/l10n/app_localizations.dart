@@ -11,6 +11,7 @@ import 'app_localizations_es.dart';
 import 'app_localizations_fr.dart';
 import 'app_localizations_hi.dart';
 import 'app_localizations_ja.dart';
+import 'app_localizations_pl.dart';
 import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
@@ -105,6 +106,7 @@ abstract class AppLocalizations {
     Locale('fr'),
     Locale('hi'),
     Locale('ja'),
+    Locale('pl'),
     Locale('zh'),
   ];
 
@@ -425,6 +427,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'German'**
   String get languageGerman;
+
+  /// Polish language option.
+  ///
+  /// In en, this message translates to:
+  /// **'Polish'**
+  String get languagePolish;
 
   /// Top-level Audio menu label.
   ///
@@ -5520,6 +5528,7 @@ class _AppLocalizationsDelegate
     'fr',
     'hi',
     'ja',
+    'pl',
     'zh',
   ].contains(locale.languageCode);
 
@@ -5542,6 +5551,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsHi();
     case 'ja':
       return AppLocalizationsJa();
+    case 'pl':
+      return AppLocalizationsPl();
     case 'zh':
       return AppLocalizationsZh();
   }

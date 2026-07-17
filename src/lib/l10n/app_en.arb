@@ -207,6 +207,10 @@
   "@languageGerman": {
     "description": "German language option."
   },
+  "languagePolish": "Polish",
+  "@languagePolish": {
+    "description": "Polish language option."
+  },
 
   "menuAudio": "Audio",
   "@menuAudio": {

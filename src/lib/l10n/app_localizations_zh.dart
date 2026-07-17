@@ -174,6 +174,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageGerman => '德语';
 
   @override
+  String get languagePolish => '波兰语';
+
+  @override
   String get menuAudio => '音频';
 
   @override
