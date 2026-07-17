@@ -6,6 +6,8 @@ http://www.apache.org/licenses/LICENSE-2.0
 Ported from the C# `aprsparser.AprsPacket` class.
 */
 
+import 'dart:math' as math;
+
 import '../radio/ax25_packet.dart';
 import 'callsign.dart';
 import 'coordinate.dart';
@@ -438,8 +440,11 @@ class AprsPacket {
       d = comment.codeUnitAt(0) - 33;
       m = comment.codeUnitAt(1) - 33;
       sv = comment.codeUnitAt(2) - 33;
-      if (d >= 0 && d <= 91 && m >= 0 && m <= 91 && sv >= 0 && sv <= 91) {
-        position.altitude = (d * 91 * 91) + (m * 91) + sv;
+      if (d >= 0 && d <= 90 && m >= 0 && m <= 90 && sv >= 0 && sv <= 90) {
+        // Base-91 value is metres offset by -10000; store as feet to match
+        // the '/A=' altitude convention used elsewhere.
+        final int metres = (d * 91 * 91) + (m * 91) + sv - 10000;
+        position.altitude = (metres * 3.28084).round();
       }
       comment = comment.substring(4);
     } else if (comment.length >= 5 &&
@@ -448,8 +453,9 @@ class AprsPacket {
       d = comment.codeUnitAt(1) - 33;
       m = comment.codeUnitAt(2) - 33;
       sv = comment.codeUnitAt(3) - 33;
-      if (d >= 0 && d <= 91 && m >= 0 && m <= 91 && sv >= 0 && sv <= 91) {
-        position.altitude = (d * 91 * 91) + (m * 91) + sv;
+      if (d >= 0 && d <= 90 && m >= 0 && m <= 90 && sv >= 0 && sv <= 90) {
+        final int metres = (d * 91 * 91) + (m * 91) + sv - 10000;
+        position.altitude = (metres * 3.28084).round();
       }
       comment = comment.substring(5);
     }
@@ -530,6 +536,27 @@ class AprsPacket {
                 190463.0;
         position.coordinateSet.longitude = Coordinate.fromValue(dLon, false);
 
+        // Compressed course/speed, altitude, or radio range (bytes 10-12:
+        // the 'c', 's' and 't' fields). Mirrors Direwolf's
+        // decode_compressed_position.
+        final int cc = pd.codeUnitAt(10);
+        final int cs = pd.codeUnitAt(11);
+        final int ct = pd.codeUnitAt(12);
+        if (cc == 0x20) {
+          // Space in the course/speed byte: no additional data present.
+        } else if (((ct - 33) & 0x18) == 0x10) {
+          // Altitude in feet: 1.002 raised to the two base-91 digits.
+          position.altitude =
+              math.pow(1.002, ((cc - 33) * 91) + (cs - 33)).round();
+        } else if (cc == 0x7B) {
+          // '{' indicates a pre-calculated radio range (not stored).
+        } else if (cc >= 0x21 && cc <= 0x7A) {
+          // Course/speed. Speed is kept in knots to match the uncompressed
+          // CSE/SPD path.
+          position.course = (cc - 33) * 4;
+          position.speed = (math.pow(1.08, cs - 33) - 1.0).round();
+        }
+
         ps = ps.substring(13);
       } else {
         if (ps.length < 19) {
@@ -543,6 +570,10 @@ class AprsPacket {
         symbolTableIdentifier = pd.codeUnitAt(8);
         final sLon = pd.substring(9, 18);
         symbolCode = pd.codeUnitAt(18);
+
+        // Position ambiguity: trailing minute digits replaced by spaces.
+        position.ambiguity =
+            sLat.codeUnits.where((c) => c == 0x20).length;
 
         position.coordinateSet.latitude = Coordinate.fromNmea(sLat);
         position.coordinateSet.longitude = Coordinate.fromNmea(sLon);

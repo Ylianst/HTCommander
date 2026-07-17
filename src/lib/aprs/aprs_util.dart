@@ -87,19 +87,22 @@ class AprsUtil {
   static double convertNmeaToFloat(String? nmea) {
     try {
       if (nmea == null || nmea.isEmpty) return 0;
+      // Position ambiguity replaces trailing minute digits with spaces; treat
+      // them as zeros so the coordinate can still be decoded.
+      final s = nmea.replaceAll(' ', '0');
       double d;
       // lat
-      if (nmea.length == 8) {
-        d = double.parse(nmea.substring(0, 2)); // hours
-        d += double.parse(nmea.substring(2, 7)) / 60; // decimal minutes
-        if (nmea.toUpperCase().endsWith('S')) d = -d;
+      if (s.length == 8) {
+        d = double.parse(s.substring(0, 2)); // hours
+        d += double.parse(s.substring(2, 7)) / 60; // decimal minutes
+        if (s.toUpperCase().endsWith('S')) d = -d;
         return d;
       }
       // lon
-      if (nmea.length == 9) {
-        d = double.parse(nmea.substring(0, 3)); // hours
-        d += double.parse(nmea.substring(3, 8)) / 60; // decimal minutes
-        if (nmea.toUpperCase().endsWith('W')) d = -d;
+      if (s.length == 9) {
+        d = double.parse(s.substring(0, 3)); // hours
+        d += double.parse(s.substring(3, 8)) / 60; // decimal minutes
+        if (s.toUpperCase().endsWith('W')) d = -d;
         return d;
       }
       return 0;
