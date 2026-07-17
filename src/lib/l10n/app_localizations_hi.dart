@@ -2645,6 +2645,19 @@ class AppLocalizationsHi extends AppLocalizations {
   String get chBandwidthNarrow => '12.5 KHz नैरो';
 
   @override
+  String get channelImportFetching => 'वेब पेज से चैनल प्राप्त किया जा रहा है…';
+
+  @override
+  String get channelImportUnsupportedSite =>
+      'यह वेबसाइट चैनल आयात के लिए समर्थित नहीं है।';
+
+  @override
+  String get channelImportFetchFailed => 'वेब पेज डाउनलोड नहीं किया जा सका।';
+
+  @override
+  String get channelImportParseFailed => 'उस पेज पर चैनल विवरण नहीं मिला।';
+
+  @override
   String get chClearTitle => 'चैनल साफ़ करें';
 
   @override

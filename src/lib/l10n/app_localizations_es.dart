@@ -2661,6 +2661,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chBandwidthNarrow => '12.5 KHz estrecho';
 
   @override
+  String get channelImportFetching =>
+      'Obteniendo el canal desde la página web…';
+
+  @override
+  String get channelImportUnsupportedSite =>
+      'Este sitio web no es compatible con la importación de canales.';
+
+  @override
+  String get channelImportFetchFailed => 'No se pudo descargar la página web.';
+
+  @override
+  String get channelImportParseFailed =>
+      'No se encontraron detalles del canal en esa página.';
+
+  @override
   String get chClearTitle => 'Borrar el canal';
 
   @override

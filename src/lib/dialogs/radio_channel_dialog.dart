@@ -14,11 +14,17 @@ import '../radio/radio_models.dart';
 /// Opens the channel editor for the given [channelId] on the connected radio
 /// identified by [deviceId]. On OK the edited channel is pushed to the radio
 /// through the DataBroker (`WriteChannel`).
+///
+/// When [proposedChannel] is provided (e.g. a channel imported from a dropped
+/// web page URL), its user-facing fields (name, frequencies, mode, tones,
+/// bandwidth, power) are pre-filled into the form for the operator to review
+/// and confirm before writing.
 Future<void> showRadioChannelDialog(
   BuildContext context, {
   required int deviceId,
   required int channelId,
   String? radioName,
+  RadioChannelInfo? proposedChannel,
 }) {
   return showDialog<void>(
     context: context,
@@ -26,6 +32,7 @@ Future<void> showRadioChannelDialog(
       deviceId: deviceId,
       channelId: channelId,
       radioName: radioName,
+      proposedChannel: proposedChannel,
     ),
   );
 }
@@ -39,11 +46,16 @@ class RadioChannelDialog extends StatefulWidget {
   final int channelId;
   final String? radioName;
 
+  /// Optional pre-filled channel proposed from an external source (e.g. a web
+  /// page import). Its editable fields are overlaid on the radio's channel.
+  final RadioChannelInfo? proposedChannel;
+
   const RadioChannelDialog({
     super.key,
     required this.deviceId,
     required this.channelId,
     this.radioName,
+    this.proposedChannel,
   });
 
   @override
@@ -134,15 +146,38 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   }
 
   void _loadChannel() {
-    final c = _readChannel();
-    if (c == null) return;
+    final radioChannel = _readChannel();
+    final proposed = widget.proposedChannel;
+    if (radioChannel == null && proposed == null) return;
+
+    // Base comes from the radio so fixed-frequency/power flags and the raw
+    // payload are preserved; fall back to an empty channel for the slot when
+    // the radio has not reported it yet.
+    final base = radioChannel ?? RadioChannelInfo(channelId: widget.channelId);
+
+    // When opened with a proposed channel, overlay its user-facing fields on
+    // top of the radio's channel so the operator can review and confirm them.
+    final RadioChannelInfo c = proposed == null
+        ? base
+        : base.copyWith(
+            name: proposed.name,
+            rxFreq: proposed.rxFreq,
+            txFreq: proposed.txFreq,
+            rxMod: proposed.rxMod,
+            txMod: proposed.txMod,
+            rxSubAudio: proposed.rxSubAudio,
+            txSubAudio: proposed.txSubAudio,
+            bandwidth: proposed.bandwidth,
+            txAtMaxPower: proposed.txAtMaxPower,
+            txAtMedPower: proposed.txAtMedPower,
+          );
 
     int rxFreq = c.rxFreq;
     int txFreq = c.txFreq;
     if (txFreq == 0) txFreq = rxFreq;
     if (rxFreq == 0) rxFreq = txFreq;
 
-    _original = c;
+    _original = base;
 
     // Switch to advanced automatically when the channel uses features the basic
     // view cannot represent. This must be decided BEFORE populating the

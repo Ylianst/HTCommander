@@ -878,6 +878,10 @@
   "chPowerLow": "低",
   "chBandwidthWide": "25 KHz ワイド",
   "chBandwidthNarrow": "12.5 KHz ナロー",
+  "channelImportFetching": "ウェブページからチャンネルを取得しています…",
+  "channelImportUnsupportedSite": "このウェブサイトはチャンネルのインポートに対応していません。",
+  "channelImportFetchFailed": "ウェブページをダウンロードできませんでした。",
+  "channelImportParseFailed": "そのページにチャンネル情報が見つかりませんでした。",
   "chClearTitle": "チャンネルをクリア",
   "chClearConfirm": "チャンネル {n} をクリアしますか？\n\nこれにより、無線機のこの位置の周波数、名前、設定が削除されます。",
   "@chClearConfirm": {

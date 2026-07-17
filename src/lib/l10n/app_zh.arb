@@ -878,6 +878,10 @@
   "chPowerLow": "低",
   "chBandwidthWide": "25 KHz 宽",
   "chBandwidthNarrow": "12.5 KHz 窄",
+  "channelImportFetching": "正在从网页获取频道…",
+  "channelImportUnsupportedSite": "此网站不支持频道导入。",
+  "channelImportFetchFailed": "无法下载该网页。",
+  "channelImportParseFailed": "在该页面上找不到频道详细信息。",
   "chClearTitle": "清除信道",
   "chClearConfirm": "清除信道 {n}？\n\n这将删除电台上此位置的频率、名称和设置。",
   "@chClearConfirm": {

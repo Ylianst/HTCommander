@@ -878,6 +878,10 @@
   "chPowerLow": "Baja",
   "chBandwidthWide": "25 KHz ancho",
   "chBandwidthNarrow": "12.5 KHz estrecho",
+  "channelImportFetching": "Obteniendo el canal desde la página web…",
+  "channelImportUnsupportedSite": "Este sitio web no es compatible con la importación de canales.",
+  "channelImportFetchFailed": "No se pudo descargar la página web.",
+  "channelImportParseFailed": "No se encontraron detalles del canal en esa página.",
   "chClearTitle": "Borrar el canal",
   "chClearConfirm": "¿Borrar el canal {n}?\n\nEsto elimina la frecuencia, el nombre y la configuración de esta posición en la radio.",
   "@chClearConfirm": {

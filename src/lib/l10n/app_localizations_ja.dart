@@ -2603,6 +2603,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get chBandwidthNarrow => '12.5 KHz ナロー';
 
   @override
+  String get channelImportFetching => 'ウェブページからチャンネルを取得しています…';
+
+  @override
+  String get channelImportUnsupportedSite => 'このウェブサイトはチャンネルのインポートに対応していません。';
+
+  @override
+  String get channelImportFetchFailed => 'ウェブページをダウンロードできませんでした。';
+
+  @override
+  String get channelImportParseFailed => 'そのページにチャンネル情報が見つかりませんでした。';
+
+  @override
   String get chClearTitle => 'チャンネルをクリア';
 
   @override

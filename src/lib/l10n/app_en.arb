@@ -1610,6 +1610,22 @@
   "chPowerLow": "Low",
   "chBandwidthWide": "25 KHz Wide",
   "chBandwidthNarrow": "12.5 KHz Narrow",
+  "channelImportFetching": "Fetching channel from web page…",
+  "@channelImportFetching": {
+    "description": "Snackbar shown while a dropped web page URL is being downloaded and parsed into a channel."
+  },
+  "channelImportUnsupportedSite": "This web site isn't supported for channel import.",
+  "@channelImportUnsupportedSite": {
+    "description": "Snackbar shown when a dropped URL is not from a site the channel importer understands."
+  },
+  "channelImportFetchFailed": "Couldn't download the web page.",
+  "@channelImportFetchFailed": {
+    "description": "Snackbar shown when the dropped web page URL could not be downloaded."
+  },
+  "channelImportParseFailed": "Couldn't find channel details on that page.",
+  "@channelImportParseFailed": {
+    "description": "Snackbar shown when the downloaded web page did not contain channel information."
+  },
   "chClearTitle": "Clear channel",
   "chClearConfirm": "Clear channel {n}?\n\nThis removes the frequency, name and settings from this slot on the radio.",
   "@chClearConfirm": {

@@ -878,6 +878,10 @@
   "chPowerLow": "Niedrig",
   "chBandwidthWide": "25 KHz breit",
   "chBandwidthNarrow": "12.5 KHz schmal",
+  "channelImportFetching": "Kanal wird von der Webseite abgerufen…",
+  "channelImportUnsupportedSite": "Diese Website wird für den Kanalimport nicht unterstützt.",
+  "channelImportFetchFailed": "Die Webseite konnte nicht heruntergeladen werden.",
+  "channelImportParseFailed": "Auf dieser Seite wurden keine Kanaldetails gefunden.",
   "chClearTitle": "Kanal löschen",
   "chClearConfirm": "Kanal {n} löschen?\n\nDadurch werden Frequenz, Name und Einstellungen dieses Steckplatzes auf dem Funkgerät entfernt.",
   "@chClearConfirm": {

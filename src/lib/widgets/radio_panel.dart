@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
@@ -11,6 +12,7 @@ import '../dialogs/gps_details_dialog.dart';
 import '../dialogs/fm_radio_dialog.dart';
 import '../utils/channel_colors.dart';
 import '../utils/channel_share.dart';
+import '../utils/web_channel_import/web_channel_import.dart';
 
 /// Radio panel control widget - displays radio image, VFO frequencies, and status
 class RadioPanelControl extends StatefulWidget {
@@ -33,6 +35,10 @@ class RadioPanelControl extends StatefulWidget {
 class _RadioPanelControlState extends State<RadioPanelControl> {
   // DataBroker client for subscriptions
   final DataBrokerClient _broker = DataBrokerClient();
+
+  // Per-channel tile keys, used to hit-test which slot a web page URL was
+  // dropped onto so its channel can be imported into that slot.
+  final Map<int, GlobalKey> _channelTileKeys = {};
 
   // Cached state from broker
   String? _currentState;
@@ -833,27 +839,37 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     final selectedChannelB = _channelB?.channelId ?? -1;
 
     // Read the clipboard up front so we can enable "Paste" only when it holds a
-    // shared channel token (HTC:...). The menu items must be built
-    // synchronously, so this has to be resolved before showMenu is called.
+    // shared channel token (HTC:...) or a supported web page URL. The menu
+    // items must be built synchronously, so this has to be resolved before
+    // showMenu is called.
     radio.RadioChannelInfo? clipboardChannel;
+    String? clipboardUrl;
     try {
       final data = await Clipboard.getData(Clipboard.kTextPlain);
       final text = data?.text;
       if (text != null) {
         final matches = ChannelShare.findAll(text);
-        if (matches.isNotEmpty) clipboardChannel = matches.first.channel;
+        if (matches.isNotEmpty) {
+          clipboardChannel = matches.first.channel;
+        } else if (WebChannelImport.isSupportedUrl(text.trim())) {
+          // A URL from a supported site (e.g. a repeater details page): paste
+          // imports it exactly like dropping the URL onto the channel.
+          clipboardUrl = text.trim();
+        }
       }
     } catch (_) {
       // Clipboard may be unavailable on some platforms; just omit "Paste".
     }
     if (!mounted) return;
 
-    // Enable "Paste" only when the clipboard holds a channel whose content
-    // differs from what is already stored in this slot. The channel-share token
-    // does not carry the slot id, so compare by re-encoding both channels: an
-    // identical channel produces an identical token.
-    bool pasteEnabled = clipboardChannel != null && widget.deviceId > 0;
-    if (pasteEnabled) {
+    // Enable "Paste" when the clipboard holds a supported URL, or a shared
+    // channel token whose content differs from what is already stored in this
+    // slot. The channel-share token does not carry the slot id, so compare by
+    // re-encoding both channels: an identical channel produces an identical
+    // token.
+    bool pasteEnabled = widget.deviceId > 0 &&
+        (clipboardChannel != null || clipboardUrl != null);
+    if (pasteEnabled && clipboardChannel != null) {
       final currentFull =
           _fullChannels[channel.channelId] ?? _asFullChannel(channel);
       if (ChannelShare.encode(clipboardChannel!) ==
@@ -919,8 +935,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         _copyChannel(channel);
         break;
       case 'paste':
-        if (pasteEnabled && clipboardChannel != null) {
+        if (!pasteEnabled) break;
+        if (clipboardChannel != null) {
           _onChannelDroppedOnSlot(clipboardChannel, channel.channelId);
+        } else if (clipboardUrl != null) {
+          _importChannelFromUrl(clipboardUrl, channel.channelId);
         }
         break;
       case 'showAll':
@@ -1484,20 +1503,23 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       width: panelWidth,
       height: panelHeight,
       color: ChannelPalette.of(context).base,
-      child: GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: childAspectRatio,
-          crossAxisSpacing: 0,
-          mainAxisSpacing: 0,
-        ),
-        itemCount: visibleChannels.length,
-        itemBuilder: (context, index) => _buildChannelTile(
-          visibleChannels[index],
-          selectedChannelA,
-          selectedChannelB,
+      child: DropTarget(
+        onDragDone: _onUrlDroppedOnChannels,
+        child: GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: childAspectRatio,
+            crossAxisSpacing: 0,
+            mainAxisSpacing: 0,
+          ),
+          itemCount: visibleChannels.length,
+          itemBuilder: (context, index) => _buildChannelTile(
+            visibleChannels[index],
+            selectedChannelA,
+            selectedChannelB,
+          ),
         ),
       ),
     );
@@ -1516,19 +1538,22 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
     return Container(
       color: ChannelPalette.of(context).base,
-      child: GridView.builder(
-        padding: EdgeInsets.zero,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisExtent: 44,
-          crossAxisSpacing: 0,
-          mainAxisSpacing: 0,
-        ),
-        itemCount: visibleChannels.length,
-        itemBuilder: (context, index) => _buildChannelTile(
-          visibleChannels[index],
-          selectedChannelA,
-          selectedChannelB,
+      child: DropTarget(
+        onDragDone: _onUrlDroppedOnChannels,
+        child: GridView.builder(
+          padding: EdgeInsets.zero,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisExtent: 44,
+            crossAxisSpacing: 0,
+            mainAxisSpacing: 0,
+          ),
+          itemCount: visibleChannels.length,
+          itemBuilder: (context, index) => _buildChannelTile(
+            visibleChannels[index],
+            selectedChannelA,
+            selectedChannelB,
+          ),
         ),
       ),
     );
@@ -1628,6 +1653,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     // Also accept a dropped channel (e.g. a "yellow block" shared in chat, or
     // another slot) to program this slot on the radio.
     return DragTarget<radio.RadioChannelInfo>(
+      key: _channelTileKey(channel.channelId),
       onWillAcceptWithDetails: (details) =>
           widget.deviceId > 0 && details.data.channelId != channel.channelId,
       onAcceptWithDetails: (details) =>
@@ -1699,6 +1725,90 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         content: Text('Programming slot ${slotId + 1} with "$name"...'),
         duration: const Duration(seconds: 2),
       ),
+    );
+  }
+
+  /// Returns the stable [GlobalKey] for the tile of [channelId], creating one on
+  /// first use. Used to hit-test which slot a dropped URL landed on.
+  GlobalKey _channelTileKey(int channelId) =>
+      _channelTileKeys.putIfAbsent(channelId, () => GlobalKey());
+
+  /// Returns the channel id of the tile currently under [globalPosition], or
+  /// null when the drop did not land on a tile.
+  int? _channelIdAt(Offset globalPosition) {
+    for (final entry in _channelTileKeys.entries) {
+      final ctx = entry.value.currentContext;
+      final box = ctx?.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) continue;
+      final topLeft = box.localToGlobal(Offset.zero);
+      final rect = topLeft & box.size;
+      if (rect.contains(globalPosition)) return entry.key;
+    }
+    return null;
+  }
+
+  /// Handles a web page URL dropped onto the channels grid. When the URL is a
+  /// supported site, its page is fetched and parsed into a
+  /// proposed channel, and the channel editor opens pre-filled for the slot the
+  /// URL was dropped onto so the operator can confirm before programming.
+  Future<void> _onUrlDroppedOnChannels(DropDoneDetails details) async {
+    if (widget.deviceId <= 0 || details.files.isEmpty) return;
+
+    // A dragged browser link arrives as a single item whose path is the URL.
+    final url = details.files.first.path.trim();
+    final uri = Uri.tryParse(url);
+    final isHttpUrl =
+        uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+    if (!isHttpUrl) return; // Ignore dropped files/other content silently.
+
+    if (!WebChannelImport.isSupportedUrl(url)) {
+      _showChannelImportSnack(
+        AppLocalizations.of(context).channelImportUnsupportedSite,
+      );
+      return;
+    }
+
+    final channelId = _channelIdAt(details.globalPosition);
+    if (channelId == null) return;
+
+    await _importChannelFromUrl(url, channelId);
+  }
+
+  /// Fetches and parses [url] into a proposed channel, then opens the channel
+  /// editor pre-filled for [channelId] so the operator can confirm. Shared by
+  /// the URL drag-and-drop and the right-click "Paste" flows.
+  Future<void> _importChannelFromUrl(String url, int channelId) async {
+    final l10n = AppLocalizations.of(context);
+    _showChannelImportSnack(l10n.channelImportFetching);
+    final result = await WebChannelImport.fetchFromUrl(url);
+    if (!mounted) return;
+
+    switch (result.status) {
+      case WebChannelImportStatus.ok:
+        await showRadioChannelDialog(
+          context,
+          deviceId: widget.deviceId,
+          channelId: channelId,
+          radioName: _friendlyName,
+          proposedChannel: result.channel,
+        );
+        break;
+      case WebChannelImportStatus.fetchFailed:
+        _showChannelImportSnack(l10n.channelImportFetchFailed);
+        break;
+      case WebChannelImportStatus.parseFailed:
+        _showChannelImportSnack(l10n.channelImportParseFailed);
+        break;
+      case WebChannelImportStatus.unsupportedSite:
+        _showChannelImportSnack(l10n.channelImportUnsupportedSite);
+        break;
+    }
+  }
+
+  void _showChannelImportSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
     );
   }
 

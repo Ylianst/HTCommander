@@ -4920,6 +4920,30 @@ abstract class AppLocalizations {
   /// **'12.5 KHz Narrow'**
   String get chBandwidthNarrow;
 
+  /// Snackbar shown while a dropped web page URL is being downloaded and parsed into a channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching channel from web page…'**
+  String get channelImportFetching;
+
+  /// Snackbar shown when a dropped URL is not from a site the channel importer understands.
+  ///
+  /// In en, this message translates to:
+  /// **'This web site isn\'t supported for channel import.'**
+  String get channelImportUnsupportedSite;
+
+  /// Snackbar shown when the dropped web page URL could not be downloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t download the web page.'**
+  String get channelImportFetchFailed;
+
+  /// Snackbar shown when the downloaded web page did not contain channel information.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t find channel details on that page.'**
+  String get channelImportParseFailed;
+
   /// No description provided for @chClearTitle.
   ///
   /// In en, this message translates to:

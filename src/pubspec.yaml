@@ -83,6 +83,13 @@ dev_dependencies:
 # disabled on Android at runtime; these stubs prevent ~50 MB of unused native
 # code from being bundled.
 dependency_overrides:
+  # Vendored, patched copy of desktop_drop: the upstream Windows plugin only
+  # reads dropped files (CF_HDROP), so links dragged from a web browser were
+  # never delivered. The patched Windows plugin also reads dropped text / URLs
+  # (CFSTR_INETURLW / CF_UNICODETEXT), enabling drag-and-drop of a web page URL
+  # onto a channel. See third_party/desktop_drop/windows/desktop_drop_plugin.cpp.
+  desktop_drop:
+    path: third_party/desktop_drop
   sherpa_onnx_android_arm64:
     path: sherpa_stubs/sherpa_onnx_android_arm64
   sherpa_onnx_android_armeabi:

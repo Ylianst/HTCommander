@@ -2589,6 +2589,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chBandwidthNarrow => '12.5 KHz 窄';
 
   @override
+  String get channelImportFetching => '正在从网页获取频道…';
+
+  @override
+  String get channelImportUnsupportedSite => '此网站不支持频道导入。';
+
+  @override
+  String get channelImportFetchFailed => '无法下载该网页。';
+
+  @override
+  String get channelImportParseFailed => '在该页面上找不到频道详细信息。';
+
+  @override
   String get chClearTitle => '清除信道';
 
   @override

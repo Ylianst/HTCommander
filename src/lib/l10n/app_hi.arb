@@ -878,6 +878,10 @@
   "chPowerLow": "निम्न",
   "chBandwidthWide": "25 KHz वाइड",
   "chBandwidthNarrow": "12.5 KHz नैरो",
+  "channelImportFetching": "वेब पेज से चैनल प्राप्त किया जा रहा है…",
+  "channelImportUnsupportedSite": "यह वेबसाइट चैनल आयात के लिए समर्थित नहीं है।",
+  "channelImportFetchFailed": "वेब पेज डाउनलोड नहीं किया जा सका।",
+  "channelImportParseFailed": "उस पेज पर चैनल विवरण नहीं मिला।",
   "chClearTitle": "चैनल साफ़ करें",
   "chClearConfirm": "चैनल {n} साफ़ करें?\n\nयह रेडियो पर इस स्लॉट की आवृत्ति, नाम और सेटिंग्स हटा देता है।",
   "@chClearConfirm": {
