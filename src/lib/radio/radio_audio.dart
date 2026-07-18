@@ -535,6 +535,10 @@ class RadioAudio {
       await BluetoothClassicMacOS.instance.disconnectAudio(macAddress);
     } catch (_) {}
 
+    // Release the playback device so the next enable re-opens a fresh output
+    // queue; a reused, idle CoreAudio queue stops producing sound on macOS.
+    await _releasePcmSound();
+
     _dispatchAudioStateChanged(false);
   }
 
@@ -549,13 +553,7 @@ class RadioAudio {
     _hostReceivePort?.close();
     _hostReceivePort = null;
     // Release the audio playback device.
-    if (_pcmSoundReady) {
-      try {
-        _pcm.setFeedCallback(null);
-        await _pcm.release();
-      } catch (_) {}
-      _pcmSoundReady = false;
-    }
+    await _releasePcmSound();
     _broker.dispose();
   }
 
@@ -617,6 +615,21 @@ class RadioAudio {
     _pcmSoundReady = false;
     _bufferedFrames = 0;
     await _initPcmSound();
+  }
+
+  /// Releases the PCM playback device and resets its state. Called when audio
+  /// is disabled so the next enable re-opens a fresh output queue. On macOS a
+  /// CoreAudio AudioQueue that is left open but idle across a disable/enable
+  /// cycle stops producing sound when re-fed, so it must be re-created rather
+  /// than reused (mirrors the full disconnect/reconnect path).
+  Future<void> _releasePcmSound() async {
+    if (!_pcmSoundReady) return;
+    try {
+      _pcm.setFeedCallback(null);
+      await _pcm.release();
+    } catch (_) {}
+    _pcmSoundReady = false;
+    _bufferedFrames = 0;
   }
 
   // Invoked by the PCM player when the buffer drains below the threshold.
