@@ -2972,6 +2972,60 @@ abstract class AppLocalizations {
   /// **'Received a Brotli-compressed packet (not supported)'**
   String get terminalBrotli;
 
+  /// No description provided for @terminalSendFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Send File...'**
+  String get terminalSendFile;
+
+  /// No description provided for @terminalSaveFileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Received File'**
+  String get terminalSaveFileTitle;
+
+  /// No description provided for @terminalCancelTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel transfer'**
+  String get terminalCancelTransfer;
+
+  /// No description provided for @terminalTransferInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'A file transfer is already in progress'**
+  String get terminalTransferInProgress;
+
+  /// No description provided for @terminalSendingFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending {filename}...'**
+  String terminalSendingFile(String filename);
+
+  /// No description provided for @terminalReceivingFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving {filename}...'**
+  String terminalReceivingFile(String filename);
+
+  /// No description provided for @terminalFileSent.
+  ///
+  /// In en, this message translates to:
+  /// **'File sent: {filename}'**
+  String terminalFileSent(String filename);
+
+  /// No description provided for @terminalFileReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'File received: {filename} ({bytes} bytes)'**
+  String terminalFileReceived(String filename, int bytes);
+
+  /// No description provided for @terminalFileTransferError.
+  ///
+  /// In en, this message translates to:
+  /// **'File transfer error: {message}'**
+  String terminalFileTransferError(String message);
+
   /// No description provided for @audioSectionDevices.
   ///
   /// In en, this message translates to:

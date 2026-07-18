@@ -2432,7 +2432,7 @@ class _CommsTabState extends State<CommsTab>
               child: TextField(
                 controller: _messageController,
                 focusNode: _messageFocusNode,
-                enabled: !_isTransmitting,
+                enabled: _canSend,
                 style: const TextStyle(fontSize: 14),
                 decoration: InputDecoration(
                   hintText: _currentMode == VoiceTransmitMode.dtmf

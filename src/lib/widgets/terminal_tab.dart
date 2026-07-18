@@ -8,6 +8,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'tab_visibility.dart';
 
@@ -20,6 +22,7 @@ import '../radio/ax25_packet.dart';
 import '../radio/ax25_session.dart';
 import '../radio/radio.dart';
 import '../radio/tnc_data_fragment.dart';
+import '../radio/yapp_transfer.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
@@ -50,7 +53,9 @@ class TerminalTextSpan {
 ///   * subscribes to `ConnectedRadios`, `LockState` and `UniqueDataFrame`
 ///   * dispatches `SetLock` / `SetUnlock` / `TransmitDataFrame`
 ///
-/// YAPP file transfer is not ported yet.
+/// While a connected-mode [AX25Session] is active, a [YappTransfer] engine is
+/// attached to it so the terminal can both send and receive files using the
+/// YAPP protocol.
 class TerminalTab extends StatefulWidget {
   const TerminalTab({super.key});
 
@@ -99,6 +104,15 @@ class _TerminalTabState extends State<TerminalTab>
   // Connected-mode AX.25 session, used for the X25Session protocol and for
   // "Wait for Connection" (listening for an incoming connection).
   AX25Session? _session;
+
+  // YAPP file-transfer engine, attached to the live session. Drives both
+  // incoming (auto-received) and outgoing file transfers.
+  YappTransfer? _yapp;
+
+  // Current file-transfer progress, or null when no transfer is active. Drives
+  // the transfer progress panel without rebuilding the whole tab.
+  final ValueNotifier<YappProgress?> _transferProgress =
+      ValueNotifier<YappProgress?>(null);
 
   // "Wait for Connection" state: true while listening for an incoming SABM and
   // until the connection is established. The remote callsign is captured once an
@@ -158,6 +172,9 @@ class _TerminalTabState extends State<TerminalTab>
 
   @override
   void dispose() {
+    _yapp?.dispose();
+    _yapp = null;
+    _transferProgress.dispose();
     _session?.dispose();
     _session = null;
     _broker.dispose();
@@ -320,6 +337,9 @@ class _TerminalTabState extends State<TerminalTab>
         store: false,
       );
       _broker.logInfo('[TerminalTab] Disconnecting from radio $activeRadioId');
+      _yapp?.dispose();
+      _yapp = null;
+      _transferProgress.value = null;
       _session?.dispose();
       _session = null;
       setState(() {
@@ -463,6 +483,7 @@ class _TerminalTabState extends State<TerminalTab>
     session.onDataReceived = _onSessionDataReceived;
     session.onError = _onSessionError;
     _session = session;
+    _attachYapp(session);
 
     _appendSystem('*** ${AppLocalizations.of(context).terminalConnectingTo(station.callsign)} ***');
     session.connect([dest, src]);
@@ -530,6 +551,7 @@ class _TerminalTabState extends State<TerminalTab>
     session.onDataReceived = _onSessionDataReceived;
     session.onError = _onSessionError;
     _session = session;
+    _attachYapp(session);
 
     setState(() {
       _connectedStation = null;
@@ -576,6 +598,9 @@ class _TerminalTabState extends State<TerminalTab>
         break;
       case AX25ConnectionState.disconnected:
         _appendSystem('*** ${AppLocalizations.of(context).stateDisconnected} ***');
+        // Abort any in-progress file transfer.
+        _yapp?.reset();
+        _transferProgress.value = null;
         // If the radio is still locked to Terminal, release it so the UI
         // returns to the disconnected state.
         final radioId = _activeTerminalRadioId;
@@ -615,6 +640,9 @@ class _TerminalTabState extends State<TerminalTab>
 
   void _onSessionDataReceived(AX25Session sender, Uint8List data) {
     if (!mounted) return;
+    // Give the YAPP engine first chance at the data; if it consumes the bytes
+    // as protocol traffic, don't display them as terminal text.
+    if (_yapp?.processIncomingData(data) == true) return;
     final station = _connectedStation;
     final fromCallsign =
         station?.callsign ?? _sessionRemoteCallsign ?? 'UNKNOWN';
@@ -631,6 +659,103 @@ class _TerminalTabState extends State<TerminalTab>
   void _onSessionError(AX25Session sender, String error) {
     if (!mounted) return;
     _appendSystem('*** ${AppLocalizations.of(context).terminalError(error)} ***');
+  }
+
+  // ---------------------------------------------------------------------------
+  // YAPP file transfer
+  // ---------------------------------------------------------------------------
+
+  /// Attaches a [YappTransfer] engine to [session] and arms it to auto-receive
+  /// incoming file transfers.
+  void _attachYapp(AX25Session session) {
+    _yapp?.dispose();
+    final yapp = YappTransfer(session);
+    yapp.onProgress = (progress) {
+      if (!mounted) return;
+      _transferProgress.value = progress;
+    };
+    yapp.onReceiveComplete = _onYappFileReceived;
+    yapp.onSendComplete = (filename) {
+      if (!mounted) return;
+      _transferProgress.value = null;
+      _appendSystem(
+        '*** ${AppLocalizations.of(context).terminalFileSent(filename)} ***',
+      );
+    };
+    yapp.onError = (message) {
+      if (!mounted) return;
+      _transferProgress.value = null;
+      _appendSystem(
+        '*** ${AppLocalizations.of(context).terminalFileTransferError(message)} ***',
+      );
+    };
+    yapp.enableAutoReceive();
+    _yapp = yapp;
+  }
+
+  /// Handles a fully received incoming file: clears the progress panel, reports
+  /// completion and prompts the user to choose a save location.
+  Future<void> _onYappFileReceived(String filename, Uint8List data) async {
+    if (!mounted) return;
+    _transferProgress.value = null;
+    _appendSystem(
+      '*** ${AppLocalizations.of(context).terminalFileReceived(filename, data.length)} ***',
+    );
+    try {
+      await FilePicker.saveFile(
+        dialogTitle: AppLocalizations.of(context).terminalSaveFileTitle,
+        fileName: filename,
+        bytes: data,
+      );
+    } catch (_) {
+      // User cancelled the save dialog or the platform threw; the file bytes
+      // are simply discarded.
+    }
+  }
+
+  /// Prompts the user to pick a file and sends it over the active session using
+  /// the YAPP protocol.
+  Future<void> _onSendFilePressed() async {
+    final yapp = _yapp;
+    final session = _session;
+    if (yapp == null ||
+        session == null ||
+        session.currentState != AX25ConnectionState.connected) {
+      _appendSystem('*** ${AppLocalizations.of(context).terminalNotConnected} ***');
+      return;
+    }
+    if (yapp.isBusy) {
+      _appendSystem(
+        '*** ${AppLocalizations.of(context).terminalTransferInProgress} ***',
+      );
+      return;
+    }
+
+    final result = await FilePicker.pickFiles(withData: true);
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+
+    Uint8List? bytes = file.bytes;
+    if (bytes == null && !kIsWeb && file.path != null) {
+      try {
+        bytes = await File(file.path!).readAsBytes();
+      } catch (_) {
+        bytes = null;
+      }
+    }
+    if (bytes == null) {
+      if (!mounted) return;
+      _appendSystem(
+        '*** ${AppLocalizations.of(context).terminalFileTransferError(file.name)} ***',
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    _appendSystem(
+      '*** ${AppLocalizations.of(context).terminalSendingFile(file.name)} ***',
+    );
+    yapp.sendFile(file.name, bytes);
   }
 
   // ---------------------------------------------------------------------------
@@ -1131,6 +1256,23 @@ class _TerminalTabState extends State<TerminalTab>
             ],
           ),
         ),
+        // "Send File" transfers a file to the connected station using the YAPP
+        // protocol. Available only over a connected AX.25 session that is not
+        // already busy with a transfer.
+        PopupMenuItem<String>(
+          value: 'sendFile',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          enabled:
+              _session?.currentState == AX25ConnectionState.connected &&
+              !(_yapp?.isBusy ?? true),
+          child: Row(
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).terminalSendFile),
+            ],
+          ),
+        ),
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
           value: 'clear',
@@ -1185,6 +1327,9 @@ class _TerminalTabState extends State<TerminalTab>
         case 'waitForConnection':
           _onWaitForConnectionPressed();
           break;
+        case 'sendFile':
+          _onSendFilePressed();
+          break;
         case 'clear':
           setState(() {
             _lines.clear();
@@ -1212,6 +1357,7 @@ class _TerminalTabState extends State<TerminalTab>
         Expanded(
           child: Container(color: Colors.black, child: _buildTerminalText()),
         ),
+        _buildTransferPanel(),
         _buildInputPanel(),
       ],
     );
@@ -1364,6 +1510,74 @@ class _TerminalTabState extends State<TerminalTab>
               ),
               child: IntrinsicWidth(child: richText),
             ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Shows the current YAPP file-transfer progress, or nothing when idle.
+  Widget _buildTransferPanel() {
+    return ValueListenableBuilder<YappProgress?>(
+      valueListenable: _transferProgress,
+      builder: (context, progress, _) {
+        if (progress == null) return const SizedBox.shrink();
+        final scheme = Theme.of(context).colorScheme;
+        final l10n = AppLocalizations.of(context);
+        final sending = progress.direction == YappDirection.send;
+        final label = sending
+            ? l10n.terminalSendingFile(progress.filename)
+            : l10n.terminalReceivingFile(progress.filename);
+        final pct = (progress.fraction * 100).toStringAsFixed(0);
+        return Container(
+          color: scheme.surfaceContainerHigh,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            children: [
+              Icon(
+                sending ? Icons.upload_file : Icons.download,
+                size: 18,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress.fileSize > 0 ? progress.fraction : null,
+                        backgroundColor: scheme.surfaceContainerHighest,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          sending ? Colors.lightBlue : Colors.green,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${progress.bytesTransferred}/${progress.fileSize} ($pct%)',
+                style: const TextStyle(fontSize: 11),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                tooltip: l10n.terminalCancelTransfer,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _yapp?.cancel(),
+              ),
+            ],
           ),
         );
       },

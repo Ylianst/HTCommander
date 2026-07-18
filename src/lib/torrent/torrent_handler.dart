@@ -664,6 +664,16 @@ class TorrentHandler {
         blocks.add(null);
       }
     }
+    // Once the last block is known, the file has exactly blockNumber + 1
+    // blocks. The array may have been over-allocated (blockNumber + 40) when an
+    // earlier, non-final block was received first (e.g. passively over
+    // multicast, before this station's own advertisement listing arrived).
+    // Trim the phantom trailing blocks; otherwise they can never be filled and
+    // the file stays permanently incomplete, causing endless requests for
+    // out-of-range block indices that sharers silently ignore.
+    if (lastBlock && blocks.length > blockNumber + 1) {
+      blocks.removeRange(blockNumber + 1, blocks.length);
+    }
     if (blocks[blockNumber] == null) {
       blocks[blockNumber] = block;
       mfile.receivedLastBlock = lastBlock;

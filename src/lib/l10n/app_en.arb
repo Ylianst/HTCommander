@@ -1144,6 +1144,41 @@
     }
   },
   "terminalBrotli": "Received a Brotli-compressed packet (not supported)",
+  "terminalSendFile": "Send File...",
+  "terminalSaveFileTitle": "Save Received File",
+  "terminalCancelTransfer": "Cancel transfer",
+  "terminalTransferInProgress": "A file transfer is already in progress",
+  "terminalSendingFile": "Sending {filename}...",
+  "@terminalSendingFile": {
+    "placeholders": {
+      "filename": { "type": "String", "example": "photo.jpg" }
+    }
+  },
+  "terminalReceivingFile": "Receiving {filename}...",
+  "@terminalReceivingFile": {
+    "placeholders": {
+      "filename": { "type": "String", "example": "photo.jpg" }
+    }
+  },
+  "terminalFileSent": "File sent: {filename}",
+  "@terminalFileSent": {
+    "placeholders": {
+      "filename": { "type": "String", "example": "photo.jpg" }
+    }
+  },
+  "terminalFileReceived": "File received: {filename} ({bytes} bytes)",
+  "@terminalFileReceived": {
+    "placeholders": {
+      "filename": { "type": "String", "example": "photo.jpg" },
+      "bytes": { "type": "int", "example": "2048" }
+    }
+  },
+  "terminalFileTransferError": "File transfer error: {message}",
+  "@terminalFileTransferError": {
+    "placeholders": {
+      "message": { "type": "String", "example": "Checksum error" }
+    }
+  },
 
   "audioSectionDevices": "Devices",
   "audioRefreshDevices": "Refresh device list",
