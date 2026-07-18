@@ -9,6 +9,7 @@
 #include "win32_window.h"
 #include "bluetooth_classic_plugin.h"
 #include "pcm_player_plugin.h"
+#include "tts_plugin.h"
 
 // A window that does nothing but host a Flutter view.
 class FlutterWindow : public Win32Window {
@@ -36,6 +37,9 @@ class FlutterWindow : public Win32Window {
 
   // Native Windows PCM playback plugin (waveOut).
   std::unique_ptr<PcmPlayerPlugin> pcm_player_plugin_;
+
+  // Native Windows text-to-speech plugin (SAPI 5).
+  std::unique_ptr<TtsPlugin> tts_plugin_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

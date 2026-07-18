@@ -46,6 +46,8 @@ bool FlutterWindow::OnCreate() {
       flutter_controller_->engine()->messenger());
   pcm_player_plugin_ = std::make_unique<PcmPlayerPlugin>(
       flutter_controller_->engine()->messenger());
+  tts_plugin_ = std::make_unique<TtsPlugin>(
+      flutter_controller_->engine()->messenger());
 
   // Detached tabs open in secondary windows created by desktop_multi_window.
   // Those windows run in their own Flutter engine, which does NOT get plugins

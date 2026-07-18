@@ -33,8 +33,11 @@ class TtsService {
   static const MethodChannel _channel = MethodChannel('com.htcommander/tts');
 
   /// Whether the native in-memory synthesizer is available on this platform.
+  /// Apple platforms use `AVSpeechSynthesizer`; Windows uses a native SAPI 5
+  /// plugin. Both speak the same `com.htcommander/tts` channel contract, so
+  /// `flutter_tts` is bypassed entirely on these platforms.
   static final bool _useNativeChannel =
-      !kIsWeb && (Platform.isMacOS || Platform.isIOS);
+      !kIsWeb && (Platform.isMacOS || Platform.isIOS || Platform.isWindows);
 
   /// Whether this is a Linux desktop build. `flutter_tts` has no Linux plugin,
   /// so synthesis is delegated to the `espeak-ng` / `espeak` command line tool.
@@ -51,6 +54,25 @@ class TtsService {
   Future<void> _ensureInit() async {
     if (_initialized) return;
     _initialized = true;
+
+    // Native in-memory channel (Apple + Windows). flutter_tts is not used here;
+    // synthesis, voices and preview all go through com.htcommander/tts.
+    if (_useNativeChannel) {
+      if (Platform.isWindows) {
+        // Confirm the native SAPI plugin responds and at least one system voice
+        // is installed; otherwise treat text-to-speech as unavailable.
+        try {
+          final voices = await getVoices();
+          _ttsAvailable = voices.isNotEmpty;
+        } catch (e) {
+          _ttsAvailable = false;
+          debugPrint('TtsService: native TTS probe failed: $e');
+        }
+      } else {
+        _ttsAvailable = true; // Apple always provides AVSpeechSynthesizer.
+      }
+      return;
+    }
 
     // Linux has no flutter_tts plugin; use the espeak-ng/espeak CLI instead.
     if (_isLinux) {
@@ -248,6 +270,11 @@ class TtsService {
           '  • Debian / Ubuntu:  sudo apt install espeak-ng\n'
           '  • Fedora:  sudo dnf install espeak-ng\n'
           '  • Arch:  sudo pacman -S espeak-ng';
+    }
+    if (!kIsWeb && Platform.isWindows) {
+      return 'Text-to-speech requires Windows 10 or later with at least one '
+          'installed speech voice. Add voices in Windows Settings > Time & '
+          'Language > Speech, then reopen this dialog.';
     }
     return 'Text-to-speech is not available on this platform.';
   }
