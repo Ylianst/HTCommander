@@ -461,7 +461,7 @@ class _DebugTabState extends State<DebugTab>
           _onRawCommand();
           break;
         case 'aprsSymbols':
-          if (mounted) showAprsSymbolsDialog(context);
+          if (context.mounted) showAprsSymbolsDialog(context);
           break;
         case 'autoScroll':
           setState(() => _autoScroll = !_autoScroll);
