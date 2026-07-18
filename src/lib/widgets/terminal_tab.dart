@@ -349,7 +349,9 @@ class _TerminalTabState extends State<TerminalTab>
         _sessionRemoteCallsign = null;
         _pendingDisconnect = false;
       });
-      _appendSystem('*** ${AppLocalizations.of(context).stateDisconnected} ***');
+      _appendSystem(
+        '*** ${AppLocalizations.of(context).stateDisconnected} ***',
+      );
       return;
     }
 
@@ -472,7 +474,9 @@ class _TerminalTabState extends State<TerminalTab>
     );
     final src = AX25Address.getAddress(myCallsign, myStationId);
     if (dest == null || src == null) {
-      _appendSystem('*** ${AppLocalizations.of(context).terminalInvalidCallsignDest} ***');
+      _appendSystem(
+        '*** ${AppLocalizations.of(context).terminalInvalidCallsignDest} ***',
+      );
       return;
     }
 
@@ -485,7 +489,9 @@ class _TerminalTabState extends State<TerminalTab>
     _session = session;
     _attachYapp(session);
 
-    _appendSystem('*** ${AppLocalizations.of(context).terminalConnectingTo(station.callsign)} ***');
+    _appendSystem(
+      '*** ${AppLocalizations.of(context).terminalConnectingTo(station.callsign)} ***',
+    );
     session.connect([dest, src]);
   }
 
@@ -592,12 +598,16 @@ class _TerminalTabState extends State<TerminalTab>
             '*** ${AppLocalizations.of(context).terminalConnectedFrom(remote)} ***',
           );
         } else {
-          _appendSystem('*** ${AppLocalizations.of(context).stateConnected} ***');
+          _appendSystem(
+            '*** ${AppLocalizations.of(context).stateConnected} ***',
+          );
         }
         if (_pendingDisconnect) setState(() => _pendingDisconnect = false);
         break;
       case AX25ConnectionState.disconnected:
-        _appendSystem('*** ${AppLocalizations.of(context).stateDisconnected} ***');
+        _appendSystem(
+          '*** ${AppLocalizations.of(context).stateDisconnected} ***',
+        );
         // Abort any in-progress file transfer.
         _yapp?.reset();
         _transferProgress.value = null;
@@ -658,7 +668,9 @@ class _TerminalTabState extends State<TerminalTab>
 
   void _onSessionError(AX25Session sender, String error) {
     if (!mounted) return;
-    _appendSystem('*** ${AppLocalizations.of(context).terminalError(error)} ***');
+    _appendSystem(
+      '*** ${AppLocalizations.of(context).terminalError(error)} ***',
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -721,7 +733,9 @@ class _TerminalTabState extends State<TerminalTab>
     if (yapp == null ||
         session == null ||
         session.currentState != AX25ConnectionState.connected) {
-      _appendSystem('*** ${AppLocalizations.of(context).terminalNotConnected} ***');
+      _appendSystem(
+        '*** ${AppLocalizations.of(context).terminalNotConnected} ***',
+      );
       return;
     }
     if (yapp.isBusy) {
@@ -767,6 +781,8 @@ class _TerminalTabState extends State<TerminalTab>
     if (text.isEmpty) return;
     final radioId = _activeTerminalRadioId;
     if (radioId <= 0) return;
+    // A YAPP file transfer owns the session; block text sends while it runs.
+    if (_yapp?.isBusy ?? false) return;
     final station = _connectedStation;
 
     // "Wait for Connection" has no configured station: send through the live
@@ -775,15 +791,18 @@ class _TerminalTabState extends State<TerminalTab>
       final session = _session;
       if (session == null ||
           session.currentState != AX25ConnectionState.connected) {
-        _appendSystem('*** ${AppLocalizations.of(context).terminalNotConnected} ***');
+        _appendSystem(
+          '*** ${AppLocalizations.of(context).terminalNotConnected} ***',
+        );
         return;
       }
       session.sendString('$text\r');
       final myCallsign =
           _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
       final myStationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
-      final myAddress =
-          myStationId > 0 ? '$myCallsign-$myStationId' : myCallsign;
+      final myAddress = myStationId > 0
+          ? '$myCallsign-$myStationId'
+          : myCallsign;
       _appendString(
         outgoing: true,
         from: myAddress,
@@ -809,7 +828,9 @@ class _TerminalTabState extends State<TerminalTab>
         final session = _session;
         if (session == null ||
             session.currentState != AX25ConnectionState.connected) {
-          _appendSystem('*** ${AppLocalizations.of(context).terminalNotConnected} ***');
+          _appendSystem(
+            '*** ${AppLocalizations.of(context).terminalNotConnected} ***',
+          );
           return;
         }
         // Send a line terminated with a carriage return (BBS convention).
@@ -820,8 +841,7 @@ class _TerminalTabState extends State<TerminalTab>
     final myCallsign =
         _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
     final myStationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
-    final myAddress =
-        myStationId > 0 ? '$myCallsign-$myStationId' : myCallsign;
+    final myAddress = myStationId > 0 ? '$myCallsign-$myStationId' : myCallsign;
     _appendString(
       outgoing: true,
       from: myAddress,
@@ -868,7 +888,9 @@ class _TerminalTabState extends State<TerminalTab>
     final src = _buildSourceAddress();
     final dest = _buildDestAddress(station);
     if (src == null || dest == null) {
-      _appendSystem('*** ${AppLocalizations.of(context).terminalInvalidCallsignDest} ***');
+      _appendSystem(
+        '*** ${AppLocalizations.of(context).terminalInvalidCallsignDest} ***',
+      );
       return;
     }
 
@@ -906,7 +928,9 @@ class _TerminalTabState extends State<TerminalTab>
     final src = _buildSourceAddress();
     final dest = AX25Address.parse('APRS');
     if (src == null || dest == null) {
-      _appendSystem('*** ${AppLocalizations.of(context).terminalInvalidCallsign} ***');
+      _appendSystem(
+        '*** ${AppLocalizations.of(context).terminalInvalidCallsign} ***',
+      );
       return;
     }
 
@@ -976,9 +1000,7 @@ class _TerminalTabState extends State<TerminalTab>
         }
       } else if (pid == 242) {
         // Brotli compressed - unsupported in this build; show raw bytes count.
-        _appendSystem(
-          '*** ${AppLocalizations.of(context).terminalBrotli} ***',
-        );
+        _appendSystem('*** ${AppLocalizations.of(context).terminalBrotli} ***');
         return;
       } else {
         text = utf8.decode(packet.data!, allowMalformed: true);
@@ -1161,13 +1183,7 @@ class _TerminalTabState extends State<TerminalTab>
   /// Builds the colored spans for a single line, honoring "Show Callsign".
   List<TerminalTextSpan> _spansForLine(_TerminalLine line) {
     if (line.system) {
-      return [
-        TerminalTextSpan(
-          line.text,
-          color: Colors.yellow,
-          bold: true,
-        ),
-      ];
+      return [TerminalTextSpan(line.text, color: Colors.yellow, bold: true)];
     }
 
     final spans = <TerminalTextSpan>[];
@@ -1368,13 +1384,13 @@ class _TerminalTabState extends State<TerminalTab>
     final connected = _isConnected;
     final String title;
     if (connected && _connectedStation != null) {
-      title = AppLocalizations.of(context).terminalHeaderWith(
-        _connectedStation!.callsign,
-      );
+      title = AppLocalizations.of(
+        context,
+      ).terminalHeaderWith(_connectedStation!.callsign);
     } else if (connected && _sessionRemoteCallsign != null) {
-      title = AppLocalizations.of(context).terminalHeaderWith(
-        _sessionRemoteCallsign!,
-      );
+      title = AppLocalizations.of(
+        context,
+      ).terminalHeaderWith(_sessionRemoteCallsign!);
     } else if (connected && _waitingForConnection) {
       title = AppLocalizations.of(context).terminalWaitingForConnection;
     } else {
@@ -1404,7 +1420,8 @@ class _TerminalTabState extends State<TerminalTab>
                 SizedBox(
                   height: 28,
                   child: ElevatedButton(
-                    onPressed: _pendingDisconnect ||
+                    onPressed:
+                        _pendingDisconnect ||
                             (_connectedRadios.isEmpty && !connected)
                         ? null
                         : _onConnectPressed,
@@ -1416,8 +1433,8 @@ class _TerminalTabState extends State<TerminalTab>
                       _pendingDisconnect
                           ? AppLocalizations.of(context).statusDisconnecting
                           : connected
-                              ? AppLocalizations.of(context).commonDisconnect
-                              : AppLocalizations.of(context).commonConnect,
+                          ? AppLocalizations.of(context).commonDisconnect
+                          : AppLocalizations.of(context).commonConnect,
                     ),
                   ),
                 ),
@@ -1585,50 +1602,59 @@ class _TerminalTabState extends State<TerminalTab>
   }
 
   Widget _buildInputPanel() {
-    final scheme = Theme.of(context).colorScheme;
-    final enabled = _isConnected;
-    return Container(
-      height: 50,
-      color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              height: 34,
-              decoration: BoxDecoration(
-                color: enabled ? scheme.surface : scheme.surfaceContainerHighest,
-                border: Border.all(color: scheme.outline),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: TextField(
-                controller: _inputController,
-                focusNode: _inputFocus,
-                enabled: enabled,
-                style: const TextStyle(fontSize: 14),
-                decoration: const InputDecoration(
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                  border: InputBorder.none,
-                  isCollapsed: true,
+    // Rebuild whenever a transfer starts/stops so the input is disabled while
+    // a YAPP file transfer is using the session.
+    return ValueListenableBuilder<YappProgress?>(
+      valueListenable: _transferProgress,
+      builder: (context, progress, _) {
+        final scheme = Theme.of(context).colorScheme;
+        final enabled = _isConnected && progress == null;
+        return Container(
+          height: 50,
+          color: scheme.surfaceContainerHigh,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: enabled
+                        ? scheme.surface
+                        : scheme.surfaceContainerHighest,
+                    border: Border.all(color: scheme.outline),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: TextField(
+                    controller: _inputController,
+                    focusNode: _inputFocus,
+                    enabled: enabled,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: const InputDecoration(
+                      contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                      border: InputBorder.none,
+                      isCollapsed: true,
+                    ),
+                    onSubmitted: (_) => _onSend(),
+                  ),
                 ),
-                onSubmitted: (_) => _onSend(),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            height: 34,
-            child: ElevatedButton(
-              onPressed: enabled ? _onSend : null,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 34,
+                child: ElevatedButton(
+                  onPressed: enabled ? _onSend : null,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: Text(AppLocalizations.of(context).terminalSend),
+                ),
               ),
-              child: Text(AppLocalizations.of(context).terminalSend),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
