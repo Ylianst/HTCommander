@@ -54,6 +54,19 @@ class AudioEngine {
   /// PCM bytes consumed per encoded SBC frame: blocks * subbands * 2 (16-bit).
   static const int _pcmInputSizePerFrame = 16 * 8 * 2; // 256 bytes
 
+  /// Receive pre-roll depth (ms of audio). At the start of each received audio
+  /// run the first [_rxPrerollMs] of decoded PCM is held and then released to
+  /// the speaker in a single burst, so the native player builds a small playout
+  /// cushion before playback begins. Bluetooth delivers audio in bursts, so
+  /// without this cushion a late burst right after the first frame can starve
+  /// the player and produce an audible click/gap; the cushion absorbs that
+  /// jitter. Kept short so it only adds a few tens of ms of latency to the start
+  /// of received audio (imperceptible for one-way voice).
+  static const int _rxPrerollMs = 60;
+
+  /// Pre-roll depth expressed in samples (32 kHz mono).
+  static const int _rxPrerollSamples = (_sampleRate * _rxPrerollMs) ~/ 1000;
+
   /// Transmit pacing lead: how far (in ms of audio) the encoder may run ahead of
   /// real time before throttling. A deeper lead pre-delivers more audio to the
   /// radio, so a stall on the native platform thread — most notably a Windows
@@ -110,6 +123,14 @@ class AudioEngine {
   bool _inAudioRun = false;
   bool _inAudioRunIsTransmit = false;
   int _audioRunStartMs = 0;
+
+  // Receive pre-roll: holds the first [_rxPrerollSamples] of decoded speaker
+  // PCM for the current received run, then releases them in one burst. Only the
+  // speaker path is buffered; recording and modem/DART decoding still receive
+  // samples immediately (see [_dispatchAudioDataAvailable]).
+  final List<Int16List> _rxPrerollChunks = <Int16List>[];
+  int _rxPrerollSampleCount = 0;
+  bool _rxPrerollFlushed = false;
 
   // Radio state pushed from the host (updated on HtStatus changes).
   String _channelName = '';
@@ -170,6 +191,7 @@ class AudioEngine {
       case 'reset':
         _sbcDecoder.reset();
         _accumulator.clear();
+        _resetRxPreroll();
         break;
       case 'stopAudio':
         _stopAudio();
@@ -248,6 +270,7 @@ class AudioEngine {
       _dispatchAudioDataEnd();
     }
     _accumulator.clear();
+    _resetRxPreroll();
   }
 
   // ---------------------------------------------------------------------------
@@ -259,6 +282,40 @@ class AudioEngine {
       'evt': 'play',
       'pcm': _wrap(pcm.buffer.asUint8List(pcm.offsetInBytes, pcm.lengthInBytes)),
     });
+  }
+
+  // Routes received speaker PCM through the start-of-run pre-roll buffer. The
+  // first [_rxPrerollSamples] of a run are held, then released to the speaker in
+  // one burst; the remainder of the run plays directly.
+  void _emitReceivePlayback(Int16List pcm) {
+    if (pcm.isEmpty) return;
+    if (_rxPrerollFlushed) {
+      _emitPlay(pcm);
+      return;
+    }
+    _rxPrerollChunks.add(pcm);
+    _rxPrerollSampleCount += pcm.length;
+    if (_rxPrerollSampleCount >= _rxPrerollSamples) {
+      _flushRxPreroll();
+    }
+  }
+
+  // Emits any buffered pre-roll PCM to the speaker in one burst and switches to
+  // direct playback for the rest of the run.
+  void _flushRxPreroll() {
+    for (final Int16List chunk in _rxPrerollChunks) {
+      _emitPlay(chunk);
+    }
+    _rxPrerollChunks.clear();
+    _rxPrerollSampleCount = 0;
+    _rxPrerollFlushed = true;
+  }
+
+  // Clears pre-roll state at the start of a new received audio run.
+  void _resetRxPreroll() {
+    _rxPrerollChunks.clear();
+    _rxPrerollSampleCount = 0;
+    _rxPrerollFlushed = false;
   }
 
   // Queues locally-monitored transmit PCM for real-time playback and starts the
@@ -342,6 +399,7 @@ class AudioEngine {
           if (!_inAudioRun) {
             _inAudioRun = true;
             _inAudioRunIsTransmit = false;
+            _resetRxPreroll();
             _dispatchAudioDataStart(false);
           }
           _decodeSbcFrame(uframe, 1, uframe.length - 1, false);
@@ -349,6 +407,8 @@ class AudioEngine {
         case 0x01: // Audio end
           if (_inAudioRun) {
             _inAudioRun = false;
+            // Release any pre-roll not yet flushed so short bursts still play.
+            if (!_inAudioRunIsTransmit) _flushRxPreroll();
             _dispatchAudioDataEnd();
           }
           break;
@@ -512,7 +572,7 @@ class AudioEngine {
             }
             playbackPcm[i] = v;
           }
-          _emitPlay(playbackPcm);
+          _emitReceivePlayback(playbackPcm);
         }
         _recorder?.write(Int16List.fromList(samples));
       }
