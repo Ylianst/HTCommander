@@ -2912,6 +2912,18 @@ abstract class AppLocalizations {
   /// **'Wait for Connection...'**
   String get terminalWaitForConnection;
 
+  /// No description provided for @terminalWaitingForConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for connection...'**
+  String get terminalWaitingForConnection;
+
+  /// No description provided for @terminalConnectedFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected from {callsign}'**
+  String terminalConnectedFrom(String callsign);
+
   /// No description provided for @terminalSend.
   ///
   /// In en, this message translates to:

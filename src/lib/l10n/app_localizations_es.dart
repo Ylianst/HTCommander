@@ -1561,6 +1561,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get terminalWaitForConnection => 'Esperar una conexión...';
 
   @override
+  String get terminalWaitingForConnection => 'Esperando una conexión...';
+
+  @override
+  String terminalConnectedFrom(String callsign) {
+    return 'Conectado desde $callsign';
+  }
+
+  @override
   String get terminalSend => 'Enviar';
 
   @override

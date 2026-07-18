@@ -1524,6 +1524,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get terminalWaitForConnection => '等待连接...';
 
   @override
+  String get terminalWaitingForConnection => '正在等待连接...';
+
+  @override
+  String terminalConnectedFrom(String callsign) {
+    return '来自 $callsign 的连接';
+  }
+
+  @override
   String get terminalSend => '发送';
 
   @override

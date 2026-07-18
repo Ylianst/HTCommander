@@ -499,6 +499,8 @@
   "terminalShowCallsign": "Rufzeichen anzeigen",
   "terminalWordWrap": "Zeilenumbruch",
   "terminalWaitForConnection": "Auf Verbindung warten...",
+  "terminalWaitingForConnection": "Warte auf Verbindung...",
+  "terminalConnectedFrom": "Verbunden von {callsign}",
   "terminalSend": "Senden",
   "terminalConnectedTo": "Mit {callsign} verbunden",
   "terminalConnectingTo": "Verbinde mit {callsign}...",

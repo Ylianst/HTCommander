@@ -499,6 +499,8 @@
   "terminalShowCallsign": "显示呼号",
   "terminalWordWrap": "自动换行",
   "terminalWaitForConnection": "等待连接...",
+  "terminalWaitingForConnection": "正在等待连接...",
+  "terminalConnectedFrom": "来自 {callsign} 的连接",
   "terminalSend": "发送",
   "terminalConnectedTo": "已连接到 {callsign}",
   "terminalConnectingTo": "正在连接到 {callsign}...",

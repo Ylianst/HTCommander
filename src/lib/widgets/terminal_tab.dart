@@ -44,13 +44,13 @@ class TerminalTextSpan {
 /// the radio to "Terminal" usage on the DataBroker, then exchanges text using
 /// either the connectionless AX.25 protocols (Raw AX.25, Raw AX.25 compressed,
 /// and APRS messaging) or the connected-mode AX.25 session protocol
-/// ([AX25Session], for `X25Session`). All radio interaction flows through the
-/// DataBroker:
+/// ([AX25Session], for `X25Session`). It can also listen for an incoming
+/// connected-mode session via "Wait for Connection". All radio interaction
+/// flows through the DataBroker:
 ///   * subscribes to `ConnectedRadios`, `LockState` and `UniqueDataFrame`
 ///   * dispatches `SetLock` / `SetUnlock` / `TransmitDataFrame`
 ///
-/// "Wait for Connection" and YAPP file transfer are not ported yet and are
-/// surfaced as disabled affordances.
+/// YAPP file transfer is not ported yet.
 class TerminalTab extends StatefulWidget {
   const TerminalTab({super.key});
 
@@ -96,8 +96,15 @@ class _TerminalTabState extends State<TerminalTab>
   StationInfo? _connectedStation;
   int _connectedRadioId = -1;
 
-  // Connected-mode AX.25 session, used only for the X25Session protocol.
+  // Connected-mode AX.25 session, used for the X25Session protocol and for
+  // "Wait for Connection" (listening for an incoming connection).
   AX25Session? _session;
+
+  // "Wait for Connection" state: true while listening for an incoming SABM and
+  // until the connection is established. The remote callsign is captured once an
+  // incoming connection is accepted, for header display and message attribution.
+  bool _waitingForConnection = false;
+  String? _sessionRemoteCallsign;
 
   // Settings (persisted on broker device 0).
   bool _showCallsign = false;
@@ -214,12 +221,11 @@ class _TerminalTabState extends State<TerminalTab>
     final radioId = _activeTerminalRadioId;
     if (radioId <= 0 || deviceId != radioId) return;
 
-    // The X25Session protocol is handled entirely by the AX25Session, which has
-    // its own UniqueDataFrame subscription; the tab must not also decode those
-    // frames. Connectionless protocols are decoded here.
-    if (_connectedStation?.terminalProtocol == TerminalProtocol.x25Session) {
-      return;
-    }
+    // Connected-mode sessions (the X25Session protocol and "Wait for
+    // Connection") are handled entirely by the AX25Session, which has its own
+    // UniqueDataFrame subscription; the tab must not also decode those frames.
+    // Connectionless protocols are decoded here.
+    if (_session != null) return;
 
     // UniqueDataFrame carries a TncDataFragment; decode it into an AX.25 packet.
     if (data is! TncDataFragment) return;
@@ -298,6 +304,8 @@ class _TerminalTabState extends State<TerminalTab>
       setState(() {
         _connectedStation = null;
         _connectedRadioId = -1;
+        _waitingForConnection = false;
+        _sessionRemoteCallsign = null;
       });
       _appendSystem('*** ${AppLocalizations.of(context).stateDisconnected} ***');
       return;
@@ -438,11 +446,109 @@ class _TerminalTabState extends State<TerminalTab>
     session.connect([dest, src]);
   }
 
+  // ---------------------------------------------------------------------------
+  // Wait for incoming connection (port of WaitForConnectionOnRadio)
+  // ---------------------------------------------------------------------------
+
+  /// Handles the "Wait for Connection" menu action: chooses a radio (prompting
+  /// when more than one is free) and starts listening for an incoming AX.25
+  /// connected-mode session.
+  Future<void> _onWaitForConnectionPressed() async {
+    if (_isConnected) return;
+    final available = _availableRadios;
+    if (available.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).terminalNoRadio)),
+      );
+      return;
+    }
+
+    int radioId;
+    if (available.length > 1) {
+      final picked = await _pickRadio(available);
+      if (picked == null) return;
+      radioId = picked;
+    } else {
+      radioId = available.first;
+    }
+
+    if (!mounted) return;
+    _startWaitForConnection(radioId);
+  }
+
+  /// Locks the radio to Terminal usage and creates an [AX25Session] that listens
+  /// for an incoming connection request (SABM/SABME). Unlike [_startSession],
+  /// no [AX25Session.connect] is issued and no station/modem override is set —
+  /// the session accepts the first incoming connection on the current channel
+  /// using the currently active software modem (mirroring the legacy C#
+  /// `WaitForConnectionOnRadio`).
+  void _startWaitForConnection(int radioId) {
+    if (radioId <= 0) return;
+
+    _session?.dispose();
+
+    // Lock the radio to Terminal usage on its current region/channel (-1 lets
+    // the radio keep its current values).
+    _broker.dispatch(
+      deviceId: radioId,
+      name: 'SetLock',
+      data: SetLockData(usage: 'Terminal', regionId: -1, channelId: -1),
+      store: false,
+    );
+
+    final myCallsign =
+        _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
+    final myStationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
+
+    final session = AX25Session(radioId);
+    session.callSignOverride = myCallsign;
+    session.stationIdOverride = myStationId;
+    session.onStateChanged = _onSessionStateChanged;
+    session.onDataReceived = _onSessionDataReceived;
+    session.onError = _onSessionError;
+    _session = session;
+
+    setState(() {
+      _connectedStation = null;
+      _connectedRadioId = radioId;
+      _waitingForConnection = true;
+      _sessionRemoteCallsign = null;
+    });
+
+    _broker.logInfo(
+      '[TerminalTab] Waiting for incoming connection on radio $radioId',
+    );
+    _appendSystem(
+      '*** ${AppLocalizations.of(context).terminalWaitingForConnection} ***',
+    );
+    _inputFocus.requestFocus();
+  }
+
   void _onSessionStateChanged(AX25Session sender, AX25ConnectionState state) {
     if (!mounted) return;
     switch (state) {
       case AX25ConnectionState.connected:
-        _appendSystem('*** ${AppLocalizations.of(context).stateConnected} ***');
+        if (_waitingForConnection) {
+          // Incoming connection accepted: capture the remote callsign for
+          // display and message attribution.
+          final addrs = sender.addresses;
+          final remote = (addrs != null && addrs.isNotEmpty)
+              ? addrs[0].callSignWithId
+              : 'UNKNOWN';
+          setState(() {
+            _waitingForConnection = false;
+            _sessionRemoteCallsign = remote;
+          });
+          _broker.logInfo(
+            '[TerminalTab] Incoming connection established from $remote',
+          );
+          _appendSystem(
+            '*** ${AppLocalizations.of(context).terminalConnectedFrom(remote)} ***',
+          );
+        } else {
+          _appendSystem('*** ${AppLocalizations.of(context).stateConnected} ***');
+        }
         break;
       case AX25ConnectionState.disconnected:
         _appendSystem('*** ${AppLocalizations.of(context).stateDisconnected} ***');
@@ -467,6 +573,8 @@ class _TerminalTabState extends State<TerminalTab>
         setState(() {
           _connectedStation = null;
           _connectedRadioId = -1;
+          _waitingForConnection = false;
+          _sessionRemoteCallsign = null;
         });
         break;
       case AX25ConnectionState.connecting:
@@ -478,7 +586,8 @@ class _TerminalTabState extends State<TerminalTab>
   void _onSessionDataReceived(AX25Session sender, Uint8List data) {
     if (!mounted) return;
     final station = _connectedStation;
-    final fromCallsign = station?.callsign ?? 'UNKNOWN';
+    final fromCallsign =
+        station?.callsign ?? _sessionRemoteCallsign ?? 'UNKNOWN';
     final myCallsign =
         _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
     _appendString(
@@ -502,8 +611,34 @@ class _TerminalTabState extends State<TerminalTab>
     final text = _inputController.text;
     if (text.isEmpty) return;
     final radioId = _activeTerminalRadioId;
+    if (radioId <= 0) return;
     final station = _connectedStation;
-    if (radioId <= 0 || station == null) return;
+
+    // "Wait for Connection" has no configured station: send through the live
+    // connected-mode session directly.
+    if (station == null) {
+      final session = _session;
+      if (session == null ||
+          session.currentState != AX25ConnectionState.connected) {
+        _appendSystem('*** ${AppLocalizations.of(context).terminalNotConnected} ***');
+        return;
+      }
+      session.sendString('$text\r');
+      final myCallsign =
+          _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
+      final myStationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
+      final myAddress =
+          myStationId > 0 ? '$myCallsign-$myStationId' : myCallsign;
+      _appendString(
+        outgoing: true,
+        from: myAddress,
+        to: _sessionRemoteCallsign ?? 'UNKNOWN',
+        text: '$text\n',
+      );
+      _inputController.clear();
+      _inputFocus.requestFocus();
+      return;
+    }
 
     switch (station.terminalProtocol) {
       case TerminalProtocol.aprs:
@@ -951,12 +1086,14 @@ class _TerminalTabState extends State<TerminalTab>
             ],
           ),
         ),
-        // "Wait for Connection" requires the AX.25 session layer (not ported).
+        // "Wait for Connection" listens for an incoming connected-mode AX.25
+        // session. Available only when not already connected/waiting and a free
+        // radio exists.
         PopupMenuItem<String>(
           value: 'waitForConnection',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: false,
+          enabled: !_isConnected && _availableRadios.isNotEmpty,
           child: Row(
             children: [
               const SizedBox(width: 20),
@@ -1015,6 +1152,9 @@ class _TerminalTabState extends State<TerminalTab>
             store: true,
           );
           break;
+        case 'waitForConnection':
+          _onWaitForConnectionPressed();
+          break;
         case 'clear':
           setState(() {
             _lines.clear();
@@ -1050,11 +1190,20 @@ class _TerminalTabState extends State<TerminalTab>
   Widget _buildHeader() {
     final scheme = Theme.of(context).colorScheme;
     final connected = _isConnected;
-    final title = connected && _connectedStation != null
-        ? AppLocalizations.of(context).terminalHeaderWith(
-            _connectedStation!.callsign,
-          )
-        : AppLocalizations.of(context).tabTerminal;
+    final String title;
+    if (connected && _connectedStation != null) {
+      title = AppLocalizations.of(context).terminalHeaderWith(
+        _connectedStation!.callsign,
+      );
+    } else if (connected && _sessionRemoteCallsign != null) {
+      title = AppLocalizations.of(context).terminalHeaderWith(
+        _sessionRemoteCallsign!,
+      );
+    } else if (connected && _waitingForConnection) {
+      title = AppLocalizations.of(context).terminalWaitingForConnection;
+    } else {
+      title = AppLocalizations.of(context).tabTerminal;
+    }
     return Container(
       height: 40,
       decoration: BoxDecoration(color: scheme.surfaceContainerHigh),

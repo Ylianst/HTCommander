@@ -499,6 +499,8 @@
   "terminalShowCallsign": "Mostrar el indicativo",
   "terminalWordWrap": "Ajuste de línea",
   "terminalWaitForConnection": "Esperar una conexión...",
+  "terminalWaitingForConnection": "Esperando una conexión...",
+  "terminalConnectedFrom": "Conectado desde {callsign}",
   "terminalSend": "Enviar",
   "terminalConnectedTo": "Conectado a {callsign}",
   "terminalConnectingTo": "Conectando a {callsign}...",

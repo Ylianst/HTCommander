@@ -499,6 +499,8 @@
   "terminalShowCallsign": "कॉल साइन दिखाएँ",
   "terminalWordWrap": "शब्द रैप",
   "terminalWaitForConnection": "कनेक्शन की प्रतीक्षा करें...",
+  "terminalWaitingForConnection": "कनेक्शन की प्रतीक्षा हो रही है...",
+  "terminalConnectedFrom": "{callsign} से कनेक्ट किया गया",
   "terminalSend": "भेजें",
   "terminalConnectedTo": "{callsign} से कनेक्ट किया गया",
   "terminalConnectingTo": "{callsign} से कनेक्ट हो रहा है...",

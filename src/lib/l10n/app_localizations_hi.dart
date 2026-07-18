@@ -1554,6 +1554,15 @@ class AppLocalizationsHi extends AppLocalizations {
   String get terminalWaitForConnection => 'कनेक्शन की प्रतीक्षा करें...';
 
   @override
+  String get terminalWaitingForConnection =>
+      'कनेक्शन की प्रतीक्षा हो रही है...';
+
+  @override
+  String terminalConnectedFrom(String callsign) {
+    return '$callsign से कनेक्ट किया गया';
+  }
+
+  @override
   String get terminalSend => 'भेजें';
 
   @override

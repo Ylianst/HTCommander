@@ -1531,6 +1531,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get terminalWaitForConnection => '接続を待機...';
 
   @override
+  String get terminalWaitingForConnection => '接続を待機しています...';
+
+  @override
+  String terminalConnectedFrom(String callsign) {
+    return '$callsign から接続されました';
+  }
+
+  @override
   String get terminalSend => '送信';
 
   @override

@@ -1114,6 +1114,13 @@
   "terminalShowCallsign": "Show Callsign",
   "terminalWordWrap": "Word Wrap",
   "terminalWaitForConnection": "Wait for Connection...",
+  "terminalWaitingForConnection": "Waiting for connection...",
+  "terminalConnectedFrom": "Connected from {callsign}",
+  "@terminalConnectedFrom": {
+    "placeholders": {
+      "callsign": { "type": "String", "example": "W1AW" }
+    }
+  },
   "terminalSend": "Send",
   "terminalConnectedTo": "Connected to {callsign}",
   "@terminalConnectedTo": {

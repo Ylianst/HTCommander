@@ -499,6 +499,8 @@
   "terminalShowCallsign": "コールサインを表示",
   "terminalWordWrap": "折り返し",
   "terminalWaitForConnection": "接続を待機...",
+  "terminalWaitingForConnection": "接続を待機しています...",
+  "terminalConnectedFrom": "{callsign} から接続されました",
   "terminalSend": "送信",
   "terminalConnectedTo": "{callsign} に接続しました",
   "terminalConnectingTo": "{callsign} に接続中...",
