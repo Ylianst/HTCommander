@@ -1593,41 +1593,41 @@ class AppLocalizationsHi extends AppLocalizations {
   String get terminalBrotli => 'Brotli संपीड़ित पैकेट प्राप्त हुआ (असमर्थित)';
 
   @override
-  String get terminalSendFile => 'Send File...';
+  String get terminalSendFile => 'फ़ाइल भेजें...';
 
   @override
-  String get terminalSaveFileTitle => 'Save Received File';
+  String get terminalSaveFileTitle => 'प्राप्त फ़ाइल सहेजें';
 
   @override
-  String get terminalCancelTransfer => 'Cancel transfer';
+  String get terminalCancelTransfer => 'स्थानांतरण रद्द करें';
 
   @override
   String get terminalTransferInProgress =>
-      'A file transfer is already in progress';
+      'एक फ़ाइल स्थानांतरण पहले से ही जारी है';
 
   @override
   String terminalSendingFile(String filename) {
-    return 'Sending $filename...';
+    return '$filename भेजा जा रहा है...';
   }
 
   @override
   String terminalReceivingFile(String filename) {
-    return 'Receiving $filename...';
+    return '$filename प्राप्त हो रहा है...';
   }
 
   @override
   String terminalFileSent(String filename) {
-    return 'File sent: $filename';
+    return 'फ़ाइल भेजी गई: $filename';
   }
 
   @override
   String terminalFileReceived(String filename, int bytes) {
-    return 'File received: $filename ($bytes bytes)';
+    return 'फ़ाइल प्राप्त हुई: $filename ($bytes बाइट्स)';
   }
 
   @override
   String terminalFileTransferError(String message) {
-    return 'File transfer error: $message';
+    return 'फ़ाइल स्थानांतरण त्रुटि: $message';
   }
 
   @override

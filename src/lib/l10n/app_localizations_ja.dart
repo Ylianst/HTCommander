@@ -1569,41 +1569,40 @@ class AppLocalizationsJa extends AppLocalizations {
   String get terminalBrotli => 'Brotli 圧縮パケットを受信しました（非対応）';
 
   @override
-  String get terminalSendFile => 'Send File...';
+  String get terminalSendFile => 'ファイルを送信...';
 
   @override
-  String get terminalSaveFileTitle => 'Save Received File';
+  String get terminalSaveFileTitle => '受信したファイルを保存';
 
   @override
-  String get terminalCancelTransfer => 'Cancel transfer';
+  String get terminalCancelTransfer => '転送をキャンセル';
 
   @override
-  String get terminalTransferInProgress =>
-      'A file transfer is already in progress';
+  String get terminalTransferInProgress => 'ファイル転送が既に進行中です';
 
   @override
   String terminalSendingFile(String filename) {
-    return 'Sending $filename...';
+    return '$filename を送信中...';
   }
 
   @override
   String terminalReceivingFile(String filename) {
-    return 'Receiving $filename...';
+    return '$filename を受信中...';
   }
 
   @override
   String terminalFileSent(String filename) {
-    return 'File sent: $filename';
+    return 'ファイルを送信しました: $filename';
   }
 
   @override
   String terminalFileReceived(String filename, int bytes) {
-    return 'File received: $filename ($bytes bytes)';
+    return 'ファイルを受信しました: $filename（$bytes バイト）';
   }
 
   @override
   String terminalFileTransferError(String message) {
-    return 'File transfer error: $message';
+    return 'ファイル転送エラー: $message';
   }
 
   @override

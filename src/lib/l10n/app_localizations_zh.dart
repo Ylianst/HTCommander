@@ -1562,41 +1562,40 @@ class AppLocalizationsZh extends AppLocalizations {
   String get terminalBrotli => '收到 Brotli 压缩数据包（不支持）';
 
   @override
-  String get terminalSendFile => 'Send File...';
+  String get terminalSendFile => '发送文件...';
 
   @override
-  String get terminalSaveFileTitle => 'Save Received File';
+  String get terminalSaveFileTitle => '保存接收的文件';
 
   @override
-  String get terminalCancelTransfer => 'Cancel transfer';
+  String get terminalCancelTransfer => '取消传输';
 
   @override
-  String get terminalTransferInProgress =>
-      'A file transfer is already in progress';
+  String get terminalTransferInProgress => '文件传输已在进行中';
 
   @override
   String terminalSendingFile(String filename) {
-    return 'Sending $filename...';
+    return '正在发送 $filename...';
   }
 
   @override
   String terminalReceivingFile(String filename) {
-    return 'Receiving $filename...';
+    return '正在接收 $filename...';
   }
 
   @override
   String terminalFileSent(String filename) {
-    return 'File sent: $filename';
+    return '文件已发送：$filename';
   }
 
   @override
   String terminalFileReceived(String filename, int bytes) {
-    return 'File received: $filename ($bytes bytes)';
+    return '文件已接收：$filename（$bytes 字节）';
   }
 
   @override
   String terminalFileTransferError(String message) {
-    return 'File transfer error: $message';
+    return '文件传输错误：$message';
   }
 
   @override

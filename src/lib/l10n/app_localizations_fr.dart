@@ -1598,41 +1598,41 @@ class AppLocalizationsFr extends AppLocalizations {
       'Paquet compressé Brotli reçu (non pris en charge)';
 
   @override
-  String get terminalSendFile => 'Send File...';
+  String get terminalSendFile => 'Envoyer un fichier...';
 
   @override
-  String get terminalSaveFileTitle => 'Save Received File';
+  String get terminalSaveFileTitle => 'Enregistrer le fichier reçu';
 
   @override
-  String get terminalCancelTransfer => 'Cancel transfer';
+  String get terminalCancelTransfer => 'Annuler le transfert';
 
   @override
   String get terminalTransferInProgress =>
-      'A file transfer is already in progress';
+      'Un transfert de fichier est déjà en cours';
 
   @override
   String terminalSendingFile(String filename) {
-    return 'Sending $filename...';
+    return 'Envoi de $filename...';
   }
 
   @override
   String terminalReceivingFile(String filename) {
-    return 'Receiving $filename...';
+    return 'Réception de $filename...';
   }
 
   @override
   String terminalFileSent(String filename) {
-    return 'File sent: $filename';
+    return 'Fichier envoyé : $filename';
   }
 
   @override
   String terminalFileReceived(String filename, int bytes) {
-    return 'File received: $filename ($bytes bytes)';
+    return 'Fichier reçu : $filename ($bytes octets)';
   }
 
   @override
   String terminalFileTransferError(String message) {
-    return 'File transfer error: $message';
+    return 'Erreur de transfert de fichier : $message';
   }
 
   @override

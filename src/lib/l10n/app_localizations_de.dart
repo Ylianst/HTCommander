@@ -1605,41 +1605,41 @@ class AppLocalizationsDe extends AppLocalizations {
       'Brotli-komprimiertes Paket empfangen (nicht unterstützt)';
 
   @override
-  String get terminalSendFile => 'Send File...';
+  String get terminalSendFile => 'Datei senden...';
 
   @override
-  String get terminalSaveFileTitle => 'Save Received File';
+  String get terminalSaveFileTitle => 'Empfangene Datei speichern';
 
   @override
-  String get terminalCancelTransfer => 'Cancel transfer';
+  String get terminalCancelTransfer => 'Übertragung abbrechen';
 
   @override
   String get terminalTransferInProgress =>
-      'A file transfer is already in progress';
+      'Eine Dateiübertragung läuft bereits';
 
   @override
   String terminalSendingFile(String filename) {
-    return 'Sending $filename...';
+    return 'Sende $filename...';
   }
 
   @override
   String terminalReceivingFile(String filename) {
-    return 'Receiving $filename...';
+    return 'Empfange $filename...';
   }
 
   @override
   String terminalFileSent(String filename) {
-    return 'File sent: $filename';
+    return 'Datei gesendet: $filename';
   }
 
   @override
   String terminalFileReceived(String filename, int bytes) {
-    return 'File received: $filename ($bytes bytes)';
+    return 'Datei empfangen: $filename ($bytes Bytes)';
   }
 
   @override
   String terminalFileTransferError(String message) {
-    return 'File transfer error: $message';
+    return 'Fehler bei der Dateiübertragung: $message';
   }
 
   @override

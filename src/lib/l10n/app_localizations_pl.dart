@@ -1600,41 +1600,40 @@ class AppLocalizationsPl extends AppLocalizations {
       'Odebrano pakiet skompresowany Brotli (nieobsługiwany)';
 
   @override
-  String get terminalSendFile => 'Send File...';
+  String get terminalSendFile => 'Wyślij plik...';
 
   @override
-  String get terminalSaveFileTitle => 'Save Received File';
+  String get terminalSaveFileTitle => 'Zapisz odebrany plik';
 
   @override
-  String get terminalCancelTransfer => 'Cancel transfer';
+  String get terminalCancelTransfer => 'Anuluj transfer';
 
   @override
-  String get terminalTransferInProgress =>
-      'A file transfer is already in progress';
+  String get terminalTransferInProgress => 'Transfer pliku jest już w toku';
 
   @override
   String terminalSendingFile(String filename) {
-    return 'Sending $filename...';
+    return 'Wysyłanie $filename...';
   }
 
   @override
   String terminalReceivingFile(String filename) {
-    return 'Receiving $filename...';
+    return 'Odbieranie $filename...';
   }
 
   @override
   String terminalFileSent(String filename) {
-    return 'File sent: $filename';
+    return 'Plik wysłany: $filename';
   }
 
   @override
   String terminalFileReceived(String filename, int bytes) {
-    return 'File received: $filename ($bytes bytes)';
+    return 'Plik odebrany: $filename ($bytes bajtów)';
   }
 
   @override
   String terminalFileTransferError(String message) {
-    return 'File transfer error: $message';
+    return 'Błąd transferu pliku: $message';
   }
 
   @override
