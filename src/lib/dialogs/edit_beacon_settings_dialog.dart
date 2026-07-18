@@ -12,9 +12,11 @@ import 'package:flutter/services.dart';
 import '../radio/ax25_address.dart';
 import '../radio/radio.dart';
 import '../radio/radio_models.dart';
+import '../aprs/aprs_symbols.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker_client.dart';
 import '../l10n/app_localizations.dart';
+import 'aprs_symbol_picker_dialog.dart';
 import 'dialog_utils.dart';
 
 /// Shows the beacon settings dialog used to configure a connected radio's
@@ -83,6 +85,10 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
   bool _shareLocation = false;
   bool _sendVoltage = false;
   bool _allowPositionCheck = false;
+
+  // APRS symbol (table identifier + symbol code), e.g. '/' + '-' (house).
+  String _symbolTable = '/';
+  String _symbolCode = '-';
 
   bool _controlsEnabled = false;
   bool _callsignValid = false;
@@ -199,6 +205,9 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
       _sendVoltage = bss.sendPwrVoltage;
       _allowPositionCheck = bss.allowPositionCheck;
       _intervalIndex = _intervalIndexForSeconds(bss.locationShareInterval);
+      final symbol = bss.aprsSymbol;
+      _symbolTable = symbol.isNotEmpty ? symbol[0] : '/';
+      _symbolCode = symbol.length > 1 ? symbol[1] : '-';
     });
     _onCallsignChanged();
   }
@@ -287,6 +296,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
     newSettings.aprsSsid = addr?.ssid ?? 0;
     newSettings.packetFormat = _packetFormatIndex;
     newSettings.beaconMessage = _messageController.text;
+    newSettings.aprsSymbol = '$_symbolTable$_symbolCode';
     newSettings.shouldShareLocation = _shareLocation;
     newSettings.sendPwrVoltage = _sendVoltage;
     newSettings.allowPositionCheck = _allowPositionCheck;
@@ -424,6 +434,8 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
           _buildIntervalDropdown(),
           const SizedBox(height: 16),
           _buildCallsignField(),
+          const SizedBox(height: 16),
+          _buildSymbolField(),
           const SizedBox(height: 16),
           _buildMessageField(),
           const SizedBox(height: 8),
@@ -577,6 +589,90 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
         enabled: _controlsEnabled,
         maxLength: 18,
         decoration: _inputDecoration(counterText: ''),
+      ),
+    );
+  }
+
+  Future<void> _pickSymbol() async {
+    final chosen = await showAprsSymbolPicker(
+      context,
+      selectedTable: _symbolTable,
+      selectedCode: _symbolCode,
+    );
+    if (chosen != null && mounted) {
+      setState(() {
+        _symbolTable = chosen.table;
+        _symbolCode = chosen.code;
+      });
+    }
+  }
+
+  Widget _buildSymbolField() {
+    final scheme = Theme.of(context).colorScheme;
+    final symbol = aprsSymbolFor(_symbolTable, _symbolCode);
+    final id = '$_symbolTable$_symbolCode';
+    final name = aprsSymbolNameFor(_symbolTable, _symbolCode);
+    return _labeled(
+      'APRS Symbol',
+      InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: _controlsEnabled ? _pickSymbol : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 26,
+                child: (symbol?.hasVisual ?? false)
+                    ? Align(
+                        alignment: Alignment.centerLeft,
+                        child: aprsSymbolWidgetFor(_symbolTable, _symbolCode,
+                            color: scheme.onSurface),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  id,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _controlsEnabled
+                        ? scheme.onSurface
+                        : Theme.of(context).disabledColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(
+                Icons.arrow_drop_down,
+                color: _controlsEnabled
+                    ? scheme.onSurfaceVariant
+                    : Theme.of(context).disabledColor,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

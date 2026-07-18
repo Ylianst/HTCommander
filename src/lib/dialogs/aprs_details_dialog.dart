@@ -9,6 +9,7 @@ Ported from the C# `HTCommander.AprsDetailsForm` dialog.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../aprs/aprs_symbols.dart';
 import '../l10n/app_localizations.dart';
 import 'aprs_location_dialog.dart';
 import 'dialog_utils.dart';
@@ -37,12 +38,20 @@ class AprsDetailsDialog extends StatelessWidget {
   /// Optional title shown in the location map dialog (e.g. the sender call).
   final String? locationTitle;
 
+  /// Optional APRS symbol identifier characters. When [symbolTable] and
+  /// [symbolCode] are both non-empty, a header showing the symbol icon, its
+  /// two-character id and name is displayed at the top of the dialog.
+  final String? symbolTable;
+  final String? symbolCode;
+
   const AprsDetailsDialog({
     super.key,
     required this.items,
     this.latitude,
     this.longitude,
     this.locationTitle,
+    this.symbolTable,
+    this.symbolCode,
   });
 
   /// Shows the dialog. [items] are the name/value pairs to display.
@@ -52,6 +61,8 @@ class AprsDetailsDialog extends StatelessWidget {
     double? latitude,
     double? longitude,
     String? locationTitle,
+    String? symbolTable,
+    String? symbolCode,
   }) {
     return showDialog<void>(
       context: context,
@@ -60,6 +71,8 @@ class AprsDetailsDialog extends StatelessWidget {
         latitude: latitude,
         longitude: longitude,
         locationTitle: locationTitle,
+        symbolTable: symbolTable,
+        symbolCode: symbolCode,
       ),
     );
   }
@@ -68,6 +81,62 @@ class AprsDetailsDialog extends StatelessWidget {
       latitude != null &&
       longitude != null &&
       (latitude != 0 || longitude != 0);
+
+  bool get _hasSymbol =>
+      symbolTable != null &&
+      symbolTable!.isNotEmpty &&
+      symbolCode != null &&
+      symbolCode!.isNotEmpty;
+
+  Widget _buildSymbolHeader(ColorScheme scheme) {
+    final symbol = aprsSymbolFor(symbolTable!, symbolCode!);
+    final id = '$symbolTable$symbolCode';
+    final name = aprsSymbolNameFor(symbolTable!, symbolCode!);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 28,
+            child: (symbol?.hasVisual ?? false)
+                ? Align(
+                    alignment: Alignment.centerLeft,
+                    child: aprsSymbolWidgetFor(symbolTable!, symbolCode!,
+                        color: scheme.onSurface),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              id,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              name,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _copyValue(BuildContext context, AprsDetailItem item) {
     Clipboard.setData(ClipboardData(text: item.value));
@@ -158,6 +227,10 @@ class AprsDetailsDialog extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
+              if (_hasSymbol) ...[
+                _buildSymbolHeader(scheme),
+                const SizedBox(height: 12),
+              ],
               // Detail list.
               Flexible(
                 child: Container(

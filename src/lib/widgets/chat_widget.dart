@@ -24,6 +24,10 @@ class ChatMessage {
   final IconData? icon;
   final Object? tag;
 
+  /// Optional widget drawn inside the bubble (to the left of the text), used
+  /// to show a mapped APRS symbol icon for the message.
+  final Widget? bubbleSymbol;
+
   /// Filename of an associated media file (e.g. an audio recording), if any.
   final String? filename;
 
@@ -43,6 +47,7 @@ class ChatMessage {
     this.longitude,
     this.icon,
     this.tag,
+    this.bubbleSymbol,
     this.filename,
     this.imagePath,
   });
@@ -459,6 +464,13 @@ class _ChatWidgetState extends State<ChatWidget> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
+                        // Mapped APRS symbol icon drawn inside the bubble.
+                        if (message.bubbleSymbol != null) ...[
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6, bottom: 1),
+                            child: message.bubbleSymbol,
+                          ),
+                        ],
                         if (message.message.isNotEmpty)
                           Flexible(
                             child: _buildMessageContent(message),

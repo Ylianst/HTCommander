@@ -19,6 +19,7 @@ import '../services/data_broker_client.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_auth.dart';
+import '../aprs/aprs_symbols.dart';
 import '../aprs/message_data.dart';
 import '../aprs/packet_data_type.dart';
 import '../models/radio_models.dart';
@@ -529,8 +530,50 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       latitude: e.latitude,
       longitude: e.longitude,
       icon: _iconFor(e),
+      bubbleSymbol: _bubbleSymbolFor(e),
       tag: e,
     );
+  }
+
+  /// Builds the mapped APRS symbol widget for a message bubble, or null when
+  /// the packet has no symbol or no mapped icon for it. Overlay combo symbols
+  /// blend their letter halo with the bubble colour so the symbol sits on a
+  /// transparent background (no chip) while staying readable.
+  ///
+  /// Uses fixed colours rather than [Theme.of] because this runs while the
+  /// message list is (re)built from DataBroker callbacks, which can happen
+  /// before the widget's inherited dependencies are ready.
+  Widget? _bubbleSymbolFor(_AprsEntry e) {
+    final table = e.aprsPacket.symbolTable;
+    final code = e.aprsPacket.symbol;
+    if (table.isEmpty || code.isEmpty) return null;
+    final symbol = aprsSymbolFor(table, code);
+    if (symbol == null || !symbol.hasVisual) return null;
+    return aprsSymbolWidgetFor(
+      table,
+      code,
+      size: 18,
+      color: Colors.black87,
+      haloColor: _bubbleColorFor(e),
+    );
+  }
+
+  /// Returns the bubble background colour used for [e], mirroring
+  /// [ChatWidget]'s defaults, so overlay symbol halos can blend into it.
+  Color _bubbleColorFor(_AprsEntry e) {
+    const senderColor = Color(0xFFBEE1A5);
+    const authColor = Color(0xFF6ECD6E);
+    const failedColor = Color(0xFFEB96A2);
+    const normalColor = Color(0xFF8AC0DB);
+    if (e.sender) return senderColor;
+    switch (e.authState) {
+      case AuthState.success:
+        return authColor;
+      case AuthState.failed:
+        return failedColor;
+      default:
+        return normalColor;
+    }
   }
 
   void _rebuildMessages() {
@@ -882,6 +925,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       latitude: message.latitude,
       longitude: message.longitude,
       locationTitle: message.senderCallsign,
+      symbolTable: tag.aprsPacket.symbolTable,
+      symbolCode: tag.aprsPacket.symbol,
     );
   }
 
