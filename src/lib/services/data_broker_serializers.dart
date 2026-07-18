@@ -8,6 +8,7 @@ import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../handlers/bbs_handler.dart';
 import '../models/aircraft.dart';
+import '../radio/tnc_data_fragment.dart';
 import '../winlink/winlink_client.dart';
 import '../winlink/winlink_mail.dart';
 import 'data_broker.dart';
@@ -76,5 +77,16 @@ void registerBrokerSerializers() {
     'winlinkDebugEntry',
     (value) => value.toJson(),
     (json) => WinlinkDebugEntry.fromJson(json),
+  );
+
+  // The packet capture tab reads the stored packet list (dispatched as
+  // `List<TncDataFragment>` on 'PacketList') and individual packets
+  // (dispatched as `TncDataFragment` on 'PacketStored'). Detached packet
+  // windows rebuild each fragment from its concrete type, so it must survive
+  // the cross-window trip.
+  DataBroker.registerSerializer<TncDataFragment>(
+    'tncFragment',
+    (value) => value.toJson(),
+    (json) => TncDataFragment.fromJson(json),
   );
 }

@@ -141,13 +141,17 @@ class _PacketsTabState extends State<PacketsTab>
   }
 
   void _onPacketList(int deviceId, String name, Object? data) {
-    if (data is! List<TncDataFragment>) return;
+    if (data is! List) return;
     if (!mounted) return;
+
+    // In detached windows the list arrives as `List<dynamic>` whose elements
+    // were rebuilt from JSON, so filter by type rather than casting the list.
+    final fragments = data.whereType<TncDataFragment>().toList();
 
     setState(() {
       _packets
         ..clear()
-        ..addAll(data.map(CapturedPacket.new));
+        ..addAll(fragments.map(CapturedPacket.new));
       _selectedPacketIndex = null;
       _applySort(null);
     });

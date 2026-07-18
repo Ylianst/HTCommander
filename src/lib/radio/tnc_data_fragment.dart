@@ -181,11 +181,54 @@ class TncDataFragment {
     'encoding': encoding.name,
     'frameType': frameType.name,
     'corrections': corrections,
+    'dartMode': dartMode,
     'dataHex': RadioUtils.bytesToHex(data),
     if (radioMac != null) 'radioMac': radioMac,
     if (radioDeviceId != null) 'radioDeviceId': radioDeviceId,
     if (usage != null) 'usage': usage,
   };
+
+  /// Rebuilds a [TncDataFragment] from the map produced by [toJson].
+  ///
+  /// Used to reconstruct fragments transported to detached windows over IPC.
+  static TncDataFragment fromJson(Map<String, dynamic> json) {
+    FragmentEncodingType parseEncoding(Object? value) {
+      for (final e in FragmentEncodingType.values) {
+        if (e.name == value) return e;
+      }
+      return FragmentEncodingType.unknown;
+    }
+
+    FragmentFrameType parseFrameType(Object? value) {
+      for (final f in FragmentFrameType.values) {
+        if (f.name == value) return f;
+      }
+      return FragmentFrameType.unknown;
+    }
+
+    final data =
+        RadioUtils.hexStringToByteArray(json['dataHex'] as String? ?? '') ??
+        Uint8List(0);
+    final timeStr = json['time'] as String?;
+
+    return TncDataFragment(
+      finalFragment: json['finalFragment'] as bool? ?? true,
+      fragmentId: json['fragmentId'] as int? ?? 0,
+      data: data,
+      channelId: json['channelId'] as int? ?? -1,
+      regionId: json['regionId'] as int? ?? -1,
+      channelName: json['channelName'] as String? ?? '',
+      incoming: json['incoming'] as bool? ?? false,
+      time: timeStr != null ? DateTime.tryParse(timeStr) : null,
+      encoding: parseEncoding(json['encoding']),
+      frameType: parseFrameType(json['frameType']),
+      corrections: json['corrections'] as int? ?? -1,
+      radioMac: json['radioMac'] as String?,
+      radioDeviceId: json['radioDeviceId'] as int?,
+      usage: json['usage'] as String?,
+      dartMode: json['dartMode'] as int? ?? -1,
+    );
+  }
 
   /// Getter for isLast (alias for finalFragment)
   bool get isLast => finalFragment;
