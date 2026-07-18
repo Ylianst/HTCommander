@@ -106,6 +106,11 @@ class _TerminalTabState extends State<TerminalTab>
   bool _waitingForConnection = false;
   String? _sessionRemoteCallsign;
 
+  // True while a graceful AX.25 disconnect is in progress (DISC sent, awaiting
+  // the remote's UA). Used to ignore repeat Disconnect clicks so an in-flight
+  // disconnect handshake is not aborted early (mirrors the C# `pendingDisconnect`).
+  bool _pendingDisconnect = false;
+
   // Settings (persisted on broker device 0).
   bool _showCallsign = false;
   bool _wordWrap = false;
@@ -274,13 +279,29 @@ class _TerminalTabState extends State<TerminalTab>
   Future<void> _onConnectPressed() async {
     final activeRadioId = _activeTerminalRadioId;
     if (activeRadioId > 0) {
+      // Ignore repeat clicks while a graceful disconnect is already underway;
+      // calling disconnect() again mid-handshake would abort it and release the
+      // radio lock before the remote confirms (mirrors the C# guard).
+      if (_pendingDisconnect) {
+        _broker.logInfo('[TerminalTab] Disconnect already in progress');
+        return;
+      }
+
       // For a connected-mode session, perform a graceful AX.25 disconnect; the
-      // radio is unlocked when the session reaches the DISCONNECTED state.
+      // radio is unlocked only when the session reaches the DISCONNECTED state
+      // (i.e. once the remote acknowledges the DISC with a UA).
       final session = _session;
       if (session != null &&
           session.currentState != AX25ConnectionState.disconnected) {
-        _broker.logInfo('[TerminalTab] Disconnecting AX.25 session');
-        session.disconnect();
+        setState(() => _pendingDisconnect = true);
+        // Only initiate a DISC while still connected/connecting. If the session
+        // is already disconnecting, just wait for the in-flight handshake to
+        // complete rather than forcing an immediate teardown.
+        if (session.currentState == AX25ConnectionState.connected ||
+            session.currentState == AX25ConnectionState.connecting) {
+          _broker.logInfo('[TerminalTab] Initiating graceful AX.25 disconnect');
+          session.disconnect();
+        }
         return;
       }
 
@@ -306,6 +327,7 @@ class _TerminalTabState extends State<TerminalTab>
         _connectedRadioId = -1;
         _waitingForConnection = false;
         _sessionRemoteCallsign = null;
+        _pendingDisconnect = false;
       });
       _appendSystem('*** ${AppLocalizations.of(context).stateDisconnected} ***');
       return;
@@ -514,6 +536,7 @@ class _TerminalTabState extends State<TerminalTab>
       _connectedRadioId = radioId;
       _waitingForConnection = true;
       _sessionRemoteCallsign = null;
+      _pendingDisconnect = false;
     });
 
     _broker.logInfo(
@@ -549,6 +572,7 @@ class _TerminalTabState extends State<TerminalTab>
         } else {
           _appendSystem('*** ${AppLocalizations.of(context).stateConnected} ***');
         }
+        if (_pendingDisconnect) setState(() => _pendingDisconnect = false);
         break;
       case AX25ConnectionState.disconnected:
         _appendSystem('*** ${AppLocalizations.of(context).stateDisconnected} ***');
@@ -575,10 +599,16 @@ class _TerminalTabState extends State<TerminalTab>
           _connectedRadioId = -1;
           _waitingForConnection = false;
           _sessionRemoteCallsign = null;
+          _pendingDisconnect = false;
         });
         break;
-      case AX25ConnectionState.connecting:
       case AX25ConnectionState.disconnecting:
+        // DISC sent; awaiting the remote's UA before the radio is released.
+        _appendSystem(
+          '*** ${AppLocalizations.of(context).statusDisconnecting} ***',
+        );
+        break;
+      case AX25ConnectionState.connecting:
         break;
     }
   }
@@ -1228,7 +1258,8 @@ class _TerminalTabState extends State<TerminalTab>
                 SizedBox(
                   height: 28,
                   child: ElevatedButton(
-                    onPressed: _connectedRadios.isEmpty && !connected
+                    onPressed: _pendingDisconnect ||
+                            (_connectedRadios.isEmpty && !connected)
                         ? null
                         : _onConnectPressed,
                     style: ElevatedButton.styleFrom(
@@ -1236,9 +1267,11 @@ class _TerminalTabState extends State<TerminalTab>
                       textStyle: const TextStyle(fontSize: 12),
                     ),
                     child: Text(
-                      connected
-                          ? AppLocalizations.of(context).commonDisconnect
-                          : AppLocalizations.of(context).commonConnect,
+                      _pendingDisconnect
+                          ? AppLocalizations.of(context).statusDisconnecting
+                          : connected
+                              ? AppLocalizations.of(context).commonDisconnect
+                              : AppLocalizations.of(context).commonConnect,
                     ),
                   ),
                 ),
