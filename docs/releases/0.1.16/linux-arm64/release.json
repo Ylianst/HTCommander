@@ -9,12 +9,12 @@
   "artifact": {
     "kind": "zip",
     "url": "https://ylianst.github.io/HTCommander/releases/0.1.16/linux-arm64/htcommander-0.1.16-linux-arm64.zip",
-    "sha256": "0382ddac4173100bdad749c8e66cc18068c6cc115776bc9f767b09d53717e647",
-    "length": 28860191
+    "sha256": "848a3d78eb438f4b4e166276a5051ef496aeda31f1da17384ab684d3fb7d470f",
+    "length": 28860575
   },
   "install": {
     "strategy": "wholeDirectoryReplace"
   },
   "minimumUpdaterVersion": "2.0.0",
-  "generatedAt": "2026-07-18T06:33:14.093432Z"
+  "generatedAt": "2026-07-18T07:27:37.149823Z"
 }
