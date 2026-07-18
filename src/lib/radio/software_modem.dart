@@ -78,6 +78,15 @@ class _RadioModemState {
   /// route received audio and transmits to the APRS modem instance.
   int aprsChannelId = -1;
 
+  /// Current channel-lock state for this radio, mirrored from `LockState`
+  /// broker events. Used to tag decoded frames with a `usage` so that
+  /// usage-filtered handlers (Torrent / BBS / Terminal) receive locked-mode
+  /// traffic that arrives via the software modem, matching the hardware
+  /// modem's [Radio._accumulateFragment] behaviour.
+  bool lockIsLocked = false;
+  String? lockUsage;
+  int lockChannelId = -1;
+
   /// The user's general software modem (null when the general modem is off).
   _ModemInstance? generalModem;
 
@@ -522,6 +531,15 @@ class SoftwareModem {
       deviceId: DataBroker.allDevices,
       name: 'HtStatus',
       callback: _onHtStatusChanged,
+    );
+
+    // Subscribe to LockState changes from all radios so decoded frames can be
+    // tagged with the locked usage (Torrent / BBS / Terminal), matching the
+    // hardware modem receive path.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'LockState',
+      callback: _onLockStateChanged,
     );
 
     // Subscribe to transmit packet requests from all radios
@@ -986,6 +1004,23 @@ class SoftwareModem {
           _readInt(htStatus['currRegion'] ?? htStatus['curr_region'] ?? htStatus['CurrRegion']) ?? 0;
     }
 
+    // Seed the current lock state (stored on the broker) so frames decoded
+    // before the first LockState event still get tagged with their usage.
+    final Object? lockState =
+        _broker.getValue<Object>(deviceId, 'LockState', null);
+    if (lockState is Map) {
+      final bool isLocked =
+          (lockState['isLocked'] ?? lockState['IsLocked']) as bool? ?? false;
+      final String? usage =
+          (lockState['usage'] ?? lockState['Usage']) as String?;
+      if (isLocked && usage != null && usage.isNotEmpty) {
+        state.lockIsLocked = true;
+        state.lockUsage = usage;
+        state.lockChannelId =
+            _readInt(lockState['channelId'] ?? lockState['ChannelId']) ?? -1;
+      }
+    }
+
     // Resolve the id of this radio's APRS channel for routing.
     state.aprsChannelId = _getAprsChannelId(deviceId);
 
@@ -1312,6 +1347,43 @@ class SoftwareModem {
           state.transmitQueue.isNotEmpty) {
         _beginChannelAccess(state);
       }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lock-state tracking
+  // ---------------------------------------------------------------------------
+
+  /// Mirrors a radio's channel-lock state so decoded frames can be tagged with
+  /// the locked `usage`. This is what lets usage-filtered handlers (Torrent /
+  /// BBS / Terminal) receive locked-mode traffic that is decoded by the
+  /// software modem, matching the hardware modem's [Radio._accumulateFragment].
+  void _onLockStateChanged(int deviceId, String name, Object? data) {
+    if (_disposed || deviceId <= 0) return;
+
+    final state = _radioModems[deviceId];
+    if (state == null) return;
+
+    if (data is Map) {
+      final bool isLocked =
+          (data['isLocked'] ?? data['IsLocked']) as bool? ?? false;
+      final String? usage = (data['usage'] ?? data['Usage']) as String?;
+      final int channelId =
+          _readInt(data['channelId'] ?? data['ChannelId']) ?? -1;
+      if (isLocked && usage != null && usage.isNotEmpty) {
+        state.lockIsLocked = true;
+        state.lockUsage = usage;
+        state.lockChannelId = channelId;
+      } else {
+        state.lockIsLocked = false;
+        state.lockUsage = null;
+        state.lockChannelId = -1;
+      }
+    } else {
+      // A null LockState means the radio was unlocked.
+      state.lockIsLocked = false;
+      state.lockUsage = null;
+      state.lockChannelId = -1;
     }
   }
 
@@ -1708,6 +1780,16 @@ class SoftwareModem {
   // ---------------------------------------------------------------------------
 
   void _dispatchDecodedFrame(int deviceId, TncDataFragment fragment) {
+    // Tag the frame with the radio's locked usage when it was received on the
+    // locked channel, so usage-filtered handlers (Torrent / BBS / Terminal)
+    // process it. Mirrors the hardware modem path in Radio._accumulateFragment.
+    final state = _radioModems[deviceId];
+    if (state != null &&
+        state.lockIsLocked &&
+        state.lockUsage != null &&
+        fragment.channelId == state.lockChannelId) {
+      fragment.usage = state.lockUsage;
+    }
     _broker.dispatch(deviceId: deviceId, name: 'DataFrame', data: fragment, store: false);
   }
 
