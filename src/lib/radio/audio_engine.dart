@@ -11,6 +11,11 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/services.dart'
+    show
+        BackgroundIsolateBinaryMessenger,
+        MethodChannel,
+        RootIsolateToken;
 
 import '../sbc/sbc_decoder.dart';
 import '../sbc/sbc_encoder.dart';
@@ -35,7 +40,10 @@ import '../sbc/sbc_frame.dart';
 /// how it talks to the outside world (messages instead of direct broker/radio
 /// calls), has changed.
 class AudioEngine {
-  AudioEngine(this._emit);
+  // Named params can't be private, so `btSend` is copied into `_btSend`.
+  AudioEngine(this._emit, {Future<void> Function(Uint8List data)? btSend})
+      // ignore: prefer_initializing_formals
+      : _btSend = btSend;
 
   /// Audio format: 32 kHz, 16-bit, mono (matches the radio's SBC stream).
   static const int _sampleRate = 32000;
@@ -46,6 +54,26 @@ class AudioEngine {
   /// PCM bytes consumed per encoded SBC frame: blocks * subbands * 2 (16-bit).
   static const int _pcmInputSizePerFrame = 16 * 8 * 2; // 256 bytes
 
+  /// Transmit pacing lead: how far (in ms of audio) the encoder may run ahead of
+  /// real time before throttling. A deeper lead pre-delivers more audio to the
+  /// radio, so a stall on the native platform thread — most notably a Windows
+  /// window-resize/move modal loop, which blocks the Bluetooth writes even
+  /// though they originate from this background isolate — is far less likely to
+  /// starve the radio's playout buffer and corrupt the transmission.
+  ///
+  /// Live voice PTT keeps a short lead to stay low-latency. Bulk pre-computed
+  /// transmissions (SSTV image, DART data) use a much deeper lead since their
+  /// latency doesn't matter. The effective depth is still bounded by the OS /
+  /// radio Bluetooth buffering and RFCOMM flow control, so a large value simply
+  /// fills those as deep as they allow (it never sends faster than the link
+  /// accepts). Tunable if a radio needs more or less headroom.
+  static const int _txLeadMsVoice = 1000;
+  static const int _txLeadMsBulk = 10000;
+
+  /// A single transmit chunk at least this large (~2 s of 32 kHz/16-bit mono) is
+  /// treated as a bulk, pre-computed transmission and gets the deep pacing lead.
+  static const int _bulkChunkThresholdBytes = _sampleRate * 2 * 2;
+
   /// Frame that tells the radio to stop transmitting.
   static final Uint8List _endAudioFrame = Uint8List.fromList(<int>[
     0x7e, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e,
@@ -53,6 +81,15 @@ class AudioEngine {
 
   /// Sends an event message to the host isolate.
   final void Function(Map<String, Object?> msg) _emit;
+
+  /// Writes framed transmit bytes straight to Bluetooth from this isolate.
+  ///
+  /// When non-null (the normal case), paced transmit frames bypass the main
+  /// isolate entirely, so UI jank (window drags, tab switches) can no longer
+  /// stall the real-time audio stream. When null (platform has no
+  /// RootIsolateToken, e.g. web), [_sendAudio] falls back to relaying the bytes
+  /// to the host via a `send` event.
+  final Future<void> Function(Uint8List data)? _btSend;
 
   final SbcDecoder _sbcDecoder = SbcDecoder();
   final SbcEncoder _sbcEncoder = SbcEncoder();
@@ -539,6 +576,14 @@ class AudioEngine {
 
     // Real-time pacing: 32 kHz, 16-bit, mono = 64000 bytes/sec.
     const int bytesPerSecond = _sampleRate * 2;
+    // Pre-computed bulk transmissions (SSTV / DART data) are allowed to run
+    // further ahead of real time than live voice, so more audio is buffered at
+    // the radio and a platform-thread stall (e.g. a window resize) doesn't
+    // starve it mid-transmission. Detect them by the data-frame flag or a large
+    // single chunk; live voice arrives as small streamed chunks.
+    final bool bulkTransmission =
+        _voiceTransmitIsDataFrame || pcmLength >= _bulkChunkThresholdBytes;
+    final int txLeadMs = bulkTransmission ? _txLeadMsBulk : _txLeadMsVoice;
     final Stopwatch stopwatch = Stopwatch()..start();
     int totalBytesSent = 0;
 
@@ -573,9 +618,10 @@ class AudioEngine {
       pcmLength -= bytesConsumed;
       totalBytesSent += bytesConsumed;
 
-      // Allow up to ~1 second ahead of real time, then throttle.
+      // Allow the transmit buffer to run up to txLeadMs ahead of real time,
+      // then throttle so we never outpace the radio's playout.
       final int expectedElapsedMs =
-          (totalBytesSent * 1000) ~/ bytesPerSecond - 1000;
+          (totalBytesSent * 1000) ~/ bytesPerSecond - txLeadMs;
       final int waitMs = expectedElapsedMs - stopwatch.elapsedMilliseconds;
       if (waitMs > 0 && !_voiceTransmitCancel) {
         await Future<void>.delayed(
@@ -672,7 +718,12 @@ class AudioEngine {
   }
 
   Future<void> _sendAudio(Uint8List data) async {
-    _emit(<String, Object?>{'evt': 'send', 'bytes': _wrap(data)});
+    final Future<void> Function(Uint8List data)? btSend = _btSend;
+    if (btSend != null) {
+      await btSend(data);
+    } else {
+      _emit(<String, Object?>{'evt': 'send', 'bytes': _wrap(data)});
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -743,10 +794,18 @@ class AudioEngine {
 
 /// Entry point for the audio-engine isolate.
 ///
-/// Protocol: the host sends its [SendPort] via [initialMessage] so the isolate
-/// can send its own command [SendPort] back; thereafter the two exchange `Map`
-/// messages. The engine performs no platform-channel work, so no
-/// RootIsolateToken is needed.
+/// Protocol: the host sends `[SendPort, RootIsolateToken?, macAddress]` via
+/// [initialMessage] so the isolate can send its own command [SendPort] back and
+/// (given a token) write transmit audio to Bluetooth directly; thereafter the
+/// two exchange `Map` messages.
+///
+/// Platform channels: a background isolate can **send** to the platform
+/// (`invokeMethod`) once [BackgroundIsolateBinaryMessenger] is initialized, but
+/// it can never **receive** (no EventChannel / method-call handlers). So the
+/// engine writes paced transmit audio to Bluetooth itself — keeping the
+/// real-time TX path off the busy main isolate — while received bytes and PCM
+/// playback stay on the host. If no token is available (e.g. web) the engine
+/// falls back to relaying transmit bytes to the host via a `send` event.
 ///
 /// Host -> engine commands (`cmd`): `init`, `reset`, `stopAudio`, `rx`,
 /// `setVolume`, `setMute`, `startRecording`, `stopRecording`, `tx`, `txHold`,
@@ -756,9 +815,37 @@ class AudioEngine {
 /// `audioStart`, `audioEnd`, `audioData`, `amplitude`, `txState`.
 Future<void> audioEngineIsolateEntry(List<Object?> initialMessage) async {
   final SendPort hostPort = initialMessage[0] as SendPort;
+  final RootIsolateToken? rootToken =
+      initialMessage.length > 1 ? initialMessage[1] as RootIsolateToken? : null;
+  final String macAddress =
+      initialMessage.length > 2 ? (initialMessage[2] as String? ?? '') : '';
+
+  // Enable platform-channel *sends* from this background isolate so paced
+  // Bluetooth transmit writes don't have to hop through the (possibly busy)
+  // main isolate. Receiving from the platform still only works on the root
+  // isolate, so RX and playback remain on the host.
+  Future<void> Function(Uint8List data)? btSend;
+  if (rootToken != null && macAddress.isNotEmpty) {
+    BackgroundIsolateBinaryMessenger.ensureInitialized(rootToken);
+    const MethodChannel btChannel =
+        MethodChannel('com.htcommander/bluetooth_classic');
+    btSend = (Uint8List data) async {
+      try {
+        await btChannel.invokeMethod<bool>('sendAudio', <String, Object?>{
+          'address': macAddress,
+          'data': data,
+        });
+      } catch (e) {
+        hostPort.send(<String, Object?>{
+          'evt': 'log',
+          'msg': 'AudioEngine Bluetooth sendAudio error: $e',
+        });
+      }
+    };
+  }
 
   final ReceivePort commandPort = ReceivePort();
-  final AudioEngine engine = AudioEngine(hostPort.send);
+  final AudioEngine engine = AudioEngine(hostPort.send, btSend: btSend);
 
   // Hand our command port back to the host.
   hostPort.send(<String, Object?>{'evt': 'port', 'port': commandPort.sendPort});

@@ -35,6 +35,7 @@ import '../hamlib/multi_modem.dart';
 import '../models/radio_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import 'modem_tx_encoder.dart';
 import 'tnc_data_fragment.dart';
 
 /// Software modem mode types.
@@ -98,6 +99,11 @@ class _RadioModemState {
   final List<_PendingTransmission> transmitQueue = [];
   bool waitingForChannel = false;
   bool channelIsClear = false;
+
+  /// True while a bundled transmission is being modulated off-isolate. Prevents
+  /// a concurrent channel-access slot from starting a second overlapping keyup
+  /// during the (now asynchronous) encode.
+  bool encoding = false;
   Timer? channelWaitTimer;
 
   _RadioModemState({
@@ -405,6 +411,11 @@ class _HdlcFx25Bridge implements IHdlcReceiver {
 class SoftwareModem {
   final DataBrokerClient _broker = DataBrokerClient();
   final Map<int, _RadioModemState> _radioModems = {};
+
+  /// Off-isolate transmit-audio encoder. DART (LDPC + OFDM) and AFSK/PSK tone
+  /// generation run here instead of on the UI isolate, so a channel-access slot
+  /// that fires during window/tab interaction can't stall the real-time audio.
+  final ModemTxEncoder _txEncoder = ModemTxEncoder();
   SoftwareModemMode _currentMode = SoftwareModemMode.none;
   // When true, transmitted packets that meet the AX.25 minimum length are wrapped
   // in FX.25 forward error correction. When false, all packets are sent as plain
@@ -574,6 +585,7 @@ class SoftwareModem {
     if (_disposed) return;
     _disposed = true;
 
+    _txEncoder.dispose();
     for (final state in _radioModems.values) {
       state.dispose();
     }
@@ -1538,7 +1550,9 @@ class SoftwareModem {
 
     // Transmit now with probability persist/256, otherwise try the next slot.
     if (_rng.nextInt(256) <= _csmaPersist) {
-      _flushTransmitQueue(state);
+      // Fire-and-forget: the encode now runs off-isolate, so we don't block the
+      // slot callback on it. The `encoding` guard prevents overlapping keyups.
+      unawaited(_flushTransmitQueue(state));
     } else {
       _schedulePersistenceSlot(state);
     }
@@ -1567,7 +1581,7 @@ class SoftwareModem {
     }
   }
 
-  void _flushTransmitQueue(_RadioModemState state) {
+  Future<void> _flushTransmitQueue(_RadioModemState state) async {
     if (_disposed) return;
 
     state.channelWaitTimer?.cancel();
@@ -1585,6 +1599,15 @@ class SoftwareModem {
       return;
     }
 
+    // A previous bundle is still being modulated off-isolate; don't start a
+    // second overlapping transmission. That in-flight encode resumes any
+    // remaining frames (via waitingForChannel + the next ChannelClear) once it
+    // finishes and keys up.
+    if (state.encoding) {
+      state.waitingForChannel = true;
+      return;
+    }
+
     // Bundle up to _maxBundleFrames queued frames into a single transmission so
     // the TXDELAY preamble cost is paid only once for several packets. Only
     // frames destined for the same modem instance (same modulation) are bundled
@@ -1598,12 +1621,23 @@ class SoftwareModem {
       bundle.add(state.transmitQueue.removeAt(0));
     }
 
-    final Uint8List? pcmData = _buildBundledPcm(target, bundle);
-    final bool moreQueued = state.transmitQueue.isNotEmpty;
-
     // Assume the channel is now busy with our own transmission; the next
-    // HtStatus / ChannelClear will resume any remaining frames.
+    // HtStatus / ChannelClear will resume any remaining frames. Mark the encode
+    // in-flight so concurrent slot timers don't start an overlapping keyup while
+    // the PCM is being built off-isolate.
     state.channelIsClear = false;
+    state.encoding = true;
+
+    Uint8List? pcmData;
+    try {
+      pcmData = await _buildBundledPcm(target, bundle);
+    } finally {
+      state.encoding = false;
+    }
+
+    if (_disposed) return;
+
+    final bool moreQueued = state.transmitQueue.isNotEmpty;
     state.waitingForChannel = moreQueued;
 
     if (pcmData == null || pcmData.isEmpty) {
@@ -1628,151 +1662,71 @@ class SoftwareModem {
   /// one TXDELAY preamble, each frame back-to-back (HDLC flags delimit them),
   /// then one TXTAIL postamble, modulated by [instance] using its own FX.25 FEC
   /// setting. Returns little-endian 16-bit mono PCM bytes.
-  Uint8List? _buildBundledPcm(
+  ///
+  /// The actual modulation runs on the [_txEncoder] background isolate so the UI
+  /// isolate stays responsive and the real-time transmit stream is not stalled.
+  Future<Uint8List?> _buildBundledPcm(
     _ModemInstance instance,
     List<_PendingTransmission> frames,
-  ) {
+  ) async {
     if (frames.isEmpty) return null;
 
     // DART is frame-based: encode each queued frame with its own preamble/FEC
-    // and concatenate, bracketed by PTT lead-in/tail silence.
+    // and concatenate, bracketed by PTT lead-in/tail silence. Assign the
+    // (main-isolate-owned) sequence numbers here before handing off.
     if (instance.dartModem != null) {
-      return _buildDartPcm(instance, frames);
-    }
-
-    if (instance.packetAudioBuffer == null ||
-        instance.packetHdlcSend == null ||
-        instance.packetFx25Send == null) {
-      return null;
-    }
-
-    const int chan = 0;
-    final buffer = instance.packetAudioBuffer!;
-    buffer.clearAll();
-
-    final int sampleRate = instance.audioConfig.devices[0].samplesPerSec;
-
-    // Half a second of leading silence so the radio's PTT is fully keyed
-    // up before any data tones start. This covers the delay between the PCM
-    // stream starting and PTT actually engaging. It is emitted once per
-    // transmission (before the first frame of the bundle), not between bundled
-    // frames.
-    _appendSilenceSamples(buffer, sampleRate ~/ 2);
-
-    // Single preamble for the whole transmission.
-    final int txdelayFlags = instance.audioConfig.channels[chan].txdelay;
-    instance.packetHdlcSend!.sendFlags(chan, txdelayFlags, false, null);
-
-    // All frames one after another. Use FX.25 forward error correction
-    // (smallest level = 16 check bytes; pickMode selects the smallest RS block
-    // that fits) for frames that meet the AX.25 minimum length, so the FX.25
-    // frame stays standards-compliant: a strict FX.25 receiver such as Direwolf
-    // rejects an unstuffed frame shorter than the AX.25 minimum. A frame that
-    // is too small - or too large for any FX.25 block - is sent as plain AX.25
-    // instead. Each frame emits its own HDLC flags so consecutive frames stay
-    // properly delimited.
-    // AX.25 minimum data: two 7-byte addresses + control (FCS added separately).
-    const int ax25MinDataLen = 14 + 1;
-    for (final tx in frames) {
-      const int fx25SmallestFec = 16; // 16 check bytes = smallest FX.25 FEC
-      int sent = -1;
-      if (instance.fecEnabled && tx.frameData.length >= ax25MinDataLen) {
-        _debug(
-          'TX FX.25: raw ${tx.frameData.length}-byte frame before FEC: '
-          '${_hex(tx.frameData)}',
+      final List<DartTxFrame> dartFrames = <DartTxFrame>[];
+      for (final _PendingTransmission tx in frames) {
+        dartFrames.add(
+          DartTxFrame(tx.frameData, instance.dartTxMode, instance.dartTxSeq),
         );
-        sent = instance.packetFx25Send!.sendFrame(
-          chan,
-          tx.frameData,
-          tx.frameData.length,
-          fx25SmallestFec,
-        );
-        if (sent < 0) {
-          _debug(
-            'TX FX.25: sendFrame rejected the frame (too small/large for any '
-            'FX.25 block) - falling back to plain AX.25.',
-          );
-        } else {
-          _debug('TX FX.25: encoded frame into $sent bits.');
-        }
+        instance.dartTxSeq++;
       }
-      if (sent < 0) {
-        // Frame too small or too large for a standards-compliant FX.25 frame -
-        // fall back to plain AX.25.
-        _debug(
-          'TX AX.25 (no FEC): sending ${tx.frameData.length}-byte frame: '
-          '${_hex(tx.frameData)}',
-        );
-        instance.packetHdlcSend!
-            .sendFrame(chan, tx.frameData, tx.frameData.length, false);
+      final ModemTxResult result = await _txEncoder.encodeDart(dartFrames);
+      for (final String line in result.logs) {
+        _debug(line);
       }
-    }
-
-    // Single postamble.
-    final int txtailFlags = instance.audioConfig.channels[chan].txtail;
-    instance.packetHdlcSend!.sendFlags(chan, txtailFlags, true, (device) {});
-
-    // 1/10th of a second of trailing silence so the final data tones are fully
-    // sent before PTT is released.
-    _appendSilenceSamples(buffer, sampleRate ~/ 10);
-
-    final samples = buffer.getAndClear(0);
-    if (samples.isEmpty) return null;
-
-    final Uint8List pcmData = Uint8List(samples.length * 2);
-    final ByteData bd = ByteData.view(pcmData.buffer);
-    for (int i = 0; i < samples.length; i++) {
-      bd.setInt16(i * 2, samples[i], Endian.little);
-    }
-    return pcmData;
-  }
-
-  /// Appends [numSamples] of silence (value 0) to device 0 of [buffer].
-  void _appendSilenceSamples(AudioBuffer buffer, int numSamples) {
-    for (int i = 0; i < numSamples; i++) {
-      buffer.put(0, 0);
-    }
-  }
-
-  /// Build a DART transmission: each queued frame encoded as a full DART frame
-  /// (its own preamble/header/payload/FEC), concatenated with PTT lead-in and
-  /// tail silence. Returns little-endian 16-bit mono PCM bytes.
-  Uint8List? _buildDartPcm(
-    _ModemInstance instance,
-    List<_PendingTransmission> frames,
-  ) {
-    final modem = instance.dartModem;
-    if (modem == null) return null;
-
-    const int sampleRate = 32000;
-    final List<int> samples = [];
-
-    // Half a second of leading silence so PTT is fully keyed before data tones.
-    samples.addAll(List<int>.filled(sampleRate ~/ 2, 0));
-
-    for (final tx in frames) {
-      final Int16List framePcm = modem.encode(
-        payload: tx.frameData,
-        mode: instance.dartTxMode,
-        seqNum: instance.dartTxSeq & 0xFF,
-      );
-      instance.dartTxSeq++;
-      samples.addAll(framePcm);
       _debug(
-        'TX DART: ${instance.dartTxMode.name} '
-        '${tx.frameData.length}-byte frame → ${framePcm.length} samples',
+        'TX DART: ${instance.dartTxMode.name} ${dartFrames.length} frame(s) → '
+        '${(result.pcm?.length ?? 0) ~/ 2} samples on device '
+        '${instance.audioConfig.devices[0].samplesPerSec ~/ 1000}k',
       );
+      return result.pcm;
     }
 
-    // Tenth of a second of trailing silence before PTT release.
-    samples.addAll(List<int>.filled(sampleRate ~/ 10, 0));
+    // AFSK / PSK packet path: FX.25 (when the frame is eligible) or plain AX.25,
+    // reconstructed and modulated in the encoder isolate from the instance's
+    // configuration.
+    final PacketModulation? modulation = _packetModulationFor(instance.mode);
+    if (modulation == null) return null;
 
-    final Uint8List pcmData = Uint8List(samples.length * 2);
-    final ByteData bd = ByteData.view(pcmData.buffer);
-    for (int i = 0; i < samples.length; i++) {
-      bd.setInt16(i * 2, samples[i].clamp(-32768, 32767), Endian.little);
+    final ModemTxResult result = await _txEncoder.encodePacket(
+      modulation: modulation,
+      fecEnabled: instance.fecEnabled,
+      txdelay: instance.audioConfig.channels[0].txdelay,
+      txtail: instance.audioConfig.channels[0].txtail,
+      sampleRate: instance.audioConfig.devices[0].samplesPerSec,
+      frames:
+          frames.map((tx) => tx.frameData).toList(growable: false),
+    );
+    for (final String line in result.logs) {
+      _debug(line);
     }
-    return pcmData;
+    return result.pcm;
+  }
+
+  /// Maps a packet software-modem mode to the encoder isolate's modulation kind.
+  /// Returns null for non-packet modes (DART / none).
+  PacketModulation? _packetModulationFor(SoftwareModemMode mode) {
+    switch (mode) {
+      case SoftwareModemMode.afsk1200:
+        return PacketModulation.afsk1200;
+      case SoftwareModemMode.psk2400:
+        return PacketModulation.psk2400;
+      case SoftwareModemMode.dart:
+      case SoftwareModemMode.none:
+        return null;
+    }
   }
 
   // ---------------------------------------------------------------------------

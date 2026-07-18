@@ -2189,13 +2189,21 @@ class _CommsTabState extends State<CommsTab>
                         },
                         onDragDone: _onFilesDropped,
                         child: Container(
-                          foregroundDecoration: _dragOver
-                              ? BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.blue, width: 2),
-                                  color: Colors.blue.withValues(alpha: 0.08),
-                                )
-                              : null,
+                          // Always supply a foreground decoration (transparent
+                          // when not dragging) so toggling the drag highlight
+                          // doesn't add/remove a DecoratedBox wrapper. A
+                          // structural change here would rebuild the ChatWidget
+                          // element, resetting its ScrollController to the top.
+                          foregroundDecoration: BoxDecoration(
+                            border: Border.all(
+                              color:
+                                  _dragOver ? Colors.blue : Colors.transparent,
+                              width: 2,
+                            ),
+                            color: _dragOver
+                                ? Colors.blue.withValues(alpha: 0.08)
+                                : Colors.transparent,
+                          ),
                           child: ChatWidget(
                             messages: _messages,
                             onMessageTap: _onMessageTap,

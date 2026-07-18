@@ -8,6 +8,8 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show RootIsolateToken;
+
 import '../services/bluetooth_classic_macos.dart';
 import '../services/data_broker_client.dart';
 import 'audio_engine.dart';
@@ -166,9 +168,15 @@ class RadioAudio {
     _hostReceivePort = receivePort;
     receivePort.listen(_onEngineMessage);
 
+    // Pass the RootIsolateToken so the engine can write transmit audio straight
+    // to Bluetooth (invokeMethod) from its own isolate, keeping the real-time TX
+    // path off this (UI) isolate. Null on platforms without one (e.g. web); the
+    // engine then falls back to relaying transmit bytes via a `send` event.
+    final RootIsolateToken? rootToken = RootIsolateToken.instance;
+
     await Isolate.spawn(
       audioEngineIsolateEntry,
-      <Object?>[receivePort.sendPort],
+      <Object?>[receivePort.sendPort, rootToken, macAddress],
       debugName: 'radio-audio-engine-$deviceId',
     );
 

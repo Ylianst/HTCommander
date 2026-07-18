@@ -958,6 +958,9 @@ class _TorrentTabState extends State<TorrentTab>
       onDragEntered: (_) => setState(() => _dragging = true),
       onDragExited: (_) => setState(() => _dragging = false),
       onDragDone: (detail) {
+        // Only the active tab should handle drops. TabBarView keeps hidden tabs
+        // alive, so their DropTargets still fire; ignore drops when not visible.
+        if (!isTabVisible) return;
         setState(() => _dragging = false);
         if (detail.files.length == 1) {
           _onDropFile(detail.files.first.path);

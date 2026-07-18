@@ -64,6 +64,17 @@ class ChatMessage {
   List<ChannelShareMatch>? _channelMatches;
   List<ChannelShareMatch> get channelMatches =>
       _channelMatches ??= ChannelShare.findAll(message);
+
+  /// Cached inline spans for the message body (URLs turned into tappable link
+  /// spans, channel-share tokens turned into chips). Building them runs a URL
+  /// regex and allocates [TapGestureRecognizer]s, which is far too expensive to
+  /// repeat on every bubble rebuild (each resize/scroll frame re-runs the item
+  /// builder for every visible bubble). The message text is immutable, so the
+  /// result is computed at most once and cached here for the app session, the
+  /// same approach used by [channelMatches]. The recognizers are referenced by
+  /// the spans and therefore kept alive alongside them; they intentionally live
+  /// for the life of the message rather than being disposed per rebuild.
+  List<InlineSpan>? bodySpans;
 }
 
 /// Reusable chat widget for displaying message conversations
@@ -85,7 +96,14 @@ class ChatWidget extends StatefulWidget {
   final Color senderBubbleColor;
   final Color? routeTextColor;
   final Color? timeTextColor;
-  final double bubbleMaxWidthFactor;
+
+  /// Maximum bubble width in logical pixels. A fixed cap (rather than a
+  /// fraction of the window width) means widening the window past the cap does
+  /// not change the bubble's constraints, so the text engine skips re-layout
+  /// entirely — the key to smooth resizing with many messages. On windows
+  /// narrower than the cap the surrounding [Flexible]/[Row] still shrinks the
+  /// bubble to fit, so wrapping remains correct.
+  final double bubbleMaxWidth;
 
   const ChatWidget({
     super.key,
@@ -100,7 +118,7 @@ class ChatWidget extends StatefulWidget {
     this.senderBubbleColor = const Color(0xFFBEE1A5), // Darkened sent green
     this.routeTextColor,
     this.timeTextColor,
-    this.bubbleMaxWidthFactor = 0.75,
+    this.bubbleMaxWidth = 600,
   });
 
   @override
@@ -419,9 +437,7 @@ class _ChatWidgetState extends State<ChatWidget> {
           Flexible(
             child: Container(
               constraints: BoxConstraints(
-                maxWidth:
-                    MediaQuery.of(context).size.width *
-                    widget.bubbleMaxWidthFactor,
+                maxWidth: widget.bubbleMaxWidth,
               ),
               decoration: BoxDecoration(
                 color: _getBubbleColor(message),
@@ -594,18 +610,16 @@ class _VersionedFileImage extends FileImage {
 /// any `http://` / `https://` URLs into clickable, link-styled text that opens
 /// in the system browser.
 ///
-/// This is a [StatefulWidget] so it can own the [TapGestureRecognizer]s for the
-/// link spans and dispose them when the bubble is rebuilt or removed.
-class _MessageBody extends StatefulWidget {
+/// The spans (link recognizers included) are parsed once and cached on the
+/// [ChatMessage] via [ChatMessage.bodySpans], so rebuilds triggered by scroll
+/// or resize reuse them instead of re-running the URL regex and re-allocating
+/// [TapGestureRecognizer]s. The recognizers are kept alive by the cached spans
+/// for the life of the message rather than being disposed per rebuild.
+class _MessageBody extends StatelessWidget {
   final ChatMessage message;
 
   const _MessageBody({required this.message});
 
-  @override
-  State<_MessageBody> createState() => _MessageBodyState();
-}
-
-class _MessageBodyState extends State<_MessageBody> {
   /// Matches an `http`/`https` URL, or a bare `www.` host that looks like a
   /// DNS name (at least two dot-separated labels, e.g. `www.example.com`).
   /// Trailing punctuation is trimmed separately so a URL at the end of a
@@ -631,29 +645,19 @@ class _MessageBodyState extends State<_MessageBody> {
     decorationColor: Color(0xFF0B57D0),
   );
 
-  final List<TapGestureRecognizer> _recognizers = [];
-
-  @override
-  void dispose() {
-    _disposeRecognizers();
-    super.dispose();
-  }
-
-  void _disposeRecognizers() {
-    for (final r in _recognizers) {
-      r.dispose();
-    }
-    _recognizers.clear();
-  }
-
-  Future<void> _launch(String url) async {
+  static Future<void> _launch(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   /// Splits plain [text] into spans, turning any URLs into tappable link spans.
-  List<InlineSpan> _linkSpans(String text) {
+  /// Any recognizers created are appended to [recognizers] so callers can keep
+  /// them alive alongside the returned spans.
+  static List<InlineSpan> _linkSpans(
+    String text,
+    List<TapGestureRecognizer> recognizers,
+  ) {
     final spans = <InlineSpan>[];
     int cursor = 0;
     for (final m in _urlPattern.allMatches(text)) {
@@ -672,7 +676,7 @@ class _MessageBodyState extends State<_MessageBody> {
       // keep the displayed text exactly as written.
       final href = url.toLowerCase().startsWith('http') ? url : 'http://$url';
       final recognizer = TapGestureRecognizer()..onTap = () => _launch(href);
-      _recognizers.add(recognizer);
+      recognizers.add(recognizer);
       spans.add(TextSpan(text: url, style: _linkStyle, recognizer: recognizer));
       cursor = end;
     }
@@ -682,20 +686,22 @@ class _MessageBodyState extends State<_MessageBody> {
     return spans;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Recreate the recognizers each build; dispose the previous set first so
-    // they don't leak when the message list rebuilds.
-    _disposeRecognizers();
+  /// Returns the cached body spans for [message], parsing them on first use.
+  static List<InlineSpan> _spansFor(ChatMessage message) {
+    final cached = message.bodySpans;
+    if (cached != null) return cached;
 
-    final text = widget.message.message;
-    final matches = widget.message.channelMatches;
+    final text = message.message;
+    final matches = message.channelMatches;
+    // The recognizers are referenced by the spans that are cached on the
+    // message, so they stay alive for the life of the message.
+    final recognizers = <TapGestureRecognizer>[];
 
     final spans = <InlineSpan>[];
     int cursor = 0;
     for (final m in matches) {
       if (m.start > cursor) {
-        spans.addAll(_linkSpans(text.substring(cursor, m.start)));
+        spans.addAll(_linkSpans(text.substring(cursor, m.start), recognizers));
       }
       spans.add(
         WidgetSpan(
@@ -706,14 +712,22 @@ class _MessageBodyState extends State<_MessageBody> {
       cursor = m.end;
     }
     if (cursor < text.length) {
-      spans.addAll(_linkSpans(text.substring(cursor)));
+      spans.addAll(_linkSpans(text.substring(cursor), recognizers));
     }
+
+    message.bodySpans = spans;
+    return spans;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final spans = _spansFor(message);
 
     // Fast path: no chips and no links -> a plain Text widget.
     if (spans.length == 1 && spans.first is TextSpan) {
       final only = spans.first as TextSpan;
       if (only.recognizer == null && only.children == null) {
-        return Text(only.text ?? text, style: _textStyle);
+        return Text(only.text ?? message.message, style: _textStyle);
       }
     }
 
