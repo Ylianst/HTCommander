@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../dialogs/channel_details_dialog.dart';
 import '../radio/radio_models.dart' as radio;
@@ -473,7 +475,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                         ],
                         if (message.message.isNotEmpty)
                           Flexible(
-                            child: _buildMessageContent(message),
+                            child: _MessageBody(message: message),
                           ),
                         // Authentication indicator (lock = verified, broken =
                         // failed). Surfaces AX25 auth state on the bubble itself,
@@ -499,45 +501,6 @@ class _ChatWidgetState extends State<ChatWidget> {
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  /// Builds the body text of a bubble, replacing any channel-share tokens
-  /// (`HTC:1:...*CK`) with draggable "yellow block" chips that can be dropped
-  /// onto a radio slot to program the channel. Surrounding text is preserved.
-  Widget _buildMessageContent(ChatMessage message) {
-    final text = message.message;
-    final matches = message.channelMatches;
-    if (matches.isEmpty) {
-      return Text(
-        text,
-        style: const TextStyle(fontSize: 14, color: Colors.black),
-      );
-    }
-
-    final spans = <InlineSpan>[];
-    int cursor = 0;
-    for (final m in matches) {
-      if (m.start > cursor) {
-        spans.add(TextSpan(text: text.substring(cursor, m.start)));
-      }
-      spans.add(
-        WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: _ChannelChip(channel: m.channel),
-        ),
-      );
-      cursor = m.end;
-    }
-    if (cursor < text.length) {
-      spans.add(TextSpan(text: text.substring(cursor)));
-    }
-
-    return Text.rich(
-      TextSpan(
-        style: const TextStyle(fontSize: 14, color: Colors.black),
-        children: spans,
       ),
     );
   }
@@ -623,6 +586,139 @@ class _VersionedFileImage extends FileImage {
 
   @override
   int get hashCode => Object.hash(file.path, scale, version);
+}
+
+/// The body of a message bubble. Renders the message text, replacing any
+/// channel-share tokens (`HTC:1:...*CK`) with draggable "yellow block" chips
+/// that can be dropped onto a radio slot to program the channel, and turning
+/// any `http://` / `https://` URLs into clickable, link-styled text that opens
+/// in the system browser.
+///
+/// This is a [StatefulWidget] so it can own the [TapGestureRecognizer]s for the
+/// link spans and dispose them when the bubble is rebuilt or removed.
+class _MessageBody extends StatefulWidget {
+  final ChatMessage message;
+
+  const _MessageBody({required this.message});
+
+  @override
+  State<_MessageBody> createState() => _MessageBodyState();
+}
+
+class _MessageBodyState extends State<_MessageBody> {
+  /// Matches an `http`/`https` URL, or a bare `www.` host that looks like a
+  /// DNS name (at least two dot-separated labels, e.g. `www.example.com`).
+  /// Trailing punctuation is trimmed separately so a URL at the end of a
+  /// sentence doesn't swallow the period, etc.
+  static final RegExp _urlPattern = RegExp(
+    r'https?://\S+|www\.[\w-]+(?:\.[\w-]+)+\S*',
+    caseSensitive: false,
+  );
+
+  /// Trailing characters trimmed off a matched URL (common sentence
+  /// punctuation and closing brackets/quotes).
+  static const String _trailingPunct = '.,;:!?)]}>"\'';
+
+  static const TextStyle _textStyle = TextStyle(
+    fontSize: 14,
+    color: Colors.black,
+  );
+
+  static const TextStyle _linkStyle = TextStyle(
+    fontSize: 14,
+    color: Color(0xFF0B57D0),
+    decoration: TextDecoration.underline,
+    decorationColor: Color(0xFF0B57D0),
+  );
+
+  final List<TapGestureRecognizer> _recognizers = [];
+
+  @override
+  void dispose() {
+    _disposeRecognizers();
+    super.dispose();
+  }
+
+  void _disposeRecognizers() {
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    _recognizers.clear();
+  }
+
+  Future<void> _launch(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  /// Splits plain [text] into spans, turning any URLs into tappable link spans.
+  List<InlineSpan> _linkSpans(String text) {
+    final spans = <InlineSpan>[];
+    int cursor = 0;
+    for (final m in _urlPattern.allMatches(text)) {
+      var url = m.group(0)!;
+      var end = m.end;
+      // Trim trailing punctuation that isn't part of the URL.
+      while (url.isNotEmpty && _trailingPunct.contains(url[url.length - 1])) {
+        url = url.substring(0, url.length - 1);
+        end--;
+      }
+      if (url.isEmpty) continue;
+      if (m.start > cursor) {
+        spans.add(TextSpan(text: text.substring(cursor, m.start)));
+      }
+      // Bare `www.` hosts have no scheme; assume http:// when launching, but
+      // keep the displayed text exactly as written.
+      final href = url.toLowerCase().startsWith('http') ? url : 'http://$url';
+      final recognizer = TapGestureRecognizer()..onTap = () => _launch(href);
+      _recognizers.add(recognizer);
+      spans.add(TextSpan(text: url, style: _linkStyle, recognizer: recognizer));
+      cursor = end;
+    }
+    if (cursor < text.length) {
+      spans.add(TextSpan(text: text.substring(cursor)));
+    }
+    return spans;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Recreate the recognizers each build; dispose the previous set first so
+    // they don't leak when the message list rebuilds.
+    _disposeRecognizers();
+
+    final text = widget.message.message;
+    final matches = widget.message.channelMatches;
+
+    final spans = <InlineSpan>[];
+    int cursor = 0;
+    for (final m in matches) {
+      if (m.start > cursor) {
+        spans.addAll(_linkSpans(text.substring(cursor, m.start)));
+      }
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: _ChannelChip(channel: m.channel),
+        ),
+      );
+      cursor = m.end;
+    }
+    if (cursor < text.length) {
+      spans.addAll(_linkSpans(text.substring(cursor)));
+    }
+
+    // Fast path: no chips and no links -> a plain Text widget.
+    if (spans.length == 1 && spans.first is TextSpan) {
+      final only = spans.first as TextSpan;
+      if (only.recognizer == null && only.children == null) {
+        return Text(only.text ?? text, style: _textStyle);
+      }
+    }
+
+    return Text.rich(TextSpan(style: _textStyle, children: spans));
+  }
 }
 
 /// An inline "yellow block" representing a shared radio channel decoded from a
