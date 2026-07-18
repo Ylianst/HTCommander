@@ -70,6 +70,13 @@ class AudioEngine {
   static const int _txLeadMsVoice = 1000;
   static const int _txLeadMsBulk = 10000;
 
+  /// Pre-computed *voice* transmissions (spoken text / WAV playback) use a
+  /// shallow lead: unlike data, a brief stall only causes a small audible
+  /// glitch rather than corrupting the payload, and keeping only a couple of
+  /// seconds buffered at the radio means Cancel stops the transmission quickly
+  /// instead of waiting for a deep buffer to drain.
+  static const int _txLeadMsBulkVoice = 2000;
+
   /// A single transmit chunk at least this large (~2 s of 32 kHz/16-bit mono) is
   /// treated as a bulk, pre-computed transmission and gets the deep pacing lead.
   static const int _bulkChunkThresholdBytes = _sampleRate * 2 * 2;
@@ -132,6 +139,21 @@ class AudioEngine {
   bool _voiceTransmitHold = false;
   Uint8List? _reminderTransmitPcm;
   Completer<void>? _newDataSignal;
+
+  // --- Local monitor playback pacing ---
+  // When a transmission is monitored locally (playLocally), the SBC encoder
+  // runs far ahead of real time (see [_txLeadMsBulk]) so the whole clip is
+  // handed to the speaker almost instantly. The host caps playback buffering
+  // (~800 ms) and drops the overflow, which cut the tail off spoken audio. To
+  // fix that, monitor PCM is queued here and emitted to the host at real time,
+  // decoupled from the transmit lead, so the entire clip plays out.
+  final Queue<Int16List> _monitorChunks = Queue<Int16List>();
+  bool _monitorPumping = false;
+  Completer<void>? _monitorNewData;
+
+  // Keep the speaker this far ahead of the wall clock so it never underruns,
+  // while staying well under the host's playback drop cap.
+  static const int _monitorLeadMs = 200;
 
   // ---------------------------------------------------------------------------
   // Command dispatch (messages from the host isolate)
@@ -237,6 +259,62 @@ class AudioEngine {
       'evt': 'play',
       'pcm': _wrap(pcm.buffer.asUint8List(pcm.offsetInBytes, pcm.lengthInBytes)),
     });
+  }
+
+  // Queues locally-monitored transmit PCM for real-time playback and starts the
+  // pacing pump if it is not already running.
+  void _enqueueMonitor(Int16List pcm) {
+    if (pcm.isEmpty) return;
+    _monitorChunks.add(pcm);
+    final Completer<void>? c = _monitorNewData;
+    if (c != null && !c.isCompleted) c.complete();
+    if (!_monitorPumping) {
+      _monitorPumping = true;
+      _monitorPumpLoop();
+    }
+  }
+
+  // Emits queued monitor PCM to the host at real time (32 kHz mono), keeping a
+  // small [_monitorLeadMs] lead so playback never underruns. Continues draining
+  // any audio the encoder produced ahead of time until the queue empties and
+  // the transmission has finished (or is cancelled).
+  Future<void> _monitorPumpLoop() async {
+    final Stopwatch stopwatch = Stopwatch()..start();
+    int emittedSamples = 0;
+    try {
+      while (true) {
+        if (_voiceTransmitCancel) {
+          _monitorChunks.clear();
+          break;
+        }
+        if (_monitorChunks.isEmpty) {
+          // Nothing queued: stop once the transmission is over, otherwise wait
+          // briefly for the encoder to produce more.
+          if (!_isTransmitting) break;
+          _monitorNewData = Completer<void>();
+          await Future.any(<Future<void>>[
+            _monitorNewData!.future,
+            Future<void>.delayed(const Duration(milliseconds: 20)),
+          ]);
+          _monitorNewData = null;
+          continue;
+        }
+        final Int16List chunk = _monitorChunks.removeFirst();
+        _emitPlay(chunk);
+        emittedSamples += chunk.length;
+
+        // Pace to real time, staying [_monitorLeadMs] ahead of the wall clock.
+        final int targetMs = (emittedSamples * 1000) ~/ _sampleRate;
+        final int waitMs = targetMs - stopwatch.elapsedMilliseconds - _monitorLeadMs;
+        if (waitMs > 0) {
+          await Future<void>.delayed(
+            Duration(milliseconds: waitMs < 100 ? waitMs : 100),
+          );
+        }
+      }
+    } finally {
+      _monitorPumping = false;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -576,14 +654,21 @@ class AudioEngine {
 
     // Real-time pacing: 32 kHz, 16-bit, mono = 64000 bytes/sec.
     const int bytesPerSecond = _sampleRate * 2;
-    // Pre-computed bulk transmissions (SSTV / DART data) are allowed to run
-    // further ahead of real time than live voice, so more audio is buffered at
-    // the radio and a platform-thread stall (e.g. a window resize) doesn't
-    // starve it mid-transmission. Detect them by the data-frame flag or a large
-    // single chunk; live voice arrives as small streamed chunks.
-    final bool bulkTransmission =
-        _voiceTransmitIsDataFrame || pcmLength >= _bulkChunkThresholdBytes;
-    final int txLeadMs = bulkTransmission ? _txLeadMsBulk : _txLeadMsVoice;
+    // Pick how far ahead of real time this transmission may run:
+    //  - Data frames (SSTV / DART) are corruption-sensitive, so they keep the
+    //    deep lead that rides out platform-thread stalls (e.g. a window resize
+    //    that blocks Bluetooth writes).
+    //  - Large pre-computed voice clips (spoken text / WAV) only glitch on a
+    //    stall, so they use a shallow lead so Cancel stops them quickly.
+    //  - Live PTT voice arrives as small streamed chunks and stays low-latency.
+    final int txLeadMs;
+    if (_voiceTransmitIsDataFrame) {
+      txLeadMs = _txLeadMsBulk;
+    } else if (pcmLength >= _bulkChunkThresholdBytes) {
+      txLeadMs = _txLeadMsBulkVoice;
+    } else {
+      txLeadMs = _txLeadMsVoice;
+    }
     final Stopwatch stopwatch = Stopwatch()..start();
     int totalBytesSent = 0;
 
@@ -605,7 +690,9 @@ class AudioEngine {
       );
       _recorder?.write(_int16ListFromBytes(consumed));
       if (_playInputBack && !_isMuted) {
-        _emitPlay(_int16ListFromBytes(consumed));
+        // Route monitor audio through the real-time pump instead of emitting it
+        // in lockstep with the transmit encoder, which runs ahead of real time.
+        _enqueueMonitor(Int16List.fromList(_int16ListFromBytes(consumed)));
       }
       _dispatchAudioDataAvailable(
         Uint8List.fromList(consumed),
