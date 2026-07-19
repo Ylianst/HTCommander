@@ -5,11 +5,13 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'tab_visibility.dart';
 import '../dialogs/aprs_symbols_dialog.dart';
+import '../dialogs/callsign_lookup_dialog.dart';
 import '../dialogs/firmware_update_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../dialogs/raw_command_dialog.dart';
 import '../models/radio_models.dart';
 import '../services/bluetooth_service.dart';
+import '../services/callsign_lookup_service.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
 
@@ -363,6 +365,18 @@ class _DebugTabState extends State<DebugTab>
             children: [const SizedBox(width: 20), Text('APRS Symbols...')],
           ),
         ),
+        if (CallsignLookupService.instance.isSupported)
+          PopupMenuItem<String>(
+            value: 'callsignLookup',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Text('${l10n.cslTitle} (Experimental)...'),
+              ],
+            ),
+          ),
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
           value: 'autoScroll',
@@ -462,6 +476,9 @@ class _DebugTabState extends State<DebugTab>
           break;
         case 'aprsSymbols':
           if (context.mounted) showAprsSymbolsDialog(context);
+          break;
+        case 'callsignLookup':
+          if (context.mounted) CallsignLookupDialog.show(context);
           break;
         case 'autoScroll':
           setState(() => _autoScroll = !_autoScroll);

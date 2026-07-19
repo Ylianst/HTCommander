@@ -11,21 +11,23 @@ import '../callsign/callsign_record.dart';
 import '../l10n/app_localizations.dart';
 import '../services/callsign_lookup_service.dart';
 
-/// Dialog that shows offline FCC amateur license details for a callsign.
+/// Standalone, experimental offline callsign lookup dialog.
 ///
-/// Performs the lookup asynchronously against [CallsignLookupService] and
-/// renders the result as a two-column list, matching the style of
-/// [AprsDetailsDialog].
+/// Lets the user type a callsign and view the matching FCC amateur license
+/// details from the offline database. Opened from the Debug tab menu.
 class CallsignLookupDialog extends StatefulWidget {
-  final String callsign;
+  /// Optional callsign to prefill and look up immediately.
+  final String? initialCallsign;
 
-  const CallsignLookupDialog({super.key, required this.callsign});
+  const CallsignLookupDialog({super.key, this.initialCallsign});
 
-  /// Shows the lookup dialog for [callsign].
-  static Future<void> show(BuildContext context, String callsign) {
+  /// Shows the lookup dialog. When [initialCallsign] is provided it is prefilled
+  /// and looked up right away.
+  static Future<void> show(BuildContext context, {String? initialCallsign}) {
     return showDialog<void>(
       context: context,
-      builder: (context) => CallsignLookupDialog(callsign: callsign),
+      builder: (context) =>
+          CallsignLookupDialog(initialCallsign: initialCallsign),
     );
   }
 
@@ -34,17 +36,44 @@ class CallsignLookupDialog extends StatefulWidget {
 }
 
 class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
-  bool _loading = true;
+  late final TextEditingController _controller;
+
+  bool _searched = false;
+  bool _loading = false;
+  String _searchedCallsign = '';
   CallsignRecord? _record;
+
+  // Database download / update state.
+  bool _dbBusy = false;
+  double? _dbProgress; // 0..1, or null when indeterminate / installing
+  String? _dbStatusMessage;
+  bool _dbStatusIsError = false;
 
   @override
   void initState() {
     super.initState();
-    _lookup();
+    _controller = TextEditingController(text: widget.initialCallsign ?? '');
+    if ((widget.initialCallsign ?? '').trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _lookup());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _lookup() async {
-    final record = await CallsignLookupService.instance.lookup(widget.callsign);
+    final callsign = _controller.text.trim();
+    if (callsign.isEmpty) return;
+    setState(() {
+      _searched = true;
+      _loading = true;
+      _searchedCallsign = callsign;
+      _record = null;
+    });
+    final record = await CallsignLookupService.instance.lookup(callsign);
     if (!mounted) return;
     setState(() {
       _record = record;
@@ -52,17 +81,93 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
     });
   }
 
+  Future<void> _downloadOrUpdate() async {
+    final l10n = AppLocalizations.of(context);
+    final service = CallsignLookupService.instance;
+    setState(() {
+      _dbBusy = true;
+      _dbProgress = 0;
+      _dbStatusMessage = null;
+      _dbStatusIsError = false;
+    });
+    try {
+      final manifest = await service.fetchManifest();
+      if (service.isAvailable && service.installedVersion == manifest.version) {
+        if (!mounted) return;
+        setState(() {
+          _dbBusy = false;
+          _dbStatusMessage = l10n.cslUpToDate;
+        });
+        return;
+      }
+      await service.download(
+        manifest,
+        progress: (received, total) {
+          if (!mounted) return;
+          setState(() => _dbProgress = total > 0 ? received / total : null);
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _dbBusy = false;
+        _dbProgress = null;
+        _dbStatusMessage = null;
+      });
+      // Re-run the current query now that data is available.
+      if (_searched && _searchedCallsign.isNotEmpty) {
+        _lookup();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _dbBusy = false;
+        _dbProgress = null;
+        _dbStatusMessage = l10n.cslDownloadFailed(e.toString());
+        _dbStatusIsError = true;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final service = CallsignLookupService.instance;
 
     return AlertDialog(
-      title: Text(l10n.cslTitle),
+      title: Row(
+        children: [
+          Expanded(child: Text(l10n.cslTitle)),
+          _experimentalBadge(scheme),
+        ],
+      ),
       content: SizedBox(
         width: 420,
-        child: _buildBody(l10n, scheme, service),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [UpperCaseTextFormatter()],
+              decoration: InputDecoration(
+                labelText: l10n.cslFieldCallsign,
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: _lookup,
+                ),
+              ),
+              onSubmitted: (_) => _lookup(),
+            ),
+            const SizedBox(height: 16),
+            _buildResult(l10n, scheme),
+            const Divider(height: 24),
+            _buildDbControls(l10n, scheme),
+          ],
+        ),
       ),
       actions: [
         TextButton(
@@ -73,17 +178,93 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
     );
   }
 
-  Widget _buildBody(
-    AppLocalizations l10n,
-    ColorScheme scheme,
-    CallsignLookupService service,
-  ) {
+  Widget _experimentalBadge(ColorScheme scheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: scheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        'EXPERIMENTAL',
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+          color: scheme.onTertiaryContainer,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDbControls(AppLocalizations l10n, ColorScheme scheme) {
+    final service = CallsignLookupService.instance;
+    if (!service.isSupported) return const SizedBox.shrink();
+    final installed = service.isAvailable;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                installed
+                    ? l10n.cslInstalledInfo(
+                        service.installedVersion,
+                        service.recordCount.toString(),
+                      )
+                    : l10n.cslNotInstalled,
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.tonal(
+              onPressed: _dbBusy ? null : _downloadOrUpdate,
+              child: Text(installed ? l10n.cslUpdate : l10n.cslDownload),
+            ),
+          ],
+        ),
+        if (_dbBusy) ...[
+          const SizedBox(height: 10),
+          LinearProgressIndicator(value: _dbProgress),
+          const SizedBox(height: 6),
+          Text(
+            _dbProgress != null
+                ? l10n.cslDownloading((_dbProgress! * 100).toStringAsFixed(0))
+                : l10n.cslInstalling,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+          ),
+        ],
+        if (_dbStatusMessage != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _dbStatusMessage!,
+            style: TextStyle(
+              color: _dbStatusIsError ? scheme.error : scheme.onSurfaceVariant,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildResult(AppLocalizations l10n, ColorScheme scheme) {
+    final service = CallsignLookupService.instance;
     if (!service.isSupported) {
       return _message(l10n.cslUnsupported, scheme);
     }
+    if (!service.isAvailable) {
+      return _message(l10n.cslNoDatabase, scheme);
+    }
+    if (!_searched) {
+      return const SizedBox.shrink();
+    }
     if (_loading) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -93,17 +274,14 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(width: 12),
-            Flexible(child: Text(l10n.cslLookingUp(widget.callsign))),
+            Flexible(child: Text(l10n.cslLookingUp(_searchedCallsign))),
           ],
         ),
       );
     }
-    if (!service.isAvailable) {
-      return _message(l10n.cslNoDatabase, scheme);
-    }
     final record = _record;
     if (record == null) {
-      return _message(l10n.cslNotFound(widget.callsign), scheme);
+      return _message(l10n.cslNotFound(_searchedCallsign), scheme);
     }
     return _buildRecord(l10n, scheme, record);
   }
@@ -175,4 +353,15 @@ class _Row {
   final String name;
   final String value;
   const _Row(this.name, this.value);
+}
+
+/// Uppercases text as it is typed (callsigns are always upper-case).
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return newValue.copyWith(text: newValue.text.toUpperCase());
+  }
 }
