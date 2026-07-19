@@ -1,1 +1,6 @@
 /references
+
+# Release binaries: keep out of git to avoid history bloat (host them on GitHub Releases).
+# The small release.json feed files under docs/releases are still tracked.
+/releases/
+docs/releases/**/*.zip
