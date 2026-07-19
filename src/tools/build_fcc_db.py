@@ -34,8 +34,10 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import struct
 import sys
+import tempfile
 import urllib.request
 import zipfile
 
@@ -93,62 +95,81 @@ def _parse_date(s):
         return 0
 
 
-def load_records(open_dat):
-    """open_dat(name) -> iterable of decoded text lines for the given .dat file."""
-    # HD: status + expiration, keyed by unique id.
+def _collect_encoded(open_dat):
+    """Streams HD/AM/EN, joins them on the unique system id, and returns a dict
+    mapping each callsign to its ``(index key, encoded record bytes)``.
+
+    Only the distilled data is held in memory: each member is decompressed and
+    parsed line by line (see ``_open_from_zip``), unneeded columns are dropped,
+    and every matched record is packed straight to bytes. The large raw ``.dat``
+    members are never materialized in full.
+    """
+    # HD: callsign + status + expiration, keyed by unique id. Stored as a compact
+    # tuple to keep the join table small.
     hd = {}
     for line in open_dat("HD.dat"):
         c = _split(line)
         uid = _get(c, HD_UNIQUE_ID)
         if not uid:
             continue
-        hd[uid] = {
-            "callsign": _get(c, HD_CALLSIGN).upper(),
-            "status": _get(c, HD_LICENSE_STATUS).upper()[:1],
-            "expire": _parse_date(_get(c, HD_EXPIRED_DATE)),
-        }
+        hd[uid] = (
+            _get(c, HD_CALLSIGN).upper(),
+            _get(c, HD_LICENSE_STATUS).upper()[:1],
+            _parse_date(_get(c, HD_EXPIRED_DATE)),
+        )
 
-    # AM: operator class, keyed by unique id.
+    # AM: operator class, keyed by unique id. Only ids present in HD are kept
+    # (the EN pass only ever looks up such ids), which bounds this table.
     am = {}
     for line in open_dat("AM.dat"):
         c = _split(line)
         uid = _get(c, AM_UNIQUE_ID)
-        if uid:
+        if uid in hd:
             am[uid] = _get(c, AM_OPERATOR_CLASS).upper()[:1]
 
-    # EN: name + address, keyed by unique id. Join everything here.
-    records = {}
+    # EN: name + address. Encode each joined record to bytes immediately,
+    # deduplicating by callsign (last entry wins).
+    by_call = {}
     for line in open_dat("EN.dat"):
         c = _split(line)
         uid = _get(c, EN_UNIQUE_ID)
-        if not uid or uid not in hd:
+        head = hd.get(uid)
+        if head is None:
             continue
-        head = hd[uid]
-        callsign = head["callsign"] or _get(c, EN_CALLSIGN).upper()
+        callsign = head[0] or _get(c, EN_CALLSIGN).upper()
         if not callsign:
+            continue
+        key = _make_key(callsign)
+        if key is None:
             continue
 
         entity = _get(c, EN_ENTITY_NAME)
         if entity:
             name = entity
         else:
-            first = _get(c, EN_FIRST_NAME)
-            mi = _get(c, EN_MI)
-            last = _get(c, EN_LAST_NAME)
-            name = " ".join(p for p in [first, mi, last] if p)
+            name = " ".join(
+                p for p in (
+                    _get(c, EN_FIRST_NAME),
+                    _get(c, EN_MI),
+                    _get(c, EN_LAST_NAME),
+                ) if p
+            )
 
-        records[callsign] = {
-            "callsign": callsign,
-            "name": name,
-            "city": _get(c, EN_CITY),
-            "state": _get(c, EN_STATE).upper()[:2],
-            "zip": _get(c, EN_ZIP),
-            "operator_class": am.get(uid, ""),
-            "status": head["status"],
-            "expire": head["expire"],
-        }
+        by_call[callsign] = (
+            key,
+            encode_record(
+                callsign,
+                name,
+                _get(c, EN_CITY),
+                _get(c, EN_STATE).upper()[:2],
+                _get(c, EN_ZIP),
+                am.get(uid, ""),
+                head[1],
+                head[2],
+            ),
+        )
 
-    return records
+    return by_call
 
 
 # ── Binary encoding (must match callsign_database.dart) ─────────────────────
@@ -171,67 +192,66 @@ def _make_key(callsign):
 
 def _write_string(buf, s):
     b = s.encode("utf-8")[:0xFFFF]
-    buf.write(struct.pack("<H", len(b)))
-    buf.write(b)
+    buf += struct.pack("<H", len(b))
+    buf += b
 
 
 def _char_byte(s):
     return ord(s[0]) if s else 0
 
 
-def encode_record(r):
-    buf = io.BytesIO()
-    _write_string(buf, r["callsign"])
-    _write_string(buf, r["name"])
-    _write_string(buf, r["city"])
-    _write_string(buf, r["state"])
-    _write_string(buf, r["zip"])
-    buf.write(bytes([_char_byte(r["operator_class"])]))
-    buf.write(bytes([_char_byte(r["status"])]))
-    buf.write(struct.pack("<I", r["expire"] & 0xFFFFFFFF))
-    return buf.getvalue()
+def encode_record(callsign, name, city, state, zip_code, operator_class,
+                  status, expire):
+    buf = bytearray()
+    _write_string(buf, callsign)
+    _write_string(buf, name)
+    _write_string(buf, city)
+    _write_string(buf, state)
+    _write_string(buf, zip_code)
+    buf.append(_char_byte(operator_class))
+    buf.append(_char_byte(status))
+    buf += struct.pack("<I", expire & 0xFFFFFFFF)
+    return bytes(buf)
 
 
-def build_database(records, source_date):
-    keyed = []
-    for r in records.values():
-        key = _make_key(r["callsign"])
-        if key is not None:
-            keyed.append((key, r))
-    keyed.sort(key=lambda kr: kr[0])
+def build_streaming(open_dat, out_path, source_date):
+    """Builds the database and writes it directly to ``out_path``.
 
-    records_offset = HEADER_SIZE + len(keyed) * INDEX_ENTRY_SIZE
-    record_blobs = []
-    offsets = []
-    cursor = records_offset
-    for _, r in keyed:
-        offsets.append(cursor)
-        blob = encode_record(r)
-        record_blobs.append(blob)
-        cursor += len(blob)
+    The only state held in memory is the distilled record set (already packed to
+    bytes); the header, sorted index and record section are streamed to the file
+    without a second full-size copy. Returns the record count.
+    """
+    by_call = _collect_encoded(open_dat)
+    # Sorting is the one step that needs the whole (distilled) set at once, as
+    # the index must be ordered by callsign key for binary search.
+    items = sorted(by_call.values(), key=lambda kb: kb[0])
+    by_call.clear()
+    count = len(items)
+    records_offset = HEADER_SIZE + count * INDEX_ENTRY_SIZE
 
-    out = io.BytesIO()
-    # Header (64 bytes).
-    header = bytearray(HEADER_SIZE)
-    struct.pack_into("<I", header, 0, MAGIC)
-    struct.pack_into("<H", header, 4, FORMAT_VERSION)
-    struct.pack_into("<H", header, 6, 0)
-    struct.pack_into("<I", header, 8, len(keyed))
-    struct.pack_into("<I", header, 12, HEADER_SIZE)
-    struct.pack_into("<I", header, 16, records_offset)
-    struct.pack_into("<I", header, 20, source_date & 0xFFFFFFFF)
-    out.write(header)
+    with open(out_path, "wb") as f:
+        header = bytearray(HEADER_SIZE)
+        struct.pack_into("<I", header, 0, MAGIC)
+        struct.pack_into("<H", header, 4, FORMAT_VERSION)
+        struct.pack_into("<H", header, 6, 0)
+        struct.pack_into("<I", header, 8, count)
+        struct.pack_into("<I", header, 12, HEADER_SIZE)
+        struct.pack_into("<I", header, 16, records_offset)
+        struct.pack_into("<I", header, 20, source_date & 0xFFFFFFFF)
+        f.write(header)
 
-    # Index.
-    for (key, _), offset in zip(keyed, offsets):
-        out.write(key)
-        out.write(struct.pack("<I", offset))
+        # Index: sorted 8-byte key + absolute record offset.
+        cursor = records_offset
+        for key, blob in items:
+            f.write(key)
+            f.write(struct.pack("<I", cursor))
+            cursor += len(blob)
 
-    # Records.
-    for blob in record_blobs:
-        out.write(blob)
+        # Records section, in the same sorted order.
+        for _key, blob in items:
+            f.write(blob)
 
-    return out.getvalue(), len(keyed)
+    return count
 
 
 # ── ULS input helpers ───────────────────────────────────────────────────────
@@ -239,11 +259,32 @@ def build_database(records, source_date):
 def _open_from_zip(zf):
     def opener(name):
         try:
-            data = zf.read(name)
+            raw = zf.open(name)
         except KeyError:
             return []
-        return io.TextIOWrapper(io.BytesIO(data), encoding="latin-1")
+        # zf.open returns a lazily-decompressing stream, so the (large) member
+        # is decompressed incrementally and never held in full.
+        return io.TextIOWrapper(raw, encoding="latin-1")
     return opener
+
+
+def _download_to_tempfile(url):
+    """Streams ``url`` to a temporary file and returns ``(path, last_modified)``.
+
+    Downloading to a seekable file (rather than reading it all into memory) keeps
+    peak memory bounded and lets ``zipfile`` seek to the central directory. The
+    caller is responsible for deleting the returned file.
+    """
+    fd, path = tempfile.mkstemp(suffix=".zip")
+    last_modified = None
+    try:
+        with os.fdopen(fd, "wb") as out, urllib.request.urlopen(url) as resp:
+            last_modified = resp.headers.get("Last-Modified")
+            shutil.copyfileobj(resp, out, 1 << 20)
+    except BaseException:
+        os.remove(path)
+        raise
+    return path, last_modified
 
 
 def _open_from_dir(path):
@@ -284,45 +325,48 @@ def main():
     # explicit --source-date, then the download's Last-Modified header, then
     # today's date as a last resort.
     fcc_date = 0
-    if args.download:
-        print(f"Downloading {FCC_URL} ...")
-        with urllib.request.urlopen(FCC_URL) as resp:
-            last_modified = resp.headers.get("Last-Modified")
-            data = resp.read()
-        if last_modified:
-            try:
-                dt = email.utils.parsedate_to_datetime(last_modified)
-                fcc_date = dt.year * 10000 + dt.month * 100 + dt.day
-                print(f"  FCC Last-Modified: {last_modified} -> {fcc_date}")
-            except (TypeError, ValueError):
-                pass
-        zf = zipfile.ZipFile(io.BytesIO(data))
-        opener = _open_from_zip(zf)
-    elif args.zip_file:
-        zf = zipfile.ZipFile(args.zip_file)
-        opener = _open_from_zip(zf)
-    else:
-        opener = _open_from_dir(args.uls_dir)
+    tmp_zip = None
+    zf = None
+    try:
+        if args.download:
+            print(f"Downloading {FCC_URL} ...")
+            tmp_zip, last_modified = _download_to_tempfile(FCC_URL)
+            if last_modified:
+                try:
+                    dt = email.utils.parsedate_to_datetime(last_modified)
+                    fcc_date = dt.year * 10000 + dt.month * 100 + dt.day
+                    print(f"  FCC Last-Modified: {last_modified} -> {fcc_date}")
+                except (TypeError, ValueError):
+                    pass
+            zf = zipfile.ZipFile(tmp_zip)
+            opener = _open_from_zip(zf)
+        elif args.zip_file:
+            zf = zipfile.ZipFile(args.zip_file)
+            opener = _open_from_zip(zf)
+        else:
+            opener = _open_from_dir(args.uls_dir)
 
-    print("Parsing FCC records ...")
-    records = load_records(opener)
-    print(f"  {len(records)} callsigns")
+        if args.source_date:
+            source_date = args.source_date
+        elif fcc_date:
+            source_date = fcc_date
+        else:
+            source_date = int(datetime.date.today().strftime("%Y%m%d"))
 
-    if args.source_date:
-        source_date = args.source_date
-    elif fcc_date:
-        source_date = fcc_date
-    else:
-        source_date = int(datetime.date.today().strftime("%Y%m%d"))
+        print(f"Building database (data date {source_date}) ...")
+        count = build_streaming(opener, args.out, source_date)
+    finally:
+        if zf is not None:
+            zf.close()
+        if tmp_zip and os.path.exists(tmp_zip):
+            os.remove(tmp_zip)
 
-    print(f"Building database (data date {source_date}) ...")
-    db_bytes, count = build_database(records, source_date)
-
-    with open(args.out, "wb") as f:
-        f.write(db_bytes)
-    print(f"Wrote {args.out} ({len(db_bytes):,} bytes, {count:,} records)")
+    size = os.path.getsize(args.out)
+    print(f"Wrote {args.out} ({size:,} bytes, {count:,} records)")
 
     if args.zip:
+        with open(args.out, "rb") as f:
+            db_bytes = f.read()
         zip_path = args.out + ".zip"
         entry_name = os.path.basename(args.out)
         # Use a fixed entry timestamp so identical FCC data always yields a
