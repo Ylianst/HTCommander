@@ -3042,91 +3042,91 @@ class AppLocalizationsPl extends AppLocalizations {
   String get wxReportCwop => 'CWOP, Najbliższa stacja CWOP';
 
   @override
-  String get cslViewCallsign => 'Look Up Callsign...';
+  String get cslViewCallsign => 'Wyszukaj znak wywoławczy...';
 
   @override
-  String get cslTitle => 'Callsign Lookup';
+  String get cslTitle => 'Wyszukiwanie znaku wywoławczego';
 
   @override
   String cslLookingUp(String callsign) {
-    return 'Looking up $callsign...';
+    return 'Wyszukiwanie $callsign...';
   }
 
   @override
   String cslNotFound(String callsign) {
-    return 'No record found for $callsign.';
+    return 'Nie znaleziono wpisu dla $callsign.';
   }
 
   @override
   String get cslNoDatabase =>
-      'No callsign database is installed. Download it in Settings to enable offline lookups.';
+      'Nie zainstalowano bazy danych znaków wywoławczych. Pobierz ją w Ustawieniach, aby włączyć wyszukiwanie offline.';
 
   @override
   String get cslUnsupported =>
-      'Offline callsign lookup is not available on this platform.';
+      'Wyszukiwanie znaków wywoławczych offline nie jest dostępne na tej platformie.';
 
   @override
-  String get cslFieldCallsign => 'Callsign';
+  String get cslFieldCallsign => 'Znak wywoławczy';
 
   @override
-  String get cslFieldName => 'Name';
+  String get cslFieldName => 'Nazwa';
 
   @override
-  String get cslFieldClass => 'License Class';
+  String get cslFieldClass => 'Klasa licencji';
 
   @override
-  String get cslFieldStatus => 'Status';
+  String get cslFieldStatus => 'Stan';
 
   @override
-  String get cslFieldLocation => 'Location';
+  String get cslFieldLocation => 'Lokalizacja';
 
   @override
-  String get cslFieldExpires => 'Expires';
+  String get cslFieldExpires => 'Wygasa';
 
   @override
-  String get cslSectionTitle => 'Callsign Database';
+  String get cslSectionTitle => 'Baza danych znaków wywoławczych';
 
   @override
   String get cslSectionIntro =>
-      'Offline lookup of US amateur radio callsigns using data from the FCC license database.';
+      'Wyszukiwanie offline amerykańskich znaków wywoławczych krótkofalarskich na podstawie danych z bazy licencji FCC.';
 
   @override
-  String get cslNotInstalled => 'Not installed';
+  String get cslNotInstalled => 'Nie zainstalowano';
 
   @override
   String cslInstalledInfo(String version, String count) {
-    return 'Version $version • $count records';
+    return 'Wersja $version • $count rekordów';
   }
 
   @override
-  String get cslDownload => 'Download';
+  String get cslDownload => 'Pobierz';
 
   @override
-  String get cslUpdate => 'Check for Update';
+  String get cslUpdate => 'Sprawdź aktualizacje';
 
   @override
-  String get cslDelete => 'Delete';
+  String get cslDelete => 'Usuń';
 
   @override
   String cslDownloading(String percent) {
-    return 'Downloading $percent%';
+    return 'Pobieranie $percent %';
   }
 
   @override
-  String get cslInstalling => 'Installing...';
+  String get cslInstalling => 'Instalowanie...';
 
   @override
-  String get cslUpToDate => 'The callsign database is up to date.';
+  String get cslUpToDate => 'Baza danych znaków wywoławczych jest aktualna.';
 
   @override
   String cslDownloadFailed(String error) {
-    return 'Download failed: $error';
+    return 'Pobieranie nie powiodło się: $error';
   }
 
   @override
-  String get cslDeleteTitle => 'Delete Callsign Database';
+  String get cslDeleteTitle => 'Usuń bazę danych znaków wywoławczych';
 
   @override
   String get cslDeleteMessage =>
-      'Delete the downloaded callsign database? You can download it again later.';
+      'Usunąć pobraną bazę danych znaków wywoławczych? Możesz pobrać ją ponownie później.';
 }

@@ -2960,91 +2960,87 @@ class AppLocalizationsZh extends AppLocalizations {
   String get wxReportCwop => 'CWOP，最近的 CWOP 站';
 
   @override
-  String get cslViewCallsign => 'Look Up Callsign...';
+  String get cslViewCallsign => '查询呼号...';
 
   @override
-  String get cslTitle => 'Callsign Lookup';
+  String get cslTitle => '呼号查询';
 
   @override
   String cslLookingUp(String callsign) {
-    return 'Looking up $callsign...';
+    return '正在查询 $callsign...';
   }
 
   @override
   String cslNotFound(String callsign) {
-    return 'No record found for $callsign.';
+    return '未找到 $callsign 的记录。';
   }
 
   @override
-  String get cslNoDatabase =>
-      'No callsign database is installed. Download it in Settings to enable offline lookups.';
+  String get cslNoDatabase => '未安装呼号数据库。请在设置中下载以启用离线查询。';
 
   @override
-  String get cslUnsupported =>
-      'Offline callsign lookup is not available on this platform.';
+  String get cslUnsupported => '此平台不支持离线呼号查询。';
 
   @override
-  String get cslFieldCallsign => 'Callsign';
+  String get cslFieldCallsign => '呼号';
 
   @override
-  String get cslFieldName => 'Name';
+  String get cslFieldName => '姓名';
 
   @override
-  String get cslFieldClass => 'License Class';
+  String get cslFieldClass => '执照等级';
 
   @override
-  String get cslFieldStatus => 'Status';
+  String get cslFieldStatus => '状态';
 
   @override
-  String get cslFieldLocation => 'Location';
+  String get cslFieldLocation => '位置';
 
   @override
-  String get cslFieldExpires => 'Expires';
+  String get cslFieldExpires => '到期';
 
   @override
-  String get cslSectionTitle => 'Callsign Database';
+  String get cslSectionTitle => '呼号数据库';
 
   @override
-  String get cslSectionIntro =>
-      'Offline lookup of US amateur radio callsigns using data from the FCC license database.';
+  String get cslSectionIntro => '使用 FCC 执照数据库的数据离线查询美国业余无线电呼号。';
 
   @override
-  String get cslNotInstalled => 'Not installed';
+  String get cslNotInstalled => '未安装';
 
   @override
   String cslInstalledInfo(String version, String count) {
-    return 'Version $version • $count records';
+    return '版本 $version • $count 条记录';
   }
 
   @override
-  String get cslDownload => 'Download';
+  String get cslDownload => '下载';
 
   @override
-  String get cslUpdate => 'Check for Update';
+  String get cslUpdate => '检查更新';
 
   @override
-  String get cslDelete => 'Delete';
+  String get cslDelete => '删除';
 
   @override
   String cslDownloading(String percent) {
-    return 'Downloading $percent%';
+    return '正在下载 $percent%';
   }
 
   @override
-  String get cslInstalling => 'Installing...';
+  String get cslInstalling => '正在安装...';
 
   @override
-  String get cslUpToDate => 'The callsign database is up to date.';
+  String get cslUpToDate => '呼号数据库已是最新。';
 
   @override
   String cslDownloadFailed(String error) {
-    return 'Download failed: $error';
+    return '下载失败：$error';
   }
 
   @override
-  String get cslDeleteTitle => 'Delete Callsign Database';
+  String get cslDeleteTitle => '删除呼号数据库';
 
   @override
-  String get cslDeleteMessage =>
-      'Delete the downloaded callsign database? You can download it again later.';
+  String get cslDeleteMessage => '删除已下载的呼号数据库？您可以稍后重新下载。';
 }

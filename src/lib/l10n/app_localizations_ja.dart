@@ -2976,91 +2976,89 @@ class AppLocalizationsJa extends AppLocalizations {
   String get wxReportCwop => 'CWOP、最寄りの CWOP 局';
 
   @override
-  String get cslViewCallsign => 'Look Up Callsign...';
+  String get cslViewCallsign => 'コールサインを検索...';
 
   @override
-  String get cslTitle => 'Callsign Lookup';
+  String get cslTitle => 'コールサイン検索';
 
   @override
   String cslLookingUp(String callsign) {
-    return 'Looking up $callsign...';
+    return '$callsign を検索しています...';
   }
 
   @override
   String cslNotFound(String callsign) {
-    return 'No record found for $callsign.';
+    return '$callsign のレコードが見つかりませんでした。';
   }
 
   @override
   String get cslNoDatabase =>
-      'No callsign database is installed. Download it in Settings to enable offline lookups.';
+      'コールサインデータベースがインストールされていません。オフライン検索を有効にするには、設定でダウンロードしてください。';
 
   @override
-  String get cslUnsupported =>
-      'Offline callsign lookup is not available on this platform.';
+  String get cslUnsupported => 'オフラインのコールサイン検索は、このプラットフォームでは利用できません。';
 
   @override
-  String get cslFieldCallsign => 'Callsign';
+  String get cslFieldCallsign => 'コールサイン';
 
   @override
-  String get cslFieldName => 'Name';
+  String get cslFieldName => '名前';
 
   @override
-  String get cslFieldClass => 'License Class';
+  String get cslFieldClass => '免許クラス';
 
   @override
-  String get cslFieldStatus => 'Status';
+  String get cslFieldStatus => '状態';
 
   @override
-  String get cslFieldLocation => 'Location';
+  String get cslFieldLocation => '所在地';
 
   @override
-  String get cslFieldExpires => 'Expires';
+  String get cslFieldExpires => '有効期限';
 
   @override
-  String get cslSectionTitle => 'Callsign Database';
+  String get cslSectionTitle => 'コールサインデータベース';
 
   @override
   String get cslSectionIntro =>
-      'Offline lookup of US amateur radio callsigns using data from the FCC license database.';
+      'FCC 免許データベースのデータを使用した、米国アマチュア無線コールサインのオフライン検索。';
 
   @override
-  String get cslNotInstalled => 'Not installed';
+  String get cslNotInstalled => '未インストール';
 
   @override
   String cslInstalledInfo(String version, String count) {
-    return 'Version $version • $count records';
+    return 'バージョン $version • $count 件';
   }
 
   @override
-  String get cslDownload => 'Download';
+  String get cslDownload => 'ダウンロード';
 
   @override
-  String get cslUpdate => 'Check for Update';
+  String get cslUpdate => '更新を確認';
 
   @override
-  String get cslDelete => 'Delete';
+  String get cslDelete => '削除';
 
   @override
   String cslDownloading(String percent) {
-    return 'Downloading $percent%';
+    return 'ダウンロード中 $percent%';
   }
 
   @override
-  String get cslInstalling => 'Installing...';
+  String get cslInstalling => 'インストール中...';
 
   @override
-  String get cslUpToDate => 'The callsign database is up to date.';
+  String get cslUpToDate => 'コールサインデータベースは最新です。';
 
   @override
   String cslDownloadFailed(String error) {
-    return 'Download failed: $error';
+    return 'ダウンロードに失敗しました: $error';
   }
 
   @override
-  String get cslDeleteTitle => 'Delete Callsign Database';
+  String get cslDeleteTitle => 'コールサインデータベースを削除';
 
   @override
-  String get cslDeleteMessage =>
-      'Delete the downloaded callsign database? You can download it again later.';
+  String get cslDeleteMessage => 'ダウンロードしたコールサインデータベースを削除しますか？後で再度ダウンロードできます。';
 }

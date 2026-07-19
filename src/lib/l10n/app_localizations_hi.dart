@@ -3027,91 +3027,91 @@ class AppLocalizationsHi extends AppLocalizations {
   String get wxReportCwop => 'CWOP, निकटतम CWOP स्टेशन';
 
   @override
-  String get cslViewCallsign => 'Look Up Callsign...';
+  String get cslViewCallsign => 'कॉलसाइन खोजें...';
 
   @override
-  String get cslTitle => 'Callsign Lookup';
+  String get cslTitle => 'कॉलसाइन खोज';
 
   @override
   String cslLookingUp(String callsign) {
-    return 'Looking up $callsign...';
+    return '$callsign खोजा जा रहा है...';
   }
 
   @override
   String cslNotFound(String callsign) {
-    return 'No record found for $callsign.';
+    return '$callsign के लिए कोई रिकॉर्ड नहीं मिला।';
   }
 
   @override
   String get cslNoDatabase =>
-      'No callsign database is installed. Download it in Settings to enable offline lookups.';
+      'कोई कॉलसाइन डेटाबेस स्थापित नहीं है। ऑफ़लाइन खोज सक्षम करने के लिए इसे सेटिंग्स में डाउनलोड करें।';
 
   @override
   String get cslUnsupported =>
-      'Offline callsign lookup is not available on this platform.';
+      'इस प्लेटफ़ॉर्म पर ऑफ़लाइन कॉलसाइन खोज उपलब्ध नहीं है।';
 
   @override
-  String get cslFieldCallsign => 'Callsign';
+  String get cslFieldCallsign => 'कॉलसाइन';
 
   @override
-  String get cslFieldName => 'Name';
+  String get cslFieldName => 'नाम';
 
   @override
-  String get cslFieldClass => 'License Class';
+  String get cslFieldClass => 'लाइसेंस श्रेणी';
 
   @override
-  String get cslFieldStatus => 'Status';
+  String get cslFieldStatus => 'स्थिति';
 
   @override
-  String get cslFieldLocation => 'Location';
+  String get cslFieldLocation => 'स्थान';
 
   @override
-  String get cslFieldExpires => 'Expires';
+  String get cslFieldExpires => 'समाप्ति';
 
   @override
-  String get cslSectionTitle => 'Callsign Database';
+  String get cslSectionTitle => 'कॉलसाइन डेटाबेस';
 
   @override
   String get cslSectionIntro =>
-      'Offline lookup of US amateur radio callsigns using data from the FCC license database.';
+      'FCC लाइसेंस डेटाबेस के डेटा का उपयोग करके अमेरिकी एमेच्योर रेडियो कॉलसाइन की ऑफ़लाइन खोज।';
 
   @override
-  String get cslNotInstalled => 'Not installed';
+  String get cslNotInstalled => 'स्थापित नहीं';
 
   @override
   String cslInstalledInfo(String version, String count) {
-    return 'Version $version • $count records';
+    return 'संस्करण $version • $count रिकॉर्ड';
   }
 
   @override
-  String get cslDownload => 'Download';
+  String get cslDownload => 'डाउनलोड करें';
 
   @override
-  String get cslUpdate => 'Check for Update';
+  String get cslUpdate => 'अपडेट जांचें';
 
   @override
-  String get cslDelete => 'Delete';
+  String get cslDelete => 'हटाएं';
 
   @override
   String cslDownloading(String percent) {
-    return 'Downloading $percent%';
+    return '$percent% डाउनलोड हो रहा है';
   }
 
   @override
-  String get cslInstalling => 'Installing...';
+  String get cslInstalling => 'स्थापित हो रहा है...';
 
   @override
-  String get cslUpToDate => 'The callsign database is up to date.';
+  String get cslUpToDate => 'कॉलसाइन डेटाबेस अद्यतित है।';
 
   @override
   String cslDownloadFailed(String error) {
-    return 'Download failed: $error';
+    return 'डाउनलोड विफल: $error';
   }
 
   @override
-  String get cslDeleteTitle => 'Delete Callsign Database';
+  String get cslDeleteTitle => 'कॉलसाइन डेटाबेस हटाएं';
 
   @override
   String get cslDeleteMessage =>
-      'Delete the downloaded callsign database? You can download it again later.';
+      'डाउनलोड किया गया कॉलसाइन डेटाबेस हटाएं? आप इसे बाद में फिर से डाउनलोड कर सकते हैं।';
 }
