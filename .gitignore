@@ -1,3 +1,4 @@
+/reference
 /references
 
 # Release binaries: keep out of git to avoid history bloat (host them on GitHub Releases).
