@@ -37,6 +37,7 @@ import 'radio/radio_transport.dart';
 import 'radio/software_modem_stub.dart'
     if (dart.library.io) 'radio/software_modem.dart';
 import 'services/bluetooth_service.dart';
+import 'services/callsign_lookup_service.dart';
 import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
 import 'services/data_broker_serializers.dart';
@@ -245,6 +246,10 @@ void main(List<String> args) async {
   // Initialize the desktop self-update service (desktop only) so that users
   // can check for and install application updates from the Help menu.
   await UpdateService.instance.init();
+
+  // Initialize the offline callsign lookup database (opens it if already
+  // downloaded). Safe no-op on the web where there is no persistent storage.
+  await CallsignLookupService.instance.init();
 
   runApp(const HTCommanderApp());
 }

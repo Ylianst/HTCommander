@@ -5575,6 +5575,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'CWOP, Nearest CWOP station'**
   String get wxReportCwop;
+
+  /// No description provided for @cslViewCallsign.
+  ///
+  /// In en, this message translates to:
+  /// **'Look Up Callsign...'**
+  String get cslViewCallsign;
+
+  /// Title of the offline callsign lookup dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Callsign Lookup'**
+  String get cslTitle;
+
+  /// Progress text while looking up a callsign
+  ///
+  /// In en, this message translates to:
+  /// **'Looking up {callsign}...'**
+  String cslLookingUp(String callsign);
+
+  /// Shown when a callsign is not in the database
+  ///
+  /// In en, this message translates to:
+  /// **'No record found for {callsign}.'**
+  String cslNotFound(String callsign);
+
+  /// No description provided for @cslNoDatabase.
+  ///
+  /// In en, this message translates to:
+  /// **'No callsign database is installed. Download it in Settings to enable offline lookups.'**
+  String get cslNoDatabase;
+
+  /// No description provided for @cslUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline callsign lookup is not available on this platform.'**
+  String get cslUnsupported;
+
+  /// No description provided for @cslFieldCallsign.
+  ///
+  /// In en, this message translates to:
+  /// **'Callsign'**
+  String get cslFieldCallsign;
+
+  /// No description provided for @cslFieldName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get cslFieldName;
+
+  /// No description provided for @cslFieldClass.
+  ///
+  /// In en, this message translates to:
+  /// **'License Class'**
+  String get cslFieldClass;
+
+  /// No description provided for @cslFieldStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get cslFieldStatus;
+
+  /// No description provided for @cslFieldLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get cslFieldLocation;
+
+  /// No description provided for @cslFieldExpires.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires'**
+  String get cslFieldExpires;
+
+  /// No description provided for @cslSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Callsign Database'**
+  String get cslSectionTitle;
+
+  /// No description provided for @cslSectionIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline lookup of US amateur radio callsigns using data from the FCC license database.'**
+  String get cslSectionIntro;
+
+  /// No description provided for @cslNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed'**
+  String get cslNotInstalled;
+
+  /// Installed callsign database summary
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} • {count} records'**
+  String cslInstalledInfo(String version, String count);
+
+  /// No description provided for @cslDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get cslDownload;
+
+  /// No description provided for @cslUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for Update'**
+  String get cslUpdate;
+
+  /// No description provided for @cslDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get cslDelete;
+
+  /// Download progress label
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {percent}%'**
+  String cslDownloading(String percent);
+
+  /// No description provided for @cslInstalling.
+  ///
+  /// In en, this message translates to:
+  /// **'Installing...'**
+  String get cslInstalling;
+
+  /// No description provided for @cslUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'The callsign database is up to date.'**
+  String get cslUpToDate;
+
+  /// Download error message
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed: {error}'**
+  String cslDownloadFailed(String error);
+
+  /// No description provided for @cslDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Callsign Database'**
+  String get cslDeleteTitle;
+
+  /// No description provided for @cslDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the downloaded callsign database? You can download it again later.'**
+  String get cslDeleteMessage;
 }
 
 class _AppLocalizationsDelegate

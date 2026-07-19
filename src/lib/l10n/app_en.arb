@@ -1846,5 +1846,76 @@
   "wxReportFull": "Full, More complete forecast, US only",
   "wxReportCurrent": "Current, Nearest NWS station, US only",
   "wxReportMetar": "METAR, ICAO station in METAR form",
-  "wxReportCwop": "CWOP, Nearest CWOP station"
+  "wxReportCwop": "CWOP, Nearest CWOP station",
+  "cslViewCallsign": "Look Up Callsign...",
+  "cslTitle": "Callsign Lookup",
+  "@cslTitle": {
+    "description": "Title of the offline callsign lookup dialog"
+  },
+  "cslLookingUp": "Looking up {callsign}...",
+  "@cslLookingUp": {
+    "description": "Progress text while looking up a callsign",
+    "placeholders": {
+      "callsign": {
+        "type": "String"
+      }
+    }
+  },
+  "cslNotFound": "No record found for {callsign}.",
+  "@cslNotFound": {
+    "description": "Shown when a callsign is not in the database",
+    "placeholders": {
+      "callsign": {
+        "type": "String"
+      }
+    }
+  },
+  "cslNoDatabase": "No callsign database is installed. Download it in Settings to enable offline lookups.",
+  "cslUnsupported": "Offline callsign lookup is not available on this platform.",
+  "cslFieldCallsign": "Callsign",
+  "cslFieldName": "Name",
+  "cslFieldClass": "License Class",
+  "cslFieldStatus": "Status",
+  "cslFieldLocation": "Location",
+  "cslFieldExpires": "Expires",
+  "cslSectionTitle": "Callsign Database",
+  "cslSectionIntro": "Offline lookup of US amateur radio callsigns using data from the FCC license database.",
+  "cslNotInstalled": "Not installed",
+  "cslInstalledInfo": "Version {version} \u2022 {count} records",
+  "@cslInstalledInfo": {
+    "description": "Installed callsign database summary",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "cslDownload": "Download",
+  "cslUpdate": "Check for Update",
+  "cslDelete": "Delete",
+  "cslDownloading": "Downloading {percent}%",
+  "@cslDownloading": {
+    "description": "Download progress label",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "cslInstalling": "Installing...",
+  "cslUpToDate": "The callsign database is up to date.",
+  "cslDownloadFailed": "Download failed: {error}",
+  "@cslDownloadFailed": {
+    "description": "Download error message",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "cslDeleteTitle": "Delete Callsign Database",
+  "cslDeleteMessage": "Delete the downloaded callsign database? You can download it again later."
 }

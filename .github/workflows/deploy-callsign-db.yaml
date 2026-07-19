@@ -1,0 +1,170 @@
+name: Deploy Callsign Database
+
+# Rebuilds the offline US amateur callsign database from the FCC ULS weekly
+# amateur dump and publishes it. The large database zip is uploaded as an asset
+# on a rolling GitHub Release (so it never bloats the git history); only the
+# tiny manifest (which points at that asset) is committed under docs/callsign/
+# and served from GitHub Pages.
+#
+# It only does work when the FCC has published newer data: the FCC file's
+# Last-Modified date is compared against the sourceDate of the currently
+# deployed manifest. When they match, the job exits without building or
+# deploying.
+
+on:
+  schedule:
+    # Tuesdays 09:17 UTC. The FCC posts the weekly complete amateur dump over
+    # the weekend, so by Tuesday the new file is reliably available.
+    - cron: '17 9 * * 2'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Rebuild and deploy even if the FCC data is unchanged'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Share the "pages" concurrency group with the main Pages deploy so the two
+# workflows never publish at the same time.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  FCC_URL: https://data.fcc.gov/download/pub/uls/complete/l_amat.zip
+  MANIFEST: docs/callsign/fcc_amateur_manifest.json
+  # The database zip is hosted as an asset on this (rolling) release tag so it
+  # never bloats the git history. Only the tiny manifest is committed to Pages.
+  RELEASE_TAG: callsign-db
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Determine FCC data date
+        id: fcc
+        run: |
+          set -euo pipefail
+          # Read the Last-Modified header of the FCC weekly amateur dump without
+          # downloading the whole file (a 1-byte range request returns headers).
+          headers=$(curl -sSL -r 0-0 -o /dev/null -D - "$FCC_URL" || true)
+          lm=$(printf '%s' "$headers" | tr -d '\r' \
+                | awk -F': ' 'tolower($1)=="last-modified"{print $2}' | tail -n1)
+          if [ -z "$lm" ]; then
+            echo "Could not read the FCC Last-Modified date (service down?)."
+            echo "fcc_date=" >> "$GITHUB_OUTPUT"
+          else
+            fcc_date=$(date -u -d "$lm" +%Y%m%d)
+            echo "FCC data date: $fcc_date (Last-Modified: $lm)"
+            echo "fcc_date=$fcc_date" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read deployed database date
+        id: current
+        run: |
+          set -euo pipefail
+          if [ -f "$MANIFEST" ]; then
+            cur=$(jq -r '.sourceDate // 0' "$MANIFEST")
+          else
+            cur=0
+          fi
+          echo "Deployed data date: $cur"
+          echo "source_date=$cur" >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether to build
+        id: decide
+        run: |
+          set -euo pipefail
+          force='${{ github.event.inputs.force }}'
+          fcc='${{ steps.fcc.outputs.fcc_date }}'
+          cur='${{ steps.current.outputs.source_date }}'
+          if [ "$force" = "true" ]; then
+            echo "Forced rebuild requested."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$fcc" ]; then
+            echo "FCC date unknown; skipping."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          elif [ "$fcc" != "$cur" ]; then
+            echo "New FCC data ($fcc != $cur); will rebuild."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Database already up to date ($cur); nothing to do."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        if: steps.decide.outputs.build == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build callsign database
+        if: steps.decide.outputs.build == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p docs/callsign
+          # The manifest URL points at the rolling Release asset (see below),
+          # keeping the large zip out of the git history.
+          python src/tools/build_fcc_db.py \
+            --download \
+            --source-date "${{ steps.fcc.outputs.fcc_date }}" \
+            --out docs/callsign/fcc_amateur.cdb \
+            --zip \
+            --base-url "https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/"
+          # The uncompressed database is a build artifact the app never downloads.
+          rm -f docs/callsign/fcc_amateur.cdb
+          ls -l docs/callsign
+
+      - name: Publish database to Release
+        if: steps.decide.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Ensure the rolling release exists, then replace its asset.
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --title "Callsign Database" \
+              --notes "Offline US amateur callsign database (FCC ULS). Rolling release; the asset is replaced automatically."
+          fi
+          gh release upload "$RELEASE_TAG" docs/callsign/fcc_amateur.cdb.zip --clobber
+          # Keep the zip out of the committed docs tree / Pages artifact.
+          rm -f docs/callsign/fcc_amateur.cdb.zip
+
+      - name: Commit updated manifest
+        if: steps.decide.outputs.build == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$MANIFEST"
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "callsign-db: update FCC data ${{ steps.fcc.outputs.fcc_date }}"
+            git push
+          fi
+
+      - name: Setup Pages
+        if: steps.decide.outputs.build == 'true'
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        if: steps.decide.outputs.build == 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        if: steps.decide.outputs.build == 'true'
+        uses: actions/deploy-pages@v5

@@ -7,6 +7,7 @@ import 'package:pasteboard/pasteboard.dart';
 import 'chat_widget.dart';
 import '../dialogs/aprs_configuration_dialog.dart';
 import '../dialogs/aprs_details_dialog.dart';
+import '../dialogs/callsign_lookup_dialog.dart';
 import '../dialogs/aprs_sms_dialog.dart';
 import '../dialogs/aprs_weather_dialog.dart';
 import '../dialogs/dialog_utils.dart';
@@ -14,6 +15,7 @@ import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_beacon_settings_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../services/window_service.dart';
+import '../services/callsign_lookup_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../aprs/aprs_events.dart';
@@ -1063,6 +1065,11 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'copyCallsign',
           child: Text(AppLocalizations.of(context).aprsCopyCallsign),
         ),
+        if (CallsignLookupService.instance.isSupported)
+          PopupMenuItem<String>(
+            value: 'lookupCallsign',
+            child: Text(AppLocalizations.of(context).cslViewCallsign),
+          ),
       ],
     );
 
@@ -1070,6 +1077,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     switch (selected) {
       case 'details':
         _onMessageDoubleTap(message);
+        break;
+      case 'lookupCallsign':
+        CallsignLookupDialog.show(context, message.senderCallsign);
         break;
       case 'location':
         showAprsLocationDialog(

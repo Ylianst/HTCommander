@@ -3046,4 +3046,93 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get wxReportCwop => 'CWOP, Nächstgelegene CWOP-Station';
+
+  @override
+  String get cslViewCallsign => 'Look Up Callsign...';
+
+  @override
+  String get cslTitle => 'Callsign Lookup';
+
+  @override
+  String cslLookingUp(String callsign) {
+    return 'Looking up $callsign...';
+  }
+
+  @override
+  String cslNotFound(String callsign) {
+    return 'No record found for $callsign.';
+  }
+
+  @override
+  String get cslNoDatabase =>
+      'No callsign database is installed. Download it in Settings to enable offline lookups.';
+
+  @override
+  String get cslUnsupported =>
+      'Offline callsign lookup is not available on this platform.';
+
+  @override
+  String get cslFieldCallsign => 'Callsign';
+
+  @override
+  String get cslFieldName => 'Name';
+
+  @override
+  String get cslFieldClass => 'License Class';
+
+  @override
+  String get cslFieldStatus => 'Status';
+
+  @override
+  String get cslFieldLocation => 'Location';
+
+  @override
+  String get cslFieldExpires => 'Expires';
+
+  @override
+  String get cslSectionTitle => 'Callsign Database';
+
+  @override
+  String get cslSectionIntro =>
+      'Offline lookup of US amateur radio callsigns using data from the FCC license database.';
+
+  @override
+  String get cslNotInstalled => 'Not installed';
+
+  @override
+  String cslInstalledInfo(String version, String count) {
+    return 'Version $version • $count records';
+  }
+
+  @override
+  String get cslDownload => 'Download';
+
+  @override
+  String get cslUpdate => 'Check for Update';
+
+  @override
+  String get cslDelete => 'Delete';
+
+  @override
+  String cslDownloading(String percent) {
+    return 'Downloading $percent%';
+  }
+
+  @override
+  String get cslInstalling => 'Installing...';
+
+  @override
+  String get cslUpToDate => 'The callsign database is up to date.';
+
+  @override
+  String cslDownloadFailed(String error) {
+    return 'Download failed: $error';
+  }
+
+  @override
+  String get cslDeleteTitle => 'Delete Callsign Database';
+
+  @override
+  String get cslDeleteMessage =>
+      'Delete the downloaded callsign database? You can download it again later.';
 }

@@ -15,6 +15,8 @@ import '../services/mqtt/mqtt_client_facade.dart';
 import '../services/theme_controller.dart';
 import '../services/tts_service.dart';
 import '../services/sherpa_model_manager.dart';
+import '../services/callsign_lookup_service.dart';
+import '../widgets/callsign_db_settings.dart';
 
 /// Settings data model
 class AppSettings {
@@ -1342,6 +1344,10 @@ class _SettingsDialogState extends State<SettingsDialog>
               ],
             ),
           ),
+          if (CallsignLookupService.instance.isSupported) ...[
+            const SizedBox(height: 16),
+            const CallsignDbSettingsSection(),
+          ],
         ],
       ),
     );
