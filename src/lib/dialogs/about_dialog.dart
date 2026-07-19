@@ -87,7 +87,7 @@ class HTAboutDialog extends StatelessWidget {
                                 const SizedBox(height: 12),
                                 _buildAttribution(
                                   'Handi-Talkie Commander',
-                                  'https://github.com/Ylianst/HTCommander',
+                                  'https://ylianst.github.io/HTCommanderSite/',
                                 ),
                                 _buildAttribution(
                                   'Based on BenLink by Kyle Husmann, KC3SLD',
