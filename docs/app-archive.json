@@ -3,28 +3,28 @@
   "appName": "Handi-Talkie Commander",
   "items": [
     {
-      "version": "0.1.16",
-      "buildNumber": 18,
+      "version": "0.1.17",
+      "buildNumber": 19,
       "platform": "linux",
       "channel": "stable",
       "mandatory": false,
-      "release": "https://ylianst.github.io/HTCommander/releases/0.1.16/linux-arm64/release.json"
+      "release": "https://ylianst.github.io/HTCommander/releases/0.1.17/linux-arm64/release.json"
     },
     {
-      "version": "0.1.16",
-      "buildNumber": 18,
+      "version": "0.1.17",
+      "buildNumber": 19,
       "platform": "macos",
       "channel": "stable",
       "mandatory": false,
-      "release": "https://ylianst.github.io/HTCommander/releases/0.1.16/macos/release.json"
+      "release": "https://ylianst.github.io/HTCommander/releases/0.1.17/macos/release.json"
     },
     {
-      "version": "0.1.16",
-      "buildNumber": 18,
+      "version": "0.1.17",
+      "buildNumber": 19,
       "platform": "windows",
       "channel": "stable",
       "mandatory": false,
-      "release": "https://ylianst.github.io/HTCommander/releases/0.1.16/windows-x64/release.json"
+      "release": "https://ylianst.github.io/HTCommander/releases/0.1.17/windows-x64/release.json"
     }
   ]
 }
