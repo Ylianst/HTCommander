@@ -14,6 +14,7 @@ import 'coordinate.dart';
 import 'message_data.dart';
 import 'packet_data_type.dart';
 import 'aprs_util.dart';
+import 'weather_data.dart';
 
 /// Represents a parsed APRS packet (TNC2 format), built from an [AX25Packet].
 class AprsPacket {
@@ -33,6 +34,7 @@ class AprsPacket {
   Position position = Position();
   DateTime? timeStamp;
   MessageData messageData = MessageData();
+  WeatherData? weather;
 
   AprsPacket._();
 
@@ -156,6 +158,9 @@ class AprsPacket {
       case PacketDataType.tmd700:
       case PacketDataType.micE:
         _parseMicE();
+        break;
+      case PacketDataType.weatherReport: // '_'
+        _parseWeatherReport();
         break;
       default:
         // Not implemented - do nothing.
@@ -483,6 +488,34 @@ class AprsPacket {
 
   void _parsePosition() {
     comment = _parsePositionAndSymbol(informationField);
+    _parseWeatherFromPosition();
+  }
+
+  /// Parses appended weather data on a position report whose symbol is the
+  /// weather station symbol ('_'). The wind direction/speed sit in the
+  /// course/speed slot that [_parsePositionAndSymbol] already decoded.
+  void _parseWeatherFromPosition() {
+    if (symbolCode != 0x5F) return; // '_' weather station symbol
+    final w = WeatherData.parse(
+      comment,
+      windDirection: position.course != 0 ? position.course : null,
+      windSpeed: position.speed != 0 ? position.speed : null,
+    );
+    if (w != null && w.hasData) weather = w;
+  }
+
+  /// Parses a stand-alone weather report (data type '_'): an 8-digit
+  /// MMDDHHMM timestamp followed by the weather fields.
+  void _parseWeatherReport() {
+    var s = informationField;
+    // Leading 8 characters are an MMDDHHMM timestamp when all digits.
+    if (s.length >= 8 &&
+        s.substring(0, 8).codeUnits.every((c) => c >= 0x30 && c <= 0x39)) {
+      _parseDateTime(s.substring(0, 8));
+      s = s.substring(8);
+    }
+    final w = WeatherData.parse(s);
+    if (w != null && w.hasData) weather = w;
   }
 
   bool _isDigit(int ch) => ch >= 0x30 && ch <= 0x39;
@@ -626,6 +659,6 @@ class AprsPacket {
     _parseDateTime(informationField.substring(0, 7));
     final psr = informationField.substring(7);
     comment = _parsePositionAndSymbol(psr);
-    // Ignoring weather data "_" for now.
+    _parseWeatherFromPosition();
   }
 }

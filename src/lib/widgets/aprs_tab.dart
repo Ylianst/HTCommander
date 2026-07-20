@@ -689,7 +689,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       }
     } else {
       // Non-message packets (status, telemetry, etc.).
-      if (aprsPacket.comment.isNotEmpty &&
+      if (aprsPacket.weather != null && aprsPacket.weather!.hasData) {
+        messageText = aprsPacket.weather!.toReadableString();
+      } else if (aprsPacket.comment.isNotEmpty &&
           aprsPacket.dataType != PacketDataType.micE &&
           aprsPacket.dataType != PacketDataType.micECurrent &&
           aprsPacket.dataType != PacketDataType.micEOld) {
@@ -998,6 +1000,55 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     final auth = aprs.authCode ?? '';
     if (auth.isNotEmpty) {
       items.add(AprsDetailItem('Authentication', auth));
+    }
+
+    final wx = aprs.weather;
+    if (wx != null && wx.hasData) {
+      if (wx.windDirection != null) {
+        items.add(AprsDetailItem('Wind Direction', '${wx.windDirection}°'));
+      }
+      if (wx.windSpeed != null) {
+        items.add(AprsDetailItem('Wind Speed', '${wx.windSpeed} mph'));
+      }
+      if (wx.windGust != null) {
+        items.add(AprsDetailItem('Wind Gust', '${wx.windGust} mph'));
+      }
+      if (wx.temperature != null) {
+        items.add(AprsDetailItem('Temperature', '${wx.temperature}°F'));
+      }
+      if (wx.humidity != null) {
+        items.add(AprsDetailItem('Humidity', '${wx.humidity}%'));
+      }
+      if (wx.barometricPressure != null) {
+        items.add(AprsDetailItem(
+          'Pressure',
+          '${wx.barometricPressure!.toStringAsFixed(1)} mb',
+        ));
+      }
+      if (wx.rainLastHour != null) {
+        items.add(AprsDetailItem(
+          'Rain (1h)',
+          '${(wx.rainLastHour! / 100).toStringAsFixed(2)} in',
+        ));
+      }
+      if (wx.rainLast24Hours != null) {
+        items.add(AprsDetailItem(
+          'Rain (24h)',
+          '${(wx.rainLast24Hours! / 100).toStringAsFixed(2)} in',
+        ));
+      }
+      if (wx.rainSinceMidnight != null) {
+        items.add(AprsDetailItem(
+          'Rain (since midnight)',
+          '${(wx.rainSinceMidnight! / 100).toStringAsFixed(2)} in',
+        ));
+      }
+      if (wx.snowLast24Hours != null) {
+        items.add(AprsDetailItem('Snow (24h)', '${wx.snowLast24Hours} in'));
+      }
+      if (wx.luminosity != null) {
+        items.add(AprsDetailItem('Luminosity', '${wx.luminosity} W/m²'));
+      }
     }
 
     return items;
