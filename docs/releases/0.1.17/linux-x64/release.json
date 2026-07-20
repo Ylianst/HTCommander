@@ -9,12 +9,12 @@
   "artifact": {
     "kind": "zip",
     "url": "https://github.com/Ylianst/HTCommander/releases/download/v0.1.17/htcommander-0.1.17-linux-x64.zip",
-    "sha256": "77d67ce88f6ac3e24b1d37e82f88bd0e3e62d05255dfd032feb18a64c93ed41d",
+    "sha256": "00da8fe64d903614404ab09e2f8d45ef70bdff9896b7d84896677a6cf8efbe8d",
     "length": 26388455
   },
   "install": {
     "strategy": "wholeDirectoryReplace"
   },
   "minimumUpdaterVersion": "2.0.0",
-  "generatedAt": "2026-07-20T04:46:55.544789Z"
+  "generatedAt": "2026-07-20T05:59:56.810315Z"
 }

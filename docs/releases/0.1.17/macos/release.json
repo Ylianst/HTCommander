@@ -9,12 +9,12 @@
   "artifact": {
     "kind": "zip",
     "url": "https://github.com/Ylianst/HTCommander/releases/download/v0.1.17/htcommander-0.1.17-macos.zip",
-    "sha256": "78c3c8082580c9344e2c1fa3be08a0b67cc8da1a6e7a447bac75a84ff6b0ab4e",
-    "length": 45197087
+    "sha256": "10aa1aba70251e11b7ca2abe3f7d05c16450101b93d26459f872f6b847393b2b",
+    "length": 45196986
   },
   "install": {
     "strategy": "wholeBundleReplace"
   },
   "minimumUpdaterVersion": "2.0.0",
-  "generatedAt": "2026-07-20T04:48:58.051348Z"
+  "generatedAt": "2026-07-20T06:02:44.728018Z"
 }
