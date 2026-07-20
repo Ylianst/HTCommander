@@ -2406,6 +2406,21 @@ class Radio {
       case RadioBasicCommand.readSettings:
         _handleReadSettings(cmd);
         break;
+      case RadioBasicCommand.writeSettings:
+        // After a successful settings write the radio does not always notify of
+        // the change (older firmware, e.g. 0.8.9.1, sends no htStatusChanged /
+        // htSettingsChanged event), so re-read the settings to refresh the
+        // cached values and the on-screen channel selection. Newer firmware
+        // also pushes a notification, making this re-read redundant but
+        // harmless. cmd[4] is the status byte (0 = success).
+        if (cmd.length > 4 && cmd[4] == 0) {
+          _sendCommand(
+            RadioCommandGroup.basic,
+            RadioBasicCommand.readSettings,
+            null,
+          );
+        }
+        break;
       case RadioBasicCommand.getHtStatus:
         _handleHtStatus(cmd);
         break;
