@@ -9,12 +9,12 @@
   "artifact": {
     "kind": "zip",
     "url": "https://github.com/Ylianst/HTCommander/releases/download/v0.1.17/htcommander-0.1.17-windows-x64.zip",
-    "sha256": "89d9085ac307a10e7903ce5cb2d8efb7a9599732b1db7e817ac4dc4a3df0b576",
-    "length": 26814797
+    "sha256": "2d9a6b328f33aaa55f0e0f78882cc7789b558ab1554e7e6234c439e142b0deb9",
+    "length": 26814801
   },
   "install": {
     "strategy": "wholeDirectoryReplace"
   },
   "minimumUpdaterVersion": "2.0.0",
-  "generatedAt": "2026-07-20T04:50:29.402153Z"
+  "generatedAt": "2026-07-20T06:04:08.659045Z"
 }
