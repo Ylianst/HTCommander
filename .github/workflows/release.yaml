@@ -203,7 +203,7 @@ jobs:
             --platform windows `
             --channel stable `
             --install-strategy wholeDirectoryReplace `
-            --artifact-url "${{ env.BASE_URL }}/releases/$version/windows-${{ matrix.arch }}/htcommander-$version-windows-${{ matrix.arch }}.zip"
+            --artifact-url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/htcommander-$version-windows-${{ matrix.arch }}.zip"
 
           # desktop_updater names the archive without the arch suffix
           # (htcommander-<version>-windows.zip), but release.json's artifact URL
@@ -474,7 +474,7 @@ jobs:
             --platform linux \
             --channel stable \
             --install-strategy wholeDirectoryReplace \
-            --artifact-url "${{ env.BASE_URL }}/releases/$VERSION/linux-${{ matrix.arch }}/htcommander-$VERSION-linux-${{ matrix.arch }}.zip"
+            --artifact-url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/htcommander-$VERSION-linux-${{ matrix.arch }}.zip"
 
           # desktop_updater names the archive without the arch suffix
           # (htcommander-<version>-linux.zip), but release.json's artifact URL
@@ -687,7 +687,7 @@ jobs:
             --platform macos \
             --channel stable \
             --install-strategy wholeBundleReplace \
-            --artifact-url "${{ env.BASE_URL }}/releases/$VERSION/macos/htcommander-$VERSION-macos.zip"
+            --artifact-url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/htcommander-$VERSION-macos.zip"
 
           # desktop_updater names the archive after the .app bundle
           # ("Handi-Talky Commander-<version>-macos.zip"), but release.json's
@@ -921,6 +921,10 @@ jobs:
             artifacts/linux-packages-arm64/htcommander-linux-arm64.AppImage
             artifacts/android-apk/HTCommander.apk
             artifacts/android-aab/htcommander-*.aab
+            artifacts/windows-update-x64/**/*.zip
+            artifacts/linux-update-x64/**/*.zip
+            artifacts/linux-update-arm64/**/*.zip
+            artifacts/macos-update/**/*.zip
 
       - name: Deploy update site to docs folder
         run: |

@@ -30,27 +30,27 @@ The following radios should work with this application:
 
 Handi-Talky Commander has a lot of features. There are the features available on all platforms:
 
-- [Channel Programming](https://github.com/Ylianst/HTCommander/blob/main/docs/Channels.md). Configure, import, export and drag & drop channels to create the perfect configuration for your usages.
-- [APRS support](https://github.com/Ylianst/HTCommander/blob/main/docs/APRS.md). You can receive and sent APRS messages, set APRS routes, send [SMS message](https://github.com/Ylianst/HTCommander/blob/main/docs/APRS-SMS.md) to normal phones, request [weather reports](https://github.com/Ylianst/HTCommander/blob/main/docs/APRS-Weather.md), send [authenticated messages](https://github.com/Ylianst/HTCommander/blob/main/docs/APRS-Auth.md), get details on each APRS message.
-- [BSS support](https://github.com/Ylianst/HTCommander/blob/main/docs/BSS-Protocol.md). Support for the propriatary short message binary protocol from Baofeng / BTech.
-- [APRS map](https://github.com/Ylianst/HTCommander/blob/main/docs/Map.md). With Open Street Map support, you can see all the APRS stations at a glance.
-- [Winlink mail support](https://github.com/Ylianst/HTCommander/blob/main/docs/Mail.md). Send and receive email on the [Winlink network](https://winlink.org/), this includes support to attachments.
-- [Address book](https://github.com/Ylianst/HTCommander/blob/main/docs/AddressBook.md). Store your APRS, Winlink and Terminal contacts in the address book to quick access.
-- [Terminal support](https://github.com/Ylianst/HTCommander/blob/main/docs/Terminal.md). Communicate in packet mode with other stations, users or BBS'es.
-- [BBS support](https://github.com/Ylianst/HTCommander/blob/main/docs/BBS.md). Built-in very basic BBS and acts as a Winlink gateway.
-- [Packet Capture](https://github.com/Ylianst/HTCommander/blob/main/docs/Capture.md). Use this application to capture and decode packets with the built-in packet capture feature.
-- [GPS Support](https://github.com/Ylianst/HTCommander/blob/main/docs/GPS.md). Support for the radio's built in GPS if you have radio firmware that supports it.
-- [Torrent file exchange](https://github.com/Ylianst/HTCommander/blob/main/docs/Torrent.md). Many-to-many file exchange with a torrent file transfer system over 1200 Baud FM-AFSK.
+- [Channel Programming](https://ylianst.github.io/HTCommanderSite/features/channels.html). Configure, import, export and drag & drop channels to create the perfect configuration for your usages.
+- [APRS support](https://ylianst.github.io/HTCommanderSite/features/aprs.html). You can receive and sent APRS messages, set APRS routes, send [SMS message](https://ylianst.github.io/HTCommanderSite/features/aprs.html#sms) to normal phones, request [weather reports](https://ylianst.github.io/HTCommanderSite/features/aprs.html#weather), send [authenticated messages](https://ylianst.github.io/HTCommanderSite/features/aprs.html#authentication), get details on each APRS message.
+- [BSS support](https://ylianst.github.io/HTCommanderSite/features/bss.html). Support for the propriatary short message binary protocol from Baofeng / BTech.
+- [APRS map](https://ylianst.github.io/HTCommanderSite/features/map.html). With Open Street Map support, you can see all the APRS stations at a glance.
+- [Winlink mail support](https://ylianst.github.io/HTCommanderSite/features/winlink.html). Send and receive email on the [Winlink network](https://winlink.org/), this includes support to attachments.
+- [Address book](https://ylianst.github.io/HTCommanderSite/features/address-book.html). Store your APRS, Winlink and Terminal contacts in the address book to quick access.
+- [Terminal support](https://ylianst.github.io/HTCommanderSite/features/terminal.html). Communicate in packet mode with other stations, users or BBS'es.
+- [BBS support](https://ylianst.github.io/HTCommanderSite/features/bbs.html). Built-in very basic BBS and acts as a Winlink gateway.
+- [Packet Capture](https://ylianst.github.io/HTCommanderSite/features/capture.html). Use this application to capture and decode packets with the built-in packet capture feature.
+- [GPS Support](https://ylianst.github.io/HTCommanderSite/features/gps.html). Support for the radio's built in GPS if you have radio firmware that supports it.
+- [Torrent file exchange](https://ylianst.github.io/HTCommanderSite/features/torrent.html). Many-to-many file exchange with a torrent file transfer system over 1200 Baud FM-AFSK.
 
 The following features are available on Windows, Linux, macOS, Android.
 
-- [Bluetooth Audio](https://github.com/Ylianst/HTCommander/blob/main/docs/Bluetooth.md). Uses audio connectivity to listen and transmit with your computer speakers, microphone or headset.
-- [SSTV](https://github.com/Ylianst/HTCommander/blob/main/docs/SSTV.md) send and receive images. Reception is auto-detected, drag & drop to sent.
+- [Bluetooth Audio](https://ylianst.github.io/HTCommanderSite/features/bluetooth-audio.html). Uses audio connectivity to listen and transmit with your computer speakers, microphone or headset.
+- [SSTV](https://ylianst.github.io/HTCommanderSite/features/sstv.html) send and receive images. Reception is auto-detected, drag & drop to sent.
 
 The following are for desktop platforms only: Windows, Linux, macOS.
 
-- [Speech-to-Text](https://github.com/Ylianst/HTCommander/blob/main/docs/Voice.md). Converts speech-to-text and text-to-speech.
-- [AGWPE Protocol](https://github.com/Ylianst/HTCommander/blob/main/docs/Agwpe.md). Supports routing other application's traffic over the radio using the AGWPE protocol.
+- [Speech-to-Text](https://ylianst.github.io/HTCommanderSite/features/voice.html). Converts speech-to-text and text-to-speech.
+- [AGWPE Protocol](https://ylianst.github.io/HTCommanderSite/features/agwpe.html). Supports routing other application's traffic over the radio using the AGWPE protocol.
 
 ### Technology Blog
 

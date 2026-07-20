@@ -8,7 +8,7 @@
   "channel": "stable",
   "artifact": {
     "kind": "zip",
-    "url": "https://ylianst.github.io/HTCommander/releases/0.1.17/linux-arm64/htcommander-0.1.17-linux-arm64.zip",
+    "url": "https://github.com/Ylianst/HTCommander/releases/download/v0.1.17/htcommander-0.1.17-linux-arm64.zip",
     "sha256": "761759d0fccc3f0aeb38d9586734af43abc04a6e7e8b2eea5e7b3c0e6c6ea509",
     "length": 28903536
   },
