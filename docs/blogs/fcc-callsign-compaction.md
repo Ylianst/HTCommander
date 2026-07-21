@@ -254,6 +254,22 @@ which then compresses the text-heavy remainder far better than the old zip. The
 three dictionaries cost only a few hundred kilobytes total, shared across all 1.6
 million records.
 
+## The numbers, measured
+
+Theory is nice; here is the real deployed database. The same weekly FCC dump
+(**1,588,146 licenses**), built the old way and the new way:
+
+| Build | Compressor | Download size | Bytes/record |
+|-------|-----------|--------------:|-------------:|
+| v1 | zip / DEFLATE | 41,220,780 B (~39.3 MiB) | ~26.0 |
+| **v2** | **xz / LZMA** | **22,400,780 B (~21.4 MiB)** | **~14.1** |
+
+That's a **45.7% smaller download** — a 1.84× reduction, ~17.9 MiB shaved off —
+for the exact same records. The win is the format compaction (packed keys,
+dictionaries, numeric ZIPs, epoch dates, offset-free index, dropped callsign)
+*and* the xz-over-zip switch working together. On a phone on cellular data,
+that's the difference an operator actually feels.
+
 ## How a lookup actually runs
 
 Putting it together, `lookup("K7VZT-5")`:
