@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "version": "2026.07.12",
   "sourceDate": 20260712,
-  "url": "https://github.com/Ylianst/HTCommander/releases/download/callsign-db/fcc_amateur.cdb.zip",
+  "url": "https://github.com/Ylianst/HTCommander/releases/download/callsign-db/fcc_amateur.cdb.xz",
   "compressed": true,
-  "sizeBytes": 41220780,
-  "md5": "2f3bfff8dfdfd6376b01078093c69337",
+  "sizeBytes": 22400780,
+  "md5": "669fbff5db440892acb1a495a6cefe7b",
   "recordCount": 1588146
 }
