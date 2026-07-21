@@ -1,5 +1,6 @@
 {
     "chat.tools.terminal.autoApprove": {
-        "flutter": true
+        "flutter": true,
+        "git -C c:\\Code\\HTCommander": true
     }
 }

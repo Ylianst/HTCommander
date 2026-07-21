@@ -113,12 +113,12 @@ jobs:
           set -euo pipefail
           mkdir -p docs/callsign
           # The manifest URL points at the rolling Release asset (see below),
-          # keeping the large zip out of the git history.
+          # keeping the large archive out of the git history.
           python src/tools/build_fcc_db.py \
             --download \
             --source-date "${{ steps.fcc.outputs.fcc_date }}" \
             --out docs/callsign/fcc_amateur.cdb \
-            --zip \
+            --compress \
             --base-url "https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/"
           # The uncompressed database is a build artifact the app never downloads.
           rm -f docs/callsign/fcc_amateur.cdb
@@ -136,9 +136,9 @@ jobs:
               --title "Callsign Database" \
               --notes "Offline US amateur callsign database (FCC ULS). Rolling release; the asset is replaced automatically."
           fi
-          gh release upload "$RELEASE_TAG" docs/callsign/fcc_amateur.cdb.zip --clobber
-          # Keep the zip out of the committed docs tree / Pages artifact.
-          rm -f docs/callsign/fcc_amateur.cdb.zip
+          gh release upload "$RELEASE_TAG" docs/callsign/fcc_amateur.cdb.xz --clobber
+          # Keep the archive out of the committed docs tree / Pages artifact.
+          rm -f docs/callsign/fcc_amateur.cdb.xz
 
       - name: Commit updated manifest
         if: steps.decide.outputs.build == 'true'

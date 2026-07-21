@@ -12,15 +12,15 @@
 #
 # Usage:
 #   # Download the latest weekly amateur dump and build the database:
-#   python build_fcc_db.py --download --out fcc_amateur.cdb --zip
+#   python build_fcc_db.py --download --out fcc_amateur.cdb --compress
 #
 #   # Build from an already-extracted ULS directory (containing EN.dat/HD.dat/AM.dat):
-#   python build_fcc_db.py --uls-dir ./l_amat --out fcc_amateur.cdb --zip
+#   python build_fcc_db.py --uls-dir ./l_amat --out fcc_amateur.cdb --compress
 #
 # Outputs alongside --out:
 #   <out>            the binary database
-#   <out>.zip        zipped database (when --zip is given; this is what the app downloads)
-#   fcc_amateur_manifest.json   manifest describing the (zip) download
+#   <out>.xz         xz-compressed database (when --compress is given; this is what the app downloads)
+#   fcc_amateur_manifest.json   manifest describing the (compressed) download
 #
 # FCC data source (weekly complete amateur dump):
 #   https://data.fcc.gov/download/pub/uls/complete/l_amat.zip
@@ -33,6 +33,7 @@ import email.utils
 import hashlib
 import io
 import json
+import lzma
 import os
 import shutil
 import struct
@@ -44,10 +45,15 @@ import zipfile
 FCC_URL = "https://data.fcc.gov/download/pub/uls/complete/l_amat.zip"
 
 MAGIC = 0x42444348  # "HCDB" little-endian
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 HEADER_SIZE = 64
-KEY_LENGTH = 8
-INDEX_ENTRY_SIZE = 12  # 8-byte key + uint32 offset
+# Callsigns are packed into a base-37 key: KEY_CHARS characters fit in KEY_BYTES.
+KEY_CHARS = 8
+KEY_BYTES = 6
+# Base date that record expiration dates are stored relative to (as a u16 day
+# count). Written into the header so the reader never assumes a fixed epoch.
+EPOCH_DATE = 20000101
+EPOCH = datetime.date(2000, 1, 1)
 
 # ── FCC record parsing ──────────────────────────────────────────────────────
 # Files are pipe-delimited. Column indices (0-based) per the FCC PUBACC spec.
@@ -97,12 +103,16 @@ def _parse_date(s):
 
 def _collect_encoded(open_dat):
     """Streams HD/AM/EN, joins them on the unique system id, and returns a dict
-    mapping each callsign to its ``(index key, encoded record bytes)``.
+    mapping each callsign to a tuple of its distilled fields:
+    ``(index key, name_blob, city, zip, state, cs_packed, days)`` where
+    ``name_blob`` is the encoded name, ``cs_packed`` is the packed (class,
+    status) pair and ``days`` is the expiration as a day-count since EPOCH. The
+    city, zip and state are kept as raw values and dictionary-encoded later.
 
     Only the distilled data is held in memory: each member is decompressed and
     parsed line by line (see ``_open_from_zip``), unneeded columns are dropped,
-    and every matched record is packed straight to bytes. The large raw ``.dat``
-    members are never materialized in full.
+    and the name is packed straight to bytes. The large raw ``.dat`` members are
+    never materialized in full.
     """
     # HD: callsign + status + expiration, keyed by unique id. Stored as a compact
     # tuple to keep the join table small.
@@ -127,8 +137,9 @@ def _collect_encoded(open_dat):
         if uid in hd:
             am[uid] = _get(c, AM_OPERATOR_CLASS).upper()[:1]
 
-    # EN: name + address. Encode each joined record to bytes immediately,
-    # deduplicating by callsign (last entry wins).
+    # EN: name + address. Encode the text portion to bytes immediately and keep
+    # the small dictionary-bound fields alongside it, deduplicating by callsign
+    # (last entry wins).
     by_call = {}
     for line in open_dat("EN.dat"):
         c = _split(line)
@@ -139,7 +150,7 @@ def _collect_encoded(open_dat):
         callsign = head[0] or _get(c, EN_CALLSIGN).upper()
         if not callsign:
             continue
-        key = _make_key(callsign)
+        key = _pack_key(callsign)
         if key is None:
             continue
 
@@ -157,16 +168,12 @@ def _collect_encoded(open_dat):
 
         by_call[callsign] = (
             key,
-            encode_record(
-                callsign,
-                name,
-                _get(c, EN_CITY),
-                _get(c, EN_STATE).upper()[:2],
-                _get(c, EN_ZIP),
-                am.get(uid, ""),
-                head[1],
-                head[2],
-            ),
+            _encode_name(name),
+            _get(c, EN_CITY),
+            _get(c, EN_ZIP),
+            _get(c, EN_STATE).upper()[:2],
+            _pack_cs(am.get(uid, ""), head[1]),
+            _date_to_days(head[2]),
         )
 
     return by_call
@@ -174,25 +181,42 @@ def _collect_encoded(open_dat):
 
 # ── Binary encoding (must match callsign_database.dart) ─────────────────────
 
-def _make_key(callsign):
-    key = bytearray(KEY_LENGTH)
+def _pack_key(callsign):
+    # Packs a callsign into a sortable base-37 integer: padding = 0, '0'-'9' =
+    # 1-10, 'A'-'Z' = 11-36, real characters in the high digits so the packed
+    # integers sort identically to the zero-padded callsigns. Returns None when
+    # the callsign has no usable characters.
+    value = 0
     n = 0
     for ch in callsign.upper():
-        if n >= KEY_LENGTH:
+        if n >= KEY_CHARS:
             break
         if ch == "-":
             break
-        if ch.isdigit() or ("A" <= ch <= "Z"):
-            key[n] = ord(ch)
-            n += 1
+        if "0" <= ch <= "9":
+            code = ord(ch) - 48 + 1
+        elif "A" <= ch <= "Z":
+            code = ord(ch) - 65 + 11
+        else:
+            continue
+        value = value * 37 + code
+        n += 1
     if n == 0:
         return None
-    return bytes(key)
+    for _ in range(n, KEY_CHARS):
+        value *= 37
+    return value
 
 
-def _write_string(buf, s):
+def _write_string16(buf, s):
     b = s.encode("utf-8")[:0xFFFF]
     buf += struct.pack("<H", len(b))
+    buf += b
+
+
+def _write_string8(buf, s):
+    b = s.encode("utf-8")[:0xFF]
+    buf += struct.pack("<B", len(b))
     buf += b
 
 
@@ -200,18 +224,57 @@ def _char_byte(s):
     return ord(s[0]) if s else 0
 
 
-def encode_record(callsign, name, city, state, zip_code, operator_class,
-                  status, expire):
+def _pack_cs(operator_class, status):
+    """Packs a (class, status) pair into a single int for dictionary keying."""
+    return (_char_byte(operator_class) << 8) | _char_byte(status)
+
+
+def _date_to_days(yyyymmdd):
+    """Converts an integer YYYYMMDD to days since EPOCH, or 0 (unknown) when the
+    date is missing or outside the representable u16 window."""
+    if not yyyymmdd:
+        return 0
+    y = yyyymmdd // 10000
+    m = (yyyymmdd // 100) % 100
+    d = yyyymmdd % 100
+    try:
+        dt = datetime.date(y, m, d)
+    except ValueError:
+        return 0
+    days = (dt - EPOCH).days
+    if days < 1 or days > 0xFFFF:
+        return 0
+    return days
+
+
+def _encode_name(name):
+    # The only variable-length field kept inline in a record.
     buf = bytearray()
-    _write_string(buf, callsign)
-    _write_string(buf, name)
-    _write_string(buf, city)
-    _write_string(buf, state)
-    _write_string(buf, zip_code)
-    buf.append(_char_byte(operator_class))
-    buf.append(_char_byte(status))
-    buf += struct.pack("<I", expire & 0xFFFFFFFF)
+    _write_string16(buf, name)
     return bytes(buf)
+
+
+ZIP_NONE = 0xFFFFFFFF
+
+
+def _pack_zip(zip_code):
+    """Packs a ZIP string into a u32: the numeric value of a 5- or 9-digit ZIP,
+    or ZIP_NONE when empty or not a plain 5/9-digit code."""
+    if not zip_code:
+        return ZIP_NONE
+    digits = 0
+    n = 0
+    for ch in zip_code:
+        if "0" <= ch <= "9":
+            digits = digits * 10 + (ord(ch) - 48)
+            n += 1
+        elif ch in "- ":
+            continue
+        else:
+            return ZIP_NONE
+    if n not in (5, 9):
+        return ZIP_NONE
+    return digits
 
 
 def build_streaming(open_dat, out_path, source_date):
@@ -223,11 +286,34 @@ def build_streaming(open_dat, out_path, source_date):
     """
     by_call = _collect_encoded(open_dat)
     # Sorting is the one step that needs the whole (distilled) set at once, as
-    # the index must be ordered by callsign key for binary search.
-    items = sorted(by_call.values(), key=lambda kb: kb[0])
+    # the index must be ordered by callsign key for binary search. Each item is
+    # (key, name_blob, city, zip, state, cs_packed, days).
+    items = sorted(by_call.values(), key=lambda it: it[0])
     by_call.clear()
     count = len(items)
-    records_offset = HEADER_SIZE + count * INDEX_ENTRY_SIZE
+
+    # Build the state, class/status and city dictionaries (sorted for
+    # reproducible, byte-identical output). Records reference these by index.
+    states = sorted({it[4] for it in items})
+    cs_values = sorted({it[5] for it in items})
+    cities = sorted({it[2] for it in items})
+    if len(states) > 0xFFFF or len(cs_values) > 0xFFFF or len(cities) > 0xFFFFFF:
+        raise ValueError("dictionary too large for the database format")
+    state_index = {s: i for i, s in enumerate(states)}
+    cs_index = {v: i for i, v in enumerate(cs_values)}
+    city_index = {s: i for i, s in enumerate(cities)}
+
+    # City dictionary blob (u8 len + UTF-8 per entry).
+    city_blob = bytearray()
+    for s in cities:
+        _write_string8(city_blob, s)
+
+    state_offset = HEADER_SIZE
+    cs_offset = state_offset + len(states) * 2
+    city_offset = cs_offset + len(cs_values) * 2
+    keys_offset = city_offset + len(city_blob)
+    lengths_offset = keys_offset + count * KEY_BYTES
+    records_offset = lengths_offset + count * 2
 
     with open(out_path, "wb") as f:
         header = bytearray(HEADER_SIZE)
@@ -235,21 +321,53 @@ def build_streaming(open_dat, out_path, source_date):
         struct.pack_into("<H", header, 4, FORMAT_VERSION)
         struct.pack_into("<H", header, 6, 0)
         struct.pack_into("<I", header, 8, count)
-        struct.pack_into("<I", header, 12, HEADER_SIZE)
-        struct.pack_into("<I", header, 16, records_offset)
-        struct.pack_into("<I", header, 20, source_date & 0xFFFFFFFF)
+        struct.pack_into("<I", header, 12, keys_offset)
+        struct.pack_into("<I", header, 16, lengths_offset)
+        struct.pack_into("<I", header, 20, records_offset)
+        struct.pack_into("<I", header, 24, source_date & 0xFFFFFFFF)
+        struct.pack_into("<I", header, 28, EPOCH_DATE)
+        struct.pack_into("<H", header, 32, len(states))
+        struct.pack_into("<H", header, 34, len(cs_values))
+        struct.pack_into("<I", header, 36, state_offset)
+        struct.pack_into("<I", header, 40, cs_offset)
+        struct.pack_into("<I", header, 44, len(cities))
+        struct.pack_into("<I", header, 48, city_offset)
         f.write(header)
 
-        # Index: sorted 8-byte key + absolute record offset.
-        cursor = records_offset
-        for key, blob in items:
-            f.write(key)
-            f.write(struct.pack("<I", cursor))
-            cursor += len(blob)
+        # State dictionary: 2 bytes per entry (ASCII, zero-padded).
+        for s in states:
+            b = (s or "").encode("ascii", "ignore")[:2]
+            f.write(b + b"\x00" * (2 - len(b)))
 
-        # Records section, in the same sorted order.
-        for _key, blob in items:
-            f.write(blob)
+        # Class/status dictionary: 2 bytes per entry (classByte, statusByte).
+        for v in cs_values:
+            f.write(bytes(((v >> 8) & 0xFF, v & 0xFF)))
+
+        # City dictionary.
+        f.write(city_blob)
+
+        # Keys block: sorted 6-byte big-endian packed keys.
+        for it in items:
+            f.write(it[0].to_bytes(KEY_BYTES, "big"))
+
+        # Lengths block: u16 byte length of each record, in the same order. A
+        # record is name_blob + cityIndex(3) + stateIndex(1) + csIndex(1)
+        # + zip(4) + expire(2).
+        for it in items:
+            rec_len = len(it[1]) + 11
+            if rec_len > 0xFFFF:
+                raise ValueError("record too large for u16 length")
+            f.write(struct.pack("<H", rec_len))
+
+        # Records block, in the same sorted order.
+        for it in items:
+            _key, name_blob, city, zip_code, state, cs_packed, days = it
+            ci = city_index[city]
+            f.write(name_blob)
+            f.write(bytes((ci & 0xFF, (ci >> 8) & 0xFF, (ci >> 16) & 0xFF)))
+            f.write(bytes((state_index[state], cs_index[cs_packed])))
+            f.write(struct.pack("<I", _pack_zip(zip_code)))
+            f.write(struct.pack("<H", days))
 
     return count
 
@@ -311,9 +429,9 @@ def main():
     src.add_argument("--zip-file", help="path to a downloaded l_amat.zip")
     src.add_argument("--uls-dir", help="path to an extracted ULS directory")
     ap.add_argument("--out", default="fcc_amateur.cdb", help="output database path")
-    ap.add_argument("--zip", action="store_true", help="also write a zipped database + manifest")
+    ap.add_argument("--compress", action="store_true", help="also write an xz-compressed database + manifest")
     ap.add_argument("--base-url", default="https://ylianst.github.io/HTCommander/callsign/",
-                    help="base URL where the zip will be hosted (for the manifest)")
+                    help="base URL where the compressed database will be hosted (for the manifest)")
     ap.add_argument("--source-date", type=int, default=0,
                     help="explicit data date as YYYYMMDD (overrides the FCC Last-Modified date)")
     ap.add_argument("--version", help="explicit version string (defaults to the source date)")
@@ -364,36 +482,31 @@ def main():
     size = os.path.getsize(args.out)
     print(f"Wrote {args.out} ({size:,} bytes, {count:,} records)")
 
-    if args.zip:
+    if args.compress:
         with open(args.out, "rb") as f:
             db_bytes = f.read()
-        zip_path = args.out + ".zip"
-        entry_name = os.path.basename(args.out)
-        # Use a fixed entry timestamp so identical FCC data always yields a
-        # byte-identical archive (the default stamps the current time).
-        info = zipfile.ZipInfo(entry_name, date_time=(1980, 1, 1, 0, 0, 0))
-        info.compress_type = zipfile.ZIP_DEFLATED
-        info.external_attr = 0o644 << 16
-        with zipfile.ZipFile(zip_path, "w") as z:
-            z.writestr(info, db_bytes, compresslevel=9)
-        with open(zip_path, "rb") as f:
-            zip_bytes = f.read()
-        md5 = hashlib.md5(zip_bytes).hexdigest()
+        xz_path = args.out + ".xz"
+        # xz/LZMA embeds no timestamps, so identical FCC data always yields a
+        # byte-identical archive.
+        xz_bytes = lzma.compress(db_bytes, preset=9 | lzma.PRESET_EXTREME)
+        with open(xz_path, "wb") as f:
+            f.write(xz_bytes)
+        md5 = hashlib.md5(xz_bytes).hexdigest()
         version = args.version or _version_from_date(source_date)
         manifest = {
             "schemaVersion": 1,
             "version": version,
             "sourceDate": source_date,
-            "url": args.base_url.rstrip("/") + "/" + os.path.basename(zip_path),
+            "url": args.base_url.rstrip("/") + "/" + os.path.basename(xz_path),
             "compressed": True,
-            "sizeBytes": len(zip_bytes),
+            "sizeBytes": len(xz_bytes),
             "md5": md5,
             "recordCount": count,
         }
         manifest_path = os.path.join(os.path.dirname(args.out) or ".", "fcc_amateur_manifest.json")
         with open(manifest_path, "w") as f:
             json.dump(manifest, f, indent=2)
-        print(f"Wrote {zip_path} ({len(zip_bytes):,} bytes, md5 {md5})")
+        print(f"Wrote {xz_path} ({len(xz_bytes):,} bytes, md5 {md5})")
         print(f"Wrote {manifest_path}")
 
 

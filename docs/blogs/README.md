@@ -105,6 +105,18 @@ Connecting HTCommander to the wider ecosystem of tools operators already run.
 
 ---
 
+## Data & Storage
+
+How HTCommander packs large datasets into small, fast, self-contained files.
+
+1. **[1.6 Million Hams in Your Pocket: Compacting the FCC Callsign Database](fcc-callsign-compaction.md)**
+   How the FCC's weekly amateur-license dump becomes a small binary `.cdb` you can
+   binary-search offline — and the stack of encoding tricks (base-37 packed keys,
+   an offset-free index, epoch-relative dates, state/class/status/city
+   dictionaries, numeric ZIPs, and xz) that shrink every record to the bone.
+
+---
+
 ## App Architecture
 
 How HTCommander is built under the hood — the threading, plumbing, and design

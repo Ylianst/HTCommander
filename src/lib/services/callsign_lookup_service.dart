@@ -277,20 +277,9 @@ class CallsignLookupService {
     return '${dir.path}${Platform.pathSeparator}$_dbFileName';
   }
 
-  static Uint8List _extractDatabase(Uint8List zipBytes) {
-    final archive = ZipDecoder().decodeBytes(zipBytes);
-    for (final entry in archive.files) {
-      if (entry.isFile && entry.name.toLowerCase().endsWith('.cdb')) {
-        return Uint8List.fromList(entry.content as List<int>);
-      }
-    }
-    // Fall back to the first file in the archive.
-    for (final entry in archive.files) {
-      if (entry.isFile) {
-        return Uint8List.fromList(entry.content as List<int>);
-      }
-    }
-    throw const FormatException('Zip archive contains no database file');
+  /// Decompresses the downloaded xz (LZMA) stream into the raw database bytes.
+  static Uint8List _extractDatabase(Uint8List xzBytes) {
+    return Uint8List.fromList(XZDecoder().decodeBytes(xzBytes));
   }
 
   static Future<Uint8List> _fetch(

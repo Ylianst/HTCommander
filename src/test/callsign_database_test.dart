@@ -100,6 +100,7 @@ void main() {
     test('reports header metadata', () {
       expect(db.recordCount, records.length);
       expect(db.sourceDate, 20260715);
+      expect(db.epochDate, CallsignDatabase.defaultEpochDate);
     });
 
     test('exact lookup returns the full record', () async {
