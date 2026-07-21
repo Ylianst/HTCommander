@@ -1100,5 +1100,21 @@
   "cslUpToDate": "Die Rufzeichen-Datenbank ist aktuell.",
   "cslDownloadFailed": "Download fehlgeschlagen: {error}",
   "cslDeleteTitle": "Rufzeichen-Datenbank löschen",
-  "cslDeleteMessage": "Heruntergeladene Rufzeichen-Datenbank löschen? Sie können sie später erneut herunterladen."
+  "cslDeleteMessage": "Heruntergeladene Rufzeichen-Datenbank löschen? Sie können sie später erneut herunterladen.",
+  "aprsDigipeaterMenu": "Digipeater...",
+  "digipeaterTitle": "APRS-Digipeater",
+  "digipeaterIntro": "Der Digipeater sendet geeignete APRS-Pakete erneut, die er auf dem APRS-Kanal empfängt. Wenn aktiviert, wird das ausgewählte Funkgerät auf den APRS-Kanal gesperrt.",
+  "digipeaterEnable": "Digipeater aktivieren",
+  "digipeaterRadio": "Funkgerät",
+  "digipeaterHandleWideN": "WIDEn-N-Pakete wiederholen",
+  "digipeaterFillIn": "Nur Fill-in (WIDE1-1)",
+  "digipeaterSubstituteCall": "Mein Rufzeichen in den Pfad einfügen",
+  "digipeaterMaxHops": "Max. Hops",
+  "digipeaterDedupSeconds": "Dedup-Fenster (s)",
+  "digipeaterAliases": "Benutzerdefinierte Aliase",
+  "digipeaterAliasesHint": "z. B. RELAY, WIDE1-1",
+  "digipeaterAliasesInvalid": "Ein oder mehrere Aliase sind keine gültigen Rufzeichen.",
+  "digipeaterNoCallsign": "Konfigurieren Sie Ihr Rufzeichen in den Einstellungen, bevor Sie den Digipeater verwenden.",
+  "digipeaterNoAprsChannel": "Das ausgewählte Funkgerät hat keinen APRS-Kanal. Konfigurieren Sie einen, um den Digipeater zu aktivieren.",
+  "menuCheckForUpdates": "Nach Updates suchen"
 }

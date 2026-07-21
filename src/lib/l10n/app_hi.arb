@@ -1100,5 +1100,21 @@
   "cslUpToDate": "कॉलसाइन डेटाबेस अद्यतित है।",
   "cslDownloadFailed": "डाउनलोड विफल: {error}",
   "cslDeleteTitle": "कॉलसाइन डेटाबेस हटाएं",
-  "cslDeleteMessage": "डाउनलोड किया गया कॉलसाइन डेटाबेस हटाएं? आप इसे बाद में फिर से डाउनलोड कर सकते हैं।"
+  "cslDeleteMessage": "डाउनलोड किया गया कॉलसाइन डेटाबेस हटाएं? आप इसे बाद में फिर से डाउनलोड कर सकते हैं।",
+  "aprsDigipeaterMenu": "डिजीपीटर...",
+  "digipeaterTitle": "APRS डिजीपीटर",
+  "digipeaterIntro": "डिजीपीटर APRS चैनल पर सुने गए योग्य APRS पैकेट को फिर से प्रसारित करता है। सक्षम होने पर, चयनित रेडियो APRS चैनल पर लॉक हो जाता है।",
+  "digipeaterEnable": "डिजीपीटर सक्षम करें",
+  "digipeaterRadio": "रेडियो",
+  "digipeaterHandleWideN": "WIDEn-N पैकेट दोहराएं",
+  "digipeaterFillIn": "केवल फिल-इन (WIDE1-1)",
+  "digipeaterSubstituteCall": "मेरा कॉलसाइन पथ में जोड़ें",
+  "digipeaterMaxHops": "अधिकतम हॉप",
+  "digipeaterDedupSeconds": "डीडुप विंडो (से)",
+  "digipeaterAliases": "कस्टम उपनाम",
+  "digipeaterAliasesHint": "जैसे RELAY, WIDE1-1",
+  "digipeaterAliasesInvalid": "एक या अधिक उपनाम मान्य कॉलसाइन नहीं हैं।",
+  "digipeaterNoCallsign": "डिजीपीटर का उपयोग करने से पहले सेटिंग्स में अपना कॉलसाइन कॉन्फ़िगर करें।",
+  "digipeaterNoAprsChannel": "चयनित रेडियो में कोई APRS चैनल नहीं है। डिजीपीटर सक्षम करने के लिए एक कॉन्फ़िगर करें।",
+  "menuCheckForUpdates": "अपडेट जांचें"
 }

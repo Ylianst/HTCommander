@@ -1100,5 +1100,21 @@
   "cslUpToDate": "呼号数据库已是最新。",
   "cslDownloadFailed": "下载失败：{error}",
   "cslDeleteTitle": "删除呼号数据库",
-  "cslDeleteMessage": "删除已下载的呼号数据库？您可以稍后重新下载。"
+  "cslDeleteMessage": "删除已下载的呼号数据库？您可以稍后重新下载。",
+  "aprsDigipeaterMenu": "数字中继器...",
+  "digipeaterTitle": "APRS 数字中继器",
+  "digipeaterIntro": "数字中继器会转发它在 APRS 频道上收到的符合条件的 APRS 数据包。启用后，所选电台将锁定到 APRS 频道。",
+  "digipeaterEnable": "启用数字中继器",
+  "digipeaterRadio": "电台",
+  "digipeaterHandleWideN": "转发 WIDEn-N 数据包",
+  "digipeaterFillIn": "仅填充 (WIDE1-1)",
+  "digipeaterSubstituteCall": "将我的呼号插入路径",
+  "digipeaterMaxHops": "最大跳数",
+  "digipeaterDedupSeconds": "去重窗口（秒）",
+  "digipeaterAliases": "自定义别名",
+  "digipeaterAliasesHint": "例如 RELAY、WIDE1-1",
+  "digipeaterAliasesInvalid": "一个或多个别名不是有效的呼号。",
+  "digipeaterNoCallsign": "使用数字中继器前，请在设置中配置您的呼号。",
+  "digipeaterNoAprsChannel": "所选电台没有 APRS 频道。请配置一个以启用数字中继器。",
+  "menuCheckForUpdates": "检查更新"
 }

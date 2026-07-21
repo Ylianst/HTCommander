@@ -2067,6 +2067,55 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aprsBeaconSettingsMenu => 'Beacon Settings...';
 
   @override
+  String get aprsDigipeaterMenu => 'Digipeater...';
+
+  @override
+  String get digipeaterTitle => 'APRS Digipeater';
+
+  @override
+  String get digipeaterIntro =>
+      'The digipeater re-transmits eligible APRS packets it hears on the APRS channel. While enabled, the selected radio is locked to the APRS channel.';
+
+  @override
+  String get digipeaterEnable => 'Enable digipeater';
+
+  @override
+  String get digipeaterRadio => 'Radio';
+
+  @override
+  String get digipeaterHandleWideN => 'Repeat WIDEn-N packets';
+
+  @override
+  String get digipeaterFillIn => 'Fill-in only (WIDE1-1)';
+
+  @override
+  String get digipeaterSubstituteCall => 'Insert my callsign into the path';
+
+  @override
+  String get digipeaterMaxHops => 'Max hops';
+
+  @override
+  String get digipeaterDedupSeconds => 'Dedup window (s)';
+
+  @override
+  String get digipeaterAliases => 'Custom aliases';
+
+  @override
+  String get digipeaterAliasesHint => 'e.g. RELAY, WIDE1-1';
+
+  @override
+  String get digipeaterAliasesInvalid =>
+      'One or more aliases are not valid callsigns.';
+
+  @override
+  String get digipeaterNoCallsign =>
+      'Configure your callsign in Settings before using the digipeater.';
+
+  @override
+  String get digipeaterNoAprsChannel =>
+      'The selected radio has no APRS channel. Configure one to enable the digipeater.';
+
+  @override
   String get aprsDropShare => 'Drop to share this channel';
 
   @override

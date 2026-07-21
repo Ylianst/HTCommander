@@ -251,7 +251,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get menuCheckForUpdatesEllipsis => '更新を確認...';
 
   @override
-  String get menuCheckForUpdates => 'Check for Updates';
+  String get menuCheckForUpdates => 'アップデートを確認';
 
   @override
   String get menuAbout => 'このアプリについて...';
@@ -2041,6 +2041,53 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get aprsBeaconSettingsMenu => 'ビーコン設定...';
+
+  @override
+  String get aprsDigipeaterMenu => 'デジピーター...';
+
+  @override
+  String get digipeaterTitle => 'APRS デジピーター';
+
+  @override
+  String get digipeaterIntro =>
+      'デジピーターは、APRS チャンネルで受信した対象の APRS パケットを再送信します。有効な場合、選択した無線機は APRS チャンネルにロックされます。';
+
+  @override
+  String get digipeaterEnable => 'デジピーターを有効にする';
+
+  @override
+  String get digipeaterRadio => '無線機';
+
+  @override
+  String get digipeaterHandleWideN => 'WIDEn-N パケットを中継する';
+
+  @override
+  String get digipeaterFillIn => 'フィルインのみ (WIDE1-1)';
+
+  @override
+  String get digipeaterSubstituteCall => '自分のコールサインを経路に挿入する';
+
+  @override
+  String get digipeaterMaxHops => '最大ホップ数';
+
+  @override
+  String get digipeaterDedupSeconds => '重複除外ウィンドウ (秒)';
+
+  @override
+  String get digipeaterAliases => 'カスタムエイリアス';
+
+  @override
+  String get digipeaterAliasesHint => '例: RELAY, WIDE1-1';
+
+  @override
+  String get digipeaterAliasesInvalid => '1つ以上のエイリアスが有効なコールサインではありません。';
+
+  @override
+  String get digipeaterNoCallsign => 'デジピーターを使用する前に、設定でコールサインを構成してください。';
+
+  @override
+  String get digipeaterNoAprsChannel =>
+      '選択した無線機に APRS チャンネルがありません。デジピーターを有効にするには構成してください。';
 
   @override
   String get aprsDropShare => 'このチャンネルを共有するにはドロップ';

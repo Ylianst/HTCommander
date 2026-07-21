@@ -21,6 +21,7 @@ import 'dialogs/trusted_devices_dialog.dart';
 import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
 import 'handlers/aprs_handler.dart';
+import 'handlers/digipeater_handler.dart';
 import 'handlers/airplane_handler.dart';
 import 'handlers/comms_handler.dart';
 import 'handlers/bbs_handler.dart';
@@ -149,6 +150,13 @@ void main(List<String> args) async {
   final aprsHandler = AprsHandler();
   aprsHandler.init();
   DataBroker.addDataHandler('AprsHandler', aprsHandler);
+
+  // Register the digipeater handler so that, when enabled, APRS frames on the
+  // "APRS" channel are conditionally repeated (WIDEn-N New Paradigm plus custom
+  // aliases) and the radio is locked to the APRS channel.
+  final digipeaterHandler = DigipeaterHandler();
+  digipeaterHandler.init();
+  DataBroker.addDataHandler('DigipeaterHandler', digipeaterHandler);
 
   // Register the airplane handler so that, when a Dump1090 server is configured
   // and airplane display is enabled, aircraft are polled and dispatched on the

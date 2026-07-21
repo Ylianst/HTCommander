@@ -251,7 +251,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get menuCheckForUpdatesEllipsis => 'Nach Updates suchen...';
 
   @override
-  String get menuCheckForUpdates => 'Check for Updates';
+  String get menuCheckForUpdates => 'Nach Updates suchen';
 
   @override
   String get menuAbout => 'Über...';
@@ -2090,6 +2090,55 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aprsBeaconSettingsMenu => 'Baken-Einstellungen...';
+
+  @override
+  String get aprsDigipeaterMenu => 'Digipeater...';
+
+  @override
+  String get digipeaterTitle => 'APRS-Digipeater';
+
+  @override
+  String get digipeaterIntro =>
+      'Der Digipeater sendet geeignete APRS-Pakete erneut, die er auf dem APRS-Kanal empfängt. Wenn aktiviert, wird das ausgewählte Funkgerät auf den APRS-Kanal gesperrt.';
+
+  @override
+  String get digipeaterEnable => 'Digipeater aktivieren';
+
+  @override
+  String get digipeaterRadio => 'Funkgerät';
+
+  @override
+  String get digipeaterHandleWideN => 'WIDEn-N-Pakete wiederholen';
+
+  @override
+  String get digipeaterFillIn => 'Nur Fill-in (WIDE1-1)';
+
+  @override
+  String get digipeaterSubstituteCall => 'Mein Rufzeichen in den Pfad einfügen';
+
+  @override
+  String get digipeaterMaxHops => 'Max. Hops';
+
+  @override
+  String get digipeaterDedupSeconds => 'Dedup-Fenster (s)';
+
+  @override
+  String get digipeaterAliases => 'Benutzerdefinierte Aliase';
+
+  @override
+  String get digipeaterAliasesHint => 'z. B. RELAY, WIDE1-1';
+
+  @override
+  String get digipeaterAliasesInvalid =>
+      'Ein oder mehrere Aliase sind keine gültigen Rufzeichen.';
+
+  @override
+  String get digipeaterNoCallsign =>
+      'Konfigurieren Sie Ihr Rufzeichen in den Einstellungen, bevor Sie den Digipeater verwenden.';
+
+  @override
+  String get digipeaterNoAprsChannel =>
+      'Das ausgewählte Funkgerät hat keinen APRS-Kanal. Konfigurieren Sie einen, um den Digipeater zu aktivieren.';
 
   @override
   String get aprsDropShare => 'Ablegen, um diesen Kanal zu teilen';

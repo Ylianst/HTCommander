@@ -249,7 +249,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get menuCheckForUpdatesEllipsis => '检查更新...';
 
   @override
-  String get menuCheckForUpdates => 'Check for Updates';
+  String get menuCheckForUpdates => '检查更新';
 
   @override
   String get menuAbout => '关于...';
@@ -2033,6 +2033,52 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aprsBeaconSettingsMenu => '信标设置...';
+
+  @override
+  String get aprsDigipeaterMenu => '数字中继器...';
+
+  @override
+  String get digipeaterTitle => 'APRS 数字中继器';
+
+  @override
+  String get digipeaterIntro =>
+      '数字中继器会转发它在 APRS 频道上收到的符合条件的 APRS 数据包。启用后，所选电台将锁定到 APRS 频道。';
+
+  @override
+  String get digipeaterEnable => '启用数字中继器';
+
+  @override
+  String get digipeaterRadio => '电台';
+
+  @override
+  String get digipeaterHandleWideN => '转发 WIDEn-N 数据包';
+
+  @override
+  String get digipeaterFillIn => '仅填充 (WIDE1-1)';
+
+  @override
+  String get digipeaterSubstituteCall => '将我的呼号插入路径';
+
+  @override
+  String get digipeaterMaxHops => '最大跳数';
+
+  @override
+  String get digipeaterDedupSeconds => '去重窗口（秒）';
+
+  @override
+  String get digipeaterAliases => '自定义别名';
+
+  @override
+  String get digipeaterAliasesHint => '例如 RELAY、WIDE1-1';
+
+  @override
+  String get digipeaterAliasesInvalid => '一个或多个别名不是有效的呼号。';
+
+  @override
+  String get digipeaterNoCallsign => '使用数字中继器前，请在设置中配置您的呼号。';
+
+  @override
+  String get digipeaterNoAprsChannel => '所选电台没有 APRS 频道。请配置一个以启用数字中继器。';
 
   @override
   String get aprsDropShare => '拖放以共享此信道';

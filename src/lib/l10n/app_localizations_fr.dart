@@ -251,7 +251,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get menuCheckForUpdatesEllipsis => 'Rechercher des mises à jour...';
 
   @override
-  String get menuCheckForUpdates => 'Check for Updates';
+  String get menuCheckForUpdates => 'Rechercher des mises à jour';
 
   @override
   String get menuAbout => 'À propos...';
@@ -2085,6 +2085,55 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aprsBeaconSettingsMenu => 'Paramètres de balise...';
+
+  @override
+  String get aprsDigipeaterMenu => 'Digipeater...';
+
+  @override
+  String get digipeaterTitle => 'Digipeater APRS';
+
+  @override
+  String get digipeaterIntro =>
+      'Le digipeater retransmet les paquets APRS éligibles qu\'il reçoit sur le canal APRS. Lorsqu\'il est activé, la radio sélectionnée est verrouillée sur le canal APRS.';
+
+  @override
+  String get digipeaterEnable => 'Activer le digipeater';
+
+  @override
+  String get digipeaterRadio => 'Radio';
+
+  @override
+  String get digipeaterHandleWideN => 'Répéter les paquets WIDEn-N';
+
+  @override
+  String get digipeaterFillIn => 'Remplissage uniquement (WIDE1-1)';
+
+  @override
+  String get digipeaterSubstituteCall => 'Insérer mon indicatif dans le chemin';
+
+  @override
+  String get digipeaterMaxHops => 'Sauts max.';
+
+  @override
+  String get digipeaterDedupSeconds => 'Fenêtre anti-doublons (s)';
+
+  @override
+  String get digipeaterAliases => 'Alias personnalisés';
+
+  @override
+  String get digipeaterAliasesHint => 'ex. RELAY, WIDE1-1';
+
+  @override
+  String get digipeaterAliasesInvalid =>
+      'Un ou plusieurs alias ne sont pas des indicatifs valides.';
+
+  @override
+  String get digipeaterNoCallsign =>
+      'Configurez votre indicatif dans les Paramètres avant d\'utiliser le digipeater.';
+
+  @override
+  String get digipeaterNoAprsChannel =>
+      'La radio sélectionnée n\'a pas de canal APRS. Configurez-en un pour activer le digipeater.';
 
   @override
   String get aprsDropShare => 'Déposez pour partager ce canal';

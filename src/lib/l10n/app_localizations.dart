@@ -3866,6 +3866,96 @@ abstract class AppLocalizations {
   /// **'Beacon Settings...'**
   String get aprsBeaconSettingsMenu;
 
+  /// No description provided for @aprsDigipeaterMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Digipeater...'**
+  String get aprsDigipeaterMenu;
+
+  /// No description provided for @digipeaterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'APRS Digipeater'**
+  String get digipeaterTitle;
+
+  /// No description provided for @digipeaterIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'The digipeater re-transmits eligible APRS packets it hears on the APRS channel. While enabled, the selected radio is locked to the APRS channel.'**
+  String get digipeaterIntro;
+
+  /// No description provided for @digipeaterEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable digipeater'**
+  String get digipeaterEnable;
+
+  /// No description provided for @digipeaterRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Radio'**
+  String get digipeaterRadio;
+
+  /// No description provided for @digipeaterHandleWideN.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat WIDEn-N packets'**
+  String get digipeaterHandleWideN;
+
+  /// No description provided for @digipeaterFillIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill-in only (WIDE1-1)'**
+  String get digipeaterFillIn;
+
+  /// No description provided for @digipeaterSubstituteCall.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert my callsign into the path'**
+  String get digipeaterSubstituteCall;
+
+  /// No description provided for @digipeaterMaxHops.
+  ///
+  /// In en, this message translates to:
+  /// **'Max hops'**
+  String get digipeaterMaxHops;
+
+  /// No description provided for @digipeaterDedupSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Dedup window (s)'**
+  String get digipeaterDedupSeconds;
+
+  /// No description provided for @digipeaterAliases.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom aliases'**
+  String get digipeaterAliases;
+
+  /// No description provided for @digipeaterAliasesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. RELAY, WIDE1-1'**
+  String get digipeaterAliasesHint;
+
+  /// No description provided for @digipeaterAliasesInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'One or more aliases are not valid callsigns.'**
+  String get digipeaterAliasesInvalid;
+
+  /// No description provided for @digipeaterNoCallsign.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure your callsign in Settings before using the digipeater.'**
+  String get digipeaterNoCallsign;
+
+  /// No description provided for @digipeaterNoAprsChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected radio has no APRS channel. Configure one to enable the digipeater.'**
+  String get digipeaterNoAprsChannel;
+
   /// No description provided for @aprsDropShare.
   ///
   /// In en, this message translates to:

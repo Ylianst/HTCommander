@@ -12,6 +12,7 @@ import '../dialogs/aprs_weather_dialog.dart';
 import '../dialogs/dialog_utils.dart';
 import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_beacon_settings_dialog.dart';
+import '../dialogs/digipeater_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
@@ -333,13 +334,16 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   }
 
   /// Whether the radio the APRS tab would transmit on is locked to a usage
-  /// (BBS, Terminal, Winlink, Torrent, ...). While locked no APRS data may be
-  /// sent.
-  bool get _isRadioLocked {
+  /// that blocks APRS activity (BBS, Terminal, Winlink, Torrent, ...).
+  ///
+  /// The digipeater usage is intentionally excluded: while the digipeater holds
+  /// the lock the radio stays on the APRS channel, so the user is still allowed
+  /// to send APRS messages and to open the digipeater dialog.
+  bool get _isRadioLockedForOtherUsage {
     final id = _getPreferredAprsRadioDeviceId();
     if (id <= 0) return false;
     final ls = _lockStates[id];
-    return ls != null && ls.isLocked;
+    return ls != null && ls.isLocked && ls.usage != 'Digipeater';
   }
 
   void _onBeaconStateChanged(int deviceId, String name, Object? data) {
@@ -452,7 +456,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   /// `UpdateSendButtonState`).
   bool get _canSend =>
       _hasAprsChannel &&
-      !_isRadioLocked &&
+      !_isRadioLockedForOtherUsage &&
       _destinationController.text.trim().isNotEmpty &&
       _messageController.text.trim().isNotEmpty;
 
@@ -1271,7 +1275,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'sendSms',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit && _hasAprsChannel && !_isRadioLocked,
+          enabled: _allowTransmit && _hasAprsChannel && !_isRadioLockedForOtherUsage,
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.aprsSendSms)],
           ),
@@ -1280,7 +1284,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'weatherReport',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit && _hasAprsChannel && !_isRadioLocked,
+          enabled: _allowTransmit && _hasAprsChannel && !_isRadioLockedForOtherUsage,
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.aprsWeatherReport)],
           ),
@@ -1293,6 +1297,16 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           enabled: _connectedRadioDeviceIds().isNotEmpty,
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.aprsBeaconSettingsMenu)],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'digipeater',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          enabled:
+              _connectedRadioDeviceIds().isNotEmpty && !_isRadioLockedForOtherUsage,
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.aprsDigipeaterMenu)],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -1328,6 +1342,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           break;
         case 'beaconSettings':
           if (context.mounted) showEditBeaconSettingsDialog(context);
+          break;
+        case 'digipeater':
+          if (context.mounted) showDigipeaterDialog(context);
           break;
         case 'clear':
           _clearMessages();

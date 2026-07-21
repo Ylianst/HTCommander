@@ -251,7 +251,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get menuCheckForUpdatesEllipsis => 'Sprawdź aktualizacje...';
 
   @override
-  String get menuCheckForUpdates => 'Check for Updates';
+  String get menuCheckForUpdates => 'Sprawdź aktualizacje';
 
   @override
   String get menuAbout => 'O programie...';
@@ -2082,6 +2082,55 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get aprsBeaconSettingsMenu => 'Ustawienia beacona...';
+
+  @override
+  String get aprsDigipeaterMenu => 'Digipeater...';
+
+  @override
+  String get digipeaterTitle => 'Digipeater APRS';
+
+  @override
+  String get digipeaterIntro =>
+      'Digipeater retransmituje kwalifikujące się pakiety APRS, które odbiera na kanale APRS. Gdy jest włączony, wybrane radio jest zablokowane na kanale APRS.';
+
+  @override
+  String get digipeaterEnable => 'Włącz digipeater';
+
+  @override
+  String get digipeaterRadio => 'Radio';
+
+  @override
+  String get digipeaterHandleWideN => 'Powtarzaj pakiety WIDEn-N';
+
+  @override
+  String get digipeaterFillIn => 'Tylko fill-in (WIDE1-1)';
+
+  @override
+  String get digipeaterSubstituteCall => 'Wstaw mój znak wywoławczy do ścieżki';
+
+  @override
+  String get digipeaterMaxHops => 'Maks. przeskoków';
+
+  @override
+  String get digipeaterDedupSeconds => 'Okno deduplikacji (s)';
+
+  @override
+  String get digipeaterAliases => 'Własne aliasy';
+
+  @override
+  String get digipeaterAliasesHint => 'np. RELAY, WIDE1-1';
+
+  @override
+  String get digipeaterAliasesInvalid =>
+      'Jeden lub więcej aliasów nie jest prawidłowym znakiem wywoławczym.';
+
+  @override
+  String get digipeaterNoCallsign =>
+      'Skonfiguruj swój znak wywoławczy w Ustawieniach przed użyciem digipeatera.';
+
+  @override
+  String get digipeaterNoAprsChannel =>
+      'Wybrane radio nie ma kanału APRS. Skonfiguruj go, aby włączyć digipeater.';
 
   @override
   String get aprsDropShare => 'Upuść, aby udostępnić ten kanał';

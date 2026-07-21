@@ -1100,5 +1100,21 @@
   "cslUpToDate": "La base de données d'indicatifs est à jour.",
   "cslDownloadFailed": "Échec du téléchargement : {error}",
   "cslDeleteTitle": "Supprimer la base de données d'indicatifs",
-  "cslDeleteMessage": "Supprimer la base de données d'indicatifs téléchargée ? Vous pourrez la télécharger à nouveau plus tard."
+  "cslDeleteMessage": "Supprimer la base de données d'indicatifs téléchargée ? Vous pourrez la télécharger à nouveau plus tard.",
+  "aprsDigipeaterMenu": "Digipeater...",
+  "digipeaterTitle": "Digipeater APRS",
+  "digipeaterIntro": "Le digipeater retransmet les paquets APRS éligibles qu'il reçoit sur le canal APRS. Lorsqu'il est activé, la radio sélectionnée est verrouillée sur le canal APRS.",
+  "digipeaterEnable": "Activer le digipeater",
+  "digipeaterRadio": "Radio",
+  "digipeaterHandleWideN": "Répéter les paquets WIDEn-N",
+  "digipeaterFillIn": "Remplissage uniquement (WIDE1-1)",
+  "digipeaterSubstituteCall": "Insérer mon indicatif dans le chemin",
+  "digipeaterMaxHops": "Sauts max.",
+  "digipeaterDedupSeconds": "Fenêtre anti-doublons (s)",
+  "digipeaterAliases": "Alias personnalisés",
+  "digipeaterAliasesHint": "ex. RELAY, WIDE1-1",
+  "digipeaterAliasesInvalid": "Un ou plusieurs alias ne sont pas des indicatifs valides.",
+  "digipeaterNoCallsign": "Configurez votre indicatif dans les Paramètres avant d'utiliser le digipeater.",
+  "digipeaterNoAprsChannel": "La radio sélectionnée n'a pas de canal APRS. Configurez-en un pour activer le digipeater.",
+  "menuCheckForUpdates": "Rechercher des mises à jour"
 }

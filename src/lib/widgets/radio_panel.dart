@@ -10,6 +10,7 @@ import '../radio/radio_models.dart' as radio;
 import '../dialogs/radio_channel_dialog.dart';
 import '../dialogs/gps_details_dialog.dart';
 import '../dialogs/fm_radio_dialog.dart';
+import '../dialogs/digipeater_dialog.dart';
 import '../utils/channel_colors.dart';
 import '../utils/channel_share.dart';
 import '../utils/web_channel_import/web_channel_import.dart';
@@ -1333,15 +1334,33 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                 style: TextStyle(color: _vfo1Color, fontSize: 10),
               ),
             ),
-            Text(
-              _vfo1Status,
-              style: TextStyle(color: _vfo1Color, fontSize: 10),
-              textAlign: TextAlign.right,
-            ),
+            _buildVfo1Status(),
           ],
         ),
       ],
     );
+  }
+
+  /// Builds the VFO1 status text (lock usage). When the radio is locked for the
+  /// "Digipeater" usage, the text becomes a tappable link that opens the
+  /// digipeater configuration dialog.
+  Widget _buildVfo1Status() {
+    final status = _vfo1Status;
+    final style = TextStyle(color: _vfo1Color, fontSize: 10);
+    if (status == 'Digipeater') {
+      return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () => showDigipeaterDialog(context),
+          child: Text(
+            status,
+            style: style.copyWith(decoration: TextDecoration.underline),
+            textAlign: TextAlign.right,
+          ),
+        ),
+      );
+    }
+    return Text(status, style: style, textAlign: TextAlign.right);
   }
 
   Widget _buildVfo2Row() {

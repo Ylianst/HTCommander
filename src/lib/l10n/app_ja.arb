@@ -1100,5 +1100,21 @@
   "cslUpToDate": "コールサインデータベースは最新です。",
   "cslDownloadFailed": "ダウンロードに失敗しました: {error}",
   "cslDeleteTitle": "コールサインデータベースを削除",
-  "cslDeleteMessage": "ダウンロードしたコールサインデータベースを削除しますか？後で再度ダウンロードできます。"
+  "cslDeleteMessage": "ダウンロードしたコールサインデータベースを削除しますか？後で再度ダウンロードできます。",
+  "aprsDigipeaterMenu": "デジピーター...",
+  "digipeaterTitle": "APRS デジピーター",
+  "digipeaterIntro": "デジピーターは、APRS チャンネルで受信した対象の APRS パケットを再送信します。有効な場合、選択した無線機は APRS チャンネルにロックされます。",
+  "digipeaterEnable": "デジピーターを有効にする",
+  "digipeaterRadio": "無線機",
+  "digipeaterHandleWideN": "WIDEn-N パケットを中継する",
+  "digipeaterFillIn": "フィルインのみ (WIDE1-1)",
+  "digipeaterSubstituteCall": "自分のコールサインを経路に挿入する",
+  "digipeaterMaxHops": "最大ホップ数",
+  "digipeaterDedupSeconds": "重複除外ウィンドウ (秒)",
+  "digipeaterAliases": "カスタムエイリアス",
+  "digipeaterAliasesHint": "例: RELAY, WIDE1-1",
+  "digipeaterAliasesInvalid": "1つ以上のエイリアスが有効なコールサインではありません。",
+  "digipeaterNoCallsign": "デジピーターを使用する前に、設定でコールサインを構成してください。",
+  "digipeaterNoAprsChannel": "選択した無線機に APRS チャンネルがありません。デジピーターを有効にするには構成してください。",
+  "menuCheckForUpdates": "アップデートを確認"
 }

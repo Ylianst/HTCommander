@@ -251,7 +251,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get menuCheckForUpdatesEllipsis => 'अपडेट के लिए जाँचें...';
 
   @override
-  String get menuCheckForUpdates => 'Check for Updates';
+  String get menuCheckForUpdates => 'अपडेट जांचें';
 
   @override
   String get menuAbout => 'बारे में...';
@@ -2073,6 +2073,55 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get aprsBeaconSettingsMenu => 'बीकन सेटिंग्स...';
+
+  @override
+  String get aprsDigipeaterMenu => 'डिजीपीटर...';
+
+  @override
+  String get digipeaterTitle => 'APRS डिजीपीटर';
+
+  @override
+  String get digipeaterIntro =>
+      'डिजीपीटर APRS चैनल पर सुने गए योग्य APRS पैकेट को फिर से प्रसारित करता है। सक्षम होने पर, चयनित रेडियो APRS चैनल पर लॉक हो जाता है।';
+
+  @override
+  String get digipeaterEnable => 'डिजीपीटर सक्षम करें';
+
+  @override
+  String get digipeaterRadio => 'रेडियो';
+
+  @override
+  String get digipeaterHandleWideN => 'WIDEn-N पैकेट दोहराएं';
+
+  @override
+  String get digipeaterFillIn => 'केवल फिल-इन (WIDE1-1)';
+
+  @override
+  String get digipeaterSubstituteCall => 'मेरा कॉलसाइन पथ में जोड़ें';
+
+  @override
+  String get digipeaterMaxHops => 'अधिकतम हॉप';
+
+  @override
+  String get digipeaterDedupSeconds => 'डीडुप विंडो (से)';
+
+  @override
+  String get digipeaterAliases => 'कस्टम उपनाम';
+
+  @override
+  String get digipeaterAliasesHint => 'जैसे RELAY, WIDE1-1';
+
+  @override
+  String get digipeaterAliasesInvalid =>
+      'एक या अधिक उपनाम मान्य कॉलसाइन नहीं हैं।';
+
+  @override
+  String get digipeaterNoCallsign =>
+      'डिजीपीटर का उपयोग करने से पहले सेटिंग्स में अपना कॉलसाइन कॉन्फ़िगर करें।';
+
+  @override
+  String get digipeaterNoAprsChannel =>
+      'चयनित रेडियो में कोई APRS चैनल नहीं है। डिजीपीटर सक्षम करने के लिए एक कॉन्फ़िगर करें।';
 
   @override
   String get aprsDropShare => 'इस चैनल को साझा करने के लिए ड्रॉप करें';

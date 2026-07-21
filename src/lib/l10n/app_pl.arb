@@ -1100,5 +1100,21 @@
   "cslUpToDate": "Baza danych znaków wywoławczych jest aktualna.",
   "cslDownloadFailed": "Pobieranie nie powiodło się: {error}",
   "cslDeleteTitle": "Usuń bazę danych znaków wywoławczych",
-  "cslDeleteMessage": "Usunąć pobraną bazę danych znaków wywoławczych? Możesz pobrać ją ponownie później."
+  "cslDeleteMessage": "Usunąć pobraną bazę danych znaków wywoławczych? Możesz pobrać ją ponownie później.",
+  "aprsDigipeaterMenu": "Digipeater...",
+  "digipeaterTitle": "Digipeater APRS",
+  "digipeaterIntro": "Digipeater retransmituje kwalifikujące się pakiety APRS, które odbiera na kanale APRS. Gdy jest włączony, wybrane radio jest zablokowane na kanale APRS.",
+  "digipeaterEnable": "Włącz digipeater",
+  "digipeaterRadio": "Radio",
+  "digipeaterHandleWideN": "Powtarzaj pakiety WIDEn-N",
+  "digipeaterFillIn": "Tylko fill-in (WIDE1-1)",
+  "digipeaterSubstituteCall": "Wstaw mój znak wywoławczy do ścieżki",
+  "digipeaterMaxHops": "Maks. przeskoków",
+  "digipeaterDedupSeconds": "Okno deduplikacji (s)",
+  "digipeaterAliases": "Własne aliasy",
+  "digipeaterAliasesHint": "np. RELAY, WIDE1-1",
+  "digipeaterAliasesInvalid": "Jeden lub więcej aliasów nie jest prawidłowym znakiem wywoławczym.",
+  "digipeaterNoCallsign": "Skonfiguruj swój znak wywoławczy w Ustawieniach przed użyciem digipeatera.",
+  "digipeaterNoAprsChannel": "Wybrane radio nie ma kanału APRS. Skonfiguruj go, aby włączyć digipeater.",
+  "menuCheckForUpdates": "Sprawdź aktualizacje"
 }

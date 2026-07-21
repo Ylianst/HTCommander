@@ -1100,5 +1100,21 @@
   "cslUpToDate": "La base de datos de indicativos está actualizada.",
   "cslDownloadFailed": "Error al descargar: {error}",
   "cslDeleteTitle": "Eliminar la base de datos de indicativos",
-  "cslDeleteMessage": "¿Eliminar la base de datos de indicativos descargada? Podrá descargarla de nuevo más tarde."
+  "cslDeleteMessage": "¿Eliminar la base de datos de indicativos descargada? Podrá descargarla de nuevo más tarde.",
+  "aprsDigipeaterMenu": "Digipeater...",
+  "digipeaterTitle": "Digipeater APRS",
+  "digipeaterIntro": "El digipeater retransmite los paquetes APRS aptos que escucha en el canal APRS. Cuando está activado, la radio seleccionada se bloquea en el canal APRS.",
+  "digipeaterEnable": "Activar digipeater",
+  "digipeaterRadio": "Radio",
+  "digipeaterHandleWideN": "Repetir paquetes WIDEn-N",
+  "digipeaterFillIn": "Solo relleno (WIDE1-1)",
+  "digipeaterSubstituteCall": "Insertar mi indicativo en la ruta",
+  "digipeaterMaxHops": "Saltos máx.",
+  "digipeaterDedupSeconds": "Ventana anti-duplicados (s)",
+  "digipeaterAliases": "Alias personalizados",
+  "digipeaterAliasesHint": "p. ej. RELAY, WIDE1-1",
+  "digipeaterAliasesInvalid": "Uno o más alias no son indicativos válidos.",
+  "digipeaterNoCallsign": "Configura tu indicativo en Ajustes antes de usar el digipeater.",
+  "digipeaterNoAprsChannel": "La radio seleccionada no tiene canal APRS. Configura uno para activar el digipeater.",
+  "menuCheckForUpdates": "Buscar actualizaciones"
 }
