@@ -1051,6 +1051,20 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       }
     }
 
+    final tlm = aprs.telemetry;
+    if (tlm != null && tlm.hasData) {
+      items.add(AprsDetailItem('Telemetry Seq', tlm.sequence.toString()));
+      for (var c = 0; c < tlm.analog.length; c++) {
+        items.add(AprsDetailItem('Telemetry Ch${c + 1}', tlm.analog[c].toString()));
+      }
+      if (tlm.binaryBits != null) {
+        items.add(AprsDetailItem(
+          'Telemetry Binary',
+          tlm.binary.map((b) => b ? '1' : '0').join(),
+        ));
+      }
+    }
+
     return items;
   }
 

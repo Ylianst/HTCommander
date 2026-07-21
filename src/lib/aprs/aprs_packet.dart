@@ -14,6 +14,7 @@ import 'coordinate.dart';
 import 'message_data.dart';
 import 'packet_data_type.dart';
 import 'aprs_util.dart';
+import 'telemetry_data.dart';
 import 'weather_data.dart';
 
 /// Represents a parsed APRS packet (TNC2 format), built from an [AX25Packet].
@@ -35,6 +36,7 @@ class AprsPacket {
   DateTime? timeStamp;
   MessageData messageData = MessageData();
   WeatherData? weather;
+  TelemetryData? telemetry;
 
   AprsPacket._();
 
@@ -166,6 +168,58 @@ class AprsPacket {
         // Not implemented - do nothing.
         break;
     }
+
+    // Base91 Comment Telemetry may ride in the comment field of any position
+    // packet (uncompressed, compressed or Mic-E).
+    switch (dataType) {
+      case PacketDataType.position:
+      case PacketDataType.positionMsg:
+      case PacketDataType.positionTime:
+      case PacketDataType.positionTimeMsg:
+      case PacketDataType.micECurrent:
+      case PacketDataType.micEOld:
+      case PacketDataType.tmd700:
+      case PacketDataType.micE:
+        _extractTelemetryFromComment();
+        break;
+      default:
+        break;
+    }
+  }
+
+  /// Extracts an aprs.fi "Base91 Comment Telemetry" sequence from [comment].
+  ///
+  /// The extension is delimited by `|` at both ends and, per the specification,
+  /// appears after the free-form comment text. When a valid sequence is found
+  /// it is decoded into [telemetry] and removed from [comment].
+  void _extractTelemetryFromComment() {
+    if (comment.isEmpty) return;
+
+    // Telemetry sits at the end of the comment (before any DAO/Mic-E codes),
+    // so scan for the last `|...|` pair whose payload is valid telemetry. This
+    // avoids being fooled by a stray `|` inside the free-form comment text.
+    int bestStart = -1;
+    int bestEnd = -1;
+    TelemetryData? bestDecoded;
+    int start = comment.indexOf('|');
+    while (start >= 0) {
+      final int end = comment.indexOf('|', start + 1);
+      if (end < 0) break;
+      final decoded = TelemetryData.parse(comment.substring(start + 1, end));
+      if (decoded != null) {
+        bestStart = start;
+        bestEnd = end;
+        bestDecoded = decoded;
+      }
+      // Continue after this closing pipe; it may itself open the next block.
+      start = comment.indexOf('|', end);
+    }
+    if (bestDecoded == null) return;
+
+    telemetry = bestDecoded;
+    comment =
+        (comment.substring(0, bestStart) + comment.substring(bestEnd + 1))
+            .trim();
   }
 
   void _parseDateTime(String str) {
