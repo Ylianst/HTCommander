@@ -292,6 +292,10 @@
   "@menuCheckForUpdatesEllipsis": {
     "description": "Help menu item that checks for application updates."
   },
+  "menuCheckForUpdates": "Check for Updates",
+  "@menuCheckForUpdates": {
+    "description": "Help menu item that toggles automatic checking for application updates."
+  },
   "menuAbout": "About...",
   "@menuAbout": {
     "description": "Menu item that opens the About dialog."

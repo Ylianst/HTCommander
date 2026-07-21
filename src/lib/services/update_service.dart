@@ -17,6 +17,21 @@ const bool kAppStoreBuild = bool.fromEnvironment(
   defaultValue: false,
 );
 
+/// Outcome of a silent, background update check.
+enum BackgroundUpdateCheck {
+  /// A newer version is available to download.
+  updateAvailable,
+
+  /// The app is up to date (or an update exists but is blocked by policy).
+  upToDate,
+
+  /// The check failed (e.g. no network). Callers should ignore this silently.
+  failed,
+
+  /// Self-update is not supported on this platform/build.
+  unsupported,
+}
+
 /// Provides access to the desktop self-update controller.
 ///
 /// On non-desktop platforms the [controller] is `null` and all operations
@@ -70,6 +85,29 @@ class UpdateService {
   /// `null` otherwise.
   Future<ManualUpdateCheckResult?> checkForUpdates() async {
     return controller?.checkForUpdates();
+  }
+
+  /// Silently check for updates in the background.
+  ///
+  /// Never throws — network and other failures are reported as
+  /// [BackgroundUpdateCheck.failed] so callers can fail silently.
+  Future<BackgroundUpdateCheck> checkForUpdatesInBackground() async {
+    final c = controller;
+    if (c == null) return BackgroundUpdateCheck.unsupported;
+    try {
+      final result = await c.checkForUpdates();
+      return switch (result) {
+        ManualUpdateCheckAvailable() => BackgroundUpdateCheck.updateAvailable,
+        ManualUpdateCheckFreshInstallRequired() =>
+          BackgroundUpdateCheck.updateAvailable,
+        ManualUpdateCheckBlockedBySupportPolicy() =>
+          BackgroundUpdateCheck.upToDate,
+        ManualUpdateCheckUpToDate() => BackgroundUpdateCheck.upToDate,
+        ManualUpdateCheckFailed() => BackgroundUpdateCheck.failed,
+      };
+    } catch (_) {
+      return BackgroundUpdateCheck.failed;
+    }
   }
 
   /// Download the available update.

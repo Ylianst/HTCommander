@@ -251,6 +251,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get menuCheckForUpdatesEllipsis => 'Sprawdź aktualizacje...';
 
   @override
+  String get menuCheckForUpdates => 'Check for Updates';
+
+  @override
   String get menuAbout => 'O programie...';
 
   @override

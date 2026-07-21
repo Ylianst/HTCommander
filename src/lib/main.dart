@@ -527,6 +527,9 @@ class _MainFormState extends State<MainForm>
   // Whether channel tiles show the frequency under the name. Toggled from the
   // View menu to declutter the channel grid.
   bool _showChannelFrequency = true;
+  // Whether the app checks for updates in the background (on start and when the
+  // menu item is toggled on). Enabled by default.
+  bool _checkForUpdatesEnabled = true;
   // Tabs the user has chosen to hide via the context menu.
   Set<String> _hiddenTabs = {};
   // When true, all tabs are shown regardless of _hiddenTabs.
@@ -839,6 +842,12 @@ class _MainFormState extends State<MainForm>
 
     _initWindowManager();
     _updateWindowTitle();
+
+    // Check for updates in the background shortly after startup (throttled to
+    // once a day). Deferred to after the first frame so a dialog can be shown.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checkForUpdatesInBackground();
+    });
   }
 
   /// Load settings from DataBroker (device 0).
@@ -855,6 +864,8 @@ class _MainFormState extends State<MainForm>
         (DataBroker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
     _showChannelFrequency =
         (DataBroker.getValue<int>(0, 'ShowChannelFrequency', 1) ?? 1) == 1;
+    _checkForUpdatesEnabled =
+        (DataBroker.getValue<int>(0, 'CheckForUpdates', 1) ?? 1) == 1;
     _showAllTabs = (DataBroker.getValue<int>(0, 'ShowAllTabs', 0) ?? 0) == 1;
     final hiddenTabsStr =
         DataBroker.getValue<String>(0, 'HiddenTabs', '') ?? '';
@@ -886,6 +897,9 @@ class _MainFormState extends State<MainForm>
           break;
         case 'ShowChannelFrequency':
           _showChannelFrequency = (data as int?) == 1;
+          break;
+        case 'CheckForUpdates':
+          _checkForUpdatesEnabled = (data as int?) == 1;
           break;
       }
     });
@@ -2065,8 +2079,9 @@ class _MainFormState extends State<MainForm>
           const AppMenuDivider(),
           if (UpdateService.instance.isSupported)
             AppMenuAction(
-              label: l10n.menuCheckForUpdatesEllipsis,
-              onPressed: _onCheckForUpdates,
+              label: l10n.menuCheckForUpdates,
+              onPressed: _onToggleCheckForUpdates,
+              checked: _checkForUpdatesEnabled,
             ),
           AppMenuAction(
             label: l10n.menuAbout,
@@ -3065,9 +3080,63 @@ class _MainFormState extends State<MainForm>
     }
   }
 
-  void _onCheckForUpdates() {
-    _broker.logInfo('Opening Check for Updates dialog');
-    showDialog(context: context, builder: (context) => const UpdateDialog());
+  void _onToggleCheckForUpdates() {
+    final newValue = !_checkForUpdatesEnabled;
+    setState(() {
+      _checkForUpdatesEnabled = newValue;
+    });
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'CheckForUpdates',
+      data: newValue ? 1 : 0,
+    );
+    // When the user turns the option on, check right away (ignoring the
+    // once-a-day throttle) so they get immediate feedback.
+    if (newValue) {
+      _checkForUpdatesInBackground(force: true);
+    }
+  }
+
+  /// Silently checks for updates in the background and, if one is available,
+  /// pops up the update dialog.
+  ///
+  /// On application start ([force] false) this checks at most once per day; the
+  /// timestamp of the last successful check is stored in DataBroker device 0.
+  /// Any failure (e.g. no network) is ignored silently.
+  Future<void> _checkForUpdatesInBackground({bool force = false}) async {
+    if (!UpdateService.instance.isSupported) return;
+    if (!_checkForUpdatesEnabled) return;
+
+    if (!force) {
+      final lastCheckMs = DataBroker.getValue<int>(0, 'LastUpdateCheck', 0) ?? 0;
+      if (lastCheckMs > 0) {
+        final lastCheck = DateTime.fromMillisecondsSinceEpoch(lastCheckMs);
+        if (DateTime.now().difference(lastCheck) < const Duration(days: 1)) {
+          return;
+        }
+      }
+    }
+
+    final result = await UpdateService.instance.checkForUpdatesInBackground();
+    // A failed check (e.g. no network) is ignored silently and not recorded,
+    // so the next launch will try again.
+    if (result == BackgroundUpdateCheck.failed ||
+        result == BackgroundUpdateCheck.unsupported) {
+      return;
+    }
+
+    // Record the successful check time so we don't check again for a day.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'LastUpdateCheck',
+      data: DateTime.now().millisecondsSinceEpoch,
+    );
+
+    if (!mounted) return;
+    if (result == BackgroundUpdateCheck.updateAvailable) {
+      _broker.logInfo('Update available, opening Check for Updates dialog');
+      showDialog(context: context, builder: (context) => const UpdateDialog());
+    }
   }
 
   void _onAbout() {

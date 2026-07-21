@@ -249,6 +249,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get menuCheckForUpdatesEllipsis => '检查更新...';
 
   @override
+  String get menuCheckForUpdates => 'Check for Updates';
+
+  @override
   String get menuAbout => '关于...';
 
   @override

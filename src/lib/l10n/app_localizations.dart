@@ -578,6 +578,12 @@ abstract class AppLocalizations {
   /// **'Check for Updates...'**
   String get menuCheckForUpdatesEllipsis;
 
+  /// Help menu item that toggles automatic checking for application updates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for Updates'**
+  String get menuCheckForUpdates;
+
   /// Menu item that opens the About dialog.
   ///
   /// In en, this message translates to:

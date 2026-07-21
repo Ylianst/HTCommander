@@ -251,6 +251,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get menuCheckForUpdatesEllipsis => '更新を確認...';
 
   @override
+  String get menuCheckForUpdates => 'Check for Updates';
+
+  @override
   String get menuAbout => 'このアプリについて...';
 
   @override
