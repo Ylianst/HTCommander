@@ -11,9 +11,12 @@ import '../dialogs/radio_channel_dialog.dart';
 import '../dialogs/gps_details_dialog.dart';
 import '../dialogs/fm_radio_dialog.dart';
 import '../dialogs/digipeater_dialog.dart';
+import '../dialogs/echolink_channel_dialog.dart';
 import '../utils/channel_colors.dart';
 import '../utils/channel_share.dart';
 import '../utils/web_channel_import/web_channel_import.dart';
+import '../echolink/echolink_client.dart' show echoLinkDeviceId;
+import '../echolink/echolink_station.dart';
 
 /// Radio panel control widget - displays radio image, VFO frequencies, and status
 class RadioPanelControl extends StatefulWidget {
@@ -64,6 +67,16 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   bool _gpsEnabled = false;
   RadioPosition? _position;
   RadioLockState? _lockState;
+
+  // EchoLink (device 200) state, used when this panel displays EchoLink.
+  bool _echoLinkAvailable = false;
+  String? _echoLinkState;
+  List<StationData> _echoLinkStations = const [];
+  StationData? _echoLinkConnected;
+  bool _echoLinkBusy = false;
+  // Up to 30 favorite EchoLink stations shown as channel tiles below the radio.
+  List<StationData> _echoLinkFavorites = const [];
+  static const int _kMaxEchoLinkFavorites = 30;
 
   // UI state
   bool _showAllChannels = false;
@@ -123,12 +136,26 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       name: 'FmRadioStations',
       callback: _onFmStationsChanged,
     );
+    _loadEchoLinkFavorites();
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'EchoLinkFavorites',
+      callback: _onEchoLinkFavoritesChanged,
+    );
     // Rebuild when the set of connected radios changes so the radio-name
     // switcher affordance appears/disappears as radios connect/disconnect.
     _broker.subscribe(
       deviceId: 1,
       name: 'ConnectedRadios',
       callback: _onConnectedRadiosChanged,
+    );
+    // Track EchoLink availability so it can be offered in the radio switcher.
+    _echoLinkAvailable =
+        _broker.getValue<bool>(1, 'EchoLinkAvailable', false) ?? false;
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'EchoLinkAvailable',
+      callback: _onEchoLinkAvailableChanged,
     );
     _subscribeToDevice();
   }
@@ -155,9 +182,19 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         callback: _onFmStationsChanged,
       );
       _broker.subscribe(
+        deviceId: 0,
+        name: 'EchoLinkFavorites',
+        callback: _onEchoLinkFavoritesChanged,
+      );
+      _broker.subscribe(
         deviceId: 1,
         name: 'ConnectedRadios',
         callback: _onConnectedRadiosChanged,
+      );
+      _broker.subscribe(
+        deviceId: 1,
+        name: 'EchoLinkAvailable',
+        callback: _onEchoLinkAvailableChanged,
       );
       _clearCachedState();
       _subscribeToDevice();
@@ -202,6 +239,150 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   void _onConnectedRadiosChanged(int deviceId, String name, Object? data) {
     if (!mounted) return;
     setState(() {});
+  }
+
+  /// Tracks EchoLink availability for the radio switcher.
+  void _onEchoLinkAvailableChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() => _echoLinkAvailable = data == true);
+  }
+
+  /// Handles EchoLink status events (device 200) when this panel displays
+  /// EchoLink.
+  void _onEchoLinkEvent(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() {
+      switch (name) {
+        case 'State':
+          _echoLinkState = data as String?;
+          break;
+        case 'ConnectedStation':
+          _echoLinkConnected = _stationFromMap(data);
+          break;
+        case 'StationList':
+          _echoLinkStations = _stationsFromList(data);
+          break;
+      }
+      // Any command we issued has now been reflected in the state.
+      _echoLinkBusy = false;
+    });
+  }
+
+  void _loadEchoLinkState() {
+    _echoLinkState = _broker.getValue<String>(echoLinkDeviceId, 'State');
+    _echoLinkConnected = _stationFromMap(
+      _broker.getValueDynamic(echoLinkDeviceId, 'ConnectedStation'),
+    );
+    _echoLinkStations = _stationsFromList(
+      _broker.getValueDynamic(echoLinkDeviceId, 'StationList'),
+    );
+  }
+
+  static StationData? _stationFromMap(Object? data) {
+    if (data is! Map) return null;
+    StationStatus status = StationStatus.unknown;
+    final Object? s = data['Status'] ?? data['status'];
+    if (s is String) {
+      status = StationStatus.values.firstWhere(
+        (v) => v.name == s,
+        orElse: () => StationStatus.unknown,
+      );
+    }
+    return StationData(
+      callsign: (data['Callsign'] ?? data['callsign'] ?? '') as String,
+      description: (data['Description'] ?? data['description'] ?? '') as String,
+      status: status,
+      time: (data['Time'] ?? data['time'] ?? '') as String,
+      id: (data['Id'] ?? data['id'] ?? 0) as int,
+      ip: (data['Ip'] ?? data['ip'] ?? '') as String,
+    );
+  }
+
+  static List<StationData> _stationsFromList(Object? data) {
+    if (data is! List) return const [];
+    final out = <StationData>[];
+    for (final item in data) {
+      final station = _stationFromMap(item);
+      if (station != null && station.callsign.isNotEmpty) out.add(station);
+    }
+    return out;
+  }
+
+  // --- EchoLink favorites (persisted on device 0) --------------------------
+
+  void _onEchoLinkFavoritesChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(_loadEchoLinkFavorites);
+  }
+
+  void _loadEchoLinkFavorites() {
+    final raw = _broker.getValue<String>(0, 'EchoLinkFavorites');
+    final list = <StationData>[];
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          for (final item in decoded) {
+            if (item is Map) {
+              final callsign = (item['callsign'] ?? item['Callsign']) as String?;
+              if (callsign == null || callsign.isEmpty) continue;
+              list.add(StationData(
+                callsign: callsign,
+                description:
+                    (item['description'] ?? item['Description'] ?? '') as String,
+                id: (item['id'] ?? item['Id'] ?? 0) as int,
+              ));
+            }
+          }
+        }
+      } catch (_) {
+        // Ignore malformed stored data.
+      }
+    }
+    _echoLinkFavorites = list.take(_kMaxEchoLinkFavorites).toList();
+  }
+
+  void _saveEchoLinkFavorites(List<StationData> favorites) {
+    final json = jsonEncode(favorites
+        .map((s) => <String, Object?>{
+              'callsign': s.callsign,
+              'description': s.description,
+              'id': s.id,
+            })
+        .toList());
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'EchoLinkFavorites',
+      data: json,
+    );
+  }
+
+  void _addEchoLinkFavorite(StationData station) {
+    if (_echoLinkFavorites.length >= _kMaxEchoLinkFavorites) return;
+    if (_echoLinkFavorites.any(
+        (f) => f.callsign.toUpperCase() == station.callsign.toUpperCase())) {
+      return;
+    }
+    final updated = [..._echoLinkFavorites, station];
+    _saveEchoLinkFavorites(updated);
+  }
+
+  void _removeEchoLinkFavorite(StationData station) {
+    final updated = _echoLinkFavorites
+        .where(
+            (f) => f.callsign.toUpperCase() != station.callsign.toUpperCase())
+        .toList();
+    _saveEchoLinkFavorites(updated);
+  }
+
+  /// Returns the live directory entry for [callsign] (with IP + status), or null
+  /// if the callsign is not currently in the directory listing.
+  StationData? _findEchoLinkStation(String callsign) {
+    final upper = callsign.toUpperCase();
+    for (final s in _echoLinkStations) {
+      if (s.callsign.toUpperCase() == upper) return s;
+    }
+    return null;
   }
 
   /// Loads and parses the persisted preferred FM stations from device 0.
@@ -252,10 +433,24 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _gpsEnabled = false;
     _position = null;
     _lockState = null;
+    _echoLinkState = null;
+    _echoLinkStations = const [];
+    _echoLinkConnected = null;
+    _echoLinkBusy = false;
   }
 
   void _subscribeToDevice() {
     if (widget.deviceId <= 0) return;
+
+    if (widget.deviceId == echoLinkDeviceId) {
+      _broker.subscribeMultiple(
+        deviceId: echoLinkDeviceId,
+        names: ['State', 'ConnectedStation', 'StationList'],
+        callback: _onEchoLinkEvent,
+      );
+      _loadEchoLinkState();
+      return;
+    }
 
     // Subscribe to device events
     _broker.subscribeMultiple(
@@ -364,11 +559,18 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       'ConnectedRadios',
       (json) => ConnectedRadioInfo.fromJson(json),
     );
-    if (radios == null) return const [];
     final seen = <int>{};
     final unique = <ConnectedRadioInfo>[];
-    for (final r in radios) {
+    for (final r in radios ?? const <ConnectedRadioInfo>[]) {
       if (seen.add(r.deviceId)) unique.add(r);
+    }
+    // EchoLink is not part of `ConnectedRadios`, but is offered in the switcher
+    // as a selectable radio when available.
+    if (_echoLinkAvailable && seen.add(echoLinkDeviceId)) {
+      unique.add(ConnectedRadioInfo(
+        deviceId: echoLinkDeviceId,
+        friendlyName: 'EchoLink',
+      ));
     }
     return unique;
   }
@@ -976,10 +1178,546 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.deviceId == echoLinkDeviceId) {
+      return Container(
+        color: const Color(0xFF808080), // 50% gray
+        child: _buildEchoLinkPanel(),
+      );
+    }
     return Container(
       color: const Color(0xFF808080), // 50% gray
       child: _buildRadioDisplayWithChannels(),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // EchoLink panel
+  // ---------------------------------------------------------------------------
+
+  bool get _echoLinkOnline =>
+      _echoLinkState == 'Online' ||
+      _echoLinkState == 'Connecting' ||
+      _echoLinkState == 'Connected';
+
+  bool get _echoLinkInQso => _echoLinkState == 'Connected';
+
+  void _echoLinkDispatch(String name, {Object? data}) {
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: name,
+      data: data,
+      store: false,
+    );
+  }
+
+  void _toggleEchoLinkOnline() {
+    setState(() => _echoLinkBusy = true);
+    _echoLinkDispatch(
+      _echoLinkOnline ? 'EchoLinkGoOffline' : 'EchoLinkGoOnline',
+    );
+  }
+
+  void _connectEchoLinkStation(StationData station) {
+    _echoLinkDispatch('EchoLinkConnect', data: <String, Object?>{
+      'Callsign': station.callsign,
+      'Description': station.description,
+      'Status': station.status.name,
+      'Time': station.time,
+      'Id': station.id,
+      'Ip': station.ip,
+    });
+  }
+
+  Widget _buildEchoLinkPanel() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxHeight = constraints.maxHeight;
+        const double imageWidth = _kFixedImageWidth;
+        final double leftMargin = (constraints.maxWidth - imageWidth) / 2;
+        final double scaledImageHeight = imageWidth * _kImageAspectRatio;
+        final double displayPanelTop = scaledImageHeight * _kDisplayTop;
+
+        final double maxTopCrop = (displayPanelTop - 18 - 6).clamp(
+          0.0,
+          double.infinity,
+        );
+        final double topCrop =
+            (_kCropStartHeight - maxHeight).clamp(0.0, maxTopCrop);
+
+        final double rssiTop =
+            scaledImageHeight * (_kDisplayTop + _kDisplayHeight) +
+            2 -
+            50 -
+            topCrop;
+        final double maxPanelTop = rssiTop + 6 + 24;
+        final double maxPanelHeight = maxHeight - maxPanelTop;
+
+        return Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            // Radio background image (same artwork as a physical radio).
+            Positioned(
+              top: -topCrop,
+              left: leftMargin,
+              width: _kFixedImageWidth,
+              height: scaledImageHeight,
+              child: Image.asset(
+                'assets/images/Radio.png',
+                fit: BoxFit.fitWidth,
+                alignment: Alignment.topCenter,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: Colors.grey.shade800,
+                  child: const Center(
+                    child: Icon(Icons.radio, size: 100, color: Colors.white54),
+                  ),
+                ),
+              ),
+            ),
+            // LCD display.
+            Positioned(
+              left: leftMargin +
+                  (_kFixedImageWidth * _kDisplayLeft) +
+                  _kDisplayLeftOffset,
+              top: scaledImageHeight * _kDisplayTop - topCrop,
+              width: _kFixedImageWidth * _kDisplayWidth,
+              child: _buildEchoLinkDisplayPanel(),
+            ),
+            // "EchoLink" name with dropdown to switch radios.
+            Positioned(
+              left: leftMargin + 4,
+              width: _kFixedImageWidth,
+              top: scaledImageHeight * _kFriendlyNameTop +
+                  _kFriendlyNameTopOffset -
+                  topCrop,
+              child: Center(child: _buildEchoLinkNameSwitcher()),
+            ),
+            // Bottom panel: Go Online button when offline, favorites otherwise.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _echoLinkOnline
+                  ? _buildEchoLinkFavoritesPanel(
+                      constraints.maxWidth,
+                      maxPanelHeight,
+                    )
+                  : _buildEchoLinkOnlinePanel(),
+            ),
+            // Refresh / go-offline controls (top-right) while online.
+            if (_echoLinkOnline)
+              Positioned(top: 4, right: 4, child: _buildEchoLinkOnlineControls()),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Small top-right controls shown while EchoLink is online: refresh the
+  /// directory and go offline.
+  Widget _buildEchoLinkOnlineControls() {
+    Widget button(IconData icon, String tooltip, VoidCallback onTap) {
+      return Material(
+        color: Colors.black54,
+        shape: const CircleBorder(),
+        child: Tooltip(
+          message: tooltip,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Icon(icon, size: 18, color: Colors.white),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        button(
+          Icons.refresh,
+          'Refresh stations',
+          () => _echoLinkDispatch('EchoLinkRefreshStations'),
+        ),
+        const SizedBox(width: 4),
+        button(
+          Icons.power_settings_new,
+          'Go offline',
+          _echoLinkBusy ? () {} : _toggleEchoLinkOnline,
+        ),
+      ],
+    );
+  }
+
+  /// The "EchoLink" name shown where a radio's friendly name appears, with a
+  /// dropdown affordance to switch to another connected radio.
+  Widget _buildEchoLinkNameSwitcher() {
+    final bool hasMultiple = _connectedRadios().length >= 2;
+    final text = Text(
+      'EchoLink',
+      style: TextStyle(
+        color: Colors.grey.shade500,
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+      ),
+    );
+    if (!hasMultiple) return text;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (d) => _showRadioSelectionMenu(context, d.globalPosition),
+        onSecondaryTapDown: (d) =>
+            _showRadioSelectionMenu(context, d.globalPosition),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            text,
+            Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey.shade500),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// LCD panel styled like the radio display: VFO A shows "EchoLink" + online
+  /// state, VFO B shows the station currently in QSO, and the bottom-right shows
+  /// the "Internet" mode label.
+  Widget _buildEchoLinkDisplayPanel() {
+    final bool inQso = _echoLinkInQso;
+    final Color aColor = _inactiveColor;
+    final Color bColor = inQso ? _activeVfoColor : _inactiveColor;
+
+    final String stateText = switch (_echoLinkState) {
+      'Connected' => 'In QSO',
+      'Connecting' => 'Connecting...',
+      'Online' => 'Online',
+      _ => 'Offline',
+    };
+    final StationData? station = _echoLinkConnected;
+
+    Widget vfoBlock(String label, String sub, Color color) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 32,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Text(sub, style: TextStyle(color: color, fontSize: 10)),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: _displayBgColor,
+        borderRadius: BorderRadius.circular(2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Transform.translate(
+            offset: const Offset(0, -20),
+            child: vfoBlock('EchoLink', stateText, aColor),
+          ),
+          Transform.translate(
+            offset: const Offset(0, -14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              child: Container(height: 1, color: const Color(0xFF999999)),
+            ),
+          ),
+          Transform.translate(
+            offset: const Offset(0, -14),
+            child: vfoBlock(
+              inQso ? (station?.callsign ?? '') : '',
+              inQso ? (station?.description ?? '') : '',
+              bColor,
+            ),
+          ),
+          Transform.translate(
+            offset: const Offset(0, -12),
+            child: Row(
+              children: [
+                const Spacer(),
+                Text(
+                  'Internet',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+                  textAlign: TextAlign.right,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The "Go Online" button shown (in place of the favorites) while EchoLink is
+  /// offline, mirroring the radio's Connect button.
+  Widget _buildEchoLinkOnlinePanel() {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(8),
+      child: SizedBox(
+        width: double.infinity,
+        height: 44,
+        child: ElevatedButton(
+          onPressed: _echoLinkBusy ? null : _toggleEchoLinkOnline,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: scheme.surface,
+            foregroundColor: scheme.onSurface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          child: Text(
+            _echoLinkState == 'Connecting' ? 'Connecting...' : 'Go Online',
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Favorites grid shown below the radio, styled like the channel tiles. Shows
+  /// the saved favorite stations plus a trailing "add" tile.
+  Widget _buildEchoLinkFavoritesPanel(double panelWidth, double maxHeight) {
+    final favorites = _echoLinkFavorites;
+    final bool canAdd = favorites.length < _kMaxEchoLinkFavorites;
+    final int itemCount = favorites.length + (canAdd ? 1 : 0);
+    if (itemCount == 0) return const SizedBox.shrink();
+
+    final int rowCount = ((itemCount + 2) ~/ 3);
+    double blockHeight = maxHeight / rowCount;
+    if (blockHeight > 50) blockHeight = 50;
+    if (blockHeight <= 0) blockHeight = 44;
+    final double panelHeight = blockHeight * rowCount;
+
+    double childAspectRatio = (panelWidth / 3) / blockHeight;
+    if (!childAspectRatio.isFinite || childAspectRatio <= 0) {
+      childAspectRatio = 1.0;
+    }
+
+    return Container(
+      width: panelWidth,
+      height: panelHeight,
+      color: ChannelPalette.of(context).base,
+      child: GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: childAspectRatio,
+          crossAxisSpacing: 0,
+          mainAxisSpacing: 0,
+        ),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          if (index < favorites.length) {
+            return _buildEchoLinkFavoriteTile(favorites[index]);
+          }
+          return _buildEchoLinkAddTile();
+        },
+      ),
+    );
+  }
+
+  Widget _buildEchoLinkFavoriteTile(StationData favorite) {
+    final palette = ChannelPalette.of(context);
+    final live = _findEchoLinkStation(favorite.callsign);
+    final StationStatus status = live?.status ?? StationStatus.unknown;
+    final bool online = status == StationStatus.online;
+    final bool busy = status == StationStatus.busy;
+    final bool isConnected = _echoLinkConnected != null &&
+        _echoLinkConnected!.callsign.toUpperCase() ==
+            favorite.callsign.toUpperCase();
+
+    final Color dotColor = isConnected
+        ? Colors.lightBlueAccent
+        : busy
+            ? Colors.orange
+            : online
+                ? Colors.green
+                : palette.border;
+
+    final Color bgColor = isConnected ? palette.selected : palette.base;
+    final String description = favorite.description.isNotEmpty
+        ? favorite.description
+        : (live?.description ?? '');
+
+    void onTap() {
+      if (isConnected) {
+        _echoLinkDispatch('EchoLinkDisconnect');
+      } else if ((online || busy) && live != null) {
+        _connectEchoLinkStation(live);
+      } else {
+        _echoLinkDispatch('EchoLinkRefreshStations');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${favorite.callsign} is not online.'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      onSecondaryTapDown: (d) =>
+          _showEchoLinkFavoriteMenu(d.globalPosition, favorite, live),
+      onLongPressStart: (d) =>
+          _showEchoLinkFavoriteMenu(d.globalPosition, favorite, live),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: palette.border, width: 0.5),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.only(right: 4),
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    favorite.callsign,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: palette.onChannel,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            if (description.isNotEmpty)
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: palette.onChannelSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEchoLinkAddTile() {
+    final palette = ChannelPalette.of(context);
+    return GestureDetector(
+      onTap: _addEchoLinkFavoriteViaDialog,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: palette.base,
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: palette.border, width: 0.5),
+        ),
+        child: Center(
+          child: Icon(Icons.add, size: 20, color: palette.onChannelSecondary),
+        ),
+      ),
+    );
+  }
+
+  void _showEchoLinkFavoriteMenu(
+    Offset globalPosition,
+    StationData favorite,
+    StationData? live,
+  ) async {
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final bool isConnected = _echoLinkConnected != null &&
+        _echoLinkConnected!.callsign.toUpperCase() ==
+            favorite.callsign.toUpperCase();
+    final bool canConnect = live != null &&
+        (live.status == StationStatus.online ||
+            live.status == StationStatus.busy);
+
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(40, 40),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        if (isConnected)
+          const PopupMenuItem<String>(
+            value: 'disconnect',
+            child: Text('Disconnect'),
+          )
+        else
+          PopupMenuItem<String>(
+            value: 'connect',
+            enabled: canConnect,
+            child: const Text('Connect'),
+          ),
+        const PopupMenuItem<String>(
+          value: 'remove',
+          child: Text('Remove from favorites'),
+        ),
+      ],
+    );
+
+    if (selected == 'disconnect') {
+      _echoLinkDispatch('EchoLinkDisconnect');
+    } else if (selected == 'connect' && live != null) {
+      _connectEchoLinkStation(live);
+    } else if (selected == 'remove') {
+      _removeEchoLinkFavorite(favorite);
+    }
+  }
+
+  Future<void> _addEchoLinkFavoriteViaDialog() async {
+    final station = await showEchoLinkChannelDialog(
+      context,
+      existingCallsigns: _echoLinkFavorites
+          .map((f) => f.callsign.toUpperCase())
+          .toSet(),
+    );
+    if (station != null) {
+      _addEchoLinkFavorite(
+        StationData(
+          callsign: station.callsign,
+          description: station.description,
+          id: station.id,
+        ),
+      );
+    }
   }
 
   Widget _buildRadioDisplayWithChannels() {

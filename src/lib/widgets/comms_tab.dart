@@ -28,6 +28,7 @@ import '../services/sherpa_model_manager.dart';
 import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
 import '../utils/channel_share.dart';
+import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 
 /// Voice transmit mode
 enum VoiceTransmitMode { chat, speak, morse, dtmf, ptt }
@@ -53,6 +54,13 @@ class _CommsTabState extends State<CommsTab>
 
   int _currentRadioDeviceId = -1;
 
+  /// True while the EchoLink radio (device 200) is in a QSO. EchoLink has no
+  /// radio `AudioState`; being in a QSO is what enables voice transmit.
+  bool _echoLinkInQso = false;
+
+  /// Whether the currently displayed radio is the internet-only EchoLink radio.
+  bool get _isEchoLink => _currentRadioDeviceId == echoLinkDeviceId;
+
   /// Latest lock state reported for each radio device id. When the radio shown
   /// in the Radio Panel is locked to another usage (BBS, Terminal, Winlink,
   /// Torrent, ...) the Comms tab must not transmit.
@@ -62,8 +70,7 @@ class _CommsTabState extends State<CommsTab>
   bool _audioEnabled = false;
   bool _isListening = false;
   bool _isProcessing = false;
-  bool _isTransmitting = false;
-  bool _speechToTextEnabled = true;
+  bool _isTransmitting = false;  bool _speechToTextEnabled = true;
   bool _sttModelReady = false;
   bool _recordAudio = false;
   bool _allowTransmit = true;
@@ -183,6 +190,13 @@ class _CommsTabState extends State<CommsTab>
       name: 'SelectedRadioDeviceId',
       callback: _onSelectedRadioChanged,
     );
+    // EchoLink QSO state (device 200) gates voice transmit when EchoLink is the
+    // displayed radio (it has no radio AudioState of its own).
+    _broker.subscribe(
+      deviceId: echoLinkDeviceId,
+      name: 'State',
+      callback: _onEchoLinkStateChanged,
+    );
     _broker.subscribe(
       deviceId: 1,
       name: 'VoiceTextCleared',
@@ -233,6 +247,8 @@ class _CommsTabState extends State<CommsTab>
 
     // Initialize from current broker values.
     _currentRadioDeviceId = _resolveCurrentRadioId();
+    _echoLinkInQso =
+        _broker.getValue<String>(echoLinkDeviceId, 'State') == 'Connected';
     _isVfoAAprs = _readVfoAIsAprs();
     _seedLockStates();
     _currentMode = _modeFromName(
@@ -571,6 +587,11 @@ class _CommsTabState extends State<CommsTab>
     final connectedIds = _radioIds(connected);
     final selected =
         DataBroker.getValue<int>(1, 'SelectedRadioDeviceId', -1) ?? -1;
+    // EchoLink is selectable even though it is not part of ConnectedRadios.
+    if (selected == echoLinkDeviceId &&
+        (_broker.getValue<bool>(1, 'EchoLinkAvailable', false) ?? false)) {
+      return echoLinkDeviceId;
+    }
     if (selected > 0 && connectedIds.contains(selected)) return selected;
     return connectedIds.isNotEmpty ? connectedIds.first : -1;
   }
@@ -590,11 +611,24 @@ class _CommsTabState extends State<CommsTab>
 
   /// Whether the radio currently shown in the Radio Panel is connected.
   bool get _isCurrentRadioConnected {
+    // EchoLink is "connected" for transmit purposes while a QSO is active.
+    if (_isEchoLink) return _echoLinkInQso;
     if (_currentRadioDeviceId <= 0) return false;
     final connected = _radioIds(
       DataBroker.getValueDynamic(1, 'ConnectedRadios'),
     );
     return connected.contains(_currentRadioDeviceId);
+  }
+
+  /// Handles EchoLink (device 200) state changes so voice transmit is enabled
+  /// while a QSO is up.
+  void _onEchoLinkStateChanged(int deviceId, String name, Object? data) {
+    final inQso = data == 'Connected';
+    if (inQso == _echoLinkInQso) return;
+    _echoLinkInQso = inQso;
+    if (!_isEchoLink || !mounted) return;
+    setState(() => _audioEnabled = _readAudioState());
+    _updatePttMic();
   }
 
   void _onConnectedRadiosChanged(int deviceId, String name, Object? data) {
@@ -684,6 +718,9 @@ class _CommsTabState extends State<CommsTab>
 
   /// Reads the current AudioState of the radio shown in the Radio Panel.
   bool _readAudioState() {
+    // EchoLink has no radio audio channel: voice transmit is enabled whenever a
+    // QSO is up.
+    if (_isEchoLink) return _echoLinkInQso;
     if (_currentRadioDeviceId <= 0) return false;
     return _broker.getValue<bool>(_currentRadioDeviceId, 'AudioState', false) ??
         false;

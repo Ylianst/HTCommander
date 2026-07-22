@@ -33,6 +33,10 @@ import 'handlers/debug_log_handler.dart';
 import 'gps/gps_serial_handler.dart';
 import 'torrent/torrent_handler.dart';
 import 'torrent/torrent_store.dart';
+// EchoLink relies on dart:io sockets + native audio; use a no-op stub on web so
+// the internet-radio glue is never compiled for the browser.
+import 'echolink/echolink_manager_stub.dart'
+    if (dart.library.io) 'echolink/echolink_manager.dart';
 import 'radio/radio_transport.dart';
 // The soft-modem relies on an audio channel, which the web build does not have.
 // Use a no-op stub on web so the hamlib DSP code is never compiled for web.
@@ -57,6 +61,7 @@ import 'winlink/mail_store.dart';
 import 'winlink/winlink_client.dart';
 import 'widgets/radio_panel.dart';
 import 'widgets/radio_status_bar.dart';
+import 'echolink/echolink_client.dart' show echoLinkDeviceId;
 import 'widgets/comms_tab.dart';
 import 'widgets/audio_tab.dart';
 import 'widgets/aprs_tab.dart';
@@ -179,6 +184,14 @@ void main(List<String> args) async {
   final commsHandler = CommsHandler();
   commsHandler.init();
   DataBroker.addDataHandler('CommsHandler', commsHandler);
+
+  // Register the EchoLink manager so the internet-only EchoLink radio (device
+  // 200) can go online, browse the directory, hold a QSO and route its voice
+  // through the shared audio player + CommsHandler (record / speech-to-text).
+  // No-op on the web (dart:io sockets + native audio are unavailable there).
+  final echoLinkManager = EchoLinkManager();
+  echoLinkManager.init();
+  DataBroker.addDataHandler('EchoLinkManager', echoLinkManager);
 
   // Register the GPS serial handler so that an external GPS receiver connected
   // to a serial port is read, its NMEA sentences parsed, and a GpsData object
@@ -587,6 +600,16 @@ class _MainFormState extends State<MainForm>
   // Connected radios tracking (list of device IDs)
   List<int> _connectedRadioIds = [];
 
+  // Whether the internet-only EchoLink radio (device 200) is available. It is
+  // deliberately kept out of `ConnectedRadios` so the data tabs never target
+  // it, but it can still be selected as the displayed radio.
+  bool _echoLinkAvailable = false;
+
+  // True when EchoLink is currently shown only because it was auto-selected as
+  // a fallback (no physical radio). Lets a real radio take over when it later
+  // connects, while an explicit user choice of EchoLink is preserved.
+  bool _echoLinkAutoSelected = false;
+
   // Current radio panel device ID (the radio being displayed/controlled)
   int _currentRadioDeviceId = -1;
 
@@ -711,6 +734,21 @@ class _MainFormState extends State<MainForm>
       name: 'ConnectedRadios',
       callback: _onConnectedRadiosChanged,
     );
+
+    // Subscribe to EchoLink availability (device 1) so it can be offered as a
+    // selectable radio in the radio panel switcher.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'EchoLinkAvailable',
+      callback: _onEchoLinkAvailableChanged,
+    );
+    // Seed the current EchoLink availability: the manager may have published it
+    // (retained) during startup before this subscription was registered.
+    _echoLinkAvailable =
+        _broker.getValue<bool>(1, 'EchoLinkAvailable', false) ?? false;
+    if (_echoLinkAvailable) {
+      _maybeAutoSelectEchoLink();
+    }
 
     // Subscribe to RadioConnect request (from RadioPanelControl)
     _broker.subscribe(
@@ -949,10 +987,28 @@ class _MainFormState extends State<MainForm>
           _loadBatteryForCurrentRadio();
           _loadSettingsForCurrentRadio();
         }
-        // If current radio disconnected, switch to another or reset
+        // A physical radio connecting takes over from an auto-selected EchoLink
+        // fallback (but not from an explicit EchoLink choice).
+        else if (_currentRadioDeviceId == echoLinkDeviceId &&
+            _echoLinkAutoSelected &&
+            ids.isNotEmpty) {
+          _echoLinkAutoSelected = false;
+          _currentRadioDeviceId = ids.first;
+          _loadBatteryForCurrentRadio();
+          _loadSettingsForCurrentRadio();
+        }
+        // If current radio disconnected, switch to another or reset. EchoLink
+        // (device 200) is not part of this list, so leave it selected when it
+        // is the current radio.
         if (_currentRadioDeviceId >= 0 &&
+            _currentRadioDeviceId != echoLinkDeviceId &&
             !ids.contains(_currentRadioDeviceId)) {
-          _currentRadioDeviceId = ids.isNotEmpty ? ids.first : -1;
+          _currentRadioDeviceId = ids.isNotEmpty
+              ? ids.first
+              : (_echoLinkAvailable ? echoLinkDeviceId : -1);
+          if (_currentRadioDeviceId == echoLinkDeviceId) {
+            _echoLinkAutoSelected = true;
+          }
           // Load battery percentage for the newly selected radio (or reset)
           _loadBatteryForCurrentRadio();
           _loadSettingsForCurrentRadio();
@@ -976,9 +1032,14 @@ class _MainFormState extends State<MainForm>
   /// `SetPreferredRadio` DataBroker command.
   void _setPreferredRadio(int radioId) {
     if (radioId == _currentRadioDeviceId) return;
-    if (!_connectedRadioIds.contains(radioId)) return;
+    if (radioId != echoLinkDeviceId && !_connectedRadioIds.contains(radioId)) {
+      return;
+    }
+    if (radioId == echoLinkDeviceId && !_echoLinkAvailable) return;
     setState(() {
       _currentRadioDeviceId = radioId;
+      // An explicit choice is never treated as an auto-selection fallback.
+      _echoLinkAutoSelected = false;
       _loadBatteryForCurrentRadio();
       _loadSettingsForCurrentRadio();
     });
@@ -996,6 +1057,50 @@ class _MainFormState extends State<MainForm>
     if (data is int) {
       _setPreferredRadio(data);
     }
+  }
+
+  /// Handle EchoLink availability changes (device 1). When EchoLink becomes
+  /// available and no physical radio is selected, display it so a user without
+  /// a radio still gets a working panel.
+  void _onEchoLinkAvailableChanged(int deviceId, String name, Object? data) {
+    final available = data == true;
+    if (available == _echoLinkAvailable) return;
+    setState(() {
+      _echoLinkAvailable = available;
+      if (available) {
+        _maybeAutoSelectEchoLink();
+      } else if (_currentRadioDeviceId == echoLinkDeviceId) {
+        _echoLinkAutoSelected = false;
+        _currentRadioDeviceId =
+            _connectedRadioIds.isNotEmpty ? _connectedRadioIds.first : -1;
+        _broker.dispatch(
+          deviceId: 1,
+          name: 'SelectedRadioDeviceId',
+          data: _currentRadioDeviceId,
+        );
+      }
+    });
+  }
+
+  /// Selects EchoLink as the displayed radio when it is available and nothing
+  /// else is connected/selected, so the panel is never stuck on "Disconnected"
+  /// with no way to reach EchoLink. Marks the selection as automatic so a real
+  /// radio can take over when it connects. Must be called inside setState.
+  void _maybeAutoSelectEchoLink() {
+    if (!_echoLinkAvailable) return;
+    if (_connectedRadioIds.isNotEmpty) return;
+    if (_currentRadioDeviceId >= 0 &&
+        _currentRadioDeviceId != echoLinkDeviceId) {
+      return;
+    }
+    if (_currentRadioDeviceId == echoLinkDeviceId) return;
+    _currentRadioDeviceId = echoLinkDeviceId;
+    _echoLinkAutoSelected = true;
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'SelectedRadioDeviceId',
+      data: echoLinkDeviceId,
+    );
   }
 
   /// Handle radio connect request from RadioPanelControl.
