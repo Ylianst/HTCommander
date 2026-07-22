@@ -124,17 +124,16 @@ class CallsignDatabase {
     required this._bytes,
     required this._keys,
     required this._offsets,
-    required List<String> stateTable,
-    required List<String> classTable,
-    required List<String> statusTable,
-    required List<String> cityTable,
+    required this._stateTable,
+    required this._classTable,
+    required this._statusTable,
+    required this._cityTable,
     required this.recordCount,
     required this.sourceDate,
     required this.epochDate,
-  })  : _stateTable = stateTable,
-        _classTable = classTable,
-        _statusTable = statusTable,
-        _cityTable = cityTable;
+  });
+
+
 
   /// Opens the database at [path], reading the header and loading the index
   /// section into memory. Keeps the file open for record reads until [close]
