@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
 import '../l10n/app_localizations.dart';
+import '../echolink/echolink_credential_test.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
 import '../services/history_limiter.dart';
@@ -42,6 +43,10 @@ class AppSettings {
   // Winlink tab
   String winlinkPassword;
   bool winlinkUseStationId;
+
+  // EchoLink tab
+  String echoLinkPassword;
+  String echoLinkLocation;
 
   // Web Server tab
   bool webServerEnabled;
@@ -118,6 +123,8 @@ class AppSettings {
     this.voicePitch = 1.0,
     this.winlinkPassword = '',
     this.winlinkUseStationId = false,
+    this.echoLinkPassword = '',
+    this.echoLinkLocation = '',
     this.webServerEnabled = false,
     this.webServerPort = 8080,
     this.agwpeServerEnabled = false,
@@ -150,6 +157,8 @@ class AppSettings {
     double? voicePitch,
     String? winlinkPassword,
     bool? winlinkUseStationId,
+    String? echoLinkPassword,
+    String? echoLinkLocation,
     bool? webServerEnabled,
     int? webServerPort,
     bool? agwpeServerEnabled,
@@ -181,6 +190,8 @@ class AppSettings {
       voicePitch: voicePitch ?? this.voicePitch,
       winlinkPassword: winlinkPassword ?? this.winlinkPassword,
       winlinkUseStationId: winlinkUseStationId ?? this.winlinkUseStationId,
+      echoLinkPassword: echoLinkPassword ?? this.echoLinkPassword,
+      echoLinkLocation: echoLinkLocation ?? this.echoLinkLocation,
       webServerEnabled: webServerEnabled ?? this.webServerEnabled,
       webServerPort: webServerPort ?? this.webServerPort,
       agwpeServerEnabled: agwpeServerEnabled ?? this.agwpeServerEnabled,
@@ -233,6 +244,10 @@ class AppSettings {
           DataBroker.getValue<String>(0, 'WinlinkPassword', '') ?? '',
       winlinkUseStationId:
           (DataBroker.getValue<int>(0, 'WinlinkUseStationId', 0) ?? 0) == 1,
+      echoLinkPassword:
+          DataBroker.getValue<String>(0, 'EchoLinkPassword', '') ?? '',
+      echoLinkLocation:
+          DataBroker.getValue<String>(0, 'EchoLinkLocation', '') ?? '',
       webServerEnabled:
           (DataBroker.getValue<int>(0, 'webServerEnabled', 0) ?? 0) == 1,
       webServerPort: DataBroker.getValue<int>(0, 'webServerPort', 8080) ?? 8080,
@@ -299,6 +314,16 @@ class AppSettings {
       deviceId: 0,
       name: 'WinlinkUseStationId',
       data: winlinkUseStationId ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'EchoLinkPassword',
+      data: echoLinkPassword,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'EchoLinkLocation',
+      data: echoLinkLocation,
     );
     DataBroker.dispatch(
       deviceId: 0,
@@ -427,6 +452,8 @@ class _SettingsDialogState extends State<SettingsDialog>
   // Controllers
   late TextEditingController _callSignController;
   late TextEditingController _winlinkPasswordController;
+  late TextEditingController _echoLinkPasswordController;
+  late TextEditingController _echoLinkLocationController;
   late TextEditingController _webPortController;
   late TextEditingController _agwpePortController;
   late TextEditingController _airplaneUrlController;
@@ -444,6 +471,11 @@ class _SettingsDialogState extends State<SettingsDialog>
   bool _homeAssistantTesting = false;
   String _homeAssistantTestResult = '';
   bool _homeAssistantTestOk = false;
+
+  // EchoLink credential "Test" state.
+  bool _echoLinkTesting = false;
+  String _echoLinkTestResult = '';
+  bool _echoLinkTestOk = false;
 
   // Serial ports available for the GPS receiver (desktop only).
   List<String> _availablePorts = const [];
@@ -468,10 +500,10 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// internet-service "Servers" / "Map" tabs are hidden. On Android/iOS the
   /// "Servers" tab is hidden. All tabs remain visible on desktop platforms.
   List<String> get _visibleTabs {
-    const all = ['License', 'APRS', 'Comms', 'Winlink', 'Servers', 'Map', 'Limits', 'Application'];
+    const all = ['License', 'APRS', 'Comms', 'Winlink', 'EchoLink', 'Servers', 'Map', 'Limits', 'Application'];
     if (kIsWeb) {
       return all
-          .where((t) => t != 'Comms' && t != 'Servers' && t != 'Map')
+          .where((t) => t != 'Comms' && t != 'Servers' && t != 'Map' && t != 'EchoLink')
           .toList();
     }
     if (defaultTargetPlatform == TargetPlatform.android ||
@@ -493,6 +525,8 @@ class _SettingsDialogState extends State<SettingsDialog>
         return l10n.settingsTabComms;
       case 'Winlink':
         return l10n.settingsTabWinlink;
+      case 'EchoLink':
+        return l10n.settingsTabEchoLink;
       case 'Servers':
         return l10n.settingsTabServers;
       case 'Map':
@@ -516,6 +550,8 @@ class _SettingsDialogState extends State<SettingsDialog>
         return _buildCommsTab();
       case 'Winlink':
         return _buildWinlinkTab();
+      case 'EchoLink':
+        return _buildEchoLinkTab();
       case 'Servers':
         return _buildServersTab();
       case 'Map':
@@ -547,6 +583,12 @@ class _SettingsDialogState extends State<SettingsDialog>
     _winlinkPasswordController = TextEditingController(
       text: _settings.winlinkPassword,
     );
+    _echoLinkPasswordController = TextEditingController(
+      text: _settings.echoLinkPassword,
+    );
+    _echoLinkLocationController = TextEditingController(
+      text: _settings.echoLinkLocation,
+    );
     _webPortController = TextEditingController(
       text: _settings.webServerPort.toString(),
     );
@@ -567,6 +609,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     );
 
     _callSignController.addListener(_onCallSignChanged);
+    _echoLinkPasswordController.addListener(_onEchoLinkPasswordChanged);
 
     // Load the available TTS voices for the Voice tab.
     _loadVoices();
@@ -618,6 +661,8 @@ class _SettingsDialogState extends State<SettingsDialog>
     _tabController.dispose();
     _callSignController.dispose();
     _winlinkPasswordController.dispose();
+    _echoLinkPasswordController.dispose();
+    _echoLinkLocationController.dispose();
     _webPortController.dispose();
     _agwpePortController.dispose();
     _airplaneUrlController.dispose();
@@ -632,6 +677,49 @@ class _SettingsDialogState extends State<SettingsDialog>
       _settings.callSign = _callSignController.text.toUpperCase();
       if (_settings.callSign.length < 3) {
         _settings.allowTransmit = false;
+      }
+    });
+  }
+
+  /// Rebuilds so the EchoLink "Test" button enables once a password is entered.
+  void _onEchoLinkPasswordChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Validates the EchoLink call sign + password against the directory server.
+  Future<void> _testEchoLinkConnection() async {
+    final l10n = AppLocalizations.of(context);
+    setState(() {
+      _echoLinkTesting = true;
+      _echoLinkTestResult = l10n.settingsTestTesting;
+    });
+
+    final EchoLinkCredentialResult result = await testEchoLinkCredentials(
+      callsign: _settings.callSign,
+      password: _echoLinkPasswordController.text,
+      location: _echoLinkLocationController.text,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _echoLinkTesting = false;
+      _echoLinkTestOk = result.ok;
+      switch (result.status) {
+        case EchoLinkCredentialStatus.valid:
+          _echoLinkTestResult = l10n.settingsEchoLinkTestSuccess;
+          break;
+        case EchoLinkCredentialStatus.incorrectPassword:
+          _echoLinkTestResult = l10n.settingsEchoLinkTestBadPassword;
+          break;
+        case EchoLinkCredentialStatus.validationPending:
+          _echoLinkTestResult = l10n.settingsEchoLinkTestValidation;
+          break;
+        case EchoLinkCredentialStatus.unreachable:
+          _echoLinkTestResult = l10n.settingsEchoLinkTestUnreachable;
+          break;
+        case EchoLinkCredentialStatus.unknown:
+          _echoLinkTestResult = l10n.settingsEchoLinkTestInconclusive;
+          break;
       }
     });
   }
@@ -774,6 +862,8 @@ class _SettingsDialogState extends State<SettingsDialog>
     final l10n = AppLocalizations.of(context);
     // Update settings from text controllers
     _settings.winlinkPassword = _winlinkPasswordController.text;
+    _settings.echoLinkPassword = _echoLinkPasswordController.text;
+    _settings.echoLinkLocation = _echoLinkLocationController.text;
     _settings.webServerPort = int.tryParse(_webPortController.text) ?? 8080;
     _settings.agwpeServerPort = int.tryParse(_agwpePortController.text) ?? 8000;
     _settings.airplaneServerUrl = _airplaneUrlController.text;
@@ -1933,6 +2023,117 @@ class _SettingsDialogState extends State<SettingsDialog>
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEchoLinkTab() {
+    final l10n = AppLocalizations.of(context);
+    final hasCallSign = _settings.callSign.isNotEmpty;
+    final echoLinkAccount = hasCallSign ? _settings.callSign : l10n.settingsNone;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.settingsEchoLinkIntro,
+            style: DialogStyles.bodyStyle,
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => _launchUrl('https://www.echolink.org'),
+            child:
+                const Text('www.echolink.org', style: DialogStyles.linkStyle),
+          ),
+          const SizedBox(height: 16),
+          if (!hasCallSign) ...[
+            Text(
+              l10n.settingsEchoLinkNoCallSign,
+              style: _secondaryStyle(),
+            ),
+            const SizedBox(height: 16),
+          ],
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: _sectionDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.settingsEchoLinkAccount,
+                  style: _sectionTitleStyle(),
+                ),
+                const SizedBox(height: 16),
+                Text(l10n.settingsAccount, style: DialogStyles.labelStyle),
+                const SizedBox(height: 4),
+                TextField(
+                  enabled: false,
+                  decoration: _inputDecoration(hintText: echoLinkAccount),
+                  controller: TextEditingController(text: echoLinkAccount),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.settingsEchoLinkAccountHelp,
+                  style: _secondaryStyle(),
+                ),
+                const SizedBox(height: 16),
+                Text(l10n.settingsPassword, style: DialogStyles.labelStyle),
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _echoLinkPasswordController,
+                        enabled: hasCallSign,
+                        obscureText: true,
+                        decoration: _inputDecoration(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: (hasCallSign &&
+                              _echoLinkPasswordController.text.isNotEmpty &&
+                              !_echoLinkTesting)
+                          ? _testEchoLinkConnection
+                          : null,
+                      child: Text(l10n.settingsTest),
+                    ),
+                  ],
+                ),
+                if (_echoLinkTestResult.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _echoLinkTestResult,
+                    style: TextStyle(
+                      color: _echoLinkTesting
+                          ? Theme.of(context).colorScheme.onSurfaceVariant
+                          : (_echoLinkTestOk
+                              ? Colors.green.shade700
+                              : Colors.red.shade700),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Text(l10n.settingsEchoLinkLocation,
+                    style: DialogStyles.labelStyle),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: _echoLinkLocationController,
+                  enabled: hasCallSign,
+                  decoration: _inputDecoration(),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.settingsEchoLinkLocationHelp,
+                  style: _secondaryStyle(),
                 ),
               ],
             ),

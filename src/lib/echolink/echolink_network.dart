@@ -52,9 +52,10 @@ abstract class EchoLinkNetwork {
   void sendControl(String host, Uint8List data);
 
   /// Opens a TCP connection to the first reachable [servers] entry on the
-  /// directory port, writes [request], reads the full response until the server
-  /// closes, and returns it.
-  Future<Uint8List> directoryExchange(List<String> servers, Uint8List request);
+  /// directory port, writes [request], reads the response until the server
+  /// closes (or until [maxBytes] have been read, if given), and returns it.
+  Future<Uint8List> directoryExchange(List<String> servers, Uint8List request,
+      {int? maxBytes});
 
   /// Closes the UDP sockets and releases resources.
   Future<void> close();

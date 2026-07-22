@@ -788,6 +788,12 @@ abstract class AppLocalizations {
   /// **'Winlink'**
   String get settingsTabWinlink;
 
+  /// No description provided for @settingsTabEchoLink.
+  ///
+  /// In en, this message translates to:
+  /// **'EchoLink'**
+  String get settingsTabEchoLink;
+
   /// No description provided for @settingsTabServers.
   ///
   /// In en, this message translates to:
@@ -1141,6 +1147,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use Station ID for Winlink'**
   String get settingsUseStationIdWinlink;
+
+  /// No description provided for @settingsEchoLinkIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure EchoLink to talk to other stations over the internet.'**
+  String get settingsEchoLinkIntro;
+
+  /// No description provided for @settingsEchoLinkAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'EchoLink Account'**
+  String get settingsEchoLinkAccount;
+
+  /// No description provided for @settingsEchoLinkAccountHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on your call sign from the License tab'**
+  String get settingsEchoLinkAccountHelp;
+
+  /// No description provided for @settingsEchoLinkLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get settingsEchoLinkLocation;
+
+  /// No description provided for @settingsEchoLinkLocationHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown to other stations in the directory, such as your city and state.'**
+  String get settingsEchoLinkLocationHelp;
+
+  /// No description provided for @settingsEchoLinkNoCallSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your call sign in the License tab to enable EchoLink.'**
+  String get settingsEchoLinkNoCallSign;
+
+  /// No description provided for @settingsEchoLinkTestSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials are valid.'**
+  String get settingsEchoLinkTestSuccess;
+
+  /// No description provided for @settingsEchoLinkTestBadPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect password.'**
+  String get settingsEchoLinkTestBadPassword;
+
+  /// No description provided for @settingsEchoLinkTestValidation.
+  ///
+  /// In en, this message translates to:
+  /// **'Your call sign is being validated by EchoLink. This can take up to a day.'**
+  String get settingsEchoLinkTestValidation;
+
+  /// No description provided for @settingsEchoLinkTestUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the EchoLink directory server.'**
+  String get settingsEchoLinkTestUnreachable;
+
+  /// No description provided for @settingsEchoLinkTestInconclusive.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not verify the credentials. See the debug log for the server reply.'**
+  String get settingsEchoLinkTestInconclusive;
 
   /// No description provided for @settingsServersIntro.
   ///

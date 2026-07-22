@@ -365,6 +365,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsTabWinlink => 'Winlink';
 
   @override
+  String get settingsTabEchoLink => 'EchoLink';
+
+  @override
   String get settingsTabServers => 'Serveurs';
 
   @override
@@ -567,6 +570,46 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get settingsUseStationIdWinlink =>
       'Utiliser l\'ID de station pour Winlink';
+
+  @override
+  String get settingsEchoLinkIntro =>
+      'Configure EchoLink to talk to other stations over the internet.';
+
+  @override
+  String get settingsEchoLinkAccount => 'EchoLink Account';
+
+  @override
+  String get settingsEchoLinkAccountHelp =>
+      'Based on your call sign from the License tab';
+
+  @override
+  String get settingsEchoLinkLocation => 'Location';
+
+  @override
+  String get settingsEchoLinkLocationHelp =>
+      'Shown to other stations in the directory, such as your city and state.';
+
+  @override
+  String get settingsEchoLinkNoCallSign =>
+      'Enter your call sign in the License tab to enable EchoLink.';
+
+  @override
+  String get settingsEchoLinkTestSuccess => 'Credentials are valid.';
+
+  @override
+  String get settingsEchoLinkTestBadPassword => 'Incorrect password.';
+
+  @override
+  String get settingsEchoLinkTestValidation =>
+      'Your call sign is being validated by EchoLink. This can take up to a day.';
+
+  @override
+  String get settingsEchoLinkTestUnreachable =>
+      'Could not reach the EchoLink directory server.';
+
+  @override
+  String get settingsEchoLinkTestInconclusive =>
+      'Could not verify the credentials. See the debug log for the server reply.';
 
   @override
   String get settingsServersIntro =>

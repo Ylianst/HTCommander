@@ -212,7 +212,7 @@ class SdesStation {
 }
 
 /// Extracts and splits the SDES NAME item into callsign and name. The NAME item
-/// is "callsign<spaces>name"; the callsign is the first whitespace-delimited
+/// is `callsign<spaces>name`; the callsign is the first whitespace-delimited
 /// token. Returns null if there is no SDES NAME item.
 SdesStation? parseSdesStation(Uint8List packet) {
   final String? nameItem = parseSdesItem(packet, sdesName);

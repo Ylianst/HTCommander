@@ -62,7 +62,8 @@ class _FakeNetwork implements EchoLinkNetwork {
 
   @override
   Future<Uint8List> directoryExchange(
-      List<String> servers, Uint8List request) async {
+      List<String> servers, Uint8List request,
+      {int? maxBytes}) async {
     directoryRequests.add(request);
     // 'l' = login ack (short), 's' = station list.
     if (request.isNotEmpty && request[0] == 0x73) return listResponse;

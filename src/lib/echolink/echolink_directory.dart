@@ -126,7 +126,7 @@ int _atoi(String s) {
   return m == null ? 0 : int.parse(m.group(1)!);
 }
 
-/// Parses a complete call-list response ("@@@\n" <count> entries "+++").
+/// Parses a complete call-list response (`@@@\n <count> entries +++`).
 /// Mirrors Directory::handleCallList. Throws [DirectoryFormatException] on a
 /// malformed stream.
 DirectoryListing parseStationList(Uint8List response) {

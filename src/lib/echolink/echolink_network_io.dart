@@ -90,7 +90,8 @@ class DartIoEchoLinkNetwork implements EchoLinkNetwork {
 
   @override
   Future<Uint8List> directoryExchange(
-      List<String> servers, Uint8List request) async {
+      List<String> servers, Uint8List request,
+      {int? maxBytes}) async {
     Object? lastError;
     for (final String server in servers) {
       Socket? socket;
@@ -104,6 +105,7 @@ class DartIoEchoLinkNetwork implements EchoLinkNetwork {
         await for (final List<int> chunk
             in socket.timeout(directoryTimeout)) {
           buf.add(chunk);
+          if (maxBytes != null && buf.length >= maxBytes) break;
         }
         return buf.toBytes();
       } catch (e) {
