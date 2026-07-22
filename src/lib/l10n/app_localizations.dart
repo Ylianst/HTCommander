@@ -5744,6 +5744,24 @@ abstract class AppLocalizations {
   /// **'Expires'**
   String get cslFieldExpires;
 
+  /// No description provided for @cslFieldCountry.
+  ///
+  /// In en, this message translates to:
+  /// **'Country'**
+  String get cslFieldCountry;
+
+  /// No description provided for @cslFieldContinent.
+  ///
+  /// In en, this message translates to:
+  /// **'Continent'**
+  String get cslFieldContinent;
+
+  /// No description provided for @cslUsDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'US License Details'**
+  String get cslUsDetails;
+
   /// No description provided for @cslSectionTitle.
   ///
   /// In en, this message translates to:

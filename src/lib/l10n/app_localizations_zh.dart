@@ -3049,6 +3049,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cslFieldExpires => '到期';
 
   @override
+  String get cslFieldCountry => '国家';
+
+  @override
+  String get cslFieldContinent => '大洲';
+
+  @override
+  String get cslUsDetails => '美国执照详情';
+
+  @override
   String get cslSectionTitle => '呼号数据库';
 
   @override

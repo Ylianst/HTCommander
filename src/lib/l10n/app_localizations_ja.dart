@@ -3067,6 +3067,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cslFieldExpires => '有効期限';
 
   @override
+  String get cslFieldCountry => '国';
+
+  @override
+  String get cslFieldContinent => '大陸';
+
+  @override
+  String get cslUsDetails => '米国ライセンス詳細';
+
+  @override
   String get cslSectionTitle => 'コールサインデータベース';
 
   @override

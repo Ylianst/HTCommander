@@ -3141,6 +3141,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cslFieldExpires => 'Expiration';
 
   @override
+  String get cslFieldCountry => 'Pays';
+
+  @override
+  String get cslFieldContinent => 'Continent';
+
+  @override
+  String get cslUsDetails => 'Détails de la licence américaine';
+
+  @override
   String get cslSectionTitle => 'Base de données d\'indicatifs';
 
   @override

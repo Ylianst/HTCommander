@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'dialogs/about_dialog.dart';
+import 'dialogs/callsign_lookup_dialog.dart';
 import 'dialogs/configure_buttons_dialog.dart';
 import 'dialogs/fm_radio_dialog.dart';
 import 'dialogs/gps_serial_info_dialog.dart';import 'dialogs/import_channels_dialog.dart';
@@ -38,6 +39,7 @@ import 'radio/radio_transport.dart';
 import 'radio/software_modem_stub.dart'
     if (dart.library.io) 'radio/software_modem.dart';
 import 'services/bluetooth_service.dart';
+import 'callsign/callsign_country.dart';
 import 'services/callsign_lookup_service.dart';
 import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
@@ -258,6 +260,11 @@ void main(List<String> args) async {
   // Initialize the offline callsign lookup database (opens it if already
   // downloaded). Safe no-op on the web where there is no persistent storage.
   await CallsignLookupService.instance.init();
+
+  // Load the bundled offline callsign -> country table into memory. This is a
+  // small built-in asset (not a download) so country lookups always work,
+  // offline, on every platform.
+  await CallsignCountryLookup.instance.init();
 
   runApp(const HTCommanderApp());
 }
@@ -2083,6 +2090,11 @@ class _MainFormState extends State<MainForm>
             AppMenuAction(
               label: l10n.menuGpsInformation,
               onPressed: () => showGpsSerialInfoDialog(context),
+            ),
+          if (CallsignLookupService.instance.isSupported)
+            AppMenuAction(
+              label: '${l10n.cslTitle}...',
+              onPressed: () => CallsignLookupDialog.show(context),
             ),
           const AppMenuDivider(),
           if (UpdateService.instance.isSupported)

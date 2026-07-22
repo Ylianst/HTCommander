@@ -7,11 +7,12 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../callsign/callsign_country.dart';
 import '../callsign/callsign_record.dart';
 import '../l10n/app_localizations.dart';
 import '../services/callsign_lookup_service.dart';
 
-/// Standalone, experimental offline callsign lookup dialog.
+/// Standalone offline callsign lookup dialog.
 ///
 /// Lets the user type a callsign and view the matching FCC amateur license
 /// details from the offline database. Opened from the Debug tab menu.
@@ -42,6 +43,7 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
   bool _loading = false;
   String _searchedCallsign = '';
   CallsignRecord? _record;
+  CountryInfo? _country;
 
   // Database download / update state.
   bool _dbBusy = false;
@@ -72,6 +74,9 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
       _loading = true;
       _searchedCallsign = callsign;
       _record = null;
+      // Country resolves instantly from the bundled in-memory table and works
+      // offline on every platform, regardless of the FCC database.
+      _country = CallsignCountryLookup.instance.lookup(callsign);
     });
     final record = await CallsignLookupService.instance.lookup(callsign);
     if (!mounted) return;
@@ -134,39 +139,45 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
     final scheme = Theme.of(context).colorScheme;
 
     return AlertDialog(
-      title: Row(
-        children: [
-          Expanded(child: Text(l10n.cslTitle)),
-          _experimentalBadge(scheme),
-        ],
-      ),
-      content: SizedBox(
-        width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              textInputAction: TextInputAction.search,
-              textCapitalization: TextCapitalization.characters,
-              inputFormatters: [UpperCaseTextFormatter()],
-              decoration: InputDecoration(
-                labelText: l10n.cslFieldCallsign,
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: _lookup,
+      title: Text(l10n.cslTitle),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 420,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+        ),
+        child: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _controller,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                textCapitalization: TextCapitalization.characters,
+                inputFormatters: [UpperCaseTextFormatter()],
+                decoration: InputDecoration(
+                  labelText: l10n.cslFieldCallsign,
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: _lookup,
+                  ),
+                ),
+                onSubmitted: (_) => _lookup(),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: _buildResult(l10n, scheme),
                 ),
               ),
-              onSubmitted: (_) => _lookup(),
-            ),
-            const SizedBox(height: 16),
-            _buildResult(l10n, scheme),
-            const Divider(height: 24),
-            _buildDbControls(l10n, scheme),
-          ],
+              const Divider(height: 16),
+              _buildDbControls(l10n, scheme),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -175,25 +186,6 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
           child: Text(l10n.commonClose),
         ),
       ],
-    );
-  }
-
-  Widget _experimentalBadge(ColorScheme scheme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: scheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        'EXPERIMENTAL',
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-          color: scheme.onTertiaryContainer,
-        ),
-      ),
     );
   }
 
@@ -252,13 +244,6 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
   }
 
   Widget _buildResult(AppLocalizations l10n, ColorScheme scheme) {
-    final service = CallsignLookupService.instance;
-    if (!service.isSupported) {
-      return _message(l10n.cslUnsupported, scheme);
-    }
-    if (!service.isAvailable) {
-      return _message(l10n.cslNoDatabase, scheme);
-    }
     if (!_searched) {
       return const SizedBox.shrink();
     }
@@ -279,11 +264,51 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
         ),
       );
     }
+
+    final country = _country;
     final record = _record;
-    if (record == null) {
+    if (country == null && record == null) {
       return _message(l10n.cslNotFound(_searchedCallsign), scheme);
     }
-    return _buildRecord(l10n, scheme, record);
+
+    final children = <Widget>[
+      _buildRow(scheme, _Row(l10n.cslFieldCallsign, _searchedCallsign)),
+    ];
+
+    // Country / DXCC entity is always shown when known (offline, all platforms).
+    if (country != null) {
+      children.add(_buildRow(scheme, _Row(l10n.cslFieldCountry, country.country)));
+      if (country.continentName.isNotEmpty) {
+        children.add(
+          _buildRow(scheme, _Row(l10n.cslFieldContinent, country.continentName)),
+        );
+      }
+    }
+
+    // Extra US license details, only when the FCC database provided a record.
+    if (record != null) {
+      children.add(const Divider(height: 16));
+      children.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(
+            l10n.cslUsDetails,
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+      children.addAll(_recordRows(l10n, scheme, record));
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    );
   }
 
   Widget _message(String text, ColorScheme scheme) {
@@ -293,13 +318,12 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
     );
   }
 
-  Widget _buildRecord(
+  List<Widget> _recordRows(
     AppLocalizations l10n,
     ColorScheme scheme,
     CallsignRecord r,
   ) {
     final rows = <_Row>[
-      _Row(l10n.cslFieldCallsign, r.callsign),
       if (r.name.isNotEmpty) _Row(l10n.cslFieldName, r.name),
       if (r.operatorClassName.isNotEmpty)
         _Row(l10n.cslFieldClass, r.operatorClassName),
@@ -308,37 +332,38 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
       if (r.expireDateFormatted.isNotEmpty)
         _Row(l10n.cslFieldExpires, r.expireDateFormatted),
     ];
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final row in rows) _buildRow(scheme, row),
-      ],
-    );
+    return [for (final row in rows) _buildRow(scheme, row)];
   }
 
   Widget _buildRow(ColorScheme scheme, _Row row) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 1),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width: 110,
+            width: 96,
             child: Text(
               row.name,
               style: TextStyle(
                 color: scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
+                fontSize: 13,
               ),
             ),
           ),
           const SizedBox(width: 8),
-          Expanded(child: SelectableText(row.value)),
+          Expanded(
+            child: SelectableText(
+              row.value,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
           IconButton(
-            icon: const Icon(Icons.copy, size: 16),
+            icon: const Icon(Icons.copy, size: 15),
             visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
             tooltip: MaterialLocalizations.of(context).copyButtonLabel,
             onPressed: () =>
                 Clipboard.setData(ClipboardData(text: row.value)),

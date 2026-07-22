@@ -3136,6 +3136,15 @@ class AppLocalizationsPl extends AppLocalizations {
   String get cslFieldExpires => 'Wygasa';
 
   @override
+  String get cslFieldCountry => 'Kraj';
+
+  @override
+  String get cslFieldContinent => 'Kontynent';
+
+  @override
+  String get cslUsDetails => 'Szczegóły licencji USA';
+
+  @override
   String get cslSectionTitle => 'Baza danych znaków wywoławczych';
 
   @override

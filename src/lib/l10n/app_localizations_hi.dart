@@ -3121,6 +3121,15 @@ class AppLocalizationsHi extends AppLocalizations {
   String get cslFieldExpires => 'समाप्ति';
 
   @override
+  String get cslFieldCountry => 'देश';
+
+  @override
+  String get cslFieldContinent => 'महाद्वीप';
+
+  @override
+  String get cslUsDetails => 'यूएस लाइसेंस विवरण';
+
+  @override
   String get cslSectionTitle => 'कॉलसाइन डेटाबेस';
 
   @override

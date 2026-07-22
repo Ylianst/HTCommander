@@ -3112,6 +3112,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cslFieldExpires => 'Expires';
 
   @override
+  String get cslFieldCountry => 'Country';
+
+  @override
+  String get cslFieldContinent => 'Continent';
+
+  @override
+  String get cslUsDetails => 'US License Details';
+
+  @override
   String get cslSectionTitle => 'Callsign Database';
 
   @override

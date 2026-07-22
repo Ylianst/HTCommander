@@ -3142,6 +3142,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cslFieldExpires => 'Läuft ab';
 
   @override
+  String get cslFieldCountry => 'Land';
+
+  @override
+  String get cslFieldContinent => 'Kontinent';
+
+  @override
+  String get cslUsDetails => 'US-Lizenzdetails';
+
+  @override
   String get cslSectionTitle => 'Rufzeichen-Datenbank';
 
   @override
