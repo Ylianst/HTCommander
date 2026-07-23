@@ -570,43 +570,43 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get settingsEchoLinkIntro =>
-      'Configure EchoLink to talk to other stations over the internet.';
+      'इंटरनेट पर अन्य स्टेशनों से बात करने के लिए EchoLink कॉन्फ़िगर करें।';
 
   @override
-  String get settingsEchoLinkAccount => 'EchoLink Account';
+  String get settingsEchoLinkAccount => 'EchoLink खाता';
 
   @override
   String get settingsEchoLinkAccountHelp =>
-      'Based on your call sign from the License tab';
+      'लाइसेंस टैब से आपके कॉल साइन पर आधारित';
 
   @override
-  String get settingsEchoLinkLocation => 'Location';
+  String get settingsEchoLinkLocation => 'स्थान';
 
   @override
   String get settingsEchoLinkLocationHelp =>
-      'Shown to other stations in the directory, such as your city and state.';
+      'डायरेक्टरी में अन्य स्टेशनों को दिखाया जाता है, जैसे आपका शहर और राज्य।';
 
   @override
   String get settingsEchoLinkNoCallSign =>
-      'Enter your call sign in the License tab to enable EchoLink.';
+      'EchoLink सक्षम करने के लिए लाइसेंस टैब में अपना कॉल साइन दर्ज करें।';
 
   @override
-  String get settingsEchoLinkTestSuccess => 'Credentials are valid.';
+  String get settingsEchoLinkTestSuccess => 'क्रेडेंशियल मान्य हैं।';
 
   @override
-  String get settingsEchoLinkTestBadPassword => 'Incorrect password.';
+  String get settingsEchoLinkTestBadPassword => 'गलत पासवर्ड।';
 
   @override
   String get settingsEchoLinkTestValidation =>
-      'Your call sign is being validated by EchoLink. This can take up to a day.';
+      'आपके कॉल साइन को EchoLink द्वारा सत्यापित किया जा रहा है। इसमें एक दिन तक लग सकता है।';
 
   @override
   String get settingsEchoLinkTestUnreachable =>
-      'Could not reach the EchoLink directory server.';
+      'EchoLink डायरेक्टरी सर्वर तक नहीं पहुंच सका।';
 
   @override
   String get settingsEchoLinkTestInconclusive =>
-      'Could not verify the credentials. See the debug log for the server reply.';
+      'क्रेडेंशियल सत्यापित नहीं किए जा सके। सर्वर उत्तर के लिए डिबग लॉग देखें।';
 
   @override
   String get settingsServersIntro => 'स्थानीय सर्वर सेटिंग्स कॉन्फ़िगर करें।';

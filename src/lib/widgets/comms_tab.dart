@@ -24,6 +24,7 @@ import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/microphone_capture.dart';
+import '../services/shared_microphone.dart';
 import '../services/sherpa_model_manager.dart';
 import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
@@ -91,8 +92,9 @@ class _CommsTabState extends State<CommsTab>
   /// the auto-mute case; a channel the user already muted needs no banner.
   bool _sstvAutoMuted = false;
 
-  /// Live microphone capture used by the push-to-talk (PTT) mode.
-  MicrophoneCapture? _micCapture;
+  /// Live microphone capture used by the push-to-talk (PTT) mode. Shared with
+  /// the Audio tab's spectrograph so only one recorder ever opens the mic.
+  MicrophoneHandle? _micHandle;
 
   /// Linear microphone gain applied to transmitted PTT audio. Shared with the
   /// Audio tab via DataBroker device 0 ('MicrophoneGain').
@@ -573,7 +575,8 @@ class _CommsTabState extends State<CommsTab>
   @override
   void dispose() {
     _sttStatusNotifier?.removeListener(_onSttModelStatusChanged);
-    _micCapture?.dispose();
+    _micHandle?.cancel();
+    _micHandle = null;
     _broker.dispose();
     _messageController.dispose();
     _messageFocusNode.dispose();
@@ -850,21 +853,17 @@ class _CommsTabState extends State<CommsTab>
     if (gain == null) return;
     _micGain = gain.clamp(1.0, 8.0);
     // Apply live so an in-progress PTT transmission picks up the new gain.
-    _micCapture?.gain = _micGain;
+    SharedMicrophone.instance.gain = _micGain;
   }
 
   void _onInputDeviceChanged(int deviceId, String name, Object? data) {
     if (data is! String || data == _inputDeviceId) return;
     _inputDeviceId = data;
-    final capture = _micCapture;
-    if (capture == null) return;
-    capture.deviceId = data.isEmpty ? null : data;
-    // Restart a warm/streaming microphone so it re-opens on the new device.
-    if (capture.isCapturing) {
-      unawaited(() async {
-        await capture.stop();
-        if (_shouldWarmPttMic) await _startPttMic();
-      }());
+    // Re-point the shared microphone; it restarts if currently capturing.
+    if (_micHandle != null) {
+      unawaited(
+        SharedMicrophone.instance.setDeviceId(data.isEmpty ? null : data),
+      );
     }
   }
 
@@ -1147,8 +1146,6 @@ class _CommsTabState extends State<CommsTab>
         return Icons.play_circle;
       case 'Picture':
         return Icons.image;
-      case 'EchoLink':
-        return Icons.public;
       default:
         return null;
     }
@@ -1366,19 +1363,21 @@ class _CommsTabState extends State<CommsTab>
   /// the audio-input start-up delay. Audio is only forwarded to the radio while
   /// the PTT button is held (see [_onPttPcm]).
   Future<void> _startPttMic() async {
-    if (!MicrophoneCapture.isSupported) return;
-    final capture = _micCapture ??= MicrophoneCapture(sampleRate: 32000);
-    capture.gain = _micGain;
-    capture.deviceId = _inputDeviceId.isEmpty ? null : _inputDeviceId;
-    if (capture.isCapturing || _pttStarting) return;
+    if (!SharedMicrophone.isSupported) return;
+    if (_micHandle != null || _pttStarting) return;
     _pttStarting = true;
-    final ok = await capture.start(_onPttPcm);
+    SharedMicrophone.instance.gain = _micGain;
+    await SharedMicrophone.instance
+        .setDeviceId(_inputDeviceId.isEmpty ? null : _inputDeviceId);
+    final handle = await SharedMicrophone.instance.acquire(_onPttPcm);
+    _micHandle = handle;
     _pttStarting = false;
     if (!mounted) {
-      if (ok) await capture.stop();
+      await handle?.cancel();
+      _micHandle = null;
       return;
     }
-    if (!ok) {
+    if (handle == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -1398,7 +1397,8 @@ class _CommsTabState extends State<CommsTab>
       _pttActive = false;
       _releasePttHold();
     }
-    await _micCapture?.stop();
+    await _micHandle?.cancel();
+    _micHandle = null;
   }
 
   /// Begins transmitting captured microphone audio. Called when the PTT button
@@ -1412,7 +1412,7 @@ class _CommsTabState extends State<CommsTab>
     }
     // Ensure the microphone is running (normally already warm in PTT mode).
     await _startPttMic();
-    if (!mounted || !(_micCapture?.isCapturing ?? false)) return;
+    if (!mounted || _micHandle == null) return;
     setState(() => _pttActive = true);
   }
 

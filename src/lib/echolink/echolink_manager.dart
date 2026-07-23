@@ -81,9 +81,6 @@ class EchoLinkManager {
   // Mirrors the radio's transmit indicator: true while we are sending voice.
   bool _txActive = false;
   Timer? _txTimer;
-  // Silences local playback (e.g. SSTV auto-mute) without stopping the received
-  // audio events, so SSTV decoding keeps working while the tones are muted.
-  bool _muted = false;
   // Transmit is considered finished after this much silence (PTT keeps it lit
   // while held; a one-shot spoken/Morse blob lights it briefly).
   static const int _txEndMs = 300;
@@ -126,14 +123,6 @@ class EchoLinkManager {
       deviceId: echoLinkDeviceId,
       name: 'Chat',
       callback: _onChat,
-    );
-
-    // Mute requests (used by the SSTV auto-mute) silence local playback while
-    // the received audio keeps flowing to the SSTV decoder.
-    _broker.subscribe(
-      deviceId: echoLinkDeviceId,
-      name: 'SetMute',
-      callback: _onSetMute,
     );
 
     // Outgoing voice PCM (PTT / spoken text / Morse / DTMF) targeted at the
@@ -226,7 +215,6 @@ class EchoLinkManager {
     _endRxRun();
     _txTimer?.cancel();
     _setTxActive(false);
-    _muted = false;
     try {
       await client?.close();
     } catch (_) {}
@@ -255,13 +243,6 @@ class EchoLinkManager {
       deviceId: echoLinkDeviceId,
       name: 'StationList',
       data: const <Object?>[],
-      store: true,
-    );
-    // Clear any leftover SSTV auto-mute so a later session starts unmuted.
-    _broker.dispatch(
-      deviceId: echoLinkDeviceId,
-      name: 'Mute',
-      data: false,
       store: true,
     );
   }
@@ -333,24 +314,6 @@ class EchoLinkManager {
     _client?.disconnect();
   }
 
-  /// Silences (or restores) local EchoLink playback. Triggered by the SSTV
-  /// auto-mute (SetMute on device 200) so the raw SSTV tones are not heard while
-  /// the image is decoded. The received-audio events keep flowing with the mute
-  /// flag set, so SSTV decoding continues and recording/transcription pause,
-  /// matching how a physical radio behaves during SSTV reception. The Mute state
-  /// is published so the Comms tab can show its "audio muted" banner.
-  void _onSetMute(int deviceId, String name, Object? data) {
-    final bool muted = data == true;
-    if (muted == _muted) return;
-    _muted = muted;
-    _broker.dispatch(
-      deviceId: echoLinkDeviceId,
-      name: 'Mute',
-      data: muted,
-      store: true,
-    );
-  }
-
   // --- Text chat -----------------------------------------------------------
 
   /// Sends a text chat message typed in the Comms tab over the active QSO and
@@ -375,9 +338,8 @@ class EchoLinkManager {
     _dispatchChatText(text, source: chat.callsign, isReceived: true);
   }
 
-  /// Forwards an EchoLink chat message (sent or received) to the CommsHandler,
-  /// which records it in the decoded-text history (so it persists across
-  /// restarts) and surfaces it as a chat bubble in the Comms tab.
+  /// Dispatches an EchoLink chat message as a `TextReady` event so the Comms
+  /// tab renders it as a chat bubble (received or transmitted).
   void _dispatchChatText(
     String text, {
     required String source,
@@ -385,11 +347,20 @@ class EchoLinkManager {
   }) {
     _broker.dispatch(
       deviceId: echoLinkDeviceId,
-      name: 'EchoLinkChat',
+      name: 'TextReady',
       data: <String, Object?>{
         'text': text,
-        'source': source,
+        'channel': '',
+        'time': DateTime.now().millisecondsSinceEpoch,
+        'completed': true,
         'isReceived': isReceived,
+        'encoding': 'EchoLink',
+        'latitude': 0,
+        'longitude': 0,
+        'source': source,
+        'destination': null,
+        'filename': null,
+        'duration': 0,
       },
       store: false,
     );
@@ -423,9 +394,7 @@ class EchoLinkManager {
     final Int16List pcm32 = _rxResampler.process(pcm8k);
     if (pcm32.isEmpty) return;
 
-    // Skip local playback while muted (e.g. SSTV auto-mute), but keep emitting
-    // the audio events below so SSTV decoding continues.
-    if (!_muted) unawaited(_playPcm(pcm32));
+    unawaited(_playPcm(pcm32));
     _publishRxLevel(pcm8k);
 
     final int nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -439,7 +408,7 @@ class EchoLinkManager {
           'startTime': _rxRunStartMs,
           'channelName': _rxChannelName(),
           'transmit': false,
-          'muted': _muted,
+          'muted': false,
           'usage': null,
         },
         store: false,
@@ -457,7 +426,7 @@ class EchoLinkManager {
         'length': bytes.length,
         'channelName': _rxChannelName(),
         'transmit': false,
-        'muted': _muted,
+        'muted': false,
         'audioRunStartTime': _rxRunStartMs,
         'usage': null,
       },

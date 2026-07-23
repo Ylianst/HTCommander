@@ -87,8 +87,15 @@ class DataBroker {
   /// Client only: the channel used to reach the host window.
   WindowMethodChannel? _clientToHost;
 
+  /// Client only: the inbound push channel the host uses to reach this window.
+  WindowMethodChannel? _clientInChannel;
+
   /// Client only: this window's own windowId.
   String? _selfWindowId;
+
+  /// Host only: invoked when a detached window announces it is closing so the
+  /// [WindowService] can drop it from its tracking. Set by the host.
+  static void Function(String windowId)? onChildWindowDetached;
 
   /// Registered cross-window serializers keyed by runtime [Type].
   final Map<Type, _BrokerSerializer> _serializersByType = {};
@@ -687,6 +694,7 @@ class DataBroker {
         _winChannelName(selfWindowId),
         mode: ChannelMode.unidirectional,
       );
+      broker._clientInChannel = inChannel;
       await inChannel.setMethodCallHandler(broker._onClientCall);
     } catch (e) {
       debugPrint('DataBroker: failed to start client channel: $e');
@@ -706,6 +714,34 @@ class DataBroker {
   /// Host only: stops forwarding dispatches to a detached window.
   static void unregisterChildWindow(String windowId) {
     _instance._childChannels.remove(windowId);
+  }
+
+  /// Client only: gracefully detaches this window from the host before its
+  /// engine is torn down. Announces the close to the host (so the host stops
+  /// forwarding dispatches to a channel whose engine is about to disappear —
+  /// which can otherwise crash the whole application) and tears down this
+  /// window's own broker channels. Safe to call more than once.
+  static Future<void> shutdownClient() async {
+    final broker = _instance;
+    if (broker._role != DataBrokerRole.client) return;
+
+    final channel = broker._clientToHost;
+    final id = broker._selfWindowId;
+    if (channel != null && id != null) {
+      try {
+        await channel.invokeMethod('detach', {'windowId': id});
+      } catch (_) {
+        // Host may already be gone; nothing more we can do.
+      }
+    }
+
+    try {
+      await broker._clientInChannel?.setMethodCallHandler(null);
+    } catch (_) {
+      // Ignore: the inbound handler may already be unregistered.
+    }
+    broker._clientInChannel = null;
+    broker._clientToHost = null;
   }
 
   /// Client only: asks the host for a full snapshot of its data store and
@@ -753,6 +789,16 @@ class DataBroker {
         return null;
       case 'snapshot':
         return _buildSnapshot();
+      case 'detach':
+        // A detached window is closing. Stop forwarding to it immediately so we
+        // never invoke a method channel on an engine that is being destroyed.
+        final args = (call.arguments as Map).cast<String, Object?>();
+        final windowId = args['windowId'] as String?;
+        if (windowId != null) {
+          _childChannels.remove(windowId);
+          onChildWindowDetached?.call(windowId);
+        }
+        return null;
     }
     return null;
   }

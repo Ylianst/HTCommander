@@ -132,6 +132,10 @@ void main(List<String> args) async {
   // detached windows can be served over IPC.
   await DataBroker.becomeHost();
 
+  // Start watching for detached windows closing so the broker stops forwarding
+  // to windows whose engines have been destroyed.
+  windowService.initHost();
+
   // Apply the persisted application language (falls back to the OS locale).
   LocaleController.instance.load();
   // Apply the persisted theme mode (falls back to the OS setting).
@@ -335,7 +339,7 @@ class SubWindowApp extends StatefulWidget {
   State<SubWindowApp> createState() => _SubWindowAppState();
 }
 
-class _SubWindowAppState extends State<SubWindowApp> {
+class _SubWindowAppState extends State<SubWindowApp> with WindowListener {
   late final String tabTitle;
   late final Widget tabContent;
 
@@ -392,11 +396,40 @@ class _SubWindowAppState extends State<SubWindowApp> {
       await windowManager.ensureInitialized();
       await windowManager.setTitle('Handi-Talkie Commander - $tabTitle');
       await windowManager.setMinimumSize(const Size(550, 600));
+      // Intercept the close so we can cleanly detach from the host's data
+      // broker BEFORE this window's engine is torn down. Skipping this lets the
+      // host invoke a method channel on a destroyed engine, crashing the app.
+      await windowManager.setPreventClose(true);
+      windowManager.addListener(this);
     } catch (e) {
       // window_manager may be unavailable in a detached window engine on some
       // platforms; the title is cosmetic, so ignore failures.
       debugPrint('SubWindow: unable to set window title: $e');
     }
+  }
+
+  @override
+  void onWindowClose() async {
+    // Announce the close to the host so it stops forwarding broker dispatches
+    // to this window, then tear the window down.
+    try {
+      await DataBroker.shutdownClient();
+    } catch (e) {
+      debugPrint('SubWindow: error detaching from host: $e');
+    }
+    try {
+      windowManager.removeListener(this);
+      await windowManager.setPreventClose(false);
+      await windowManager.destroy();
+    } catch (e) {
+      debugPrint('SubWindow: error closing window: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
   }
 
   @override

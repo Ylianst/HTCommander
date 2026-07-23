@@ -571,43 +571,43 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsEchoLinkIntro =>
-      'Configure EchoLink to talk to other stations over the internet.';
+      'Configure EchoLink para comunicarse con otras estaciones a través de internet.';
 
   @override
-  String get settingsEchoLinkAccount => 'EchoLink Account';
+  String get settingsEchoLinkAccount => 'Cuenta de EchoLink';
 
   @override
   String get settingsEchoLinkAccountHelp =>
-      'Based on your call sign from the License tab';
+      'Basado en su indicativo de la pestaña Licencia';
 
   @override
-  String get settingsEchoLinkLocation => 'Location';
+  String get settingsEchoLinkLocation => 'Ubicación';
 
   @override
   String get settingsEchoLinkLocationHelp =>
-      'Shown to other stations in the directory, such as your city and state.';
+      'Se muestra a otras estaciones en el directorio, como su ciudad y provincia.';
 
   @override
   String get settingsEchoLinkNoCallSign =>
-      'Enter your call sign in the License tab to enable EchoLink.';
+      'Introduzca su indicativo en la pestaña Licencia para habilitar EchoLink.';
 
   @override
-  String get settingsEchoLinkTestSuccess => 'Credentials are valid.';
+  String get settingsEchoLinkTestSuccess => 'Las credenciales son válidas.';
 
   @override
-  String get settingsEchoLinkTestBadPassword => 'Incorrect password.';
+  String get settingsEchoLinkTestBadPassword => 'Contraseña incorrecta.';
 
   @override
   String get settingsEchoLinkTestValidation =>
-      'Your call sign is being validated by EchoLink. This can take up to a day.';
+      'Su indicativo está siendo validado por EchoLink. Esto puede tardar hasta un día.';
 
   @override
   String get settingsEchoLinkTestUnreachable =>
-      'Could not reach the EchoLink directory server.';
+      'No se pudo conectar con el servidor de directorio de EchoLink.';
 
   @override
   String get settingsEchoLinkTestInconclusive =>
-      'Could not verify the credentials. See the debug log for the server reply.';
+      'No se pudieron verificar las credenciales. Consulte el registro de depuración para ver la respuesta del servidor.';
 
   @override
   String get settingsServersIntro =>

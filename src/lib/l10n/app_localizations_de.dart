@@ -572,43 +572,43 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get settingsEchoLinkIntro =>
-      'Configure EchoLink to talk to other stations over the internet.';
+      'Konfigurieren Sie EchoLink, um über das Internet mit anderen Stationen zu kommunizieren.';
 
   @override
-  String get settingsEchoLinkAccount => 'EchoLink Account';
+  String get settingsEchoLinkAccount => 'EchoLink-Konto';
 
   @override
   String get settingsEchoLinkAccountHelp =>
-      'Based on your call sign from the License tab';
+      'Basierend auf Ihrem Rufzeichen auf der Registerkarte Lizenz';
 
   @override
-  String get settingsEchoLinkLocation => 'Location';
+  String get settingsEchoLinkLocation => 'Standort';
 
   @override
   String get settingsEchoLinkLocationHelp =>
-      'Shown to other stations in the directory, such as your city and state.';
+      'Wird anderen Stationen im Verzeichnis angezeigt, z. B. Ihre Stadt und Ihr Bundesland.';
 
   @override
   String get settingsEchoLinkNoCallSign =>
-      'Enter your call sign in the License tab to enable EchoLink.';
+      'Geben Sie Ihr Rufzeichen auf der Registerkarte Lizenz ein, um EchoLink zu aktivieren.';
 
   @override
-  String get settingsEchoLinkTestSuccess => 'Credentials are valid.';
+  String get settingsEchoLinkTestSuccess => 'Die Anmeldedaten sind gültig.';
 
   @override
-  String get settingsEchoLinkTestBadPassword => 'Incorrect password.';
+  String get settingsEchoLinkTestBadPassword => 'Falsches Passwort.';
 
   @override
   String get settingsEchoLinkTestValidation =>
-      'Your call sign is being validated by EchoLink. This can take up to a day.';
+      'Ihr Rufzeichen wird von EchoLink überprüft. Dies kann bis zu einen Tag dauern.';
 
   @override
   String get settingsEchoLinkTestUnreachable =>
-      'Could not reach the EchoLink directory server.';
+      'Der EchoLink-Verzeichnisserver konnte nicht erreicht werden.';
 
   @override
   String get settingsEchoLinkTestInconclusive =>
-      'Could not verify the credentials. See the debug log for the server reply.';
+      'Die Anmeldedaten konnten nicht überprüft werden. Weitere Informationen finden Sie im Debug-Protokoll der Serverantwort.';
 
   @override
   String get settingsServersIntro =>

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -25,13 +26,57 @@ class WindowService {
   /// List of child window controllers we've created
   final List<WindowController> _childWindows = [];
 
+  /// Subscription that watches for windows opening/closing so closed detached
+  /// windows are dropped from tracking and the broker stops forwarding to them.
+  StreamSubscription<void>? _windowsChangedSub;
+
   /// Get list of active child windows
   List<WindowController> get childWindows => List.unmodifiable(_childWindows);
+
+  /// Host-side setup: react to detached windows closing so their broker push
+  /// channels are removed promptly. Call once from the main window. Two
+  /// mechanisms cover both graceful and abrupt closes:
+  ///   * [DataBroker.onChildWindowDetached] fires when a window announces its
+  ///     close (before its engine is destroyed).
+  ///   * [onWindowsChanged] fires when the native window list changes, catching
+  ///     windows that were force-closed without announcing.
+  void initHost() {
+    if (!isDesktop || isChildWindow) return;
+    DataBroker.onChildWindowDetached = _handleChildDetached;
+    _windowsChangedSub ??= onWindowsChanged.listen((_) => _reconcileChildren());
+  }
+
+  /// Drops a detached window that announced it is closing.
+  void _handleChildDetached(String windowId) {
+    DataBroker.unregisterChildWindow(windowId);
+    _childWindows.removeWhere((w) => w.windowId == windowId);
+  }
+
+  /// Removes any tracked child windows that no longer exist (e.g. closed via
+  /// the window's title-bar button without announcing).
+  Future<void> _reconcileChildren() async {
+    try {
+      final existing =
+          (await WindowController.getAll()).map((w) => w.windowId).toSet();
+      final closed = _childWindows
+          .where((w) => !existing.contains(w.windowId))
+          .toList(growable: false);
+      for (final w in closed) {
+        DataBroker.unregisterChildWindow(w.windowId);
+        _childWindows.removeWhere((c) => c.windowId == w.windowId);
+      }
+    } catch (_) {
+      // Best-effort cleanup; ignore transient IPC failures.
+    }
+  }
 
   /// Create a new detached window for a tab
   /// [windowType] is the identifier for the tab (e.g., 'aprs', 'comms', 'terminal')
   Future<WindowController?> createWindow(String windowType) async {
     if (!isDesktop) return null;
+
+    // Ensure we are watching for detached windows closing.
+    initHost();
 
     final controller = await WindowController.create(
       WindowConfiguration(

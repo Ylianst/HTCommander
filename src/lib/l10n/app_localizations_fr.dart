@@ -573,43 +573,43 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get settingsEchoLinkIntro =>
-      'Configure EchoLink to talk to other stations over the internet.';
+      'Configurez EchoLink pour communiquer avec d\'autres stations via Internet.';
 
   @override
-  String get settingsEchoLinkAccount => 'EchoLink Account';
+  String get settingsEchoLinkAccount => 'Compte EchoLink';
 
   @override
   String get settingsEchoLinkAccountHelp =>
-      'Based on your call sign from the License tab';
+      'Basé sur votre indicatif de l\'onglet Licence';
 
   @override
-  String get settingsEchoLinkLocation => 'Location';
+  String get settingsEchoLinkLocation => 'Emplacement';
 
   @override
   String get settingsEchoLinkLocationHelp =>
-      'Shown to other stations in the directory, such as your city and state.';
+      'Affiché aux autres stations dans l\'annuaire, comme votre ville et votre région.';
 
   @override
   String get settingsEchoLinkNoCallSign =>
-      'Enter your call sign in the License tab to enable EchoLink.';
+      'Saisissez votre indicatif dans l\'onglet Licence pour activer EchoLink.';
 
   @override
-  String get settingsEchoLinkTestSuccess => 'Credentials are valid.';
+  String get settingsEchoLinkTestSuccess => 'Les identifiants sont valides.';
 
   @override
-  String get settingsEchoLinkTestBadPassword => 'Incorrect password.';
+  String get settingsEchoLinkTestBadPassword => 'Mot de passe incorrect.';
 
   @override
   String get settingsEchoLinkTestValidation =>
-      'Your call sign is being validated by EchoLink. This can take up to a day.';
+      'Votre indicatif est en cours de validation par EchoLink. Cela peut prendre jusqu\'à une journée.';
 
   @override
   String get settingsEchoLinkTestUnreachable =>
-      'Could not reach the EchoLink directory server.';
+      'Impossible de joindre le serveur d\'annuaire EchoLink.';
 
   @override
   String get settingsEchoLinkTestInconclusive =>
-      'Could not verify the credentials. See the debug log for the server reply.';
+      'Impossible de vérifier les identifiants. Consultez le journal de débogage pour la réponse du serveur.';
 
   @override
   String get settingsServersIntro =>

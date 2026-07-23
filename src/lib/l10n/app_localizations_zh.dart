@@ -555,44 +555,38 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsUseStationIdWinlink => '为 Winlink 使用台站 ID';
 
   @override
-  String get settingsEchoLinkIntro =>
-      'Configure EchoLink to talk to other stations over the internet.';
+  String get settingsEchoLinkIntro => '配置 EchoLink 以通过互联网与其他台站通话。';
 
   @override
-  String get settingsEchoLinkAccount => 'EchoLink Account';
+  String get settingsEchoLinkAccount => 'EchoLink 账户';
 
   @override
-  String get settingsEchoLinkAccountHelp =>
-      'Based on your call sign from the License tab';
+  String get settingsEchoLinkAccountHelp => '基于许可证选项卡中的呼号';
 
   @override
-  String get settingsEchoLinkLocation => 'Location';
+  String get settingsEchoLinkLocation => '位置';
 
   @override
-  String get settingsEchoLinkLocationHelp =>
-      'Shown to other stations in the directory, such as your city and state.';
+  String get settingsEchoLinkLocationHelp => '在目录中向其他台站显示，例如您的城市和省份。';
 
   @override
-  String get settingsEchoLinkNoCallSign =>
-      'Enter your call sign in the License tab to enable EchoLink.';
+  String get settingsEchoLinkNoCallSign => '在许可证选项卡中输入您的呼号以启用 EchoLink。';
 
   @override
-  String get settingsEchoLinkTestSuccess => 'Credentials are valid.';
+  String get settingsEchoLinkTestSuccess => '凭据有效。';
 
   @override
-  String get settingsEchoLinkTestBadPassword => 'Incorrect password.';
+  String get settingsEchoLinkTestBadPassword => '密码错误。';
 
   @override
   String get settingsEchoLinkTestValidation =>
-      'Your call sign is being validated by EchoLink. This can take up to a day.';
+      '您的呼号正在由 EchoLink 验证。这可能需要长达一天的时间。';
 
   @override
-  String get settingsEchoLinkTestUnreachable =>
-      'Could not reach the EchoLink directory server.';
+  String get settingsEchoLinkTestUnreachable => '无法连接到 EchoLink 目录服务器。';
 
   @override
-  String get settingsEchoLinkTestInconclusive =>
-      'Could not verify the credentials. See the debug log for the server reply.';
+  String get settingsEchoLinkTestInconclusive => '无法验证凭据。请查看调试日志以获取服务器回复。';
 
   @override
   String get settingsServersIntro => '配置本地服务器设置。';

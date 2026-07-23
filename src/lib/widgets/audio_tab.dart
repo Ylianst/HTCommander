@@ -17,6 +17,7 @@ import '../services/audio_output_devices.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/microphone_capture.dart';
+import '../services/shared_microphone.dart';
 import '../services/system_audio.dart';
 import '../services/window_service.dart';
 import 'dart_analysis_view.dart';
@@ -90,8 +91,9 @@ class _AudioTabState extends State<AudioTab>
 
   /// Whether the spectrograph is currently shown (any source other than none).
   bool get _showSpectrogram => _spectrogramSource != SpectrogramSource.none;
-  // Live microphone capture (used by the microphone source).
-  MicrophoneCapture? _micCapture;
+  // Live microphone capture (used by the microphone source). Shared with the
+  // Comms tab's push-to-talk so only one recorder ever opens the mic.
+  MicrophoneHandle? _micHandle;
   bool _micStarting = false;
   String? _micError;
   // Microphone transmit gain (linear multiplier, 1.0 = unchanged). Persisted
@@ -212,6 +214,25 @@ class _AudioTabState extends State<AudioTab>
     );
     _isDartModem = _readIsDartModem();
 
+    // The spectrograph source is a single global setting (device 0). Keep every
+    // Audio tab (main + detached) in sync so changing it in one window updates
+    // the others and, crucially, makes the main window start/stop microphone
+    // capture when a detached window selects the microphone source.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SpectrogramSource',
+      callback: _onSpectrogramSourceChanged,
+    );
+
+    // Live microphone PCM is captured only in the main window, then published
+    // here so any Audio tab (including detached windows that cannot own the
+    // microphone) can render the microphone spectrograph.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MicrophoneAudioData',
+      callback: _onMicrophoneAudioData,
+    );
+
     _currentRadioDeviceId = _resolveCurrentRadioId();
     _audioEnabled = _readAudioState();
     _loadForCurrentRadio();
@@ -244,15 +265,7 @@ class _AudioTabState extends State<AudioTab>
         _broker.getValue<String>(0, 'SpectrogramSource', 'none') ?? 'none';
     _spectrogramSource = _sourceFromName(savedSource);
     if (_spectrogramSource != SpectrogramSource.none) {
-      _spectrogram = SpectrogramController(
-        sampleRate: 32000,
-        fftSize: 512,
-        // Only the bottom quarter of the band (0-4000 Hz of the 16 kHz
-        // Nyquist) is displayed, so the generator computes only those bins.
-        maxFrequency: 4000,
-        intensity: 5,
-        decibel: true,
-      );
+      _spectrogram = _createSpectrogramController();
       _updateMicCapture();
     }
   }
@@ -260,7 +273,8 @@ class _AudioTabState extends State<AudioTab>
   @override
   void dispose() {
     _masterPollTimer?.cancel();
-    _micCapture?.dispose();
+    _micHandle?.cancel();
+    _micHandle = null;
     _spectrogram?.dispose();
     _broker.dispose();
     super.dispose();
@@ -436,7 +450,7 @@ class _AudioTabState extends State<AudioTab>
         : (data is int ? data.toDouble() : null);
     if (gain == null) return;
     final clamped = gain.clamp(1.0, 8.0);
-    _micCapture?.gain = clamped;
+    SharedMicrophone.instance.gain = clamped;
     if (!mounted) return;
     setState(() => _micGain = clamped);
   }
@@ -473,6 +487,10 @@ class _AudioTabState extends State<AudioTab>
       controller.feedPcm16(pcm, offset, length);
     } else if (pcm is List<int>) {
       controller.feedPcm16(Uint8List.fromList(pcm), offset, length);
+    } else if (pcm is List) {
+      // Forwarded from the host to a detached window: JSON decoding yields a
+      // List<dynamic> of ints, which fails the typed checks above.
+      controller.feedPcm16(Uint8List.fromList(pcm.cast<int>()), offset, length);
     }
   }
 
@@ -617,7 +635,7 @@ class _AudioTabState extends State<AudioTab>
   void _onMicGainSliderChanged(double value) {
     final clamped = value.clamp(1.0, 8.0);
     setState(() => _micGain = clamped);
-    _micCapture?.gain = clamped;
+    SharedMicrophone.instance.gain = clamped;
     // Persist on device 0 so the Comms tab and the next launch pick it up.
     _broker.dispatch(
       deviceId: 0,
@@ -686,19 +704,40 @@ class _AudioTabState extends State<AudioTab>
     }
   }
 
+  /// Creates a spectrogram controller configured for the Audio tab band.
+  SpectrogramController _createSpectrogramController() {
+    return SpectrogramController(
+      sampleRate: 32000,
+      fftSize: 512,
+      // Only the bottom quarter of the band (0-4000 Hz of the 16 kHz Nyquist)
+      // is displayed, so the generator computes only those bins.
+      maxFrequency: 4000,
+      intensity: 5,
+      decibel: true,
+    );
+  }
+
+  /// Reacts to the global spectrograph source changing in another window so all
+  /// Audio tabs stay in sync and the main window drives microphone capture.
+  void _onSpectrogramSourceChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final source = _sourceFromName(data?.toString() ?? 'none');
+    if (source == _spectrogramSource) return;
+    setState(() {
+      _spectrogramSource = source;
+      if (source != SpectrogramSource.none) {
+        _spectrogram ??= _createSpectrogramController();
+        _spectrogram!.clear();
+      }
+    });
+    _updateMicCapture();
+  }
+
   void _setSpectrogramSource(SpectrogramSource source) {
     setState(() {
       _spectrogramSource = source;
       if (source != SpectrogramSource.none) {
-        _spectrogram ??= SpectrogramController(
-          sampleRate: 32000,
-          fftSize: 512,
-          // Only the bottom quarter of the band (0-4000 Hz of the 16 kHz
-          // Nyquist) is displayed, so the generator computes only those bins.
-          maxFrequency: 4000,
-          intensity: 5,
-          decibel: true,
-        );
+        _spectrogram ??= _createSpectrogramController();
         _spectrogram!.clear();
       }
     });
@@ -734,7 +773,7 @@ class _AudioTabState extends State<AudioTab>
     // Detached windows are remote controls and never own audio hardware; the
     // microphone is captured by the main window only.
     if (windowService.isChildWindow) return;
-    if (!MicrophoneCapture.isSupported) {
+    if (!SharedMicrophone.isSupported) {
       if (mounted) {
         setState(
           () => _micError =
@@ -743,16 +782,22 @@ class _AudioTabState extends State<AudioTab>
       }
       return;
     }
-    final capture = _micCapture ??= MicrophoneCapture(sampleRate: 32000);
-    capture.gain = _micGain;
-    capture.deviceId = _inputDeviceId.isEmpty ? null : _inputDeviceId;
-    if (capture.isCapturing || _micStarting) return;
+    if (_micHandle != null || _micStarting) return;
     _micStarting = true;
-    final ok = await capture.start(_onMicPcm);
+    SharedMicrophone.instance.gain = _micGain;
+    await SharedMicrophone.instance
+        .setDeviceId(_inputDeviceId.isEmpty ? null : _inputDeviceId);
+    final handle = await SharedMicrophone.instance.acquire(_onMicPcm);
+    _micHandle = handle;
     _micStarting = false;
-    if (!mounted) return;
+    if (!mounted) {
+      // Widget went away while the mic was starting; release it.
+      await handle?.cancel();
+      _micHandle = null;
+      return;
+    }
     setState(() {
-      _micError = ok
+      _micError = handle != null
           ? null
           : 'Microphone unavailable. Grant access in System Settings > '
                 'Privacy & Security > Microphone.';
@@ -760,11 +805,26 @@ class _AudioTabState extends State<AudioTab>
   }
 
   Future<void> _stopMic() async {
-    await _micCapture?.stop();
+    await _micHandle?.cancel();
+    _micHandle = null;
     if (mounted && _micError != null) setState(() => _micError = null);
   }
 
   void _onMicPcm(Uint8List pcm16) {
+    // The microphone is captured only in the main window. Publish the PCM on
+    // the broker (device 0) so every Audio tab - including detached windows
+    // that cannot own the microphone - can render the spectrograph. The host's
+    // own tab is fed through the same broker path in _onMicrophoneAudioData.
+    // store:false because this is a live stream, not persisted state.
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'MicrophoneAudioData',
+      data: pcm16,
+      store: false,
+    );
+  }
+
+  void _onMicrophoneAudioData(int deviceId, String name, Object? data) {
     final controller = _spectrogram;
     if (controller == null ||
         _spectrogramSource != SpectrogramSource.microphone) {
@@ -772,7 +832,14 @@ class _AudioTabState extends State<AudioTab>
     }
     // Skip the spectrogram FFT while the Audio tab is hidden.
     if (!isTabVisible) return;
-    controller.feedPcm16(pcm16);
+    if (data is Uint8List) {
+      controller.feedPcm16(data);
+    } else if (data is List<int>) {
+      controller.feedPcm16(Uint8List.fromList(data));
+    } else if (data is List) {
+      // Forwarded to a detached window: JSON decoding yields a List<dynamic>.
+      controller.feedPcm16(Uint8List.fromList(data.cast<int>()));
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -857,18 +924,12 @@ class _AudioTabState extends State<AudioTab>
       setState(() => _inputDeviceId = value);
     }
     if (windowService.isChildWindow) return;
-    final capture = _micCapture;
-    if (capture != null) {
-      final newDeviceId = value.isEmpty ? null : value;
-      if (capture.deviceId != newDeviceId) {
-        capture.deviceId = newDeviceId;
-        if (capture.isCapturing) {
-          () async {
-            await capture.stop();
-            if (_micNeeded) await _startMic();
-          }();
-        }
-      }
+    // Only restart the shared capture if we currently hold it for the
+    // spectrograph; SharedMicrophone re-opens on the new device.
+    if (_micHandle != null) {
+      unawaited(
+        SharedMicrophone.instance.setDeviceId(value.isEmpty ? null : value),
+      );
     }
   }
 

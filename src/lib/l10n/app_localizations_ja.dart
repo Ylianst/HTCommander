@@ -558,44 +558,41 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsUseStationIdWinlink => 'Winlink に局 ID を使用';
 
   @override
-  String get settingsEchoLinkIntro =>
-      'Configure EchoLink to talk to other stations over the internet.';
+  String get settingsEchoLinkIntro => 'インターネット経由で他の局と通信するために EchoLink を設定します。';
 
   @override
-  String get settingsEchoLinkAccount => 'EchoLink Account';
+  String get settingsEchoLinkAccount => 'EchoLink アカウント';
 
   @override
-  String get settingsEchoLinkAccountHelp =>
-      'Based on your call sign from the License tab';
+  String get settingsEchoLinkAccountHelp => 'ライセンスタブのコールサインに基づきます';
 
   @override
-  String get settingsEchoLinkLocation => 'Location';
+  String get settingsEchoLinkLocation => '場所';
 
   @override
-  String get settingsEchoLinkLocationHelp =>
-      'Shown to other stations in the directory, such as your city and state.';
+  String get settingsEchoLinkLocationHelp => '市区町村や都道府県など、ディレクトリ内で他の局に表示されます。';
 
   @override
   String get settingsEchoLinkNoCallSign =>
-      'Enter your call sign in the License tab to enable EchoLink.';
+      'EchoLink を有効にするには、ライセンスタブにコールサインを入力してください。';
 
   @override
-  String get settingsEchoLinkTestSuccess => 'Credentials are valid.';
+  String get settingsEchoLinkTestSuccess => '認証情報は有効です。';
 
   @override
-  String get settingsEchoLinkTestBadPassword => 'Incorrect password.';
+  String get settingsEchoLinkTestBadPassword => 'パスワードが正しくありません。';
 
   @override
   String get settingsEchoLinkTestValidation =>
-      'Your call sign is being validated by EchoLink. This can take up to a day.';
+      'コールサインは EchoLink によって検証中です。最大 1 日かかる場合があります。';
 
   @override
   String get settingsEchoLinkTestUnreachable =>
-      'Could not reach the EchoLink directory server.';
+      'EchoLink ディレクトリサーバーに接続できませんでした。';
 
   @override
   String get settingsEchoLinkTestInconclusive =>
-      'Could not verify the credentials. See the debug log for the server reply.';
+      '認証情報を確認できませんでした。サーバーの応答についてはデバッグログを参照してください。';
 
   @override
   String get settingsServersIntro => 'ローカルサーバーの設定を行います。';

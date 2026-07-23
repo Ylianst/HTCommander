@@ -570,43 +570,43 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get settingsEchoLinkIntro =>
-      'Configure EchoLink to talk to other stations over the internet.';
+      'Skonfiguruj EchoLink, aby rozmawiać z innymi stacjami przez internet.';
 
   @override
-  String get settingsEchoLinkAccount => 'EchoLink Account';
+  String get settingsEchoLinkAccount => 'Konto EchoLink';
 
   @override
   String get settingsEchoLinkAccountHelp =>
-      'Based on your call sign from the License tab';
+      'Na podstawie Twojego znaku wywoławczego z zakładki Licencja';
 
   @override
-  String get settingsEchoLinkLocation => 'Location';
+  String get settingsEchoLinkLocation => 'Lokalizacja';
 
   @override
   String get settingsEchoLinkLocationHelp =>
-      'Shown to other stations in the directory, such as your city and state.';
+      'Wyświetlane innym stacjom w katalogu, np. Twoje miasto i województwo.';
 
   @override
   String get settingsEchoLinkNoCallSign =>
-      'Enter your call sign in the License tab to enable EchoLink.';
+      'Wprowadź swój znak wywoławczy w zakładce Licencja, aby włączyć EchoLink.';
 
   @override
-  String get settingsEchoLinkTestSuccess => 'Credentials are valid.';
+  String get settingsEchoLinkTestSuccess => 'Poświadczenia są prawidłowe.';
 
   @override
-  String get settingsEchoLinkTestBadPassword => 'Incorrect password.';
+  String get settingsEchoLinkTestBadPassword => 'Nieprawidłowe hasło.';
 
   @override
   String get settingsEchoLinkTestValidation =>
-      'Your call sign is being validated by EchoLink. This can take up to a day.';
+      'Twój znak wywoławczy jest weryfikowany przez EchoLink. Może to potrwać do jednego dnia.';
 
   @override
   String get settingsEchoLinkTestUnreachable =>
-      'Could not reach the EchoLink directory server.';
+      'Nie można połączyć się z serwerem katalogowym EchoLink.';
 
   @override
   String get settingsEchoLinkTestInconclusive =>
-      'Could not verify the credentials. See the debug log for the server reply.';
+      'Nie można zweryfikować poświadczeń. Sprawdź dziennik debugowania, aby zobaczyć odpowiedź serwera.';
 
   @override
   String get settingsServersIntro =>
