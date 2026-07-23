@@ -246,6 +246,29 @@ void main() {
     expect(net.sentAudio.first.$1, '10.0.0.5');
   });
 
+  test('flushAudio emits a final padded packet for the trailing partial buffer',
+      () async {
+    await client.open();
+    const StationData station = StationData(callsign: 'W1AW', ip: '10.0.0.5');
+    client.connectTo(station);
+    net.control.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkControlPort, buildSdes(callsign: 'W1AW')));
+    await _pump();
+    net.sentAudio.clear();
+
+    // One full packet plus a partial remainder that would otherwise be dropped.
+    client.sendAudio(Int16List(640 + 100));
+    expect(net.sentAudio.length, 1);
+
+    client.flushAudio();
+    expect(net.sentAudio.length, 2);
+    expect(net.sentAudio.last.$1, '10.0.0.5');
+
+    // A second flush with nothing buffered is a no-op.
+    client.flushAudio();
+    expect(net.sentAudio.length, 2);
+  });
+
   test('sendChat emits a chat packet over the audio port when connected',
       () async {
     await client.open();

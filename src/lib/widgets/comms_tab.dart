@@ -107,6 +107,23 @@ class _CommsTabState extends State<CommsTab>
   /// True while the PTT button is held down and the microphone is streaming.
   bool _pttActive = false;
 
+  /// True while captured microphone audio should still be forwarded to the
+  /// radio: for the whole duration a PTT press is held and for a short drain
+  /// window afterwards so audio already captured but still buffered in the
+  /// input pipeline isn't cut off before the transmission is finalized. See
+  /// [_onPttPcm] and [_stopPtt].
+  bool _pttForwarding = false;
+
+  /// Pending finalization of a transmission after the post-release drain window.
+  Timer? _pttDrainTimer;
+
+  /// How long to keep forwarding buffered microphone audio after the PTT button
+  /// is released. The input pipeline (OS + `record` plugin) delivers captured
+  /// PCM with some latency, so at release the last fraction of a second of
+  /// speech is still in flight; draining for this long lets it be sent instead
+  /// of being dropped.
+  static const int _pttDrainMs = 500;
+
   /// True while microphone capture is being started, to avoid double-starts.
   bool _pttStarting = false;
 
@@ -575,6 +592,8 @@ class _CommsTabState extends State<CommsTab>
   @override
   void dispose() {
     _sttStatusNotifier?.removeListener(_onSttModelStatusChanged);
+    _pttDrainTimer?.cancel();
+    _pttDrainTimer = null;
     _micHandle?.cancel();
     _micHandle = null;
     _broker.dispose();
@@ -1392,9 +1411,13 @@ class _CommsTabState extends State<CommsTab>
 
   /// Stops the warm microphone (e.g. when leaving PTT mode or disconnecting).
   Future<void> _stopPttMic() async {
-    if (_pttActive) {
-      // End any in-progress transmission first.
+    // The hardware is going away, so no drain is possible: finalize any
+    // in-progress (or still-draining) transmission immediately.
+    _pttDrainTimer?.cancel();
+    _pttDrainTimer = null;
+    if (_pttActive || _pttForwarding) {
       _pttActive = false;
+      _pttForwarding = false;
       _releasePttHold();
     }
     await _micHandle?.cancel();
@@ -1410,22 +1433,39 @@ class _CommsTabState extends State<CommsTab>
       _showPttDisabledHint();
       return;
     }
+    // A new press cancels any pending post-release drain from the previous one
+    // so the two transmissions merge into a single continuous run.
+    _pttDrainTimer?.cancel();
+    _pttDrainTimer = null;
     // Ensure the microphone is running (normally already warm in PTT mode).
     await _startPttMic();
     if (!mounted || _micHandle == null) return;
+    _pttForwarding = true;
     setState(() => _pttActive = true);
   }
 
   /// Stops transmitting (the button was released) while keeping the microphone
-  /// warm for the next press.
+  /// warm for the next press. Audio already captured but still buffered in the
+  /// input pipeline keeps being forwarded for a short drain window so the last
+  /// fraction of a second isn't cut off before the transmission is finalized.
   Future<void> _stopPtt() async {
     if (!_pttActive) return;
-    _releasePttHold();
     if (mounted) {
       setState(() => _pttActive = false);
     } else {
       _pttActive = false;
     }
+    // Keep forwarding buffered audio, then finalize the run after the drain.
+    _pttDrainTimer?.cancel();
+    _pttDrainTimer = Timer(
+      const Duration(milliseconds: _pttDrainMs),
+      () {
+        _pttDrainTimer = null;
+        if (!_pttForwarding) return;
+        _pttForwarding = false;
+        _releasePttHold();
+      },
+    );
   }
 
   /// Releases the radio transmission hold so the radio finalizes the single
@@ -1445,7 +1485,7 @@ class _CommsTabState extends State<CommsTab>
   /// radio. The microphone runs continuously while in PTT mode, but audio is
   /// only forwarded to the radio while the PTT button is held.
   void _onPttPcm(Uint8List pcm16) {
-    if (!_pttActive) return;
+    if (!_pttForwarding) return;
     final deviceId = _currentRadioDeviceId;
     if (deviceId <= 0) return;
     _broker.dispatch(

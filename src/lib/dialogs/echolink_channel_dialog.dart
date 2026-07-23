@@ -62,6 +62,10 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
   /// long directory does not make the dialog sluggish.
   static const int _maxResults = 100;
 
+  /// Data Broker key (device 0) used to persist the station-type filter
+  /// across dialog openings.
+  static const String _filterStoreKey = 'EchoLinkChannelFilter';
+
   final DataBrokerClient _broker = DataBrokerClient();
   final TextEditingController _searchController = TextEditingController();
 
@@ -75,6 +79,7 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
   void initState() {
     super.initState();
     _state = _broker.getValue<String>(echoLinkDeviceId, 'State') ?? 'Disconnected';
+    _filterKind = _restoreFilter();
     _stations = _parseStations(
       _broker.getValueDynamic(echoLinkDeviceId, 'StationList'),
     );
@@ -87,6 +92,27 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
       deviceId: echoLinkDeviceId,
       name: 'StationList',
       callback: _onStationList,
+    );
+  }
+
+  /// Reads the persisted station-type filter from Data Broker device 0.
+  _EchoLinkStationKind? _restoreFilter() {
+    final stored = _broker.getValue<String>(0, _filterStoreKey);
+    if (stored == null) return null;
+    for (final kind in _EchoLinkStationKind.values) {
+      if (kind.name == stored) return kind;
+    }
+    return null;
+  }
+
+  /// Stores the active station-type filter in Data Broker device 0.
+  void _setFilter(_EchoLinkStationKind? kind) {
+    setState(() => _filterKind = kind);
+    _broker.dispatch(
+      deviceId: 0,
+      name: _filterStoreKey,
+      data: kind?.name,
+      store: true,
     );
   }
 
@@ -232,10 +258,9 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
                         : null,
                     icon: const Icon(Icons.refresh),
                   ),
+                  _buildFilterMenu(scheme),
                 ],
               ),
-              const SizedBox(height: 12),
-              _buildTypeFilter(scheme),
               const SizedBox(height: 12),
               Expanded(
                 child: Container(
@@ -254,7 +279,7 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.secondaryButtonStyle(context),
-                    child: Text(l10n.commonCancel),
+                    child: Text(l10n.commonClose),
                   ),
                 ],
               ),
@@ -308,11 +333,13 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
     final items =
         truncated ? matches.sublist(0, _maxResults) : matches;
 
-    return Column(
-      children: [
-        if (truncated)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      itemCount: items.length + (truncated ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (truncated && index == items.length) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -325,81 +352,90 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
                 ),
               ),
             ),
+          );
+        }
+        final station = items[index];
+        final bool online = station.status == StationStatus.online;
+        final bool busy = station.status == StationStatus.busy;
+        final bool already = widget.existingCallsigns
+            .contains(station.callsign.toUpperCase());
+        final kind = _kindOf(station);
+        final Color statusColor = busy
+            ? Colors.orange
+            : online
+                ? Colors.green
+                : scheme.outline;
+        return ListTile(
+          dense: true,
+          leading: Tooltip(
+            message: _kindLabel(kind),
+            child: Icon(_kindIcon(kind), size: 20, color: statusColor),
           ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final station = items[index];
-              final bool online = station.status == StationStatus.online;
-              final bool busy = station.status == StationStatus.busy;
-              final bool already = widget.existingCallsigns
-                  .contains(station.callsign.toUpperCase());
-              final kind = _kindOf(station);
-              final Color statusColor = busy
-                  ? Colors.orange
-                  : online
-                      ? Colors.green
-                      : scheme.outline;
-              return ListTile(
-                dense: true,
-                leading: Tooltip(
-                  message: _kindLabel(kind),
-                  child: Icon(_kindIcon(kind), size: 20, color: statusColor),
+          title: Text(station.callsign),
+          subtitle: station.description.isEmpty
+              ? null
+              : Text(
+                  station.description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                title: Text(station.callsign),
-                subtitle: station.description.isEmpty
-                    ? null
-                    : Text(
-                        station.description,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                trailing: already
-                    ? const Icon(Icons.check, size: 18)
-                    : const Icon(Icons.add, size: 18),
-                enabled: !already,
-                onTap: already
-                    ? null
-                    : () => Navigator.of(context).pop(station),
-              );
-            },
-          ),
-        ),
-      ],
+          trailing: already
+              ? const Icon(Icons.check, size: 18)
+              : const Icon(Icons.add, size: 18),
+          enabled: !already,
+          onTap: already ? null : () => Navigator.of(context).pop(station),
+        );
+      },
     );
   }
 
   // --- Styling helpers mirroring the settings dialog -----------------------
 
-  /// A row of choice chips to filter stations by type ("All" + each kind).
-  Widget _buildTypeFilter(ColorScheme scheme) {
-    Widget chip(String label, _EchoLinkStationKind? kind, IconData? icon) {
+  /// A filter icon whose popup menu selects the station-type filter.
+  Widget _buildFilterMenu(ColorScheme scheme) {
+    // PopupMenuButton treats a null value as "cancel", so "All" is encoded as
+    // -1 and each kind as its enum index.
+    PopupMenuItem<int> item(
+      String label,
+      _EchoLinkStationKind? kind,
+      IconData? icon,
+    ) {
       final bool selected = _filterKind == kind;
-      return ChoiceChip(
-        label: Text(label),
-        avatar: icon == null
-            ? null
-            : Icon(
-                icon,
-                size: 16,
-                color: selected ? scheme.onSecondaryContainer : scheme.outline,
-              ),
-        selected: selected,
-        onSelected: (_) => setState(() => _filterKind = kind),
-        visualDensity: VisualDensity.compact,
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      return PopupMenuItem<int>(
+        value: kind?.index ?? -1,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 24,
+              child: selected
+                  ? Icon(Icons.check, size: 18, color: scheme.primary)
+                  : null,
+            ),
+            Icon(
+              icon ?? Icons.list,
+              size: 18,
+              color: scheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 12),
+            Text(label),
+          ],
+        ),
       );
     }
 
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        chip('All', null, null),
+    return PopupMenuButton<int>(
+      tooltip: 'Filter',
+      icon: Icon(
+        _filterKind == null ? Icons.filter_list : Icons.filter_list_alt,
+        color: _filterKind == null ? null : scheme.primary,
+      ),
+      onSelected: (value) => _setFilter(
+        value < 0 ? null : _EchoLinkStationKind.values[value],
+      ),
+      itemBuilder: (context) => [
+        item('All', null, Icons.list),
         for (final kind in _EchoLinkStationKind.values)
-          chip(_kindLabel(kind), kind, _kindIcon(kind)),
+          item(_kindLabel(kind), kind, _kindIcon(kind)),
       ],
     );
   }

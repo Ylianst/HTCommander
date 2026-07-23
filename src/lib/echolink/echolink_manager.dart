@@ -520,9 +520,11 @@ class EchoLinkManager {
     if (data is! Map) return;
     final Object? bytes = data['data'] ?? data['Data'];
     if (bytes is! Uint8List) {
-      // End-of-transmission marker: reset the resampler phase for the next one.
+      // End-of-transmission marker: flush any partial voice buffer so the
+      // trailing audio is sent, then reset the resampler phase for the next one.
       final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
       if (!hold) {
+        _client?.flushAudio();
         _txResampler.reset();
         _setTxActive(false);
       }
@@ -545,6 +547,7 @@ class EchoLinkManager {
 
     final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
     if (!hold) {
+      client.flushAudio();
       _txResampler.reset();
       _txTimer?.cancel();
       _setTxActive(false);

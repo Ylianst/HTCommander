@@ -252,6 +252,24 @@ class EchoLinkClient {
     if (off > 0) _txBuffer.removeRange(0, off);
   }
 
+  /// Flushes any partial voice buffer left over at the end of a transmission,
+  /// zero-padding it to a full 640-sample packet so the trailing audio (up to
+  /// 80 ms) is sent instead of being dropped. Call this when a push-to-talk
+  /// burst ends.
+  void flushAudio() {
+    final EchoLinkQso? qso = _qso;
+    if (qso == null || _state != EchoLinkClientState.inQso) return;
+    if (_txBuffer.isEmpty) return;
+    const int block = EchoLinkAudioEncoder.samplesPerPacket; // 640
+    final Int16List packet = Int16List(block);
+    final int n = _txBuffer.length < block ? _txBuffer.length : block;
+    for (int i = 0; i < n; i++) {
+      packet[i] = _txBuffer[i];
+    }
+    _txBuffer.clear();
+    qso.sendAudioFrame(packet);
+  }
+
   /// Closes sockets and releases resources.
   Future<void> close() async {
     disconnect();
