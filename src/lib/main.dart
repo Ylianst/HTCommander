@@ -552,10 +552,15 @@ class AppSubmenu extends AppMenuItem {
   final String? macOSLabel;
   final List<AppMenuItem> children;
 
+  /// When false the submenu is shown grayed out and cannot be opened (used to
+  /// disable e.g. the whole Audio menu for radios that don't support it).
+  final bool enabled;
+
   const AppSubmenu({
     required this.label,
     this.macOSLabel,
     required this.children,
+    this.enabled = true,
   });
 }
 
@@ -1837,6 +1842,11 @@ class _MainFormState extends State<MainForm>
   /// Whether we have at least one connected radio.
   bool get _hasConnectedRadio => _connectedRadioIds.isNotEmpty;
 
+  /// Whether the currently displayed radio is the internet-only EchoLink
+  /// radio, which does not support physical-radio features (dual-watch, scan,
+  /// GPS, trusted devices, buttons, channel import/export, audio modems).
+  bool get _isEchoLink => _currentRadioDeviceId == echoLinkDeviceId;
+
   /// Whether GPS serial port is configured.
   bool get _hasGpsConfigured {
     if (!_serialGpsSupported) return false;
@@ -1849,6 +1859,9 @@ class _MainFormState extends State<MainForm>
   /// list (device 1), preferring the friendly name (e.g. "UV-PRO") and falling
   /// back to "Radio $deviceId" when none is available.
   String _radioMenuLabel(int deviceId) {
+    // EchoLink (device 200) is not part of `ConnectedRadios`, but is offered in
+    // the switcher as a selectable radio when available.
+    if (deviceId == echoLinkDeviceId) return 'EchoLink';
     final radios = DataBroker.getValueDynamic(1, 'ConnectedRadios', null);
     if (radios is List) {
       for (final radio in radios) {
@@ -1859,6 +1872,17 @@ class _MainFormState extends State<MainForm>
       }
     }
     return 'Radio $deviceId';
+  }
+
+  /// Returns the list of radios the user can switch between: every physically
+  /// connected radio plus EchoLink (device 200) when it is available. EchoLink
+  /// is appended last so physical radios keep their natural order.
+  List<int> _selectableRadioIds() {
+    final ids = <int>[..._connectedRadioIds];
+    if (_echoLinkAvailable && !ids.contains(echoLinkDeviceId)) {
+      ids.add(echoLinkDeviceId);
+    }
+    return ids;
   }
 
   /// Builds the items for the Radio > Regions submenu (mirrors the C#
@@ -1921,14 +1945,15 @@ class _MainFormState extends State<MainForm>
             label: l10n.menuDisconnect,
             onPressed: _hasConnectedRadio ? _onDisconnect : null,
           ),
-          // When more than one radio is connected, show a "Radios" submenu that
-          // lists each connected radio with a checkmark next to the preferred
-          // (active) one, so the user can switch between them.
-          if (_connectedRadioIds.length >= 2)
+          // When more than one radio is selectable (physical radios plus
+          // EchoLink when available), show a "Radios" submenu that lists each
+          // one with a checkmark next to the preferred (active) one, so the
+          // user can switch between them.
+          if (_selectableRadioIds().length >= 2)
             AppSubmenu(
               label: l10n.menuRadios,
               children: [
-                for (final radioId in _connectedRadioIds)
+                for (final radioId in _selectableRadioIds())
                   AppMenuAction(
                     label: _radioMenuLabel(radioId),
                     onPressed: () => _setPreferredRadio(radioId),
@@ -1939,17 +1964,19 @@ class _MainFormState extends State<MainForm>
           const AppMenuDivider(),
           AppMenuAction(
             label: l10n.menuDualWatch,
-            onPressed: _hasConnectedRadio ? _onToggleDualWatch : null,
+            onPressed: _hasConnectedRadio && !_isEchoLink
+                ? _onToggleDualWatch
+                : null,
             checked: _dualWatchEnabled,
           ),
           AppMenuAction(
             label: l10n.menuScan,
-            onPressed: _hasConnectedRadio ? _onToggleScan : null,
+            onPressed: _hasConnectedRadio && !_isEchoLink ? _onToggleScan : null,
             checked: _scanEnabled,
           ),
           AppMenuAction(
             label: 'GPS',
-            onPressed: _hasConnectedRadio ? _onToggleGps : null,
+            onPressed: _hasConnectedRadio && !_isEchoLink ? _onToggleGps : null,
             checked: _gpsEnabled,
           ),
           // Show the Regions submenu only when a radio is connected and
@@ -1961,7 +1988,7 @@ class _MainFormState extends State<MainForm>
             AppMenuAction(label: l10n.menuRegions, onPressed: null),
           AppMenuAction(
             label: l10n.menuTrustedDevices,
-            onPressed: _hasConnectedRadio
+            onPressed: _hasConnectedRadio && !_isEchoLink
                 ? () => showTrustedDevicesDialog(
                     context,
                     deviceId: _currentRadioDeviceId,
@@ -1979,7 +2006,7 @@ class _MainFormState extends State<MainForm>
           ),
           AppMenuAction(
             label: l10n.menuButtons,
-            onPressed: _hasConnectedRadio
+            onPressed: _hasConnectedRadio && !_isEchoLink
                 ? () => showConfigureButtonsDialog(
                     context,
                     initialDeviceId: _currentRadioDeviceId,
@@ -1989,11 +2016,15 @@ class _MainFormState extends State<MainForm>
           const AppMenuDivider(),
           AppMenuAction(
             label: l10n.menuExportChannels,
-            onPressed: _hasConnectedRadio ? _onExportChannels : null,
+            onPressed: _hasConnectedRadio && !_isEchoLink
+                ? _onExportChannels
+                : null,
           ),
           AppMenuAction(
             label: l10n.menuImportChannels,
-            onPressed: _hasConnectedRadio ? _onImportChannels : null,
+            onPressed: _hasConnectedRadio && !_isEchoLink
+                ? _onImportChannels
+                : null,
           ),
           const AppMenuDivider(hideOnMacOS: true),
           AppMenuAction(
@@ -2023,10 +2054,13 @@ class _MainFormState extends State<MainForm>
       if (!kIsWeb && !Platform.isIOS)
         AppSubmenu(
           label: l10n.menuAudio,
+          enabled: !_isEchoLink,
           children: [
             AppMenuAction(
               label: l10n.menuAudioEnabled,
-              onPressed: _hasConnectedRadio ? _onToggleAudio : null,
+              onPressed: _hasConnectedRadio && !_isEchoLink
+                  ? _onToggleAudio
+                  : null,
               checked: _audioEnabled,
             ),
             const AppMenuDivider(),
@@ -2420,12 +2454,22 @@ class _MainFormState extends State<MainForm>
           result.add(PlatformMenuItemGroup(members: List.from(currentGroup)));
           currentGroup.clear();
         }
-        result.add(
-          PlatformMenu(
-            label: item.label,
-            menus: _convertMenuItems(item.children),
-          ),
-        );
+        // A disabled submenu is shown as a single grayed-out (unselectable)
+        // item, since PlatformMenu has no notion of a disabled submenu.
+        if (!item.enabled) {
+          currentGroup.add(
+            PlatformMenuItem(label: item.label, onSelected: null),
+          );
+          result.add(PlatformMenuItemGroup(members: List.from(currentGroup)));
+          currentGroup.clear();
+        } else {
+          result.add(
+            PlatformMenu(
+              label: item.label,
+              menus: _convertMenuItems(item.children),
+            ),
+          );
+        }
       }
     }
 
@@ -2547,11 +2591,15 @@ class _MainFormState extends State<MainForm>
           leadingIcon: items.any((i) => i is AppMenuAction && i.checked)
               ? const SizedBox(width: 16)
               : null,
-          menuChildren: _buildBuiltInMenuItems(
-            item.children,
-            menuItemStyle,
-            menuStyle,
-          ),
+          // An empty child list disables the SubmenuButton, graying it out
+          // (used for the Audio menu on radios that don't support it).
+          menuChildren: item.enabled
+              ? _buildBuiltInMenuItems(
+                  item.children,
+                  menuItemStyle,
+                  menuStyle,
+                )
+              : const <Widget>[],
           child: Text(item.label),
         );
       }

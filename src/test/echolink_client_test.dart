@@ -187,9 +187,23 @@ void main() {
     expect(sched.periodics.length, 1); // keep-alive armed
     expect(sched.oneShots.length, 1); // timeout armed
 
-    // Remote answers with SDES from the station's address.
+    // Remote answers with SDES from the station's address. The control-port
+    // handshake completes, but the client stays in "Connecting" until inbound
+    // audio-port UDP is confirmed.
     net.control.add(EchoLinkDatagram(
         '10.0.0.5', echoLinkControlPort, buildSdes(callsign: 'W1AW', name: 'Hiram')));
+    await _pump();
+
+    expect(client.state, EchoLinkClientState.connecting);
+    expect(DataBroker.getValue<String>(echoLinkDeviceId, 'State'), 'Connecting');
+    expect(
+        DataBroker.getValue<Object?>(echoLinkDeviceId, 'ConnectedStation'), isNull);
+
+    // A datagram on the audio port confirms the audio path and promotes the
+    // connection to "Connected".
+    final EchoLinkAudioEncoder enc = EchoLinkAudioEncoder();
+    net.audio.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkAudioPort, enc.encodePacket(Int16List(640))));
     await _pump();
 
     expect(client.state, EchoLinkClientState.inQso);
@@ -198,6 +212,24 @@ void main() {
         DataBroker.getValue<Object?>(echoLinkDeviceId, 'ConnectedStation');
     expect(cs, isA<Map<dynamic, dynamic>>());
     expect((cs as Map<dynamic, dynamic>)['Callsign'], 'W1AW');
+  });
+
+  test('stays connecting until an audio-port packet arrives', () async {
+    await client.open();
+    const StationData station = StationData(callsign: 'W1AW', ip: '10.0.0.5');
+    client.connectTo(station);
+
+    // Control-port keep-alives alone (SDES) never promote past "Connecting".
+    net.control.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkControlPort, buildSdes(callsign: 'W1AW')));
+    await _pump();
+    expect(client.state, EchoLinkClientState.connecting);
+
+    // An info (text) packet on the audio port also confirms the audio path.
+    net.audio.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkAudioPort, buildInfoPacket('hello')));
+    await _pump();
+    expect(client.state, EchoLinkClientState.inQso);
   });
 
   test('incoming voice packets are decoded to 8 kHz audio', () async {
@@ -238,6 +270,8 @@ void main() {
     client.connectTo(station);
     net.control.add(EchoLinkDatagram(
         '10.0.0.5', echoLinkControlPort, buildSdes(callsign: 'W1AW')));
+    net.audio.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkAudioPort, buildInfoPacket('hi')));
     await _pump();
     net.sentAudio.clear();
 
@@ -253,6 +287,8 @@ void main() {
     client.connectTo(station);
     net.control.add(EchoLinkDatagram(
         '10.0.0.5', echoLinkControlPort, buildSdes(callsign: 'W1AW')));
+    net.audio.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkAudioPort, buildInfoPacket('hi')));
     await _pump();
     net.sentAudio.clear();
 
@@ -346,6 +382,8 @@ void main() {
     client.connectTo(station);
     net.control.add(EchoLinkDatagram(
         '10.0.0.5', echoLinkControlPort, buildSdes(callsign: 'W1AW')));
+    net.audio.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkAudioPort, buildInfoPacket('hi')));
     await _pump();
     expect(client.state, EchoLinkClientState.inQso);
 

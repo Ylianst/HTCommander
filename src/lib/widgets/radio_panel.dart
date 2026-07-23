@@ -1431,8 +1431,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   /// the "Internet" mode label.
   Widget _buildEchoLinkDisplayPanel() {
     final bool inQso = _echoLinkInQso;
-    final Color aColor = _inactiveColor;
-    final Color bColor = inQso ? _activeVfoColor : _inactiveColor;
+    // When connected to a channel, VFO A shows the station info in yellow and
+    // VFO B is left blank. When not connected, VFO A shows the EchoLink state
+    // in white.
+    final Color aColor = inQso ? _activeVfoColor : _inactiveColor;
 
     final String stateText = switch (_echoLinkState) {
       'Connected' => 'In QSO',
@@ -1441,6 +1443,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       _ => 'Offline',
     };
     final StationData? station = _echoLinkConnected;
+    final String aLabel = inQso ? (station?.callsign ?? '') : 'EchoLink';
+    final String aSub = inQso ? (station?.description ?? '') : stateText;
 
     Widget vfoBlock(String label, String sub, Color color) {
       return Column(
@@ -1480,7 +1484,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         children: [
           Transform.translate(
             offset: const Offset(0, -20),
-            child: vfoBlock('EchoLink', stateText, aColor),
+            child: vfoBlock(aLabel, aSub, aColor),
           ),
           Transform.translate(
             offset: const Offset(0, -14),
@@ -1491,11 +1495,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           ),
           Transform.translate(
             offset: const Offset(0, -14),
-            child: vfoBlock(
-              inQso ? (station?.callsign ?? '') : '',
-              inQso ? (station?.description ?? '') : '',
-              bColor,
-            ),
+            child: vfoBlock('', '', aColor),
           ),
           Transform.translate(
             offset: const Offset(0, -12),

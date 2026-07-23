@@ -328,6 +328,12 @@ class EchoLinkManager {
       _broker.logError('[EchoLink] Cannot connect: station has no address');
       return;
     }
+    // If already connecting to or in a QSO with another station, tear down the
+    // current connection before connecting to the newly selected one.
+    if (client.state == EchoLinkClientState.connecting ||
+        client.state == EchoLinkClientState.inQso) {
+      client.disconnect();
+    }
     client.connectTo(station);
   }
 

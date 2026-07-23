@@ -110,6 +110,12 @@ class EchoLinkClient {
   int _rxControlPackets = 0;
   final Set<String> _loggedStrangerHosts = <String>{};
 
+  // True once at least one datagram has been received on the audio port for the
+  // current QSO. The QSO handshake completes on the control port (SDES), but we
+  // don't report the connection as fully "Connected" until inbound audio-port
+  // UDP is confirmed flowing — otherwise we stay in the "Connecting" state.
+  bool _audioPortSeen = false;
+
   final List<int> _txBuffer = <int>[];
 
   StreamSubscription<EchoLinkDatagram>? _audioSub;
@@ -230,6 +236,7 @@ class EchoLinkClient {
     _txBuffer.clear();
     _rxVoicePackets = 0;
     _rxControlPackets = 0;
+    _audioPortSeen = false;
     _loggedStrangerHosts.clear();
     _setState(EchoLinkClientState.connecting);
     qso.connect();
@@ -302,6 +309,10 @@ class EchoLinkClient {
       _warnStrangerHost(dg.host, 'audio');
       return;
     }
+    // Any datagram on the audio port confirms the inbound UDP path (5198) is
+    // open; only then do we promote a completed handshake to "Connected".
+    _audioPortSeen = true;
+    _promoteToInQsoIfReady();
     // Confirm inbound UDP on the audio port is flowing, distinguishing an
     // actual voice packet from a text (info/chat) packet so the user can tell
     // whether audio specifically is arriving.
@@ -343,12 +354,9 @@ class EchoLinkClient {
   void _onQsoState(QsoState s) {
     switch (s) {
       case QsoState.connected:
-        _setState(EchoLinkClientState.inQso);
-        DataBroker.dispatch(
-          deviceId: echoLinkDeviceId,
-          name: 'ConnectedStation',
-          data: _remoteStation == null ? null : _stationMap(_remoteStation!),
-        );
+        // The control-port handshake (SDES) is complete, but hold in the
+        // "Connecting" state until inbound audio-port UDP is confirmed.
+        _promoteToInQsoIfReady();
         break;
       case QsoState.disconnected:
         _endConnection();
@@ -357,6 +365,22 @@ class EchoLinkClient {
       case QsoState.byeReceived:
         break;
     }
+  }
+
+  /// Transitions to the fully-connected [EchoLinkClientState.inQso] state once
+  /// both the QSO handshake has completed and a datagram has been received on
+  /// the audio port. Until the audio-port path is confirmed the client stays in
+  /// the "Connecting" state so the UI reflects that audio is not yet flowing.
+  void _promoteToInQsoIfReady() {
+    if (_state == EchoLinkClientState.inQso) return;
+    if (!_audioPortSeen) return;
+    if (_qso?.state != QsoState.connected) return;
+    _setState(EchoLinkClientState.inQso);
+    DataBroker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'ConnectedStation',
+      data: _remoteStation == null ? null : _stationMap(_remoteStation!),
+    );
   }
 
   void _onRemoteStation(SdesStation st) {
