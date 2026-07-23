@@ -27,7 +27,12 @@ import 'package:flutter/material.dart';
 
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../echolink/echolink_station.dart';
+import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
+import 'dialog_utils.dart';
+
+/// EchoLink station categories, derived from the callsign suffix/prefix.
+enum _EchoLinkStationKind { user, link, repeater, conference }
 
 /// Shows the EchoLink station picker and returns the chosen station, or null if
 /// the user cancelled. [existingCallsigns] (upper-case) are already-favorited
@@ -53,12 +58,18 @@ class _EchoLinkChannelDialog extends StatefulWidget {
 }
 
 class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
+  /// Only the first [_maxResults] matching stations are rendered so the very
+  /// long directory does not make the dialog sluggish.
+  static const int _maxResults = 100;
+
   final DataBrokerClient _broker = DataBrokerClient();
   final TextEditingController _searchController = TextEditingController();
 
   List<StationData> _stations = const [];
   String _state = 'Disconnected';
   String _query = '';
+  // Active station-type filter; null means "All".
+  _EchoLinkStationKind? _filterKind;
 
   @override
   void initState() {
@@ -126,66 +137,131 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
   bool get _online =>
       _state == 'Online' || _state == 'Connecting' || _state == 'Connected';
 
-  List<StationData> get _filtered {
-    if (_query.isEmpty) return _stations;
-    final q = _query.toUpperCase();
-    return _stations
-        .where((s) =>
-            s.callsign.toUpperCase().contains(q) ||
-            s.description.toUpperCase().contains(q))
-        .toList();
+  /// All stations matching the current search + type filter (unbounded), used
+  /// for the count.
+  List<StationData> get _matches {
+    Iterable<StationData> list = _stations;
+    if (_filterKind != null) {
+      list = list.where((s) => _kindOf(s) == _filterKind);
+    }
+    if (_query.isNotEmpty) {
+      final q = _query.toUpperCase();
+      list = list.where((s) =>
+          s.callsign.toUpperCase().contains(q) ||
+          s.description.toUpperCase().contains(q));
+    }
+    return list.toList();
+  }
+
+  static _EchoLinkStationKind _kindOf(StationData s) {
+    if (s.isConference) return _EchoLinkStationKind.conference;
+    if (s.isRepeater) return _EchoLinkStationKind.repeater;
+    if (s.isLink) return _EchoLinkStationKind.link;
+    return _EchoLinkStationKind.user;
+  }
+
+  static IconData _kindIcon(_EchoLinkStationKind kind) {
+    switch (kind) {
+      case _EchoLinkStationKind.user:
+        return Icons.person;
+      case _EchoLinkStationKind.link:
+        return Icons.link;
+      case _EchoLinkStationKind.repeater:
+        return Icons.cell_tower;
+      case _EchoLinkStationKind.conference:
+        return Icons.groups;
+    }
+  }
+
+  static String _kindLabel(_EchoLinkStationKind kind) {
+    switch (kind) {
+      case _EchoLinkStationKind.user:
+        return 'Users';
+      case _EchoLinkStationKind.link:
+        return 'Links';
+      case _EchoLinkStationKind.repeater:
+        return 'Repeaters';
+      case _EchoLinkStationKind.conference:
+        return 'Conferences';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return AlertDialog(
-      title: const Text('Add EchoLink Channel'),
-      content: SizedBox(
-        width: 420,
-        height: 480,
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      prefixIcon: Icon(Icons.search),
-                      hintText: 'Search callsign or location',
-                      border: OutlineInputBorder(),
+    final l10n = AppLocalizations.of(context);
+    return Dialog(
+      backgroundColor: scheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 550, maxHeight: 650),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Add EchoLink Channel',
+                style: DialogStyles.titleStyle.copyWith(
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: _inputDecoration(
+                        hintText: 'Search callsign or location',
+                      ).copyWith(prefixIcon: const Icon(Icons.search)),
+                      onChanged: (v) => setState(() => _query = v.trim()),
                     ),
-                    onChanged: (v) => setState(() => _query = v.trim()),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    onPressed: _online
+                        ? () => _broker.dispatch(
+                              deviceId: echoLinkDeviceId,
+                              name: 'EchoLinkRefreshStations',
+                              data: null,
+                              store: false,
+                            )
+                        : null,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildTypeFilter(scheme),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Container(
+                  decoration: _sectionDecoration(),
+                  clipBehavior: Clip.antiAlias,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: _buildBody(scheme),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  tooltip: 'Refresh',
-                  onPressed: _online
-                      ? () => _broker.dispatch(
-                            deviceId: echoLinkDeviceId,
-                            name: 'EchoLinkRefreshStations',
-                            data: null,
-                            store: false,
-                          )
-                      : null,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Expanded(child: _buildBody(scheme)),
-          ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: DialogStyles.secondaryButtonStyle(context),
+                    child: Text(l10n.commonCancel),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-      ],
     );
   }
 
@@ -197,7 +273,7 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
           children: [
             Text(
               'EchoLink is offline.',
-              style: TextStyle(color: scheme.outline),
+              style: TextStyle(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
@@ -207,6 +283,7 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
                 data: null,
                 store: false,
               ),
+              style: DialogStyles.primaryButtonStyle(context),
               icon: const Icon(Icons.login),
               label: const Text('Go Online'),
             ),
@@ -215,52 +292,153 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
       );
     }
 
-    final items = _filtered;
-    if (items.isEmpty) {
+    final matches = _matches;
+    if (matches.isEmpty) {
       return Center(
         child: Text(
           _stations.isEmpty
               ? 'Loading directory...'
               : 'No stations match your search.',
-          style: TextStyle(color: scheme.outline),
+          style: TextStyle(color: scheme.onSurfaceVariant),
         ),
       );
     }
 
-    return ListView.builder(
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final station = items[index];
-        final bool online = station.status == StationStatus.online;
-        final bool busy = station.status == StationStatus.busy;
-        final bool already =
-            widget.existingCallsigns.contains(station.callsign.toUpperCase());
-        return ListTile(
-          dense: true,
-          leading: Icon(
-            Icons.circle,
-            size: 12,
-            color: busy
-                ? Colors.orange
-                : online
-                    ? Colors.green
-                    : scheme.outline,
-          ),
-          title: Text(station.callsign),
-          subtitle: station.description.isEmpty
-              ? null
-              : Text(
-                  station.description,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+    final bool truncated = matches.length > _maxResults;
+    final items =
+        truncated ? matches.sublist(0, _maxResults) : matches;
+
+    return Column(
+      children: [
+        if (truncated)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Showing first $_maxResults of ${matches.length} matches. '
+                'Refine your search to narrow it down.',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: scheme.onSurfaceVariant,
                 ),
-          trailing: already
-              ? const Icon(Icons.check, size: 18)
-              : const Icon(Icons.add, size: 18),
-          enabled: !already,
-          onTap: already ? null : () => Navigator.of(context).pop(station),
-        );
-      },
+              ),
+            ),
+          ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final station = items[index];
+              final bool online = station.status == StationStatus.online;
+              final bool busy = station.status == StationStatus.busy;
+              final bool already = widget.existingCallsigns
+                  .contains(station.callsign.toUpperCase());
+              final kind = _kindOf(station);
+              final Color statusColor = busy
+                  ? Colors.orange
+                  : online
+                      ? Colors.green
+                      : scheme.outline;
+              return ListTile(
+                dense: true,
+                leading: Tooltip(
+                  message: _kindLabel(kind),
+                  child: Icon(_kindIcon(kind), size: 20, color: statusColor),
+                ),
+                title: Text(station.callsign),
+                subtitle: station.description.isEmpty
+                    ? null
+                    : Text(
+                        station.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                trailing: already
+                    ? const Icon(Icons.check, size: 18)
+                    : const Icon(Icons.add, size: 18),
+                enabled: !already,
+                onTap: already
+                    ? null
+                    : () => Navigator.of(context).pop(station),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- Styling helpers mirroring the settings dialog -----------------------
+
+  /// A row of choice chips to filter stations by type ("All" + each kind).
+  Widget _buildTypeFilter(ColorScheme scheme) {
+    Widget chip(String label, _EchoLinkStationKind? kind, IconData? icon) {
+      final bool selected = _filterKind == kind;
+      return ChoiceChip(
+        label: Text(label),
+        avatar: icon == null
+            ? null
+            : Icon(
+                icon,
+                size: 16,
+                color: selected ? scheme.onSecondaryContainer : scheme.outline,
+              ),
+        selected: selected,
+        onSelected: (_) => setState(() => _filterKind = kind),
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      );
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        chip('All', null, null),
+        for (final kind in _EchoLinkStationKind.values)
+          chip(_kindLabel(kind), kind, _kindIcon(kind)),
+      ],
+    );
+  }
+
+  InputDecoration _inputDecoration({String? hintText}) {
+    final scheme = Theme.of(context).colorScheme;
+    return InputDecoration(
+      filled: true,
+      fillColor: scheme.surfaceContainerHighest,
+      hintText: hintText,
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: scheme.primary, width: 2),
+      ),
+    );
+  }
+
+  BoxDecoration _sectionDecoration() {
+    final theme = Theme.of(context);
+    return BoxDecoration(
+      color: theme.colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: theme.shadowColor.withValues(alpha: 0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
     );
   }
 }

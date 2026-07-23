@@ -27,6 +27,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/echolink/echolink_audio.dart';
 import 'package:htcommander/echolink/echolink_client.dart';
+import 'package:htcommander/echolink/echolink_data_packet.dart';
 import 'package:htcommander/echolink/echolink_directory.dart';
 import 'package:htcommander/echolink/echolink_network.dart';
 import 'package:htcommander/echolink/echolink_qso.dart';
@@ -243,6 +244,45 @@ void main() {
     client.sendAudio(Int16List(640 * 2)); // exactly two packets
     expect(net.sentAudio.length, 2);
     expect(net.sentAudio.first.$1, '10.0.0.5');
+  });
+
+  test('sendChat emits a chat packet over the audio port when connected',
+      () async {
+    await client.open();
+    const StationData station = StationData(callsign: 'W1AW', ip: '10.0.0.5');
+    client.connectTo(station);
+    net.control.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkControlPort, buildSdes(callsign: 'W1AW')));
+    await _pump();
+    net.sentAudio.clear();
+
+    client.sendChat('Hello there');
+    expect(net.sentAudio.length, 1);
+    expect(net.sentAudio.single.$1, '10.0.0.5');
+    expect(classifyAudioPortPacket(net.sentAudio.single.$2),
+        EchoLinkAudioPortPacket.chat);
+    final EchoLinkChat parsed = parseChatPacket(net.sentAudio.single.$2);
+    expect(parsed.message, 'Hello there');
+  });
+
+  test('incoming chat packets fire the onChat callback', () async {
+    await client.open();
+    const StationData station = StationData(callsign: 'W1AW', ip: '10.0.0.5');
+    client.connectTo(station);
+    net.control.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkControlPort, buildSdes(callsign: 'W1AW')));
+    await _pump();
+
+    EchoLinkChat? chat;
+    client.onChat = (EchoLinkChat c) => chat = c;
+
+    net.audio.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkAudioPort, buildChatPacket('W1AW', 'Hi HTC')));
+    await _pump();
+
+    expect(chat, isNotNull);
+    expect(chat!.callsign, 'W1AW');
+    expect(chat!.message, 'Hi HTC');
   });
 
   test('disconnect sends BYE and returns to online', () async {

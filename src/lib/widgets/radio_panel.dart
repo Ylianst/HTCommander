@@ -77,6 +77,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   // Up to 30 favorite EchoLink stations shown as channel tiles below the radio.
   List<StationData> _echoLinkFavorites = const [];
   static const int _kMaxEchoLinkFavorites = 30;
+  // Receive level (0..1) and transmit state for the EchoLink RSSI/TX bar,
+  // mirroring the physical radio's signal / transmit indicator.
+  double _echoLinkRxLevel = 0;
+  bool _echoLinkTransmitting = false;
 
   // UI state
   bool _showAllChannels = false;
@@ -268,6 +272,25 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     });
   }
 
+  /// Handles the EchoLink receive-level meter (device 200 'RxLevel', 0..1).
+  /// Quantized so the RSSI-style bar rebuilds at most in coarse steps.
+  void _onEchoLinkRxLevel(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final double raw = (data is num) ? data.toDouble() : 0.0;
+    // Quantize to ~15 steps (like the radio's 0..15 RSSI) to limit rebuilds.
+    final double level = (raw.clamp(0.0, 1.0) * 15).round() / 15.0;
+    if (level == _echoLinkRxLevel) return;
+    setState(() => _echoLinkRxLevel = level);
+  }
+
+  /// Handles the EchoLink transmit indicator (device 200 'TxActive').
+  void _onEchoLinkTxActive(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final bool active = data == true;
+    if (active == _echoLinkTransmitting) return;
+    setState(() => _echoLinkTransmitting = active);
+  }
+
   void _loadEchoLinkState() {
     _echoLinkState = _broker.getValue<String>(echoLinkDeviceId, 'State');
     _echoLinkConnected = _stationFromMap(
@@ -437,6 +460,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _echoLinkStations = const [];
     _echoLinkConnected = null;
     _echoLinkBusy = false;
+    _echoLinkRxLevel = 0;
+    _echoLinkTransmitting = false;
   }
 
   void _subscribeToDevice() {
@@ -447,6 +472,16 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         deviceId: echoLinkDeviceId,
         names: ['State', 'ConnectedStation', 'StationList'],
         callback: _onEchoLinkEvent,
+      );
+      _broker.subscribe(
+        deviceId: echoLinkDeviceId,
+        name: 'RxLevel',
+        callback: _onEchoLinkRxLevel,
+      );
+      _broker.subscribe(
+        deviceId: echoLinkDeviceId,
+        name: 'TxActive',
+        callback: _onEchoLinkTxActive,
       );
       _loadEchoLinkState();
       return;
@@ -1291,6 +1326,30 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                   topCrop,
               child: Center(child: _buildEchoLinkNameSwitcher()),
             ),
+            // RSSI / Transmit bar: red while transmitting, green (rising with
+            // the received audio level) while receiving. Same look as a radio.
+            if (_echoLinkInQso &&
+                (_echoLinkTransmitting || _echoLinkRxLevel > 0))
+              Positioned(
+                left: leftMargin +
+                    (_kFixedImageWidth * _kDisplayLeft) +
+                    _kDisplayLeftOffset,
+                top: rssiTop,
+                width: _kFixedImageWidth * _kDisplayWidth,
+                height: 6,
+                child: _echoLinkTransmitting
+                    ? Container(color: Colors.red)
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(1),
+                        child: LinearProgressIndicator(
+                          value: _echoLinkRxLevel,
+                          backgroundColor: _displayBgColor,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.green,
+                          ),
+                        ),
+                      ),
+              ),
             // Bottom panel: Go Online button when offline, favorites otherwise.
             Positioned(
               left: 0,
@@ -1312,42 +1371,27 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     );
   }
 
-  /// Small top-right controls shown while EchoLink is online: refresh the
-  /// directory and go offline.
+  /// Small top-right control shown while EchoLink is online: go offline. The
+  /// directory refresh lives in the "Add EchoLink Channel" dialog.
   Widget _buildEchoLinkOnlineControls() {
-    Widget button(IconData icon, String tooltip, VoidCallback onTap) {
-      return Material(
-        color: Colors.black54,
-        shape: const CircleBorder(),
-        child: Tooltip(
-          message: tooltip,
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.all(6),
-              child: Icon(icon, size: 18, color: Colors.white),
+    return Material(
+      color: Colors.black54,
+      shape: const CircleBorder(),
+      child: Tooltip(
+        message: 'Go offline',
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: _echoLinkBusy ? null : _toggleEchoLinkOnline,
+          child: const Padding(
+            padding: EdgeInsets.all(6),
+            child: Icon(
+              Icons.power_settings_new,
+              size: 18,
+              color: Colors.white,
             ),
           ),
         ),
-      );
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        button(
-          Icons.refresh,
-          'Refresh stations',
-          () => _echoLinkDispatch('EchoLinkRefreshStations'),
-        ),
-        const SizedBox(width: 4),
-        button(
-          Icons.power_settings_new,
-          'Go offline',
-          _echoLinkBusy ? () {} : _toggleEchoLinkOnline,
-        ),
-      ],
+      ),
     );
   }
 

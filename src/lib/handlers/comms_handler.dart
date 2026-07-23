@@ -45,6 +45,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 
 import '../aprs/aprs_packet.dart';
+import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../radio/ax25_packet.dart';
 import '../radio/bss_packet.dart';
 import '../radio/morse_code_engine.dart';
@@ -67,6 +68,7 @@ enum VoiceTextEncodingType {
   picture,
   aprs,
   ident,
+  echolink,
 }
 
 /// Serializes a [VoiceTextEncodingType] to its C#-compatible name (PascalCase).
@@ -90,6 +92,8 @@ String _encodingToString(VoiceTextEncodingType e) {
       return 'APRS';
     case VoiceTextEncodingType.ident:
       return 'Ident';
+    case VoiceTextEncodingType.echolink:
+      return 'EchoLink';
   }
 }
 
@@ -113,6 +117,8 @@ VoiceTextEncodingType _encodingFromString(Object? value) {
       return VoiceTextEncodingType.aprs;
     case 'ident':
       return VoiceTextEncodingType.ident;
+    case 'echolink':
+      return VoiceTextEncodingType.echolink;
     case 'voice':
     default:
       return VoiceTextEncodingType.voice;
@@ -227,6 +233,14 @@ class CommsHandler {
   String _recordingChannel = '';
   String _recordingFilename = '';
   bool _recordingIsTransmit = false;
+
+  // Outgoing (transmit) audio recording. Outgoing voice is captured directly
+  // from the TransmitVoicePCM stream (PTT / spoken text / Morse / DTMF) so it
+  // works uniformly for radios and EchoLink, independent of any radio transmit
+  // "echo". A one-shot blob (spoken text / Morse / DTMF) has no explicit end, so
+  // the run is finalized after a short period of silence.
+  Timer? _txRecordTimer;
+  static const int _txRecordEndMs = 800;
 
   // Current audio-run context (updated from AudioDataStart events).
   String _currentChannelName = '';
@@ -365,6 +379,14 @@ class CommsHandler {
       callback: _onAudioDataAvailable,
     );
 
+    // Outgoing voice PCM (PTT / spoken text / Morse / DTMF) so the recorder can
+    // capture transmitted audio for radios and EchoLink alike.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'TransmitVoicePCM',
+      callback: _onTransmitVoicePcmRecord,
+    );
+
     // Received data packets (AX.25 / BSS / APRS / Ident) across all devices.
     _broker.subscribe(
       deviceId: DataBroker.allDevices,
@@ -377,6 +399,14 @@ class CommsHandler {
       deviceId: DataBroker.allDevices,
       name: 'Chat',
       callback: _onChat,
+    );
+
+    // EchoLink text chat (sent + received), surfaced by the EchoLink manager.
+    // Recorded in history so it persists across restarts like other messages.
+    _broker.subscribe(
+      deviceId: echoLinkDeviceId,
+      name: 'EchoLinkChat',
+      callback: _onEchoLinkChat,
     );
 
     // Outgoing Morse-code transmissions from the voice panel across all
@@ -854,8 +884,12 @@ class CommsHandler {
   }
 
   void _onAudioDataEnd(int deviceId, String name, Object? data) {
-    // Finalize the active recording when its audio run ends.
-    if (_recorder != null && deviceId == _recordingDeviceId) {
+    // Finalize the active received recording when its audio run ends. A
+    // transmit recording is driven by the TransmitVoicePCM stream and finalized
+    // separately, so don't let a received audio-run end cut it short.
+    if (_recorder != null &&
+        deviceId == _recordingDeviceId &&
+        !_recordingIsTransmit) {
       _finalizeRecording();
     }
 
@@ -961,10 +995,16 @@ class CommsHandler {
 
     // Recording: append PCM frames to the active recording.
     final recorder = _recorder;
-    if (recorder != null && deviceId == _recordingDeviceId) {
+    if (recorder != null &&
+        deviceId == _recordingDeviceId &&
+        !_recordingIsTransmit) {
       final usage = data['usage'] ?? data['Usage'];
       final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
-      if (usage == null && !muted) {
+      final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
+      // Received-audio recording only. Transmitted audio is captured from the
+      // TransmitVoicePCM stream (see _onTransmitVoicePcmRecord), so a radio's
+      // transmit "echo" frames are ignored here to avoid double-recording.
+      if (usage == null && !muted && !transmit) {
         // Capture the channel name from the audio frames; this resolves the
         // recording's channel even when it wasn't known at the audio-run start.
         final frameChannel =
@@ -973,8 +1013,6 @@ class CommsHandler {
           _currentChannelName = frameChannel;
           if (_recordingChannel.isEmpty) _recordingChannel = frameChannel;
         }
-        final transmit = data['transmit'] ?? data['Transmit'];
-        if (transmit is bool) _recordingIsTransmit = transmit;
         final bytes = data['data'] ?? data['Data'];
         if (bytes is Uint8List) {
           final offset = _readInt(data['offset'] ?? data['Offset']) ?? 0;
@@ -1057,6 +1095,9 @@ class CommsHandler {
     // Skip if the radio is locked to a usage.
     final usage = data['usage'] ?? data['Usage'];
     if (usage != null) return;
+    // Transmitted audio is captured from the TransmitVoicePCM stream instead of
+    // the radio's transmit "echo", so ignore transmit audio runs here.
+    if ((data['transmit'] ?? data['Transmit']) as bool? ?? false) return;
     // Don't record audio coming in on a muted channel.
     final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
     if (muted) return;
@@ -1073,6 +1114,64 @@ class CommsHandler {
         ? DateTime.fromMillisecondsSinceEpoch(startMs)
         : DateTime.now();
     _startNewRecording(deviceId, startTime, channel, transmit);
+  }
+
+  /// Captures outgoing voice (PTT / spoken text / Morse / DTMF) into a
+  /// recording so transmitted audio is recorded alongside received audio. Both
+  /// radios and EchoLink transmit via the TransmitVoicePCM stream, so this works
+  /// uniformly for either.
+  void _onTransmitVoicePcmRecord(int deviceId, String name, Object? data) {
+    if (!_recordingEnabled || data is! Map) return;
+
+    final bytes = data['data'] ?? data['Data'];
+    final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
+
+    if (bytes is! Uint8List) {
+      // End-of-transmission marker (e.g. PTT released): finalize the run.
+      if (!hold) _finalizeTransmitRecording();
+      return;
+    }
+
+    // Start a fresh transmit recording if none is active, or the active one is
+    // a received recording / for a different device (half-duplex, so it has
+    // effectively ended).
+    if (_recorder == null ||
+        !_recordingIsTransmit ||
+        _recordingDeviceId != deviceId) {
+      var channel = _getVfoAChannelName(deviceId);
+      if (channel.isEmpty) channel = _currentChannelName;
+      _startNewRecording(deviceId, DateTime.now(), channel, true);
+    }
+
+    final recorder = _recorder;
+    if (recorder == null || !_recordingIsTransmit) return;
+
+    final offset = _readInt(data['offset'] ?? data['Offset']) ?? 0;
+    final length =
+        _readInt(data['length'] ?? data['Length']) ?? (bytes.length - offset);
+    if (length > 0) recorder.write(bytes, offset, length);
+
+    // A one-shot blob (spoken text / Morse / DTMF) has no explicit end, so
+    // finalize after a short silence. A held PTT keeps streaming and sends
+    // hold:false on release, which finalizes immediately.
+    _txRecordTimer?.cancel();
+    if (!hold) {
+      _finalizeTransmitRecording();
+    } else {
+      _txRecordTimer = Timer(
+        const Duration(milliseconds: _txRecordEndMs),
+        _finalizeTransmitRecording,
+      );
+    }
+  }
+
+  /// Finalizes the active transmit recording (if any).
+  void _finalizeTransmitRecording() {
+    _txRecordTimer?.cancel();
+    _txRecordTimer = null;
+    if (_recorder != null && _recordingIsTransmit) {
+      _finalizeRecording();
+    }
   }
 
   void _startNewRecording(
@@ -1111,6 +1210,8 @@ class CommsHandler {
   void _finalizeRecording() {
     final recorder = _recorder;
     if (recorder == null) return;
+    _txRecordTimer?.cancel();
+    _txRecordTimer = null;
     _recorder = null;
     final dataBytes = recorder.dataBytes;
     recorder.close();
@@ -1965,6 +2066,30 @@ class CommsHandler {
   }
 
   // ---------------------------------------------------------------------------
+  // EchoLink text chat
+  // ---------------------------------------------------------------------------
+
+  /// Records an EchoLink text-chat message (sent or received) in the decoded
+  /// text history so it persists across restarts, and surfaces it to the Comms
+  /// tab. The actual send is performed by the EchoLink manager; this only owns
+  /// the history entry.
+  void _onEchoLinkChat(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is! Map) return;
+    final text = (data['text'] as String?)?.trim() ?? '';
+    if (text.isEmpty) return;
+    _addDataPacketEntry(
+      deviceId: echoLinkDeviceId,
+      text: text,
+      channel: '',
+      time: DateTime.now(),
+      encoding: VoiceTextEncodingType.echolink,
+      isReceived: data['isReceived'] as bool? ?? true,
+      source: data['source'] as String?,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Chat (BSS) transmit
   // ---------------------------------------------------------------------------
 
@@ -1974,8 +2099,10 @@ class CommsHandler {
   void _onChat(int deviceId, String name, Object? data) {
     if (_disposed) return;
     if (data is! String) return;
+    // EchoLink (device 200) has its own text-chat path handled by the EchoLink
+    // manager; do not also send it as a radio BSS packet.
+    if (deviceId == echoLinkDeviceId) return;
     final message = data;
-
     // Validate message length (must be between 1 and 254 characters).
     if (message.isEmpty || message.length >= 255) {
       _broker.logError(
@@ -2424,6 +2551,7 @@ class CommsHandler {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _txRecordTimer?.cancel();
     if (_recorder != null) _finalizeRecording();
     _cleanupSstvMonitor();
     unawaited(_cleanupSpeechEngine());

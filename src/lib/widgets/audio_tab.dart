@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart' show InputDevice;
 
 import '../l10n/app_localizations.dart';
+import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../services/audio_output_devices.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -450,7 +451,11 @@ class _AudioTabState extends State<AudioTab>
     // Skip the (fairly costly) spectrogram FFT while the Audio tab is hidden;
     // TabBarView keeps it alive but nothing it draws is visible.
     if (!isTabVisible) return;
-    if (deviceId != _currentRadioDeviceId) return;
+    // Visualize the current radio's received audio, plus EchoLink (device 200)
+    // internet audio, which is never part of the connected-radios aggregate.
+    if (deviceId != _currentRadioDeviceId && deviceId != echoLinkDeviceId) {
+      return;
+    }
     if (data is! Map) return;
 
     // Visualize the received (non-transmit) radio audio.

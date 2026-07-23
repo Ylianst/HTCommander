@@ -38,6 +38,7 @@ import 'dart:typed_data';
 import '../radio/pcm_player.dart';
 import '../services/data_broker_client.dart';
 import 'echolink_client.dart';
+import 'echolink_data_packet.dart';
 import 'echolink_directory.dart';
 import 'echolink_network_io.dart';
 import 'echolink_station.dart';
@@ -77,6 +78,15 @@ class EchoLinkManager {
 
   // --- Transmit (app -> EchoLink) ------------------------------------------
   final LinearResampler _txResampler = LinearResampler.down32kTo8k();
+  // Mirrors the radio's transmit indicator: true while we are sending voice.
+  bool _txActive = false;
+  Timer? _txTimer;
+  // Silences local playback (e.g. SSTV auto-mute) without stopping the received
+  // audio events, so SSTV decoding keeps working while the tones are muted.
+  bool _muted = false;
+  // Transmit is considered finished after this much silence (PTT keeps it lit
+  // while held; a one-shot spoken/Morse blob lights it briefly).
+  static const int _txEndMs = 300;
 
   /// Subscribes to settings + UI commands and opens the client if a callsign is
   /// configured. Safe to call once.
@@ -109,6 +119,21 @@ class EchoLinkManager {
       deviceId: echoLinkDeviceId,
       name: 'EchoLinkDisconnect',
       callback: _onDisconnect,
+    );
+
+    // Outgoing text chat typed in the Comms tab while an EchoLink QSO is up.
+    _broker.subscribe(
+      deviceId: echoLinkDeviceId,
+      name: 'Chat',
+      callback: _onChat,
+    );
+
+    // Mute requests (used by the SSTV auto-mute) silence local playback while
+    // the received audio keeps flowing to the SSTV decoder.
+    _broker.subscribe(
+      deviceId: echoLinkDeviceId,
+      name: 'SetMute',
+      callback: _onSetMute,
     );
 
     // Outgoing voice PCM (PTT / spoken text / Morse / DTMF) targeted at the
@@ -172,7 +197,9 @@ class EchoLinkManager {
         localPassword: password,
         localInfo: location,
         network: DartIoEchoLinkNetwork(),
-      )..onAudio = _onRxAudio;
+      )
+        ..onAudio = _onRxAudio
+        ..onChat = _onRxChat;
 
       _client = client;
       try {
@@ -197,6 +224,9 @@ class EchoLinkManager {
     _client = null;
     _opened = false;
     _endRxRun();
+    _txTimer?.cancel();
+    _setTxActive(false);
+    _muted = false;
     try {
       await client?.close();
     } catch (_) {}
@@ -225,6 +255,13 @@ class EchoLinkManager {
       deviceId: echoLinkDeviceId,
       name: 'StationList',
       data: const <Object?>[],
+      store: true,
+    );
+    // Clear any leftover SSTV auto-mute so a later session starts unmuted.
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'Mute',
+      data: false,
       store: true,
     );
   }
@@ -296,6 +333,68 @@ class EchoLinkManager {
     _client?.disconnect();
   }
 
+  /// Silences (or restores) local EchoLink playback. Triggered by the SSTV
+  /// auto-mute (SetMute on device 200) so the raw SSTV tones are not heard while
+  /// the image is decoded. The received-audio events keep flowing with the mute
+  /// flag set, so SSTV decoding continues and recording/transcription pause,
+  /// matching how a physical radio behaves during SSTV reception. The Mute state
+  /// is published so the Comms tab can show its "audio muted" banner.
+  void _onSetMute(int deviceId, String name, Object? data) {
+    final bool muted = data == true;
+    if (muted == _muted) return;
+    _muted = muted;
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'Mute',
+      data: muted,
+      store: true,
+    );
+  }
+
+  // --- Text chat -----------------------------------------------------------
+
+  /// Sends a text chat message typed in the Comms tab over the active QSO and
+  /// echoes it locally so the sender sees their own message in the history.
+  void _onChat(int deviceId, String name, Object? data) {
+    final EchoLinkClient? client = _client;
+    if (client == null) return;
+    final String text = (data is String ? data : '').trim();
+    if (text.isEmpty) return;
+    if (client.state != EchoLinkClientState.inQso) return;
+    client.sendChat(text);
+    final String callsign =
+        (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim().toUpperCase();
+    _dispatchChatText(text, source: callsign, isReceived: false);
+  }
+
+  /// Handles a chat message received from the remote station and adds it to the
+  /// Comms tab history.
+  void _onRxChat(EchoLinkChat chat) {
+    final String text = chat.message.trim();
+    if (text.isEmpty) return;
+    _dispatchChatText(text, source: chat.callsign, isReceived: true);
+  }
+
+  /// Forwards an EchoLink chat message (sent or received) to the CommsHandler,
+  /// which records it in the decoded-text history (so it persists across
+  /// restarts) and surfaces it as a chat bubble in the Comms tab.
+  void _dispatchChatText(
+    String text, {
+    required String source,
+    required bool isReceived,
+  }) {
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'EchoLinkChat',
+      data: <String, Object?>{
+        'text': text,
+        'source': source,
+        'isReceived': isReceived,
+      },
+      store: false,
+    );
+  }
+
   static StationData _stationFromMap(Map data) {
     StationStatus status = StationStatus.unknown;
     final Object? s = data['Status'] ?? data['status'];
@@ -324,7 +423,10 @@ class EchoLinkManager {
     final Int16List pcm32 = _rxResampler.process(pcm8k);
     if (pcm32.isEmpty) return;
 
-    unawaited(_playPcm(pcm32));
+    // Skip local playback while muted (e.g. SSTV auto-mute), but keep emitting
+    // the audio events below so SSTV decoding continues.
+    if (!_muted) unawaited(_playPcm(pcm32));
+    _publishRxLevel(pcm8k);
 
     final int nowMs = DateTime.now().millisecondsSinceEpoch;
     if (!_inRxRun) {
@@ -337,7 +439,7 @@ class EchoLinkManager {
           'startTime': _rxRunStartMs,
           'channelName': _rxChannelName(),
           'transmit': false,
-          'muted': false,
+          'muted': _muted,
           'usage': null,
         },
         store: false,
@@ -355,7 +457,7 @@ class EchoLinkManager {
         'length': bytes.length,
         'channelName': _rxChannelName(),
         'transmit': false,
-        'muted': false,
+        'muted': _muted,
         'audioRunStartTime': _rxRunStartMs,
         'usage': null,
       },
@@ -382,6 +484,30 @@ class EchoLinkManager {
         'transmit': false,
         'usage': null,
       },
+      store: false,
+    );
+    // Drop the receive-level meter back to zero.
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'RxLevel',
+      data: 0.0,
+      store: false,
+    );
+  }
+
+  /// Publishes a 0..1 receive-level (peak amplitude) so the panel can show an
+  /// RSSI-style green bar that rises while audio is being received.
+  void _publishRxLevel(Int16List pcm) {
+    int peak = 0;
+    for (final s in pcm) {
+      final int a = s < 0 ? -s : s;
+      if (a > peak) peak = a;
+    }
+    final double level = (peak / 32768.0).clamp(0.0, 1.0);
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'RxLevel',
+      data: level,
       store: false,
     );
   }
@@ -427,7 +553,10 @@ class EchoLinkManager {
     if (bytes is! Uint8List) {
       // End-of-transmission marker: reset the resampler phase for the next one.
       final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
-      if (!hold) _txResampler.reset();
+      if (!hold) {
+        _txResampler.reset();
+        _setTxActive(false);
+      }
       return;
     }
     final EchoLinkClient? client = _client;
@@ -437,8 +566,33 @@ class EchoLinkManager {
     final Int16List pcm8k = _txResampler.process(pcm32);
     if (pcm8k.isNotEmpty) client.sendAudio(pcm8k);
 
+    // Light the transmit indicator; auto-clear shortly after the last frame.
+    _setTxActive(true);
+    _txTimer?.cancel();
+    _txTimer = Timer(
+      const Duration(milliseconds: _txEndMs),
+      () => _setTxActive(false),
+    );
+
     final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
-    if (!hold) _txResampler.reset();
+    if (!hold) {
+      _txResampler.reset();
+      _txTimer?.cancel();
+      _setTxActive(false);
+    }
+  }
+
+  /// Publishes the transmit indicator state (device-200 'TxActive'), only when
+  /// it changes, so the panel can show a red bar while transmitting.
+  void _setTxActive(bool active) {
+    if (active == _txActive) return;
+    _txActive = active;
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'TxActive',
+      data: active,
+      store: false,
+    );
   }
 
   static Int16List _int16FromBytes(Uint8List bytes) {
@@ -457,6 +611,7 @@ class EchoLinkManager {
   /// Releases sockets and the audio device.
   Future<void> dispose() async {
     _rxEndTimer?.cancel();
+    _txTimer?.cancel();
     _broker.dispose();
     try {
       await _client?.close();

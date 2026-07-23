@@ -1147,6 +1147,8 @@ class _CommsTabState extends State<CommsTab>
         return Icons.play_circle;
       case 'Picture':
         return Icons.image;
+      case 'EchoLink':
+        return Icons.public;
       default:
         return null;
     }
