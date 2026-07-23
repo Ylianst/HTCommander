@@ -2312,6 +2312,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get commsDtmfHint => 'DTMF 数字を入力（0-9、*、#）...';
 
   @override
+  String get commsChannelInfo => 'チャンネル情報';
+
+  @override
   String get mailComposeNewTitle => '新規メッセージ';
 
   @override

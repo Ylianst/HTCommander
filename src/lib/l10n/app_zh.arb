@@ -732,6 +732,7 @@
   "commsPttTransmitting": "正在发送...",
   "commsPttHold": "PTT - 按住以发送",
   "commsDtmfHint": "输入 DTMF 数字（0-9、*、#）...",
+  "commsChannelInfo": "频道信息",
 
   "mailComposeNewTitle": "新消息",
   "mailComposeEditTitle": "编辑消息",

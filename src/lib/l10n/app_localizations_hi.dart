@@ -2359,6 +2359,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get commsDtmfHint => 'DTMF अंक दर्ज करें (0-9, *, #)...';
 
   @override
+  String get commsChannelInfo => 'चैनल जानकारी';
+
+  @override
   String get mailComposeNewTitle => 'नया संदेश';
 
   @override

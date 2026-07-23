@@ -408,8 +408,10 @@ class EchoLinkManager {
     );
   }
 
-  /// Dispatches an EchoLink chat message as a `TextReady` event so the Comms
-  /// tab renders it as a chat bubble (received or transmitted).
+  /// Dispatches an EchoLink chat message (sent or received) as an `EchoLinkChat`
+  /// event. The CommsHandler records it in the persisted decoded-text history so
+  /// it survives restarts, and re-emits a `TextReady` event so the Comms tab
+  /// renders it as a chat bubble (received or transmitted).
   void _dispatchChatText(
     String text, {
     required String source,
@@ -417,7 +419,7 @@ class EchoLinkManager {
   }) {
     _broker.dispatch(
       deviceId: echoLinkDeviceId,
-      name: 'TextReady',
+      name: 'EchoLinkChat',
       data: <String, Object?>{
         'text': text,
         'channel': '',

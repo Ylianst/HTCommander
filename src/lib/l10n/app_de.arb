@@ -732,6 +732,7 @@
   "commsPttTransmitting": "Übertragung läuft...",
   "commsPttHold": "PTT - Zum Senden gedrückt halten",
   "commsDtmfHint": "DTMF-Ziffern eingeben (0-9, *, #)...",
+  "commsChannelInfo": "Kanalinformationen",
 
   "mailComposeNewTitle": "Neue Nachricht",
   "mailComposeEditTitle": "Nachricht bearbeiten",

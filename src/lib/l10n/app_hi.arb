@@ -732,6 +732,7 @@
   "commsPttTransmitting": "ट्रांसमिट हो रहा है...",
   "commsPttHold": "PTT - ट्रांसमिट करने के लिए दबाए रखें",
   "commsDtmfHint": "DTMF अंक दर्ज करें (0-9, *, #)...",
+  "commsChannelInfo": "चैनल जानकारी",
 
   "mailComposeNewTitle": "नया संदेश",
   "mailComposeEditTitle": "संदेश संपादित करें",

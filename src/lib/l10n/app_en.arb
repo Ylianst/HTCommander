@@ -1487,6 +1487,7 @@
   "commsPttTransmitting": "Transmitting...",
   "commsPttHold": "PTT - Hold to Transmit",
   "commsDtmfHint": "Enter DTMF digits (0-9, *, #)...",
+  "commsChannelInfo": "Channel Information",
 
   "mailComposeNewTitle": "New Message",
   "mailComposeEditTitle": "Edit Message",

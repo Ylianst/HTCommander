@@ -59,8 +59,18 @@ class _CommsTabState extends State<CommsTab>
   /// radio `AudioState`; being in a QSO is what enables voice transmit.
   bool _echoLinkInQso = false;
 
+  /// Latest channel/station info text published by the EchoLink client for the
+  /// connected node (roster of a conference, or a link/repeater status). Empty
+  /// when there is nothing to show. Surfaced via an info icon in the header.
+  String _echoLinkStationInfo = '';
+
   /// Whether the currently displayed radio is the internet-only EchoLink radio.
   bool get _isEchoLink => _currentRadioDeviceId == echoLinkDeviceId;
+
+  /// Whether the header should show the EchoLink channel-information icon: the
+  /// EchoLink radio is displayed, a QSO is up, and the node published info text.
+  bool get _hasEchoLinkChannelInfo =>
+      _isEchoLink && _echoLinkInQso && _echoLinkStationInfo.trim().isNotEmpty;
 
   /// Latest lock state reported for each radio device id. When the radio shown
   /// in the Radio Panel is locked to another usage (BBS, Terminal, Winlink,
@@ -217,6 +227,11 @@ class _CommsTabState extends State<CommsTab>
       callback: _onEchoLinkStateChanged,
     );
     _broker.subscribe(
+      deviceId: echoLinkDeviceId,
+      name: 'StationInfo',
+      callback: _onEchoLinkStationInfoChanged,
+    );
+    _broker.subscribe(
       deviceId: 1,
       name: 'VoiceTextCleared',
       callback: _onVoiceTextCleared,
@@ -268,6 +283,8 @@ class _CommsTabState extends State<CommsTab>
     _currentRadioDeviceId = _resolveCurrentRadioId();
     _echoLinkInQso =
         _broker.getValue<String>(echoLinkDeviceId, 'State') == 'Connected';
+    _echoLinkStationInfo =
+        _broker.getValue<String>(echoLinkDeviceId, 'StationInfo', '') ?? '';
     _isVfoAAprs = _readVfoAIsAprs();
     _seedLockStates();
     _currentMode = _modeFromName(
@@ -651,6 +668,18 @@ class _CommsTabState extends State<CommsTab>
     if (!_isEchoLink || !mounted) return;
     setState(() => _audioEnabled = _readAudioState());
     _updatePttMic();
+  }
+
+  /// Handles EchoLink (device 200) channel-info updates so the header info icon
+  /// appears/updates while a QSO is up.
+  void _onEchoLinkStationInfoChanged(int deviceId, String name, Object? data) {
+    final info = data is String ? data : '';
+    if (info == _echoLinkStationInfo) return;
+    if (!mounted) {
+      _echoLinkStationInfo = info;
+      return;
+    }
+    setState(() => _echoLinkStationInfo = info);
   }
 
   void _onConnectedRadiosChanged(int deviceId, String name, Object? data) {
@@ -2377,6 +2406,20 @@ class _CommsTabState extends State<CommsTab>
                   ),
                 ),
               const Spacer(),
+              if (_hasEchoLinkChannelInfo)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  tooltip: AppLocalizations.of(context).commsChannelInfo,
+                  icon: Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  onPressed: _showEchoLinkChannelInfo,
+                ),
+              if (_hasEchoLinkChannelInfo) const SizedBox(width: 4),
               if (showButton && _audioChannelSupported)
                 SizedBox(
                   height: 28,
@@ -2422,6 +2465,37 @@ class _CommsTabState extends State<CommsTab>
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// Shows the EchoLink channel information published by the connected node
+  /// (conference roster / who is talking, or a link/repeater status) in a
+  /// dialog. Only reachable via the header info icon, which is shown only while
+  /// connected to an EchoLink channel that has published info text.
+  void _showEchoLinkChannelInfo() {
+    final l10n = AppLocalizations.of(context);
+    final text = _echoLinkStationInfo.trim();
+    if (text.isEmpty) return;
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.commsChannelInfo),
+        content: SizedBox(
+          width: 400,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              text,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.commonClose),
+          ),
+        ],
       ),
     );
   }

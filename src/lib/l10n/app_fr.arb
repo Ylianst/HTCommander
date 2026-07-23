@@ -732,6 +732,7 @@
   "commsPttTransmitting": "Transmission en cours...",
   "commsPttHold": "PTT - Maintenir pour transmettre",
   "commsDtmfHint": "Saisissez des chiffres DTMF (0-9, *, #)...",
+  "commsChannelInfo": "Informations sur le canal",
 
   "mailComposeNewTitle": "Nouveau message",
   "mailComposeEditTitle": "Modifier le message",

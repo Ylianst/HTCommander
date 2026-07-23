@@ -33,6 +33,8 @@ import 'echolink_network.dart';
 class DartIoEchoLinkNetwork implements EchoLinkNetwork {
   RawDatagramSocket? _audioSock;
   RawDatagramSocket? _controlSock;
+  StreamSubscription<RawSocketEvent>? _audioSub;
+  StreamSubscription<RawSocketEvent>? _controlSub;
 
   final StreamController<EchoLinkDatagram> _audioIn =
       StreamController<EchoLinkDatagram>.broadcast();
@@ -54,14 +56,17 @@ class DartIoEchoLinkNetwork implements EchoLinkNetwork {
 
   @override
   Future<void> open() async {
-    _audioSock =
+    final RawDatagramSocket audioSock =
         await RawDatagramSocket.bind(InternetAddress.anyIPv4, echoLinkAudioPort);
-    _controlSock = await RawDatagramSocket.bind(
+    final RawDatagramSocket controlSock = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4, echoLinkControlPort);
+    _audioSock = audioSock;
+    _controlSock = controlSock;
 
-    _audioSock!.listen((RawSocketEvent e) => _onRead(_audioSock!, _audioIn, e));
-    _controlSock!
-        .listen((RawSocketEvent e) => _onRead(_controlSock!, _controlIn, e));
+    _audioSub =
+        audioSock.listen((RawSocketEvent e) => _onRead(audioSock, _audioIn, e));
+    _controlSub = controlSock
+        .listen((RawSocketEvent e) => _onRead(controlSock, _controlIn, e));
   }
 
   void _onRead(RawDatagramSocket sock, StreamController<EchoLinkDatagram> out,
@@ -119,6 +124,10 @@ class DartIoEchoLinkNetwork implements EchoLinkNetwork {
 
   @override
   Future<void> close() async {
+    await _audioSub?.cancel();
+    await _controlSub?.cancel();
+    _audioSub = null;
+    _controlSub = null;
     _audioSock?.close();
     _controlSock?.close();
     _audioSock = null;

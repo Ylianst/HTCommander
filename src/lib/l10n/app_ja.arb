@@ -732,6 +732,7 @@
   "commsPttTransmitting": "送信中...",
   "commsPttHold": "PTT - 押している間送信",
   "commsDtmfHint": "DTMF 数字を入力（0-9、*、#）...",
+  "commsChannelInfo": "チャンネル情報",
 
   "mailComposeNewTitle": "新規メッセージ",
   "mailComposeEditTitle": "メッセージを編集",

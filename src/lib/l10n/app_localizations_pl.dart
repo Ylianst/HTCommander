@@ -2368,6 +2368,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get commsDtmfHint => 'Wprowadź cyfry DTMF (0-9, *, #)...';
 
   @override
+  String get commsChannelInfo => 'Informacje o kanale';
+
+  @override
   String get mailComposeNewTitle => 'Nowa wiadomość';
 
   @override

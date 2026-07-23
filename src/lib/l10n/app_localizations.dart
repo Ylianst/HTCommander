@@ -4352,6 +4352,12 @@ abstract class AppLocalizations {
   /// **'Enter DTMF digits (0-9, *, #)...'**
   String get commsDtmfHint;
 
+  /// No description provided for @commsChannelInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel Information'**
+  String get commsChannelInfo;
+
   /// No description provided for @mailComposeNewTitle.
   ///
   /// In en, this message translates to:

@@ -2297,6 +2297,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commsDtmfHint => '输入 DTMF 数字（0-9、*、#）...';
 
   @override
+  String get commsChannelInfo => '频道信息';
+
+  @override
   String get mailComposeNewTitle => '新消息';
 
   @override
