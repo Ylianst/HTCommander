@@ -9,6 +9,13 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  # Vendored third-party sources ship their own analysis_options.yaml that
+  # reference lint packages (e.g. flame_lint) which are not project
+  # dependencies. Exclude them so `flutter analyze` doesn't fail on them.
+  exclude:
+    - third_party/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
