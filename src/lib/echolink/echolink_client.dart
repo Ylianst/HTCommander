@@ -84,6 +84,12 @@ class EchoLinkClient {
   /// Fired with received station-info messages.
   void Function(String info)? onInfo;
 
+  /// Fired with human-readable diagnostics about inbound UDP packet flow, for
+  /// the Debug tab: the first control (SDES) and voice packets received from the
+  /// connected station, and packets arriving from an unexpected source address
+  /// (a common "connected but no audio" cause behind NAT/routers).
+  void Function(String message)? onDiagnostic;
+
   /// Fired when the client state changes.
   void Function(EchoLinkClientState state)? onStateChanged;
 
@@ -98,6 +104,11 @@ class EchoLinkClient {
   CancelTimer? _timeout;
   bool _opened = false;
   bool _online = false;
+
+  // Inbound-packet diagnostics for the current QSO (surfaced via onDiagnostic).
+  int _rxVoicePackets = 0;
+  int _rxControlPackets = 0;
+  final Set<String> _loggedStrangerHosts = <String>{};
 
   final List<int> _txBuffer = <int>[];
 
@@ -217,6 +228,9 @@ class EchoLinkClient {
     _qso = qso;
 
     _txBuffer.clear();
+    _rxVoicePackets = 0;
+    _rxControlPackets = 0;
+    _loggedStrangerHosts.clear();
     _setState(EchoLinkClientState.connecting);
     qso.connect();
 
@@ -283,13 +297,47 @@ class EchoLinkClient {
   // ---- internals ----------------------------------------------------------
 
   void _onAudioDatagram(EchoLinkDatagram dg) {
-    if (_qso == null || dg.host != _remoteHost) return;
+    if (_qso == null) return;
+    if (dg.host != _remoteHost) {
+      _warnStrangerHost(dg.host, 'audio');
+      return;
+    }
+    // Confirm inbound UDP on the audio port is flowing, distinguishing an
+    // actual voice packet from a text (info/chat) packet so the user can tell
+    // whether audio specifically is arriving.
+    if (classifyAudioPortPacket(dg.data) == EchoLinkAudioPortPacket.audio) {
+      _rxVoicePackets++;
+      if (_rxVoicePackets == 1) {
+        onDiagnostic?.call(
+            'Receiving voice packets from $_remoteHost (UDP audio port OK)');
+      }
+    }
     _qso!.handleAudioPacket(dg.data);
   }
 
   void _onControlDatagram(EchoLinkDatagram dg) {
-    if (_qso == null || dg.host != _remoteHost) return;
+    if (_qso == null) return;
+    if (dg.host != _remoteHost) {
+      _warnStrangerHost(dg.host, 'control');
+      return;
+    }
+    _rxControlPackets++;
+    if (_rxControlPackets == 1) {
+      onDiagnostic?.call(
+          'Receiving control packets from $_remoteHost (UDP control port OK)');
+    }
     _qso!.handleControlPacket(dg.data);
+  }
+
+  /// Logs (once per source host) that packets are arriving from an address that
+  /// is not the connected station. This is the usual reason a QSO looks up but
+  /// no audio is heard: the peer is behind NAT and replies from a different IP.
+  void _warnStrangerHost(String host, String port) {
+    if (_loggedStrangerHosts.add('$host/$port')) {
+      onDiagnostic?.call(
+          'Ignoring UDP $port packets from $host (expected $_remoteHost) — '
+          'possible NAT/router mismatch');
+    }
   }
 
   void _onQsoState(QsoState s) {

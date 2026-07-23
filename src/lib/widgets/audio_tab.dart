@@ -985,7 +985,7 @@ class _AudioTabState extends State<AudioTab>
           ],
           onChanged: _onInputDeviceChanged,
         ),
-      const SizedBox(height: 16),
+      const SizedBox(height: 12),
     ];
   }
 
@@ -997,8 +997,14 @@ class _AudioTabState extends State<AudioTab>
         _buildHeader(),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 3,
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+              ),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ..._buildDevicesSection(),
@@ -1029,7 +1035,7 @@ class _AudioTabState extends State<AudioTab>
                 // audio channel for application/microphone/computer audio or
                 // the spectrograph, so those sections are hidden there.
                 if (_audioChannelSupported) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _buildSectionTitle(AppLocalizations.of(context).audioSectionComputer),
                   _buildSliderRow(
                     label: AppLocalizations.of(context).audioApplication,
@@ -1083,7 +1089,7 @@ class _AudioTabState extends State<AudioTab>
                       ),
                     ),
                   if (_showSpectrogram) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     _buildSectionTitle(_spectrogramTitle()),
                     ClipRect(
                       child: SizedBox(
@@ -1106,12 +1112,13 @@ class _AudioTabState extends State<AudioTab>
                       ),
                   ],
                   if (_isDartModem && _dartAnalysisEnabled) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     _buildSectionTitle(AppLocalizations.of(context).audioDartQuality),
                     DartAnalysisSection(analysis: _dartAnalysis),
                   ],
                 ],
               ],
+              ),
             ),
           ),
         ),
@@ -1159,7 +1166,7 @@ class _AudioTabState extends State<AudioTab>
     final bool present = allItems.any((item) => item.value == value);
     final String effectiveValue = present ? value : '';
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 1.5),
       child: Row(
         children: [
           SizedBox(
@@ -1195,7 +1202,7 @@ class _AudioTabState extends State<AudioTab>
     ValueChanged<double>? onChangeEnd,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 1),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final theme = Theme.of(context);

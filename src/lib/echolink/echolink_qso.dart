@@ -117,6 +117,7 @@ class EchoLinkQso {
     _remoteInitiated = false;
     _encoder.reset();
     sendControl(_sdes);
+    _openAudioPath();
     _setState(QsoState.connecting);
     return true;
   }
@@ -127,8 +128,20 @@ class EchoLinkQso {
     _remoteInitiated = true;
     _encoder.reset();
     sendControl(_sdes);
+    _openAudioPath();
     _setState(QsoState.connected);
     return true;
+  }
+
+  /// Sends a station-info packet on the audio port (5198). Besides announcing
+  /// our info to the peer (standard EchoLink connect behaviour), this is what
+  /// opens and keeps alive the *inbound* NAT/firewall pinhole for the audio
+  /// port. A receive-only listener never transmits voice, so without this the
+  /// control port (5199) stays reachable via the SDES keep-alives while inbound
+  /// voice on 5198 is silently dropped by the NAT — the classic "connected but
+  /// no audio" symptom. Sent at connect and on every keep-alive tick.
+  void _openAudioPath() {
+    sendAudio(buildInfoPacket(localInfo));
   }
 
   /// Tears down the connection, sending a BYE unless one was just received.
@@ -222,6 +235,7 @@ class EchoLinkQso {
   void onKeepAliveTick() {
     if (_state == QsoState.connecting || _state == QsoState.connected) {
       sendControl(_sdes);
+      _openAudioPath();
     }
   }
 

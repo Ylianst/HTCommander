@@ -65,6 +65,10 @@ class EchoLinkManager {
   bool _opened = false;
   bool _reconciling = false;
 
+  // Last station-info text surfaced to the Debug tab, to avoid re-logging the
+  // identical roster a conference resends every few seconds.
+  String? _lastStationInfo;
+
   // --- Received-audio playback + re-dispatch -------------------------------
   final PcmPlayer _player = PcmPlayer();
   bool _playerReady = false;
@@ -133,6 +137,14 @@ class EchoLinkManager {
       callback: _onTransmitVoicePcm,
     );
 
+    // Clear any stale channel roster/info when a QSO ends (the client publishes
+    // ConnectedStation=null on disconnect / remote BYE while staying online).
+    _broker.subscribe(
+      deviceId: echoLinkDeviceId,
+      name: 'ConnectedStation',
+      callback: _onConnectedStationChanged,
+    );
+
     // Re-check when the callsign or EchoLink password is (un)configured. Both
     // must be set for EchoLink to be enabled; clearing either disables it.
     _broker.subscribe(
@@ -188,7 +200,9 @@ class EchoLinkManager {
         network: DartIoEchoLinkNetwork(),
       )
         ..onAudio = _onRxAudio
-        ..onChat = _onRxChat;
+        ..onChat = _onRxChat
+        ..onInfo = _onRxInfo
+        ..onDiagnostic = _onDiagnostic;
 
       _client = client;
       try {
@@ -239,6 +253,13 @@ class EchoLinkManager {
       data: null,
       store: true,
     );
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'StationInfo',
+      data: '',
+      store: true,
+    );
+    _lastStationInfo = null;
     _broker.dispatch(
       deviceId: echoLinkDeviceId,
       name: 'StationList',
@@ -336,6 +357,49 @@ class EchoLinkManager {
     final String text = chat.message.trim();
     if (text.isEmpty) return;
     _dispatchChatText(text, source: chat.callsign, isReceived: true);
+  }
+
+  /// Surfaces the client's inbound-packet diagnostics in the Debug tab so the
+  /// user can confirm UDP packets are flowing back from the connected station
+  /// (or see when they are arriving from an unexpected address).
+  void _onDiagnostic(String message) {
+    _broker.logInfo('[EchoLink] $message');
+  }
+
+  /// Handles a station-info text message received from the connected node.
+  ///
+  /// For a conference (a `*NODE*` channel) this text is the live roster of
+  /// currently connected stations and, on many conference bridges, an
+  /// indication of who is transmitting; for a plain link/repeater it is the
+  /// node's status/description. Publishes it (retained) as the device-200
+  /// `StationInfo` value so the UI can display it, and echoes it to the Debug
+  /// tab whenever it changes (conferences resend it periodically).
+  void _onRxInfo(String info) {
+    final String text = info.trim();
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'StationInfo',
+      data: text,
+      store: true,
+    );
+    if (text.isNotEmpty && text != _lastStationInfo) {
+      _lastStationInfo = text;
+      _broker.logInfo('[EchoLink] Channel info:\n$text');
+    }
+  }
+
+  /// Clears the retained channel info when the active QSO ends so a stale roster
+  /// is not left showing after disconnecting from a conference.
+  void _onConnectedStationChanged(int deviceId, String name, Object? data) {
+    if (data != null) return;
+    if (_lastStationInfo == null) return;
+    _lastStationInfo = null;
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'StationInfo',
+      data: '',
+      store: true,
+    );
   }
 
   /// Dispatches an EchoLink chat message as a `TextReady` event so the Comms
