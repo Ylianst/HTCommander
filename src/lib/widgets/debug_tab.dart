@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'tab_visibility.dart';
 import '../dialogs/aprs_symbols_dialog.dart';
 import '../dialogs/firmware_update_dialog.dart';
+import '../dialogs/radio_settings_dialog.dart';
+import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../l10n/app_localizations.dart';
 import '../dialogs/raw_command_dialog.dart';
 import '../models/radio_models.dart';
@@ -201,6 +203,35 @@ class _DebugTabState extends State<DebugTab>
     showRawCommandDialog(context, id);
   }
 
+  /// Resolves the radio the experimental Radio Settings dialog should target.
+  /// Returns -1 (menu item disabled) when the preferred radio is EchoLink or
+  /// when no connected Bluetooth radio is available. EchoLink has no radio
+  /// instance, so it can never be the resolved target.
+  int _radioSettingsTargetId() {
+    final selected =
+        _broker.getValue<int>(1, 'SelectedRadioDeviceId', -1) ?? -1;
+    // If the user's preferred radio is EchoLink, this dialog does not apply.
+    if (selected == echoLinkDeviceId) return -1;
+    final bt = BluetoothService();
+    if (selected > 0 && bt.radioInstance(selected) != null) return selected;
+    return _resolveConnectedRadioId();
+  }
+
+  /// Opens the experimental Radio Settings dialog for the preferred radio.
+  void _onRadioSettings() {
+    final id = _radioSettingsTargetId();
+    if (id < 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context).commonNoRadioConnected),
+        ),
+      );
+      return;
+    }
+    showRadioSettingsDialog(context, id);
+  }
+
   Future<void> _onSaveToFile() async {
     // Build the log content as text
     final StringBuffer buffer = StringBuffer();
@@ -288,6 +319,10 @@ class _DebugTabState extends State<DebugTab>
     const menuItemPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
     const menuItemHeight = 32.0;
 
+    // The experimental Radio Settings dialog is only available when the
+    // preferred radio is a connected Bluetooth radio (never EchoLink).
+    final bool radioSettingsEnabled = _radioSettingsTargetId() >= 0;
+
     showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -353,6 +388,23 @@ class _DebugTabState extends State<DebugTab>
           padding: menuItemPadding,
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.debugRawCommand)],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'radioSettings',
+          enabled: radioSettingsEnabled,
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [
+              const SizedBox(width: 20),
+              Text(
+                'Radio Settings...',
+                style: radioSettingsEnabled
+                    ? null
+                    : TextStyle(color: Theme.of(context).disabledColor),
+              ),
+            ],
           ),
         ),
         PopupMenuItem<String>(
@@ -459,6 +511,9 @@ class _DebugTabState extends State<DebugTab>
           break;
         case 'rawCommand':
           _onRawCommand();
+          break;
+        case 'radioSettings':
+          _onRadioSettings();
           break;
         case 'aprsSymbols':
           if (context.mounted) showAprsSymbolsDialog(context);
