@@ -1380,7 +1380,7 @@
   "aprsCopyChannel": "Copy Channel",
   "aprsClearTitle": "Clear APRS Messages",
   "aprsClearPrompt": "Clear all APRS messages? This also removes all APRS markers from the map. This cannot be undone.",
-  "aprsShowAll": "Show All Messages",
+  "aprsShowAll": "Show Telemetry",
   "aprsSendSms": "Send SMS Message...",
   "aprsWeatherReport": "Weather Report...",
   "aprsBeaconSettingsMenu": "Beacon Settings...",

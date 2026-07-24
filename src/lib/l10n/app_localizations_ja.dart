@@ -2071,7 +2071,7 @@ class AppLocalizationsJa extends AppLocalizations {
       'すべての APRS メッセージをクリアしますか？これにより地図上のすべての APRS マーカーも削除されます。この操作は元に戻せません。';
 
   @override
-  String get aprsShowAll => 'すべてのメッセージを表示';
+  String get aprsShowAll => 'テレメトリを表示';
 
   @override
   String get aprsSendSms => 'SMS メッセージを送信...';

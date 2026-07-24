@@ -2121,7 +2121,7 @@ class AppLocalizationsEs extends AppLocalizations {
       '¿Borrar todos los mensajes APRS? Esto también elimina todos los marcadores APRS del mapa. Esta acción no se puede deshacer.';
 
   @override
-  String get aprsShowAll => 'Mostrar todos los mensajes';
+  String get aprsShowAll => 'Mostrar telemetría';
 
   @override
   String get aprsSendSms => 'Enviar un mensaje SMS...';

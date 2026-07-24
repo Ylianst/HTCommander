@@ -672,7 +672,7 @@
   "aprsCopyChannel": "Copier le canal",
   "aprsClearTitle": "Effacer les messages APRS",
   "aprsClearPrompt": "Effacer tous les messages APRS ? Cela supprime également tous les marqueurs APRS de la carte. Cette action est irréversible.",
-  "aprsShowAll": "Afficher tous les messages",
+  "aprsShowAll": "Afficher la télémétrie",
   "aprsSendSms": "Envoyer un message SMS...",
   "aprsWeatherReport": "Rapport météo...",
   "aprsBeaconSettingsMenu": "Paramètres de balise...",

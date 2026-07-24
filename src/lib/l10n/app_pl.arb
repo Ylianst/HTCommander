@@ -672,7 +672,7 @@
   "aprsCopyChannel": "Kopiuj kanał",
   "aprsClearTitle": "Wyczyść wiadomości APRS",
   "aprsClearPrompt": "Wyczyścić wszystkie wiadomości APRS? Spowoduje to również usunięcie wszystkich znaczników APRS z mapy. Tej operacji nie można cofnąć.",
-  "aprsShowAll": "Pokaż wszystkie wiadomości",
+  "aprsShowAll": "Pokaż telemetrię",
   "aprsSendSms": "Wyślij wiadomość SMS...",
   "aprsWeatherReport": "Raport pogodowy...",
   "aprsBeaconSettingsMenu": "Ustawienia beacona...",

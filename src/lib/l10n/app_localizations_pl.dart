@@ -2115,7 +2115,7 @@ class AppLocalizationsPl extends AppLocalizations {
       'Wyczyścić wszystkie wiadomości APRS? Spowoduje to również usunięcie wszystkich znaczników APRS z mapy. Tej operacji nie można cofnąć.';
 
   @override
-  String get aprsShowAll => 'Pokaż wszystkie wiadomości';
+  String get aprsShowAll => 'Pokaż telemetrię';
 
   @override
   String get aprsSendSms => 'Wyślij wiadomość SMS...';

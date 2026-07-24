@@ -672,7 +672,7 @@
   "aprsCopyChannel": "Kanal kopieren",
   "aprsClearTitle": "APRS-Nachrichten löschen",
   "aprsClearPrompt": "Alle APRS-Nachrichten löschen? Dadurch werden auch alle APRS-Markierungen von der Karte entfernt. Diese Aktion kann nicht rückgängig gemacht werden.",
-  "aprsShowAll": "Alle Nachrichten anzeigen",
+  "aprsShowAll": "Telemetrie anzeigen",
   "aprsSendSms": "SMS-Nachricht senden...",
   "aprsWeatherReport": "Wetterbericht...",
   "aprsBeaconSettingsMenu": "Baken-Einstellungen...",

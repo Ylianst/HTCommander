@@ -2106,7 +2106,7 @@ class AppLocalizationsHi extends AppLocalizations {
       'सभी APRS संदेश साफ़ करें? यह मानचित्र से सभी APRS मार्कर भी हटा देता है। यह क्रिया पूर्ववत नहीं की जा सकती।';
 
   @override
-  String get aprsShowAll => 'सभी संदेश दिखाएँ';
+  String get aprsShowAll => 'टेलीमेट्री दिखाएँ';
 
   @override
   String get aprsSendSms => 'SMS संदेश भेजें...';

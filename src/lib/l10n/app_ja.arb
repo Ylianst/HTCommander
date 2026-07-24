@@ -672,7 +672,7 @@
   "aprsCopyChannel": "チャンネルをコピー",
   "aprsClearTitle": "APRS メッセージをクリア",
   "aprsClearPrompt": "すべての APRS メッセージをクリアしますか？これにより地図上のすべての APRS マーカーも削除されます。この操作は元に戻せません。",
-  "aprsShowAll": "すべてのメッセージを表示",
+  "aprsShowAll": "テレメトリを表示",
   "aprsSendSms": "SMS メッセージを送信...",
   "aprsWeatherReport": "気象レポート...",
   "aprsBeaconSettingsMenu": "ビーコン設定...",

@@ -672,7 +672,7 @@
   "aprsCopyChannel": "चैनल कॉपी करें",
   "aprsClearTitle": "APRS संदेश साफ़ करें",
   "aprsClearPrompt": "सभी APRS संदेश साफ़ करें? यह मानचित्र से सभी APRS मार्कर भी हटा देता है। यह क्रिया पूर्ववत नहीं की जा सकती।",
-  "aprsShowAll": "सभी संदेश दिखाएँ",
+  "aprsShowAll": "टेलीमेट्री दिखाएँ",
   "aprsSendSms": "SMS संदेश भेजें...",
   "aprsWeatherReport": "मौसम रिपोर्ट...",
   "aprsBeaconSettingsMenu": "बीकन सेटिंग्स...",

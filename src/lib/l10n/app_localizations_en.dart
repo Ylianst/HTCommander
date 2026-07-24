@@ -2098,7 +2098,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Clear all APRS messages? This also removes all APRS markers from the map. This cannot be undone.';
 
   @override
-  String get aprsShowAll => 'Show All Messages';
+  String get aprsShowAll => 'Show Telemetry';
 
   @override
   String get aprsSendSms => 'Send SMS Message...';

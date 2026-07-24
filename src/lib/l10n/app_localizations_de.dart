@@ -2123,7 +2123,7 @@ class AppLocalizationsDe extends AppLocalizations {
       'Alle APRS-Nachrichten löschen? Dadurch werden auch alle APRS-Markierungen von der Karte entfernt. Diese Aktion kann nicht rückgängig gemacht werden.';
 
   @override
-  String get aprsShowAll => 'Alle Nachrichten anzeigen';
+  String get aprsShowAll => 'Telemetrie anzeigen';
 
   @override
   String get aprsSendSms => 'SMS-Nachricht senden...';

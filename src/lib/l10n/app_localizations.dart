@@ -3917,7 +3917,7 @@ abstract class AppLocalizations {
   /// No description provided for @aprsShowAll.
   ///
   /// In en, this message translates to:
-  /// **'Show All Messages'**
+  /// **'Show Telemetry'**
   String get aprsShowAll;
 
   /// No description provided for @aprsSendSms.
