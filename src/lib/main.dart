@@ -284,7 +284,52 @@ void main(List<String> args) async {
   // offline, on every platform.
   await CallsignCountryLookup.instance.init();
 
+  // Restore the saved main window size before the first frame is rendered so
+  // the window opens at the correct size immediately, with no visible resize.
+  // The native runners keep the window hidden until the first Flutter frame, so
+  // applying the size here (before runApp) resizes the still-hidden window and
+  // it becomes visible already at the right size.
+  await _restoreMainWindowSize();
+
+  // On macOS the window is hidden at launch (visibleAtLaunch = NO in
+  // MainMenu.xib) so it can be sized while hidden - the same flash-free path the
+  // Windows/Linux runners get by only showing on the first frame. Show it here
+  // once the first frame has been rendered so it appears already painted and at
+  // the correct size, with no flash.
+  if (!kIsWeb && Platform.isMacOS) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+  }
+
   runApp(const HTCommanderApp());
+}
+
+/// Minimum main window size. Shared between the native minimum and the
+/// restored-size clamp so a persisted tiny size can never shrink the window
+/// below what the UI supports.
+const Size _kMinMainWindowSize = Size(550, 600);
+
+/// Restores the persisted main window width/height before the first frame so
+/// the window opens at the right size without a visible resize. No-op on the
+/// web and on the first run (when no size has been saved yet), leaving the
+/// native default size in place.
+Future<void> _restoreMainWindowSize() async {
+  if (!isDesktop) return;
+
+  await windowManager.ensureInitialized();
+
+  final width = DataBroker.getValue<double>(0, 'MainWindowWidth', 0) ?? 0;
+  final height = DataBroker.getValue<double>(0, 'MainWindowHeight', 0) ?? 0;
+  final hasSaved = width >= _kMinMainWindowSize.width &&
+      height >= _kMinMainWindowSize.height;
+
+  final windowOptions = WindowOptions(
+    size: hasSaved ? Size(width, height) : null,
+    minimumSize: _kMinMainWindowSize,
+  );
+  await windowManager.waitUntilReadyToShow(windowOptions);
 }
 
 bool get _serialGpsSupported =>
@@ -1783,9 +1828,50 @@ class _MainFormState extends State<MainForm>
 
   @override
   void onWindowClose() async {
+    // Persist the final window size before closing so it is restored next launch
+    // (also covers platforms where onWindowResized doesn't fire, e.g. Linux).
+    await _saveMainWindowSize();
     // Close all child windows before closing main window
     await windowService.closeAllChildren();
     await windowManager.destroy();
+  }
+
+  @override
+  void onWindowResized() {
+    // Fired when the user finishes resizing the window (macOS/Windows).
+    _saveMainWindowSize();
+  }
+
+  /// Persists the current main window size so it can be restored on the next
+  /// launch. Skipped while maximized/minimized/fullscreen so the restored size
+  /// is always a sensible "normal" window size. Best-effort: failures are
+  /// ignored.
+  Future<void> _saveMainWindowSize() async {
+    if (!isDesktop) return;
+    try {
+      if (await windowManager.isMaximized() ||
+          await windowManager.isMinimized() ||
+          await windowManager.isFullScreen()) {
+        return;
+      }
+      final size = await windowManager.getSize();
+      if (size.width < _kMinMainWindowSize.width ||
+          size.height < _kMinMainWindowSize.height) {
+        return;
+      }
+      DataBroker.dispatch(
+        deviceId: 0,
+        name: 'MainWindowWidth',
+        data: size.width,
+      );
+      DataBroker.dispatch(
+        deviceId: 0,
+        name: 'MainWindowHeight',
+        data: size.height,
+      );
+    } catch (_) {
+      // Ignore: persisting the window size is best-effort.
+    }
   }
 
   /// Exits the application (File -> Exit). On desktop this closes child windows
