@@ -1700,10 +1700,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get audioSquelch => 'Squelch';
 
   @override
-  String get audioSectionComputer => 'Ordinateur';
+  String get audioSectionComputer => 'Application';
 
   @override
-  String get audioApplication => 'Application';
+  String get audioApplication => 'Volume';
 
   @override
   String get audioMaster => 'Principal';

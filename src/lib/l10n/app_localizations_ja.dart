@@ -1667,10 +1667,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get audioSquelch => 'スケルチ';
 
   @override
-  String get audioSectionComputer => 'コンピューター';
+  String get audioSectionComputer => 'アプリケーション';
 
   @override
-  String get audioApplication => 'アプリケーション';
+  String get audioApplication => '音量';
 
   @override
   String get audioMaster => 'マスター';

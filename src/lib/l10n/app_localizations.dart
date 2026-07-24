@@ -3143,13 +3143,13 @@ abstract class AppLocalizations {
   /// No description provided for @audioSectionComputer.
   ///
   /// In en, this message translates to:
-  /// **'Computer'**
+  /// **'Application'**
   String get audioSectionComputer;
 
   /// No description provided for @audioApplication.
   ///
   /// In en, this message translates to:
-  /// **'Application'**
+  /// **'Volume'**
   String get audioApplication;
 
   /// No description provided for @audioMaster.

@@ -1657,10 +1657,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get audioSquelch => '静噪';
 
   @override
-  String get audioSectionComputer => '计算机';
+  String get audioSectionComputer => '应用程序';
 
   @override
-  String get audioApplication => '应用程序';
+  String get audioApplication => '音量';
 
   @override
   String get audioMaster => '主音量';

@@ -1515,9 +1515,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     );
   }
 
-  /// The "Go Online" button shown (in place of the favorites) while EchoLink is
+  /// The "Connect" button shown (in place of the favorites) while EchoLink is
   /// offline, mirroring the radio's Connect button.
   Widget _buildEchoLinkOnlinePanel() {
+    final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(8),
@@ -1534,7 +1535,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
             ),
           ),
           child: Text(
-            _echoLinkState == 'Connecting' ? 'Connecting...' : 'Go Online',
+            _echoLinkState == 'Connecting'
+                ? l10n.stateConnecting
+                : l10n.commonConnect,
           ),
         ),
       ),

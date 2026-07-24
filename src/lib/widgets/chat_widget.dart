@@ -90,6 +90,10 @@ class ChatWidget extends StatefulWidget {
   /// to the pointer. When set, it takes precedence over [onMessageLongPress].
   final void Function(ChatMessage message, Offset globalPosition)?
   onMessageContextMenu;
+
+  /// Invoked when the message's leading icon is tapped. Used to open the
+  /// location map when a message carries a position marker.
+  final ValueChanged<ChatMessage>? onMessageIconTap;
   final Color bubbleColor;
   final Color bubbleAuthColor;
   final Color bubbleFailedColor;
@@ -112,6 +116,7 @@ class ChatWidget extends StatefulWidget {
     this.onMessageDoubleTap,
     this.onMessageLongPress,
     this.onMessageContextMenu,
+    this.onMessageIconTap,
     this.bubbleColor = const Color(0xFF8AC0DB), // Darkened light blue
     this.bubbleAuthColor = const Color(0xFF6ECD6E), // Darkened light green
     this.bubbleFailedColor = const Color(0xFFEB96A2), // Darkened light pink
@@ -288,16 +293,18 @@ class _ChatWidgetState extends State<ChatWidget> {
   Widget _buildMessageItem(ChatMessage message, int index) {
     final showTimestamp = _shouldShowTimestamp(index);
     final hasText = message.message.trim().isNotEmpty;
-    // A bubble is shown when there is text or an inline image. Only an entry
-    // with neither has no bubble at all.
-    final hasBubble = hasText || message.imagePath != null;
-    // When there is no bubble (empty text), the header is the only content, so
-    // always show it. A header with an icon (e.g. a recording) is tappable.
-    // Show the icon in the header when the bubble has no text, or when the
-    // bubble contains an inline image (e.g. an SSTV picture) so the icon sits
-    // in the title instead of beside the large image bubble.
+    // A bubble is shown when there is text, an inline image, or a mapped APRS
+    // symbol (symbol-only position beacons carry no comment text). Only an
+    // entry with none of these has no bubble at all.
+    final hasBubble =
+        hasText || message.imagePath != null || message.bubbleSymbol != null;
+    // When there is no bubble, the header is the only content, so always show
+    // it. A header with an icon (e.g. a recording) is tappable. Show the icon
+    // in the header when there is no bubble at all, or when the bubble contains
+    // an inline image (e.g. an SSTV picture) so the icon sits in the title
+    // instead of beside the large image bubble.
     final iconHeader =
-        message.icon != null && (!hasText || message.imagePath != null);
+        message.icon != null && (!hasBubble || message.imagePath != null);
     final showRoute = iconHeader
         ? true
         : (hasText ? _shouldShowRoute(index) : true);
@@ -331,6 +338,20 @@ class _ChatWidgetState extends State<ChatWidget> {
     );
   }
 
+  /// Wraps a leading message [icon] so it opens the location map when tapped.
+  /// Only messages that carry a position (a location marker) become tappable;
+  /// other icons (delivery ticks, pending clock) are left inert.
+  Widget _wrapIconTap(ChatMessage message, Widget icon) {
+    if (widget.onMessageIconTap == null || !message.hasLocation) return icon;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => widget.onMessageIconTap!(message),
+        child: icon,
+      ),
+    );
+  }
+
   /// Builds the route/callsign header. When [withIcon] is true the message's
   /// icon is shown next to the header and the whole header becomes tappable
   /// (used for recordings and other media that have no text bubble).
@@ -339,10 +360,13 @@ class _ChatWidgetState extends State<ChatWidget> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (withIcon && message.icon != null) ...[
-          Icon(
-            message.icon,
-            size: 16,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          _wrapIconTap(
+            message,
+            Icon(
+              message.icon,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(width: 4),
         ],
@@ -427,10 +451,13 @@ class _ChatWidgetState extends State<ChatWidget> {
               message.imagePath == null)
             Padding(
               padding: const EdgeInsets.only(right: 4),
-              child: Icon(
-                message.icon,
-                size: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              child: _wrapIconTap(
+                message,
+                Icon(
+                  message.icon,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           // Bubble
@@ -477,6 +504,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                     ),
                   // Text row (hidden for image-only bubbles with no caption).
                   if (message.message.isNotEmpty ||
+                      message.bubbleSymbol != null ||
                       _buildAuthIcon(message).isNotEmpty)
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -489,7 +517,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                             child: message.bubbleSymbol,
                           ),
                         ],
-                        if (message.message.isNotEmpty)
+                        if (message.message.trim().isNotEmpty)
                           Flexible(
                             child: _MessageBody(message: message),
                           ),
@@ -510,10 +538,13 @@ class _ChatWidgetState extends State<ChatWidget> {
               message.imagePath == null)
             Padding(
               padding: const EdgeInsets.only(left: 4),
-              child: Icon(
-                message.icon,
-                size: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              child: _wrapIconTap(
+                message,
+                Icon(
+                  message.icon,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
         ],

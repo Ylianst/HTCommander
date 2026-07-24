@@ -1695,10 +1695,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get audioSquelch => 'स्क्वेल्च';
 
   @override
-  String get audioSectionComputer => 'कंप्यूटर';
+  String get audioSectionComputer => 'एप्लिकेशन';
 
   @override
-  String get audioApplication => 'एप्लिकेशन';
+  String get audioApplication => 'वॉल्यूम';
 
   @override
   String get audioMaster => 'मास्टर';

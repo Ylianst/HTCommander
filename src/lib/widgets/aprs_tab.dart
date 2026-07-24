@@ -523,11 +523,14 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   }
 
   ChatMessage _entryToMessage(int index, _AprsEntry e) {
+    final trimmed = e.messageText.trim();
     return ChatMessage(
       id: '$index',
       route: e.routingString,
       senderCallsign: e.senderCallsign,
-      message: e.messageText.trim(),
+      // Symbol-only packets carry no comment; render a single space so the
+      // chat bubble (with its symbol) still draws instead of collapsing.
+      message: trimmed.isEmpty ? ' ' : trimmed,
       time: e.time,
       isSender: e.sender,
       authState: _mapAuth(e.authState),
@@ -709,7 +712,16 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       messageText = packet.dataStr;
     }
 
-    if (messageText == null || messageText.trim().isEmpty) return;
+    if (messageText == null || messageText.trim().isEmpty) {
+      // Position beacons and similar packets may carry no comment/message
+      // text but still decode as valid APRS with a symbol. Display these
+      // (governed by the "Show all" toggle like other non-message packets)
+      // instead of dropping them entirely.
+      final hasSymbol =
+          aprsPacket.symbolTable.isNotEmpty && aprsPacket.symbol.isNotEmpty;
+      if (!hasSymbol) return;
+      messageText = '';
+    }
 
     final entry = _AprsEntry(
       aprsPacket: aprsPacket,
@@ -726,10 +738,13 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       visible: _showAllMessages || messageType == PacketDataType.message,
     );
 
-    // Drop duplicates within the last 5 minutes.
+    // Drop duplicates within the last 5 minutes. Compare the sender callsign
+    // too so symbol-only beacons (empty text, no message id) from different
+    // stations are not collapsed into one.
     for (final n in _entries) {
       if (entry.messageId == n.messageId &&
           entry.messageText == n.messageText &&
+          entry.senderCallsign == n.senderCallsign &&
           n.time.add(const Duration(minutes: 5)).compareTo(packet.time) > 0 &&
           entry.time != n.time) {
         return;
@@ -1090,6 +1105,20 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     return buffer.toString();
   }
 
+  /// Opens the "Show Location" map when a message's position marker is tapped.
+  void _onMessageIconTap(ChatMessage message) {
+    final lat = message.latitude;
+    final lon = message.longitude;
+    if (lat == null || lon == null) return;
+    if (lat == 0 && lon == 0) return;
+    showAprsLocationDialog(
+      context,
+      latitude: lat,
+      longitude: lon,
+      title: message.senderCallsign,
+    );
+  }
+
   void _onMessageContextMenu(ChatMessage message, Offset globalPosition) async {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final hasLocation =
@@ -1381,6 +1410,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
                       messages: _messages,
                       onMessageDoubleTap: _onMessageDoubleTap,
                       onMessageContextMenu: _onMessageContextMenu,
+                      onMessageIconTap: _onMessageIconTap,
                     ),
                   ),
                   if (channelHover)

@@ -1702,10 +1702,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get audioSquelch => 'Silenciador';
 
   @override
-  String get audioSectionComputer => 'Equipo';
+  String get audioSectionComputer => 'Aplicación';
 
   @override
-  String get audioApplication => 'Aplicación';
+  String get audioApplication => 'Volumen';
 
   @override
   String get audioMaster => 'Principal';

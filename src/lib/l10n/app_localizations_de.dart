@@ -1707,10 +1707,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get audioSquelch => 'Rauschsperre';
 
   @override
-  String get audioSectionComputer => 'Computer';
+  String get audioSectionComputer => 'Anwendung';
 
   @override
-  String get audioApplication => 'Anwendung';
+  String get audioApplication => 'Lautstärke';
 
   @override
   String get audioMaster => 'Master';

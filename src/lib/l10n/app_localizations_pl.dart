@@ -1701,10 +1701,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String get audioSquelch => 'Squelch';
 
   @override
-  String get audioSectionComputer => 'Komputer';
+  String get audioSectionComputer => 'Aplikacja';
 
   @override
-  String get audioApplication => 'Aplikacja';
+  String get audioApplication => 'Głośność';
 
   @override
   String get audioMaster => 'Główny';

@@ -660,7 +660,7 @@ class _MainFormState extends State<MainForm>
       false; // Winlink/Mail tab visibility (requires a password)
 
   // Width threshold for compact mode (Radio becomes a tab instead of side panel)
-  static const double compactWidthThreshold = 600;
+  static const double compactWidthThreshold = 800;
   static const double hideStatusBarHeightThreshold = 400;
 
   // Set to true to force built-in menus even on macOS (for debugging)
