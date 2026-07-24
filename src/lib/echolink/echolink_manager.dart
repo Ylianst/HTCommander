@@ -72,6 +72,10 @@ class EchoLinkManager {
   // --- Received-audio playback + re-dispatch -------------------------------
   final PcmPlayer _player = PcmPlayer();
   bool _playerReady = false;
+  // Guards against opening the one native audio device more than once: while an
+  // initialization is in progress this holds its future so concurrent callers
+  // await it instead of calling setup()/start() again (see [_initPlayer]).
+  Future<void>? _playerInitFuture;
   int _bufferedFrames = 0;
   // Never let playback fall more than ~1 s behind real time.
   static const int _maxBufferedFrames = _appSampleRate;
@@ -232,6 +236,14 @@ class EchoLinkManager {
     try {
       await client?.close();
     } catch (_) {}
+    // Wait for any in-flight player initialization to settle so we don't leave a
+    // half-opened native audio device (or release it while setup() is running).
+    final Future<void>? initInFlight = _playerInitFuture;
+    if (initInFlight != null) {
+      try {
+        await initInFlight;
+      } catch (_) {}
+    }
     if (_playerReady) {
       try {
         await _player.release();
@@ -571,6 +583,28 @@ class EchoLinkManager {
 
   Future<void> _initPlayer() async {
     if (_playerReady) return;
+    // Single-flight: `_onRxAudio` fires `unawaited(_playPcm(...))` for every
+    // received voice packet, and a distant/busy node delivers several 80 ms
+    // packets in a burst (high latency batches them). Without this guard each
+    // of those concurrent calls would see `_playerReady == false` and run
+    // `setup()`/`start()` on the same native PcmPlayer again -- concurrent
+    // audio-device initialization deadlocks the backend and freezes the whole
+    // app. Reuse the in-flight init instead of starting a second one.
+    final Future<void>? inFlight = _playerInitFuture;
+    if (inFlight != null) {
+      await inFlight;
+      return;
+    }
+    final Future<void> init = _doInitPlayer();
+    _playerInitFuture = init;
+    try {
+      await init;
+    } finally {
+      _playerInitFuture = null;
+    }
+  }
+
+  Future<void> _doInitPlayer() async {
     try {
       await _player.setLogLevelError();
       await _player.setup(sampleRate: _appSampleRate, channelCount: 1);
