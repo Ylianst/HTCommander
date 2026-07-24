@@ -3,14 +3,14 @@
 
 # Handi-Talky Commander
 
-This is a Amateur Radio (HAM Radio) multiplatform tool for the UV-Pro, UV-50Pro, GA-5WB, VR-N75, VR-N76, VR-N7500, VR-N7600 radios that works on Windows, macOS, Linux, iOS, Android and web as long as you have Bluetooth support. It allows for easy control over the radio with range of feature including channel programming, APRS, WinLink, terminal, torrent file transfer, BBS and more. On some platforms you also have audio support along with speech-to-text and text-to-speech.
+This is a Amateur Radio (HAM Radio) multiplatform tool for the EchoLink and UV-Pro, UV-50Pro, GA-5WB, VR-N75, VR-N76, VR-N7500, VR-N7600 radios that works on Windows, macOS, Linux, iOS, Android and web as long as you have Bluetooth support. It allows for easy control over the radio with range of feature including channel programming, APRS, WinLink, terminal, torrent file transfer, BBS and more. On some platforms you also have audio support along with speech-to-text and text-to-speech.
 
 ![image](https://github.com/Ylianst/HTCommanderEx/blob/main/docs/images/htcommander.png?raw=true)
 An Amateur radio license is required to transmit using this software. You can get [information on a license here](https://www.arrl.org/getting-licensed).
 
 ### Radio Support
 
-The following radios should work with this application:
+EchoLink and the following radios should work with this application:
 
 - BTech UV-Pro, UV-50Pro
 - Radioddity GA-5WB, DB50-B Mini
