@@ -50,6 +50,10 @@ import 'pcm_resampler.dart';
 class EchoLinkManager {
   EchoLinkManager();
 
+  /// DataBroker key (device 0, persisted) holding the last EchoLink channel the
+  /// user was connected to, so it can be auto-reconnected on the next launch.
+  static const String lastEchoLinkStationKey = 'LastEchoLinkStation';
+
   /// App audio sample rate (matches the radio audio engine / CommsHandler).
   static const int _appSampleRate = 32000;
 
@@ -214,6 +218,9 @@ class EchoLinkManager {
         _opened = true;
         _publishAvailable(true);
         _broker.logInfo('[EchoLink] Client opened for $callsign');
+        // If the user was in a QSO when the app last closed, reconnect to the
+        // same channel now that the client is up.
+        unawaited(_maybeAutoReconnectStation());
       } catch (e) {
         _client = null;
         _publishAvailable(false);
@@ -278,6 +285,55 @@ class EchoLinkManager {
       data: const <Object?>[],
       store: true,
     );
+  }
+
+  /// Reconnects to the EchoLink channel the user was connected to when the app
+  /// last closed (if any). Registers with the directory (central) server, then
+  /// looks the stored station up in the fresh directory listing (its address may
+  /// have changed) and reconnects to it. A no-op when nothing was stored or the
+  /// station is no longer in the directory.
+  Future<void> _maybeAutoReconnectStation() async {
+    final EchoLinkClient? client = _client;
+    if (client == null) return;
+
+    final Object? stored =
+        _broker.getValueDynamic(0, lastEchoLinkStationKey, null);
+    if (stored is! Map) return;
+    final StationData target = _stationFromMap(stored);
+    if (target.callsign.isEmpty && target.id == 0) return;
+
+    try {
+      // Connect to the central (directory) server first.
+      await client.goOnline();
+      final DirectoryListing listing = await client.refreshStations();
+
+      // Resolve the current address from the fresh directory: EchoLink node
+      // addresses change, so the stored IP may be stale.
+      StationData? match;
+      for (final StationData s in listing.all) {
+        final bool sameId = target.id != 0 && s.id == target.id;
+        final bool sameCall = target.callsign.isNotEmpty &&
+            s.callsign.toUpperCase() == target.callsign.toUpperCase();
+        if (sameId || sameCall) {
+          match = s;
+          break;
+        }
+      }
+
+      final StationData connectTarget =
+          (match != null && match.ip.isNotEmpty) ? match : target;
+      if (connectTarget.ip.isEmpty) {
+        _broker.logInfo(
+            '[EchoLink] Auto-reconnect: ${target.callsign} not in directory');
+        return;
+      }
+
+      _broker.logInfo(
+          '[EchoLink] Auto-reconnecting to ${connectTarget.callsign}...');
+      client.connectTo(connectTarget);
+    } catch (e) {
+      _broker.logError('[EchoLink] Auto-reconnect failed: $e');
+    }
   }
 
   /// Advertises whether EchoLink is available so the radio panel can list it in
@@ -350,6 +406,14 @@ class EchoLinkManager {
   }
 
   void _onDisconnect(int deviceId, String name, Object? data) {
+    // Explicit user disconnect: forget the channel so it is not auto-reconnected
+    // on the next launch.
+    _broker.dispatch(
+      deviceId: 0,
+      name: lastEchoLinkStationKey,
+      data: null,
+      store: true,
+    );
     _client?.disconnect();
   }
 
@@ -409,6 +473,19 @@ class EchoLinkManager {
   /// Clears the retained channel info when the active QSO ends so a stale roster
   /// is not left showing after disconnecting from a conference.
   void _onConnectedStationChanged(int deviceId, String name, Object? data) {
+    if (data is Map) {
+      // A QSO with a station was successfully established: remember it (device
+      // 0, persisted) so it can be auto-reconnected on the next app launch. Not
+      // cleared on a remote BYE / app close - only on an explicit user
+      // disconnect - so reopening the app reconnects to the same channel.
+      _broker.dispatch(
+        deviceId: 0,
+        name: lastEchoLinkStationKey,
+        data: Map<String, Object?>.from(data),
+        store: true,
+      );
+      return;
+    }
     if (data != null) return;
     if (_lastStationInfo == null) return;
     _lastStationInfo = null;

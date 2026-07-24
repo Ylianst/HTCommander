@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show File, Platform;
 
@@ -938,6 +939,7 @@ class _MainFormState extends State<MainForm>
     // once a day). Deferred to after the first frame so a dialog can be shown.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _checkForUpdatesInBackground();
+      if (mounted) unawaited(_autoReconnectRadios());
     });
   }
 
@@ -962,6 +964,62 @@ class _MainFormState extends State<MainForm>
         DataBroker.getValue<String>(0, 'HiddenTabs', '') ?? '';
     _hiddenTabs = hiddenTabsStr.isEmpty ? {} : hiddenTabsStr.split(',').toSet();
   }
+
+  /// Silently reconnect to the radios that were connected when the app last
+  /// closed. Scans for compatible radios and connects to any whose MAC address
+  /// is in the persisted "previously connected" list, without showing any
+  /// dialogs. The stored list is only changed by explicit connect/disconnect,
+  /// so closing the app (or a radio going out of range) leaves it intact.
+  Future<void> _autoReconnectRadios() async {
+    final bluetoothService = BluetoothService();
+    final knownMacs = bluetoothService.previouslyConnectedRadioMacs().toSet();
+    if (knownMacs.isEmpty) return;
+
+    // Silently probe Bluetooth; bail without warnings if it is unavailable.
+    bool bluetoothAvailable;
+    try {
+      bluetoothAvailable = await BluetoothService.checkBluetooth();
+    } catch (_) {
+      return;
+    }
+    if (!bluetoothAvailable) return;
+
+    List<DiscoveredDevice> allDevices;
+    try {
+      allDevices = await bluetoothService.findCompatibleDevices(
+        timeout: const Duration(seconds: 5),
+      );
+    } catch (e) {
+      _broker.logError('Auto-reconnect scan failed: $e');
+      return;
+    }
+    if (allDevices.isEmpty) return;
+
+    // Skip radios that are already connected.
+    final connectedMacs = <String>{};
+    for (final radioId in _connectedRadioIds) {
+      final mac = DataBroker.getValue<String>(radioId, 'MacAddress', '');
+      if (mac != null && mac.isNotEmpty) connectedMacs.add(mac.toUpperCase());
+    }
+
+    final devicesToReconnect = allDevices.where((d) {
+      final mac = d.id.toUpperCase();
+      return knownMacs.contains(mac) && !connectedMacs.contains(mac);
+    }).toList();
+    if (devicesToReconnect.isEmpty) return;
+
+    // Reuse the stored friendly names so reconnected radios keep their labels.
+    final compatibleDevices = _applyStoredFriendlyNames(devicesToReconnect);
+    for (final device in compatibleDevices) {
+      _broker.logInfo('Auto-reconnecting to ${device.name}...');
+      try {
+        await bluetoothService.connectToRadio(device.mac, device.name);
+      } catch (e) {
+        _broker.logError('Auto-reconnect to ${device.name} failed: $e');
+      }
+    }
+  }
+
 
   /// Handle settings changes from DataBroker.
   void _onSettingsChanged(int deviceId, String name, Object? data) {

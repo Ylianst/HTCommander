@@ -86,6 +86,11 @@ class BluetoothService {
   // Starting device ID for radios
   static const int _startingDeviceId = 100;
 
+  /// DataBroker key (device 0, persisted) holding the list of MAC addresses of
+  /// radios the user connected to. Used to auto-reconnect on the next launch.
+  /// MAC addresses are stored upper-cased.
+  static const String previouslyConnectedRadiosKey = 'PreviouslyConnectedRadios';
+
   // Track if Bluetooth has been initialized
   static bool _bluetoothInitialized = false;
 
@@ -151,6 +156,18 @@ class BluetoothService {
   /// Connect to a radio by MAC address
   /// Returns the device ID if successful, or null if failed
   Future<int?> connectToRadio(String macAddress, String friendlyName) async {
+    final int? deviceId = await _connectToRadioPlatform(macAddress, friendlyName);
+    if (deviceId != null) {
+      // Remember this radio so it can be auto-reconnected on the next launch.
+      _rememberConnectedRadio(macAddress);
+    }
+    return deviceId;
+  }
+
+  Future<int?> _connectToRadioPlatform(
+    String macAddress,
+    String friendlyName,
+  ) async {
     if (kIsWeb) {
       return _connectToRadioWeb(this, macAddress, friendlyName);
     }
@@ -174,6 +191,13 @@ class BluetoothService {
 
   /// Disconnect a radio by device ID
   Future<void> disconnectRadio(int deviceId) async {
+    // This is an explicit, user-initiated disconnect: forget the radio so it is
+    // not auto-reconnected on the next launch. (An unexpected disconnect - radio
+    // powered off / out of range - goes through _handleUnexpectedDisconnect and
+    // deliberately keeps the radio in the remembered list.)
+    final String? mac = _macAddressForDevice(deviceId);
+    if (mac != null) _forgetConnectedRadio(mac);
+
     // Stop watching for an unsolicited transport disconnect; this is an
     // explicit, user-initiated disconnect.
     await _transportSubs.remove(deviceId)?.cancel();
@@ -422,6 +446,61 @@ class BluetoothService {
       deviceId: 1,
       name: 'ConnectedRadios',
       data: byDeviceId.values.toList(),
+      store: true,
+    );
+  }
+
+  // --- Auto-reconnect bookkeeping ------------------------------------------
+
+  /// Resolve the MAC address for a connected [deviceId] from the live transport,
+  /// the Classic connection map, or the last value published to the DataBroker.
+  String? _macAddressForDevice(int deviceId) {
+    final fromTransport = _connectedRadios[deviceId]?.connectedDevice?.id;
+    if (fromTransport != null && fromTransport.isNotEmpty) return fromTransport;
+    final classic = _classicConnections[deviceId];
+    if (classic != null && classic.isNotEmpty) return classic;
+    final stored = DataBroker.getValue<String>(deviceId, 'MacAddress', '');
+    if (stored != null && stored.isNotEmpty) return stored;
+    return null;
+  }
+
+  /// The upper-cased list of MAC addresses of previously connected radios.
+  List<String> previouslyConnectedRadioMacs() {
+    final stored = _broker.getValueDynamic(0, previouslyConnectedRadiosKey, null);
+    final result = <String>[];
+    if (stored is List) {
+      for (final m in stored) {
+        if (m is String && m.isNotEmpty) result.add(m.toUpperCase());
+      }
+    }
+    return result;
+  }
+
+  /// Adds [macAddress] to the persisted list of previously connected radios.
+  void _rememberConnectedRadio(String macAddress) {
+    final mac = macAddress.trim().toUpperCase();
+    if (mac.isEmpty) return;
+    final macs = previouslyConnectedRadioMacs();
+    if (macs.contains(mac)) return;
+    macs.add(mac);
+    _broker.dispatch(
+      deviceId: 0,
+      name: previouslyConnectedRadiosKey,
+      data: macs,
+      store: true,
+    );
+  }
+
+  /// Removes [macAddress] from the persisted list of previously connected radios.
+  void _forgetConnectedRadio(String macAddress) {
+    final mac = macAddress.trim().toUpperCase();
+    if (mac.isEmpty) return;
+    final macs = previouslyConnectedRadioMacs();
+    if (!macs.remove(mac)) return;
+    _broker.dispatch(
+      deviceId: 0,
+      name: previouslyConnectedRadiosKey,
+      data: macs,
       store: true,
     );
   }
