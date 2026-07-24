@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import '../models/radio_models.dart';
+import '../echolink/echolink_client.dart' show echoLinkDeviceId;
+import '../echolink/echolink_station.dart';
 
 /// A slim horizontal radio status bar shown in compact (mobile) mode below the
 /// menu bar and above the tabs, when the "Radio" tab is not selected.
@@ -42,6 +44,14 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
   RadioPosition? _position;
 
   int _vfo2LastChannelId = -1;
+
+  // EchoLink (device 200) state, used when this bar displays EchoLink.
+  String? _echoLinkState;
+  StationData? _echoLinkConnected;
+  // Receive level (0..1) and transmit state for the EchoLink RSSI/TX bar,
+  // mirroring the physical radio's signal / transmit indicator.
+  double _echoLinkRxLevel = 0;
+  bool _echoLinkTransmitting = false;
 
   // Display colors (match the Radio status tab / C# app).
   static const Color _displayBgColor = Color(0xFF565658);
@@ -86,10 +96,35 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     _lockState = null;
     _gpsEnabled = false;
     _position = null;
+    _echoLinkState = null;
+    _echoLinkConnected = null;
+    _echoLinkRxLevel = 0;
+    _echoLinkTransmitting = false;
   }
 
   void _subscribeToDevice() {
     if (widget.deviceId <= 0) return;
+
+    // EchoLink (device 200) is an internet-only radio with its own streams.
+    if (widget.deviceId == echoLinkDeviceId) {
+      _broker.subscribeMultiple(
+        deviceId: echoLinkDeviceId,
+        names: ['State', 'ConnectedStation'],
+        callback: _onBrokerEvent,
+      );
+      _broker.subscribe(
+        deviceId: echoLinkDeviceId,
+        name: 'RxLevel',
+        callback: _onBrokerEvent,
+      );
+      _broker.subscribe(
+        deviceId: echoLinkDeviceId,
+        name: 'TxActive',
+        callback: _onBrokerEvent,
+      );
+      _loadInitialState();
+      return;
+    }
 
     _broker.subscribeMultiple(
       deviceId: widget.deviceId,
@@ -113,6 +148,20 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
 
   void _loadInitialState() {
     if (widget.deviceId <= 0) return;
+
+    if (widget.deviceId == echoLinkDeviceId) {
+      _echoLinkState = _broker.getValue<String>(echoLinkDeviceId, 'State');
+      _echoLinkConnected = _stationFromMap(
+        _broker.getValueDynamic(echoLinkDeviceId, 'ConnectedStation'),
+      );
+      final double rx =
+          (_broker.getValue<num>(echoLinkDeviceId, 'RxLevel') ?? 0).toDouble();
+      _echoLinkRxLevel = (rx.clamp(0.0, 1.0) * 15).round() / 15.0;
+      _echoLinkTransmitting =
+          _broker.getValue<bool>(echoLinkDeviceId, 'TxActive') ?? false;
+      if (mounted) setState(() {});
+      return;
+    }
 
     _currentState = _broker.getValue<String>(widget.deviceId, 'State');
     _currentHtStatus = _broker.getJsonValue<RadioHtStatus>(
@@ -160,6 +209,24 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     if (!mounted) return;
 
     setState(() {
+      if (widget.deviceId == echoLinkDeviceId) {
+        switch (name) {
+          case 'State':
+            _echoLinkState = data as String?;
+            break;
+          case 'ConnectedStation':
+            _echoLinkConnected = _stationFromMap(data);
+            break;
+          case 'RxLevel':
+            final double raw = (data is num) ? data.toDouble() : 0.0;
+            _echoLinkRxLevel = (raw.clamp(0.0, 1.0) * 15).round() / 15.0;
+            break;
+          case 'TxActive':
+            _echoLinkTransmitting = data == true;
+            break;
+        }
+        return;
+      }
       switch (name) {
         case 'State':
           _currentState = data as String?;
@@ -224,7 +291,52 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     );
   }
 
+  static StationData? _stationFromMap(Object? data) {
+    if (data is! Map) return null;
+    StationStatus status = StationStatus.unknown;
+    final Object? s = data['Status'] ?? data['status'];
+    if (s is String) {
+      status = StationStatus.values.firstWhere(
+        (v) => v.name == s,
+        orElse: () => StationStatus.unknown,
+      );
+    }
+    return StationData(
+      callsign: (data['Callsign'] ?? data['callsign'] ?? '') as String,
+      description: (data['Description'] ?? data['description'] ?? '') as String,
+      status: status,
+      time: (data['Time'] ?? data['time'] ?? '') as String,
+      id: (data['Id'] ?? data['id'] ?? 0) as int,
+      ip: (data['Ip'] ?? data['ip'] ?? '') as String,
+    );
+  }
+
   // --- Computed properties (mirroring RadioPanelControl) --------------------
+
+  /// True when this bar is displaying the internet-only EchoLink radio.
+  bool get _isEchoLink => widget.deviceId == echoLinkDeviceId;
+
+  /// True while an EchoLink QSO is in progress.
+  bool get _echoLinkInQso => _echoLinkState == 'Connected';
+
+  /// VFO A large label for EchoLink: the connected station callsign while in a
+  /// QSO, otherwise "EchoLink" (mirrors the Radio tab's EchoLink display).
+  String get _echoLinkVfoLabel =>
+      _echoLinkInQso ? (_echoLinkConnected?.callsign ?? '') : 'EchoLink';
+
+  /// VFO A sub-line for EchoLink: the station description while in a QSO,
+  /// otherwise the online state text.
+  String get _echoLinkVfoSub {
+    if (_echoLinkInQso) return _echoLinkConnected?.description ?? '';
+    return switch (_echoLinkState) {
+      'Connecting' => 'Connecting...',
+      'Online' => 'Online',
+      _ => 'Offline',
+    };
+  }
+
+  Color get _echoLinkVfoColor =>
+      _echoLinkInQso ? _activeVfoColor : _inactiveColor;
 
   bool get _isConnected => _currentState == 'Connected';
 
@@ -493,7 +605,11 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
       decoration: BoxDecoration(gradient: _rssiBackgroundGradient),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 2, 8, 4),
-        child: _isConnected ? _buildConnectedRow() : _buildDisconnectedRow(),
+        child: _isEchoLink
+            ? _buildEchoLinkRow()
+            : (_isConnected
+                ? _buildConnectedRow()
+                : _buildDisconnectedRow()),
       ),
     );
   }
@@ -502,6 +618,28 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
   /// 0 to 15, using a slightly darker shade of the base panel color. When
   /// transmitting, the whole bar is tinted with a dark red instead.
   LinearGradient get _rssiBackgroundGradient {
+    // EchoLink has no RSSI; use its receive-level meter (0..1) and transmit
+    // indicator to drive the same fill effect.
+    if (_isEchoLink) {
+      final bool active = _echoLinkRxLevel > 0 || _echoLinkTransmitting;
+      if (!active) {
+        return const LinearGradient(
+          colors: [_displayBgColor, _displayBgColor],
+        );
+      }
+      final Color fillColor =
+          _echoLinkTransmitting ? _txFillColor : _rssiFillColor;
+      final double fraction = _echoLinkTransmitting
+          ? 1.0
+          : _echoLinkRxLevel.clamp(0.0, 1.0);
+      return LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [fillColor, fillColor, _displayBgColor, _displayBgColor],
+        stops: [0.0, fraction, fraction, 1.0],
+      );
+    }
+
     final bool active = _isConnected && (_rssi > 0 || _isTransmitting);
     if (!active) {
       return const LinearGradient(
@@ -575,6 +713,48 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
       height: 28,
       margin: const EdgeInsets.symmetric(horizontal: 8),
       color: const Color(0xFF999999),
+    );
+  }
+
+  /// Row shown when this bar displays the internet-only EchoLink radio: VFO A
+  /// mirrors the Radio tab's EchoLink display (station/state), VFO B is blank,
+  /// and the usage area shows "Internet".
+  Widget _buildEchoLinkRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Area 1: EchoLink VFO A (two lines of text, like the Radio tab).
+        Expanded(
+          child: _buildVfo(
+            _echoLinkVfoLabel,
+            _echoLinkVfoSub,
+            _echoLinkVfoColor,
+          ),
+        ),
+        _buildAreaDivider(),
+        // Area 2: VFO B is unused for EchoLink.
+        Expanded(child: _buildVfo('', '', _inactiveColor)),
+        _buildAreaDivider(),
+        // Area 3: usage label.
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text(
+                'Internet',
+                style: TextStyle(
+                  color: _inactiveColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

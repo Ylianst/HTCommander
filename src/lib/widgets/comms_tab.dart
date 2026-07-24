@@ -2164,7 +2164,7 @@ class _CommsTabState extends State<CommsTab>
           value: 'pttReleaseSettings',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _currentRadioDeviceId > 0,
+          enabled: _currentRadioDeviceId > 0 && !_isEchoLink,
           child: const Row(
             children: [SizedBox(width: 20), Text('PTT Release Settings...')],
           ),

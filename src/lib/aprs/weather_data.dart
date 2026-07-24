@@ -4,6 +4,8 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:ui' as ui;
+
 /// Parsed APRS weather fields.
 ///
 /// APRS weather data can appear either as a stand-alone weather report (data
@@ -71,11 +73,25 @@ class WeatherData {
     'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW',
   ];
 
+  /// Country codes whose weather conventions use imperial units
+  /// (Fahrenheit, inches, mph). Everyone else defaults to metric.
+  static const Set<String> _imperialCountries = {'US', 'LR', 'MM'};
+
+  /// True when the operating system's regional settings indicate the metric
+  /// system should be used. Determined from the primary system locale's
+  /// country code: all countries except the US, Liberia and Myanmar use
+  /// metric units for weather. Defaults to metric when no country is known.
+  static bool get systemUsesMetric {
+    final country = ui.PlatformDispatcher.instance.locale.countryCode;
+    if (country == null || country.isEmpty) return true;
+    return !_imperialCountries.contains(country.toUpperCase());
+  }
+
   /// Converts a bearing in degrees to a 16-point compass abbreviation.
   static String _compass(int degrees) =>
       _compassPoints[((((degrees % 360) + 11.25) ~/ 22.5)) % 16];
 
-  String? _windDescription() {
+  String? _windDescription({required bool metric}) {
     final hasSpeed = windSpeed != null && windSpeed! > 0;
     final hasGust = windGust != null && windGust! > 0;
     if (!hasSpeed && !hasGust) {
@@ -83,39 +99,72 @@ class WeatherData {
       if (windSpeed != null || windGust != null) return 'wind calm';
       return null;
     }
+    final unit = metric ? 'km/h' : 'mph';
+    int conv(int mph) => metric ? (mph * 1.609344).round() : mph;
     final sb = StringBuffer('wind');
     if (hasSpeed) {
       if (windDirection != null) sb.write(' ${_compass(windDirection!)}');
-      sb.write(' $windSpeed mph');
+      sb.write(' ${conv(windSpeed!)} $unit');
     }
-    if (hasGust) sb.write(hasSpeed ? ' (gust $windGust mph)' : ' gust $windGust mph');
+    if (hasGust) {
+      sb.write(hasSpeed
+          ? ' (gust ${conv(windGust!)} $unit)'
+          : ' gust ${conv(windGust!)} $unit');
+    }
     return sb.toString();
   }
 
-  /// Builds a compact, human-readable weather summary such as
-  /// "53°F, wind SW 4 mph, humidity 91%, 1014.5 mb".
-  String toReadableString() {
+  /// Builds a compact, human-readable weather summary.
+  ///
+  /// When [metric] is null the unit system is taken from the operating
+  /// system's regional settings (see [systemUsesMetric]). Metric output uses
+  /// °C, km/h, hPa and millimetres (e.g. "12°C, wind SW 6 km/h, humidity 91%,
+  /// 1014.5 hPa"); imperial output uses °F, mph, mb and inches (e.g. "53°F,
+  /// wind SW 4 mph, humidity 91%, 1014.5 mb").
+  String toReadableString({bool? metric}) {
+    final useMetric = metric ?? systemUsesMetric;
     final parts = <String>[];
-    if (temperature != null) parts.add('$temperature°F');
-    final wind = _windDescription();
+    if (temperature != null) {
+      if (useMetric) {
+        final c = ((temperature! - 32) * 5 / 9).round();
+        parts.add('$c°C');
+      } else {
+        parts.add('$temperature°F');
+      }
+    }
+    final wind = _windDescription(metric: useMetric);
     if (wind != null) parts.add(wind);
     if (humidity != null) parts.add('humidity $humidity%');
     if (barometricPressure != null) {
-      parts.add('${barometricPressure!.toStringAsFixed(1)} mb');
+      // 1 mb == 1 hPa, only the label changes.
+      final unit = useMetric ? 'hPa' : 'mb';
+      parts.add('${barometricPressure!.toStringAsFixed(1)} $unit');
     }
     if (rainLastHour != null && rainLastHour! > 0) {
-      parts.add('rain ${(rainLastHour! / 100).toStringAsFixed(2)} in/h');
+      parts.add(useMetric
+          ? 'rain ${_inToMm(rainLastHour!)} mm/h'
+          : 'rain ${(rainLastHour! / 100).toStringAsFixed(2)} in/h');
     } else if (rainLast24Hours != null && rainLast24Hours! > 0) {
-      parts.add('rain ${(rainLast24Hours! / 100).toStringAsFixed(2)} in/24h');
+      parts.add(useMetric
+          ? 'rain ${_inToMm(rainLast24Hours!)} mm/24h'
+          : 'rain ${(rainLast24Hours! / 100).toStringAsFixed(2)} in/24h');
     } else if (rainSinceMidnight != null && rainSinceMidnight! > 0) {
-      parts.add('rain ${(rainSinceMidnight! / 100).toStringAsFixed(2)} in today');
+      parts.add(useMetric
+          ? 'rain ${_inToMm(rainSinceMidnight!)} mm today'
+          : 'rain ${(rainSinceMidnight! / 100).toStringAsFixed(2)} in today');
     }
     if (snowLast24Hours != null && snowLast24Hours! > 0) {
-      parts.add('snow $snowLast24Hours in/24h');
+      parts.add(useMetric
+          ? 'snow ${(snowLast24Hours! * 2.54).toStringAsFixed(1)} cm/24h'
+          : 'snow $snowLast24Hours in/24h');
     }
     if (luminosity != null) parts.add('$luminosity W/m²');
     return parts.join(', ');
   }
+
+  /// Converts hundredths of an inch to millimetres, formatted to one decimal.
+  static String _inToMm(int hundredthsInch) =>
+      (hundredthsInch / 100 * 25.4).toStringAsFixed(1);
 
   /// Parses APRS weather fields from [data].
   ///
