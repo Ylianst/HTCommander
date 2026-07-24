@@ -285,23 +285,9 @@ void main(List<String> args) async {
   await CallsignCountryLookup.instance.init();
 
   // Restore the saved main window size before the first frame is rendered so
-  // the window opens at the correct size immediately, with no visible resize.
-  // The native runners keep the window hidden until the first Flutter frame, so
-  // applying the size here (before runApp) resizes the still-hidden window and
-  // it becomes visible already at the right size.
+  // the window opens at (or close to) the correct size. The window is visible
+  // at launch on all desktop platforms, so this is a best-effort resize.
   await _restoreMainWindowSize();
-
-  // On macOS the window is hidden at launch (visibleAtLaunch = NO in
-  // MainMenu.xib) so it can be sized while hidden - the same flash-free path the
-  // Windows/Linux runners get by only showing on the first frame. Show it here
-  // once the first frame has been rendered so it appears already painted and at
-  // the correct size, with no flash.
-  if (!kIsWeb && Platform.isMacOS) {
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await windowManager.show();
-      await windowManager.focus();
-    });
-  }
 
   runApp(const HTCommanderApp());
 }
@@ -317,6 +303,11 @@ const Size _kMinMainWindowSize = Size(550, 600);
 /// native default size in place.
 Future<void> _restoreMainWindowSize() async {
   if (!isDesktop) return;
+
+  // macOS is intentionally excluded: restoring the size after launch caused a
+  // visible resize (the window opened at the native size and then jumped), so
+  // no startup window-size change is applied on macOS.
+  if (Platform.isMacOS) return;
 
   await windowManager.ensureInitialized();
 
@@ -1848,6 +1839,8 @@ class _MainFormState extends State<MainForm>
   /// ignored.
   Future<void> _saveMainWindowSize() async {
     if (!isDesktop) return;
+    // macOS never restores the size on startup, so there is nothing to save.
+    if (Platform.isMacOS) return;
     try {
       if (await windowManager.isMaximized() ||
           await windowManager.isMinimized() ||
