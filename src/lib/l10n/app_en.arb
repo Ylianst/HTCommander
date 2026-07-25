@@ -1543,6 +1543,7 @@
   "beaconCallsignHint": "Callsign - Station ID",
   "beaconCallsignInvalid": "Enter a valid callsign and station ID (e.g. W1AW-5)",
   "beaconAprsMessage": "APRS Message",
+  "beaconAprsPath": "APRS Route",
   "beaconShareLocation": "Should Share Location",
   "beaconSendVoltage": "Send Voltage",
   "beaconAllowPositionCheck": "Allow Position Check",

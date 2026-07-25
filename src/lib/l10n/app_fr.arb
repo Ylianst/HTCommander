@@ -768,6 +768,7 @@
   "beaconCallsignHint": "Indicatif - ID de station",
   "beaconCallsignInvalid": "Saisissez un indicatif et un ID de station valides (ex. W1AW-5)",
   "beaconAprsMessage": "Message APRS",
+  "beaconAprsPath": "Route APRS",
   "beaconShareLocation": "Partager la position",
   "beaconSendVoltage": "Envoyer la tension",
   "beaconAllowPositionCheck": "Autoriser la vérification de position",

@@ -1395,7 +1395,6 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     return Column(
       children: [
         _buildHeader(),
-        if (_beaconInterval > 0) _buildBeaconBanner(),
         if (_showMissingChannel) _buildMissingChannelBanner(),
         Expanded(
           child: DragTarget<radio.RadioChannelInfo>(
@@ -1427,45 +1426,24 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     );
   }
 
-  Widget _buildBeaconBanner() {
+  Widget _buildBeaconIcon() {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     final bool isWarning = _beaconOnCurrentChannel;
-    final Color bgColor =
-        isWarning ? scheme.errorContainer : scheme.tertiaryContainer;
-    final Color fgColor =
-        isWarning ? scheme.onErrorContainer : scheme.onTertiaryContainer;
-    final IconData icon =
-        isWarning ? Icons.warning_amber : Icons.info_outline;
-    final String message = isWarning
+    final Color color = isWarning ? scheme.error : scheme.tertiary;
+    final String tooltip = isWarning
         ? l10n.aprsBeaconWarning
         : l10n.aprsBeaconActive(_formatBeaconInterval(_beaconInterval));
 
-    return Container(
-      width: double.infinity,
-      color: bgColor,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: fgColor, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: fgColor, fontSize: 13),
-            ),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () => showEditBeaconSettingsDialog(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: fgColor,
-              foregroundColor: bgColor,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
-            child: Text(AppLocalizations.of(context).aprsBeaconSettings),
-          ),
-        ],
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: () => showEditBeaconSettingsDialog(context),
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(Icons.wifi_tethering, color: color, size: 24),
+        ),
       ),
     );
   }
@@ -1605,6 +1583,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const Spacer(),
+              // Beacon active indicator - opens beacon settings on tap.
+              if (_beaconInterval > 0) _buildBeaconIcon(),
+              if (_beaconInterval > 0) const SizedBox(width: 4),
               // APRS Route dropdown - hide when too narrow or only one route.
               if (showDropdown)
                 Container(

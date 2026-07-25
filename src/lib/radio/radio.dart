@@ -219,6 +219,10 @@ class Radio {
   RadioSettings? settings;
   RadioBssSettings? bssSettings;
   RadioPosition? position;
+  // APRS digipeater route/path used by the radio when it sends beacons, as a
+  // comma-separated string (e.g. "WIDE1-1,WIDE2-1"). Null until the first
+  // GET_APRS_PATH reply has been received.
+  String? aprsPath;
   bool hardwareModemEnabled = true;
 
   String get friendlyName => _friendlyName;
@@ -318,6 +322,18 @@ class Radio {
       deviceId: deviceId,
       name: 'SetBssSettings',
       callback: _onSetBssSettingsEvent,
+    );
+
+    // Subscribe to APRS beacon path (route) read/write requests.
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'GetAprsPath',
+      callback: _onGetAprsPathEvent,
+    );
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'SetAprsPath',
+      callback: _onSetAprsPathEvent,
     );
 
     // Subscribe to lock/unlock events
@@ -628,6 +644,19 @@ class Radio {
     if (devId != deviceId) return;
     if (data is RadioBssSettings) {
       setBssSettings(data);
+    }
+  }
+
+  void _onGetAprsPathEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    getAprsPath();
+  }
+
+  void _onSetAprsPathEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    if (_lockState != null) return;
+    if (data is String) {
+      setAprsPath(data);
     }
   }
 
@@ -989,6 +1018,11 @@ class Radio {
         RadioBasicCommand.readBssSettings,
         null,
       );
+      _sendCommand(
+        RadioCommandGroup.basic,
+        RadioBasicCommand.getAprsPath,
+        null,
+      );
       _requestPowerStatus(RadioPowerStatus.batteryLevelAsPercentage);
     }
 
@@ -1097,6 +1131,7 @@ class Radio {
     _dispatch('Settings', null);
     _dispatch('BssSettings', null);
     _dispatch('Position', null);
+    _dispatch('AprsPath', null);
     _dispatch('AllChannelsLoaded', false);
     _dispatch('GpsEnabled', false);
     _dispatch('LockState', null);
@@ -1113,6 +1148,7 @@ class Radio {
     settings = null;
     bssSettings = null;
     position = null;
+    aprsPath = null;
     _frameAccumulator = null;
     _tncFragmentQueue.clear();
     _tncFragmentInFlight = false;
@@ -1689,6 +1725,27 @@ class Radio {
       RadioBasicCommand.writeBssSettings,
       bss.toByteArray(),
     );
+  }
+
+  /// Requests the APRS beacon path/route from the radio (GET_APRS_PATH). The
+  /// reply is handled by [_handleGetAprsPath] which updates [aprsPath] and
+  /// dispatches the `AprsPath` event.
+  void getAprsPath() {
+    _sendCommand(RadioCommandGroup.basic, RadioBasicCommand.getAprsPath, null);
+  }
+
+  /// Writes the APRS beacon path/route to the radio (SET_APRS_PATH). [path] is
+  /// a comma-separated digipeater path (e.g. "WIDE1-1,WIDE2-1"). The value is
+  /// sent as variable-length UTF-8. The local [aprsPath] cache is updated
+  /// optimistically and re-read after a successful write.
+  void setAprsPath(String path) {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.setAprsPath,
+      RadioUtils.encodeUtf8(path),
+    );
+    aprsPath = path;
+    _dispatch('AprsPath', path);
   }
 
   void getBatteryLevel() => _requestPowerStatus(RadioPowerStatus.batteryLevel);
@@ -2456,6 +2513,16 @@ class Radio {
       case RadioBasicCommand.readBssSettings:
         _handleBssSettings(cmd);
         break;
+      case RadioBasicCommand.getAprsPath:
+        _handleGetAprsPath(cmd);
+        break;
+      case RadioBasicCommand.setAprsPath:
+        // The radio does not notify after an APRS path write, so re-read it to
+        // refresh the cached value. cmd[4] is the status byte (0 = success).
+        if (cmd.length > 4 && cmd[4] == 0) {
+          getAprsPath();
+        }
+        break;
       case RadioBasicCommand.getPosition:
         _handleGetPosition(cmd);
         break;
@@ -2552,6 +2619,11 @@ class Radio {
         _sendCommand(
           RadioCommandGroup.basic,
           RadioBasicCommand.readSettings,
+          null,
+        );
+        _sendCommand(
+          RadioCommandGroup.basic,
+          RadioBasicCommand.getAprsPath,
           null,
         );
       }
@@ -2693,6 +2765,17 @@ class Radio {
     if (bssSettings != null) {
       _dispatch('BssSettings', bssSettings!.toJson());
     }
+  }
+
+  /// Parses a GET_APRS_PATH reply. Layout (full command frame):
+  ///   data[0..3] = vendor + command header
+  ///   data[4]    = reply status (0 = success)
+  ///   data[5..]  = UTF-8 comma-separated digipeater path (null-padded)
+  void _handleGetAprsPath(Uint8List data) {
+    if (data.length < 5) return;
+    if (data[4] != 0) return;
+    aprsPath = RadioUtils.decodeUtf8Trimmed(data, 5, data.length - 5);
+    _dispatch('AprsPath', aprsPath);
   }
 
   void _handleGetPosition(Uint8List data) {

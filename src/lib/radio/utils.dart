@@ -263,4 +263,9 @@ class RadioUtils {
     }
     return result;
   }
+
+  /// Encode string to variable-length UTF-8 bytes (no padding).
+  static Uint8List encodeUtf8(String value) {
+    return Uint8List.fromList(utf8.encode(value));
+  }
 }

@@ -768,6 +768,7 @@
   "beaconCallsignHint": "呼号 - 台站 ID",
   "beaconCallsignInvalid": "输入有效的呼号和台站 ID（例如 W1AW-5）",
   "beaconAprsMessage": "APRS 消息",
+  "beaconAprsPath": "APRS 路由",
   "beaconShareLocation": "共享位置",
   "beaconSendVoltage": "发送电压",
   "beaconAllowPositionCheck": "允许位置检查",

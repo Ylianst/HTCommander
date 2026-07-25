@@ -9,6 +9,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../l10n/app_localizations.dart';
+import '../services/data_broker.dart';
+import '../services/data_broker_client.dart';
 import '../utils/map_tile_provider.dart';
 
 /// Shows a dialog with a map permanently centered on [latitude]/[longitude]
@@ -51,9 +53,19 @@ class AprsLocationDialog extends StatefulWidget {
 
 class _AprsLocationDialogState extends State<AprsLocationDialog> {
   final MapController _mapController = MapController();
+  final DataBrokerClient _broker = DataBrokerClient();
   late final TileProvider _tileProvider = mapTileProvider(offline: false);
 
-  static const double _initialZoom = 14.0;
+  static const double _defaultZoom = 14.0;
+
+  /// Zoom level restored from persistent storage (device 0), so the dialog
+  /// reopens at the same zoom the user last left it.
+  late final double _initialZoom =
+      (DataBroker.getValue<int>(0, 'AprsLocationZoom', _defaultZoom.toInt()) ??
+              _defaultZoom.toInt())
+          .toDouble()
+          .clamp(3, 18)
+          .toDouble();
 
   LatLng get _center => LatLng(widget.latitude, widget.longitude);
 
@@ -63,24 +75,39 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
     super.dispose();
   }
 
+  /// Persists the current zoom level so the dialog reopens at the same zoom.
+  void _saveZoom(double zoom) {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'AprsLocationZoom',
+      data: zoom.round(),
+    );
+  }
+
   void _zoomIn() {
     final currentZoom = _mapController.camera.zoom;
     if (currentZoom < 18) {
-      _mapController.move(_center, currentZoom + 1);
+      final newZoom = currentZoom + 1;
+      _mapController.move(_center, newZoom);
+      _saveZoom(newZoom);
     }
   }
 
   void _zoomOut() {
     final currentZoom = _mapController.camera.zoom;
     if (currentZoom > 3) {
-      _mapController.move(_center, currentZoom - 1);
+      final newZoom = currentZoom - 1;
+      _mapController.move(_center, newZoom);
+      _saveZoom(newZoom);
     }
   }
 
   /// Keeps the map permanently centered on the message location: if the user
-  /// pans, snap the center back to the fixed location.
+  /// pans, snap the center back to the fixed location. Also persists the zoom
+  /// level so the dialog reopens where the user left it.
   void _onMapPositionChanged(MapCamera camera, bool hasGesture) {
     if (!hasGesture) return;
+    _saveZoom(camera.zoom);
     final center = camera.center;
     if (center.latitude != widget.latitude ||
         center.longitude != widget.longitude) {

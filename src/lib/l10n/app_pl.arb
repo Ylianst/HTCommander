@@ -768,6 +768,7 @@
   "beaconCallsignHint": "Znak wywoławczy - ID stacji",
   "beaconCallsignInvalid": "Wprowadź prawidłowy znak wywoławczy i ID stacji (np. W1AW-5)",
   "beaconAprsMessage": "Wiadomość APRS",
+  "beaconAprsPath": "Trasa APRS",
   "beaconShareLocation": "Udostępnij lokalizację",
   "beaconSendVoltage": "Wyślij napięcie",
   "beaconAllowPositionCheck": "Zezwól na sprawdzanie pozycji",

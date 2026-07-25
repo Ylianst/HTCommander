@@ -2402,6 +2402,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get beaconAprsMessage => 'APRS 消息';
 
   @override
+  String get beaconAprsPath => 'APRS 路由';
+
+  @override
   String get beaconShareLocation => '共享位置';
 
   @override

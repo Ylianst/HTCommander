@@ -768,6 +768,7 @@
   "beaconCallsignHint": "コールサイン - 局 ID",
   "beaconCallsignInvalid": "有効なコールサインと局 ID を入力してください（例: W1AW-5）",
   "beaconAprsMessage": "APRS メッセージ",
+  "beaconAprsPath": "APRS ルート",
   "beaconShareLocation": "位置を共有",
   "beaconSendVoltage": "電圧を送信",
   "beaconAllowPositionCheck": "位置チェックを許可",

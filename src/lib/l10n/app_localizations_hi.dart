@@ -2467,6 +2467,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get beaconAprsMessage => 'APRS संदेश';
 
   @override
+  String get beaconAprsPath => 'APRS रूट';
+
+  @override
   String get beaconShareLocation => 'स्थान साझा करें';
 
   @override

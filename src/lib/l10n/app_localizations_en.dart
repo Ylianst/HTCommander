@@ -2457,6 +2457,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get beaconAprsMessage => 'APRS Message';
 
   @override
+  String get beaconAprsPath => 'APRS Route';
+
+  @override
   String get beaconShareLocation => 'Should Share Location';
 
   @override

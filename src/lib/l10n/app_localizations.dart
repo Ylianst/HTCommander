@@ -4544,6 +4544,12 @@ abstract class AppLocalizations {
   /// **'APRS Message'**
   String get beaconAprsMessage;
 
+  /// No description provided for @beaconAprsPath.
+  ///
+  /// In en, this message translates to:
+  /// **'APRS Route'**
+  String get beaconAprsPath;
+
   /// No description provided for @beaconShareLocation.
   ///
   /// In en, this message translates to:

@@ -2418,6 +2418,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get beaconAprsMessage => 'APRS メッセージ';
 
   @override
+  String get beaconAprsPath => 'APRS ルート';
+
+  @override
   String get beaconShareLocation => '位置を共有';
 
   @override

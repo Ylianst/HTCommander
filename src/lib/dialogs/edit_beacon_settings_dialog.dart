@@ -57,6 +57,17 @@ const List<int> _intervalSeconds = [
 
 const List<String> _packetFormatLabels = ['BSS', 'APRS'];
 
+/// Common APRS digipeater paths offered in the beacon dialog's route dropdown.
+/// The user may still type any value; these are convenience presets. The first
+/// entry is the radio's default path.
+const List<String> _commonAprsPaths = [
+  'WIDE1-1,WIDE2-1',
+  'WIDE1-1',
+  'WIDE2-1',
+  'WIDE2-2',
+  'WIDE1-1,WIDE2-2',
+];
+
 class EditBeaconSettingsDialog extends StatefulWidget {
   const EditBeaconSettingsDialog({super.key});
 
@@ -71,10 +82,10 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
 
   final TextEditingController _callsignController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _aprsPathController = TextEditingController();
 
   int _selectedDeviceId = -1;
   String _radioName = '';
-
   // Channel dropdown: parallel labels/values (value == auto_share_loc_ch).
   List<String> _channelLabels = [];
   List<int> _channelValues = [];
@@ -89,6 +100,10 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
   // APRS symbol (table identifier + symbol code), e.g. '/' + '-' (house).
   String _symbolTable = '/';
   String _symbolCode = '-';
+
+  // APRS beacon path/route as last read from the radio. Used to detect whether
+  // the field was changed so it is only written back when different.
+  String _originalAprsPath = '';
 
   bool _controlsEnabled = false;
   bool _callsignValid = false;
@@ -121,6 +136,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
     _callsignController.removeListener(_onCallsignChanged);
     _callsignController.dispose();
     _messageController.dispose();
+    _aprsPathController.dispose();
     _broker.dispose();
     super.dispose();
   }
@@ -208,6 +224,8 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
       final symbol = bss.aprsSymbol;
       _symbolTable = symbol.isNotEmpty ? symbol[0] : '/';
       _symbolCode = symbol.length > 1 ? symbol[1] : '-';
+      _originalAprsPath = radio.aprsPath ?? '';
+      _aprsPathController.text = _originalAprsPath;
     });
     _onCallsignChanged();
   }
@@ -310,6 +328,18 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
       data: newSettings,
       store: false,
     );
+
+    // Write the APRS beacon path/route back to the radio, but only when it was
+    // changed from the value that was read from the radio.
+    final newPath = _aprsPathController.text.trim();
+    if (newPath != _originalAprsPath.trim()) {
+      _broker.dispatch(
+        deviceId: _selectedDeviceId,
+        name: 'SetAprsPath',
+        data: newPath,
+        store: false,
+      );
+    }
 
     // Write auto_share_loc_ch into the radio settings. This is an 8-bit value
     // split across two bytes: the low 5 bits go into byte 5 (bits 4-0, after
@@ -438,6 +468,8 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
           _buildSymbolField(),
           const SizedBox(height: 16),
           _buildMessageField(),
+          const SizedBox(height: 16),
+          _buildPathField(),
           const SizedBox(height: 8),
           _buildCheckbox(
             AppLocalizations.of(context).beaconShareLocation,
@@ -589,6 +621,53 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
         enabled: _controlsEnabled,
         maxLength: 18,
         decoration: _inputDecoration(counterText: ''),
+      ),
+    );
+  }
+
+  Widget _buildPathField() {
+    final scheme = Theme.of(context).colorScheme;
+    return _labeled(
+      AppLocalizations.of(context).beaconAprsPath,
+      TextField(
+        controller: _aprsPathController,
+        enabled: _controlsEnabled,
+        textCapitalization: TextCapitalization.characters,
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9,\- ]')),
+          TextInputFormatter.withFunction(
+            (oldValue, newValue) =>
+                newValue.copyWith(text: newValue.text.toUpperCase()),
+          ),
+        ],
+        decoration: _inputDecoration(hintText: 'WIDE1-1,WIDE2-1').copyWith(
+          suffixIcon: PopupMenuButton<String>(
+            enabled: _controlsEnabled,
+            icon: Icon(
+              Icons.arrow_drop_down,
+              color: _controlsEnabled
+                  ? scheme.onSurfaceVariant
+                  : Theme.of(context).disabledColor,
+            ),
+            tooltip: '',
+            onSelected: (value) {
+              setState(() => _aprsPathController.text = value);
+            },
+            itemBuilder: (context) => [
+              for (final path in _commonAprsPaths)
+                PopupMenuItem<String>(
+                  value: path,
+                  child: Text(
+                    path,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

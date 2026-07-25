@@ -768,6 +768,7 @@
   "beaconCallsignHint": "कॉल साइन - स्टेशन ID",
   "beaconCallsignInvalid": "एक मान्य कॉल साइन और स्टेशन ID दर्ज करें (उदा. W1AW-5)",
   "beaconAprsMessage": "APRS संदेश",
+  "beaconAprsPath": "APRS रूट",
   "beaconShareLocation": "स्थान साझा करें",
   "beaconSendVoltage": "वोल्टेज भेजें",
   "beaconAllowPositionCheck": "स्थिति जाँच की अनुमति दें",

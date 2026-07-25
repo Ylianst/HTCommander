@@ -768,6 +768,7 @@
   "beaconCallsignHint": "Rufzeichen - Stations-ID",
   "beaconCallsignInvalid": "Geben Sie ein gültiges Rufzeichen und eine gültige Stations-ID ein (z. B. W1AW-5)",
   "beaconAprsMessage": "APRS-Nachricht",
+  "beaconAprsPath": "APRS-Route",
   "beaconShareLocation": "Position teilen",
   "beaconSendVoltage": "Spannung senden",
   "beaconAllowPositionCheck": "Positionsprüfung zulassen",
