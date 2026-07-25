@@ -366,6 +366,14 @@ class EchoLinkManager {
   void _onGoOffline(int deviceId, String name, Object? data) {
     final EchoLinkClient? client = _client;
     if (client == null) return;
+    // Going offline is an explicit user disconnect from the EchoLink server:
+    // forget the channel so it is not auto-reconnected on the next launch.
+    _broker.dispatch(
+      deviceId: 0,
+      name: lastEchoLinkStationKey,
+      data: null,
+      store: true,
+    );
     unawaited(() async {
       try {
         client.disconnect();
