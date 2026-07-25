@@ -26,7 +26,21 @@ typedef PcmFeedCallback = void Function(int remainingFrames);
 /// selection. Unsupported platforms (web) are
 /// no-ops so callers degrade gracefully instead of crashing.
 abstract class PcmPlayer {
-  factory PcmPlayer() {
+  /// Returns a reference-counted handle onto the single process-wide audio
+  /// device.
+  ///
+  /// Both the radio audio path and EchoLink each construct their own
+  /// [PcmPlayer] and independently drive setup / start / feed / release. On
+  /// every desktop platform (and via the global flutter_pcm_sound API on
+  /// mobile) those calls land on ONE shared native output device. The returned
+  /// handle multiplexes all owners onto that single device so it is opened once
+  /// and torn down only when the last owner releases — see
+  /// [_RefCountedPcmPlayer].
+  factory PcmPlayer() => _RefCountedPcmPlayer();
+
+  /// Constructs the real platform-specific player. Exactly one instance is
+  /// created for the whole process (see [_RefCountedPcmPlayer._shared]).
+  static PcmPlayer _createReal() {
     if (!kIsWeb &&
         (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       return _NativeChannelPcmPlayer();
@@ -206,4 +220,170 @@ class _NoopPcmPlayer implements PcmPlayer {
 
   @override
   Future<void> release() async {}
+}
+
+/// Process-wide, reference-counted wrapper around the single real [PcmPlayer].
+///
+/// The radio audio path and EchoLink each construct their own [PcmPlayer], but
+/// there is only one native output device behind them (the desktop plugins share
+/// a single method/event channel; flutter_pcm_sound is a global singleton on
+/// mobile). Previously each owner independently called setup() / release() on
+/// that shared device. Because the native `setup()` first *closes* the device
+/// and frees its in-flight buffers, one owner opening the device while another
+/// was streaming — exactly what happens when the app connects to the radio and
+/// EchoLink at the same time on startup — tore the device out from under the
+/// other owner's buffers, producing an intermittent native access violation.
+///
+/// This wrapper fixes that by giving every owner a lightweight handle onto one
+/// shared real player:
+///  * The device is opened only on the first owner's setup() and closed only
+///    when the last owner releases, so it is never torn down while another owner
+///    is still streaming.
+///  * All setup() / release() / reconfigure bookkeeping is serialized through a
+///    single async queue, so two owners can never race the reference count.
+///  * The device-wide drain callback is fanned out to every active owner.
+///
+/// A later setup() that requests a different format or output device (e.g. the
+/// user changing the radio's output device) reconfigures the shared device in
+/// place — still serialized, so there is no concurrent teardown.
+class _RefCountedPcmPlayer implements PcmPlayer {
+  _RefCountedPcmPlayer();
+
+  // ---- shared state: one real device for the whole process ----
+  static final PcmPlayer _shared = PcmPlayer._createReal();
+  static final Set<_RefCountedPcmPlayer> _owners = <_RefCountedPcmPlayer>{};
+  static int _refCount = 0;
+  static bool _deviceOpen = false;
+  static int? _rate;
+  static int? _channels;
+  static String? _deviceId;
+  static int? _threshold;
+  // Serializes async setup() / release() / reconfigure across all owners so the
+  // reference count and device lifecycle are only ever mutated one op at a time.
+  static Future<void> _opQueue = Future<void>.value();
+
+  // ---- per-owner state ----
+  bool _active = false;
+  PcmFeedCallback? _callback;
+
+  /// Chains [action] after any in-flight setup/release so reference-count and
+  /// device-lifecycle mutations never overlap.
+  static Future<void> _serialize(Future<void> Function() action) {
+    final Completer<void> done = Completer<void>();
+    _opQueue = _opQueue.then((_) async {
+      try {
+        await action();
+        done.complete();
+      } catch (e, s) {
+        done.completeError(e, s);
+      }
+    });
+    return done.future;
+  }
+
+  /// Fans the single device-wide drain callback out to every active owner.
+  static void _dispatchFeed(int remaining) {
+    for (final owner in _owners.toList(growable: false)) {
+      owner._callback?.call(remaining);
+    }
+  }
+
+  /// Opens (or, after a release(), re-opens) the shared device with the current
+  /// [_rate] / [_channels] / [_deviceId] and re-installs the drain callback.
+  static Future<void> _openDevice() async {
+    await _shared.setup(
+      sampleRate: _rate ?? 32000,
+      channelCount: _channels ?? 1,
+      deviceId: (_deviceId?.isEmpty ?? true) ? null : _deviceId,
+    );
+    if (_threshold != null) {
+      await _shared.setFeedThreshold(_threshold!);
+    }
+    _shared.setFeedCallback(_dispatchFeed);
+    _shared.start();
+    _deviceOpen = true;
+  }
+
+  @override
+  Future<void> setLogLevelError() => _shared.setLogLevelError();
+
+  @override
+  Future<void> setup({
+    required int sampleRate,
+    required int channelCount,
+    String? deviceId,
+  }) {
+    final String dev = deviceId ?? '';
+    return _serialize(() async {
+      if (!_active) {
+        _active = true;
+        _owners.add(this);
+        _refCount++;
+      }
+      final bool paramsChanged = _deviceOpen &&
+          (_rate != sampleRate ||
+              _channels != channelCount ||
+              (_deviceId ?? '') != dev);
+      _rate = sampleRate;
+      _channels = channelCount;
+      _deviceId = dev;
+      if (!_deviceOpen) {
+        await _openDevice();
+      } else if (paramsChanged) {
+        // A different format / output device was requested; reconfigure the one
+        // shared device in place. Serialized, so no other owner can be tearing
+        // it down at the same time.
+        await _shared.release();
+        _deviceOpen = false;
+        await _openDevice();
+      }
+    });
+  }
+
+  @override
+  Future<void> setFeedThreshold(int frames) async {
+    _threshold = frames;
+    if (_deviceOpen) {
+      await _shared.setFeedThreshold(frames);
+    }
+  }
+
+  @override
+  void setFeedCallback(PcmFeedCallback? callback) {
+    _callback = callback;
+  }
+
+  @override
+  void start() {
+    // The shared device is started as part of opening it in [_openDevice], so a
+    // per-owner start() is a no-op (the device is already playing).
+  }
+
+  @override
+  Future<void> feed(Int16List pcm) {
+    if (!_deviceOpen) return Future<void>.value();
+    return _shared.feed(pcm);
+  }
+
+  @override
+  Future<void> release() {
+    return _serialize(() async {
+      if (!_active) return;
+      _active = false;
+      _owners.remove(this);
+      _callback = null;
+      _refCount--;
+      if (_refCount <= 0) {
+        _refCount = 0;
+        if (_deviceOpen) {
+          await _shared.release();
+          _deviceOpen = false;
+          _rate = null;
+          _channels = null;
+          _deviceId = null;
+          _threshold = null;
+        }
+      }
+    });
+  }
 }
