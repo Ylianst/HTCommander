@@ -128,6 +128,12 @@ How HTCommander packs large datasets into small, fast, self-contained files.
    an offset-free index, epoch-relative dates, state/class/status/city
    dictionaries, numeric ZIPs, and xz) that shrink every record to the bone.
 
+2. **[90,000 Hams North of the Border: Compacting the Canadian Callsign Database](ised-callsign-compaction.md)**
+   How the same `.cdb` format is reused for Canada's ISED amateur data behind a
+   single header flag — and the three encoding changes the Canadian data forced:
+   alphanumeric postal codes packed in alternating bases, qualifications as a
+   bitmask instead of class/status, and dropping expiry dates that never exist.
+
 ---
 
 ## App Architecture

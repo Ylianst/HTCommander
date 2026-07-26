@@ -306,7 +306,11 @@ A few deliberate trade-offs worth naming:
   (alphanumeric callsigns ≤ 8 chars, numeric ZIPs, small state/class/status
   alphabets). Values outside those assumptions degrade gracefully — a non-numeric
   ZIP becomes "none," an unmapped index reads as empty — but this format is not a
-  general-purpose ULS mirror.
+  general-purpose ULS mirror. The same format *does* stretch to other countries
+  with a few targeted encoding changes — see
+  [*Compacting the Canadian Callsign Database*](ised-callsign-compaction.md),
+  which reuses this exact `.cdb` behind a single header flag to handle
+  alphanumeric postal codes, qualification bitmasks, and non-expiring licences.
 - We keep **all** licenses, including expired and cancelled ones. Filtering to
   active-only would be the single largest size cut available, but it's a product
   decision, not an encoding one — so it stays opt-in for now.
@@ -318,5 +322,6 @@ search instantly — 1.6 million hams, offline, in your pocket.
 
 ---
 
-**Related:** [callsign database reader/writer](../../src/lib/callsign/callsign_database.dart) ·
+**Related:** [Compacting the Canadian Callsign Database](ised-callsign-compaction.md) ·
+[callsign database reader/writer](../../src/lib/callsign/callsign_database.dart) ·
 [offline builder](../../src/tools/build_fcc_db.py)
