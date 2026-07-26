@@ -407,7 +407,11 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     );
     if (channels == null) return false;
     for (final channel in channels) {
-      if (channel.name.toUpperCase() == 'APRS') return true;
+      // The APRS channel name must be all-caps "APRS" to match the routing used
+      // throughout the app (radio, modem, decoder, handlers all compare
+      // case-sensitively). A channel named e.g. "aprs" is a misconfiguration:
+      // it will not route any APRS traffic, so it must trigger the warning.
+      if (channel.name == 'APRS') return true;
     }
     return false;
   }
