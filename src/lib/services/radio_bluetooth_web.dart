@@ -15,7 +15,8 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesWeb(
   return _findCompatibleDevicesBle(
     service,
     timeout: timeout,
-    useWebKeywordFilter: true,
+    useServiceScanFilter: true,
+    matchByName: false,
     returnEarlyOnFirstMatch: true,
   );
 }

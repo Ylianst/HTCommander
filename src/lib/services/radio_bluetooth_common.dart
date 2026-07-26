@@ -87,7 +87,8 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesClassic(
 Future<List<DiscoveredDevice>> _findCompatibleDevicesBle(
   BluetoothService service, {
   required Duration timeout,
-  required bool useWebKeywordFilter,
+  required bool useServiceScanFilter,
+  required bool matchByName,
   required bool returnEarlyOnFirstMatch,
 }) async {
   final devices = <DiscoveredDevice>[];
@@ -97,7 +98,7 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesBle(
     await FlutterBluePlus.startScan(
       timeout: timeout,
       androidUsesFineLocation: true,
-      withServices: useWebKeywordFilter ? kRadioBleControlServices : const [],
+      withServices: useServiceScanFilter ? kRadioBleControlServices : const [],
       webOptionalServices: kRadioBleOptionalServices,
     );
 
@@ -109,10 +110,18 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesBle(
         final deviceId = result.device.remoteId.str;
         if (seen.contains(deviceId)) continue;
 
-        final name = result.device.platformName.isNotEmpty
+        final advertisedName = result.device.platformName.isNotEmpty
             ? result.device.platformName
             : result.advertisementData.advName;
 
+        // When scanning with the vendor service-UUID filter, the OS has already
+        // guaranteed every result advertises the radio control service, so a
+        // match can arrive with no advertised name; fall back to a placeholder
+        // rather than dropping it. Without the filter (unfiltered scan, e.g.
+        // iOS) we require a name so we can identify radios by product name.
+        final name = advertisedName.isNotEmpty
+            ? advertisedName
+            : (useServiceScanFilter ? 'Radio' : '');
         if (name.isEmpty) continue;
 
         final device = DiscoveredDevice(
@@ -125,7 +134,15 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesBle(
               .toList(),
         );
 
-        if (device.isCompatibleRadio) {
+        // Trust the OS-level service filter when it is active; otherwise
+        // identify the radio by its advertised service UUIDs, and - where the
+        // control service is not advertised at all (iOS) - by its product name.
+        final isMatch =
+            useServiceScanFilter ||
+            device.isCompatibleRadio ||
+            (matchByName && device.hasRadioName);
+
+        if (isMatch) {
           seen.add(deviceId);
           devices.add(device);
           if (returnEarlyOnFirstMatch) {
@@ -134,8 +151,8 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesBle(
         }
       }
     }
-  } catch (_) {
-    // Ignore BLE scan errors.
+  } catch (e) {
+    service._broker.logError('[BLE] Scan error: $e');
   } finally {
     await FlutterBluePlus.stopScan();
   }

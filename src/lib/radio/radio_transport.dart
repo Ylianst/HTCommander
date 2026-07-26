@@ -64,6 +64,35 @@ class DiscoveredDevice {
     '39144315-32fa-40db-85ed-fbfeba2d86e6',
   ];
 
+  /// Known radio product-name keywords, used as a fallback identifier on
+  /// platforms where the vendor control service UUID is not present in the BLE
+  /// advertisement. iOS/CoreBluetooth does not expose the radio's 128-bit
+  /// control service before connecting (the radio only advertises unrelated
+  /// UUIDs such as `88a1`), so on iOS the advertised device name is the only
+  /// reliable way to spot a compatible radio while scanning. Matched
+  /// case-insensitively as a substring of the advertised name.
+  static const List<String> radioNameKeywords = [
+    'UV-PRO',
+    'UV-50PRO',
+    'GA-5WB',
+    'VR-N75',
+    'VR-N76',
+    'VR-N7500',
+    'VR-N7600',
+    'DB50-B',
+  ];
+
+  /// Whether this device's advertised name matches a known radio product name.
+  ///
+  /// Used only as a fallback where [isCompatibleRadio] (service-UUID matching)
+  /// cannot work because the control service is not advertised (see
+  /// [radioNameKeywords]).
+  bool get hasRadioName {
+    if (name.isEmpty) return false;
+    final upper = name.toUpperCase();
+    return radioNameKeywords.any(upper.contains);
+  }
+
   @override
   String toString() =>
       'DiscoveredDevice($name, $id, $type, uuids=$serviceUuids)';
