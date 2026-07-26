@@ -1214,6 +1214,102 @@ abstract class AppLocalizations {
   /// **'Could not verify the credentials. See the debug log for the server reply.'**
   String get settingsEchoLinkTestInconclusive;
 
+  /// No description provided for @settingsEchoLinkCreateAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a new EchoLink account'**
+  String get settingsEchoLinkCreateAccount;
+
+  /// No description provided for @settingsEchoLinkCreateAccountHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t have an EchoLink account yet? Register your call sign with an email address and a new password.'**
+  String get settingsEchoLinkCreateAccountHelp;
+
+  /// No description provided for @settingsEchoLinkCreateAccountButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Account'**
+  String get settingsEchoLinkCreateAccountButton;
+
+  /// No description provided for @settingsEchoLinkCreateAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create EchoLink Account'**
+  String get settingsEchoLinkCreateAccountTitle;
+
+  /// No description provided for @settingsEchoLinkCreateAccountIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Register {callsign} with EchoLink. After your account is created you must validate your call sign by providing proof of license before you can connect.'**
+  String settingsEchoLinkCreateAccountIntro(String callsign);
+
+  /// No description provided for @settingsEchoLinkEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get settingsEchoLinkEmail;
+
+  /// No description provided for @settingsEchoLinkEmailInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email address.'**
+  String get settingsEchoLinkEmailInvalid;
+
+  /// No description provided for @settingsEchoLinkNewPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'New Password'**
+  String get settingsEchoLinkNewPassword;
+
+  /// No description provided for @settingsEchoLinkConfirmPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Password'**
+  String get settingsEchoLinkConfirmPassword;
+
+  /// No description provided for @settingsEchoLinkPasswordMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match.'**
+  String get settingsEchoLinkPasswordMismatch;
+
+  /// No description provided for @settingsEchoLinkCreating.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating account…'**
+  String get settingsEchoLinkCreating;
+
+  /// No description provided for @settingsEchoLinkAccountCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Account created. Validate your call sign to activate it.'**
+  String get settingsEchoLinkAccountCreated;
+
+  /// No description provided for @settingsEchoLinkAccountAlreadyValid.
+  ///
+  /// In en, this message translates to:
+  /// **'This call sign is already registered and ready to use.'**
+  String get settingsEchoLinkAccountAlreadyValid;
+
+  /// No description provided for @settingsEchoLinkAccountExists.
+  ///
+  /// In en, this message translates to:
+  /// **'This call sign is already registered with a different password. Enter your existing password, or reset it on the EchoLink website.'**
+  String get settingsEchoLinkAccountExists;
+
+  /// No description provided for @settingsEchoLinkValidatePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was created. You now need to validate your call sign by providing proof of license on the EchoLink website. Open it now?'**
+  String get settingsEchoLinkValidatePrompt;
+
+  /// No description provided for @settingsEchoLinkValidateNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Validate Now'**
+  String get settingsEchoLinkValidateNow;
+
   /// No description provided for @settingsServersIntro.
   ///
   /// In en, this message translates to:

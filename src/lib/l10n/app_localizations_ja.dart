@@ -595,6 +595,61 @@ class AppLocalizationsJa extends AppLocalizations {
       '認証情報を確認できませんでした。サーバーの応答についてはデバッグログを参照してください。';
 
   @override
+  String get settingsEchoLinkCreateAccount => '新しい EchoLink アカウントを作成';
+
+  @override
+  String get settingsEchoLinkCreateAccountHelp =>
+      'EchoLink アカウントをまだお持ちではありませんか？メールアドレスと新しいパスワードでコールサインを登録してください。';
+
+  @override
+  String get settingsEchoLinkCreateAccountButton => 'アカウントを作成';
+
+  @override
+  String get settingsEchoLinkCreateAccountTitle => 'EchoLink アカウントの作成';
+
+  @override
+  String settingsEchoLinkCreateAccountIntro(String callsign) {
+    return '$callsign を EchoLink に登録します。アカウント作成後、接続する前にライセンスの証明を提出してコールサインを検証する必要があります。';
+  }
+
+  @override
+  String get settingsEchoLinkEmail => 'メール';
+
+  @override
+  String get settingsEchoLinkEmailInvalid => '有効なメールアドレスを入力してください。';
+
+  @override
+  String get settingsEchoLinkNewPassword => '新しいパスワード';
+
+  @override
+  String get settingsEchoLinkConfirmPassword => 'パスワードの確認';
+
+  @override
+  String get settingsEchoLinkPasswordMismatch => 'パスワードが一致しません。';
+
+  @override
+  String get settingsEchoLinkCreating => 'アカウントを作成しています…';
+
+  @override
+  String get settingsEchoLinkAccountCreated =>
+      'アカウントが作成されました。有効化するにはコールサインを検証してください。';
+
+  @override
+  String get settingsEchoLinkAccountAlreadyValid =>
+      'このコールサインはすでに登録されており、使用できます。';
+
+  @override
+  String get settingsEchoLinkAccountExists =>
+      'このコールサインは別のパスワードですでに登録されています。既存のパスワードを入力するか、EchoLink のウェブサイトでリセットしてください。';
+
+  @override
+  String get settingsEchoLinkValidatePrompt =>
+      'アカウントが作成されました。次に、EchoLink のウェブサイトでライセンスの証明を提出してコールサインを検証する必要があります。今すぐ開きますか？';
+
+  @override
+  String get settingsEchoLinkValidateNow => '今すぐ検証';
+
+  @override
   String get settingsServersIntro => 'ローカルサーバーの設定を行います。';
 
   @override

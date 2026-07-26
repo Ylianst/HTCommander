@@ -612,6 +612,64 @@ class AppLocalizationsFr extends AppLocalizations {
       'Impossible de vérifier les identifiants. Consultez le journal de débogage pour la réponse du serveur.';
 
   @override
+  String get settingsEchoLinkCreateAccount =>
+      'Créer un nouveau compte EchoLink';
+
+  @override
+  String get settingsEchoLinkCreateAccountHelp =>
+      'Vous n\'avez pas encore de compte EchoLink ? Enregistrez votre indicatif avec une adresse e-mail et un nouveau mot de passe.';
+
+  @override
+  String get settingsEchoLinkCreateAccountButton => 'Créer un compte';
+
+  @override
+  String get settingsEchoLinkCreateAccountTitle => 'Créer un compte EchoLink';
+
+  @override
+  String settingsEchoLinkCreateAccountIntro(String callsign) {
+    return 'Enregistrez $callsign auprès d\'EchoLink. Une fois votre compte créé, vous devez valider votre indicatif en fournissant une preuve de licence avant de pouvoir vous connecter.';
+  }
+
+  @override
+  String get settingsEchoLinkEmail => 'E-mail';
+
+  @override
+  String get settingsEchoLinkEmailInvalid =>
+      'Saisissez une adresse e-mail valide.';
+
+  @override
+  String get settingsEchoLinkNewPassword => 'Nouveau mot de passe';
+
+  @override
+  String get settingsEchoLinkConfirmPassword => 'Confirmer le mot de passe';
+
+  @override
+  String get settingsEchoLinkPasswordMismatch =>
+      'Les mots de passe ne correspondent pas.';
+
+  @override
+  String get settingsEchoLinkCreating => 'Création du compte…';
+
+  @override
+  String get settingsEchoLinkAccountCreated =>
+      'Compte créé. Validez votre indicatif pour l\'activer.';
+
+  @override
+  String get settingsEchoLinkAccountAlreadyValid =>
+      'Cet indicatif est déjà enregistré et prêt à l\'emploi.';
+
+  @override
+  String get settingsEchoLinkAccountExists =>
+      'Cet indicatif est déjà enregistré avec un mot de passe différent. Saisissez votre mot de passe existant ou réinitialisez-le sur le site web d\'EchoLink.';
+
+  @override
+  String get settingsEchoLinkValidatePrompt =>
+      'Votre compte a été créé. Vous devez maintenant valider votre indicatif en fournissant une preuve de licence sur le site web d\'EchoLink. L\'ouvrir maintenant ?';
+
+  @override
+  String get settingsEchoLinkValidateNow => 'Valider maintenant';
+
+  @override
   String get settingsServersIntro =>
       'Configurez les paramètres des serveurs locaux.';
 

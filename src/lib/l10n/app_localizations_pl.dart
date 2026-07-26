@@ -609,6 +609,62 @@ class AppLocalizationsPl extends AppLocalizations {
       'Nie można zweryfikować poświadczeń. Sprawdź dziennik debugowania, aby zobaczyć odpowiedź serwera.';
 
   @override
+  String get settingsEchoLinkCreateAccount => 'Utwórz nowe konto EchoLink';
+
+  @override
+  String get settingsEchoLinkCreateAccountHelp =>
+      'Nie masz jeszcze konta EchoLink? Zarejestruj swój znak wywoławczy za pomocą adresu e-mail i nowego hasła.';
+
+  @override
+  String get settingsEchoLinkCreateAccountButton => 'Utwórz konto';
+
+  @override
+  String get settingsEchoLinkCreateAccountTitle => 'Utwórz konto EchoLink';
+
+  @override
+  String settingsEchoLinkCreateAccountIntro(String callsign) {
+    return 'Zarejestruj $callsign w EchoLink. Po utworzeniu konta musisz zweryfikować swój znak wywoławczy, przedstawiając dowód licencji, zanim będziesz mógł się połączyć.';
+  }
+
+  @override
+  String get settingsEchoLinkEmail => 'E-mail';
+
+  @override
+  String get settingsEchoLinkEmailInvalid =>
+      'Wprowadź prawidłowy adres e-mail.';
+
+  @override
+  String get settingsEchoLinkNewPassword => 'Nowe hasło';
+
+  @override
+  String get settingsEchoLinkConfirmPassword => 'Potwierdź hasło';
+
+  @override
+  String get settingsEchoLinkPasswordMismatch => 'Hasła nie są zgodne.';
+
+  @override
+  String get settingsEchoLinkCreating => 'Tworzenie konta…';
+
+  @override
+  String get settingsEchoLinkAccountCreated =>
+      'Konto utworzone. Zweryfikuj swój znak wywoławczy, aby je aktywować.';
+
+  @override
+  String get settingsEchoLinkAccountAlreadyValid =>
+      'Ten znak wywoławczy jest już zarejestrowany i gotowy do użycia.';
+
+  @override
+  String get settingsEchoLinkAccountExists =>
+      'Ten znak wywoławczy jest już zarejestrowany z innym hasłem. Wprowadź istniejące hasło lub zresetuj je na stronie internetowej EchoLink.';
+
+  @override
+  String get settingsEchoLinkValidatePrompt =>
+      'Twoje konto zostało utworzone. Teraz musisz zweryfikować swój znak wywoławczy, przedstawiając dowód licencji na stronie internetowej EchoLink. Otworzyć ją teraz?';
+
+  @override
+  String get settingsEchoLinkValidateNow => 'Zweryfikuj teraz';
+
+  @override
   String get settingsServersIntro =>
       'Skonfiguruj ustawienia serwerów lokalnych.';
 

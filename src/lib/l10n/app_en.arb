@@ -551,6 +551,29 @@
   "settingsEchoLinkTestValidation": "Your call sign is being validated by EchoLink. This can take up to a day.",
   "settingsEchoLinkTestUnreachable": "Could not reach the EchoLink directory server.",
   "settingsEchoLinkTestInconclusive": "Could not verify the credentials. See the debug log for the server reply.",
+  "settingsEchoLinkCreateAccount": "Create a new EchoLink account",
+  "settingsEchoLinkCreateAccountHelp": "Don't have an EchoLink account yet? Register your call sign with an email address and a new password.",
+  "settingsEchoLinkCreateAccountButton": "Create Account",
+  "settingsEchoLinkCreateAccountTitle": "Create EchoLink Account",
+  "settingsEchoLinkCreateAccountIntro": "Register {callsign} with EchoLink. After your account is created you must validate your call sign by providing proof of license before you can connect.",
+  "@settingsEchoLinkCreateAccountIntro": {
+    "placeholders": {
+      "callsign": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsEchoLinkEmail": "Email",
+  "settingsEchoLinkEmailInvalid": "Enter a valid email address.",
+  "settingsEchoLinkNewPassword": "New Password",
+  "settingsEchoLinkConfirmPassword": "Confirm Password",
+  "settingsEchoLinkPasswordMismatch": "Passwords do not match.",
+  "settingsEchoLinkCreating": "Creating account…",
+  "settingsEchoLinkAccountCreated": "Account created. Validate your call sign to activate it.",
+  "settingsEchoLinkAccountAlreadyValid": "This call sign is already registered and ready to use.",
+  "settingsEchoLinkAccountExists": "This call sign is already registered with a different password. Enter your existing password, or reset it on the EchoLink website.",
+  "settingsEchoLinkValidatePrompt": "Your account was created. You now need to validate your call sign by providing proof of license on the EchoLink website. Open it now?",
+  "settingsEchoLinkValidateNow": "Validate Now",
 
   "settingsServersIntro": "Configure local server settings.",
   "settingsLocalServers": "Local Servers",

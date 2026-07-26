@@ -605,6 +605,61 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not verify the credentials. See the debug log for the server reply.';
 
   @override
+  String get settingsEchoLinkCreateAccount => 'Create a new EchoLink account';
+
+  @override
+  String get settingsEchoLinkCreateAccountHelp =>
+      'Don\'t have an EchoLink account yet? Register your call sign with an email address and a new password.';
+
+  @override
+  String get settingsEchoLinkCreateAccountButton => 'Create Account';
+
+  @override
+  String get settingsEchoLinkCreateAccountTitle => 'Create EchoLink Account';
+
+  @override
+  String settingsEchoLinkCreateAccountIntro(String callsign) {
+    return 'Register $callsign with EchoLink. After your account is created you must validate your call sign by providing proof of license before you can connect.';
+  }
+
+  @override
+  String get settingsEchoLinkEmail => 'Email';
+
+  @override
+  String get settingsEchoLinkEmailInvalid => 'Enter a valid email address.';
+
+  @override
+  String get settingsEchoLinkNewPassword => 'New Password';
+
+  @override
+  String get settingsEchoLinkConfirmPassword => 'Confirm Password';
+
+  @override
+  String get settingsEchoLinkPasswordMismatch => 'Passwords do not match.';
+
+  @override
+  String get settingsEchoLinkCreating => 'Creating account…';
+
+  @override
+  String get settingsEchoLinkAccountCreated =>
+      'Account created. Validate your call sign to activate it.';
+
+  @override
+  String get settingsEchoLinkAccountAlreadyValid =>
+      'This call sign is already registered and ready to use.';
+
+  @override
+  String get settingsEchoLinkAccountExists =>
+      'This call sign is already registered with a different password. Enter your existing password, or reset it on the EchoLink website.';
+
+  @override
+  String get settingsEchoLinkValidatePrompt =>
+      'Your account was created. You now need to validate your call sign by providing proof of license on the EchoLink website. Open it now?';
+
+  @override
+  String get settingsEchoLinkValidateNow => 'Validate Now';
+
+  @override
   String get settingsServersIntro => 'Configure local server settings.';
 
   @override

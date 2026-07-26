@@ -611,6 +611,63 @@ class AppLocalizationsDe extends AppLocalizations {
       'Die Anmeldedaten konnten nicht überprüft werden. Weitere Informationen finden Sie im Debug-Protokoll der Serverantwort.';
 
   @override
+  String get settingsEchoLinkCreateAccount => 'Neues EchoLink-Konto erstellen';
+
+  @override
+  String get settingsEchoLinkCreateAccountHelp =>
+      'Sie haben noch kein EchoLink-Konto? Registrieren Sie Ihr Rufzeichen mit einer E-Mail-Adresse und einem neuen Passwort.';
+
+  @override
+  String get settingsEchoLinkCreateAccountButton => 'Konto erstellen';
+
+  @override
+  String get settingsEchoLinkCreateAccountTitle => 'EchoLink-Konto erstellen';
+
+  @override
+  String settingsEchoLinkCreateAccountIntro(String callsign) {
+    return 'Registrieren Sie $callsign bei EchoLink. Nachdem Ihr Konto erstellt wurde, müssen Sie Ihr Rufzeichen durch einen Lizenznachweis bestätigen, bevor Sie sich verbinden können.';
+  }
+
+  @override
+  String get settingsEchoLinkEmail => 'E-Mail';
+
+  @override
+  String get settingsEchoLinkEmailInvalid =>
+      'Geben Sie eine gültige E-Mail-Adresse ein.';
+
+  @override
+  String get settingsEchoLinkNewPassword => 'Neues Passwort';
+
+  @override
+  String get settingsEchoLinkConfirmPassword => 'Passwort bestätigen';
+
+  @override
+  String get settingsEchoLinkPasswordMismatch =>
+      'Die Passwörter stimmen nicht überein.';
+
+  @override
+  String get settingsEchoLinkCreating => 'Konto wird erstellt…';
+
+  @override
+  String get settingsEchoLinkAccountCreated =>
+      'Konto erstellt. Bestätigen Sie Ihr Rufzeichen, um es zu aktivieren.';
+
+  @override
+  String get settingsEchoLinkAccountAlreadyValid =>
+      'Dieses Rufzeichen ist bereits registriert und einsatzbereit.';
+
+  @override
+  String get settingsEchoLinkAccountExists =>
+      'Dieses Rufzeichen ist bereits mit einem anderen Passwort registriert. Geben Sie Ihr vorhandenes Passwort ein oder setzen Sie es auf der EchoLink-Website zurück.';
+
+  @override
+  String get settingsEchoLinkValidatePrompt =>
+      'Ihr Konto wurde erstellt. Sie müssen nun Ihr Rufzeichen durch einen Lizenznachweis auf der EchoLink-Website bestätigen. Jetzt öffnen?';
+
+  @override
+  String get settingsEchoLinkValidateNow => 'Jetzt bestätigen';
+
+  @override
   String get settingsServersIntro =>
       'Konfigurieren Sie die Einstellungen für lokale Server.';
 

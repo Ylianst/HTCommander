@@ -610,6 +610,64 @@ class AppLocalizationsEs extends AppLocalizations {
       'No se pudieron verificar las credenciales. Consulte el registro de depuración para ver la respuesta del servidor.';
 
   @override
+  String get settingsEchoLinkCreateAccount =>
+      'Crear una nueva cuenta de EchoLink';
+
+  @override
+  String get settingsEchoLinkCreateAccountHelp =>
+      '¿Aún no tiene una cuenta de EchoLink? Registre su indicativo con una dirección de correo electrónico y una nueva contraseña.';
+
+  @override
+  String get settingsEchoLinkCreateAccountButton => 'Crear cuenta';
+
+  @override
+  String get settingsEchoLinkCreateAccountTitle => 'Crear cuenta de EchoLink';
+
+  @override
+  String settingsEchoLinkCreateAccountIntro(String callsign) {
+    return 'Registre $callsign en EchoLink. Una vez creada su cuenta, debe validar su indicativo proporcionando una prueba de licencia antes de poder conectarse.';
+  }
+
+  @override
+  String get settingsEchoLinkEmail => 'Correo electrónico';
+
+  @override
+  String get settingsEchoLinkEmailInvalid =>
+      'Introduzca una dirección de correo electrónico válida.';
+
+  @override
+  String get settingsEchoLinkNewPassword => 'Nueva contraseña';
+
+  @override
+  String get settingsEchoLinkConfirmPassword => 'Confirmar contraseña';
+
+  @override
+  String get settingsEchoLinkPasswordMismatch =>
+      'Las contraseñas no coinciden.';
+
+  @override
+  String get settingsEchoLinkCreating => 'Creando cuenta…';
+
+  @override
+  String get settingsEchoLinkAccountCreated =>
+      'Cuenta creada. Valide su indicativo para activarla.';
+
+  @override
+  String get settingsEchoLinkAccountAlreadyValid =>
+      'Este indicativo ya está registrado y listo para usar.';
+
+  @override
+  String get settingsEchoLinkAccountExists =>
+      'Este indicativo ya está registrado con una contraseña diferente. Introduzca su contraseña actual o restablézcala en el sitio web de EchoLink.';
+
+  @override
+  String get settingsEchoLinkValidatePrompt =>
+      'Su cuenta ha sido creada. Ahora debe validar su indicativo proporcionando una prueba de licencia en el sitio web de EchoLink. ¿Abrirlo ahora?';
+
+  @override
+  String get settingsEchoLinkValidateNow => 'Validar ahora';
+
+  @override
   String get settingsServersIntro =>
       'Configure los ajustes de los servidores locales.';
 

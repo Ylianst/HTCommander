@@ -589,6 +589,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsEchoLinkTestInconclusive => '无法验证凭据。请查看调试日志以获取服务器回复。';
 
   @override
+  String get settingsEchoLinkCreateAccount => '创建新的 EchoLink 账户';
+
+  @override
+  String get settingsEchoLinkCreateAccountHelp =>
+      '还没有 EchoLink 账户？使用电子邮件地址和新密码注册您的呼号。';
+
+  @override
+  String get settingsEchoLinkCreateAccountButton => '创建账户';
+
+  @override
+  String get settingsEchoLinkCreateAccountTitle => '创建 EchoLink 账户';
+
+  @override
+  String settingsEchoLinkCreateAccountIntro(String callsign) {
+    return '在 EchoLink 中注册 $callsign。创建账户后，您必须提供执照证明以验证您的呼号，然后才能连接。';
+  }
+
+  @override
+  String get settingsEchoLinkEmail => '电子邮件';
+
+  @override
+  String get settingsEchoLinkEmailInvalid => '请输入有效的电子邮件地址。';
+
+  @override
+  String get settingsEchoLinkNewPassword => '新密码';
+
+  @override
+  String get settingsEchoLinkConfirmPassword => '确认密码';
+
+  @override
+  String get settingsEchoLinkPasswordMismatch => '密码不匹配。';
+
+  @override
+  String get settingsEchoLinkCreating => '正在创建账户…';
+
+  @override
+  String get settingsEchoLinkAccountCreated => '账户已创建。请验证您的呼号以激活它。';
+
+  @override
+  String get settingsEchoLinkAccountAlreadyValid => '此呼号已注册并可以使用。';
+
+  @override
+  String get settingsEchoLinkAccountExists =>
+      '此呼号已使用其他密码注册。请输入您现有的密码，或在 EchoLink 网站上重置密码。';
+
+  @override
+  String get settingsEchoLinkValidatePrompt =>
+      '您的账户已创建。现在您需要在 EchoLink 网站上提供执照证明以验证您的呼号。立即打开？';
+
+  @override
+  String get settingsEchoLinkValidateNow => '立即验证';
+
+  @override
   String get settingsServersIntro => '配置本地服务器设置。';
 
   @override

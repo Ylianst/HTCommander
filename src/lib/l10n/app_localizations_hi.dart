@@ -609,6 +609,61 @@ class AppLocalizationsHi extends AppLocalizations {
       'क्रेडेंशियल सत्यापित नहीं किए जा सके। सर्वर उत्तर के लिए डिबग लॉग देखें।';
 
   @override
+  String get settingsEchoLinkCreateAccount => 'एक नया EchoLink खाता बनाएँ';
+
+  @override
+  String get settingsEchoLinkCreateAccountHelp =>
+      'अभी तक कोई EchoLink खाता नहीं है? अपने कॉल साइन को ईमेल पते और एक नए पासवर्ड के साथ पंजीकृत करें।';
+
+  @override
+  String get settingsEchoLinkCreateAccountButton => 'खाता बनाएँ';
+
+  @override
+  String get settingsEchoLinkCreateAccountTitle => 'EchoLink खाता बनाएँ';
+
+  @override
+  String settingsEchoLinkCreateAccountIntro(String callsign) {
+    return '$callsign को EchoLink के साथ पंजीकृत करें। आपका खाता बनने के बाद, कनेक्ट करने से पहले आपको लाइसेंस का प्रमाण देकर अपना कॉल साइन सत्यापित करना होगा।';
+  }
+
+  @override
+  String get settingsEchoLinkEmail => 'ईमेल';
+
+  @override
+  String get settingsEchoLinkEmailInvalid => 'एक मान्य ईमेल पता दर्ज करें।';
+
+  @override
+  String get settingsEchoLinkNewPassword => 'नया पासवर्ड';
+
+  @override
+  String get settingsEchoLinkConfirmPassword => 'पासवर्ड की पुष्टि करें';
+
+  @override
+  String get settingsEchoLinkPasswordMismatch => 'पासवर्ड मेल नहीं खाते।';
+
+  @override
+  String get settingsEchoLinkCreating => 'खाता बनाया जा रहा है…';
+
+  @override
+  String get settingsEchoLinkAccountCreated =>
+      'खाता बनाया गया। इसे सक्रिय करने के लिए अपना कॉल साइन सत्यापित करें।';
+
+  @override
+  String get settingsEchoLinkAccountAlreadyValid =>
+      'यह कॉल साइन पहले से पंजीकृत है और उपयोग के लिए तैयार है।';
+
+  @override
+  String get settingsEchoLinkAccountExists =>
+      'यह कॉल साइन पहले से एक अलग पासवर्ड के साथ पंजीकृत है। अपना मौजूदा पासवर्ड दर्ज करें, या इसे EchoLink वेबसाइट पर रीसेट करें।';
+
+  @override
+  String get settingsEchoLinkValidatePrompt =>
+      'आपका खाता बना दिया गया है। अब आपको EchoLink वेबसाइट पर लाइसेंस का प्रमाण देकर अपना कॉल साइन सत्यापित करना होगा। इसे अभी खोलें?';
+
+  @override
+  String get settingsEchoLinkValidateNow => 'अभी सत्यापित करें';
+
+  @override
   String get settingsServersIntro => 'स्थानीय सर्वर सेटिंग्स कॉन्फ़िगर करें।';
 
   @override

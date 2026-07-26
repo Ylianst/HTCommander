@@ -73,6 +73,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   String? _echoLinkState;
   List<StationData> _echoLinkStations = const [];
   StationData? _echoLinkConnected;
+  // Station a connection attempt is currently in progress to. Used to light up
+  // the target tile (as if connected) while connecting, so the user can tap it
+  // again to cancel a pending/slow connection.
+  StationData? _echoLinkPendingConnect;
   bool _echoLinkBusy = false;
   // Up to 30 favorite EchoLink stations shown as channel tiles below the radio.
   List<StationData> _echoLinkFavorites = const [];
@@ -259,6 +263,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       switch (name) {
         case 'State':
           _echoLinkState = data as String?;
+          // The pending-connect target only applies while a connection attempt
+          // is in progress. Clear it once the state settles (connected, back
+          // online, or offline) so the tile stops showing the connecting look.
+          if (_echoLinkState != 'Connecting') {
+            _echoLinkPendingConnect = null;
+          }
           break;
         case 'ConnectedStation':
           _echoLinkConnected = _stationFromMap(data);
@@ -459,6 +469,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _echoLinkState = null;
     _echoLinkStations = const [];
     _echoLinkConnected = null;
+    _echoLinkPendingConnect = null;
     _echoLinkBusy = false;
     _echoLinkRxLevel = 0;
     _echoLinkTransmitting = false;
@@ -1253,6 +1264,13 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   void _connectEchoLinkStation(StationData station) {
+    // Dispatch the connect command FIRST. DataBroker delivery is synchronous
+    // and re-entrant: when switching from another station that is still
+    // connecting (or in a QSO), the manager tears that down first, which
+    // briefly republishes State='Online'. That transient would clear a
+    // pending-connect target set beforehand (see _onEchoLinkEvent), leaving the
+    // tile un-highlighted. Setting the pending target AFTER the dispatch — once
+    // the state has settled on 'Connecting' — makes the highlight reliable.
     _echoLinkDispatch('EchoLinkConnect', data: <String, Object?>{
       'Callsign': station.callsign,
       'Description': station.description,
@@ -1261,6 +1279,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       'Id': station.id,
       'Ip': station.ip,
     });
+    if (!mounted) return;
+    setState(() => _echoLinkPendingConnect = station);
   }
 
   Widget _buildEchoLinkPanel() {
@@ -1431,20 +1451,41 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   /// the "Internet" mode label.
   Widget _buildEchoLinkDisplayPanel() {
     final bool inQso = _echoLinkInQso;
-    // When connected to a channel, VFO A shows the station info in yellow and
-    // VFO B is left blank. When not connected, VFO A shows the EchoLink state
-    // in white.
-    final Color aColor = inQso ? _activeVfoColor : _inactiveColor;
 
-    final String stateText = switch (_echoLinkState) {
-      'Connected' => 'In QSO',
-      'Connecting' => 'Connecting...',
-      'Online' => 'Online',
-      _ => 'Offline',
-    };
+    // When not connected to a station, mirror the physical radio's LCD which
+    // shows a centered "Disconnected" (or "Connecting...") message instead of
+    // the VFO layout.
+    if (!inQso) {
+      final l10n = AppLocalizations.of(context);
+      final String centerText = _echoLinkState == 'Connecting'
+          ? l10n.stateConnecting
+          : l10n.stateDisconnected;
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _displayBgColor,
+          borderRadius: BorderRadius.circular(2),
+        ),
+        child: Center(
+          child: Text(
+            centerText,
+            style: const TextStyle(
+              color: Color(0xFFD3D3D3),
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    // Connected to a station: VFO A shows the station info in yellow and VFO B
+    // is left blank.
+    final Color aColor = _activeVfoColor;
     final StationData? station = _echoLinkConnected;
-    final String aLabel = inQso ? (station?.callsign ?? '') : 'EchoLink';
-    final String aSub = inQso ? (station?.description ?? '') : stateText;
+    final String aLabel = station?.callsign ?? '';
+    final String aSub = station?.description ?? '';
 
     Widget vfoBlock(String label, String sub, Color color) {
       return Column(
@@ -1596,8 +1637,14 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     final bool isConnected = _echoLinkConnected != null &&
         _echoLinkConnected!.callsign.toUpperCase() ==
             favorite.callsign.toUpperCase();
+    // A connection attempt is in progress to this station: light it up as if
+    // connected so the user knows a tap will cancel the pending connection.
+    final bool isConnecting = _echoLinkPendingConnect != null &&
+        _echoLinkPendingConnect!.callsign.toUpperCase() ==
+            favorite.callsign.toUpperCase();
+    final bool highlighted = isConnected || isConnecting;
 
-    final Color dotColor = isConnected
+    final Color dotColor = highlighted
         ? Colors.lightBlueAccent
         : busy
             ? Colors.orange
@@ -1605,14 +1652,16 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                 ? Colors.green
                 : palette.border;
 
-    final Color bgColor = isConnected ? palette.selected : palette.base;
+    final Color bgColor = highlighted ? palette.selected : palette.base;
     final String description = favorite.description.isNotEmpty
         ? favorite.description
         : (live?.description ?? '');
 
     void onTap() {
-      if (isConnected) {
+      if (isConnected || isConnecting) {
+        // Disconnect an active QSO, or cancel a connection still in progress.
         _echoLinkDispatch('EchoLinkDisconnect');
+        setState(() => _echoLinkPendingConnect = null);
       } else if ((online || busy) && live != null) {
         _connectEchoLinkStation(live);
       } else {
@@ -1711,6 +1760,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     final bool isConnected = _echoLinkConnected != null &&
         _echoLinkConnected!.callsign.toUpperCase() ==
             favorite.callsign.toUpperCase();
+    final bool isConnecting = _echoLinkPendingConnect != null &&
+        _echoLinkPendingConnect!.callsign.toUpperCase() ==
+            favorite.callsign.toUpperCase();
     final bool canConnect = live != null &&
         (live.status == StationStatus.online ||
             live.status == StationStatus.busy);
@@ -1722,10 +1774,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         Offset.zero & overlay.size,
       ),
       items: [
-        if (isConnected)
-          const PopupMenuItem<String>(
+        if (isConnected || isConnecting)
+          PopupMenuItem<String>(
             value: 'disconnect',
-            child: Text('Disconnect'),
+            child: Text(isConnecting ? 'Cancel connection' : 'Disconnect'),
           )
         else
           PopupMenuItem<String>(
@@ -1742,6 +1794,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
     if (selected == 'disconnect') {
       _echoLinkDispatch('EchoLinkDisconnect');
+      setState(() => _echoLinkPendingConnect = null);
     } else if (selected == 'connect' && live != null) {
       _connectEchoLinkStation(live);
     } else if (selected == 'remove') {
