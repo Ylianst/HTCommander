@@ -2458,6 +2458,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get beaconAprsPath => 'APRS 路由';
 
   @override
+  String get beaconAprsPathInvalid => '输入一个或两个有效的台站，用逗号分隔（例如 WIDE1-1,WIDE2-1）';
+
+  @override
   String get beaconShareLocation => '共享位置';
 
   @override

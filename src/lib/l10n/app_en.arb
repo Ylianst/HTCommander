@@ -1567,6 +1567,7 @@
   "beaconCallsignInvalid": "Enter a valid callsign and station ID (e.g. W1AW-5)",
   "beaconAprsMessage": "APRS Message",
   "beaconAprsPath": "APRS Route",
+  "beaconAprsPathInvalid": "Enter one or two valid stations separated by a comma (e.g. WIDE1-1,WIDE2-1)",
   "beaconShareLocation": "Should Share Location",
   "beaconSendVoltage": "Send Voltage",
   "beaconAllowPositionCheck": "Allow Position Check",

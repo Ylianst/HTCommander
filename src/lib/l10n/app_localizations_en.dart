@@ -2515,6 +2515,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get beaconAprsPath => 'APRS Route';
 
   @override
+  String get beaconAprsPathInvalid =>
+      'Enter one or two valid stations separated by a comma (e.g. WIDE1-1,WIDE2-1)';
+
+  @override
   String get beaconShareLocation => 'Should Share Location';
 
   @override

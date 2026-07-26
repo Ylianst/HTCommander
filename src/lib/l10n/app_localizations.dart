@@ -4646,6 +4646,12 @@ abstract class AppLocalizations {
   /// **'APRS Route'**
   String get beaconAprsPath;
 
+  /// No description provided for @beaconAprsPathInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter one or two valid stations separated by a comma (e.g. WIDE1-1,WIDE2-1)'**
+  String get beaconAprsPathInvalid;
+
   /// No description provided for @beaconShareLocation.
   ///
   /// In en, this message translates to:

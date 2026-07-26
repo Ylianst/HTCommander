@@ -2543,6 +2543,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get beaconAprsPath => 'Ruta APRS';
 
   @override
+  String get beaconAprsPathInvalid =>
+      'Introduzca una o dos estaciones válidas separadas por una coma (ej. WIDE1-1,WIDE2-1)';
+
+  @override
   String get beaconShareLocation => 'Compartir la ubicación';
 
   @override

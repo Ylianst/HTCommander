@@ -2525,6 +2525,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get beaconAprsPath => 'APRS रूट';
 
   @override
+  String get beaconAprsPathInvalid =>
+      'अल्पविराम से अलग की गई एक या दो मान्य स्टेशन दर्ज करें (उदा. WIDE1-1,WIDE2-1)';
+
+  @override
   String get beaconShareLocation => 'स्थान साझा करें';
 
   @override

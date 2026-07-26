@@ -2476,6 +2476,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get beaconAprsPath => 'APRS ルート';
 
   @override
+  String get beaconAprsPathInvalid =>
+      'カンマで区切って1つまたは2つの有効な局を入力してください（例: WIDE1-1,WIDE2-1）';
+
+  @override
   String get beaconShareLocation => '位置を共有';
 
   @override

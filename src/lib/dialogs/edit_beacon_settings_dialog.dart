@@ -107,6 +107,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
 
   bool _controlsEnabled = false;
   bool _callsignValid = false;
+  bool _aprsPathValid = false;
 
   @override
   void initState() {
@@ -117,6 +118,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
       callback: _onConnectedRadiosChanged,
     );
     _callsignController.addListener(_onCallsignChanged);
+    _aprsPathController.addListener(_onAprsPathChanged);
 
     final deviceId = _resolveCurrentRadioId();
 
@@ -134,6 +136,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
   @override
   void dispose() {
     _callsignController.removeListener(_onCallsignChanged);
+    _aprsPathController.removeListener(_onAprsPathChanged);
     _callsignController.dispose();
     _messageController.dispose();
     _aprsPathController.dispose();
@@ -228,6 +231,7 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
       _aprsPathController.text = _originalAprsPath;
     });
     _onCallsignChanged();
+    _onAprsPathChanged();
   }
 
   /// Builds the channel dropdown options for [radio]. The first entry is the
@@ -276,6 +280,24 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
     setState(() => _callsignValid = valid);
   }
 
+  void _onAprsPathChanged() {
+    setState(() => _aprsPathValid = _isAprsPathValid(_aprsPathController.text));
+  }
+
+  /// Validates the APRS route/path: one, or two comma-separated stations, each
+  /// a valid callsign-SSID (e.g. "WIDE1-1" or "WIDE1-1,WIDE2-1"). This guards
+  /// against sending a route the radio cannot make sense of.
+  bool _isAprsPathValid(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return false;
+    final parts = trimmed.split(',');
+    if (parts.length > 2) return false;
+    for (final part in parts) {
+      if (AX25Address.parse(part.trim()) == null) return false;
+    }
+    return true;
+  }
+
   /// Beaconing is enabled only when location sharing is on and the interval is
   /// non-zero; this mirrors the APRS tab's beacon banner condition.
   bool get _beaconingEnabled =>
@@ -292,7 +314,10 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
   }
 
   bool get _canSave =>
-      _controlsEnabled && _callsignAcceptable && _selectedDeviceId > 0;
+      _controlsEnabled &&
+      _callsignAcceptable &&
+      _aprsPathValid &&
+      _selectedDeviceId > 0;
 
   void _onSave() {
     final radio = _bluetooth.radioInstance(_selectedDeviceId);
@@ -627,47 +652,69 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
 
   Widget _buildPathField() {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+    final invalid = _controlsEnabled && !_aprsPathValid;
     return _labeled(
-      AppLocalizations.of(context).beaconAprsPath,
-      TextField(
-        controller: _aprsPathController,
-        enabled: _controlsEnabled,
-        textCapitalization: TextCapitalization.characters,
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9,\- ]')),
-          TextInputFormatter.withFunction(
-            (oldValue, newValue) =>
-                newValue.copyWith(text: newValue.text.toUpperCase()),
-          ),
-        ],
-        decoration: _inputDecoration(hintText: 'WIDE1-1,WIDE2-1').copyWith(
-          suffixIcon: PopupMenuButton<String>(
+      l10n.beaconAprsPath,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _aprsPathController,
             enabled: _controlsEnabled,
-            icon: Icon(
-              Icons.arrow_drop_down,
-              color: _controlsEnabled
-                  ? scheme.onSurfaceVariant
-                  : Theme.of(context).disabledColor,
-            ),
-            tooltip: '',
-            onSelected: (value) {
-              setState(() => _aprsPathController.text = value);
-            },
-            itemBuilder: (context) => [
-              for (final path in _commonAprsPaths)
-                PopupMenuItem<String>(
-                  value: path,
-                  child: Text(
-                    path,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
+            textCapitalization: TextCapitalization.characters,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9,\- ]')),
+              TextInputFormatter.withFunction(
+                (oldValue, newValue) =>
+                    newValue.copyWith(text: newValue.text.toUpperCase()),
+              ),
             ],
+            decoration: _inputDecoration(
+              hintText: 'WIDE1-1,WIDE2-1',
+              invalid: invalid,
+            ).copyWith(
+              suffixIcon: PopupMenuButton<String>(
+                enabled: _controlsEnabled,
+                icon: Icon(
+                  Icons.arrow_drop_down,
+                  color: _controlsEnabled
+                      ? scheme.onSurfaceVariant
+                      : Theme.of(context).disabledColor,
+                ),
+                tooltip: '',
+                onSelected: (value) {
+                  setState(() => _aprsPathController.text = value);
+                },
+                itemBuilder: (context) => [
+                  for (final path in _commonAprsPaths)
+                    PopupMenuItem<String>(
+                      value: path,
+                      child: Text(
+                        path,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
-        ),
+          if (invalid)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                l10n.beaconAprsPathInvalid,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.red.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

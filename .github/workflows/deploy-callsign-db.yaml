@@ -1,4 +1,4 @@
-name: Deploy Callsign Database
+name: Deploy Callsign Database (US)
 
 # Rebuilds the offline US amateur callsign database from the FCC ULS weekly
 # amateur dump and publishes it. The large database zip is uploaded as an asset

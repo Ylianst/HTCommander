@@ -2540,6 +2540,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get beaconAprsPath => 'Route APRS';
 
   @override
+  String get beaconAprsPathInvalid =>
+      'Saisissez une ou deux stations valides séparées par une virgule (ex. WIDE1-1,WIDE2-1)';
+
+  @override
   String get beaconShareLocation => 'Partager la position';
 
   @override

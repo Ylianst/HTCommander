@@ -2535,6 +2535,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String get beaconAprsPath => 'Trasa APRS';
 
   @override
+  String get beaconAprsPathInvalid =>
+      'Wprowadź jedną lub dwie prawidłowe stacje oddzielone przecinkiem (np. WIDE1-1,WIDE2-1)';
+
+  @override
   String get beaconShareLocation => 'Udostępnij lokalizację';
 
   @override
