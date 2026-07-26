@@ -3254,7 +3254,19 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cslFieldContinent => 'Continent';
 
   @override
+  String get cslFieldQualifications => 'Qualifications';
+
+  @override
   String get cslUsDetails => 'Détails de la licence américaine';
+
+  @override
+  String get cslCaDetails => 'Canadian License Details';
+
+  @override
+  String get cslSourceUs => 'United States (FCC)';
+
+  @override
+  String get cslSourceCanada => 'Canada (ISED)';
 
   @override
   String get cslSectionTitle => 'Base de données d\'indicatifs';

@@ -69,58 +69,111 @@ class CallsignDbManifest {
   }
 }
 
-/// Manages the offline US amateur callsign database: download, storage, and
-/// lookups. Singleton, initialized once at startup via [instance].`init()`.
+/// A hosted offline callsign database source (country/regulator).
+enum CallsignDbSource {
+  /// United States — FCC ULS amateur license data.
+  us(
+    id: 'us',
+    manifestUrl:
+        'https://ylianst.github.io/HTCommander/callsign/fcc_amateur_manifest.json',
+    fileName: 'fcc_amateur.cdb',
+    keyPrefix: 'CallsignDb',
+  ),
+
+  /// Canada — ISED amateur radio data extract.
+  canada(
+    id: 'ca',
+    manifestUrl:
+        'https://ylianst.github.io/HTCommander/callsign/ised_amateur_manifest.json',
+    fileName: 'ised_amateur.cdb',
+    keyPrefix: 'CallsignDbCa',
+  );
+
+  const CallsignDbSource({
+    required this.id,
+    required this.manifestUrl,
+    required this.fileName,
+    required this.keyPrefix,
+  });
+
+  /// Stable short identifier (`us`, `ca`).
+  final String id;
+
+  /// URL of this source's hosted manifest JSON.
+  final String manifestUrl;
+
+  /// File name the database is stored under in the application support dir.
+  final String fileName;
+
+  /// DataBroker key prefix for this source's persisted metadata. The US prefix
+  /// is kept as `CallsignDb` for backward compatibility with existing installs.
+  final String keyPrefix;
+}
+
+/// A single successful callsign lookup: the matching [record] and the
+/// [source] database it came from.
+class CallsignLookupResult {
+  final CallsignDbSource source;
+  final CallsignRecord record;
+  const CallsignLookupResult(this.source, this.record);
+}
+
+/// Manages the offline US and Canadian amateur callsign databases: download,
+/// storage, and lookups. Singleton, initialized once at startup via
+/// [instance].`init()`.
 ///
-/// The database is a self-hosted compact binary file (see [CallsignDatabase]).
-/// On desktop and mobile it is stored under the application support directory;
-/// the web platform is unsupported (no persistent file system).
+/// Each database is a self-hosted compact binary file (see [CallsignDatabase]).
+/// On desktop and mobile they are stored under the application support
+/// directory; the web platform is unsupported (no persistent file system).
 class CallsignLookupService {
   CallsignLookupService._();
 
   /// The shared instance.
   static final CallsignLookupService instance = CallsignLookupService._();
 
-  /// URL of the hosted database manifest JSON.
-  static const String manifestUrl =
-      'https://ylianst.github.io/HTCommander/callsign/fcc_amateur_manifest.json';
-
-  /// File name of the stored database.
-  static const String _dbFileName = 'fcc_amateur.cdb';
-
   /// DataBroker device id used for callsign database state.
   static const int deviceId = 0;
 
   final DataBrokerClient _broker = DataBrokerClient();
 
-  CallsignDatabase? _db;
-  String? _filePath;
+  /// Loaded databases, keyed by source. Absent entries are not installed.
+  final Map<CallsignDbSource, CallsignDatabase> _dbs = {};
+
+  /// Resolved on-disk file path per source.
+  final Map<CallsignDbSource, String> _filePaths = {};
+
   bool _initialized = false;
 
   /// Whether offline callsign lookup is supported on this platform.
   bool get isSupported => !kIsWeb;
 
-  /// Whether a database is currently loaded and ready for lookups.
-  bool get isAvailable => _db != null;
+  /// Whether at least one database is loaded and ready for lookups.
+  bool get isAvailable => _dbs.isNotEmpty;
 
-  /// Installed database version, or empty when none is installed.
-  String get installedVersion =>
-      DataBroker.getValue<String>(deviceId, 'CallsignDbVersion', '') ?? '';
+  /// Whether the database for [source] is loaded and ready.
+  bool isSourceAvailable(CallsignDbSource source) => _dbs.containsKey(source);
 
-  /// Number of records in the installed database (0 when none).
-  int get recordCount =>
-      DataBroker.getValue<int>(deviceId, 'CallsignDbRecordCount', 0) ?? 0;
+  /// Installed database version for [source], or empty when not installed.
+  String installedVersion(CallsignDbSource source) =>
+      DataBroker.getValue<String>(deviceId, '${source.keyPrefix}Version', '') ??
+      '';
 
-  /// FCC source date (`YYYYMMDD`) of the installed database (0 when none).
-  int get sourceDate =>
-      DataBroker.getValue<int>(deviceId, 'CallsignDbSourceDate', 0) ?? 0;
+  /// Number of records in the installed [source] database (0 when none).
+  int recordCount(CallsignDbSource source) =>
+      DataBroker.getValue<int>(deviceId, '${source.keyPrefix}RecordCount', 0) ??
+      0;
 
-  /// Size of the installed database on disk in bytes (0 when none).
-  int get sizeBytes =>
-      DataBroker.getValue<int>(deviceId, 'CallsignDbSizeBytes', 0) ?? 0;
+  /// Source date (`YYYYMMDD`) of the installed [source] database (0 when none).
+  int sourceDate(CallsignDbSource source) =>
+      DataBroker.getValue<int>(deviceId, '${source.keyPrefix}SourceDate', 0) ??
+      0;
 
-  /// Resolves the database file, opening it when present. Safe to call once at
-  /// startup; subsequent calls are no-ops.
+  /// Size on disk (bytes) of the installed [source] database (0 when none).
+  int sizeBytes(CallsignDbSource source) =>
+      DataBroker.getValue<int>(deviceId, '${source.keyPrefix}SizeBytes', 0) ?? 0;
+
+  /// Resolves and opens every installed database. Safe to call once at startup;
+  /// subsequent calls are no-ops.
   Future<void> init() async {
     if (_initialized || !isSupported) {
       _initialized = true;
@@ -129,45 +182,52 @@ class CallsignLookupService {
     _initialized = true;
     try {
       final dir = await getApplicationSupportDirectory();
-      _filePath = '${dir.path}${Platform.pathSeparator}$_dbFileName';
-      final file = File(_filePath!);
-      if (await file.exists()) {
-        await _openDatabase();
+      for (final source in CallsignDbSource.values) {
+        final path = '${dir.path}${Platform.pathSeparator}${source.fileName}';
+        _filePaths[source] = path;
+        if (await File(path).exists()) {
+          await _openDatabase(source);
+        }
       }
     } catch (e) {
       debugPrint('CallsignLookupService: init failed: $e');
     }
   }
 
-  Future<void> _openDatabase() async {
-    final path = _filePath;
+  Future<void> _openDatabase(CallsignDbSource source) async {
+    final path = _filePaths[source];
     if (path == null) return;
-    await _db?.close();
-    _db = null;
+    await _dbs.remove(source)?.close();
     try {
-      _db = await CallsignDatabase.open(path);
+      _dbs[source] = await CallsignDatabase.open(path);
     } catch (e) {
-      debugPrint('CallsignLookupService: failed to open database: $e');
-      _db = null;
+      debugPrint('CallsignLookupService: failed to open ${source.id} db: $e');
     }
   }
 
-  /// Looks up [callsign] (SSID ignored). Returns null when no database is
-  /// loaded or the callsign is not found.
-  Future<CallsignRecord?> lookup(String callsign) async {
-    final db = _db;
-    if (db == null || callsign.trim().isEmpty) return null;
-    try {
-      return await db.lookup(callsign);
-    } catch (e) {
-      debugPrint('CallsignLookupService: lookup failed: $e');
-      return null;
+  /// Looks up [callsign] (SSID ignored) across all loaded databases, returning
+  /// the first match with its source. US and Canadian call sign spaces do not
+  /// overlap, so at most one database matches. Returns null when no database is
+  /// loaded or the callsign is not found in any of them.
+  Future<CallsignLookupResult?> lookup(String callsign) async {
+    if (callsign.trim().isEmpty) return null;
+    for (final entry in _dbs.entries) {
+      try {
+        final record = await entry.value.lookup(callsign);
+        if (record != null) {
+          return CallsignLookupResult(entry.key, record);
+        }
+      } catch (e) {
+        debugPrint('CallsignLookupService: lookup failed (${entry.key.id}): $e');
+      }
     }
+    return null;
   }
 
-  /// Fetches the hosted [CallsignDbManifest]. Throws on network / parse errors.
-  Future<CallsignDbManifest> fetchManifest() async {
-    final response = await http.get(Uri.parse(manifestUrl));
+  /// Fetches the hosted [CallsignDbManifest] for [source]. Throws on network /
+  /// parse errors.
+  Future<CallsignDbManifest> fetchManifest(CallsignDbSource source) async {
+    final response = await http.get(Uri.parse(source.manifestUrl));
     if (response.statusCode != 200) {
       throw http.ClientException(
         'Manifest download failed (${response.statusCode})',
@@ -177,11 +237,12 @@ class CallsignLookupService {
     return CallsignDbManifest.fromJson(json);
   }
 
-  /// Downloads and installs the database described by [manifest], replacing any
-  /// existing database. Reports progress via [progress].
+  /// Downloads and installs the [source] database described by [manifest],
+  /// replacing any existing one. Reports progress via [progress].
   ///
   /// Throws on network errors, MD5 mismatch, or an invalid database file.
   Future<void> download(
+    CallsignDbSource source,
     CallsignDbManifest manifest, {
     CallsignDownloadProgress? progress,
   }) async {
@@ -209,7 +270,7 @@ class CallsignLookupService {
     // Validate the database parses before committing it to disk.
     CallsignDatabase.openBytes(dbBytes);
 
-    final path = _filePath ??= await _resolvePath();
+    final path = _filePaths[source] ??= await _resolvePath(source);
     final file = File(path);
     final tmp = File('$path.tmp');
     await tmp.writeAsBytes(dbBytes, flush: true);
@@ -218,27 +279,28 @@ class CallsignLookupService {
     }
     await tmp.rename(path);
 
-    await _openDatabase();
+    await _openDatabase(source);
 
     // Persist metadata for the UI and multi-window sync.
+    final prefix = source.keyPrefix;
     _broker.dispatch(
       deviceId: deviceId,
-      name: 'CallsignDbVersion',
+      name: '${prefix}Version',
       data: manifest.version,
     );
     _broker.dispatch(
       deviceId: deviceId,
-      name: 'CallsignDbRecordCount',
+      name: '${prefix}RecordCount',
       data: manifest.recordCount,
     );
     _broker.dispatch(
       deviceId: deviceId,
-      name: 'CallsignDbSourceDate',
+      name: '${prefix}SourceDate',
       data: manifest.sourceDate,
     );
     _broker.dispatch(
       deviceId: deviceId,
-      name: 'CallsignDbSizeBytes',
+      name: '${prefix}SizeBytes',
       data: dbBytes.length,
     );
     _broker.dispatch(
@@ -249,21 +311,21 @@ class CallsignLookupService {
     );
   }
 
-  /// Deletes the installed database and clears its metadata.
-  Future<void> delete() async {
-    await _db?.close();
-    _db = null;
-    final path = _filePath;
+  /// Deletes the installed [source] database and clears its metadata.
+  Future<void> delete(CallsignDbSource source) async {
+    await _dbs.remove(source)?.close();
+    final path = _filePaths[source];
     if (path != null) {
       final file = File(path);
       if (await file.exists()) {
         await file.delete();
       }
     }
-    DataBroker.removeValue(deviceId, 'CallsignDbVersion');
-    DataBroker.removeValue(deviceId, 'CallsignDbRecordCount');
-    DataBroker.removeValue(deviceId, 'CallsignDbSourceDate');
-    DataBroker.removeValue(deviceId, 'CallsignDbSizeBytes');
+    final prefix = source.keyPrefix;
+    DataBroker.removeValue(deviceId, '${prefix}Version');
+    DataBroker.removeValue(deviceId, '${prefix}RecordCount');
+    DataBroker.removeValue(deviceId, '${prefix}SourceDate');
+    DataBroker.removeValue(deviceId, '${prefix}SizeBytes');
     _broker.dispatch(
       deviceId: deviceId,
       name: 'CallsignDbUpdated',
@@ -272,9 +334,9 @@ class CallsignLookupService {
     );
   }
 
-  Future<String> _resolvePath() async {
+  Future<String> _resolvePath(CallsignDbSource source) async {
     final dir = await getApplicationSupportDirectory();
-    return '${dir.path}${Platform.pathSeparator}$_dbFileName';
+    return '${dir.path}${Platform.pathSeparator}${source.fileName}';
   }
 
   /// Decompresses the downloaded xz (LZMA) stream into the raw database bytes.

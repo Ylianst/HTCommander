@@ -5936,11 +5936,35 @@ abstract class AppLocalizations {
   /// **'Continent'**
   String get cslFieldContinent;
 
+  /// No description provided for @cslFieldQualifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Qualifications'**
+  String get cslFieldQualifications;
+
   /// No description provided for @cslUsDetails.
   ///
   /// In en, this message translates to:
   /// **'US License Details'**
   String get cslUsDetails;
+
+  /// No description provided for @cslCaDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Canadian License Details'**
+  String get cslCaDetails;
+
+  /// No description provided for @cslSourceUs.
+  ///
+  /// In en, this message translates to:
+  /// **'United States (FCC)'**
+  String get cslSourceUs;
+
+  /// No description provided for @cslSourceCanada.
+  ///
+  /// In en, this message translates to:
+  /// **'Canada (ISED)'**
+  String get cslSourceCanada;
 
   /// No description provided for @cslSectionTitle.
   ///

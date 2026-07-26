@@ -3254,7 +3254,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cslFieldContinent => 'Kontinent';
 
   @override
+  String get cslFieldQualifications => 'Qualifications';
+
+  @override
   String get cslUsDetails => 'US-Lizenzdetails';
+
+  @override
+  String get cslCaDetails => 'Canadian License Details';
+
+  @override
+  String get cslSourceUs => 'United States (FCC)';
+
+  @override
+  String get cslSourceCanada => 'Canada (ISED)';
 
   @override
   String get cslSectionTitle => 'Rufzeichen-Datenbank';

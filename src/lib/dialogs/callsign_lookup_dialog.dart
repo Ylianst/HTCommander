@@ -14,8 +14,9 @@ import '../services/callsign_lookup_service.dart';
 
 /// Standalone offline callsign lookup dialog.
 ///
-/// Lets the user type a callsign and view the matching FCC amateur license
-/// details from the offline database. Opened from the Debug tab menu.
+/// Lets the user type a callsign and view the matching amateur license details
+/// from the offline databases (US/FCC and Canada/ISED), and download or update
+/// each database. Opened from the Debug tab menu.
 class CallsignLookupDialog extends StatefulWidget {
   /// Optional callsign to prefill and look up immediately.
   final String? initialCallsign;
@@ -42,14 +43,14 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
   bool _searched = false;
   bool _loading = false;
   String _searchedCallsign = '';
-  CallsignRecord? _record;
+  CallsignLookupResult? _result;
   CountryInfo? _country;
 
-  // Database download / update state.
-  bool _dbBusy = false;
-  double? _dbProgress; // 0..1, or null when indeterminate / installing
-  String? _dbStatusMessage;
-  bool _dbStatusIsError = false;
+  // Per-source database download / update state.
+  final Map<CallsignDbSource, bool> _dbBusy = {};
+  final Map<CallsignDbSource, double?> _dbProgress = {};
+  final Map<CallsignDbSource, String?> _dbStatusMessage = {};
+  final Map<CallsignDbSource, bool> _dbStatusIsError = {};
 
   @override
   void initState() {
@@ -73,50 +74,54 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
       _searched = true;
       _loading = true;
       _searchedCallsign = callsign;
-      _record = null;
+      _result = null;
       // Country resolves instantly from the bundled in-memory table and works
-      // offline on every platform, regardless of the FCC database.
+      // offline on every platform, regardless of the license databases.
       _country = CallsignCountryLookup.instance.lookup(callsign);
     });
-    final record = await CallsignLookupService.instance.lookup(callsign);
+    final result = await CallsignLookupService.instance.lookup(callsign);
     if (!mounted) return;
     setState(() {
-      _record = record;
+      _result = result;
       _loading = false;
     });
   }
 
-  Future<void> _downloadOrUpdate() async {
+  Future<void> _downloadOrUpdate(CallsignDbSource source) async {
     final l10n = AppLocalizations.of(context);
     final service = CallsignLookupService.instance;
     setState(() {
-      _dbBusy = true;
-      _dbProgress = 0;
-      _dbStatusMessage = null;
-      _dbStatusIsError = false;
+      _dbBusy[source] = true;
+      _dbProgress[source] = 0;
+      _dbStatusMessage[source] = null;
+      _dbStatusIsError[source] = false;
     });
     try {
-      final manifest = await service.fetchManifest();
-      if (service.isAvailable && service.installedVersion == manifest.version) {
+      final manifest = await service.fetchManifest(source);
+      if (service.isSourceAvailable(source) &&
+          service.installedVersion(source) == manifest.version) {
         if (!mounted) return;
         setState(() {
-          _dbBusy = false;
-          _dbStatusMessage = l10n.cslUpToDate;
+          _dbBusy[source] = false;
+          _dbStatusMessage[source] = l10n.cslUpToDate;
         });
         return;
       }
       await service.download(
+        source,
         manifest,
         progress: (received, total) {
           if (!mounted) return;
-          setState(() => _dbProgress = total > 0 ? received / total : null);
+          setState(
+            () => _dbProgress[source] = total > 0 ? received / total : null,
+          );
         },
       );
       if (!mounted) return;
       setState(() {
-        _dbBusy = false;
-        _dbProgress = null;
-        _dbStatusMessage = null;
+        _dbBusy[source] = false;
+        _dbProgress[source] = null;
+        _dbStatusMessage[source] = null;
       });
       // Re-run the current query now that data is available.
       if (_searched && _searchedCallsign.isNotEmpty) {
@@ -125,10 +130,10 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _dbBusy = false;
-        _dbProgress = null;
-        _dbStatusMessage = l10n.cslDownloadFailed(e.toString());
-        _dbStatusIsError = true;
+        _dbBusy[source] = false;
+        _dbProgress[source] = null;
+        _dbStatusMessage[source] = l10n.cslDownloadFailed(e.toString());
+        _dbStatusIsError[source] = true;
       });
     }
   }
@@ -192,7 +197,35 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
   Widget _buildDbControls(AppLocalizations l10n, ColorScheme scheme) {
     final service = CallsignLookupService.instance;
     if (!service.isSupported) return const SizedBox.shrink();
-    final installed = service.isAvailable;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final source in CallsignDbSource.values) ...[
+          if (source != CallsignDbSource.values.first)
+            const SizedBox(height: 10),
+          _buildSourceControl(l10n, scheme, source),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSourceControl(
+    AppLocalizations l10n,
+    ColorScheme scheme,
+    CallsignDbSource source,
+  ) {
+    final service = CallsignLookupService.instance;
+    final installed = service.isSourceAvailable(source);
+    final busy = _dbBusy[source] ?? false;
+    final progress = _dbProgress[source];
+    final statusMessage = _dbStatusMessage[source];
+    final statusIsError = _dbStatusIsError[source] ?? false;
+    final label = switch (source) {
+      CallsignDbSource.us => l10n.cslSourceUs,
+      CallsignDbSource.canada => l10n.cslSourceCanada,
+    };
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -201,40 +234,55 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
         Row(
           children: [
             Expanded(
-              child: Text(
-                installed
-                    ? l10n.cslInstalledInfo(
-                        service.installedVersion,
-                        service.recordCount.toString(),
-                      )
-                    : l10n.cslNotInstalled,
-                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    installed
+                        ? l10n.cslInstalledInfo(
+                            service.installedVersion(source),
+                            service.recordCount(source).toString(),
+                          )
+                        : l10n.cslNotInstalled,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 8),
             FilledButton.tonal(
-              onPressed: _dbBusy ? null : _downloadOrUpdate,
+              onPressed: busy ? null : () => _downloadOrUpdate(source),
               child: Text(installed ? l10n.cslUpdate : l10n.cslDownload),
             ),
           ],
         ),
-        if (_dbBusy) ...[
-          const SizedBox(height: 10),
-          LinearProgressIndicator(value: _dbProgress),
+        if (busy) ...[
+          const SizedBox(height: 8),
+          LinearProgressIndicator(value: progress),
           const SizedBox(height: 6),
           Text(
-            _dbProgress != null
-                ? l10n.cslDownloading((_dbProgress! * 100).toStringAsFixed(0))
+            progress != null
+                ? l10n.cslDownloading((progress * 100).toStringAsFixed(0))
                 : l10n.cslInstalling,
             style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
           ),
         ],
-        if (_dbStatusMessage != null) ...[
-          const SizedBox(height: 8),
+        if (statusMessage != null) ...[
+          const SizedBox(height: 6),
           Text(
-            _dbStatusMessage!,
+            statusMessage,
             style: TextStyle(
-              color: _dbStatusIsError ? scheme.error : scheme.onSurfaceVariant,
+              color: statusIsError ? scheme.error : scheme.onSurfaceVariant,
               fontSize: 12,
             ),
           ),
@@ -266,8 +314,8 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
     }
 
     final country = _country;
-    final record = _record;
-    if (country == null && record == null) {
+    final result = _result;
+    if (country == null && result == null) {
       return _message(l10n.cslNotFound(_searchedCallsign), scheme);
     }
 
@@ -285,14 +333,19 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
       }
     }
 
-    // Extra US license details, only when the FCC database provided a record.
-    if (record != null) {
+    // Extra license details, only when a database provided a record. The header
+    // and fields shown depend on which country's database matched.
+    if (result != null) {
+      final heading = switch (result.source) {
+        CallsignDbSource.us => l10n.cslUsDetails,
+        CallsignDbSource.canada => l10n.cslCaDetails,
+      };
       children.add(const Divider(height: 16));
       children.add(
         Padding(
           padding: const EdgeInsets.only(bottom: 2),
           child: Text(
-            l10n.cslUsDetails,
+            heading,
             style: TextStyle(
               color: scheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
@@ -301,7 +354,7 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
           ),
         ),
       );
-      children.addAll(_recordRows(l10n, scheme, record));
+      children.addAll(_recordRows(l10n, scheme, result.source, result.record));
     }
 
     return Column(
@@ -321,15 +374,23 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
   List<Widget> _recordRows(
     AppLocalizations l10n,
     ColorScheme scheme,
+    CallsignDbSource source,
     CallsignRecord r,
   ) {
     final rows = <_Row>[
       if (r.name.isNotEmpty) _Row(l10n.cslFieldName, r.name),
-      if (r.operatorClassName.isNotEmpty)
-        _Row(l10n.cslFieldClass, r.operatorClassName),
-      if (r.statusName.isNotEmpty) _Row(l10n.cslFieldStatus, r.statusName),
+      // US records carry an operator class + license status; Canadian records
+      // carry a set of qualifications and never expire.
+      if (source == CallsignDbSource.us) ...[
+        if (r.operatorClassName.isNotEmpty)
+          _Row(l10n.cslFieldClass, r.operatorClassName),
+        if (r.statusName.isNotEmpty) _Row(l10n.cslFieldStatus, r.statusName),
+      ] else ...[
+        if (r.qualificationsName.isNotEmpty)
+          _Row(l10n.cslFieldQualifications, r.qualificationsName),
+      ],
       if (r.location.isNotEmpty) _Row(l10n.cslFieldLocation, r.location),
-      if (r.expireDateFormatted.isNotEmpty)
+      if (source == CallsignDbSource.us && r.expireDateFormatted.isNotEmpty)
         _Row(l10n.cslFieldExpires, r.expireDateFormatted),
     ];
     return [for (final row in rows) _buildRow(scheme, row)];

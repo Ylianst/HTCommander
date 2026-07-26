@@ -1,0 +1,176 @@
+name: Deploy Callsign Database (Canada)
+
+# Rebuilds the offline Canadian amateur callsign database from the ISED
+# (Innovation, Science and Economic Development Canada) amateur radio data
+# extract and publishes it. This is a SEPARATE workflow from the US/FCC
+# "Deploy Callsign Database" job on purpose: if the ISED source or build ever
+# breaks, it must not affect the US database pipeline. The two share only the
+# GitHub Pages concurrency group so their Pages deploys never overlap.
+#
+# The large database is uploaded as an asset on its own rolling GitHub Release
+# tag (so it never bloats the git history); only the tiny manifest (which points
+# at that asset) is committed under docs/callsign/ and served from GitHub Pages.
+#
+# It only does work when ISED has published newer data: the ISED file's
+# Last-Modified date is compared against the sourceDate of the currently
+# deployed manifest. When they match, the job exits without building or
+# deploying.
+
+on:
+  schedule:
+    # Wednesdays 09:37 UTC. Kept on a different day/time from the US/FCC job so
+    # the two never contend for the shared Pages deploy.
+    - cron: '37 9 * * 3'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Rebuild and deploy even if the ISED data is unchanged'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Share the "pages" concurrency group with the other Pages workflows so the
+# deploys never publish at the same time. A failure here does not affect the
+# separate US/FCC workflow run.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  ISED_URL: https://apc-cap.ic.gc.ca/datafiles/amateur_delim.zip
+  MANIFEST: docs/callsign/ised_amateur_manifest.json
+  # The database is hosted as an asset on this (rolling) release tag, separate
+  # from the US/FCC "callsign-db" tag, so the two never touch each other.
+  RELEASE_TAG: callsign-db-ca
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Determine ISED data date
+        id: ised
+        run: |
+          set -euo pipefail
+          # Read the Last-Modified header of the ISED amateur extract without
+          # downloading the whole file (a 1-byte range request returns headers).
+          headers=$(curl -sSL -r 0-0 -o /dev/null -D - "$ISED_URL" || true)
+          lm=$(printf '%s' "$headers" | tr -d '\r' \
+                | awk -F': ' 'tolower($1)=="last-modified"{print $2}' | tail -n1)
+          if [ -z "$lm" ]; then
+            echo "Could not read the ISED Last-Modified date (service down?)."
+            echo "ised_date=" >> "$GITHUB_OUTPUT"
+          else
+            ised_date=$(date -u -d "$lm" +%Y%m%d)
+            echo "ISED data date: $ised_date (Last-Modified: $lm)"
+            echo "ised_date=$ised_date" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read deployed database date
+        id: current
+        run: |
+          set -euo pipefail
+          if [ -f "$MANIFEST" ]; then
+            cur=$(jq -r '.sourceDate // 0' "$MANIFEST")
+          else
+            cur=0
+          fi
+          echo "Deployed data date: $cur"
+          echo "source_date=$cur" >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether to build
+        id: decide
+        run: |
+          set -euo pipefail
+          force='${{ github.event.inputs.force }}'
+          ised='${{ steps.ised.outputs.ised_date }}'
+          cur='${{ steps.current.outputs.source_date }}'
+          if [ "$force" = "true" ]; then
+            echo "Forced rebuild requested."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$ised" ]; then
+            echo "ISED date unknown; skipping."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          elif [ "$ised" != "$cur" ]; then
+            echo "New ISED data ($ised != $cur); will rebuild."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Database already up to date ($cur); nothing to do."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        if: steps.decide.outputs.build == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Build callsign database
+        if: steps.decide.outputs.build == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p docs/callsign
+          # The manifest URL points at the rolling Release asset (see below),
+          # keeping the large archive out of the git history.
+          python src/tools/build_ised_db.py \
+            --download \
+            --source-date "${{ steps.ised.outputs.ised_date }}" \
+            --out docs/callsign/ised_amateur.cdb \
+            --compress \
+            --base-url "https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/"
+          # The uncompressed database is a build artifact the app never downloads.
+          rm -f docs/callsign/ised_amateur.cdb
+          ls -l docs/callsign
+
+      - name: Publish database to Release
+        if: steps.decide.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Ensure the rolling release exists, then replace its asset.
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --title "Callsign Database (Canada)" \
+              --notes "Offline Canadian amateur callsign database (ISED). Rolling release; the asset is replaced automatically."
+          fi
+          gh release upload "$RELEASE_TAG" docs/callsign/ised_amateur.cdb.xz --clobber
+          # Keep the archive out of the committed docs tree / Pages artifact.
+          rm -f docs/callsign/ised_amateur.cdb.xz
+
+      - name: Commit updated manifest
+        if: steps.decide.outputs.build == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$MANIFEST"
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "callsign-db: update ISED (Canada) data ${{ steps.ised.outputs.ised_date }}"
+            git push
+          fi
+
+      - name: Setup Pages
+        if: steps.decide.outputs.build == 'true'
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        if: steps.decide.outputs.build == 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        if: steps.decide.outputs.build == 'true'
+        uses: actions/deploy-pages@v5

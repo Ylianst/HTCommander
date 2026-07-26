@@ -3231,7 +3231,19 @@ class AppLocalizationsHi extends AppLocalizations {
   String get cslFieldContinent => 'महाद्वीप';
 
   @override
+  String get cslFieldQualifications => 'Qualifications';
+
+  @override
   String get cslUsDetails => 'यूएस लाइसेंस विवरण';
+
+  @override
+  String get cslCaDetails => 'Canadian License Details';
+
+  @override
+  String get cslSourceUs => 'United States (FCC)';
+
+  @override
+  String get cslSourceCanada => 'Canada (ISED)';
 
   @override
   String get cslSectionTitle => 'कॉलसाइन डेटाबेस';
