@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -100,6 +102,107 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
         if (mounted) setState(() => _position = Duration.zero);
       }
       await _player.resume();
+    }
+  }
+
+  /// Prompts the user for a destination and saves the recording to disk.
+  Future<void> _saveAs() async {
+    if (kIsWeb) return;
+    final l10n = AppLocalizations.of(context);
+
+    final sourceFile = File(widget.filePath);
+    if (!await sourceFile.exists()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.commsFileNoLongerExists),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Derive a default file name and extension from the source path.
+    final baseName = widget.filePath.split(Platform.pathSeparator).last;
+    final dotIndex = baseName.lastIndexOf('.');
+    final extension = dotIndex > 0 ? baseName.substring(dotIndex + 1) : '';
+
+    // Web and mobile require the file bytes up front; the picker writes the
+    // file itself. Desktop returns a path that we copy the source to.
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
+    Uint8List? sourceBytes;
+    if (needsBytes) {
+      try {
+        sourceBytes = await sourceFile.readAsBytes();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.errorSavingFile(e.toString())),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    String? outputPath;
+    try {
+      outputPath = await FilePicker.saveFile(
+        dialogTitle: l10n.commsSaveAsTitle,
+        fileName: baseName,
+        type: extension.isNotEmpty ? FileType.custom : FileType.any,
+        allowedExtensions: extension.isNotEmpty ? [extension] : null,
+        bytes: sourceBytes,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.errorOpeningFileDialog(e.toString())),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (outputPath == null) return;
+
+    // On web/mobile the picker already wrote the bytes to the chosen location.
+    if (needsBytes) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.commonSavedTo(outputPath)),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Ensure the chosen path keeps the original extension.
+    if (extension.isNotEmpty &&
+        !outputPath.toLowerCase().endsWith('.${extension.toLowerCase()}')) {
+      outputPath = '$outputPath.$extension';
+    }
+
+    try {
+      await sourceFile.copy(outputPath);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.commonSavedTo(outputPath)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.errorSavingFile(e.toString())),
+          ),
+        );
+      }
     }
   }
 
@@ -212,13 +315,22 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
               ),
             ),
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: DialogStyles.primaryButtonStyle(context),
-                child: Text(l10n.commonClose),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (!kIsWeb)
+                  TextButton.icon(
+                    onPressed: _saveAs,
+                    icon: const Icon(Icons.save_alt),
+                    label: Text(l10n.commsSaveAsMenu),
+                  ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: DialogStyles.primaryButtonStyle(context),
+                  child: Text(l10n.commonClose),
+                ),
+              ],
             ),
           ],
         ),

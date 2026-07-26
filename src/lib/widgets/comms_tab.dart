@@ -1941,6 +1941,25 @@ class _CommsTabState extends State<CommsTab>
     final dotIndex = baseName.lastIndexOf('.');
     final extension = dotIndex > 0 ? baseName.substring(dotIndex + 1) : '';
 
+    // Web and mobile require the file bytes up front; the picker writes the
+    // file itself. Desktop returns a path that we copy the source to.
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
+    Uint8List? sourceBytes;
+    if (needsBytes) {
+      try {
+        sourceBytes = await sourceFile.readAsBytes();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.errorSavingFile(e.toString())),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     String? outputPath;
     try {
       outputPath = await FilePicker.saveFile(
@@ -1948,6 +1967,7 @@ class _CommsTabState extends State<CommsTab>
         fileName: baseName,
         type: extension.isNotEmpty ? FileType.custom : FileType.any,
         allowedExtensions: extension.isNotEmpty ? [extension] : null,
+        bytes: sourceBytes,
       );
     } catch (e) {
       if (mounted) {
@@ -1961,6 +1981,18 @@ class _CommsTabState extends State<CommsTab>
     }
 
     if (outputPath == null) return;
+
+    // On web/mobile the picker already wrote the bytes to the chosen location.
+    if (needsBytes) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.commonSavedTo(outputPath)),
+          ),
+        );
+      }
+      return;
+    }
 
     // Ensure the chosen path keeps the original extension.
     if (extension.isNotEmpty &&
