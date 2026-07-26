@@ -746,6 +746,7 @@
   "commsClearHistoryPrompt": "¿Seguro que desea borrar el historial de voz?",
   "commsAudioMuted": "El audio está silenciado.",
   "commsUnmute": "Reactivar el sonido",
+  "commsDeemphasisWarning": "El desénfasis del canal VFO A está activado y degradará las transferencias de datos.",
   "commsPttTransmitting": "Transmitiendo...",
   "commsPttHold": "PTT - Mantenga pulsado para transmitir",
   "commsDtmfHint": "Introduzca dígitos DTMF (0-9, *, #)...",

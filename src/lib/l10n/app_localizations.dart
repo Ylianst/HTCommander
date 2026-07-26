@@ -4436,6 +4436,12 @@ abstract class AppLocalizations {
   /// **'Un-mute'**
   String get commsUnmute;
 
+  /// No description provided for @commsDeemphasisWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'VFO A channel de-emphasis is on and will degrade data transfers.'**
+  String get commsDeemphasisWarning;
+
   /// No description provided for @commsPttTransmitting.
   ///
   /// In en, this message translates to:

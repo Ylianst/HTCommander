@@ -2427,6 +2427,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get commsUnmute => 'Stummschaltung aufheben';
 
   @override
+  String get commsDeemphasisWarning =>
+      'Die De-Emphasis des VFO-A-Kanals ist aktiviert und beeinträchtigt die Datenübertragung.';
+
+  @override
   String get commsPttTransmitting => 'Übertragung läuft...';
 
   @override

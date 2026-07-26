@@ -15,6 +15,7 @@ import 'chat_widget.dart';
 import '../dialogs/edit_ident_settings_dialog.dart';
 import '../dialogs/image_view_dialog.dart';
 import '../dialogs/message_details_dialog.dart';
+import '../dialogs/radio_channel_dialog.dart';
 import '../dialogs/recording_playback_dialog.dart';
 import '../dialogs/sstv_send_dialog.dart';
 import '../l10n/app_localizations.dart';
@@ -91,6 +92,20 @@ class _CommsTabState extends State<CommsTab>
   /// because software-modem audio is always sent on VFO A and would go out on
   /// the APRS channel. Driven by the radio's 'Settings' (channelA) + 'Channels'.
   bool _isVfoAAprs = false;
+
+  /// The VFO A channel id of the current radio, or -1 when unknown. Used to
+  /// open the channel editor from the de-emphasis warning banner.
+  int _vfoAChannelId = -1;
+
+  /// Whether VFO A of the current radio has FM de-emphasis enabled. De-emphasis
+  /// attenuates the high-frequency audio the software modems (AFSK/PSK/DART)
+  /// depend on, degrading data transfers, so a warning banner is shown while a
+  /// software modem is active in Chat mode.
+  bool _vfoADeemphasis = false;
+
+  /// Current software modem mode from device 0 'SoftwareModemMode'
+  /// ('none'/'afsk1200'/'psk2400'/'dart').
+  String _softwareModemMode = 'none';
 
   /// Whether the radio shown in the Radio Panel is muted. While an SSTV image
   /// is being received the audio is auto-muted; a banner with an Un-mute button
@@ -208,6 +223,13 @@ class _CommsTabState extends State<CommsTab>
       name: 'Channels',
       callback: _onVfoAInfoChanged,
     );
+    // Software modem mode (device 0). The de-emphasis warning banner is only
+    // shown while a software modem (AFSK/PSK/DART) is active.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SoftwareModemMode',
+      callback: _onSoftwareModemModeChanged,
+    );
     // Global voice handler state and history events (device 1).
     _broker.subscribe(
       deviceId: 1,
@@ -285,7 +307,10 @@ class _CommsTabState extends State<CommsTab>
         _broker.getValue<String>(echoLinkDeviceId, 'State') == 'Connected';
     _echoLinkStationInfo =
         _broker.getValue<String>(echoLinkDeviceId, 'StationInfo', '') ?? '';
-    _isVfoAAprs = _readVfoAIsAprs();
+    _softwareModemMode =
+        (_broker.getValue<String>(0, 'SoftwareModemMode', 'none') ?? 'none')
+            .toLowerCase();
+    _updateVfoAInfo();
     _seedLockStates();
     _currentMode = _modeFromName(
       _broker.getValue<String>(0, 'VoiceTransmitMode', null),
@@ -688,7 +713,7 @@ class _CommsTabState extends State<CommsTab>
       _audioEnabled = _readAudioState();
       _isMuted = _readMuteState();
       _sstvAutoMuted = _readSstvAutoMuteState();
-      _isVfoAAprs = _readVfoAIsAprs();
+      _updateVfoAInfo();
     });
     _updatePttMic();
   }
@@ -700,7 +725,7 @@ class _CommsTabState extends State<CommsTab>
       _audioEnabled = _readAudioState();
       _isMuted = _readMuteState();
       _sstvAutoMuted = _readSstvAutoMuteState();
-      _isVfoAAprs = _readVfoAIsAprs();
+      _updateVfoAInfo();
     });
     _updatePttMic();
   }
@@ -738,32 +763,69 @@ class _CommsTabState extends State<CommsTab>
     return ls != null && ls.isLocked;
   }
 
-  /// Whether VFO A of the current radio is the channel named "APRS". Reads the
-  /// radio's 'Settings' (channelA = VFO A channel id) and 'Channels' list.
-  bool _readVfoAIsAprs() {
+  /// Whether to show the de-emphasis warning banner: a software modem
+  /// (AFSK/PSK/DART) is enabled, the tab is in data "Chat" mode, and VFO A of
+  /// the current radio has FM de-emphasis turned on (which degrades data).
+  bool get _showDeemphasisWarning =>
+      _softwareModemMode != 'none' &&
+      _currentMode == VoiceTransmitMode.chat &&
+      _vfoADeemphasis &&
+      _vfoAChannelId >= 0;
+
+  /// Recomputes the VFO A derived state ([_isVfoAAprs], [_vfoADeemphasis] and
+  /// [_vfoAChannelId]) from the current radio's 'Settings' (channelA = VFO A
+  /// channel id) and 'Channels' list.
+  void _updateVfoAInfo() {
     final deviceId = _currentRadioDeviceId;
-    if (deviceId <= 0) return false;
-    final settings = DataBroker.getValueDynamic(deviceId, 'Settings');
-    if (settings is! Map) return false;
-    final channelA = settings['channelA'];
-    if (channelA is! int) return false;
-    final channels = DataBroker.getValueDynamic(deviceId, 'Channels');
-    if (channels is! List) return false;
-    for (final channel in channels) {
-      if (channel is Map && channel['channelId'] == channelA) {
-        return channel['name'] == 'APRS';
+    _vfoAChannelId = -1;
+    bool isAprs = false;
+    bool deemphasis = false;
+    if (deviceId > 0) {
+      final settings = DataBroker.getValueDynamic(deviceId, 'Settings');
+      if (settings is Map && settings['channelA'] is int) {
+        final int channelA = settings['channelA'] as int;
+        _vfoAChannelId = channelA;
+        final channels = DataBroker.getValueDynamic(deviceId, 'Channels');
+        if (channels is List) {
+          for (final channel in channels) {
+            if (channel is Map && channel['channelId'] == channelA) {
+              isAprs = channel['name'] == 'APRS';
+              // De-emphasis is on unless the channel bypasses it.
+              deemphasis = channel['preDeEmphBypass'] != true;
+              break;
+            }
+          }
+        }
       }
     }
-    return false;
+    _isVfoAAprs = isAprs;
+    _vfoADeemphasis = deemphasis;
   }
 
-  /// Recompute [_isVfoAAprs] when the current radio's Settings or Channels
-  /// change (e.g. the user switches VFO A to/from the APRS channel).
+  /// Recompute the VFO A derived state when the current radio's Settings or
+  /// Channels change (e.g. the user switches VFO A to/from the APRS channel or
+  /// toggles de-emphasis on the channel).
   void _onVfoAInfoChanged(int deviceId, String name, Object? data) {
     if (deviceId != _currentRadioDeviceId) return;
-    final v = _readVfoAIsAprs();
-    if (v != _isVfoAAprs && mounted) {
-      setState(() => _isVfoAAprs = v);
+    final bool prevAprs = _isVfoAAprs;
+    final bool prevDeemphasis = _vfoADeemphasis;
+    final int prevChannelId = _vfoAChannelId;
+    _updateVfoAInfo();
+    if (mounted &&
+        (prevAprs != _isVfoAAprs ||
+            prevDeemphasis != _vfoADeemphasis ||
+            prevChannelId != _vfoAChannelId)) {
+      setState(() {});
+    }
+  }
+
+  /// Tracks the active software modem mode so the de-emphasis warning banner
+  /// appears/disappears as the user enables/disables a software modem.
+  void _onSoftwareModemModeChanged(int deviceId, String name, Object? data) {
+    if (data is! String) return;
+    final mode = data.toLowerCase();
+    if (mode != _softwareModemMode && mounted) {
+      setState(() => _softwareModemMode = mode);
     }
   }
 
@@ -2277,6 +2339,7 @@ class _CommsTabState extends State<CommsTab>
         children: [
           _buildHeader(),
           if (_isMuted && _sstvAutoMuted) _buildMuteBanner(),
+          if (_showDeemphasisWarning) _buildDeemphasisBanner(),
           Expanded(
             child: DragTarget<radio.RadioChannelInfo>(
               onWillAcceptWithDetails: (_) => true,
@@ -2373,6 +2436,52 @@ class _CommsTabState extends State<CommsTab>
           ),
         ],
       ),
+    );
+  }
+
+  /// Banner shown above the chat when a software modem (AFSK/PSK/DART) is active
+  /// in Chat mode but VFO A has FM de-emphasis turned on, which attenuates the
+  /// high-frequency audio the data modems rely on. Offers an "Edit..." button
+  /// that opens the VFO A channel editor so de-emphasis can be turned off.
+  Widget _buildDeemphasisBanner() {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      color: scheme.errorContainer,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber, size: 18, color: scheme.onErrorContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              AppLocalizations.of(context).commsDeemphasisWarning,
+              style: TextStyle(fontSize: 14, color: scheme.onErrorContainer),
+            ),
+          ),
+          SizedBox(
+            height: 28,
+            child: ElevatedButton(
+              onPressed: _onEditVfoAChannelPressed,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                textStyle: const TextStyle(fontSize: 12),
+              ),
+              child: Text(AppLocalizations.of(context).commonEditEllipsis),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Opens the channel editor for the current radio's VFO A channel so the user
+  /// can turn de-emphasis off (or otherwise adjust it) directly from the banner.
+  void _onEditVfoAChannelPressed() {
+    if (_currentRadioDeviceId <= 0 || _vfoAChannelId < 0) return;
+    showRadioChannelDialog(
+      context,
+      deviceId: _currentRadioDeviceId,
+      channelId: _vfoAChannelId,
     );
   }
 

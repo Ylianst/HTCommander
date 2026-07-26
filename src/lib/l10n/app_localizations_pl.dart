@@ -2418,6 +2418,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String get commsUnmute => 'Wyłącz wyciszenie';
 
   @override
+  String get commsDeemphasisWarning =>
+      'Deemphasis kanału VFO A jest włączony i pogorszy transfery danych.';
+
+  @override
   String get commsPttTransmitting => 'Trwa transmisja...';
 
   @override

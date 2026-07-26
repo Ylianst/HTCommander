@@ -2399,6 +2399,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commsUnmute => 'Un-mute';
 
   @override
+  String get commsDeemphasisWarning =>
+      'VFO A channel de-emphasis is on and will degrade data transfers.';
+
+  @override
   String get commsPttTransmitting => 'Transmitting...';
 
   @override

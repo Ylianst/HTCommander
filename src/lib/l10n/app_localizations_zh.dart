@@ -2344,6 +2344,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commsUnmute => '取消静音';
 
   @override
+  String get commsDeemphasisWarning => 'VFO A 信道去加重已开启，将降低数据传输质量。';
+
+  @override
   String get commsPttTransmitting => '正在发送...';
 
   @override

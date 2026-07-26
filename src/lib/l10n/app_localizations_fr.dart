@@ -2423,6 +2423,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commsUnmute => 'Réactiver le son';
 
   @override
+  String get commsDeemphasisWarning =>
+      'La désaccentuation du canal VFO A est activée et dégradera les transferts de données.';
+
+  @override
   String get commsPttTransmitting => 'Transmission en cours...';
 
   @override

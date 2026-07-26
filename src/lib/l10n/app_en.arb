@@ -1508,6 +1508,7 @@
   "commsClearHistoryPrompt": "Are you sure you want to clear the voice history?",
   "commsAudioMuted": "Audio is muted.",
   "commsUnmute": "Un-mute",
+  "commsDeemphasisWarning": "VFO A channel de-emphasis is on and will degrade data transfers.",
   "commsPttTransmitting": "Transmitting...",
   "commsPttHold": "PTT - Hold to Transmit",
   "commsDtmfHint": "Enter DTMF digits (0-9, *, #)...",

@@ -2361,6 +2361,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get commsUnmute => 'ミュート解除';
 
   @override
+  String get commsDeemphasisWarning =>
+      'VFO A チャンネルのディエンファシスが有効になっており、データ転送が劣化します。';
+
+  @override
   String get commsPttTransmitting => '送信中...';
 
   @override

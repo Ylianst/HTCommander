@@ -2408,6 +2408,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get commsUnmute => 'अनम्यूट';
 
   @override
+  String get commsDeemphasisWarning =>
+      'VFO A चैनल डीएम्फ़ेसिस चालू है और डेटा स्थानांतरण को खराब करेगा।';
+
+  @override
   String get commsPttTransmitting => 'ट्रांसमिट हो रहा है...';
 
   @override

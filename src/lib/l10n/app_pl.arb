@@ -746,6 +746,7 @@
   "commsClearHistoryPrompt": "Czy na pewno chcesz wyczyścić historię głosową?",
   "commsAudioMuted": "Dźwięk jest wyciszony.",
   "commsUnmute": "Wyłącz wyciszenie",
+  "commsDeemphasisWarning": "Deemphasis kanału VFO A jest włączony i pogorszy transfery danych.",
   "commsPttTransmitting": "Trwa transmisja...",
   "commsPttHold": "PTT - Przytrzymaj, aby nadawać",
   "commsDtmfHint": "Wprowadź cyfry DTMF (0-9, *, #)...",
