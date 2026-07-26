@@ -105,6 +105,19 @@ Connecting HTCommander to the wider ecosystem of tools operators already run.
 
 ---
 
+## Internet Linking
+
+Bringing internet-linked voice into the same app that drives the radio.
+
+1. **[Radio Over the Internet: Adding EchoLink to HTCommander](echolink-support.md)**
+   A full walk through the EchoLink stack in pure Dart — the GSM voice codec, the
+   UDP audio/control ports and TCP directory, the RTCP SDES/BYE handshake that
+   opens a QSO, how voice and chat are wrapped, what callsign suffixes and node
+   numbers mean, a NAT pinhole that quietly eats receive audio, and how to get an
+   account and make your first connection.
+
+---
+
 ## Data & Storage
 
 How HTCommander packs large datasets into small, fast, self-contained files.
