@@ -746,7 +746,6 @@
   "commsClearHistoryPrompt": "音声履歴を本当にクリアしますか？",
   "commsAudioMuted": "オーディオはミュートされています。",
   "commsUnmute": "ミュート解除",
-  "commsDeemphasisWarning": "VFO A チャンネルのディエンファシスが有効になっており、データ転送が劣化します。",
   "commsPttTransmitting": "送信中...",
   "commsPttHold": "PTT - 押している間送信",
   "commsDtmfHint": "DTMF 数字を入力（0-9、*、#）...",

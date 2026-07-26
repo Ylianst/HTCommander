@@ -746,7 +746,6 @@
   "commsClearHistoryPrompt": "Voulez-vous vraiment effacer l'historique vocal ?",
   "commsAudioMuted": "L'audio est en sourdine.",
   "commsUnmute": "Réactiver le son",
-  "commsDeemphasisWarning": "La désaccentuation du canal VFO A est activée et dégradera les transferts de données.",
   "commsPttTransmitting": "Transmission en cours...",
   "commsPttHold": "PTT - Maintenir pour transmettre",
   "commsDtmfHint": "Saisissez des chiffres DTMF (0-9, *, #)...",
